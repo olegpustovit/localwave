@@ -33,20 +33,6 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
     private let playlistSongRepo: PlaylistSongRepository
     private let playerPersistenceService: PlayerPersistenceService?
 
-    //    init(
-    //        playerPersistenceService: PlayerPersistenceService, songRepo: SongRepository,
-    //        playlistRepo: PlaylistRepository,
-    //        playlistSongRepo: PlaylistSongRepository
-    //    ) {
-    //      self.playerPersistenceService = playerPersistenceService
-    //      self.songRepo = songRepo
-    //      super.init()
-    //        setupAudioSession()
-    //        setupRemoteCommands()
-    //        setupInterruptionObserver()
-    //
-    //    }
-
     func reorderQueue(from source: IndexSet, to destination: Int) {
         songs.move(fromOffsets: source, toOffset: destination)
         if let currentSong = currentSong {

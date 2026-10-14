@@ -128,6 +128,8 @@ struct Song: Sendable, Identifiable, Equatable {
     let localFilePath: String? // Path in app's Documents directory
     var fileState: FileState
 
+    let isFavorite: Int64
+    
     func copyWith(_ fp: String, _ st: FileState) -> Song {
         Song(
             id: id,
@@ -145,7 +147,8 @@ struct Song: Sendable, Identifiable, Equatable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             localFilePath: fp,
-            fileState: st
+            fileState: st,
+            isFavorite: isFavorite
         )
     }
 
@@ -166,7 +169,8 @@ struct Song: Sendable, Identifiable, Equatable {
             createdAt: createdAt,
             updatedAt: updatedAt,
             localFilePath: localFilePath,
-            fileState: fileState
+            fileState: fileState,
+            isFavorite: isFavorite
         )
     }
 

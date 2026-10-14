@@ -35,12 +35,21 @@ struct PlaylistDetailView: View {
             } else {
                 List {
                     ForEach(viewModel.songs) { song in
-                        SongRow(song: song) {
-                            if let index = viewModel.songs.firstIndex(of: song) {
-                                playerVM.configureQueue(songs: viewModel.songs, startIndex: index)
-                                playerVM.playSong(song)
-                            }
-                        }
+                        SongRow(song: song,
+                                onPlay: {
+                                    if let index = viewModel.songs.firstIndex(of: song) {
+                                        playerVM.configureQueue(songs: viewModel.songs, startIndex: index)
+                                        playerVM.playSong(song)
+                                    }
+                                },
+                                onDelete: {},
+                                onAddToPlaylist: {},
+                                onEditMetadata: {},
+                                onAddToQueue: {},
+                                onToggleFavorite: { isFavorite in
+                                },
+                                isFavorite: (song.isFavorite != 0),
+                                readonly: true)
                     }
                     .onDelete { offsets in
                         Task { await viewModel.deleteSong(at: offsets) }
