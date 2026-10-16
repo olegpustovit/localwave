@@ -58,7 +58,7 @@ In 2025, Apple still restricts basic MP3 playback unless you pay for services li
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/OlegHQ/localwave.git
+git clone https://github.com/olegpustovit/localwave.git
 ```
 
 2. Open the project in Xcode:
@@ -127,4 +127,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Oleg Pustovit - [@olegpustovit](https://x.com/olegpustovit)
 
-Project Link: [https://github.com/OlegHQ/localwave](https://github.com/OlegHQ/localwave)
+Project Link: [https://github.com/olegpustovit/localwave](https://github.com/olegpustovit/localwave)
