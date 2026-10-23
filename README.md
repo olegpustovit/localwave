@@ -1,130 +1,42 @@
 # LocalWave
 
-![Screenshots](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/frame_source.webp)
+An iOS music player for MP3 files you select from Files or iCloud Drive. Browse your library by artist, album or song, search it, and play tracks without an Apple Music subscription.
 
-LocalWave is an **offline-first** music player for iOS that enables full control of your personal MP3 library without relying on Apple Music or iTunes Match. Built with SwiftUI and structured using a layered MVVM + Actor-based architecture, LocalWave prioritizes offline use and searchability. It was designed out of frustration with Apple's closed ecosystem and lack of decent support for self-hosted MP3 libraries. [Link to the article](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/)
+![LocalWave album library, source-folder import and player](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/frame_source.webp)
 
-## Why LocalWave Exists
+*Existing app screenshots from the [development article](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/). They were not recaptured for this review.*
 
-In 2025, Apple still restricts basic MP3 playback unless you pay for services like Apple Music or iTunes Match. LocalWave was built from scratch as a personal response to these limitations. It allows users to:
+## Build and try it
 
-- Import MP3 files from iCloud or Files app using persistent bookmarks
-- Build and search their own curated music libraries
-- Avoid subscriptions or cloud lock-in
-- Leverage native performance and Swift concurrency for a smooth user experience
+Use a Mac with Xcode 16.2 or newer and the iOS SDK. The app target requires iOS 18.0; the project defaults and unit-test target use iOS 18.2. Choose an iOS 18.2 or newer simulator to use the checked-in test plan. The targets use Swift 5 language mode.
 
-## Features
-
-### 🎵 Music Library Management
-
-- **Artists / Albums / Songs Views**: Browse, sort, and search with artwork and metadata
-- **Full-Text Search (FTS5)**: Search across title, artist, album, and path with SQLite-powered fuzzy matching
-- **Playlists**: Create custom playlists with drag-and-drop reordering
-- **Library Sync**: Import music folders recursively from iCloud using background sync services
-
-### 🎧 Advanced Playback
-
-- **AVFoundation-Based Audio Playback**: Full support for MP3s with lock screen controls
-- **Mini and Full Player UI**: Seamless transitions and persistent playback
-- **Queue Management**: Shuffle, repeat, and reorder tracks
-- **Background Playback**: Continues playing while the app is backgrounded
-
-### 📁 Filesystem and iCloud Sync
-
-- **Persistent File Access via Security-Scoped Bookmarks**: Stores references safely in SQLite
-- **Fallback File Copying**: Copies MP3s into app container while bookmarks are still valid
-- **Multi-source Import**: Add and merge multiple folder trees into a unified library
-
-### 🔍 Full-Text Search Engine
-
-- **Powered by SQLite FTS5**: Fast and lightweight search without any cloud dependencies
-- **BM25 Ranking**: Smart search results prioritization
-- **Async Upserts and Transaction Handling**: Keeps search indexes reliable and performant
-
-### 🧠 Architecture Highlights
-
-- **Swift Actors**: State-safe, concurrency-friendly domain logic
-- **MVVM Layering**: Clear separation between View, ViewModel, Repository, and Domain layers
-- **SQLite with FTS5**: Used instead of CoreData for tighter schema and query control
-
-## Requirements
-
-- iOS 15.0+
-- Xcode 13.0+
-- Swift 5.5+
-
-## Installation
-
-1. Clone the repository:
-
-```bash
+```sh
 git clone https://github.com/olegpustovit/localwave.git
-```
-
-2. Open the project in Xcode:
-
-```bash
 cd localwave
 open localwave.xcodeproj
 ```
 
-3. Build and run the project (⌘R)
+1. Select the shared **musicapp** scheme and an iOS 18.2 or newer simulator. The scheme builds the **localwave** app.
+2. Let Xcode resolve SQLite.swift. For a physical device, select your signing team in the app target.
+3. Choose **Product > Run**.
+4. Open **Sync**, tap **+**, and select a folder containing MP3 files you have permission to use.
+5. Select files or folders in the source browser and tap **Import N items**, where N is the selection count.
+6. Open **Library**, choose a song, and use the mini player or full player to control playback.
 
-## Architecture
+Importing an iCloud source can require a network connection to download its files. Local playback depends on the selected files being available and accessible; this is not a promise that every cloud-backed file works offline.
 
-LocalWave follows a clean-layered MVVM architecture with a backend-style separation of logic:
+## What is in the source
 
-- **Models**: Core types for songs, albums, metadata, and state
-- **Repositories**: Async interfaces over SQLite using raw SQL and SQLite.swift
-- **Actors**: Swift actors encapsulate business rules (search, import, playback queue)
-- **ViewModels**: Subscribe to actors and provide bindable UI state
-- **Views**: SwiftUI-based UI rendering from ViewModel output
-- **Services**: Playback, file access, metadata parsing, remote control handling
+The app includes folder import, metadata and artwork, artist/album/song views, playlists, a playback queue, shuffle/repeat controls and lock-screen remote commands. Background audio is declared in the app's configuration. SQLite FTS5 provides indexed song and path search, with BM25 ranking in song queries.
 
-### Directory Structure
+These are source-backed capabilities, not a fresh device test. Bookmark recovery, iCloud downloads, long-running playback and library changes were not qualified on the Linux review host. No current native build or test pass is claimed.
 
-```
-localwave/
-├── Sources/
-│   ├── Features/
-│   │   ├── Common/
-│   │   ├── Library/
-│   │   ├── Player/
-│   │   └── Sync/
-│   ├── Models/
-│   ├── Repositories/
-│   └── Services/
-└── Tests/
-```
+## Development
 
-### Data Model and FTS Tables
+The app is in [localwave/Sources](localwave/Sources), organized into App, Core, Domain, Data and Features. [CLAUDE.md](CLAUDE.md) maps those layers. The shared scheme uses [localwave.xctestplan](localwave.xctestplan); run **Product > Test** in Xcode. Existing Swift Testing cases are in [localwaveTests/Tests.swift](localwaveTests/Tests.swift).
 
-| Domain            | Actor / Repo                       | FTS Table          | Indexed Columns                           |
-| ----------------- | ---------------------------------- | ------------------ | ----------------------------------------- |
-| Library Songs     | `SQLiteSongRepository`             | `songs_fts`        | `artist`, `title`, `album`, `albumArtist` |
-| File Import Paths | `SQLiteSourcePathSearchRepository` | `source_paths_fts` | `fullPath`, `fileName`                    |
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+Report a reproducible problem in [GitHub issues](https://github.com/olegpustovit/localwave/issues), including your iOS version and whether the source is local or iCloud-backed. Do not attach private music or library data.
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Acknowledgments
-
-- Apple Developer Documentation (AVFoundation, SwiftUI, Combine)
-- `SQLite` and [`SQLite.swift`](https://github.com/stephencelis/SQLite.swift)
-- `AVAudioPlayer` and `MPRemoteCommandCenter`
-- GitHub contributors for open-source ID3 parsing examples
-
-## Contact
-
-Oleg Pustovit - [@olegpustovit](https://x.com/olegpustovit)
-
-Project Link: [https://github.com/olegpustovit/localwave](https://github.com/olegpustovit/localwave)
+[MIT](LICENSE). SQLite.swift and bundled fonts retain their own licenses.
