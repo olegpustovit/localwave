@@ -1,17 +1,19 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-actor SQLitePlaylistRepository: PlaylistRepository {
+public actor SQLitePlaylistRepository: PlaylistRepository {
     private let db: Connection
     private let table = Table("playlists")
     private let colId: SQLite.Expression<Int64>
     private let colName: SQLite.Expression<String>
     private let colCreatedAt: SQLite.Expression<Date>
     private let colUpdatedAt: SQLite.Expression<Date?>
-    private let logger = Logger(subsystem: subsystem, category: "SQLitePlaylistRepository")
+    private let logger = createLogger(subsystem: subsystem, category: "SQLitePlaylistRepository")
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         self.db = db
         // Column definitions
         let colId = SQLite.Expression<Int64>("id")
@@ -33,7 +35,7 @@ actor SQLitePlaylistRepository: PlaylistRepository {
         self.colUpdatedAt = colUpdatedAt
     }
 
-    func create(playlist: Playlist) async throws -> Playlist {
+    public func create(playlist: Playlist) async throws -> Playlist {
         let insert = table.insert(
             colName <- playlist.name,
             colCreatedAt <- playlist.createdAt,
@@ -46,7 +48,7 @@ actor SQLitePlaylistRepository: PlaylistRepository {
         )
     }
 
-    func update(playlist: Playlist) async throws -> Playlist {
+    public func update(playlist: Playlist) async throws -> Playlist {
         guard let playlistId = playlist.id else {
             throw CustomError.genericError("Cannot update playlist without ID")
         }
@@ -66,12 +68,12 @@ actor SQLitePlaylistRepository: PlaylistRepository {
         )
     }
 
-    func delete(playlistId: Int64) async throws {
+    public func delete(playlistId: Int64) async throws {
         let query = table.filter(colId == playlistId)
         try db.run(query.delete())
     }
 
-    func getAll() async throws -> [Playlist] {
+    public func getAll() async throws -> [Playlist] {
         try db.prepare(table).map { row in
             Playlist(
                 id: row[colId],
@@ -82,7 +84,7 @@ actor SQLitePlaylistRepository: PlaylistRepository {
         }
     }
 
-    func getOne(id: Int64) async throws -> Playlist? {
+    public func getOne(id: Int64) async throws -> Playlist? {
         let query = table.filter(colId == id)
         return try db.pluck(query).map { row in
             Playlist(

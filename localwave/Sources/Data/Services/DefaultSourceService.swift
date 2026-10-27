@@ -1,18 +1,20 @@
 import AVFoundation
 import os
+import LocalWaveDomain
+import LocalWaveCore
 
-class DefaultSourceService: SourceService {
-    func importService() -> any SourceImportService {
+public class DefaultSourceService: SourceService {
+    public func importService() -> any SourceImportService {
         return sourceImportService
     }
 
-    let logger = Logger(subsystem: subsystem, category: "SourceService")
+    let logger = createLogger(subsystem: subsystem, category: "SourceService")
 
-    func repository() -> SourceRepository {
+    public func repository() -> SourceRepository {
         return sourceRepo
     }
 
-    func getCurrentSource(userId: Int64) async throws -> Source? {
+    public func getCurrentSource(userId: Int64) async throws -> Source? {
         let sources = try await sourceRepo.findOneByUserId(userId: userId, path: nil)
         if sources.count == 0 {
             return nil
@@ -24,7 +26,7 @@ class DefaultSourceService: SourceService {
         }
     }
 
-    func registerSourcePath(userId: Int64, path: String, type: SourceType) async throws -> Source {
+    public func registerSourcePath(userId: Int64, path: String, type: SourceType) async throws -> Source {
         let source = try await sourceRepo.findOneByUserId(userId: userId, path: path)
         if source.count == 0 {
             logger.debug("no source found, creating new one")
@@ -51,7 +53,7 @@ class DefaultSourceService: SourceService {
         }
     }
 
-    func syncService() -> SourceSyncService {
+    public func syncService() -> SourceSyncService {
         return sourceSyncService
     }
 
@@ -59,7 +61,7 @@ class DefaultSourceService: SourceService {
     private var sourceImportService: SourceImportService
     private var sourceSyncService: SourceSyncService
 
-    init(
+    public init(
         sourceRepo: SourceRepository, sourceSyncService: SourceSyncService,
         sourceImportService: SourceImportService
     ) {

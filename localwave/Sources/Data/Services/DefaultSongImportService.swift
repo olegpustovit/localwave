@@ -1,13 +1,17 @@
 import AVFoundation
 import CryptoKit
 import os
+import LocalWaveDomain
+import LocalWaveCore
+#if canImport(UIKit)
 import UIKit
+#endif
 
 private enum ImageFormat {
     case png
     case jpeg
 
-    var fileExtension: String {
+    public var fileExtension: String {
         switch self {
         case .png: return "png"
         case .jpeg: return "jpg"
@@ -15,22 +19,22 @@ private enum ImageFormat {
     }
 }
 
-actor DefaultSongImportService: SongImportService {
+public actor DefaultSongImportService: SongImportService {
     private var currentImportTask: Task<Void, Error>?
     private var isImporting = false
 
-    func cancelImport() {
+    public func cancelImport() {
         currentImportTask?.cancel()
         releaseSecurityAccess()
     }
 
-    private let logger = Logger(subsystem: subsystem, category: "SongImporter")
+    private let logger = createLogger(subsystem: subsystem, category: "SongImporter")
     private let songRepo: SongRepository
     private let sourcePathRepo: SourcePathRepository
     private let sourceRepo: SourceRepository
     private var activeRootURLs: [Int64: URL] = [:]
 
-    init(
+    public init(
         songRepo: SongRepository,
         sourcePathRepo: SourcePathRepository,
         sourceRepo: SourceRepository
@@ -100,7 +104,7 @@ actor DefaultSongImportService: SongImportService {
         activeRootURLs.removeAll()
     }
 
-    func importPaths(
+    public func importPaths(
         paths: [SourcePath],
         onProgress: ((Double, URL) async -> Void)? = nil
     ) async throws {
@@ -143,7 +147,7 @@ actor DefaultSongImportService: SongImportService {
 
     /// Import all paths, recursively grabbing files from directories.
     /// - parameter onProgress: Called with (percentage from 0..100, currentFileURL).
-    func importImplementation(
+    public func importImplementation(
         paths: [SourcePath],
         onProgress: ((Double, URL) async -> Void)? = nil
     ) async throws {
@@ -291,7 +295,7 @@ actor DefaultSongImportService: SongImportService {
     // MARK: - Read metadata (iOS 16+)
 
     @available(iOS 16.0, *)
-    func readMetadataAVAsset(url: URL) async -> (
+    public func readMetadataAVAsset(url: URL) async -> (
         artist: String, title: String, album: String,
         albumArtist: String, releaseYear: Int?, trackNumber: Int?, discNumber: Int?
     ) {
@@ -425,7 +429,19 @@ actor DefaultSongImportService: SongImportService {
     // MARK: - Validate image data
 
     private func isValidImageData(_ data: Data) -> Bool {
+        #if canImport(UIKit)
         return UIImage(data: data) != nil
+        #else
+        // Simplified validation for non-iOS platforms
+        // Check if data starts with common image format signatures
+        guard data.count >= 4 else { return false }
+        let prefix = data.prefix(4)
+        // PNG signature
+        if prefix.starts(with: [0x89, 0x50, 0x4E, 0x47]) { return true }
+        // JPEG signature
+        if prefix.starts(with: [0xFF, 0xD8, 0xFF]) { return true }
+        return false
+        #endif
     }
 
     // MARK: - Store cover art with format detection
@@ -434,13 +450,23 @@ actor DefaultSongImportService: SongImportService {
         guard let data = data, !data.isEmpty else { return nil }
 
         // Validate image data
-        guard isValidImageData(data), let image = UIImage(data: data) else {
+        guard isValidImageData(data) else {
             logger.error("Invalid image data, skipping cover art")
             return nil
         }
 
-        // Detect image format
+        #if canImport(UIKit)
+        guard let image = UIImage(data: data) else {
+            logger.error("Failed to create UIImage from data")
+            return nil
+        }
+        // Detect image format using UIKit
         let format: ImageFormat = image.pngData() != nil ? .png : .jpeg
+        #else
+        // Detect image format from magic bytes on non-iOS platforms
+        let format: ImageFormat = data.starts(with: [0x89, 0x50, 0x4E, 0x47]) ? .png : .jpeg
+        #endif
+
         let hashString = sha256(data).map { String(format: "%02x", $0) }.joined()
         let filename = "cover-\(hashString).\(format.fileExtension)"
 
@@ -462,12 +488,18 @@ actor DefaultSongImportService: SongImportService {
         let fileURL = coverArtDir.appendingPathComponent(filename)
 
         if !FileManager.default.fileExists(atPath: fileURL.path) {
+            #if canImport(UIKit)
+            // iOS: Use UIImage to potentially re-encode the image
             switch format {
             case .png:
                 try image.pngData()?.write(to: fileURL)
             case .jpeg:
                 try image.jpegData(compressionQuality: 0.8)?.write(to: fileURL)
             }
+            #else
+            // Non-iOS: Write raw data directly (already validated)
+            try data.write(to: fileURL)
+            #endif
         }
 
         return "CoverArt/\(filename)"

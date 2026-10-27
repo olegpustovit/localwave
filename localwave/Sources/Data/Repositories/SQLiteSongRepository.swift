@@ -1,8 +1,10 @@
 import Foundation
 import SQLite
+import LocalWaveDomain
+import LocalWaveCore
 
-actor SQLiteSongRepository: SongRepository {
-    func updateBookmark(songId: Int64, bookmark: Data) async throws {
+public actor SQLiteSongRepository: SongRepository {
+    public func updateBookmark(songId: Int64, bookmark: Data) async throws {
         let query = songsTable.filter(colId == songId)
         try db.run(query.update(colBookmark <- Blob(bytes: [UInt8](bookmark))))
     }
@@ -43,7 +45,7 @@ actor SQLiteSongRepository: SongRepository {
 
     // MARK: - Init
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         self.db = db
 
         // Initialize typed column expressions
@@ -122,7 +124,7 @@ actor SQLiteSongRepository: SongRepository {
         )
     }
 
-    func getSongs(ids: [Int64]) async -> [Song] {
+    public func getSongs(ids: [Int64]) async -> [Song] {
         let query = songsTable.filter(ids.contains(colId))
         let songs = try! db.prepare(query).map { row in
             Song(
@@ -156,7 +158,7 @@ actor SQLiteSongRepository: SongRepository {
         return ids.compactMap { songDict[$0] }
     }
 
-    func getSongByURL(_ url: URL) async -> Song? {
+    public func getSongByURL(_ url: URL) async -> Song? {
         let pathHash = makeURLHash(url)
         let query = songsTable.filter(colPathHash == pathHash)
         return try? db.pluck(query).map { row in
@@ -182,7 +184,7 @@ actor SQLiteSongRepository: SongRepository {
         }
     }
 
-    func totalSongCount(query: String) async throws -> Int {
+    public func totalSongCount(query: String) async throws -> Int {
         if query.isEmpty {
             let countQuery = "SELECT COUNT(*) FROM songs;"
             var count = 0
@@ -213,7 +215,7 @@ actor SQLiteSongRepository: SongRepository {
 
     // MARK: - Upsert
 
-    func upsertSong(_ song: Song) async throws -> Song {
+    public func upsertSong(_ song: Song) async throws -> Song {
         let existingRow = try db.pluck(songsTable.filter(colSongKey == song.songKey))
         let now = Date().timeIntervalSince1970
         if let row = existingRow {
@@ -283,13 +285,13 @@ actor SQLiteSongRepository: SongRepository {
         }
     }
 
-    func deleteSong(songId: Int64) async throws {
+    public func deleteSong(songId: Int64) async throws {
         let query = songsTable.filter(colId == songId)
         try db.run(query.delete())
         try db.run(ftsSongsTable.filter(colFtsSongId == songId).delete())
     }
 
-    func deleteAlbum(album: String, artist: String?) async throws {
+    public func deleteAlbum(album: String, artist: String?) async throws {
         var query = songsTable.filter(colAlbum == album)
         if let artist = artist {
             query = query.filter(colArtist == artist)
@@ -304,7 +306,7 @@ actor SQLiteSongRepository: SongRepository {
 
     // MARK: - FTS Searching
 
-    func searchSongsFTS(query: String, limit: Int, offset: Int) async throws -> [Song] {
+    public func searchSongsFTS(query: String, limit: Int, offset: Int) async throws -> [Song] {
         var results = [Song]()
         let statement: Statement
         let sql: String
@@ -379,14 +381,14 @@ actor SQLiteSongRepository: SongRepository {
         return results
     }
 
-    func getAllArtists() async throws -> [String] {
+    public func getAllArtists() async throws -> [String] {
         let query = songsTable.select(colArtist)
             .filter(colArtist != "")
             .group(colArtist)
         return try db.prepare(query).compactMap { $0[colArtist] }
     }
 
-    func getAllAlbums() async throws -> [Album] {
+    public func getAllAlbums() async throws -> [Album] {
         let query = """
             SELECT album, artist, coverArtPath
             FROM songs AS s1
@@ -409,12 +411,12 @@ actor SQLiteSongRepository: SongRepository {
         return albums
     }
 
-    func getSongsByArtist(_ artist: String) async throws -> [Song] {
+    public func getSongsByArtist(_ artist: String) async throws -> [Song] {
         let query = songsTable.filter(colArtist == artist)
         return try parseSongsFromRows(db.prepare(query))
     }
 
-    func getSongsByAlbum(_ album: String, artist: String?) async throws -> [Song] {
+    public func getSongsByAlbum(_ album: String, artist: String?) async throws -> [Song] {
         var query = songsTable.filter(colAlbum == album)
         if let artist = artist { query = query.filter(colArtist == artist) }
         return try parseSongsFromRows(db.prepare(query))
@@ -447,7 +449,7 @@ actor SQLiteSongRepository: SongRepository {
     }
 
     // NEW: getSongsNeedingCopy - returns songs with fileState of bookmarkOnly or failed  // NEW
-    func getSongsNeedingCopy() async -> [Song] {
+    public func getSongsNeedingCopy() async -> [Song] {
         let query = songsTable.filter(
             colFileState == FileState.bookmarkOnly.rawValue
                 || colFileState == FileState.failed.rawValue) // NEW
@@ -474,7 +476,7 @@ actor SQLiteSongRepository: SongRepository {
     }
 
     // NEW: markSongForCopy - update the song's fileState to copyPending  // NEW
-    func markSongForCopy(songId: Int64) async throws {
+    public func markSongForCopy(songId: Int64) async throws {
         try db.run(
             songsTable.filter(colId == songId).update(
                 colFileState <- FileState.copyPending.rawValue)) // NEW

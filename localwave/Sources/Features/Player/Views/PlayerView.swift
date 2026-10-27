@@ -22,6 +22,14 @@ struct PlayerView: View {
     @State private var showingPlaylistAlert = false
     @State private var playlistName = ""
     @State private var editMode = EditMode.inactive
+    
+    // Helper function to load cover art for a song
+    private func coverArt(of song: Song) -> UIImage? {
+        guard let path = song.coverArtPath else { return nil }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let url = docs.appendingPathComponent(path)
+        return UIImage(contentsOfFile: url.path)
+    }
 
         
     var body: some View {
@@ -130,10 +138,10 @@ struct PlayerView: View {
                             .foregroundColor(.white)
                     }
 
-                    Button(action: {
+                    Button {
                         repeatEnabled.toggle()
                         playerVM.setRepeat(repeatEnabled)
-                    }) {
+                    } label: {
                         Image(systemName: repeatEnabled.iconName)
                             .font(.system(size: 30))
                             .foregroundColor(repeatEnabled.color)

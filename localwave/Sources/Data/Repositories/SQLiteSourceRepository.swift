@@ -1,8 +1,10 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-actor SQLiteSourceRepository: SourceRepository {
+public actor SQLiteSourceRepository: SourceRepository {
     private let db: Connection
     private let table = Table("sources")
 
@@ -19,9 +21,9 @@ actor SQLiteSourceRepository: SourceRepository {
     private var colLastSyncedAt: SQLite.Expression<Date?>
     private var colUpdatedAt: SQLite.Expression<Date?>
 
-    private let logger = Logger(subsystem: subsystem, category: "SQLiteSourceRepository")
+    private let logger = createLogger(subsystem: subsystem, category: "SQLiteSourceRepository")
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         // Existing columns
         let colId = SQLite.Expression<Int64>("id")
         let colDirPath = SQLite.Expression<String>("dirPath")
@@ -66,13 +68,13 @@ actor SQLiteSourceRepository: SourceRepository {
         self.colType = colType
     }
 
-    func deleteSource(sourceId: Int64) async throws {
+    public func deleteSource(sourceId: Int64) async throws {
         let query = table.filter(colId == sourceId)
         try db.run(query.delete())
         logger.debug("Deleted source with ID: \(sourceId)")
     }
 
-    func getOne(id: Int64) async throws -> Source? {
+    public func getOne(id: Int64) async throws -> Source? {
         let query = table.filter(colId == id)
         if let row = try db.pluck(query) {
             return Source(
@@ -92,7 +94,7 @@ actor SQLiteSourceRepository: SourceRepository {
         return nil
     }
 
-    func create(source: Source) async throws -> Source {
+    public func create(source: Source) async throws -> Source {
         // Force explicit type setting (even if nil)
         let insert = table.insert(
             colDirPath <- source.dirPath,
@@ -125,7 +127,7 @@ actor SQLiteSourceRepository: SourceRepository {
         )
     }
 
-    func findOneByUserId(userId: Int64, path: String?) async throws -> [Source] {
+    public func findOneByUserId(userId: Int64, path: String?) async throws -> [Source] {
         var predicate = colUserId == userId
         if let path = path {
             predicate = predicate && colDirPath == path
@@ -148,7 +150,7 @@ actor SQLiteSourceRepository: SourceRepository {
         }
     }
 
-    func updateSource(source: Source) async throws -> Source {
+    public func updateSource(source: Source) async throws -> Source {
         guard let sourceId = source.id else {
             throw NSError(domain: "Invalid source ID", code: 0, userInfo: nil)
         }
@@ -169,7 +171,7 @@ actor SQLiteSourceRepository: SourceRepository {
         return source
     }
 
-    func setCurrentSource(userId: Int64, sourceId: Int64) async throws -> Source {
+    public func setCurrentSource(userId: Int64, sourceId: Int64) async throws -> Source {
         try db.transaction {
             try db.run(table.filter(colUserId == userId).update(colIsCurrent <- false))
             try db.run(table.filter(colId == sourceId).update(colIsCurrent <- true))

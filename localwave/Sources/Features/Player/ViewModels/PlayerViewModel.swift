@@ -7,9 +7,21 @@
 
 import AVFoundation
 import Combine
-import MediaPlayer
 import os
+import LocalWaveDomain
+import LocalWaveCore
+import LocalWaveData
+
+#if canImport(UIKit)
 import SwiftUI
+import UIKit
+#elseif canImport(AppKit)
+import AppKit
+#endif
+
+#if canImport(MediaPlayer)
+import MediaPlayer
+#endif
 
 
 @MainActor
@@ -60,7 +72,7 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
     }
 
     func createPlaylist(name: String) async throws {
-        let newPlaylist = Playlist(id: nil, name: name, createdAt: Date(), updatedAt: nil)
+        let newPlaylist = Playlist(id: nil as Int64?, name: name, createdAt: Date(), updatedAt: nil as Date?)
         let createdPlaylist = try await playlistRepo.create(playlist: newPlaylist)
         guard let playlistId = createdPlaylist.id else { return }
 
@@ -157,15 +169,18 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
     var logger = Logger(subsystem: subsystem, category: "PlayerViewModel")
 
     private func setupAudioSession() {
+        #if canImport(UIKit)
         do {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             logger.error("audio session setup error: \(error)")
         }
+        #endif
     }
 
     private func setupRemoteCommands() {
+        #if canImport(MediaPlayer)
         let commandCenter = MPRemoteCommandCenter.shared()
         commandCenter.playCommand.addTarget { [weak self] _ in
             self?.play()
@@ -204,9 +219,11 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
         commandCenter.togglePlayPauseCommand.isEnabled = true
         commandCenter.previousTrackCommand.isEnabled = true
         commandCenter.changePlaybackPositionCommand.isEnabled = true
+        #endif
     }
 
     func updateNowPlayingInfo() {
+        #if canImport(MediaPlayer)
         guard let song = currentSong, let player = player else { return }
 
         var nowPlayingInfo = [String: Any]()
@@ -217,24 +234,28 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
         nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = player.duration
         nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? player.rate : 0.0
 
-        if let artwork = coverArt(of: song) {
+        if let artwork = loadCoverArt(for: song) {
             let mpArtwork = MPMediaItemArtwork(boundsSize: artwork.size) { _ in artwork }
             nowPlayingInfo[MPMediaItemPropertyArtwork] = mpArtwork
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nowPlayingInfo
+        #endif
     }
 
     private func setupInterruptionObserver() {
+        #if canImport(UIKit)
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(handleInterruption),
             name: AVAudioSession.interruptionNotification,
             object: nil
         )
+        #endif
     }
 
     @objc private func handleInterruption(notification: Notification) {
+        #if canImport(UIKit)
         guard let info = notification.userInfo,
               let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
               let type = AVAudioSession.InterruptionType(rawValue: typeValue)
@@ -250,6 +271,7 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
                 }
             }
         }
+        #endif
     }
 
     private func stopAndPreloadSong(_ song: Song) {
@@ -488,4 +510,14 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
             return nil
         }
     }
+
+    #if canImport(MediaPlayer)
+    // Helper function to load cover art for a song (iOS-specific for Now Playing)
+    private func loadCoverArt(for song: Song) -> UIImage? {
+        guard let path = song.coverArtPath else { return nil }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let url = docs.appendingPathComponent(path)
+        return UIImage(contentsOfFile: url.path)
+    }
+    #endif
 }

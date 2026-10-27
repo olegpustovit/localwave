@@ -1,12 +1,14 @@
 import AVFoundation
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 
-class DefaultUserService: UserService {
-    let logger = Logger(subsystem: subsystem, category: "UserService")
+public class DefaultUserService: UserService {
+    let logger = createLogger(subsystem: subsystem, category: "UserService")
     private var userRepository: UserRepository
 
-    func getOrCreateUser(icloudId: Int64) async throws -> User {
+    public func getOrCreateUser(icloudId: Int64) async throws -> User {
         let logger = self.logger
         if let existingUser = try await userRepository.findByIcloudId(icloudId: icloudId) {
             let userId = existingUser.id ?? -1

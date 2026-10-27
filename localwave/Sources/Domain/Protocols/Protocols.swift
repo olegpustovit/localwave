@@ -1,12 +1,12 @@
 import Foundation
 
-protocol PlayerPersistenceService {
+public protocol PlayerPersistenceService {
     func getVolume() async -> Float?
     func restore() async -> ([Song], Int, Song?)?
     func savePlaybackState(volume: Float, currentIndex: Int, songs: [Song]) async
 }
 
-protocol PlaylistRepository {
+public protocol PlaylistRepository {
     func create(playlist: Playlist) async throws -> Playlist
     func update(playlist: Playlist) async throws -> Playlist
     func delete(playlistId: Int64) async throws
@@ -14,14 +14,14 @@ protocol PlaylistRepository {
     func getOne(id: Int64) async throws -> Playlist?
 }
 
-protocol PlaylistSongRepository {
+public protocol PlaylistSongRepository {
     func addSong(playlistId: Int64, songId: Int64) async throws
     func removeSong(playlistId: Int64, songId: Int64) async throws
     func getSongs(playlistId: Int64) async throws -> [Song]
     func reorderSongs(playlistId: Int64, newOrder: [Int64]) async throws // New
 }
 
-protocol SongRepository {
+public protocol SongRepository {
     /// Upsert a song based on its songKey (hash of artist/title/album).
     /// If a row with the same key exists, update it; otherwise insert new.
     func upsertSong(_ song: Song) async throws -> Song
@@ -43,20 +43,20 @@ protocol SongRepository {
     func markSongForCopy(songId: Int64) async throws
 }
 
-protocol SourceImportService {
+public protocol SourceImportService {
     func listItems(sourceId: Int64, parentPathId: Int64?) async throws -> [SourcePath]
     func search(sourceId: Int64, query: String) async throws -> [SourcePath]
     func deleteOne(sourceId: Int64) async throws
 }
 
-protocol SourcePathSearchRepository {
+public protocol SourcePathSearchRepository {
     func batchUpsertIntoFTS(paths: [SourcePath]) async throws
     func search(sourceId: Int64, query: String, limit: Int) async throws -> [PathSearchResult]
     func batchDeleteFTS(sourceId: Int64, excludingRunId: Int64) async throws
     func deleteAllFTS(sourceId: Int64) async throws
 }
 
-protocol SourceSyncService {
+public protocol SourceSyncService {
     func syncDir(
         sourceId: Int64,
         folderURL: URL,
@@ -66,7 +66,7 @@ protocol SourceSyncService {
         -> Source?
 }
 
-protocol SongImportService {
+public protocol SongImportService {
     func importPaths(
         paths: [SourcePath],
         onProgress: ((Double, URL) async -> Void)?
@@ -75,7 +75,7 @@ protocol SongImportService {
     func cancelImport() async
 }
 
-protocol SourceService {
+public protocol SourceService {
     func registerSourcePath(userId: Int64, path: String, type: SourceType) async throws -> Source
     func getCurrentSource(userId: Int64) async throws -> Source?
     func syncService() -> SourceSyncService
@@ -83,7 +83,7 @@ protocol SourceService {
     func repository() -> SourceRepository
 }
 
-protocol SourcePathRepository {
+public protocol SourcePathRepository {
     func getByParentId(sourceId: Int64, parentPathId: Int64?) async throws -> [SourcePath]
     func getByPathId(sourceId: Int64, pathId: Int64) async throws -> SourcePath?
     func create(path: SourcePath) async throws -> SourcePath
@@ -96,7 +96,7 @@ protocol SourcePathRepository {
     func deleteAllPaths(sourceId: Int64) async throws
 }
 
-protocol SourceRepository {
+public protocol SourceRepository {
     func deleteSource(sourceId: Int64) async throws
     func create(source: Source) async throws -> Source
     func findOneByUserId(userId: Int64, path: String?) async throws -> [Source]
@@ -107,20 +107,20 @@ protocol SourceRepository {
     func setCurrentSource(userId: Int64, sourceId: Int64) async throws -> Source
 }
 
-protocol UserRepository {
+public protocol UserRepository {
     func findByIcloudId(icloudId: Int64) async throws -> User?
     func create(user: User) async throws -> User
 }
 
-protocol UserService {
+public protocol UserService {
     func getOrCreateUser(icloudId: Int64) async throws -> User
 }
 
-protocol UserCloudService {
+public protocol UserCloudService {
     func resolveCurrentICloudUser() async throws -> User?
 }
 
-protocol ICloudProvider {
+public protocol ICloudProvider {
     func getCurrentICloudUserID() async throws -> Int64?
     func isICloudAvailable() -> Bool
 }

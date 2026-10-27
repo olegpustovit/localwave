@@ -8,6 +8,10 @@
 
 /* Begin PBXBuildFile section */
 		103CBBEB2D331DDA00F3CEDF /* SQLite in Frameworks */ = {isa = PBXBuildFile; productRef = 103CBBEA2D331DDA00F3CEDF /* SQLite */; };
+		10DOMAIN2D331DDA00F3CED1 /* LocalWaveDomain in Frameworks */ = {isa = PBXBuildFile; productRef = 10DOMAIN2D32887D00E25072 /* LocalWaveDomain */; };
+		10LWCORE2D331DDA00F3CED2 /* LocalWaveCore in Frameworks */ = {isa = PBXBuildFile; productRef = 10LWCORE2D32887D00E25072 /* LocalWaveCore */; };
+		10LWDATA2D331DDA00F3CED3 /* LocalWaveData in Frameworks */ = {isa = PBXBuildFile; productRef = 10LWDATA2D32887D00E25072 /* LocalWaveData */; };
+		10LWPLAY2D331DDA00F3CED4 /* LocalWavePlayer in Frameworks */ = {isa = PBXBuildFile; productRef = 10LWPLAY2D32887D00E25072 /* LocalWavePlayer */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -72,6 +76,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				103CBBEB2D331DDA00F3CEDF /* SQLite in Frameworks */,
+				10DOMAIN2D331DDA00F3CED1 /* LocalWaveDomain in Frameworks */,
+				10LWCORE2D331DDA00F3CED2 /* LocalWaveCore in Frameworks */,
+				10LWDATA2D331DDA00F3CED3 /* LocalWaveData in Frameworks */,
+				10LWPLAY2D331DDA00F3CED4 /* LocalWavePlayer in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -145,6 +153,10 @@
 			name = localwave;
 			packageProductDependencies = (
 				103CBBEA2D331DDA00F3CEDF /* SQLite */,
+				10DOMAIN2D32887D00E25072 /* LocalWaveDomain */,
+				10LWCORE2D32887D00E25072 /* LocalWaveCore */,
+				10LWDATA2D32887D00E25072 /* LocalWaveData */,
+				10LWPLAY2D32887D00E25072 /* LocalWavePlayer */,
 			);
 			productName = localwave;
 			productReference = 10811E6F2D31CF01008CAD75 /* localwave.app */;
@@ -226,6 +238,7 @@
 			mainGroup = 10811E662D31CF01008CAD75;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				10LOCALP2D32887D00E25072 /* XCLocalSwiftPackageReference "." */,
 				10FA3CCA2D32887D00E25072 /* XCRemoteSwiftPackageReference "SQLite" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -604,6 +617,13 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		10LOCALP2D32887D00E25072 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCRemoteSwiftPackageReference section */
 		10FA3CCA2D32887D00E25072 /* XCRemoteSwiftPackageReference "SQLite" */ = {
 			isa = XCRemoteSwiftPackageReference;
@@ -625,6 +645,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 10FA3CCA2D32887D00E25072 /* XCRemoteSwiftPackageReference "SQLite" */;
 			productName = SQLite;
+		};
+		10DOMAIN2D32887D00E25072 /* LocalWaveDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10LOCALP2D32887D00E25072 /* XCLocalSwiftPackageReference "." */;
+			productName = LocalWaveDomain;
+		};
+		10LWCORE2D32887D00E25072 /* LocalWaveCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10LOCALP2D32887D00E25072 /* XCLocalSwiftPackageReference "." */;
+			productName = LocalWaveCore;
+		};
+		10LWDATA2D32887D00E25072 /* LocalWaveData */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10LOCALP2D32887D00E25072 /* XCLocalSwiftPackageReference "." */;
+			productName = LocalWaveData;
+		};
+		10LWPLAY2D32887D00E25072 /* LocalWavePlayer */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 10LOCALP2D32887D00E25072 /* XCLocalSwiftPackageReference "." */;
+			productName = LocalWavePlayer;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

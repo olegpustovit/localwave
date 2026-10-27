@@ -1,14 +1,19 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-class DefaultICloudProvider: ICloudProvider {
-    let logger = Logger(subsystem: subsystem, category: "ICloudProvider")
-    func isICloudAvailable() -> Bool {
+public class DefaultICloudProvider: ICloudProvider {
+    let logger = createLogger(subsystem: subsystem, category: "ICloudProvider")
+
+    public init() {}
+
+    public func isICloudAvailable() -> Bool {
         return FileManager.default.ubiquityIdentityToken != nil
     }
 
-    func getCurrentICloudUserID() async throws -> Int64? {
+    public func getCurrentICloudUserID() async throws -> Int64? {
         logger.debug("Attempting to get current iCloud user")
         if let ubiquityIdentityToken = FileManager.default.ubiquityIdentityToken {
             let tokenData = try NSKeyedArchiver.archivedData(

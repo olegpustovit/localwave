@@ -1,27 +1,29 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
 let usersTableName = "users"
 
-actor SQLiteUserRepository: UserRepository {
-    let logger = Logger(subsystem: subsystem, category: "SQLiteUserRepository")
+public actor SQLiteUserRepository: UserRepository {
+    let logger = createLogger(subsystem: subsystem, category: "SQLiteUserRepository")
 
-    func findByIcloudId(icloudId: Int64) throws -> User? {
+    public func findByIcloudId(icloudId: Int64) throws -> User? {
         if let row = try db.pluck(table.filter(colIcloudId == icloudId)) {
             return User(id: row[colId], icloudId: row[colIcloudId])
         }
         return nil
     }
 
-    func create(user: User) throws -> User {
+    public func create(user: User) throws -> User {
         let insert = table.insert(colIcloudId <- user.icloudId)
         let rowId = try db.run(insert)
         logger.debug("inserted user \(rowId)")
         return User(id: rowId, icloudId: user.icloudId)
     }
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         let colId: SQLite.Expression<Int64> = Expression<Int64>("id")
         let colIcloudId: SQLite.Expression<Int64> = Expression<Int64>("icloudId")
         try db.run(

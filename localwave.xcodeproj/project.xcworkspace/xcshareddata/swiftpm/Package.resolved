@@ -1,5 +1,5 @@
 {
-  "originHash" : "42598adf0e546dd7490b40b2fd0f5298dee9c098f71dcdbfcb5cc4c07573f374",
+  "originHash" : "6389eb45f3c1eb8bc08ea2a65cfb41a169721dc2747563a6f00b58f08ae6e7cc",
   "pins" : [
     {
       "identity" : "sqlite.swift",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "a95fc6df17d108bd99210db5e8a9bac90fe984b8",
         "version" : "0.15.3"
+      }
+    },
+    {
+      "identity" : "swifttui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/DandyLyons/SwiftTUI.git",
+      "state" : {
+        "branch" : "onKeyPress",
+        "revision" : "6f2c5fdba0039e8cf63a2317062013bff0732927"
       }
     }
   ],

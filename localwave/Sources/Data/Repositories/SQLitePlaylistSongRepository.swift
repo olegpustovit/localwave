@@ -1,17 +1,19 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-actor SQLitePlaylistSongRepository: PlaylistSongRepository {
+public actor SQLitePlaylistSongRepository: PlaylistSongRepository {
     private let db: Connection
     private let table = Table("playlist_songs")
     private let colId: SQLite.Expression<Int64>
     private let colPlaylistId: SQLite.Expression<Int64>
     private let colSongId: SQLite.Expression<Int64>
     private let colPosition: SQLite.Expression<Int>
-    private let logger = Logger(subsystem: subsystem, category: "SQLitePlaylistSongRepository")
+    private let logger = createLogger(subsystem: subsystem, category: "SQLitePlaylistSongRepository")
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         self.db = db
         // Column definitions
         let colId = SQLite.Expression<Int64>("id")
@@ -35,7 +37,7 @@ actor SQLitePlaylistSongRepository: PlaylistSongRepository {
         self.colPosition = colPosition
     }
 
-    func addSong(playlistId: Int64, songId: Int64) async throws {
+    public func addSong(playlistId: Int64, songId: Int64) async throws {
         // Get current max position
         let maxPosition =
             try db.scalar(
@@ -51,12 +53,12 @@ actor SQLitePlaylistSongRepository: PlaylistSongRepository {
         try db.run(insert)
     }
 
-    func removeSong(playlistId: Int64, songId: Int64) async throws {
+    public func removeSong(playlistId: Int64, songId: Int64) async throws {
         let query = table.filter(colPlaylistId == playlistId && colSongId == songId)
         try db.run(query.delete())
     }
 
-    func getSongs(playlistId: Int64) async throws -> [Song] {
+    public func getSongs(playlistId: Int64) async throws -> [Song] {
         let songsTable = Table("songs")
         let songIdCol = SQLite.Expression<Int64>("id")
 
@@ -93,7 +95,7 @@ actor SQLitePlaylistSongRepository: PlaylistSongRepository {
         }
     }
 
-    func reorderSongs(playlistId: Int64, newOrder: [Int64]) async throws {
+    public func reorderSongs(playlistId: Int64, newOrder: [Int64]) async throws {
         try db.transaction {
             // Clear existing positions
             try db.run(table.filter(colPlaylistId == playlistId).update(colPosition <- -1))
