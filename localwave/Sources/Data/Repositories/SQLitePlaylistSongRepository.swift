@@ -88,7 +88,8 @@ actor SQLitePlaylistSongRepository: PlaylistSongRepository {
                     Date.init(timeIntervalSince1970:)),
                 localFilePath: row[songsTable[Expression<String?>("localFilePath")]],
                 fileState: FileState(rawValue: row[songsTable[Expression<Int>("fileState")]])
-                    ?? .bookmarkOnly
+                    ?? .bookmarkOnly,
+                isFavorite: row[songsTable[Expression<Int64>("isFavorite")]]
             )
         }
     }

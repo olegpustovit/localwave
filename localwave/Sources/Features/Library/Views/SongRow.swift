@@ -22,8 +22,23 @@ struct SongRow: View {
     var onEditMetadata: (() -> Void)? = nil
     var onAddToQueue: (() -> Void)? = nil
 
+    var onToggleFavorite: ((Bool) -> Void)? = nil
+    
+    @State var isFavorite: Bool = false
+    
+    var readonly: Bool
+    
     var body: some View {
         HStack {
+            Image(systemName: "star.fill")
+                .foregroundColor(isFavorite ? .yellow : .white)
+                .onTapGesture {
+                    if (!readonly) {
+                        isFavorite.toggle()
+                        onToggleFavorite?(isFavorite)
+                    }
+                }
+            
             VStack(alignment: .leading) {
                 Text(song.title)
                     .font(.headline)
@@ -44,17 +59,19 @@ struct SongRow: View {
         }
         .padding(.vertical, 4)
         .contextMenu {
-            Button("Add to Queue") {
-                onAddToQueue?()
-            }
-            Button("Delete Song", role: .destructive) {
-                onDelete?()
-            }
-            Button("Add to Playlist") {
-                onAddToPlaylist?()
-            }
-            Button("Edit Metadata") {
-                onEditMetadata?()
+            if (!readonly) {
+                Button("Add to Queue") {
+                    onAddToQueue?()
+                }
+                Button("Delete Song", role: .destructive) {
+                    onDelete?()
+                }
+                Button("Add to Playlist") {
+                    onAddToPlaylist?()
+                }
+                Button("Edit Metadata") {
+                    onEditMetadata?()
+                }
             }
         }
     }

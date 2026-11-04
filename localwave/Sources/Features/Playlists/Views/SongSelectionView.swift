@@ -33,14 +33,15 @@ struct SongSelectionView: View {
             List(songListVM.songs, id: \.uniqueId) { song in
                 SelectableSongRow(
                     song: song,
-                    isSelected: selectedSongs.contains(song.id ?? -1)
-                ) {
-                    if selectedSongs.contains(song.id ?? -1) {
-                        selectedSongs.remove(song.id ?? -1)
-                    } else {
-                        selectedSongs.insert(song.id ?? -1)
-                    }
-                }
+                    isSelected: selectedSongs.contains(song.id ?? -1),
+                    onToggle: {
+                        if selectedSongs.contains(song.id ?? -1) {
+                            selectedSongs.remove(song.id ?? -1)
+                        } else {
+                            selectedSongs.insert(song.id ?? -1)
+                        }
+                    },
+                    isFavorite: song.isFavorite != 0)
             }
             .toolbar {
                 Button("Add") {

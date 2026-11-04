@@ -2,6 +2,7 @@ import Foundation
 import SQLite
 
 actor SQLiteSongRepository: SongRepository {
+    
     func updateBookmark(songId: Int64, bookmark: Data) async throws {
         let query = songsTable.filter(colId == songId)
         try db.run(query.update(colBookmark <- Blob(bytes: [UInt8](bookmark))))
@@ -31,6 +32,9 @@ actor SQLiteSongRepository: SongRepository {
     // NEW: new fields for localFilePath and fileState
     private let colLocalFilePath: SQLite.Expression<String?> // NEW
     private let colFileState: SQLite.Expression<Int> // NEW
+    
+    // NEWER: new field for marking song as a favorite
+    private let colIsFavorite: SQLite.Expression<Int64>
 
     // MARK: - FTS table
 
@@ -64,7 +68,11 @@ actor SQLiteSongRepository: SongRepository {
         // NEW: new expressions
         let colLocalFilePath = SQLite.Expression<String?>("localFilePath") // NEW
         let colFileState = SQLite.Expression<Int>("fileState") // NEW
-
+        
+        // NEWER: newer expressions
+        let colIsFavorite = SQLite.Expression<Int64>("isFavorite") // NEWER
+        
+        
         self.colId = colId
         self.colSongKey = colSongKey
         self.colArtist = colArtist
@@ -82,6 +90,7 @@ actor SQLiteSongRepository: SongRepository {
         // NEW: assign new columns
         self.colLocalFilePath = colLocalFilePath // NEW
         self.colFileState = colFileState // NEW
+        self.colIsFavorite = colIsFavorite // NEWER
 
         // Create main table if needed
         try db.run(
@@ -103,6 +112,7 @@ actor SQLiteSongRepository: SongRepository {
                 // NEW: add new columns
                 t.column(colLocalFilePath) // NEW
                 t.column(colFileState) // NEW
+                t.column(colIsFavorite) // NEWER
             }
         )
 
@@ -142,7 +152,8 @@ actor SQLiteSongRepository: SongRepository {
                 updatedAt: row[colUpdatedAt].map(Date.init(timeIntervalSince1970:)),
                 // NEW: add new fields
                 localFilePath: row[colLocalFilePath], // NEW
-                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly // NEW
+                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly, // NEW
+                isFavorite: row[colIsFavorite] // NEWER
             )
         }
         
@@ -177,7 +188,8 @@ actor SQLiteSongRepository: SongRepository {
                 updatedAt: row[colUpdatedAt].map(Date.init(timeIntervalSince1970:)),
                 // NEW: add new fields
                 localFilePath: row[colLocalFilePath], // NEW
-                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly // NEW
+                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly, // NEW
+                isFavorite: row[colIsFavorite] // NEWER
             )
         }
     }
@@ -235,7 +247,8 @@ actor SQLiteSongRepository: SongRepository {
                         colUpdatedAt <- now,
                         // NEW: update new fields
                         colLocalFilePath <- song.localFilePath, // NEW
-                        colFileState <- song.fileState.rawValue // NEW
+                        colFileState <- song.fileState.rawValue, // NEW
+                        colIsFavorite <- song.isFavorite //  NEWER
                     )
             )
             try db.run(
@@ -267,7 +280,8 @@ actor SQLiteSongRepository: SongRepository {
                     colUpdatedAt <- song.updatedAt?.timeIntervalSince1970,
                     // NEW: insert new fields
                     colLocalFilePath <- song.localFilePath, // NEW
-                    colFileState <- song.fileState.rawValue // NEW
+                    colFileState <- song.fileState.rawValue, // NEW
+                    colIsFavorite <- song.isFavorite // NEWER
                 )
             )
             try db.run(
@@ -312,7 +326,7 @@ actor SQLiteSongRepository: SongRepository {
 
         if query.isEmpty {
             sql = """
-            SELECT id, songKey, artist, title, album, trackNumber, coverArtPath, bookmark, pathHash, createdAt, updatedAt, localFilePath, fileState
+            SELECT id, songKey, artist, title, album, trackNumber, coverArtPath, bookmark, pathHash, createdAt, updatedAt, localFilePath, fileState, isFavorite
               FROM songs
              ORDER BY createdAt DESC
              LIMIT ? OFFSET ?;
@@ -322,7 +336,7 @@ actor SQLiteSongRepository: SongRepository {
             let processedQuery = preprocessFTSQuery(query)
             sql = """
             SELECT s.id, s.songKey, s.artist, s.title, s.album, s.trackNumber,
-                   s.coverArtPath, s.bookmark, s.pathHash, s.createdAt, s.updatedAt, s.localFilePath, s.fileState
+                   s.coverArtPath, s.bookmark, s.pathHash, s.createdAt, s.updatedAt, s.localFilePath, s.fileState, s.isFavorite
               FROM songs s
               JOIN songs_fts fts ON s.id = fts.songId
              WHERE songs_fts MATCH ?
@@ -353,7 +367,7 @@ actor SQLiteSongRepository: SongRepository {
             let localFilePath = row[11] as? String // NEW
             let fileStateRaw = row[12] as? Int ?? FileState.bookmarkOnly.rawValue // NEW
             let fileState = FileState(rawValue: fileStateRaw) ?? .bookmarkOnly // NEW
-
+            let isFavorite = (row[13] as? Int64) ?? 0 // NEWER
             // NOTE: FTS search doesn't return albumArtist, releaseYear, or discNumber.
             let song = Song(
                 id: id,
@@ -372,7 +386,8 @@ actor SQLiteSongRepository: SongRepository {
                 updatedAt: updatedAt,
                 // NEW: new fields
                 localFilePath: localFilePath, // NEW
-                fileState: fileState // NEW
+                fileState: fileState, // NEW
+                isFavorite: isFavorite // NEWER
             )
             results.append(song)
         }
@@ -441,7 +456,8 @@ actor SQLiteSongRepository: SongRepository {
                 updatedAt: row[colUpdatedAt].map(Date.init(timeIntervalSince1970:)),
                 // NEW: add new fields
                 localFilePath: row[colLocalFilePath], // NEW
-                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly // NEW
+                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly, // NEW
+                isFavorite: row[colIsFavorite] // NEWER
             )
         }
     }
@@ -468,7 +484,8 @@ actor SQLiteSongRepository: SongRepository {
                 createdAt: Date(timeIntervalSince1970: row[colCreatedAt]),
                 updatedAt: row[colUpdatedAt].map(Date.init(timeIntervalSince1970:)),
                 localFilePath: row[colLocalFilePath],
-                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly
+                fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly,
+                isFavorite: row[colIsFavorite]
             )
         }
     }
@@ -478,5 +495,21 @@ actor SQLiteSongRepository: SongRepository {
         try db.run(
             songsTable.filter(colId == songId).update(
                 colFileState <- FileState.copyPending.rawValue)) // NEW
+    }
+    
+    // NEWER: toggleSongAsFavorite - for applying Favorites filter // NEWER
+    func toggleSongAsFavorite(songId: Int64, state: Bool) async throws {
+        if (state) {
+            try db.run(
+                songsTable.filter(colId == songId).update(
+                    colIsFavorite <- 1
+                ))
+        }
+        else {
+            try db.run(
+                songsTable.filter(colId == songId).update(
+                    colIsFavorite <- 0
+                ))
+        }
     }
 }

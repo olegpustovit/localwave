@@ -17,8 +17,10 @@ struct LocalWave: App {
 
         _playerVM = StateObject(
             wrappedValue: PlayerViewModel(
-                playerPersistenceService: c.playerPersistenceService, songRepo: c.songRepository,
-                playlistRepo: c.playlistRepo, playlistSongRepo: c.playlistSongRepo
+                playerPersistenceService: c.playerPersistenceService,
+                songRepo: c.songRepository,
+                playlistRepo: c.playlistRepo,
+                playlistSongRepo: c.playlistSongRepo
             ))
     }
 

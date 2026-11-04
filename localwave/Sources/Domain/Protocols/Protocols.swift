@@ -41,6 +41,7 @@ protocol SongRepository {
     func deleteAlbum(album: String, artist: String?) async throws
     func getSongsNeedingCopy() async -> [Song]
     func markSongForCopy(songId: Int64) async throws
+    func toggleSongAsFavorite(songId: Int64, state: Bool) async throws
 }
 
 protocol SourceImportService {

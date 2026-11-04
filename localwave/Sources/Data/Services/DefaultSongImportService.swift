@@ -208,7 +208,8 @@ actor DefaultSongImportService: SongImportService {
                 createdAt: Date(),
                 updatedAt: nil,
                 localFilePath: nil,
-                fileState: .bookmarkOnly
+                fileState: .bookmarkOnly,
+                isFavorite: 0
             )
             let inserted = try await songRepo.upsertSong(newSong)
             logger.debug("Upserted song: \(inserted.title)")

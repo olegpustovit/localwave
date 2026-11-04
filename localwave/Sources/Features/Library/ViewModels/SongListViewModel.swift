@@ -46,6 +46,12 @@ class SongListViewModel: ObservableObject {
         hasMorePages = true
     }
 
+    func toggleFavorite(_ id: Int64?, state: Bool) async throws {
+        if ((id) != nil) {
+            try await songRepo.toggleSongAsFavorite(songId: id!, state: state)
+        }
+    }
+        
     private func loadFilteredSongs() async throws -> [Song] {
         switch filter {
         case .all:
