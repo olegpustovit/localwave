@@ -35,6 +35,40 @@ struct SourceBrowseViewInternal: View {
     }
 
     private var logger = Logger(subsystem: subsystem, category: "SourceBrowsViewInternal")
+        
+    private func importSelection(selectedPaths: [SourcePath]) async {
+        viewModel.isImporting = true
+        showImportProgress = true
+        defer {
+            viewModel.isImporting = false
+            showImportProgress = false
+            NotificationCenter.default.post(
+                name: Notification.Name("LibraryRefresh"), object: nil
+            )
+        }
+        
+        do {
+            try await songImportService.importPaths(
+                paths: selectedPaths,
+                onProgress: { pct, fileURL in
+                    await MainActor.run {
+                        importProgress = pct
+                        currentFileName = fileURL.lastPathComponent
+                    }
+                }
+            )
+            // Clear selection only if completed successfully
+            viewModel.selectedPathIds = []
+        } catch {
+            logger.error("Import error: \(error)")
+            // Don't clear selection if cancelled
+            if !(error is CancellationError) {
+                viewModel.selectedPathIds = []
+            }
+        }
+        
+    }
+    
     var body: some View {
         VStack {
             VStack {
@@ -53,45 +87,16 @@ struct SourceBrowseViewInternal: View {
                                 ? "Importing..." : "Import \(viewModel.selectedPathIds.count) items"
                         ) {
                             guard !viewModel.isImporting else { return }
-
-                            Task {
-                                viewModel.isImporting = true
-                                showImportProgress = true
-                                defer {
-                                    viewModel.isImporting = false
-                                    showImportProgress = false
-                                    NotificationCenter.default.post(
-                                        name: Notification.Name("LibraryRefresh"), object: nil
-                                    )
-                                }
-
-                                do {
-                                    let selectedPaths = viewModel.items.filter {
-                                        viewModel.selectedPathIds.contains($0.pathId)
-                                    }
-
-                                    try await songImportService.importPaths(
-                                        paths: selectedPaths,
-                                        onProgress: { pct, fileURL in
-                                            await MainActor.run {
-                                                importProgress = pct
-                                                currentFileName = fileURL.lastPathComponent
-                                            }
-                                        }
-                                    )
-
-                                    // Clear selection only if completed successfully
-                                    viewModel.selectedPathIds = []
-                                } catch {
-                                    logger.error("Import error: \(error)")
-                                    // Don't clear selection if cancelled
-                                    if !(error is CancellationError) {
-                                        viewModel.selectedPathIds = []
-                                    }
-                                }
+                            let selectedPaths = viewModel.items.filter {
+                                viewModel.selectedPathIds.contains($0.pathId)
                             }
+                            Task { await importSelection(selectedPaths: selectedPaths) }
                         }
                         .disabled(viewModel.selectedPathIds.isEmpty || viewModel.isImporting)
+                    } else {
+                        Button("Import all") {
+                            Task { await importSelection(selectedPaths: viewModel.items) }
+                        }
                     }
                 }
                 if showImportProgress {

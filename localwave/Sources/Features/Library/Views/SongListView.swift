@@ -20,9 +20,7 @@ struct SongListView: View {
     @State private var isPlayerPresented: Bool = false
     @EnvironmentObject private var playerVM: PlayerViewModel
     @State private var songToEdit: Song? = nil
-
-    @State private var showingPlaylistSelection = false
-    @State private var songForPlaylist: Song? = nil
+    @State private var songToAddToPlaylist: Song? = nil
 
     private let logger = Logger(subsystem: subsystem, category: "SongListView")
 
@@ -71,8 +69,7 @@ struct SongListView: View {
                                 }
                             },
                             onAddToPlaylist: {
-                                songForPlaylist = song
-                                showingPlaylistSelection = true
+                                songToAddToPlaylist = song
                             },
                             onEditMetadata: {
                                 songToEdit = song
@@ -111,15 +108,14 @@ struct SongListView: View {
         .onDisappear {
             viewModel.reset() // Clears the songs array and resets pagination.
         }
-        .sheet(isPresented: $showingPlaylistSelection) {
-            if let song = songForPlaylist {
-                PlaylistSelectionView(
-                    song: song,
-                    songRepo: dependencies.songRepository,
-                    playlistRepo: dependencies.playlistRepo,
-                    playlistSongRepo: dependencies.playlistSongRepo
-                )
-            }
+        .sheet(item: $songToAddToPlaylist) { song in
+            PlaylistSelectionView(
+                song: song,
+                songRepo: dependencies.songRepository,
+                playlistRepo: dependencies.playlistRepo,
+                playlistSongRepo: dependencies.playlistSongRepo
+            )
+            
         }
         .sheet(item: $songToEdit) { song in
             SongMetadataEditorView(song: song, songRepo: dependencies.songRepository)
