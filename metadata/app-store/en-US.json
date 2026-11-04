@@ -1,0 +1,13 @@
+{
+  "name": "LocalWave: Music from Files",
+  "subtitle": "MP3, FLAC, albums & playlists",
+  "homeScreenName": "LocalWave",
+  "primaryCategory": "MUSIC",
+  "primaryLocale": "en-US",
+  "supportUrl": "https://github.com/olegpustovit/localwave/issues",
+  "privacyPolicyUrl": "https://github.com/olegpustovit/localwave/blob/dev/docs/privacy.md",
+  "marketingUrl": "https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/",
+  "description": "Play the music files you already own. Choose folders in Files or iCloud Drive, import songs, and browse your library by artist, album or track.\n\nLocalWave supports MP3, FLAC and other audio formats supported by the system. Native FLAC imports include tags and embedded artwork. Mark favorite tracks, build playlists, search your library, and use the playback queue, shuffle and repeat controls.\n\nMusic from your files. No Apple Music subscription is required. Use your iPhone’s volume buttons or Control Center to adjust listening volume.\n\nFiles stored in iCloud Drive or another provider may need downloading before playback. LocalWave does not provide a streaming music catalog or download music from third-party services.",
+  "keywords": "offline,audio,player,local,library,folders,queue,shuffle,repeat,favorites,wav,aac,aiff",
+  "publicationStatus": "prepared; App Store Connect record, iOS distribution signing, screenshots and review submission still required"
+}

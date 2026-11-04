@@ -1,0 +1,11 @@
+# App Store naming
+
+The brand remains **LocalWave**, as requested by the owner. The Home Screen display name is also **LocalWave**.
+
+Use **LocalWave: Music from Files** as the proposed App Store title (27 characters), with **MP3, FLAC, albums & playlists** as the subtitle (29 characters). This describes the file-player workflow without promising a streaming catalog or guaranteed offline availability for cloud files. The proposed English metadata is in [en-US.json](../metadata/app-store/en-US.json).
+
+Apple allows up to 30 characters each for the title and subtitle and recommends using the subtitle to explain features or typical uses. Its metadata guidelines call for a distinctive title and accurate claims. See [app information](https://developer.apple.com/help/app-store-connect/reference/app-information/app-information/), [product-page guidance](https://developer.apple.com/app-store/product-page/) and [review guideline 2.3.7](https://developer.apple.com/app-store/review/guidelines/).
+
+A current [Localwave: Australian Radio](https://apps.apple.com/au/app/localwave-australian-radio/id6761519338) listing makes the file-player qualifier useful. Public search does not establish App Store Connect title availability or approval. Verify the proposed full title when creating the app record.
+
+Research checked November 4, 2026. These files prepare the listing; they do not claim an App Store release has been submitted or approved.
