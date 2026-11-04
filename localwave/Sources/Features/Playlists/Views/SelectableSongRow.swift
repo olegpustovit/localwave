@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  SelectableSongRow.swift
 //  localwave
@@ -16,8 +19,14 @@ struct SelectableSongRow: View {
     let isSelected: Bool
     let onToggle: () -> Void
 
+    @State var isFavorite: Bool = false
+    
     var body: some View {
         HStack {
+            
+            Image(systemName: "star.fill")
+                .foregroundColor(isFavorite ? .yellow : .white)
+            
             VStack(alignment: .leading) {
                 Text(song.title)
                     .font(.headline)

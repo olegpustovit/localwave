@@ -1,8 +1,10 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-actor SQLiteSourcePathRepository: SourcePathRepository {
+public actor SQLiteSourcePathRepository: SourcePathRepository {
     private let db: Connection
     private let table = Table("source_paths")
 
@@ -18,9 +20,9 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
     private let colCreatedAt: SQLite.Expression<Date>
     private let colUpdatedAt: SQLite.Expression<Date?>
 
-    private let logger = Logger(subsystem: subsystem, category: "SQLiteSourcePathRepository")
+    private let logger = createLogger(subsystem: subsystem, category: "SQLiteSourcePathRepository")
 
-    func getByPathId(sourceId: Int64, pathId: Int64) async throws -> SourcePath? {
+    public func getByPathId(sourceId: Int64, pathId: Int64) async throws -> SourcePath? {
         let query = table.filter(colSourceId == sourceId && colPathId == pathId)
         if let row = try db.pluck(query) {
             return SourcePath(
@@ -40,13 +42,13 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
         return nil
     }
 
-    func deleteAllPaths(sourceId: Int64) async throws {
+    public func deleteAllPaths(sourceId: Int64) async throws {
         let query = table.filter(colSourceId == sourceId)
         try db.run(query.delete())
         logger.debug("Deleted all paths for source: \(sourceId)")
     }
 
-    func getByParentId(sourceId: Int64, parentPathId: Int64?) async throws -> [SourcePath] {
+    public func getByParentId(sourceId: Int64, parentPathId: Int64?) async throws -> [SourcePath] {
         let rows: AnySequence<Row>
         if let parentId = parentPathId {
             let query = table.filter(colSourceId == sourceId && colParentPathId == parentId)
@@ -74,7 +76,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
 
     // MARK: - Initializer
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         let colId = SQLite.Expression<Int64>("id")
         let colSourceId = SQLite.Expression<Int64>("sourceId")
         let colPathId = SQLite.Expression<Int64>("pathId")
@@ -119,7 +121,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
         self.colUpdatedAt = colUpdatedAt
     }
 
-    func deleteMany(sourceId: Int64, excludingRunId: Int64) async throws -> Int {
+    public func deleteMany(sourceId: Int64, excludingRunId: Int64) async throws -> Int {
         let query = table.filter(colSourceId == sourceId && colRunId != excludingRunId)
         let count = try db.run(query.delete())
         logger.debug(
@@ -130,7 +132,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
 
     // MARK: - Create
 
-    func create(path: SourcePath) async throws -> SourcePath {
+    public func create(path: SourcePath) async throws -> SourcePath {
         let insert = table.insert(
             colSourceId <- path.sourceId,
             colPathId <- path.pathId,
@@ -150,7 +152,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
 
     // MARK: - Update File Hash
 
-    func updateFileHash(pathId: Int64, fileHash: Data?) async throws {
+    public func updateFileHash(pathId: Int64, fileHash: Data?) async throws {
         let query = table.filter(colPathId == pathId)
         try db.run(query.update(colFileHashSHA256 <- fileHash))
         logger.debug("Updated file hash for path ID: \(pathId)")
@@ -158,7 +160,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
 
     // MARK: - Delete Many
 
-    func deleteMany(sourceId: Int64) async throws {
+    public func deleteMany(sourceId: Int64) async throws {
         let query = table.filter(colSourceId == sourceId)
         let count = try db.run(query.delete())
         logger.debug("Deleted \(count) source paths for source ID: \(sourceId)")
@@ -166,7 +168,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
 
     // MARK: - Get By Parent ID
 
-    func getByParentId(parentId: Int64) async throws -> [SourcePath] {
+    public func getByParentId(parentId: Int64) async throws -> [SourcePath] {
         try db.prepare(table.filter(colParentPathId == parentId)).map { row in
             SourcePath(
                 id: row[colId],
@@ -186,7 +188,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
 
     // MARK: - Get By Path
 
-    func getByPath(relativePath: String, sourceId: Int64) async throws -> SourcePath? {
+    public func getByPath(relativePath: String, sourceId: Int64) async throws -> SourcePath? {
         let query = table.filter(colRelativePath == relativePath && colSourceId == sourceId)
         if let row = try db.pluck(query) {
             return SourcePath(
@@ -206,7 +208,7 @@ actor SQLiteSourcePathRepository: SourcePathRepository {
         return nil
     }
 
-    func batchUpsert(paths: [SourcePath]) async throws {
+    public func batchUpsert(paths: [SourcePath]) async throws {
         if paths.count == 0 {
             return
         }

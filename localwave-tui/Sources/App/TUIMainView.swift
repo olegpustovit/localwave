@@ -1,0 +1,124 @@
+//
+//  TUIMainView.swift
+//  localwave-tui
+//
+//  Created by Claude Code on 04.10.2025.
+//
+
+import Foundation
+import SwiftTUI
+
+/// Main view for the TUI application with tab bar and navigation
+struct TUIMainView: View {
+    let dependencies: TUIDependencyContainer
+
+    @State var tabState = TabBarState()
+    @State var navigationState = NavigationState()
+    @State private var showHelp = false
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Main content area with tabs and navigation
+            TUITabView(tabState: $tabState) { selectedTab in
+                NavigationContainer(navigationState: $navigationState) { navState in
+                    contentView(for: selectedTab, navigationState: navState)
+                }
+            }
+
+            if showHelp {
+                Text("Ctrl+G/A/B/L/P/R: tabs • j/k: navigate • Space: play • Ctrl+F: search • Esc: back • Ctrl+X: quit")
+            }
+            Text("[?] Help  [Ctrl+X] Quit")
+            // Mini player always visible at bottom
+            TUIMiniPlayerView(playerViewModel: dependencies.playerViewModel)
+        }
+        // Control shortcuts do not consume digits or letters entered in text fields.
+        .onKeyPress("\u{07}") { selectTab(.sync) }
+        .onKeyPress("\u{01}") { selectTab(.artists) }
+        .onKeyPress("\u{02}") { selectTab(.albums) }
+        .onKeyPress("\u{0C}") { selectTab(.songs) }
+        .onKeyPress("\u{10}") { selectTab(.playlists) }
+        .onKeyPress("\u{12}") { selectTab(.player) }
+        // Navigation
+        .onKeyPress("\u{18}") { kill(getpid(), SIGINT) }
+        .onKeyPress("?") { showHelp.toggle() }
+        .onKeyPress("\u{06}") { navigationState.push(.globalSearch) }
+    }
+
+    @ViewBuilder
+    private func contentView(for tab: Tab, navigationState: Binding<NavigationState>) -> some View {
+        // Check if we have a navigation stack route
+        if let route = navigationState.wrappedValue.currentRoute {
+            routeContent(for: route, navigationState: navigationState)
+        } else {
+            // Show tab content
+            tabContent(for: tab, navigationState: navigationState)
+        }
+    }
+
+    @ViewBuilder
+    private func routeContent(for route: NavigationRoute, navigationState: Binding<NavigationState>) -> some View {
+        switch route {
+        case .sync:
+            TUISyncView(dependencies: dependencies, navigationState: navigationState)
+        case .sourceManagement:
+            TUISourceManagementView(dependencies: dependencies, navigationState: navigationState)
+        case .sourceBrowse(let sourceId, let parentPathId):
+            TUISourceBrowseView(
+                dependencies: dependencies,
+                sourceId: sourceId,
+                initialParentPathId: parentPathId,
+                navigationState: navigationState
+            )
+        case .sourceScan(let sourceId, let pathId, let path):
+            TUISourceScanView(
+                dependencies: dependencies,
+                sourceId: sourceId,
+                pathId: pathId,
+                path: path,
+                navigationState: navigationState
+            )
+        case .artistDetail(let artist):
+            TUIArtistDetailView(dependencies: dependencies, artist: artist, navigationState: navigationState)
+        case .albumDetail(let album, let artist):
+            TUIAlbumDetailView(dependencies: dependencies, albumName: album, artist: artist, navigationState: navigationState)
+        case .globalSearch:
+            TUIGlobalSearchView(dependencies: dependencies, navigationState: navigationState)
+        case .playlistDetail(let playlistId):
+            TUIPlaylistDetailView(dependencies: dependencies, playlistID: playlistId, navigationState: navigationState)
+        case .addToPlaylist(let songId):
+            TUIPlaylistsView(dependencies: dependencies, navigationState: navigationState, songID: songId)
+        case .queue:
+            TUIQueueView(playerViewModel: dependencies.playerViewModel, navigationState: navigationState, dependencies: dependencies)
+        default:
+            Text("Route not implemented yet")
+        }
+    }
+
+    @ViewBuilder
+    private func tabContent(for tab: Tab, navigationState: Binding<NavigationState>) -> some View {
+        switch tab {
+        case .sync:
+            TUISyncView(dependencies: dependencies, navigationState: navigationState)
+        case .artists:
+            TUIArtistListView(dependencies: dependencies, navigationState: navigationState)
+        case .albums:
+            TUIAlbumGridView(dependencies: dependencies, navigationState: navigationState)
+        case .songs:
+            TUISongListView(dependencies: dependencies, navigationState: navigationState)
+        case .playlists:
+            TUIPlaylistsView(dependencies: dependencies, navigationState: navigationState)
+        case .player:
+            TUIPlayerView(
+                playerViewModel: dependencies.playerViewModel,
+                dependencies: dependencies,
+                navigationState: navigationState
+            )
+        }
+    }
+
+    private func selectTab(_ tab: Tab) {
+        navigationState.popToRoot()
+        tabState.selectTab(tab)
+    }
+}

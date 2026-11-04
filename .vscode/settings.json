@@ -1,0 +1,53 @@
+{
+  // Swift Language Server Configuration
+  "swift.path": "/usr/bin/",
+  "swift.buildPath": "${workspaceFolder}/.build",
+  "swift.autoGenerateLaunchConfigurations": false,
+  "swift.swiftEnvironmentVariables": {
+    "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer"
+  },
+
+  // SourceKit-LSP Configuration (for Swift Package Manager)
+  "sourcekit-lsp.serverPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/sourcekit-lsp",
+  "sourcekit-lsp.toolchainPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain",
+  "sourcekit-lsp.serverArguments": [],
+
+  // Swift LSP path
+  "swift.languageServerPath": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/sourcekit-lsp",
+
+  // Editor settings for Swift
+  "editor.formatOnSave": false,
+  "editor.tabSize": 4,
+  "editor.insertSpaces": true,
+
+  // Files to exclude from search
+  "files.exclude": {
+    "**/.build": true,
+    "**/.swiftpm": true,
+    "**/DerivedData": true
+  },
+
+  // Search settings
+  "search.exclude": {
+    "**/.build": true,
+    "**/.swiftpm": true,
+    "**/DerivedData": true,
+    "**/Pods": true
+  },
+
+  // File associations
+  "files.associations": {
+    "*.swift": "swift"
+  },
+
+  // LLDB settings
+  "lldb.launch.terminal": "integrated",
+  "lldb.displayFormat": "auto",
+  "lldb.showDisassembly": "auto",
+  "lldb.dereferencePointers": true,
+
+  // Terminal settings for TUI
+  "terminal.integrated.env.osx": {
+    "TERM": "xterm-256color"
+  }
+}

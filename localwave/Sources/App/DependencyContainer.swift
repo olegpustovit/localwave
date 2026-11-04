@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 import Foundation
 import os
 import SwiftUI
@@ -37,7 +40,13 @@ class DependencyContainer: ObservableObject {
     }
 
     init() throws {
-        guard let db = setupSQLiteConnection(dbName: "musicApp\(schemaVersion).sqlite") else {
+        var databaseName = "musicApp\(schemaVersion).sqlite"
+        #if DEBUG
+        if let testID = ProcessInfo.processInfo.environment["LOCALWAVE_UI_TEST_ID"], UUID(uuidString: testID) != nil {
+            databaseName = "uitest-\(testID).sqlite"
+        }
+        #endif
+        guard let db = setupSQLiteConnection(dbName: databaseName) else {
             throw CustomError.genericError("database initialisation failed")
         }
 

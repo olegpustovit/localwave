@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  SongRepositoryTests.swift
 //  localwaveTests
@@ -21,7 +24,7 @@ actor MockOrderedSongRepository: SongRepository {
     func upsertSong(_ song: Song) async throws -> Song {
         var updatedSong = song
         if updatedSong.id == nil {
-            updatedSong.id = nextId
+            updatedSong = updatedSong.copyWith(id: nextId)
             nextId += 1
             songs.append(updatedSong)
         } else {
@@ -76,6 +79,7 @@ actor MockOrderedSongRepository: SongRepository {
     }
     
     func markSongForCopy(songId: Int64) async throws {}
+    func toggleSongAsFavorite(songId: Int64, state: Bool) async throws {}
 }
 
 struct SongRepositoryTests {
@@ -83,26 +87,26 @@ struct SongRepositoryTests {
     @Test func testGetSongsPreservesInputOrder() async throws {
         // Create test songs with specific IDs
         let song1 = Song(
-            id: 1, songKey: "key1", artist: "Artist1", title: "Title1",
-            album: "Album1", albumArtist: nil, releaseYear: nil,
+            id: 1, songKey: 1, artist: "Artist1", title: "Title1",
+            album: "Album1", albumArtist: "", releaseYear: nil,
             discNumber: nil, trackNumber: nil, coverArtPath: nil,
-            bookmark: nil, pathHash: "hash1", createdAt: Date(),
+            bookmark: nil, pathHash: 1, createdAt: Date(),
             updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly
         )
         
         let song2 = Song(
-            id: 2, songKey: "key2", artist: "Artist2", title: "Title2",
-            album: "Album2", albumArtist: nil, releaseYear: nil,
+            id: 2, songKey: 2, artist: "Artist2", title: "Title2",
+            album: "Album2", albumArtist: "", releaseYear: nil,
             discNumber: nil, trackNumber: nil, coverArtPath: nil,
-            bookmark: nil, pathHash: "hash2", createdAt: Date(),
+            bookmark: nil, pathHash: 2, createdAt: Date(),
             updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly
         )
         
         let song3 = Song(
-            id: 3, songKey: "key3", artist: "Artist3", title: "Title3",
-            album: "Album3", albumArtist: nil, releaseYear: nil,
+            id: 3, songKey: 3, artist: "Artist3", title: "Title3",
+            album: "Album3", albumArtist: "", releaseYear: nil,
             discNumber: nil, trackNumber: nil, coverArtPath: nil,
-            bookmark: nil, pathHash: "hash3", createdAt: Date(),
+            bookmark: nil, pathHash: 3, createdAt: Date(),
             updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly
         )
         
@@ -121,10 +125,10 @@ struct SongRepositoryTests {
     
     @Test func testGetSongsHandlesMissingIds() async throws {
         let song1 = Song(
-            id: 1, songKey: "key1", artist: "Artist1", title: "Title1",
-            album: "Album1", albumArtist: nil, releaseYear: nil,
+            id: 1, songKey: 1, artist: "Artist1", title: "Title1",
+            album: "Album1", albumArtist: "", releaseYear: nil,
             discNumber: nil, trackNumber: nil, coverArtPath: nil,
-            bookmark: nil, pathHash: "hash1", createdAt: Date(),
+            bookmark: nil, pathHash: 1, createdAt: Date(),
             updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly
         )
         
@@ -141,10 +145,10 @@ struct SongRepositoryTests {
     
     @Test func testGetSongsHandlesEmptyInput() async throws {
         let song1 = Song(
-            id: 1, songKey: "key1", artist: "Artist1", title: "Title1",
-            album: "Album1", albumArtist: nil, releaseYear: nil,
+            id: 1, songKey: 1, artist: "Artist1", title: "Title1",
+            album: "Album1", albumArtist: "", releaseYear: nil,
             discNumber: nil, trackNumber: nil, coverArtPath: nil,
-            bookmark: nil, pathHash: "hash1", createdAt: Date(),
+            bookmark: nil, pathHash: 1, createdAt: Date(),
             updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly
         )
         
@@ -160,10 +164,10 @@ struct SongRepositoryTests {
     
     @Test func testGetSongsHandlesDuplicateIds() async throws {
         let song1 = Song(
-            id: 1, songKey: "key1", artist: "Artist1", title: "Title1",
-            album: "Album1", albumArtist: nil, releaseYear: nil,
+            id: 1, songKey: 1, artist: "Artist1", title: "Title1",
+            album: "Album1", albumArtist: "", releaseYear: nil,
             discNumber: nil, trackNumber: nil, coverArtPath: nil,
-            bookmark: nil, pathHash: "hash1", createdAt: Date(),
+            bookmark: nil, pathHash: 1, createdAt: Date(),
             updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly
         )
         

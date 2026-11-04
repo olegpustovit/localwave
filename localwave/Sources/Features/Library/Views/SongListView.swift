@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  SongListView.swift
 //  localwave
@@ -20,9 +23,7 @@ struct SongListView: View {
     @State private var isPlayerPresented: Bool = false
     @EnvironmentObject private var playerVM: PlayerViewModel
     @State private var songToEdit: Song? = nil
-
-    @State private var showingPlaylistSelection = false
-    @State private var songForPlaylist: Song? = nil
+    @State private var songToAddToPlaylist: Song? = nil
 
     private let logger = Logger(subsystem: subsystem, category: "SongListView")
 
@@ -71,15 +72,21 @@ struct SongListView: View {
                                 }
                             },
                             onAddToPlaylist: {
-                                songForPlaylist = song
-                                showingPlaylistSelection = true
+                                songToAddToPlaylist = song
                             },
                             onEditMetadata: {
                                 songToEdit = song
                             },
                             onAddToQueue: {
                                 playerVM.addToQueue(song)
-                            }
+                            },
+                            onToggleFavorite: { isFavorite in 
+                                Task {
+                                    try? await viewModel.toggleFavorite(song.id, state: isFavorite)
+                                }
+                            },
+                            isFavorite: (song.isFavorite != 0),
+                            readonly: false
                         )
                         .onAppear {
                             viewModel.loadMoreIfNeeded(currentSong: song)
@@ -111,15 +118,14 @@ struct SongListView: View {
         .onDisappear {
             viewModel.reset() // Clears the songs array and resets pagination.
         }
-        .sheet(isPresented: $showingPlaylistSelection) {
-            if let song = songForPlaylist {
-                PlaylistSelectionView(
-                    song: song,
-                    songRepo: dependencies.songRepository,
-                    playlistRepo: dependencies.playlistRepo,
-                    playlistSongRepo: dependencies.playlistSongRepo
-                )
-            }
+        .sheet(item: $songToAddToPlaylist) { song in
+            PlaylistSelectionView(
+                song: song,
+                songRepo: dependencies.songRepository,
+                playlistRepo: dependencies.playlistRepo,
+                playlistSongRepo: dependencies.playlistSongRepo
+            )
+            
         }
         .sheet(item: $songToEdit) { song in
             SongMetadataEditorView(song: song, songRepo: dependencies.songRepository)

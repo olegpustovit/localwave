@@ -1,0 +1,36 @@
+name: Verify
+on:
+  pull_request:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shared-and-tui:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test shared repositories and FLAC metadata
+        run: swift test
+      - name: Build terminal app
+        run: swift build -c release
+  ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Choose an available iPhone simulator
+        run: |
+          simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in reversed(list(d["devices"].values())) for x in devices if x["name"].startswith("iPhone")))')
+          echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
+      - name: Test iOS app
+        run: xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" CODE_SIGNING_ALLOWED=NO test
+      - name: Build unsigned IPA
+        run: bash scripts/build-unsigned-ipa.sh "$RUNNER_TEMP/unsigned"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: LocalWave-unsigned
+          path: ${{ runner.temp }}/unsigned/*
+          if-no-files-found: error

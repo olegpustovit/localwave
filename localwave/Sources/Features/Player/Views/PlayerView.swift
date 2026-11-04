@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  PlayerView.swift
 //  localwave
@@ -22,6 +25,14 @@ struct PlayerView: View {
     @State private var showingPlaylistAlert = false
     @State private var playlistName = ""
     @State private var editMode = EditMode.inactive
+    
+    // Helper function to load cover art for a song
+    private func coverArt(of song: Song) -> UIImage? {
+        guard let path = song.coverArtPath else { return nil }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let url = docs.appendingPathComponent(path)
+        return UIImage(contentsOfFile: url.path)
+    }
 
         
     var body: some View {
@@ -130,10 +141,10 @@ struct PlayerView: View {
                             .foregroundColor(.white)
                     }
 
-                    Button(action: {
+                    Button {
                         repeatEnabled.toggle()
                         playerVM.setRepeat(repeatEnabled)
-                    }) {
+                    } label: {
                         Image(systemName: repeatEnabled.iconName)
                             .font(.system(size: 30))
                             .foregroundColor(repeatEnabled.color)
@@ -141,16 +152,10 @@ struct PlayerView: View {
                 }
                 .padding()
 
-                // Volume Control - NEW: Updated slider range and styling
-                HStack {
-                    Image(systemName: "speaker.fill")
-                        .foregroundColor(.white)
-                    Slider(value: $playerVM.volume, in: 0 ... 1)
-                        .accentColor(.yellow)
-                    Image(systemName: "speaker.wave.3.fill")
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal)
+                Text("Use your iPhone’s volume buttons or Control Center to adjust volume.")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal)
 
                 // Queue Toggle Button
                 Button(action: {

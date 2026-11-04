@@ -1,14 +1,16 @@
 
 import os
+import LocalWaveDomain
+import LocalWaveCore
 
-actor DefaultSourceImportService: SourceImportService {
-    let logger = Logger(subsystem: subsystem, category: "SourceImportService")
+public actor DefaultSourceImportService: SourceImportService {
+    let logger = createLogger(subsystem: subsystem, category: "SourceImportService")
 
     private let sourceRepository: SourceRepository
     private let sourcePathRepository: SourcePathRepository
     private let sourcePathSearchRepository: SourcePathSearchRepository
 
-    init(
+    public init(
         sourceRepository: SourceRepository,
         sourcePathRepository: SourcePathRepository,
         sourcePathSearchRepository: SourcePathSearchRepository
@@ -18,13 +20,13 @@ actor DefaultSourceImportService: SourceImportService {
         self.sourcePathSearchRepository = sourcePathSearchRepository
     }
 
-    func deleteOne(sourceId: Int64) async throws {
+    public func deleteOne(sourceId: Int64) async throws {
         try await sourceRepository.deleteSource(sourceId: sourceId)
         try await sourcePathRepository.deleteAllPaths(sourceId: sourceId)
         try await sourcePathSearchRepository.deleteAllFTS(sourceId: sourceId)
     }
 
-    func listItems(sourceId: Int64, parentPathId: Int64?) async throws -> [SourcePath] {
+    public func listItems(sourceId: Int64, parentPathId: Int64?) async throws -> [SourcePath] {
         logger.debug("attempting to list for libID : \(sourceId), parent: \(parentPathId ?? -1)")
         let all = try await sourcePathRepository.getByParentId(
             sourceId: sourceId, parentPathId: parentPathId
@@ -35,7 +37,7 @@ actor DefaultSourceImportService: SourceImportService {
         return all
     }
 
-    func search(sourceId: Int64, query: String) async throws -> [SourcePath] {
+    public func search(sourceId: Int64, query: String) async throws -> [SourcePath] {
         let results = try await sourcePathSearchRepository.search(
             sourceId: sourceId,
             query: query,

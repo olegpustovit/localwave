@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  SongListViewModel.swift
 //  localwave
@@ -46,6 +49,15 @@ class SongListViewModel: ObservableObject {
         hasMorePages = true
     }
 
+    func toggleFavorite(_ id: Int64?, state: Bool) async throws {
+        guard let id else { return }
+        try await songRepo.toggleSongAsFavorite(songId: id, state: state)
+        let updated = await songRepo.getSongs(ids: [id])
+        if let song = updated.first, let index = songs.firstIndex(where: { $0.id == id }) {
+            songs[index] = song
+        }
+    }
+        
     private func loadFilteredSongs() async throws -> [Song] {
         switch filter {
         case .all:

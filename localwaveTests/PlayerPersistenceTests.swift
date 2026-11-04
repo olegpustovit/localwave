@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  PlayerPersistenceTests.swift
 //  localwaveTests
@@ -38,6 +41,7 @@ actor MockPlayerPersistenceService: PlayerPersistenceService {
     }
 }
 
+@Suite(.serialized)
 struct PlayerPersistenceTests {
     
     @Test func testVolumeDefaultsTo1Point0WhenNoSavedValue() async throws {
@@ -100,7 +104,7 @@ struct PlayerPersistenceTests {
         // Slider at 0.7 should give actual volume of 0.49
         let sliderValue2: Float = 0.7
         let actualVolume2 = sliderValue2 * sliderValue2
-        #expect(actualVolume2 == 0.49)
+        #expect(abs(actualVolume2 - 0.49) < 0.000001)
         
         // Inverse: actual volume 0.25 should give slider 0.5
         let volume: Float = 0.25
@@ -226,17 +230,17 @@ struct PlayerPersistenceTests {
     private func createTestSong(id: Int64, title: String, artist: String) -> Song {
         return Song(
             id: id,
-            songKey: "key\(id)",
+            songKey: id,
             artist: artist,
             title: title,
             album: "Album",
-            albumArtist: nil,
+            albumArtist: "",
             releaseYear: nil,
             discNumber: nil,
             trackNumber: nil,
             coverArtPath: nil,
             bookmark: nil,
-            pathHash: "hash\(id)",
+            pathHash: id,
             createdAt: Date(),
             updatedAt: nil,
             localFilePath: nil,
@@ -299,6 +303,7 @@ actor MockOrderedSongRepositoryForPersistence: SongRepository {
     }
     
     func markSongForCopy(songId: Int64) async throws {}
+    func toggleSongAsFavorite(songId: Int64, state: Bool) async throws {}
 }
 
 // Mock song repository for testing
@@ -342,4 +347,5 @@ actor MockSongRepository: SongRepository {
     }
     
     func markSongForCopy(songId: Int64) async throws {}
+    func toggleSongAsFavorite(songId: Int64, state: Bool) async throws {}
 }
