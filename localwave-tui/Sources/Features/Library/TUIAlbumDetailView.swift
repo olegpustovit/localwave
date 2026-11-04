@@ -306,8 +306,8 @@ struct TUIAlbumDetailView: View {
     private func addToPlaylist() {
         guard selectedIndex < songs.count else { return }
         let song = songs[selectedIndex]
-        // TODO: Implement playlist integration
-        errorMessage = "Playlist functionality coming soon for: \(song.title)"
+        guard let id = song.id else { return }
+        navigationState.push(.addToPlaylist(songId: id))
     }
 
     // MARK: - Navigation Helpers

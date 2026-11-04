@@ -118,6 +118,19 @@ public actor SQLiteSongRepository: SongRepository {
             }
         )
 
+        // CREATE TABLE does not add columns to an existing installation.
+        // SQLite has no ADD COLUMN IF NOT EXISTS; inspect first inside a transaction.
+        try db.transaction {
+            let columns = try Set(db.prepare("PRAGMA table_info(songs)").compactMap { $0[1] as? String })
+            for (name, definition) in [
+                ("localFilePath", "TEXT"),
+                ("fileState", "INTEGER NOT NULL DEFAULT 0"),
+                ("isFavorite", "INTEGER NOT NULL DEFAULT 0")
+            ] where !columns.contains(name) {
+                try db.execute("ALTER TABLE songs ADD COLUMN \(name) \(definition)")
+            }
+        }
+
         // Create FTS table with albumArtist column included
         try db.execute(
             """
@@ -249,8 +262,7 @@ public actor SQLiteSongRepository: SongRepository {
                         colUpdatedAt <- now,
                         // NEW: update new fields
                         colLocalFilePath <- song.localFilePath, // NEW
-                        colFileState <- song.fileState.rawValue, // NEW
-                        colIsFavorite <- song.isFavorite //  NEWER
+                        colFileState <- song.fileState.rawValue // Preserve the user favorite on reimport.
                     )
             )
             try db.run(
@@ -321,79 +333,21 @@ public actor SQLiteSongRepository: SongRepository {
     // MARK: - FTS Searching
 
     public func searchSongsFTS(query: String, limit: Int, offset: Int) async throws -> [Song] {
-        var results = [Song]()
-        let statement: Statement
         let sql: String
         let bindings: [Binding?]
-
         if query.isEmpty {
-            sql = """
-            SELECT id, songKey, artist, title, album, trackNumber, coverArtPath, bookmark, pathHash, createdAt, updatedAt, localFilePath, fileState, isFavorite
-              FROM songs
-             ORDER BY createdAt DESC
-             LIMIT ? OFFSET ?;
-            """ // NEW: added localFilePath and fileState
+            sql = "SELECT id FROM songs ORDER BY createdAt DESC LIMIT ? OFFSET ?"
             bindings = [limit, offset]
         } else {
-            let processedQuery = preprocessFTSQuery(query)
             sql = """
-            SELECT s.id, s.songKey, s.artist, s.title, s.album, s.trackNumber,
-                   s.coverArtPath, s.bookmark, s.pathHash, s.createdAt, s.updatedAt, s.localFilePath, s.fileState, s.isFavorite
-              FROM songs s
-              JOIN songs_fts fts ON s.id = fts.songId
-             WHERE songs_fts MATCH ?
-             ORDER BY bm25(songs_fts)
-             LIMIT ? OFFSET ?;
-            """ // NEW: added localFilePath and fileState
-            bindings = [processedQuery, limit, offset]
+                SELECT s.id FROM songs s JOIN songs_fts fts ON s.id = fts.songId
+                WHERE songs_fts MATCH ? ORDER BY bm25(songs_fts) LIMIT ? OFFSET ?
+                """
+            bindings = [preprocessFTSQuery(query), limit, offset]
         }
-
-        statement = try db.prepare(sql, bindings)
-        for row in statement {
-            guard let id = row[0] as? Int64 else { continue }
-            let songKey = (row[1] as? Int64) ?? 0
-            let artist = (row[2] as? String) ?? ""
-            let title = (row[3] as? String) ?? ""
-            let album = (row[4] as? String) ?? ""
-            var trackNumber: Int? = nil
-            if let t = (row[5] as? Int64) { trackNumber = Int(t) }
-            let coverArtPath = row[6] as? String
-            let bookmarkBlob = row[7] as? Blob
-            let bookmarkData = bookmarkBlob.map { Data($0.bytes) }
-            let pathHash = row[8] as? Int64 ?? -1
-            let createdDouble = row[9] as? Double ?? 0
-            let createdAt = Date(timeIntervalSince1970: createdDouble)
-            let updatedDouble = row[10] as? Double
-            let updatedAt = updatedDouble.map { Date(timeIntervalSince1970: $0) }
-            // NEW: get new fields
-            let localFilePath = row[11] as? String // NEW
-            let fileStateRaw = row[12] as? Int ?? FileState.bookmarkOnly.rawValue // NEW
-            let fileState = FileState(rawValue: fileStateRaw) ?? .bookmarkOnly // NEW
-            let isFavorite = (row[13] as? Int64) ?? 0 // NEWER
-            // NOTE: FTS search doesn't return albumArtist, releaseYear, or discNumber.
-            let song = Song(
-                id: id,
-                songKey: songKey,
-                artist: artist,
-                title: title,
-                album: album,
-                albumArtist: "", // Not available from FTS result.
-                releaseYear: nil, // Not available from FTS result.
-                discNumber: nil, // Not available from FTS result.
-                trackNumber: trackNumber,
-                coverArtPath: coverArtPath,
-                bookmark: bookmarkData,
-                pathHash: pathHash,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-                // NEW: new fields
-                localFilePath: localFilePath, // NEW
-                fileState: fileState, // NEW
-                isFavorite: isFavorite // NEWER
-            )
-            results.append(song)
-        }
-        return results
+        let ids = try db.prepare(sql, bindings).compactMap { $0[0] as? Int64 }
+        // Hydrate complete rows so search and library views preserve all metadata.
+        return await getSongs(ids: ids)
     }
 
     public func getAllArtists() async throws -> [String] {

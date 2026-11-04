@@ -72,6 +72,8 @@ public class FileLogger {
             let homeDir = FileManager.default.homeDirectoryForCurrentUser
             logsDir = homeDir.appendingPathComponent("Library/Application Support/localwave/logs")
         }
+        #elseif os(iOS)
+        logsDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0].appendingPathComponent("logs")
         #else
         let homeDir = FileManager.default.homeDirectoryForCurrentUser
         logsDir = homeDir.appendingPathComponent(".local/share/localwave/logs")

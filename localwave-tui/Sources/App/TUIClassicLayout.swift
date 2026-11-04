@@ -227,7 +227,7 @@ struct TUIClassicLayout: View {
                 .bold(isSelected)
             Spacer()
         }
-        .background(isSelected ? theme.surface1 : Color.clear)
+        .background(isSelected ? theme.surface1 : theme.base)
     }
 
     // MARK: - Player Bar
@@ -417,7 +417,7 @@ struct TUIClassicLayout: View {
 
             Text(" ")
         }
-        .background(isSelected ? theme.surface1 : Color.clear)
+        .background(isSelected ? theme.surface1 : theme.base)
     }
 
     // MARK: - Status Bar

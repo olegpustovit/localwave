@@ -34,12 +34,18 @@ let package = Package(
         )
     ],
     dependencies: [
-        // SwiftTUI for terminal interface (local copy for development)
-        .package(path: "SwiftTUI"),
+        // Pin the keyboard-support fork used by the terminal interface.
+        .package(url: "https://github.com/DandyLyons/SwiftTUI.git", revision: "6f2c5fdba0039e8cf63a2317062013bff0732927"),
         // SQLite.swift - shared with iOS app
         .package(url: "https://github.com/stephencelis/SQLite.swift", from: "0.15.3")
     ],
     targets: [
+        .testTarget(
+            name: "LocalWaveDataTests",
+            dependencies: ["LocalWaveData", "LocalWaveDomain", "LocalWaveCore", .product(name: "SQLite", package: "SQLite.swift")],
+            path: "Tests/LocalWaveDataTests",
+            resources: [.copy("Fixtures")]
+        ),
         // MARK: - Shared Library Targets
 
         // Domain layer - pure models and protocols, no dependencies
@@ -52,7 +58,7 @@ let package = Package(
         // Core layer - utilities, platform abstractions
         .target(
             name: "LocalWaveCore",
-            dependencies: ["LocalWaveDomain"],
+            dependencies: ["LocalWaveDomain", .product(name: "SQLite", package: "SQLite.swift")],
             path: "localwave/Sources/Core"
         ),
 

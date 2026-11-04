@@ -17,6 +17,7 @@ public enum NavigationRoute: Hashable, Equatable {
     case songDetail(songId: Int64)
     case playlists
     case playlistDetail(playlistId: Int64)
+    case addToPlaylist(songId: Int64)
     case player
     case queue
     case search(query: String)
@@ -66,6 +67,8 @@ public struct NavigationState {
                 components.append("Song Details")
             case .playlists:
                 components.append("Playlists")
+            case .addToPlaylist:
+                components.append("Add to Playlist")
             case .playlistDetail:
                 components.append("Playlist")
             case .player:

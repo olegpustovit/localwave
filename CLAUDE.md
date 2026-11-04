@@ -16,6 +16,6 @@ Product > Run builds the app. Product > Test uses localwave.xctestplan. The test
 - Data contains SQLite repositories, file access, import and playback services.
 - Features contains Library, Player, Playlists, Sync and shared SwiftUI components.
 
-SQLite.swift is the external package dependency. Song and source-path search use FTS5; song queries include BM25 ranking. AVFoundation and MediaPlayer provide playback and remote controls. Folder access uses security-scoped bookmarks; selected cloud files may need downloading before playback.
+SQLite.swift and the pinned SwiftTUI fork are package dependencies. Shared Domain, Core, Data and Player targets are declared in Package.swift; Xcode links those modules. Do not re-add their source files to the app target. Song and source-path search use FTS5; song queries include BM25 ranking. AVFoundation and MediaPlayer provide playback and remote controls. Folder access uses security-scoped bookmarks; selected cloud files may need downloading before playback.
 
-Read the implementation before changing behavior or promising reliability. No native build, device playback, bookmark recovery or iCloud test was completed during the Linux documentation review.
+Read the implementation before changing behavior or promising reliability. Run `swift test` for shared repository, FLAC parsing and recursive import checks, and `swift build -c release` for the macOS terminal player. Run the Xcode test plan on a compatible simulator for app checks. Physical-device playback, bookmark recovery and iCloud behavior need device qualification. `scripts/build-unsigned-ipa.sh` produces an unsigned device IPA; CI and the manual release workflow use the same script.

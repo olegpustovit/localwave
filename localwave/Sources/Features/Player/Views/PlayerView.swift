@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  PlayerView.swift
 //  localwave
@@ -149,16 +152,10 @@ struct PlayerView: View {
                 }
                 .padding()
 
-                // Volume Control - NEW: Updated slider range and styling
-                HStack {
-                    Image(systemName: "speaker.fill")
-                        .foregroundColor(.white)
-                    Slider(value: $playerVM.volume, in: 0 ... 1)
-                        .accentColor(.yellow)
-                    Image(systemName: "speaker.wave.3.fill")
-                        .foregroundColor(.white)
-                }
-                .padding(.horizontal)
+                Text("Use your iPhone’s volume buttons or Control Center to adjust volume.")
+                    .font(.caption)
+                    .foregroundColor(.white)
+                    .padding(.horizontal)
 
                 // Queue Toggle Button
                 Button(action: {

@@ -5,6 +5,7 @@
 //  Created by Claude Code on 04.10.2025.
 //
 
+import Foundation
 import SwiftTUI
 
 /// Main view for the TUI application with tab bar and navigation
@@ -13,6 +14,7 @@ struct TUIMainView: View {
 
     @State var tabState = TabBarState()
     @State var navigationState = NavigationState()
+    @State private var showHelp = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,6 +25,10 @@ struct TUIMainView: View {
                 }
             }
 
+            if showHelp {
+                Text("1–6: tabs • j/k: navigate • Space: play • Ctrl+F: search • Esc: back • Ctrl+X: quit")
+            }
+            Text("[?] Help  [Ctrl+X] Quit")
             // Mini player always visible at bottom
             TUIMiniPlayerView(playerViewModel: dependencies.playerViewModel)
         }
@@ -37,9 +43,9 @@ struct TUIMainView: View {
         .onKeyPress("H") { selectPreviousTab() }
         .onKeyPress("L") { selectNextTab() }
         // Navigation
-        .onKeyPress("q") { /* TODO: quit app */ }
-        .onKeyPress("?") { /* TODO: show help */ }
-        .onKeyPress("/") { navigationState.push(.globalSearch) }
+        .onKeyPress("\u{18}") { kill(getpid(), SIGINT) }
+        .onKeyPress("?") { showHelp.toggle() }
+        .onKeyPress("\u{06}") { navigationState.push(.globalSearch) }
     }
 
     @ViewBuilder
@@ -81,6 +87,10 @@ struct TUIMainView: View {
             TUIAlbumDetailView(dependencies: dependencies, albumName: album, artist: artist, navigationState: navigationState)
         case .globalSearch:
             TUIGlobalSearchView(dependencies: dependencies, navigationState: navigationState)
+        case .playlistDetail(let playlistId):
+            TUIPlaylistDetailView(dependencies: dependencies, playlistID: playlistId, navigationState: navigationState)
+        case .addToPlaylist(let songId):
+            TUIPlaylistsView(dependencies: dependencies, navigationState: navigationState, songID: songId)
         case .queue:
             TUIQueueView(playerViewModel: dependencies.playerViewModel, navigationState: navigationState, dependencies: dependencies)
         default:
@@ -100,7 +110,7 @@ struct TUIMainView: View {
         case .songs:
             TUISongListView(dependencies: dependencies, navigationState: navigationState)
         case .playlists:
-            PlaylistsPlaceholder()
+            TUIPlaylistsView(dependencies: dependencies, navigationState: navigationState)
         case .player:
             TUIPlayerView(
                 playerViewModel: dependencies.playerViewModel,
@@ -120,52 +130,5 @@ struct TUIMainView: View {
         guard let currentIndex = Tab.allCases.firstIndex(of: tabState.selectedTab),
               currentIndex < Tab.allCases.count - 1 else { return }
         tabState.selectTab(Tab.allCases[currentIndex + 1])
-    }
-}
-
-// MARK: - Placeholder Views
-
-struct ArtistsPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Artists View - Coming Soon - Press '1' for Sync")
-            Spacer()
-        }
-    }
-}
-
-struct AlbumsPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Albums View - Coming Soon")
-            Spacer()
-        }
-    }
-}
-
-struct SongsPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Songs View - Coming Soon")
-            Spacer()
-        }
-    }
-}
-
-struct PlaylistsPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Playlists View - Coming Soon")
-            Spacer()
-        }
-    }
-}
-
-struct PlayerPlaceholder: View {
-    var body: some View {
-        VStack {
-            Text("Player View - Coming Soon")
-            Spacer()
-        }
     }
 }

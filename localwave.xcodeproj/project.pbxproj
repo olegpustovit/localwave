@@ -44,6 +44,33 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
+				Sources/Core/Logging/FileLogger.swift,
+				Sources/Core/Platform/AVAudioPlayerAdapter.swift,
+				Sources/Core/Platform/AudioPlayer.swift,
+				Sources/Core/Platform/CLIAudioPlayerAdapter.swift,
+				Sources/Core/Platform/PlatformTypes.swift,
+				Sources/Core/RepeatMode.swift,
+				Sources/Core/Utils.swift,
+				Sources/Domain/Models/Models.swift,
+				Sources/Domain/Protocols/Protocols.swift,
+				Sources/Data/Providers/DefaultICloudProvider.swift,
+				Sources/Data/Repositories/SQLitePlaylistRepository.swift,
+				Sources/Data/Repositories/SQLitePlaylistSongRepository.swift,
+				Sources/Data/Repositories/SQLiteSongRepository.swift,
+				Sources/Data/Repositories/SQLiteSourcePathRepository.swift,
+				Sources/Data/Repositories/SQLiteSourcePathSearchRepository.swift,
+				Sources/Data/Repositories/SQLiteSourceRepository.swift,
+				Sources/Data/Repositories/SQLiteUserRepository.swift,
+				Sources/Data/Services/BackgroundFileService.swift,
+				Sources/Data/Services/DefaultPlayerPersistenceService.swift,
+				Sources/Data/Services/DefaultSongImportService.swift,
+				Sources/Data/Services/FLACMetadata.swift,
+				Sources/Data/Services/DefaultSourceImportService.swift,
+				Sources/Data/Services/DefaultSourceService.swift,
+				Sources/Data/Services/DefaultSourceSyncService.swift,
+				Sources/Data/Services/DefaultUserCloudService.swift,
+				Sources/Data/Services/DefaultUserService.swift,
+				Sources/Features/Player/ViewModels/BasePlayerViewModel.swift,
 			);
 			target = 10811E6E2D31CF01008CAD75 /* localwave */;
 		};
@@ -68,6 +95,11 @@
 			path = localwaveTests;
 			sourceTree = "<group>";
 		};
+		10UITEST2D31CF02008CAD75 /* localwaveUITests */ = {
+            isa = PBXFileSystemSynchronizedRootGroup;
+            path = localwaveUITests;
+            sourceTree = "<group>";
+        };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -115,6 +147,7 @@
 				1035973D2D3457B100456EB8 /* localwave.xctestplan */,
 				10811E712D31CF01008CAD75 /* localwave */,
 				10811E822D31CF02008CAD75 /* localwaveTests */,
+				10UITEST2D31CF02008CAD75 /* localwaveUITests */,
 				103CBBE72D331D7D00F3CEDF /* Frameworks */,
 				10811E702D31CF01008CAD75 /* Products */,
 			);
@@ -198,6 +231,7 @@
 			dependencies = (
 				10811E8B2D31CF02008CAD75 /* PBXTargetDependency */,
 			);
+			fileSystemSynchronizedGroups = (10UITEST2D31CF02008CAD75 /* localwaveUITests */);
 			name = musicappUITests;
 			packageProductDependencies = (
 			);

@@ -1,3 +1,6 @@
+import LocalWaveData
+import LocalWaveCore
+import LocalWaveDomain
 //
 //  SourceBrowseViewInternal.swift
 //  localwave
@@ -94,9 +97,11 @@ struct SourceBrowseViewInternal: View {
                         }
                         .disabled(viewModel.selectedPathIds.isEmpty || viewModel.isImporting)
                     } else {
-                        Button("Import all") {
+                        Button(viewModel.isImporting ? "Importing…" : "Import all") {
+                            guard !viewModel.isImporting else { return }
                             Task { await importSelection(selectedPaths: viewModel.items) }
                         }
+                        .disabled(viewModel.items.isEmpty || viewModel.isImporting)
                     }
                 }
                 if showImportProgress {

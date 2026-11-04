@@ -70,10 +70,8 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
 
     @Published var volume: Float = 1.0 {
         didSet {
-            // Apply logarithmic curve for better human perception
-            // Using square function (x²) as recommended for iOS
-            let actualVolume = volume * volume
-            player?.volume = actualVolume
+            // Device volume is controlled by iOS; keep per-track gain at unity.
+            player?.volume = 1.0
             Task {
                 await playerPersistenceService?.savePlaybackState(
                     volume: volume, currentIndex: currentIndex, songs: songs
@@ -289,8 +287,8 @@ class PlayerViewModel: NSObject, ObservableObject, @preconcurrency AVAudioPlayer
         do {
             let audioPlayer = try AVAudioPlayer(contentsOf: url)
             player = audioPlayer
-            // Apply logarithmic curve when setting volume
-            player?.volume = volume * volume
+            // Let iOS control the device volume.
+            player?.volume = 1.0
             currentSong = song
             player?.delegate = self
             updateTimeDisplay()

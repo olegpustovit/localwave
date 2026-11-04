@@ -337,8 +337,8 @@ struct TUISongListView: View {
     private func addToPlaylist() {
         guard selectedIndex < filteredSongs.count else { return }
         let song = filteredSongs[selectedIndex]
-        // TODO: Implement playlist integration
-        errorMessage = "Playlist functionality coming soon for: \(song.title)"
+        guard let id = song.id else { return }
+        navigationState.push(.addToPlaylist(songId: id))
     }
 
     private func editSong() {

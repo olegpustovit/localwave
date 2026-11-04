@@ -138,7 +138,7 @@ public actor DefaultSourceSyncService: SourceSyncService {
             }
 
             // Start accessing security-scoped resource
-            guard folderURL.startAccessingSecurityScopedResource() else {
+            guard folderURL.startAccessingSecurityScopedResource() || FileManager.default.isReadableFile(atPath: folderURL.path) else {
                 throw CustomError.genericError("Couldn't start accessing security scoped resource.")
             }
             defer { folderURL.stopAccessingSecurityScopedResource() }

@@ -25,7 +25,7 @@ public actor DefaultSongImportService: SongImportService {
 
     public func cancelImport() {
         currentImportTask?.cancel()
-        releaseSecurityAccess()
+        // The task releases its scope after it has stopped reading files.
     }
 
     private let logger = createLogger(subsystem: subsystem, category: "SongImporter")
@@ -89,7 +89,7 @@ public actor DefaultSongImportService: SongImportService {
         }
 
         // Start security access
-        guard url.startAccessingSecurityScopedResource() else {
+        guard url.startAccessingSecurityScopedResource() || FileManager.default.isReadableFile(atPath: url.path) else {
             logger.error("Security scope access failed for \(sourceId)")
             return nil
         }
@@ -158,6 +158,7 @@ public actor DefaultSongImportService: SongImportService {
         defer { releaseSecurityAccess() }
 
         for (index, filePath) in filePaths.enumerated() {
+            try Task.checkCancellation()
             guard let fileURL = await resolveFileURL(for: filePath) else {
                 logger.error("Skipping file due to unresolved URL")
                 continue
@@ -226,6 +227,7 @@ public actor DefaultSongImportService: SongImportService {
     private func gatherAllFiles(paths: [SourcePath]) async throws -> [SourcePath] {
         var result = [SourcePath]()
         for p in paths {
+            try Task.checkCancellation()
             if p.isDirectory {
                 let children = try await sourcePathRepo.getByParentId(
                     sourceId: p.sourceId, parentPathId: p.pathId
@@ -300,6 +302,19 @@ public actor DefaultSongImportService: SongImportService {
         artist: String, title: String, album: String,
         albumArtist: String, releaseYear: Int?, trackNumber: Int?, discNumber: Int?
     ) {
+        if url.pathExtension.lowercased() == "flac",
+           let metadata = try? FLACMetadata.read(url: url) {
+            let tags = metadata.comments
+            let artist = tags["ARTIST"] ?? "Unknown Artist"
+            func number(_ key: String) -> Int? {
+                tags[key].flatMap { Int($0.split(separator: "/").first.map(String.init) ?? "") }
+            }
+            return (artist, tags["TITLE"] ?? url.lastPathComponent,
+                    tags["ALBUM"] ?? "Unknown Album",
+                    tags["ALBUMARTIST"] ?? tags["ALBUM ARTIST"] ?? artist,
+                    tags["DATE"].flatMap { Int($0.prefix(4)) } ?? number("YEAR"),
+                    number("TRACKNUMBER"), number("DISCNUMBER"))
+        }
         let asset = AVURLAsset(url: url)
         var defaultSongTitle = url.lastPathComponent
         if defaultSongTitle.isEmpty {
@@ -388,6 +403,10 @@ public actor DefaultSongImportService: SongImportService {
 
     @available(iOS 16.0, *)
     private func extractCoverArtData(url: URL) async -> Data? {
+        if url.pathExtension.lowercased() == "flac",
+           let metadata = try? FLACMetadata.read(url: url), let artwork = metadata.artwork {
+            return artwork
+        }
         let asset = AVURLAsset(url: url)
         do {
             let metadata = try await asset.load(.metadata)

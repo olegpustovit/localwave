@@ -113,3 +113,11 @@ public struct TUITheme {
         return text + String(repeating: " ", count: max(0, width - text.count))
     }
 }
+
+// SwiftTUI exposes 24-bit RGB; keep the theme's six-digit notation local.
+extension Color {
+    static func hex(_ value: String) -> Color {
+        let rgb = UInt32(value, radix: 16) ?? 0
+        return .trueColor(red: Int((rgb >> 16) & 255), green: Int((rgb >> 8) & 255), blue: Int(rgb & 255))
+    }
+}
