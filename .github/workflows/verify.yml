@@ -19,14 +19,22 @@ jobs:
         run: swift build -c release
   ios:
     runs-on: macos-15
+    timeout-minutes: 25
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - name: Choose an available iPhone simulator
         run: |
-          simulator_id=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for devices in reversed(list(d["devices"].values())) for x in devices if x["name"].startswith("iPhone")))')
+          xcodebuild -version
+          simulator_id=$(python3 scripts/select-ios-simulator.py)
           echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
+      - name: Boot the selected simulator
+        timeout-minutes: 5
+        run: xcrun simctl bootstatus "$SIMULATOR_ID" -b
       - name: Test iOS app
-        run: xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" CODE_SIGNING_ALLOWED=NO test
+        timeout-minutes: 15
+        run: xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test
       - name: Build unsigned IPA
         run: bash scripts/build-unsigned-ipa.sh "$RUNNER_TEMP/unsigned"
       - uses: actions/upload-artifact@v4
