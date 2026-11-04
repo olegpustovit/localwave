@@ -104,7 +104,7 @@ struct PlayerPersistenceTests {
         // Slider at 0.7 should give actual volume of 0.49
         let sliderValue2: Float = 0.7
         let actualVolume2 = sliderValue2 * sliderValue2
-        #expect(actualVolume2 == 0.49)
+        #expect(abs(actualVolume2 - 0.49) < 0.000001)
         
         // Inverse: actual volume 0.25 should give slider 0.5
         let volume: Float = 0.25
