@@ -26,22 +26,19 @@ struct TUIMainView: View {
             }
 
             if showHelp {
-                Text("1–6: tabs • j/k: navigate • Space: play • Ctrl+F: search • Esc: back • Ctrl+X: quit")
+                Text("Ctrl+G/A/B/L/P/R: tabs • j/k: navigate • Space: play • Ctrl+F: search • Esc: back • Ctrl+X: quit")
             }
             Text("[?] Help  [Ctrl+X] Quit")
             // Mini player always visible at bottom
             TUIMiniPlayerView(playerViewModel: dependencies.playerViewModel)
         }
-        // Tab switching with number keys (1-6)
-        .onKeyPress("1") { tabState.selectTab(.sync) }
-        .onKeyPress("2") { tabState.selectTab(.artists) }
-        .onKeyPress("3") { tabState.selectTab(.albums) }
-        .onKeyPress("4") { tabState.selectTab(.songs) }
-        .onKeyPress("5") { tabState.selectTab(.playlists) }
-        .onKeyPress("6") { tabState.selectTab(.player) }
-        // Vim-style tab navigation
-        .onKeyPress("H") { selectPreviousTab() }
-        .onKeyPress("L") { selectNextTab() }
+        // Control shortcuts do not consume digits or letters entered in text fields.
+        .onKeyPress("\u{07}") { selectTab(.sync) }
+        .onKeyPress("\u{01}") { selectTab(.artists) }
+        .onKeyPress("\u{02}") { selectTab(.albums) }
+        .onKeyPress("\u{0C}") { selectTab(.songs) }
+        .onKeyPress("\u{10}") { selectTab(.playlists) }
+        .onKeyPress("\u{12}") { selectTab(.player) }
         // Navigation
         .onKeyPress("\u{18}") { kill(getpid(), SIGINT) }
         .onKeyPress("?") { showHelp.toggle() }
@@ -120,15 +117,8 @@ struct TUIMainView: View {
         }
     }
 
-    private func selectPreviousTab() {
-        guard let currentIndex = Tab.allCases.firstIndex(of: tabState.selectedTab),
-              currentIndex > 0 else { return }
-        tabState.selectTab(Tab.allCases[currentIndex - 1])
-    }
-
-    private func selectNextTab() {
-        guard let currentIndex = Tab.allCases.firstIndex(of: tabState.selectedTab),
-              currentIndex < Tab.allCases.count - 1 else { return }
-        tabState.selectTab(Tab.allCases[currentIndex + 1])
+    private func selectTab(_ tab: Tab) {
+        navigationState.popToRoot()
+        tabState.selectTab(tab)
     }
 }

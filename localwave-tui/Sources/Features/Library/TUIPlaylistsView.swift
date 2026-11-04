@@ -22,7 +22,7 @@ struct TUIPlaylistsView: View {
             } else if playlists.isEmpty {
                 Text("No playlists. Press n to create one.")
             } else {
-                ForEach(Array(playlists.enumerated()), id: \.element.id) { index, playlist in
+                ForEach(Array(playlists.enumerated().dropFirst((selection / 10) * 10).prefix(10)), id: \.element.id) { index, playlist in
                     Text("\(index == selection ? ">" : " ") \(playlist.name)")
                 }
             }
@@ -80,7 +80,7 @@ struct TUIPlaylistDetailView: View {
             Text("Playlist • \(songs.count) tracks")
             if let error { Text(error) }
             if songs.isEmpty { Text("Add songs from the Songs, Artists or Albums view using p.") }
-            ForEach(Array(songs.enumerated()), id: \.element.id) { index, song in
+            ForEach(Array(songs.enumerated().dropFirst((selection / 10) * 10).prefix(10)), id: \.element.id) { index, song in
                 Text("\(index == selection ? ">" : " ") \(song.title) — \(song.artist)")
             }
             Spacer()

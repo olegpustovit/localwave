@@ -52,7 +52,7 @@ swift build -c release
 .build/release/localwave-tui
 ```
 
-The TUI uses the same repositories and import service as iOS, with its own database under `~/Library/Application Support/localwave` (or `$XDG_DATA_HOME/localwave`). Add and scan a source under Sync, then browse/import it. Use 1–6 to switch sections, j/k to navigate, Space to play, p to add a song to a playlist, and Ctrl+X to quit. `?` shows global help. The checked-in SwiftTUI revision is fetched automatically; a separate local checkout is not required. See [TUI.md](TUI.md).
+The TUI uses the same repositories and import service as iOS, with its own database under `~/Library/Application Support/localwave` (or `$XDG_DATA_HOME/localwave`). Add and scan a source under Sync, then browse/import it. Use Ctrl+G/A/B/L/P/R for Sync/Artists/Albums/Songs/Playlists/Player, j/k to navigate, Space to play, p to add a song to a playlist, and Ctrl+X to quit. `?` shows global help. The checked-in SwiftTUI revision is fetched automatically; a separate local checkout is not required. See [TUI.md](TUI.md).
 
 ## Development
 

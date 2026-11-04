@@ -4,7 +4,7 @@ Build with `swift build -c release`, then run `.build/release/localwave-tui`.
 The package fetches the pinned keyboard-support SwiftTUI fork automatically.
 The application opens the persistent library; the classic layout in the source is a design prototype and is not the launch screen.
 
-Use **1–6** for Sync, Artists, Albums, Songs, Playlists and Player. **j/k** navigate, **Space** plays, **p** adds a song to a playlist, **Ctrl+F** opens global search, **Esc** returns, **?** shows help, and **Ctrl+X** exits. Local views show additional shortcuts.
+Use **Ctrl+G/A/B/L/P/R** for Sync, Artists, Albums, Songs, Playlists and Player respectively. **j/k** navigate, **Space** plays, **p** adds a song to a playlist, **Ctrl+F** opens global search, **Esc** returns, **?** shows help, and **Ctrl+X** exits. Local views show additional shortcuts.
 
 In Sync, press **m** to manage sources, **a** to add a directory, then enter its absolute path. Scan it, open it in the source browser, select files/folders and import. FLAC tags and cover art use the shared iOS import pipeline.
 

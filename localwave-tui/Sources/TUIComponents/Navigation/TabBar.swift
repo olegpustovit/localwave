@@ -30,7 +30,14 @@ public enum Tab: Int, CaseIterable, Hashable {
 
     /// Keyboard shortcut number for quick switching
     public var shortcut: String {
-        "\(rawValue)"
+        switch self {
+        case .sync: return "^G"
+        case .artists: return "^A"
+        case .albums: return "^B"
+        case .songs: return "^L"
+        case .playlists: return "^P"
+        case .player: return "^R"
+        }
     }
 
     /// Icon/indicator for the tab
