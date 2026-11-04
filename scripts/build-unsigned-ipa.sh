@@ -14,8 +14,8 @@ xcodebuild -project "$repo_dir/localwave.xcodeproj" -scheme musicapp \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
 
 mkdir -p "$work_dir/package/Payload"
-ditto "$work_dir/DerivedData/Build/Products/Release-iphoneos/localwave.app" \
+ditto --norsrc "$work_dir/DerivedData/Build/Products/Release-iphoneos/localwave.app" \
   "$work_dir/package/Payload/localwave.app"
-ditto -c -k --keepParent "$work_dir/package/Payload" "$output_dir/LocalWave-unsigned.ipa"
-shasum -a 256 "$output_dir/LocalWave-unsigned.ipa" > "$output_dir/LocalWave-unsigned.ipa.sha256"
+ditto --norsrc -c -k --keepParent "$work_dir/package/Payload" "$output_dir/LocalWave-unsigned.ipa"
+(cd "$output_dir" && shasum -a 256 LocalWave-unsigned.ipa > LocalWave-unsigned.ipa.sha256)
 echo "Unsigned IPA: $output_dir/LocalWave-unsigned.ipa"
