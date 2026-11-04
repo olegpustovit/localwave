@@ -1,9 +1,11 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
-    func search(sourceId: Int64, query: String, limit: Int) async throws -> [PathSearchResult] {
+public actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
+    public func search(sourceId: Int64, query: String, limit: Int) async throws -> [PathSearchResult] {
         let processedQuery = preprocessFTSQuery(query)
 
         let sql = """
@@ -24,17 +26,17 @@ actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
         return results
     }
 
-    func deleteAllFTS(sourceId: Int64) async throws {
+    public func deleteAllFTS(sourceId: Int64) async throws {
         let query = ftsTable.filter(colFtsSourceId == sourceId)
         try db.run(query.delete())
         logger.debug("Deleted all FTS entries for source: \(sourceId)")
     }
 
-    private let logger = Logger(subsystem: subsystem, category: "SourcePathSearchRepository")
+    private let logger = createLogger(subsystem: subsystem, category: "SourcePathSearchRepository")
 
     // MARK: - Batch Delete by sourceId, excluding runId
 
-    func batchDeleteFTS(sourceId: Int64, excludingRunId: Int64) async throws {
+    public func batchDeleteFTS(sourceId: Int64, excludingRunId: Int64) async throws {
         // Delete all rows with this sourceId where runId != excludingRunId
         let query = ftsTable.filter(
             colFtsSourceId == sourceId && colFtsRunId != excludingRunId
@@ -48,7 +50,7 @@ actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
 
     /// If `(sourceId, pathId)` already exists, we update `runId`, `fullPath`, `fileName`.
     /// Otherwise, we insert a new row.
-    func batchUpsertIntoFTS(paths: [SourcePath]) async throws {
+    public func batchUpsertIntoFTS(paths: [SourcePath]) async throws {
         guard !paths.isEmpty else { return }
 
         try db.transaction {
@@ -89,7 +91,7 @@ actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
     private let colFtsFullPath = SQLite.Expression<String>("fullPath")
     private let colFtsFileName = SQLite.Expression<String>("fileName")
 
-    init(db: Connection) throws {
+    public init(db: Connection) throws {
         self.db = db
         try db.execute(
             """

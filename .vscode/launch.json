@@ -1,0 +1,48 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug TUI",
+            "program": "${workspaceFolder}/.build/debug/localwave-tui",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "swift-build-tui",
+            "terminal": "integrated",
+            "console": "internalConsole",
+            "env": {
+                "TERM": "xterm-256color"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Run TUI (No Debug)",
+            "program": "${workspaceFolder}/.build/debug/localwave-tui",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "swift-build-tui",
+            "terminal": "integrated",
+            "console": "integratedTerminal",
+            "noDebug": true,
+            "env": {
+                "TERM": "xterm-256color"
+            }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug TUI (External Terminal)",
+            "program": "${workspaceFolder}/.build/debug/localwave-tui",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "swift-build-tui",
+            "terminal": "external",
+            "console": "externalTerminal",
+            "env": {
+                "TERM": "xterm-256color"
+            }
+        }
+    ]
+}

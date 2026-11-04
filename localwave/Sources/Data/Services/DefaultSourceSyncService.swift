@@ -1,14 +1,16 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 
-actor DefaultSourceSyncService: SourceSyncService {
-    let logger = Logger(subsystem: subsystem, category: "SourceSyncService")
+public actor DefaultSourceSyncService: SourceSyncService {
+    let logger = createLogger(subsystem: subsystem, category: "SourceSyncService")
 
     let sourceRepository: SourceRepository
     let sourcePathRepository: SourcePathRepository
     let sourcePathSearchRepository: SourcePathSearchRepository
 
-    init(
+    public init(
         sourceRepository: SourceRepository,
         sourcePathSearchRepository: SourcePathSearchRepository,
         sourcePathRepository: SourcePathRepository
@@ -18,7 +20,7 @@ actor DefaultSourceSyncService: SourceSyncService {
         self.sourcePathSearchRepository = sourcePathSearchRepository
     }
 
-    func syncDir(
+    public func syncDir(
         sourceId: Int64, folderURL: URL, onCurrentURL: ((_ url: URL?) -> Void)?,
         onSetLoading: ((_ loading: Bool) -> Void)?
     ) async throws
@@ -105,7 +107,7 @@ actor DefaultSourceSyncService: SourceSyncService {
         }
     }
 
-    func syncDirInner(
+    public func syncDirInner(
         folderURL: URL,
         onCurrentURL: ((_ url: URL) -> Void)?,
         onSetLoading _: ((_ loading: Bool) -> Void)?

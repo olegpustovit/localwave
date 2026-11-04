@@ -1,19 +1,21 @@
 import AVFoundation
 import CryptoKit
 import os
+import LocalWaveDomain
+import LocalWaveCore
 
-actor BackgroundFileService {
+public actor BackgroundFileService {
     private let songRepo: SongRepository
-    private let logger = Logger(subsystem: subsystem, category: "BackgroundFileService")
+    private let logger = createLogger(subsystem: subsystem, category: "BackgroundFileService")
     private var isRunning = false
     private let maxRetries = 3
 
-    init(songRepo: SongRepository) {
+    public init(songRepo: SongRepository) {
         self.songRepo = songRepo
         logger.debug("Initialised")
     }
 
-    func start() {
+    public func start() {
         logger.debug("attempting to start myself!")
         guard !isRunning else {
             logger.debug("service already running - aborting restart")

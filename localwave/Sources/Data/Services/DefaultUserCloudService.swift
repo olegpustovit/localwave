@@ -1,10 +1,12 @@
 import Foundation
+import LocalWaveDomain
+import LocalWaveCore
 import os
 import SQLite
 
-class DefaultUserCloudService: UserCloudService {
-    let logger = Logger(subsystem: subsystem, category: "UserCloudService")
-    func resolveCurrentICloudUser() async throws -> User? {
+public class DefaultUserCloudService: UserCloudService {
+    let logger = createLogger(subsystem: subsystem, category: "UserCloudService")
+    public func resolveCurrentICloudUser() async throws -> User? {
         if let icloudId = try await iCloudProvider.getCurrentICloudUserID() {
             logger.debug("found cloudID \(icloudId)")
             return try await userService.getOrCreateUser(icloudId: icloudId)
