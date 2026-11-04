@@ -51,6 +51,7 @@ struct LibraryView: View {
                     destination: AlbumGridView(dependencies: dependencies, viewModel: albumVM)
                 )
                 NavigationLink("Songs", destination: SongListView(viewModel: songListVM))
+                NavigationLink("About & Privacy", destination: PrivacyView())
             }
             .navigationTitle("Library")
         }
