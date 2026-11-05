@@ -894,13 +894,17 @@ struct WaveLibraryView: View {
     }
 
     private func albumCell(_ album: Album, index: Int, compact: Bool, artistDetail: Bool) -> some View {
-        WaveLibraryRouteLink(value: WaveLibraryRoute.album(album)) {
+        let first = model.songs(in: album).first
+        let year: String? = first?.releaseYear.map { String($0) }
+        let artist: String = album.artist ?? "Unknown Artist"
+        let subtitle: String = artistDetail ? (year ?? "—") : artist + (compact ? "" : year.map { " · " + $0 } ?? "")
+        return WaveLibraryRouteLink(value: WaveLibraryRoute.album(album)) {
             VStack(alignment: .leading, spacing: 0) {
                 GeometryReader { proxy in
-                    LWArtwork(song: model.songs(in: album).first, size: proxy.size.width)
+                    LWArtwork(song: first, size: proxy.size.width)
                 }.aspectRatio(1, contentMode: .fit).clipped()
                 Text(album.name).font(LWTheme.text(14).weight(.medium)).lineLimit(1).lwLineBox(14, 17.5).padding(.top, 8)
-                Text(artistDetail ? (model.songs(in: album).first?.releaseYear.map(String.init) ?? "—") : (album.artist ?? "Unknown Artist") + (compact ? "" : model.songs(in: album).first?.releaseYear.map { " · " + String($0) } ?? "")).font(LWTheme.text(13)).foregroundStyle(LWTheme.secondary).lineLimit(1).lwLineBox(13, 18.2)
+                Text(subtitle).font(LWTheme.text(13)).foregroundStyle(LWTheme.secondary).lineLimit(1).lwLineBox(13, 18.2)
             }.contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -2420,10 +2424,12 @@ struct LWEqualizer: View {
         TimelineView(.animation(paused: !playing || reduceMotion)) { timeline in
             Canvas { context, size in
                 for index in 0..<3 {
-                    let phase = (max(0, timeline.date.timeIntervalSince(beganAt)) / 0.9 + Double(index) / 3).truncatingRemainder(dividingBy: 1)
-                    let fraction = playing && !reduceMotion ? 0.4 + 0.6 * easeInOut(phase < 0.5 ? phase * 2 : (1 - phase) * 2) : 0.4
-                    let height = size.height * fraction
-                    let rect = CGRect(x: CGFloat(index) * 4, y: size.height - height, width: 2, height: height)
+                    let phase: Double = (max(0, timeline.date.timeIntervalSince(beganAt)) / 0.9 + Double(index) / 3).truncatingRemainder(dividingBy: 1)
+                    let eased: Double = easeInOut(phase < 0.5 ? phase * 2 : (1 - phase) * 2)
+                    let fraction: CGFloat = playing && !reduceMotion ? CGFloat(0.4 + 0.6 * eased) : 0.4
+                    let height: CGFloat = size.height * fraction
+                    let originX: CGFloat = CGFloat(index * 4)
+                    let rect = CGRect(x: originX, y: size.height - height, width: 2, height: height)
                     context.fill(Path(rect), with: .color(LWTheme.signal))
                 }
             }.frame(width: 14, height: 11)

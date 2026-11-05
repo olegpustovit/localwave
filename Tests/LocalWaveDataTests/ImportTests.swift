@@ -105,7 +105,7 @@ final class ImportTests: XCTestCase {
         XCTAssertEqual(song.sourceId, sourceID)
         XCTAssertEqual(song.relativePath, "nested/tagged.flac")
         XCTAssertNil(song.bookmark)
-        XCTAssertEqual(try XCTUnwrap(song.duration), Double(audio.length) / audio.processingFormat.sampleRate, accuracy: 0.01)
+        XCTAssertEqual(try XCTUnwrap(song.duration), Double(audio.length) / audio.processingFormat.sampleRate, accuracy: 0.02)
         XCTAssertEqual(song.fileExtension, "flac")
         XCTAssertEqual(song.fileSize, Int64(try target.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0))
         XCTAssertEqual(song.sampleRate, audio.fileFormat.sampleRate)

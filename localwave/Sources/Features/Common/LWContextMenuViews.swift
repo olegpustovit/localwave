@@ -188,7 +188,8 @@ struct LWContextMenuSurface: View {
         let anchor = request.anchor.map { CGPoint(x: $0.x - global.x, y: $0.y - global.y) }
             ?? CGPoint(x: geometry.size.width / 2, y: geometry.size.height / 2)
         // The reference reserves an adjacent panel and estimates30px rows at the edge.
-        let estimatedHeight = CGFloat(request.groups.reduce(0) { $0 + $1.actions.count } * 30 + request.groups.count * 9 + 10)
+        let actionCount: Int = request.groups.reduce(0) { $0 + $1.actions.count }
+        let estimatedHeight = CGFloat(actionCount * 30 + request.groups.count * 9 + 10)
         return CGPoint(x: max(0, min(anchor.x, geometry.size.width - 470)), y: max(0, min(anchor.y, geometry.size.height - estimatedHeight - 8)))
     }
 
