@@ -42,7 +42,7 @@ let package = Package(
     targets: [
         .testTarget(
             name: "LocalWaveDataTests",
-            dependencies: ["LocalWaveData", "LocalWaveDomain", "LocalWaveCore", .product(name: "SQLite", package: "SQLite.swift")],
+            dependencies: ["LocalWaveData", "LocalWaveDomain", "LocalWaveCore", "LocalWavePlayer", .product(name: "SQLite", package: "SQLite.swift")],
             path: "Tests/LocalWaveDataTests",
             resources: [.copy("Fixtures")]
         ),

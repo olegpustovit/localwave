@@ -16,8 +16,8 @@ public actor DefaultPlayerPersistenceService: PlayerPersistenceService {
 
     public func getVolume() async -> Float? {
         // Check if volume has been explicitly set
-        if UserDefaults.standard.object(forKey: volumeKey) != nil {
-            return UserDefaults.standard.float(forKey: volumeKey)
+        if LocalWavePreferences.current.object(forKey: volumeKey) != nil {
+            return LocalWavePreferences.current.float(forKey: volumeKey)
         }
         // Return nil to indicate no saved volume
         return nil
@@ -26,8 +26,8 @@ public actor DefaultPlayerPersistenceService: PlayerPersistenceService {
     let logger = createLogger(subsystem: subsystem, category: "PlayerPersistenceService")
 
     public func restore() async -> ([Song], Int, Song?)? {
-        guard let songIds = UserDefaults.standard.array(forKey: queueKey) as? [Int64],
-              let currentIndex = UserDefaults.standard.value(forKey: currentIndexKey) as? Int,
+        guard let songIds = LocalWavePreferences.current.array(forKey: queueKey) as? [Int64],
+              let currentIndex = LocalWavePreferences.current.value(forKey: currentIndexKey) as? Int,
               !songIds.isEmpty
         else {
             logger.debug("no persisted data, skipping")
@@ -62,8 +62,8 @@ public actor DefaultPlayerPersistenceService: PlayerPersistenceService {
             logger.debug("Current song being saved: \(currentSong.title) by \(currentSong.artist)")
         }
         
-        UserDefaults.standard.set(songIds, forKey: queueKey)
-        UserDefaults.standard.set(currentIndex, forKey: currentIndexKey)
-        UserDefaults.standard.set(volume, forKey: volumeKey)
+        LocalWavePreferences.current.set(songIds, forKey: queueKey)
+        LocalWavePreferences.current.set(currentIndex, forKey: currentIndexKey)
+        LocalWavePreferences.current.set(volume, forKey: volumeKey)
     }
 }

@@ -46,12 +46,14 @@
 				Info.plist,
 				Sources/Core/Logging/FileLogger.swift,
 				Sources/Core/Platform/AVAudioPlayerAdapter.swift,
+                Sources/Core/Platform/AudioSessionController.swift,
 				Sources/Core/Platform/AudioPlayer.swift,
 				Sources/Core/Platform/CLIAudioPlayerAdapter.swift,
 				Sources/Core/Platform/PlatformTypes.swift,
 				Sources/Core/RepeatMode.swift,
 				Sources/Core/Utils.swift,
 				Sources/Domain/Models/Models.swift,
+                Sources/Domain/Models/PlaybackContext.swift,
 				Sources/Domain/Protocols/Protocols.swift,
 				Sources/Data/Providers/DefaultICloudProvider.swift,
 				Sources/Data/Repositories/SQLitePlaylistRepository.swift,
@@ -62,6 +64,11 @@
 				Sources/Data/Repositories/SQLiteSourceRepository.swift,
 				Sources/Data/Repositories/SQLiteUserRepository.swift,
 				Sources/Data/Services/BackgroundFileService.swift,
+                Sources/Data/Services/SourceAccess.swift,
+                Sources/Data/Services/PlaybackFileAccess.swift,
+                Sources/Data/Services/FileAvailabilityService.swift,
+                Sources/Data/Services/SourceFolderPresenter.swift,
+                Sources/Data/Services/WaveformCache.swift,
 				Sources/Data/Services/DefaultPlayerPersistenceService.swift,
 				Sources/Data/Services/DefaultSongImportService.swift,
 				Sources/Data/Services/FLACMetadata.swift,
@@ -478,6 +485,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = localwave/mac.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"localwave/Preview Content\"";
 				DEVELOPMENT_TEAM = 7ZH3FYV964;
@@ -499,7 +507,9 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
+                "TARGETED_DEVICE_FAMILY[sdk=macosx*]" = 6;
 			};
 			name = Debug;
 		};
@@ -509,6 +519,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+                "CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = localwave/mac.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"localwave/Preview Content\"";
 				DEVELOPMENT_TEAM = 7ZH3FYV964;
@@ -530,7 +541,9 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
+                "TARGETED_DEVICE_FAMILY[sdk=macosx*]" = 6;
 			};
 			name = Release;
 		};
@@ -549,6 +562,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/localwave.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/localwave";
 			};
@@ -569,6 +583,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/localwave.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/localwave";
 			};
@@ -587,6 +602,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = localwave;
 			};
@@ -605,6 +621,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
+				SUPPORTS_MACCATALYST = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = localwave;
 			};

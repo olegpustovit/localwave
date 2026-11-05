@@ -23,6 +23,7 @@ class TUIDependencyContainer {
     let userCloudService: UserCloudService
     let icloudProvider: ICloudProvider
     let sourceService: SourceService
+    let sourceAccess: SourceAccess
     let sourcePathRepository: SourcePathRepository
     let songRepository: SongRepository
     let songImportService: SongImportService
@@ -51,6 +52,8 @@ class TUIDependencyContainer {
         let sourcePathRepo = try SQLiteSourcePathRepository(db: db)
         let sourcePathSearchRepository = try SQLiteSourcePathSearchRepository(db: db)
         let songRepo = try SQLiteSongRepository(db: db)
+        let access = SourceAccess(repository: sourceRepo, sourcePathRepository: sourcePathRepo, songRepository: songRepo)
+        sourceAccess = access
 
         // Initialize services (100% code reuse)
         userService = DefaultUserService(userRepository: userRepo)
@@ -63,7 +66,8 @@ class TUIDependencyContainer {
         let sourceSyncService = DefaultSourceSyncService(
             sourceRepository: sourceRepo,
             sourcePathSearchRepository: sourcePathSearchRepository,
-            sourcePathRepository: sourcePathRepo
+            sourcePathRepository: sourcePathRepo,
+            sourceAccess: access
         )
 
         let sourceImportService = DefaultSourceImportService(
@@ -83,7 +87,8 @@ class TUIDependencyContainer {
         songImportService = DefaultSongImportService(
             songRepo: songRepo,
             sourcePathRepo: sourcePathRepo,
-            sourceRepo: sourceRepo
+            sourceRepo: sourceRepo,
+            sourceAccess: access
         )
 
         playerPersistenceService = DefaultPlayerPersistenceService(songRepo: songRepo)
@@ -98,7 +103,11 @@ class TUIDependencyContainer {
             songRepo: songRepo,
             playlistRepo: playlistRepo,
             playlistSongRepo: playlistSongRepo,
-            logger: createLogger(subsystem: subsystem, category: "BasePlayerViewModel")
+            logger: createLogger(subsystem: subsystem, category: "BasePlayerViewModel"),
+            sourceAccessResolver: { song in
+                guard let sourceId = song.sourceId, let relativePath = song.relativePath else { return nil }
+                return try await access.fileURL(sourceId: sourceId, relativePath: relativePath)
+            }
         )
 
         // Initialize terminal size tracker

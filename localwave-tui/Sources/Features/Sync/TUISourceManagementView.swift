@@ -380,8 +380,7 @@ struct TUISourceManagementView: View {
 
         do {
             // Delete the source
-            let sourceRepo = dependencies.sourceService.repository()
-            try await sourceRepo.deleteSource(sourceId: sourceId)
+            try await dependencies.sourceAccess.remove(sourceId: sourceId)
 
             // Note: In a real implementation, we'd have a method to delete songs by source
             // For now, we'll just reload the sources list
@@ -458,7 +457,7 @@ struct TUISourceManagementView: View {
             // Create a security-scoped bookmark for the TUI
             // On macOS, TUI has direct file access but the sync service expects bookmarks
             let bookmarkKey = makeBookmarkKey(url)
-            if UserDefaults.standard.data(forKey: bookmarkKey) == nil {
+            if LocalWavePreferences.current.data(forKey: bookmarkKey) == nil {
                 do {
                     // Create a file-reference bookmark (works for command-line apps)
                     let bookmarkData = try url.bookmarkData(
@@ -466,7 +465,7 @@ struct TUISourceManagementView: View {
                         includingResourceValuesForKeys: nil,
                         relativeTo: nil
                     )
-                    UserDefaults.standard.set(bookmarkData, forKey: bookmarkKey)
+                    LocalWavePreferences.current.set(bookmarkData, forKey: bookmarkKey)
                 } catch {
                     // Fallback: create without security scope (for non-sandboxed apps)
                     if let bookmarkData = try? url.bookmarkData(
@@ -474,7 +473,7 @@ struct TUISourceManagementView: View {
                         includingResourceValuesForKeys: nil,
                         relativeTo: nil
                     ) {
-                        UserDefaults.standard.set(bookmarkData, forKey: bookmarkKey)
+                        LocalWavePreferences.current.set(bookmarkData, forKey: bookmarkKey)
                     } else {
                         errorMessage = "Failed to create bookmark: \(error.localizedDescription)"
                         isLoading = false

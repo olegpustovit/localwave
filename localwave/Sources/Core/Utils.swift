@@ -6,6 +6,32 @@ import SQLite
 public let subsystem = "com.snowbear.localwave"
 public let schemaVersion = 29
 
+public enum LocalWaveGeneratedPaths {
+    public static var urls: [URL] {
+        let manager = FileManager.default
+        let documents = manager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let caches = manager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        var result = [documents.appendingPathComponent("CoverArt", isDirectory: true), manager.temporaryDirectory.appendingPathComponent("LocalWave Share", isDirectory: true)]
+        #if os(iOS) || targetEnvironment(macCatalyst)
+        result.append(documents.appendingPathComponent("Music", isDirectory: true))
+        #endif
+        var names = ["musicApp\(schemaVersion).sqlite"]
+        if let testID = ProcessInfo.processInfo.environment["LOCALWAVE_UI_TEST_ID"], UUID(uuidString: testID) != nil { names.append("uitest-\(testID).sqlite") }
+        for file in names.map({ documents.appendingPathComponent($0) }) + [caches.appendingPathComponent("waveforms.sqlite")] {
+            result.append(contentsOf: [file, URL(fileURLWithPath: file.path + "-wal"), URL(fileURLWithPath: file.path + "-shm")])
+        }
+        return result
+    }
+
+    public static func contains(_ url: URL, excludedURLs: [URL] = urls) -> Bool {
+        let path = url.resolvingSymlinksInPath().standardizedFileURL.path
+        return excludedURLs.contains { excluded in
+            let root = excluded.resolvingSymlinksInPath().standardizedFileURL.path
+            return path == root || path.hasPrefix(root.hasSuffix("/") ? root : root + "/")
+        }
+    }
+}
+
 public enum CustomError: Error {
     case genericError(_ message: String)
 }
@@ -34,8 +60,9 @@ public struct SourceSyncResultItem {
     public let url: URL
     public let isDirectory: Bool
     public let name: String
+    public let fileSize: Int64?
 
-    public init(rootURL: URL, current: URL, isDirectory: Bool) {
+    public init(rootURL: URL, current: URL, isDirectory: Bool, fileSize: Int64? = nil) {
         let fh = FileHelper(fileURL: current)
         relativePath = fh.relativePath(from: rootURL) ?? ""
         parentURL = fh.parent().flatMap {
@@ -43,6 +70,7 @@ public struct SourceSyncResultItem {
         }
         url = current
         self.isDirectory = isDirectory
+        self.fileSize = fileSize
         name = fh.name()
     }
 }

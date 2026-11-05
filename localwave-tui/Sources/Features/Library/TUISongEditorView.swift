@@ -260,7 +260,16 @@ struct TUISongEditorView: View {
                 createdAt: song.createdAt,
                 updatedAt: Date(),
                 localFilePath: song.localFilePath,
-                fileState: song.fileState
+                fileState: song.fileState,
+                isFavorite: song.isFavorite,
+                                sourceId: song.sourceId,
+                                relativePath: song.relativePath,
+                                duration: song.duration,
+                                fileSize: song.fileSize,
+                                fileExtension: song.fileExtension,
+                                sampleRate: song.sampleRate,
+                                bitDepth: song.bitDepth,
+                                sourceAvailability: song.sourceAvailability
             )
 
             _ = try await songRepo.upsertSong(updatedSong)

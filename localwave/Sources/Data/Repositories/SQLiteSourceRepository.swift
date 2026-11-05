@@ -4,11 +4,21 @@ import LocalWaveCore
 import os
 import SQLite
 
+func requireExistingSources(_ ids: Set<Int64>, in db: Connection) throws {
+    guard try db.scalar("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sources'") as? Int64 == 1 else { return }
+    for id in ids {
+        guard try db.pluck(Table("sources").filter(Expression<Int64>("id") == id)) != nil else {
+            throw CustomError.genericError("This music source was removed.")
+        }
+    }
+}
+
 public actor SQLiteSourceRepository: SourceRepository {
     private let db: Connection
     private let table = Table("sources")
 
     // Add type column
+    private let colBookmark = SQLite.Expression<Blob?>("bookmark")
     private var colType: SQLite.Expression<String?>
     private var colId: SQLite.Expression<Int64>
     private var colDirPath: SQLite.Expression<String>
@@ -25,6 +35,7 @@ public actor SQLiteSourceRepository: SourceRepository {
 
     public init(db: Connection) throws {
         // Existing columns
+        let colBookmark = SQLite.Expression<Blob?>("bookmark")
         let colId = SQLite.Expression<Int64>("id")
         let colDirPath = SQLite.Expression<String>("dirPath")
         let colPathId = SQLite.Expression<Int64>("pathId")
@@ -47,6 +58,7 @@ public actor SQLiteSourceRepository: SourceRepository {
                 t.column(colPathId)
                 t.column(colUserId)
                 t.column(colType)
+                t.column(colBookmark)
                 t.column(colTotalPaths)
                 t.column(colSyncError)
                 t.column(colIsCurrent)
@@ -54,6 +66,11 @@ public actor SQLiteSourceRepository: SourceRepository {
                 t.column(colLastSyncedAt)
                 t.column(colUpdatedAt)
             })
+
+        try db.transaction {
+            let columns = try Set(db.prepare("PRAGMA table_info(sources)").compactMap { $0[1] as? String })
+            if !columns.contains("bookmark") { try db.execute("ALTER TABLE sources ADD COLUMN bookmark BLOB") }
+        }
 
         self.colId = colId
         self.colDirPath = colDirPath
@@ -69,8 +86,24 @@ public actor SQLiteSourceRepository: SourceRepository {
     }
 
     public func deleteSource(sourceId: Int64) async throws {
-        let query = table.filter(colId == sourceId)
-        try db.run(query.delete())
+        try db.transaction {
+            let tables = try Set(db.prepare("SELECT name FROM sqlite_master WHERE type IN ('table', 'view')").compactMap { $0[0] as? String })
+            if tables.contains("songs") {
+                let columns = try Set(db.prepare("PRAGMA table_info(songs)").compactMap { $0[1] as? String })
+                if columns.contains("sourceId") {
+                    if tables.contains("playlist_songs") {
+                        try db.run("DELETE FROM playlist_songs WHERE songId IN (SELECT id FROM songs WHERE sourceId = ?)", sourceId)
+                    }
+                    if tables.contains("songs_fts") {
+                        try db.run("DELETE FROM songs_fts WHERE songId IN (SELECT id FROM songs WHERE sourceId = ?)", sourceId)
+                    }
+                    try db.run("DELETE FROM songs WHERE sourceId = ?", sourceId)
+                }
+            }
+            if tables.contains("source_paths_fts") { try db.run("DELETE FROM source_paths_fts WHERE sourceId = ?", sourceId) }
+            if tables.contains("source_paths") { try db.run("DELETE FROM source_paths WHERE sourceId = ?", sourceId) }
+            try db.run(table.filter(colId == sourceId).delete())
+        }
         logger.debug("Deleted source with ID: \(sourceId)")
     }
 
@@ -88,7 +121,8 @@ public actor SQLiteSourceRepository: SourceRepository {
                 isCurrent: row[colIsCurrent],
                 createdAt: row[colCreatedAt],
                 lastSyncedAt: row[colLastSyncedAt],
-                updatedAt: row[colUpdatedAt]
+                updatedAt: row[colUpdatedAt],
+                bookmark: row[colBookmark].map { Data($0.bytes) }
             )
         }
         return nil
@@ -101,6 +135,7 @@ public actor SQLiteSourceRepository: SourceRepository {
             colPathId <- source.pathId,
             colUserId <- source.userId,
             colType <- source.type?.rawValue, // Explicit null if type is nil
+            colBookmark <- source.bookmark.map { Blob(bytes: [UInt8]($0)) },
             colTotalPaths <- source.totalPaths,
             colSyncError <- source.syncError,
             colIsCurrent <- source.isCurrent,
@@ -123,7 +158,8 @@ public actor SQLiteSourceRepository: SourceRepository {
             isCurrent: source.isCurrent,
             createdAt: source.createdAt,
             lastSyncedAt: source.lastSyncedAt,
-            updatedAt: source.updatedAt
+            updatedAt: source.updatedAt,
+            bookmark: source.bookmark
         )
     }
 
@@ -145,7 +181,8 @@ public actor SQLiteSourceRepository: SourceRepository {
                 isCurrent: row[colIsCurrent],
                 createdAt: row[colCreatedAt],
                 lastSyncedAt: row[colLastSyncedAt],
-                updatedAt: row[colUpdatedAt]
+                updatedAt: row[colUpdatedAt],
+                bookmark: row[colBookmark].map { Data($0.bytes) }
             )
         }
     }
@@ -171,6 +208,27 @@ public actor SQLiteSourceRepository: SourceRepository {
         return source
     }
 
+    public func updateSourceBookmark(sourceId: Int64, bookmark: Data, expectedBookmark: Data?) async throws -> Bool {
+        let expected = expectedBookmark.map { Blob(bytes: [UInt8]($0)) }
+        let query = table.filter(colId == sourceId && colBookmark == expected)
+        return try db.run(query.update(colBookmark <- Blob(bytes: [UInt8](bookmark)))) > 0
+    }
+
+    public func reconnectSource(sourceId: Int64, dirPath: String, pathId: Int64, bookmark: Data) async throws -> Source? {
+        try db.run(table.filter(colId == sourceId).update(
+            colDirPath <- dirPath, colPathId <- pathId, colBookmark <- Blob(bytes: [UInt8](bookmark)),
+            colSyncError <- nil, colUpdatedAt <- Date()
+        ))
+        return try await getOne(id: sourceId)
+    }
+
+    public func updateResolvedSourceRoot(sourceId: Int64, dirPath: String, pathId: Int64, bookmark: Data, expectedBookmark: Data?) async throws -> Bool {
+        let expected = expectedBookmark.map { Blob(bytes: [UInt8]($0)) }
+        return try db.run(table.filter(colId == sourceId && colBookmark == expected).update(
+            colDirPath <- dirPath, colPathId <- pathId, colBookmark <- Blob(bytes: [UInt8](bookmark)), colUpdatedAt <- Date()
+        )) > 0
+    }
+
     public func setCurrentSource(userId: Int64, sourceId: Int64) async throws -> Source {
         try db.transaction {
             try db.run(table.filter(colUserId == userId).update(colIsCurrent <- false))
@@ -192,7 +250,8 @@ public actor SQLiteSourceRepository: SourceRepository {
             isCurrent: row[colIsCurrent],
             createdAt: row[colCreatedAt],
             lastSyncedAt: row[colLastSyncedAt],
-            updatedAt: row[colUpdatedAt]
+            updatedAt: row[colUpdatedAt],
+                bookmark: row[colBookmark].map { Data($0.bytes) }
         )
     }
 }

@@ -54,6 +54,7 @@ public actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
         guard !paths.isEmpty else { return }
 
         try db.transaction {
+            try requireExistingSources(Set(paths.map(\.sourceId)), in: db)
             for path in paths {
                 let existingQuery = self.ftsTable.filter(
                     self.colFtsPathId == path.pathId && self.colFtsSourceId == path.sourceId

@@ -288,11 +288,15 @@ actor MockOrderedSongRepositoryForPersistence: SongRepository {
         return []
     }
     
+    func getSong(sourceId: Int64, relativePath: String) async -> Song? { nil }
+
     func getSongByURL(_ url: URL) async -> Song? {
         return nil
     }
     
     func updateBookmark(songId: Int64, bookmark: Data) async throws {}
+    func updateSourceLocation(songId: Int64, sourceId: Int64, relativePath: String) async throws {}
+    func updateSourceAvailability(songId: Int64, availability: FileAvailability) async throws {}
     
     func deleteSong(songId: Int64) async throws {}
     
@@ -302,6 +306,11 @@ actor MockOrderedSongRepositoryForPersistence: SongRepository {
         return []
     }
     
+    func updateCachedFile(songId: Int64, localFilePath: String?, state: FileState, expectedState: FileState, expectedPath: String?) async throws -> Bool {
+        guard let index = songs.firstIndex(where: { $0.id == songId && $0.fileState == expectedState && $0.localFilePath == expectedPath }) else { return false }
+        songs[index] = songs[index].copyWith(localFilePath, state)
+        return true
+    }
     func markSongForCopy(songId: Int64) async throws {}
     func toggleSongAsFavorite(songId: Int64, state: Bool) async throws {}
 }
@@ -332,11 +341,15 @@ actor MockSongRepository: SongRepository {
         return []
     }
     
+    func getSong(sourceId: Int64, relativePath: String) async -> Song? { nil }
+
     func getSongByURL(_ url: URL) async -> Song? {
         return nil
     }
     
     func updateBookmark(songId: Int64, bookmark: Data) async throws {}
+    func updateSourceLocation(songId: Int64, sourceId: Int64, relativePath: String) async throws {}
+    func updateSourceAvailability(songId: Int64, availability: FileAvailability) async throws {}
     
     func deleteSong(songId: Int64) async throws {}
     
@@ -346,6 +359,7 @@ actor MockSongRepository: SongRepository {
         return []
     }
     
+    func updateCachedFile(songId: Int64, localFilePath: String?, state: FileState, expectedState: FileState, expectedPath: String?) async throws -> Bool { false }
     func markSongForCopy(songId: Int64) async throws {}
     func toggleSongAsFavorite(songId: Int64, state: Bool) async throws {}
 }

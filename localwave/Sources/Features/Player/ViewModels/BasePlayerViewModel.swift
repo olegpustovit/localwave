@@ -22,12 +22,15 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
     @Published public var playbackProgress: Double = 0
     @Published public var currentTime: String = "0:00"
     @Published public var duration: String = "0:00"
+    @Published public private(set) var isLoading = false
+    @Published public private(set) var playbackError: String?
 
     @Published public var volume: Float = 1.0 {
         didSet {
             // Apply logarithmic curve for better human perception
             let actualVolume = volume * volume
             player.volume = actualVolume
+            guard !applyingRestoredVolume else { return }
             Task {
                 await playerPersistenceService?.savePlaybackState(
                     volume: volume, currentIndex: currentIndex, songs: songs
@@ -58,9 +61,16 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
     internal var dispatchTimer: DispatchSourceTimer?
     internal var songs: [Song] = []
     internal var currentIndex: Int = 0
-    internal var activeSecurityScopedURLs = [URL]()
+    internal var cacheDirectory: URL?
 
     internal let logger: AppLogger
+    private let sourceAccessResolver: PlaybackFileAccess.SourceResolver?
+    private var loadTask: Task<Void, Never>?
+    private var restorationTask: Task<Void, Never>?
+    private var loadGeneration = UUID()
+    private var wantsPlayback = false
+    private var playbackReady = false
+    private var applyingRestoredVolume = false
 
     // MARK: - Initialization
 
@@ -70,31 +80,39 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
         songRepo: SongRepository? = nil,
         playlistRepo: PlaylistRepository,
         playlistSongRepo: PlaylistSongRepository,
-        logger: AppLogger? = nil
+        logger: AppLogger? = nil,
+        sourceAccessResolver: PlaybackFileAccess.SourceResolver? = nil
     ) {
         self.player = player
         self.playerPersistenceService = playerPersistenceService
         self.songRepo = songRepo
         self.playlistRepo = playlistRepo
         self.playlistSongRepo = playlistSongRepo
+        self.sourceAccessResolver = sourceAccessResolver
 
         // Use provided logger or create platform-appropriate logger
         self.logger = logger ?? createLogger(subsystem: subsystem, category: "BasePlayerViewModel")
 
         self.player.delegate = self
 
-        Task {
+        let startupGeneration = loadGeneration
+        restorationTask = Task {
             // Restore volume
             if let storedVolume = await self.playerPersistenceService?.getVolume() {
+                guard loadGeneration == startupGeneration, !Task.isCancelled else { return }
+                applyingRestoredVolume = true
                 self.volume = storedVolume
+                applyingRestoredVolume = false
             }
 
             // Restore queue and current song
             if let (songs, currentIndex, currentSong) = await self.playerPersistenceService?.restore() {
+                guard loadGeneration == startupGeneration, !Task.isCancelled else { return }
                 self.songs = songs
                 self.currentIndex = currentIndex
                 self.currentSong = currentSong
 
+                restorationTask = nil
                 if let currentSong = currentSong {
                     stopAndPreloadSong(currentSong)
                 }
@@ -186,6 +204,10 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
     }
 
     public func configureQueue(songs: [Song], startIndex: Int) {
+        loadGeneration = UUID()
+        restorationTask?.cancel()
+        loadTask?.cancel()
+        isLoading = false
         self.songs = songs
         currentIndex = startIndex
         currentSong = songs[safe: startIndex]
@@ -199,44 +221,48 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
     // MARK: - Playback Control
 
     public func playSong(_ song: Song) {
-        stopAndPreloadSong(song)
-        play()
+        beginLoad(song, autoplay: true)
     }
 
     public func playPause() {
-        if isPlaying {
-            pause()
-        } else {
-            play()
-        }
+        if wantsPlayback { pause() } else { play() }
     }
 
     public func play() {
-        logger.debug("BasePlayerViewModel.play() called, current isPlaying: \(self.isPlaying)")
+        wantsPlayback = true
+        guard !isLoading else { return }
+        guard playbackReady else {
+            if let song = currentSong { beginLoad(song, autoplay: true) }
+            return
+        }
         player.play()
-        isPlaying = true
+        isPlaying = player.isPlaying
         startTimer()
     }
 
     public func pause() {
-        logger.debug("BasePlayerViewModel.pause() called, current isPlaying: \(self.isPlaying)")
+        wantsPlayback = false
         player.pause()
         isPlaying = false
         stopTimer()
     }
 
     public func stop() {
+        loadGeneration = UUID()
+        restorationTask?.cancel()
+        loadTask?.cancel()
+        loadTask = nil
+        wantsPlayback = false
+        playbackReady = false
+        isLoading = false
         player.stop()
         isPlaying = false
         playbackProgress = 0
         stopTimer()
-
-        if let url = player.url {
-            url.stopAccessingSecurityScopedResource()
+        withOfflineCacheLock {
+            LocalWavePreferences.current.removeObject(forKey: "lwActiveSongID")
+            LocalWavePreferences.current.removeObject(forKey: "lwActiveCachePath")
         }
-
-        activeSecurityScopedURLs.forEach { $0.stopAccessingSecurityScopedResource() }
-        activeSecurityScopedURLs.removeAll()
     }
 
     public func previousSong() {
@@ -355,73 +381,58 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
     // MARK: - Private Helpers
 
     internal func stopAndPreloadSong(_ song: Song) {
-        stop()
-
-        guard let url = resolveSongURL(song) else {
-            logger.error("Can't load song URL.")
-            return
-        }
-
-        guard url.startAccessingSecurityScopedResource() else {
-            logger.error("Failed to start accessing security scoped resource for song: \(song.title)")
-            do {
-                let newBookmark = try url.bookmarkData(options: [])
-                logger.warning("Renewed bookmark for song: \(song.title)")
-                var updatedSong = song
-                updatedSong.bookmark = newBookmark
-                Task {
-                    _ = try await songRepo?.upsertSong(updatedSong)
-                }
-            } catch {
-                logger.error("Failed to renew bookmark: \(error)")
-            }
-            return
-        }
-        activeSecurityScopedURLs.append(url)
-
-        do {
-            try player.prepareToPlay(url: url)
-            player.volume = volume * volume
-            currentSong = song
-            updateTimeDisplay()
-        } catch {
-            logger.error("Player init error: \(error)")
-            url.stopAccessingSecurityScopedResource()
-            activeSecurityScopedURLs.removeAll { $0 == url }
-        }
+        beginLoad(song, autoplay: false)
     }
 
-    internal func resolveSongURL(_ song: Song) -> URL? {
-        guard let bookmarkData = song.bookmark else { return nil }
-
-        var isStale = false
-        do {
-            let url = try URL(
-                resolvingBookmarkData: bookmarkData,
-                options: .withoutUI,
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale
-            )
-
-            if isStale {
-                let newBookmark = try url.bookmarkData(options: [])
-                logger.warning("Bookmark was stale - consider reimporting this file")
-
-                var updatedSong = song
-                updatedSong.bookmark = newBookmark
-                Task {
-                    _ = try await songRepo?.upsertSong(updatedSong)
+    private func beginLoad(_ song: Song, autoplay: Bool) {
+        stop()
+        let generation = loadGeneration
+        wantsPlayback = autoplay
+        currentSong = song
+        playbackError = nil
+        isLoading = true
+        if let id = song.id { withOfflineCacheLock { LocalWavePreferences.current.set(String(id), forKey: "lwActiveSongID") } }
+        let resolver = sourceAccessResolver
+        let cacheDirectory = cacheDirectory
+        loadTask = Task {
+            do {
+                let preparation = Task.detached(priority: .userInitiated) { try await PlaybackFileAccess.prepare(song, resolver: resolver, cacheDirectory: cacheDirectory) }
+                let prepared = try await withTaskCancellationHandler {
+                    try await preparation.value
+                } onCancel: { preparation.cancel() }
+                guard !Task.isCancelled, loadGeneration == generation else { return }
+                try player.prepareToPlay(url: prepared.url)
+                player.volume = volume * volume
+                playbackReady = true
+                if let id = song.id, let songRepo, let latest = await songRepo.getSongs(ids: [id]).first {
+                    let music = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Music", isDirectory: true).resolvingSymlinksInPath()
+                    if prepared.url.resolvingSymlinksInPath().deletingLastPathComponent() == music {
+                        let stored = try await songRepo.updateCachedFile(songId: id, localFilePath: "Music/" + prepared.url.lastPathComponent, state: .copied, expectedState: latest.fileState, expectedPath: latest.localFilePath)
+                        if stored, let sourceID = song.sourceId { NotificationCenter.default.post(name: Notification.Name("LWSourceMaterialized"), object: sourceID) }
+                    }
+                    if let bookmark = prepared.renewedBookmark, latest.bookmark == song.bookmark {
+                        try await songRepo.updateBookmark(songId: id, bookmark: bookmark)
+                    }
                 }
+                guard !Task.isCancelled, loadGeneration == generation else { return }
+                isLoading = false
+                updateTimeDisplay()
+                if wantsPlayback { play() }
+            } catch is CancellationError {
+                if loadGeneration == generation { isLoading = false }
+            } catch {
+                guard loadGeneration == generation else { return }
+                isLoading = false
+                wantsPlayback = false
+                playbackReady = false
+                playbackError = error.localizedDescription
+                logger.error("Unable to load audio: \(error)")
             }
-
-            return url
-        } catch {
-            logger.error("Bookmark error: \(error)")
-            return nil
         }
     }
 
     internal func startTimer() {
+        guard dispatchTimer == nil else { return }
         // Use DispatchSourceTimer instead of RunLoop Timer for TUI compatibility
         let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.main)
         timer.schedule(deadline: .now(), repeating: 1.0)
@@ -446,6 +457,7 @@ public class BasePlayerViewModel: ObservableObject, AudioPlayerDelegate {
     }
 
     internal func updateTimeDisplayAsync() async {
+        if !isLoading { isPlaying = player.isPlaying }
         let currentTimeValue = player.currentTime
         let durationValue = player.duration
 

@@ -30,22 +30,72 @@ class SyncViewModel: ObservableObject {
     @Published var currentSource: Source?
     @Published var isSyncing = false
     @Published var currentSyncedDir: String? = nil
+    @Published var importProgress: Double?
+    @Published var currentImportedFile = ""
+    @Published var scannedItemCount = 0
+    @Published var importedFileCount: Int?
+    @Published var importFileCount: Int?
+    private var scanProgressGeneration: UUID?
+    private var lastImportPublication = Date.distantPast.timeIntervalSinceReferenceDate
+    private var sourceWork: Task<Void, Never>?
+    private var foregroundRefreshQueued = false
 
     private let userCloudService: UserCloudService?
     private let icloudProvider: ICloudProvider?
     let sourceService: SourceService?
     let songImportService: SongImportService?
+    private let sourceAccess: SourceAccess?
+    private var sourceWatchTask: Task<Void, Never>?
+    private var materializationWatchTask: Task<Void, Never>?
+    private var queuedSourceChanges = Set<Int64>()
+    private var repeatedSourceChanges = Set<Int64>()
 
     init(
         userCloudService: UserCloudService?,
         icloudProvider: ICloudProvider?,
         sourceService: SourceService?,
-        songImportService: SongImportService?
+        songImportService: SongImportService?,
+        sourceAccess: SourceAccess? = nil
     ) {
         self.userCloudService = userCloudService
         self.icloudProvider = icloudProvider
         self.sourceService = sourceService
         self.songImportService = songImportService
+        self.sourceAccess = sourceAccess
+        if let sourceAccess {
+            sourceWatchTask = Task { [weak self] in
+                let changes = await sourceAccess.changes()
+                for await id in changes {
+                    guard !Task.isCancelled, let self else { return }
+                    self.sourceChanged(id)
+                }
+            }
+            materializationWatchTask = Task { [weak self] in
+                for await notification in NotificationCenter.default.notifications(named: Notification.Name("LWSourceMaterialized")) {
+                    guard !Task.isCancelled, let self else { return }
+                    if let id = notification.object as? Int64 { self.sourceChanged(id) }
+                }
+            }
+        }
+    }
+
+    deinit { sourceWatchTask?.cancel(); materializationWatchTask?.cancel() }
+
+    private func sourceChanged(_ id: Int64) {
+        guard sources.contains(where: { $0.id == id }) else { return }
+        guard queuedSourceChanges.insert(id).inserted else { repeatedSourceChanges.insert(id); return }
+        let previous = sourceWork
+        sourceWork = Task {
+            await previous?.value
+            defer {
+                queuedSourceChanges.remove(id)
+                if repeatedSourceChanges.remove(id) != nil { sourceChanged(id) }
+            }
+            guard let source = sources.first(where: { $0.id == id }) else { return }
+            do { try await syncSource(source) }
+            catch is CancellationError { }
+            catch { await recordFailure(error, source: source) }
+        }
     }
 
     func loadSources() {
@@ -66,22 +116,67 @@ class SyncViewModel: ObservableObject {
         }
     }
 
+    func refreshSources() {
+        guard !foregroundRefreshQueued else { return }
+        foregroundRefreshQueued = true
+        let previous = sourceWork
+        sourceWork = Task {
+            await previous?.value
+            defer { foregroundRefreshQueued = false }
+            do {
+                guard let user = try await userCloudService?.resolveCurrentICloudUser() else { return }
+                sources = try await sourceService?.repository().findOneByUserId(userId: user.id ?? -1, path: nil) ?? []
+                for source in sources {
+                    do { try await syncSource(source) }
+                    catch is CancellationError { }
+                    catch { await recordFailure(error, source: source) }
+                }
+            } catch { errorMessage = error.localizedDescription }
+        }
+    }
+
+    private func recordFailure(_ error: Error, source: Source) async {
+        var updated = sources.first(where: { $0.id == source.id }) ?? source
+        updated.syncError = error.localizedDescription
+        if let index = sources.firstIndex(where: { $0.id == source.id }) { sources[index] = updated }
+        guard let sourceService else { return }
+        do {
+            _ = try await sourceService.repository().updateSource(source: updated)
+            // Observers reload persisted state; publish only after the failure is committed.
+            NotificationCenter.default.post(name: Notification.Name("LibraryRefresh"), object: nil)
+        } catch { errorMessage = error.localizedDescription }
+    }
+
+    func cancelCurrentImport() {
+        Task { await songImportService?.cancelImport() }
+    }
+
+    func awaitPendingWork() async {
+        await sourceWork?.value
+    }
+
     func deleteSource(_ source: Source) {
         Task {
             if let id = source.id {
                 do {
-                    try await sourceService?.repository().deleteSource(sourceId: id)
+                    if currentSyncSourceId == id { await songImportService?.cancelImport() }
+                    if let sourceAccess { try await sourceAccess.remove(sourceId: id) }
+                    else { try await sourceService?.repository().deleteSource(sourceId: id) }
                     // Also, remove the source from the local list.
                     sources.removeAll { $0.id == id }
+                    NotificationCenter.default.post(name: Notification.Name("LibraryRefresh"), object: nil)
                 } catch {
                     logger.error("Failed to delete source: \(error)")
+                    errorMessage = error.localizedDescription
                 }
             }
         }
     }
 
     func createSource(path: String) {
-        Task {
+        let previous = sourceWork
+        sourceWork = Task {
+            await previous?.value
             do {
                 guard let currentUser = try await userCloudService?.resolveCurrentICloudUser(),
                       let service = sourceService
@@ -96,10 +191,14 @@ class SyncViewModel: ObservableObject {
                     path: path,
                     type: .iCloud
                 )
+                if let id = source.id, let bookmark = LocalWavePreferences.current.data(forKey: makeBookmarkKey(makeURLFromString(path))) {
+                    _ = try await service.repository().updateSourceBookmark(sourceId: id, bookmark: bookmark, expectedBookmark: source.bookmark)
+                }
                 logger.debug("source path \(path) is registered, now syncing...")
 
-                sources.append(source)
+                if !sources.contains(where: { $0.id == source.id }) { sources.append(source) }
                 try await syncSource(source)
+            } catch is CancellationError {
             } catch let CustomError.genericError(msg) {
                 errorMessage = msg
                 logger.error("failed to register or sync source: \(msg)")
@@ -111,62 +210,115 @@ class SyncViewModel: ObservableObject {
     }
 
     func resyncSource(_ source: Source) {
-        Task {
+        let previous = sourceWork
+        sourceWork = Task {
+            await previous?.value
             do {
                 try await syncSource(source)
                 loadSources() // Refresh list
+            } catch is CancellationError {
             } catch let CustomError.genericError(msg) {
                 // TODO: Need to inform user to remove this source and re-add it
                 logger.error("loaded error: \(msg)")
                 errorMessage = msg
+                await recordFailure(CustomError.genericError(msg), source: source)
             } catch {
                 logger.error("loaded error: \(error.localizedDescription)")
                 errorMessage = error.localizedDescription
+                await recordFailure(error, source: source)
             }
         }
     }
 
     private func syncSource(_ source: Source) async throws {
+        guard let id = source.id, let sourceAccess else { try await syncSourceContents(source); return }
+        await sourceAccess.beginScan(sourceId: id)
+        do {
+            try await syncSourceContents(source)
+            await sourceAccess.endScan(sourceId: id)
+        } catch {
+            await sourceAccess.endScan(sourceId: id)
+            throw error
+        }
+    }
+
+    private func syncSourceContents(_ source: Source) async throws {
         currentSyncSourceId = source.id
+        scannedItemCount = 0
+        importedFileCount = nil
+        importFileCount = nil
+        lastImportPublication = Date.distantPast.timeIntervalSinceReferenceDate
+        let generation = UUID()
+        scanProgressGeneration = generation
+        let counter = OSAllocatedUnfairLock(initialState: (count: 0, publishedAt: Date.distantPast.timeIntervalSinceReferenceDate))
         defer {
+            scanProgressGeneration = nil
             currentSyncSourceId = nil
+            scannedItemCount = 0
+            importedFileCount = nil
+            importFileCount = nil
+            importProgress = nil
+            currentImportedFile = ""
             NotificationCenter.default.post(name: Notification.Name("LibraryRefresh"), object: nil)
+            NotificationCenter.default.post(name: Notification.Name("SongListRefresh"), object: nil)
         }
 
         guard let sourceId = source.id else {
             throw CustomError.genericError("Invalid source ID")
         }
 
-        let folderURL = try resolveSourceURL(source)
+        let folderURL = makeURLFromString(source.dirPath)
         let updatedSource = try await sourceService?.syncService().syncDir(
             sourceId: sourceId,
             folderURL: folderURL,
-            onCurrentURL: { _ in },
+            onCurrentURL: { url in
+                guard url != nil else { return }
+                let count = counter.withLock { state -> Int? in
+                    state.count += 1
+                    let now = Date.timeIntervalSinceReferenceDate
+                    guard state.count == 1 || now - state.publishedAt >= 0.1 else { return nil }
+                    state.publishedAt = now
+                    return state.count
+                }
+                if let count {
+                    Task { @MainActor [weak self] in
+                        guard let self, scanProgressGeneration == generation, importProgress == nil else { return }
+                        scannedItemCount = count
+                    }
+                }
+            },
             onSetLoading: { _ in }
         )
 
+        scannedItemCount = counter.withLock { $0.count }
         if let updated = updatedSource {
             if let index = sources.firstIndex(where: { $0.id == source.id }) {
                 sources[index] = updated
             }
+            if let error = updated.syncError { throw CustomError.genericError(error) }
         }
-    }
-
-    private func resolveSourceURL(_ source: Source) throws -> URL {
-        let folderURL = makeURLFromString(source.dirPath)
-        let bookmarkKey = makeBookmarkKey(folderURL)
-        logger.debug("Loading bookmark key \(bookmarkKey) of \(folderURL.absoluteString)")
-        guard let bookmarkData = UserDefaults.standard.data(forKey: bookmarkKey) else {
-            throw CustomError.genericError("Missing bookmark data")
+        if let sourceService, let songImportService {
+            let paths = try await sourceService.importService().listItems(sourceId: sourceId, parentPathId: updatedSource?.pathId ?? source.pathId)
+            importProgress = 0
+            do {
+                try await songImportService.importPathsWithFileProgress(paths: paths) { progress in
+                    await MainActor.run {
+                        guard self.scanProgressGeneration == generation else { return }
+                        let now = Date.timeIntervalSinceReferenceDate
+                        guard progress.percentage >= 100 || now - self.lastImportPublication >= 0.1 else { return }
+                        self.lastImportPublication = now
+                        self.importedFileCount = progress.completedFiles
+                        self.importFileCount = progress.totalFiles
+                        self.importProgress = progress.percentage
+                        self.currentImportedFile = progress.url.lastPathComponent
+                    }
+                }
+            } catch is CancellationError { throw CancellationError() }
+            catch {
+                await recordFailure(error, source: source)
+                throw error
+            }
         }
-
-        var isStale = false
-        return try URL(
-            resolvingBookmarkData: bookmarkData,
-            options: [],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        )
     }
 
     var state: SyncViewState {
@@ -214,21 +366,24 @@ class SyncViewModel: ObservableObject {
     }
 
     func registerBookmark(_ folderURL: URL) throws {
-        guard folderURL.startAccessingSecurityScopedResource() else {
-            logger.error("Unable to access security scoped resource.")
-            return
+        guard !LocalWaveGeneratedPaths.contains(folderURL) else {
+            throw CustomError.genericError("Choose your original music folder. LocalWave’s generated cache cannot be used as a source.")
         }
-        defer { folderURL.stopAccessingSecurityScopedResource() }
+        let scoped = folderURL.startAccessingSecurityScopedResource()
+        guard scoped || FileManager.default.isReadableFile(atPath: folderURL.path) else {
+            throw CustomError.genericError("Unable to access this folder. Choose it again in Files.")
+        }
+        defer { if scoped { folderURL.stopAccessingSecurityScopedResource() } }
         let bookmarkKey = makeBookmarkKey(folderURL)
 
         let bookmarkData = try folderURL.bookmarkData(
-            options: [],
+            options: sourceBookmarkCreationOptions,
             includingResourceValuesForKeys: nil,
             relativeTo: nil
         )
         logger.debug("Setting bookmark key \(bookmarkKey) of \(folderURL.absoluteString)")
 
-        UserDefaults.standard.set(bookmarkData, forKey: bookmarkKey)
+        LocalWavePreferences.current.set(bookmarkData, forKey: bookmarkKey)
     }
 
     func sync() {

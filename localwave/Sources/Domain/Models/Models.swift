@@ -67,6 +67,7 @@ public struct Source: Sendable, Identifiable {
     public var createdAt: Date
     public var lastSyncedAt: Date?
     public var updatedAt: Date?
+    public var bookmark: Data?
 
     public init(
         id: Int64?,
@@ -79,7 +80,8 @@ public struct Source: Sendable, Identifiable {
         isCurrent: Bool,
         createdAt: Date,
         lastSyncedAt: Date?,
-        updatedAt: Date?
+        updatedAt: Date?,
+        bookmark: Data? = nil
     ) {
         self.id = id
         self.dirPath = dirPath
@@ -92,11 +94,30 @@ public struct Source: Sendable, Identifiable {
         self.createdAt = createdAt
         self.lastSyncedAt = lastSyncedAt
         self.updatedAt = updatedAt
+        self.bookmark = bookmark
     }
 
     public var stableId: Int64 {
         id ?? Int64(abs(dirPath.hashValue))
     }
+}
+
+public struct SongImportProgress: Sendable {
+    public let percentage: Double
+    public let completedFiles: Int?
+    public let totalFiles: Int?
+    public let url: URL
+
+    public init(percentage: Double, completedFiles: Int? = nil, totalFiles: Int? = nil, url: URL) {
+        self.percentage = percentage
+        self.completedFiles = completedFiles
+        self.totalFiles = totalFiles
+        self.url = url
+    }
+}
+
+public enum AudioFileSupport {
+    public static let extensions: Set<String> = ["mp3", "wav", "m4a", "flac", "aac", "aiff", "aif"]
 }
 
 public struct SourcePath: Sendable {
@@ -108,6 +129,8 @@ public struct SourcePath: Sendable {
     public let name: String
     public let relativePath: String
     public let isDirectory: Bool
+    public let fileSize: Int64?
+    public var isAudio: Bool { !isDirectory && AudioFileSupport.extensions.contains((name as NSString).pathExtension.lowercased()) }
 
     public let fileHashSHA256: Data?
     public let runId: Int64
@@ -126,7 +149,8 @@ public struct SourcePath: Sendable {
         fileHashSHA256: Data?,
         runId: Int64,
         createdAt: Date,
-        updatedAt: Date?
+        updatedAt: Date?,
+        fileSize: Int64? = nil
     ) {
         self.id = id
         self.sourceId = sourceId
@@ -135,6 +159,7 @@ public struct SourcePath: Sendable {
         self.name = name
         self.relativePath = relativePath
         self.isDirectory = isDirectory
+        self.fileSize = fileSize
         self.fileHashSHA256 = fileHashSHA256
         self.runId = runId
         self.createdAt = createdAt
@@ -153,7 +178,8 @@ public struct SourcePath: Sendable {
             fileHashSHA256: fileHashSHA256,
             runId: runId,
             createdAt: createdAt,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            fileSize: fileSize
         )
     }
 }
@@ -181,6 +207,12 @@ public enum FileState: Int, Codable, Sendable {
     case copyPending
     case copied
     case failed
+}
+
+public enum FileAvailability: String, Codable, Sendable {
+    case onDevice
+    case inCloud
+    case unknown
 }
 
 /// Example song model, no sourceId. We store all metadata ourselves.
@@ -212,6 +244,14 @@ public struct Song: Sendable, Identifiable, Equatable {
     public var fileState: FileState
 
     public let isFavorite: Int64
+    public let sourceId: Int64?
+    public let relativePath: String?
+    public let duration: Double?
+    public let fileSize: Int64?
+    public let fileExtension: String?
+    public let sampleRate: Double?
+    public let bitDepth: Int?
+    public let sourceAvailability: FileAvailability?
 
     public init(
         id: Int64?,
@@ -230,7 +270,15 @@ public struct Song: Sendable, Identifiable, Equatable {
         updatedAt: Date?,
         localFilePath: String?,
         fileState: FileState,
-        isFavorite: Int64 = 0
+        isFavorite: Int64 = 0,
+        sourceId: Int64? = nil,
+        relativePath: String? = nil,
+        duration: Double? = nil,
+        fileSize: Int64? = nil,
+        fileExtension: String? = nil,
+        sampleRate: Double? = nil,
+        bitDepth: Int? = nil,
+        sourceAvailability: FileAvailability? = nil
     ) {
         self.id = id
         self.songKey = songKey
@@ -249,9 +297,17 @@ public struct Song: Sendable, Identifiable, Equatable {
         self.localFilePath = localFilePath
         self.fileState = fileState
         self.isFavorite = isFavorite
+        self.sourceId = sourceId
+        self.relativePath = relativePath
+        self.duration = duration
+        self.fileSize = fileSize
+        self.fileExtension = fileExtension
+        self.sampleRate = sampleRate
+        self.bitDepth = bitDepth
+        self.sourceAvailability = sourceAvailability
     }
 
-    public func copyWith(_ fp: String, _ st: FileState) -> Song {
+    public func copyWith(_ fp: String?, _ st: FileState) -> Song {
 
         Song(
             id: id,
@@ -270,7 +326,15 @@ public struct Song: Sendable, Identifiable, Equatable {
             updatedAt: updatedAt,
             localFilePath: fp,
             fileState: st,
-            isFavorite: isFavorite
+            isFavorite: isFavorite,
+            sourceId: sourceId,
+            relativePath: relativePath,
+            duration: duration,
+            fileSize: fileSize,
+            fileExtension: fileExtension,
+            sampleRate: sampleRate,
+            bitDepth: bitDepth,
+            sourceAvailability: sourceAvailability
         )
     }
 
@@ -292,7 +356,15 @@ public struct Song: Sendable, Identifiable, Equatable {
             updatedAt: updatedAt,
             localFilePath: localFilePath,
             fileState: fileState,
-            isFavorite: isFavorite
+            isFavorite: isFavorite,
+            sourceId: sourceId,
+            relativePath: relativePath,
+            duration: duration,
+            fileSize: fileSize,
+            fileExtension: fileExtension,
+            sampleRate: sampleRate,
+            bitDepth: bitDepth,
+            sourceAvailability: sourceAvailability
         )
     }
 

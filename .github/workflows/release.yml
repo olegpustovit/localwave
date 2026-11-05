@@ -1,0 +1,120 @@
+name: Release
+# Push a tag such as v1.0.1: tests, uploads a signed build to TestFlight, and publishes a notarized Mac DMG and the unsigned IPA.
+# Mac DMG secrets (Developer ID + notarization): APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_SPECIFIC_PASSWORD.
+# Required TestFlight secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64 (App Store Connect API key, App Manager role).
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+
+jobs:
+  test:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test --parallel
+
+  testflight:
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Archive and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+        run: |
+          set -euo pipefail
+          for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
+            [ -n "${!v}" ] || { echo "::error::Missing secret $v"; exit 1; }
+          done
+          key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
+          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$key"
+          args=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          # Unique, increasing build number; marketing version comes from the tag when present.
+          build=$(date -u +%y%m%d%H%M)
+          settings=(CURRENT_PROJECT_VERSION="$build")
+          if [[ "$GITHUB_REF_TYPE" == tag ]]; then settings+=(MARKETING_VERSION="${GITHUB_REF_NAME#v}"); fi
+          xcodebuild -project localwave.xcodeproj -scheme musicapp -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/localwave.xcarchive" \
+            "${args[@]}" "${settings[@]}" archive
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/localwave.xcarchive" \
+            -exportOptionsPlist scripts/ExportOptions-testflight.plist -exportPath "$RUNNER_TEMP/export" "${args[@]}"
+          rm -f "$key"
+
+  mac-dmg:
+    if: github.ref_type == 'tag'
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 40
+    env:
+      APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+      APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Import Developer ID certificate
+        run: |
+          set -euo pipefail
+          for v in APPLE_CERTIFICATE_BASE64 APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_TEAM_ID APPLE_APP_SPECIFIC_PASSWORD; do
+            [ -n "${!v}" ] || { echo "::error::Missing secret $v"; exit 1; }
+          done
+          keychain="$RUNNER_TEMP/build.keychain-db"
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
+          security import "$RUNNER_TEMP/cert.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$APPLE_CERTIFICATE_PASSWORD" "$keychain"
+          xcrun notarytool store-credentials LocalWaveRelease --apple-id "$APPLE_ID" --team-id "$APPLE_TEAM_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --keychain "$keychain"
+          echo "SIGN_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+          echo "NOTARY_KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+      - name: Build, sign and notarize DMG
+        env:
+          SIGN_ID: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          NOTARY_PROFILE: LocalWaveRelease
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}" BUILD="$(date -u +%y%m%d%H%M)" bash scripts/build-mac-dmg.sh "$RUNNER_TEMP/dmg"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/dmg/* --verify-tag --title "LocalWave $GITHUB_REF_NAME" --notes-file docs/release-notes.md || \
+            gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP"/dmg/* --clobber
+      - name: Remove signing material
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/build.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/cert.p12"
+
+  unsigned-ipa:
+    if: github.ref_type == 'tag'
+    needs: test
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/build-unsigned-ipa.sh "$RUNNER_TEMP/unsigned"
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/unsigned/* --verify-tag --title "LocalWave $GITHUB_REF_NAME" --notes-file docs/release-notes.md || \
+            gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP"/unsigned/* --clobber

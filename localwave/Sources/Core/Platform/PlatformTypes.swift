@@ -8,6 +8,46 @@
 import Foundation
 import LocalWaveDomain
 
+public enum LocalWavePreferences {
+    public static let current = store(testID: ProcessInfo.processInfo.environment["LOCALWAVE_UI_TEST_ID"])
+
+    static func store(testID: String?) -> UserDefaults {
+        #if DEBUG
+        if let testID, let id = UUID(uuidString: testID) {
+            guard let defaults = UserDefaults(suiteName: "com.olegpustovit.localwave.ui-test." + id.uuidString) else {
+                preconditionFailure("UI tests require isolated preferences")
+            }
+            return defaults
+        }
+        #endif
+        return .standard
+    }
+}
+
+private let offlineCacheLock = NSRecursiveLock()
+
+public func withOfflineCacheLock<T>(_ operation: () throws -> T) rethrows -> T {
+    offlineCacheLock.lock()
+    defer { offlineCacheLock.unlock() }
+    return try operation()
+}
+
+public var sourceBookmarkCreationOptions: URL.BookmarkCreationOptions {
+    #if targetEnvironment(macCatalyst)
+    return .withSecurityScope
+    #else
+    return []
+    #endif
+}
+
+public var sourceBookmarkResolutionOptions: URL.BookmarkResolutionOptions {
+    #if targetEnvironment(macCatalyst)
+    return .withSecurityScope
+    #else
+    return []
+    #endif
+}
+
 #if canImport(UIKit)
 import UIKit
 public typealias PlatformImage = UIImage

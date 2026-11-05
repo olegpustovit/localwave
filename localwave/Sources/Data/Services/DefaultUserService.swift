@@ -17,7 +17,11 @@ public class DefaultUserService: UserService {
         } else {
             let user = User(id: nil, icloudId: icloudId)
             logger.debug("need to setup new user for \(icloudId)")
-            return try await userRepository.create(user: user)
+            do { return try await userRepository.create(user: user) }
+            catch {
+                if let existing = try await userRepository.findByIcloudId(icloudId: icloudId) { return existing }
+                throw error
+            }
         }
     }
 

@@ -10,6 +10,15 @@ public actor SQLiteSongRepository: SongRepository {
         try db.run(query.update(colBookmark <- Blob(bytes: [UInt8](bookmark))))
     }
 
+    public func updateSourceAvailability(songId: Int64, availability: FileAvailability) async throws {
+        try db.run(songsTable.filter(colId == songId).update(colSourceAvailability <- availability.rawValue))
+    }
+
+    public func updateSourceLocation(songId: Int64, sourceId: Int64, relativePath: String) async throws {
+        let unlinked = colSourceId == nil || (colSourceId == sourceId && colRelativePath == nil)
+        try db.run(songsTable.filter(colId == songId && unlinked).update(colSourceId <- sourceId, colRelativePath <- relativePath))
+    }
+
     private let db: Connection
 
     // MARK: - Main "songs" table
@@ -17,6 +26,14 @@ public actor SQLiteSongRepository: SongRepository {
     private let songsTable = Table("songs")
 
     // Typed columns
+    private let colSourceAvailability = SQLite.Expression<String?>("sourceAvailability")
+    private let colDuration = SQLite.Expression<Double?>("duration")
+    private let colFileSize = SQLite.Expression<Int64?>("fileSize")
+    private let colFileExtension = SQLite.Expression<String?>("fileExtension")
+    private let colSampleRate = SQLite.Expression<Double?>("sampleRate")
+    private let colBitDepth = SQLite.Expression<Int?>("bitDepth")
+    private let colSourceId = SQLite.Expression<Int64?>("sourceId")
+    private let colRelativePath = SQLite.Expression<String?>("relativePath")
     private let colId: SQLite.Expression<Int64>
     private let colSongKey: SQLite.Expression<Int64>
     private let colArtist: SQLite.Expression<String>
@@ -115,6 +132,14 @@ public actor SQLiteSongRepository: SongRepository {
                 t.column(colLocalFilePath) // NEW
                 t.column(colFileState) // NEW
                 t.column(colIsFavorite) // NEWER
+                t.column(colSourceId)
+                t.column(colRelativePath)
+                t.column(colSourceAvailability)
+                t.column(colDuration)
+                t.column(colFileSize)
+                t.column(colFileExtension)
+                t.column(colSampleRate)
+                t.column(colBitDepth)
             }
         )
 
@@ -125,7 +150,15 @@ public actor SQLiteSongRepository: SongRepository {
             for (name, definition) in [
                 ("localFilePath", "TEXT"),
                 ("fileState", "INTEGER NOT NULL DEFAULT 0"),
-                ("isFavorite", "INTEGER NOT NULL DEFAULT 0")
+                ("isFavorite", "INTEGER NOT NULL DEFAULT 0"),
+                ("sourceId", "INTEGER"),
+                ("relativePath", "TEXT"),
+                ("duration", "REAL"),
+                ("fileSize", "INTEGER"),
+                ("fileExtension", "TEXT"),
+                ("sampleRate", "REAL"),
+                ("bitDepth", "INTEGER"),
+                ("sourceAvailability", "TEXT")
             ] where !columns.contains(name) {
                 try db.execute("ALTER TABLE songs ADD COLUMN \(name) \(definition)")
             }
@@ -168,7 +201,15 @@ public actor SQLiteSongRepository: SongRepository {
                 // NEW: add new fields
                 localFilePath: row[colLocalFilePath], // NEW
                 fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly, // NEW
-                isFavorite: row[colIsFavorite] // NEWER
+                isFavorite: row[colIsFavorite],
+                sourceId: row[colSourceId],
+                relativePath: row[colRelativePath],
+                duration: row[colDuration],
+                fileSize: row[colFileSize],
+                fileExtension: row[colFileExtension],
+                sampleRate: row[colSampleRate],
+                bitDepth: row[colBitDepth],
+                sourceAvailability: row[colSourceAvailability].flatMap(FileAvailability.init(rawValue:)) // NEWER
             )
         }
         
@@ -204,7 +245,15 @@ public actor SQLiteSongRepository: SongRepository {
                 // NEW: add new fields
                 localFilePath: row[colLocalFilePath], // NEW
                 fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly, // NEW
-                isFavorite: row[colIsFavorite] // NEWER
+                isFavorite: row[colIsFavorite],
+                sourceId: row[colSourceId],
+                relativePath: row[colRelativePath],
+                duration: row[colDuration],
+                fileSize: row[colFileSize],
+                fileExtension: row[colFileExtension],
+                sampleRate: row[colSampleRate],
+                bitDepth: row[colBitDepth],
+                sourceAvailability: row[colSourceAvailability].flatMap(FileAvailability.init(rawValue:)) // NEWER
             )
         }
     }
@@ -241,7 +290,23 @@ public actor SQLiteSongRepository: SongRepository {
     // MARK: - Upsert
 
     public func upsertSong(_ song: Song) async throws -> Song {
-        let existingRow = try db.pluck(songsTable.filter(colSongKey == song.songKey))
+        var persisted = song
+        try db.transaction {
+            if let sourceId = song.sourceId { try requireExistingSources([sourceId], in: db) }
+            persisted = try writeSong(song)
+            if let id = persisted.id {
+                persisted = try parseSongsFromRows(db.prepare(songsTable.filter(colId == id))).first ?? persisted
+            }
+        }
+        return persisted
+    }
+
+    private func writeSong(_ song: Song) throws -> Song {
+        let sourceRow: Row?
+        if let sourceId = song.sourceId, let relativePath = song.relativePath {
+            sourceRow = try db.pluck(songsTable.filter(colSourceId == sourceId && colRelativePath == relativePath))
+        } else { sourceRow = nil }
+        let existingRow = try sourceRow ?? db.pluck(songsTable.filter(colSongKey == song.songKey))
         let now = Date().timeIntervalSince1970
         if let row = existingRow {
             let songId = row[colId]
@@ -249,6 +314,7 @@ public actor SQLiteSongRepository: SongRepository {
                 songsTable
                     .filter(colId == songId)
                     .update(
+                        colSongKey <- song.songKey,
                         colArtist <- song.artist,
                         colTitle <- song.title,
                         colAlbum <- song.album,
@@ -259,6 +325,14 @@ public actor SQLiteSongRepository: SongRepository {
                         colCoverArtPath <- song.coverArtPath,
                         colBookmark <- song.bookmark.map { data in Blob(bytes: [UInt8](data)) },
                         colPathHash <- song.pathHash,
+                        colSourceId <- song.sourceId ?? row[colSourceId],
+                        colRelativePath <- song.relativePath ?? row[colRelativePath],
+                        colDuration <- song.duration ?? row[colDuration],
+                        colFileSize <- song.fileSize ?? row[colFileSize],
+                        colFileExtension <- song.fileExtension ?? row[colFileExtension],
+                        colSampleRate <- song.sampleRate ?? row[colSampleRate],
+                        colBitDepth <- song.bitDepth ?? row[colBitDepth],
+                        colSourceAvailability <- song.sourceAvailability?.rawValue ?? row[colSourceAvailability],
                         colUpdatedAt <- now,
                         // NEW: update new fields
                         colLocalFilePath <- song.localFilePath, // NEW
@@ -290,7 +364,15 @@ public actor SQLiteSongRepository: SongRepository {
                     colCoverArtPath <- song.coverArtPath,
                     colBookmark <- song.bookmark.map { Blob(bytes: [UInt8]($0)) },
                     colPathHash <- song.pathHash,
+                    colDuration <- song.duration,
+                    colFileSize <- song.fileSize,
+                    colFileExtension <- song.fileExtension,
+                    colSampleRate <- song.sampleRate,
+                    colBitDepth <- song.bitDepth,
+                    colSourceAvailability <- song.sourceAvailability?.rawValue,
                     colCreatedAt <- song.createdAt.timeIntervalSince1970,
+                    colSourceId <- song.sourceId,
+                    colRelativePath <- song.relativePath,
                     colUpdatedAt <- song.updatedAt?.timeIntervalSince1970,
                     // NEW: insert new fields
                     colLocalFilePath <- song.localFilePath, // NEW
@@ -413,7 +495,15 @@ public actor SQLiteSongRepository: SongRepository {
                 // NEW: add new fields
                 localFilePath: row[colLocalFilePath], // NEW
                 fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly, // NEW
-                isFavorite: row[colIsFavorite] // NEWER
+                isFavorite: row[colIsFavorite],
+                sourceId: row[colSourceId],
+                relativePath: row[colRelativePath],
+                duration: row[colDuration],
+                fileSize: row[colFileSize],
+                fileExtension: row[colFileExtension],
+                sampleRate: row[colSampleRate],
+                bitDepth: row[colBitDepth],
+                sourceAvailability: row[colSourceAvailability].flatMap(FileAvailability.init(rawValue:)) // NEWER
             )
         }
     }
@@ -421,7 +511,7 @@ public actor SQLiteSongRepository: SongRepository {
     // NEW: getSongsNeedingCopy - returns songs with fileState of bookmarkOnly or failed  // NEW
     public func getSongsNeedingCopy() async -> [Song] {
         let query = songsTable.filter(
-            colFileState == FileState.bookmarkOnly.rawValue
+            colFileState == FileState.copyPending.rawValue
                 || colFileState == FileState.failed.rawValue) // NEW
         return try! db.prepare(query).map { row in // NEW
             Song(
@@ -441,7 +531,15 @@ public actor SQLiteSongRepository: SongRepository {
                 updatedAt: row[colUpdatedAt].map(Date.init(timeIntervalSince1970:)),
                 localFilePath: row[colLocalFilePath],
                 fileState: FileState(rawValue: row[colFileState]) ?? .bookmarkOnly,
-                isFavorite: row[colIsFavorite]
+                isFavorite: row[colIsFavorite],
+                sourceId: row[colSourceId],
+                relativePath: row[colRelativePath],
+                duration: row[colDuration],
+                fileSize: row[colFileSize],
+                fileExtension: row[colFileExtension],
+                sampleRate: row[colSampleRate],
+                bitDepth: row[colBitDepth],
+                sourceAvailability: row[colSourceAvailability].flatMap(FileAvailability.init(rawValue:))
             )
         }
     }
@@ -451,6 +549,16 @@ public actor SQLiteSongRepository: SongRepository {
         try db.run(
             songsTable.filter(colId == songId).update(
                 colFileState <- FileState.copyPending.rawValue)) // NEW
+    }
+
+    public func updateCachedFile(songId: Int64, localFilePath: String?, state: FileState, expectedState: FileState, expectedPath: String?) async throws -> Bool {
+        let query = songsTable.filter(colId == songId && colFileState == expectedState.rawValue && colLocalFilePath == expectedPath)
+        return try db.run(query.update(colLocalFilePath <- localFilePath, colFileState <- state.rawValue)) > 0
+    }
+
+    public func getSong(sourceId: Int64, relativePath: String) async -> Song? {
+        guard let row = try? db.pluck(songsTable.filter(colSourceId == sourceId && colRelativePath == relativePath)) else { return nil }
+        return await getSongs(ids: [row[colId]]).first
     }
     
     // NEWER: toggleSongAsFavorite - for applying Favorites filter // NEWER

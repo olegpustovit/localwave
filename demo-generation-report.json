@@ -1,0 +1,478 @@
+{
+  "trackCount": 92,
+  "albumCount": 11,
+  "originalSeconds": 24713,
+  "totalBytes": 106389591,
+  "wallSeconds": 117.97211033292115,
+  "workers": 4,
+  "encodeSeconds": 453.13692467240617,
+  "ffmpegVersion": "ffmpeg version 9.0.2 Copyright (c) 2000-2026 the FFmpeg developers",
+  "nativeValidation": [
+    {
+      "assetSeconds": 149.07532879818595,
+      "frames": 6575310,
+      "resource": "localwave-demo-a1-1.m4a"
+    },
+    {
+      "assetSeconds": 377.0753287981859,
+      "frames": 16630110,
+      "resource": "localwave-demo-a1-2.m4a"
+    },
+    {
+      "assetSeconds": 348.0753287981859,
+      "frames": 15351210,
+      "resource": "localwave-demo-a1-3.m4a"
+    },
+    {
+      "assetSeconds": 156.07532879818595,
+      "frames": 6884010,
+      "resource": "localwave-demo-a1-4.m4a"
+    },
+    {
+      "assetSeconds": 364.0753287981859,
+      "frames": 16056810,
+      "resource": "localwave-demo-a1-5.m4a"
+    },
+    {
+      "assetSeconds": 133.07532879818595,
+      "frames": 5869710,
+      "resource": "localwave-demo-a1-6.m4a"
+    },
+    {
+      "assetSeconds": 326.0753287981859,
+      "frames": 14381010,
+      "resource": "localwave-demo-a1-7.m4a"
+    },
+    {
+      "assetSeconds": 380.0753287981859,
+      "frames": 16762410,
+      "resource": "localwave-demo-a1-8.m4a"
+    },
+    {
+      "assetSeconds": 353.0753287981859,
+      "frames": 15571710,
+      "resource": "localwave-demo-a2-1.m4a"
+    },
+    {
+      "assetSeconds": 219.07532879818595,
+      "frames": 9662310,
+      "resource": "localwave-demo-a2-2.m4a"
+    },
+    {
+      "assetSeconds": 365.0753287981859,
+      "frames": 16100910,
+      "resource": "localwave-demo-a2-3.m4a"
+    },
+    {
+      "assetSeconds": 199.07532879818595,
+      "frames": 8780310,
+      "resource": "localwave-demo-a2-4.m4a"
+    },
+    {
+      "assetSeconds": 381.0753287981859,
+      "frames": 16806510,
+      "resource": "localwave-demo-a2-5.m4a"
+    },
+    {
+      "assetSeconds": 151.07532879818595,
+      "frames": 6663510,
+      "resource": "localwave-demo-a2-6.m4a"
+    },
+    {
+      "assetSeconds": 211.07532879818595,
+      "frames": 9309510,
+      "resource": "localwave-demo-a2-7.m4a"
+    },
+    {
+      "assetSeconds": 207.07532879818595,
+      "frames": 9133110,
+      "resource": "localwave-demo-a2-8.m4a"
+    },
+    {
+      "assetSeconds": 152.07532879818595,
+      "frames": 6707610,
+      "resource": "localwave-demo-a2-9.m4a"
+    },
+    {
+      "assetSeconds": 251.07532879818595,
+      "frames": 11073510,
+      "resource": "localwave-demo-a3-1.m4a"
+    },
+    {
+      "assetSeconds": 340.0753287981859,
+      "frames": 14998410,
+      "resource": "localwave-demo-a3-2.m4a"
+    },
+    {
+      "assetSeconds": 256.0753287981859,
+      "frames": 11294010,
+      "resource": "localwave-demo-a3-3.m4a"
+    },
+    {
+      "assetSeconds": 392.0753287981859,
+      "frames": 17291610,
+      "resource": "localwave-demo-a3-4.m4a"
+    },
+    {
+      "assetSeconds": 236.07532879818595,
+      "frames": 10412010,
+      "resource": "localwave-demo-a3-5.m4a"
+    },
+    {
+      "assetSeconds": 223.07532879818595,
+      "frames": 9838710,
+      "resource": "localwave-demo-a3-6.m4a"
+    },
+    {
+      "assetSeconds": 212.07532879818595,
+      "frames": 9353610,
+      "resource": "localwave-demo-a3-7.m4a"
+    },
+    {
+      "assetSeconds": 388.0753287981859,
+      "frames": 17115210,
+      "resource": "localwave-demo-a3-8.m4a"
+    },
+    {
+      "assetSeconds": 132.07532879818595,
+      "frames": 5825610,
+      "resource": "localwave-demo-a3-9.m4a"
+    },
+    {
+      "assetSeconds": 331.0753287981859,
+      "frames": 14601510,
+      "resource": "localwave-demo-a3-10.m4a"
+    },
+    {
+      "assetSeconds": 130.07532879818595,
+      "frames": 5737410,
+      "resource": "localwave-demo-a4-1.m4a"
+    },
+    {
+      "assetSeconds": 273.0753287981859,
+      "frames": 12043710,
+      "resource": "localwave-demo-a4-2.m4a"
+    },
+    {
+      "assetSeconds": 296.0753287981859,
+      "frames": 13058010,
+      "resource": "localwave-demo-a4-3.m4a"
+    },
+    {
+      "assetSeconds": 213.07532879818595,
+      "frames": 9397710,
+      "resource": "localwave-demo-a4-4.m4a"
+    },
+    {
+      "assetSeconds": 176.07532879818595,
+      "frames": 7766010,
+      "resource": "localwave-demo-a4-5.m4a"
+    },
+    {
+      "assetSeconds": 359.0753287981859,
+      "frames": 15836310,
+      "resource": "localwave-demo-a4-6.m4a"
+    },
+    {
+      "assetSeconds": 199.07532879818595,
+      "frames": 8780310,
+      "resource": "localwave-demo-a4-7.m4a"
+    },
+    {
+      "assetSeconds": 391.0753287981859,
+      "frames": 17247510,
+      "resource": "localwave-demo-a4-8.m4a"
+    },
+    {
+      "assetSeconds": 193.07532879818595,
+      "frames": 8515710,
+      "resource": "localwave-demo-a5-1.m4a"
+    },
+    {
+      "assetSeconds": 395.0753287981859,
+      "frames": 17423910,
+      "resource": "localwave-demo-a5-2.m4a"
+    },
+    {
+      "assetSeconds": 379.0753287981859,
+      "frames": 16718310,
+      "resource": "localwave-demo-a5-3.m4a"
+    },
+    {
+      "assetSeconds": 234.07532879818595,
+      "frames": 10323810,
+      "resource": "localwave-demo-a5-4.m4a"
+    },
+    {
+      "assetSeconds": 306.0753287981859,
+      "frames": 13499010,
+      "resource": "localwave-demo-a5-5.m4a"
+    },
+    {
+      "assetSeconds": 322.0753287981859,
+      "frames": 14204610,
+      "resource": "localwave-demo-a5-6.m4a"
+    },
+    {
+      "assetSeconds": 231.07532879818595,
+      "frames": 10191510,
+      "resource": "localwave-demo-a5-7.m4a"
+    },
+    {
+      "assetSeconds": 209.07532879818595,
+      "frames": 9221310,
+      "resource": "localwave-demo-a5-8.m4a"
+    },
+    {
+      "assetSeconds": 252.07532879818595,
+      "frames": 11117610,
+      "resource": "localwave-demo-a5-9.m4a"
+    },
+    {
+      "assetSeconds": 283.0753287981859,
+      "frames": 12484710,
+      "resource": "localwave-demo-a5-10.m4a"
+    },
+    {
+      "assetSeconds": 239.07532879818595,
+      "frames": 10544310,
+      "resource": "localwave-demo-a5-11.m4a"
+    },
+    {
+      "assetSeconds": 164.07532879818595,
+      "frames": 7236810,
+      "resource": "localwave-demo-a6-1.m4a"
+    },
+    {
+      "assetSeconds": 201.07532879818595,
+      "frames": 8868510,
+      "resource": "localwave-demo-a6-2.m4a"
+    },
+    {
+      "assetSeconds": 283.0753287981859,
+      "frames": 12484710,
+      "resource": "localwave-demo-a6-3.m4a"
+    },
+    {
+      "assetSeconds": 313.0753287981859,
+      "frames": 13807710,
+      "resource": "localwave-demo-a6-4.m4a"
+    },
+    {
+      "assetSeconds": 375.0753287981859,
+      "frames": 16541910,
+      "resource": "localwave-demo-a6-5.m4a"
+    },
+    {
+      "assetSeconds": 296.0753287981859,
+      "frames": 13058010,
+      "resource": "localwave-demo-a6-6.m4a"
+    },
+    {
+      "assetSeconds": 319.0753287981859,
+      "frames": 14072310,
+      "resource": "localwave-demo-a6-7.m4a"
+    },
+    {
+      "assetSeconds": 183.07532879818595,
+      "frames": 8074710,
+      "resource": "localwave-demo-a7-1.m4a"
+    },
+    {
+      "assetSeconds": 325.0753287981859,
+      "frames": 14336910,
+      "resource": "localwave-demo-a7-2.m4a"
+    },
+    {
+      "assetSeconds": 317.0753287981859,
+      "frames": 13984110,
+      "resource": "localwave-demo-a7-3.m4a"
+    },
+    {
+      "assetSeconds": 167.07532879818595,
+      "frames": 7369110,
+      "resource": "localwave-demo-a7-4.m4a"
+    },
+    {
+      "assetSeconds": 354.0753287981859,
+      "frames": 15615810,
+      "resource": "localwave-demo-a7-5.m4a"
+    },
+    {
+      "assetSeconds": 256.0753287981859,
+      "frames": 11294010,
+      "resource": "localwave-demo-a7-6.m4a"
+    },
+    {
+      "assetSeconds": 398.0753287981859,
+      "frames": 17556210,
+      "resource": "localwave-demo-a7-7.m4a"
+    },
+    {
+      "assetSeconds": 141.07532879818595,
+      "frames": 6222510,
+      "resource": "localwave-demo-a7-8.m4a"
+    },
+    {
+      "assetSeconds": 184.07532879818595,
+      "frames": 8118810,
+      "resource": "localwave-demo-a7-9.m4a"
+    },
+    {
+      "assetSeconds": 333.0753287981859,
+      "frames": 14689710,
+      "resource": "localwave-demo-a8-1.m4a"
+    },
+    {
+      "assetSeconds": 224.07532879818595,
+      "frames": 9882810,
+      "resource": "localwave-demo-a8-2.m4a"
+    },
+    {
+      "assetSeconds": 291.0753287981859,
+      "frames": 12837510,
+      "resource": "localwave-demo-a8-3.m4a"
+    },
+    {
+      "assetSeconds": 207.07532879818595,
+      "frames": 9133110,
+      "resource": "localwave-demo-a8-4.m4a"
+    },
+    {
+      "assetSeconds": 363.0753287981859,
+      "frames": 16012710,
+      "resource": "localwave-demo-a8-5.m4a"
+    },
+    {
+      "assetSeconds": 163.07532879818595,
+      "frames": 7192710,
+      "resource": "localwave-demo-a8-6.m4a"
+    },
+    {
+      "assetSeconds": 379.0753287981859,
+      "frames": 16718310,
+      "resource": "localwave-demo-a9-1.m4a"
+    },
+    {
+      "assetSeconds": 352.0753287981859,
+      "frames": 15527610,
+      "resource": "localwave-demo-a9-2.m4a"
+    },
+    {
+      "assetSeconds": 207.07532879818595,
+      "frames": 9133110,
+      "resource": "localwave-demo-a9-3.m4a"
+    },
+    {
+      "assetSeconds": 175.07532879818595,
+      "frames": 7721910,
+      "resource": "localwave-demo-a9-4.m4a"
+    },
+    {
+      "assetSeconds": 172.07532879818595,
+      "frames": 7589610,
+      "resource": "localwave-demo-a9-5.m4a"
+    },
+    {
+      "assetSeconds": 158.07532879818595,
+      "frames": 6972210,
+      "resource": "localwave-demo-a9-6.m4a"
+    },
+    {
+      "assetSeconds": 230.07532879818595,
+      "frames": 10147410,
+      "resource": "localwave-demo-a9-7.m4a"
+    },
+    {
+      "assetSeconds": 222.07532879818595,
+      "frames": 9794610,
+      "resource": "localwave-demo-a9-8.m4a"
+    },
+    {
+      "assetSeconds": 299.0753287981859,
+      "frames": 13190310,
+      "resource": "localwave-demo-a11-1.m4a"
+    },
+    {
+      "assetSeconds": 383.0753287981859,
+      "frames": 16894710,
+      "resource": "localwave-demo-a11-2.m4a"
+    },
+    {
+      "assetSeconds": 130.07532879818595,
+      "frames": 5737410,
+      "resource": "localwave-demo-a11-3.m4a"
+    },
+    {
+      "assetSeconds": 311.0753287981859,
+      "frames": 13719510,
+      "resource": "localwave-demo-a11-4.m4a"
+    },
+    {
+      "assetSeconds": 395.0753287981859,
+      "frames": 17423910,
+      "resource": "localwave-demo-a11-5.m4a"
+    },
+    {
+      "assetSeconds": 352.0753287981859,
+      "frames": 15527610,
+      "resource": "localwave-demo-a11-6.m4a"
+    },
+    {
+      "assetSeconds": 360.0753287981859,
+      "frames": 15880410,
+      "resource": "localwave-demo-a10-1.m4a"
+    },
+    {
+      "assetSeconds": 351.0753287981859,
+      "frames": 15483510,
+      "resource": "localwave-demo-a10-2.m4a"
+    },
+    {
+      "assetSeconds": 381.0753287981859,
+      "frames": 16806510,
+      "resource": "localwave-demo-a10-3.m4a"
+    },
+    {
+      "assetSeconds": 189.07532879818595,
+      "frames": 8339310,
+      "resource": "localwave-demo-a10-4.m4a"
+    },
+    {
+      "assetSeconds": 270.0753287981859,
+      "frames": 11911410,
+      "resource": "localwave-demo-a10-5.m4a"
+    },
+    {
+      "assetSeconds": 179.07532879818595,
+      "frames": 7898310,
+      "resource": "localwave-demo-a10-6.m4a"
+    },
+    {
+      "assetSeconds": 350.0753287981859,
+      "frames": 15439410,
+      "resource": "localwave-demo-a10-7.m4a"
+    },
+    {
+      "assetSeconds": 156.07532879818595,
+      "frames": 6884010,
+      "resource": "localwave-demo-a10-8.m4a"
+    },
+    {
+      "assetSeconds": 199.07532879818595,
+      "frames": 8780310,
+      "resource": "localwave-demo-a10-9.m4a"
+    },
+    {
+      "assetSeconds": 344.0753287981859,
+      "frames": 15174810,
+      "resource": "localwave-demo-a10-10.m4a"
+    }
+  ],
+  "validationReport": "/tmp/localwave-demo-validation-report.json",
+  "normalSourceImportReport": "/tmp/localwave-demo-normal-import.json",
+  "allNativeTagsAndHashesValidated": true,
+  "normalSourceImportedSongCount": 92,
+  "catalogBytes": 42447,
+  "bundleBytes": 106432038
+}

@@ -45,7 +45,9 @@ public actor SQLitePlaylistSongRepository: PlaylistSongRepository {
                     .select(colPosition.max)
             ) ?? -1
 
-        let insert = table.insert(
+        // Existing membership is a no-op: preserve its row and position while
+        // allowing mixed batches to append only their new songs.
+        let insert = table.insert(or: .ignore,
             colPlaylistId <- playlistId,
             colSongId <- songId,
             colPosition <- maxPosition + 1
@@ -91,7 +93,15 @@ public actor SQLitePlaylistSongRepository: PlaylistSongRepository {
                 localFilePath: row[songsTable[Expression<String?>("localFilePath")]],
                 fileState: FileState(rawValue: row[songsTable[Expression<Int>("fileState")]])
                     ?? .bookmarkOnly,
-                isFavorite: row[songsTable[Expression<Int64>("isFavorite")]]
+                isFavorite: row[songsTable[Expression<Int64>("isFavorite")]],
+                sourceId: row[songsTable[Expression<Int64?>("sourceId")]],
+                relativePath: row[songsTable[Expression<String?>("relativePath")]],
+                duration: row[songsTable[Expression<Double?>("duration")]],
+                fileSize: row[songsTable[Expression<Int64?>("fileSize")]],
+                fileExtension: row[songsTable[Expression<String?>("fileExtension")]],
+                sampleRate: row[songsTable[Expression<Double?>("sampleRate")]],
+                bitDepth: row[songsTable[Expression<Int?>("bitDepth")]],
+                sourceAvailability: row[songsTable[Expression<String?>("sourceAvailability")]].flatMap(FileAvailability.init(rawValue:))
             )
         }
     }

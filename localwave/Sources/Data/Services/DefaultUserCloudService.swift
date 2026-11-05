@@ -11,7 +11,7 @@ public class DefaultUserCloudService: UserCloudService {
             logger.debug("found cloudID \(icloudId)")
             return try await userService.getOrCreateUser(icloudId: icloudId)
         }
-        return nil
+        return try await userService.getOrCreateUser(icloudId: -1)
     }
 
     private let userService: UserService

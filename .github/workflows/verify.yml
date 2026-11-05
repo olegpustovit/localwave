@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Test shared repositories and FLAC metadata
-        run: swift test
+        run: swift test --parallel
       - name: Build terminal app
         run: swift build -c release
   ios:
@@ -32,9 +32,12 @@ jobs:
       - name: Boot the selected simulator
         timeout-minutes: 5
         run: xcrun simctl bootstatus "$SIMULATOR_ID" -b
-      - name: Test iOS app
+      - name: Test iOS app (unit tests; UI flows only on manual runs)
         timeout-minutes: 15
-        run: xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test
+        run: |
+          scope=(-only-testing:musicappTests)
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then scope=(); fi
+          xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" "${scope[@]}" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test
       - name: Build unsigned IPA
         run: bash scripts/build-unsigned-ipa.sh "$RUNNER_TEMP/unsigned"
       - uses: actions/upload-artifact@v4

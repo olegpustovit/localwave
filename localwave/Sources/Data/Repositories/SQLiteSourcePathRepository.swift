@@ -15,6 +15,7 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
     private let colName: SQLite.Expression<String>
     private let colRelativePath: SQLite.Expression<String>
     private let colIsDirectory: SQLite.Expression<Bool>
+    private let colFileSize: SQLite.Expression<Int64?>
     private let colFileHashSHA256: SQLite.Expression<Data?>
     private let colRunId: SQLite.Expression<Int64>
     private let colCreatedAt: SQLite.Expression<Date>
@@ -36,7 +37,8 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
                 fileHashSHA256: row[colFileHashSHA256],
                 runId: row[colRunId],
                 createdAt: row[colCreatedAt],
-                updatedAt: row[colUpdatedAt]
+                updatedAt: row[colUpdatedAt],
+                fileSize: row[colFileSize]
             )
         }
         return nil
@@ -69,7 +71,8 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
                 fileHashSHA256: row[colFileHashSHA256],
                 runId: row[colRunId],
                 createdAt: row[colCreatedAt],
-                updatedAt: row[colUpdatedAt]
+                updatedAt: row[colUpdatedAt],
+                fileSize: row[colFileSize]
             )
         }
     }
@@ -84,6 +87,7 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
         let colName = SQLite.Expression<String>("name")
         let colRelativePath = SQLite.Expression<String>("relativePath")
         let colIsDirectory = SQLite.Expression<Bool>("isDirectory")
+        let colFileSize = SQLite.Expression<Int64?>("fileSize")
         let colFileHashSHA256 = SQLite.Expression<Data?>("fileHashSHA256")
         let colRunId = SQLite.Expression<Int64>("runId")
         let colCreatedAt = SQLite.Expression<Date>("createdAt")
@@ -100,12 +104,15 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
                 t.column(colName)
                 t.column(colRelativePath)
                 t.column(colIsDirectory)
+                t.column(colFileSize)
                 t.column(colFileHashSHA256)
                 t.column(colRunId)
                 t.column(colCreatedAt)
                 t.column(colUpdatedAt)
             }
         )
+        let columns = try db.prepare("PRAGMA table_info(source_paths)").compactMap { $0[1] as? String }
+        if !columns.contains("fileSize") { try db.run("ALTER TABLE source_paths ADD COLUMN fileSize INTEGER") }
         logger.debug("Created table: source_paths")
 
         self.colId = colId
@@ -115,6 +122,7 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
         self.colName = colName
         self.colRelativePath = colRelativePath
         self.colIsDirectory = colIsDirectory
+        self.colFileSize = colFileSize
         self.colFileHashSHA256 = colFileHashSHA256
         self.colRunId = colRunId
         self.colCreatedAt = colCreatedAt
@@ -140,6 +148,7 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
             colName <- path.name,
             colRelativePath <- path.relativePath,
             colIsDirectory <- path.isDirectory,
+            colFileSize <- path.fileSize,
             colFileHashSHA256 <- path.fileHashSHA256,
             colRunId <- path.runId,
             colCreatedAt <- path.createdAt,
@@ -181,7 +190,8 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
                 fileHashSHA256: row[colFileHashSHA256],
                 runId: row[colRunId],
                 createdAt: row[colCreatedAt],
-                updatedAt: row[colUpdatedAt]
+                updatedAt: row[colUpdatedAt],
+                fileSize: row[colFileSize]
             )
         }
     }
@@ -202,7 +212,8 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
                 fileHashSHA256: row[colFileHashSHA256],
                 runId: row[colRunId],
                 createdAt: row[colCreatedAt],
-                updatedAt: row[colUpdatedAt]
+                updatedAt: row[colUpdatedAt],
+                fileSize: row[colFileSize]
             )
         }
         return nil
@@ -213,17 +224,20 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
             return
         }
         try db.transaction {
+            try requireExistingSources(Set(paths.map(\.sourceId)), in: db)
             for path in paths {
-                let query = table.filter(colSourceId == path.sourceId && colPathId == path.pathId)
-                if try (db.pluck(query)) != nil {
+                let query = table.filter(colSourceId == path.sourceId && colRelativePath == path.relativePath)
+                if let existing = try db.pluck(query) {
                     // Update existing record
                     try db.run(
                         query.update(
+                            colPathId <- path.pathId,
                             colParentPathId <- path.parentPathId,
                             colName <- path.name,
                             colRelativePath <- path.relativePath,
                             colIsDirectory <- path.isDirectory,
-                            colFileHashSHA256 <- path.fileHashSHA256,
+                            colFileSize <- path.fileSize ?? existing[colFileSize],
+                            colFileHashSHA256 <- path.fileHashSHA256 ?? existing[colFileHashSHA256],
                             colRunId <- path.runId,
                             colUpdatedAt <- path.updatedAt
                         ))
@@ -240,6 +254,7 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
                             colName <- path.name,
                             colRelativePath <- path.relativePath,
                             colIsDirectory <- path.isDirectory,
+                            colFileSize <- path.fileSize,
                             colFileHashSHA256 <- path.fileHashSHA256,
                             colRunId <- path.runId,
                             colCreatedAt <- path.createdAt,

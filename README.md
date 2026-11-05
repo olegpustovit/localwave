@@ -1,10 +1,10 @@
 # LocalWave
 
-An iOS music player for MP3, FLAC and other supported audio files you select from Files or iCloud Drive. Browse your library by artist, album or song, search it, and play tracks without an Apple Music subscription.
+A SwiftUI music player for MP3, FLAC and other supported audio files on iPhone, iPad and Mac Catalyst. Choose music from Files or a mounted file provider. Browse your library by artist, album or song, search it, and play tracks without an Apple Music subscription.
 
 ![LocalWave album library, source-folder import and player](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/frame_source.webp)
 
-*Existing app screenshots from the [development article](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/). They were not recaptured for this review.*
+*Historical screenshots from the [development article](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/). The current instrument-style SwiftUI port follows [redesign version 4](https://artifacts.microapps.space/a/mh0ydns8mzyg), with bundled Host Grotesk/Geist Mono, Canvas matrix numerals and audio-derived waveforms.*
 
 ## Build and try it
 
@@ -19,19 +19,25 @@ open localwave.xcodeproj
 1. Select the shared **musicapp** scheme and an iOS 18.2 or newer simulator. The scheme builds the **localwave** app.
 2. Let Xcode resolve the Swift packages. For a physical device, open the **localwave** target’s **Signing & Capabilities**, enable **Automatically manage signing**, and select your own team (a Personal Team works for development). Change **Bundle Identifier** to a unique reverse-DNS value such as `com.yourname.localwave`; the checked-in identifier belongs to the project and may not be available to your account. Simulator builds do not need a signing team.
 3. Choose **Product > Run**. On a physical iPhone, enable **Settings > Privacy & Security > Developer Mode** if requested, restart, and confirm it. If iOS reports an untrusted developer, open **Settings > General > VPN & Device Management**, select your developer profile, and trust it. Keep the iPhone unlocked and accept the Mac’s pairing prompt. Personal Team builds expire and need to be re-signed according to your account’s limits.
-4. Open **Sync**, tap **+**, and select a folder containing audio files you have permission to use.
-5. Tap **Import all** in the source browser to import the displayed files and folders recursively, or select items and tap **Import N items**.
-6. Open **Library**, choose a song, and use the mini player or full player to control playback.
+4. Open **Folders**, tap **Add music**, and choose folders or audio files. Folders scan and import automatically; individually selected audio is copied into **Added Files**.
+5. Open **Library**, choose a song, and use the bottom deck or Now playing panel. **Lists** holds playlists and automatic collections; **Find** searches across sources.
+6. On Mac, select **My Mac (Mac Catalyst)** in the same **musicapp** scheme. The same SwiftUI shell switches to a sidebar, library and collapsible player panel at 900 points. Narrow windows use the phone deck. Finder drops, a command palette (⌘K) and native Controls menu use the same player and import services.
 
 Importing an iCloud source can require a network connection to download its files. Local playback depends on the selected files being available and accessible; this is not a promise that every cloud-backed file works offline.
 
+An empty library offers **Try the demo library**: 92 real synthesized recordings across 11 albums, imported as one local source. Existing libraries offer **Explore the library** and are not changed by that action. The bundled audio/catalog adds 101.5 MiB to the app; choosing the demo creates its local source files. Regenerate or verify them with [generate_demo_library.py](scripts/generate_demo_library.py).
+
 ## What is in the source
 
-The app includes folder import, metadata and artwork, artist/album/song views, playlists, a playback queue, shuffle/repeat controls and lock-screen remote commands. Background audio is declared in the app's configuration. SQLite FTS5 provides indexed song and path search, with BM25 ranking in song queries.
+The app includes folder import, metadata and artwork, artist/album/song views, playlists, a playback queue, shuffle/repeat controls and lock-screen remote commands. Background audio is declared in the app's configuration. SQLite FTS5 provides indexed song and path search. Find preserves library order among matching songs; repository queries also support BM25 ranking.
 
-FLAC imports read Vorbis comments (including artist, title, album artist, year, track and disc) and embedded cover art. Device volume is controlled with the iPhone’s hardware buttons or Control Center. Favorite tracks can be marked with the star in Songs; playlist views show the saved favorite state.
+FLAC imports read Vorbis comments (including artist, title, album artist, year, track and disc) and embedded cover art. Device volume is controlled with the iPhone’s hardware buttons or Control Center. Favorites use the heart action. Kept-offline pins protect cached copies from the configurable LRU cache limit; releasing a pin keeps its copy until space is needed. System appearance, signal color and reduced motion are available in Settings.
 
-Automated checks cover shared database upgrades, Favorites persistence, recursive local FLAC import and native decoding. Physical-device audio routes, iCloud downloads, and long-running background playback still require device testing.
+M4A imports also read native album-artist, release-date, track and disc tags, including the binary track/disc fields.
+
+Automated checks cover shared database upgrades, Favorites persistence, recursive local FLAC import and native decoding. Physical-device audio routes, iCloud downloads, and long-running background playback still require device testing. Known evicted iCloud items and recognized provider locations are indexed without reading audio; metadata is enriched from a verified materialized copy. Generic providers expose no universal public download status, so unconfirmed availability remains unknown and provider downloads show indeterminate progress.
+
+See the [redesign qualification record](docs/redesign-qualification.md) for the shared-shell implementation, isolated test fixtures, and outstanding provider/device checks.
 
 ## Unsigned IPA
 
@@ -43,7 +49,7 @@ To produce the same package locally:
 bash scripts/build-unsigned-ipa.sh /tmp/localwave-unsigned
 ```
 
-Pull-request CI also uploads an unsigned IPA as a workflow artifact. The manual **Unsigned release** workflow publishes a tagged commit as a release. See [release notes](docs/unsigned-release-notes.md) for distribution limits.
+Pull-request CI also uploads an unsigned IPA as a workflow artifact. Pushing a tag such as `v1.0.1` runs the **Release** workflow: it runs `swift test --parallel`, uploads a signed build to internal TestFlight, and publishes a Developer ID signed, notarized Mac DMG plus the unsigned IPA as a GitHub release (`bash scripts/build-mac-dmg.sh` builds the DMG locally). The DMG needs `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_SPECIFIC_PASSWORD`. TestFlight needs `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8_BASE64` (an App Store Connect API key with App Manager access, base64-encoded). Signing uses automatic cloud-managed certificates; the tag sets the marketing version and a UTC timestamp sets the build number. The workflow can also be run manually to upload a TestFlight build without a tag. See [release notes](docs/release-notes.md) for distribution limits.
 
 ## macOS terminal player
 
@@ -56,7 +62,7 @@ The TUI uses the same repositories and import service as iOS, with its own datab
 
 ## Development
 
-The app is in [localwave/Sources](localwave/Sources), organized into App, Core, Domain, Data and Features. [CLAUDE.md](CLAUDE.md) maps those layers. The shared scheme uses [localwave.xctestplan](localwave.xctestplan); run **Product > Test** in Xcode. Existing iOS Swift Testing cases are in [localwaveTests](localwaveTests). Run `swift test` for shared repository/import tests; CI runs both the package tests and the iOS test plan.
+The app is in [localwave/Sources](localwave/Sources), organized into App, Core, Domain, Data and Features. [AGENTS.md](AGENTS.md) maps those layers. The shared scheme uses [localwave.xctestplan](localwave.xctestplan); run **Product > Test** in Xcode. Existing iOS Swift Testing cases are in [localwaveTests](localwaveTests). Run `swift test` for shared repository/import tests; pull-request CI runs the package tests and the iOS unit tests; the manual **Verify** workflow also runs the UI flows. See the test budget in [AGENTS.md](AGENTS.md).
 
 Report a reproducible problem in [GitHub issues](https://github.com/olegpustovit/localwave/issues), including your iOS version and whether the source is local or iCloud-backed. Do not attach private music or library data.
 

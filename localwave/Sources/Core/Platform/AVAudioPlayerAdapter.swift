@@ -14,6 +14,12 @@ import os
 @MainActor
 public class AVAudioPlayerAdapter: NSObject, AudioPlayerProtocol, @preconcurrency AVAudioPlayerDelegate {
     private var player: AVAudioPlayer?
+    private let audioSession: AudioSessionController
+    private var activationTask: Task<Void, Never>?
+    private var sessionEvents: Task<Void, Never>?
+    private var playbackGeneration = UUID()
+    private var resumeAfterInterruption = false
+    private var wantsPlayback = false
     private let logger = createLogger(subsystem: subsystem, category: "AVAudioPlayerAdapter")
 
     public weak var delegate: AudioPlayerDelegate?
@@ -49,8 +55,36 @@ public class AVAudioPlayerAdapter: NSObject, AudioPlayerProtocol, @preconcurrenc
     // MARK: - Initialization
 
     public override init() {
+        audioSession = .shared
         super.init()
-        setupAudioSession()
+        observeAudioSession()
+    }
+
+    init(audioSession: AudioSessionController) {
+        self.audioSession = audioSession
+        super.init()
+        observeAudioSession()
+    }
+
+    private func observeAudioSession() {
+        sessionEvents = Task { [weak self, audioSession] in
+            let stream = await audioSession.events()
+            for await event in stream {
+                guard let self else { break }
+                switch event {
+                case .interruptionBegan:
+                    let shouldResume = self.isPlaying || self.wantsPlayback
+                    self.pause()
+                    self.resumeAfterInterruption = shouldResume
+                case let .interruptionEnded(shouldResume):
+                    let resume = shouldResume && self.resumeAfterInterruption
+                    self.resumeAfterInterruption = false
+                    if resume { self.play() }
+                case .oldOutputUnavailable:
+                    self.pause()
+                }
+            }
+        }
     }
 
     // MARK: - AudioPlayerProtocol Methods
@@ -58,6 +92,7 @@ public class AVAudioPlayerAdapter: NSObject, AudioPlayerProtocol, @preconcurrenc
     public func prepareToPlay(url: URL) throws {
         logger.debug("Preparing to play: \(url.lastPathComponent)")
 
+        stop()
         do {
             let audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer.delegate = self
@@ -70,35 +105,53 @@ public class AVAudioPlayerAdapter: NSObject, AudioPlayerProtocol, @preconcurrenc
     }
 
     public func play() {
-        guard let player = player else {
+        guard let player else {
             logger.warning("Attempted to play but player is nil")
             return
         }
-
-        let currentTime = player.currentTime
-        player.play()
-        logger.debug("Playback started, currentTime: \(currentTime), isPlaying: \(player.isPlaying)")
+        activationTask?.cancel()
+        playbackGeneration = UUID()
+        let generation = playbackGeneration
+        wantsPlayback = true
+        activationTask = Task { [weak self, audioSession] in
+            do {
+                try await audioSession.activate()
+                guard let self, !Task.isCancelled, self.playbackGeneration == generation,
+                      self.wantsPlayback, self.player === player else { return }
+                self.activationTask = nil
+                guard player.play() else {
+                    self.wantsPlayback = false
+                    self.logger.error("The prepared audio file could not start playback")
+                    return
+                }
+                self.logger.debug("Playback started")
+            } catch is CancellationError { }
+            catch {
+                guard let self, self.playbackGeneration == generation else { return }
+                self.activationTask = nil
+                self.wantsPlayback = false
+                self.logger.error("Audio session activation failed: \(error)")
+            }
+        }
     }
 
     public func pause() {
-        guard let player = player else {
-            logger.warning("Attempted to pause but player is nil")
-            return
-        }
-
-        player.pause()
-        logger.debug("Playback paused")
+        cancelActivation()
+        player?.pause()
     }
 
     public func stop() {
-        guard let player = player else {
-            // No player to stop, this is fine
-            return
-        }
+        cancelActivation()
+        player?.stop()
+        player?.currentTime = 0
+    }
 
-        player.stop()
-        player.currentTime = 0
-        logger.debug("Playback stopped")
+    private func cancelActivation() {
+        resumeAfterInterruption = false
+        playbackGeneration = UUID()
+        activationTask?.cancel()
+        activationTask = nil
+        wantsPlayback = false
     }
 
     // MARK: - AVAudioPlayerDelegate
@@ -108,6 +161,8 @@ public class AVAudioPlayerAdapter: NSObject, AudioPlayerProtocol, @preconcurrenc
         successfully flag: Bool
     ) {
         Task { @MainActor in
+            guard self.player === player else { return }
+            wantsPlayback = false
             logger.debug("Playback finished, success: \(flag)")
             delegate?.audioPlayerDidFinishPlaying(self, successfully: flag)
         }
@@ -118,28 +173,17 @@ public class AVAudioPlayerAdapter: NSObject, AudioPlayerProtocol, @preconcurrenc
         error: Error?
     ) {
         Task { @MainActor in
+            guard self.player === player else { return }
+            pause()
             if let error = error {
                 logger.error("Decode error: \(error)")
             }
         }
     }
 
-    // MARK: - Audio Session Setup
-
-    private func setupAudioSession() {
-        #if canImport(UIKit)
-        // iOS requires audio session configuration
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
-            try AVAudioSession.sharedInstance().setActive(true)
-            logger.debug("Audio session configured")
-        } catch {
-            logger.error("Audio session setup error: \(error)")
-        }
-        #else
-        // macOS doesn't need audio session setup
-        logger.debug("macOS - no audio session setup needed")
-        #endif
+    deinit {
+        activationTask?.cancel()
+        sessionEvents?.cancel()
     }
 }
 #endif

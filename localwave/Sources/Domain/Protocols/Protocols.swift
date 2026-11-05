@@ -36,11 +36,15 @@ public protocol SongRepository {
 
     func getSongs(ids: [Int64]) async -> [Song]
     func getSongByURL(_ url: URL) async -> Song?
+    func getSong(sourceId: Int64, relativePath: String) async -> Song?
     func updateBookmark(songId: Int64, bookmark: Data) async throws
+    func updateSourceAvailability(songId: Int64, availability: FileAvailability) async throws
+    func updateSourceLocation(songId: Int64, sourceId: Int64, relativePath: String) async throws
     func deleteSong(songId: Int64) async throws
     func deleteAlbum(album: String, artist: String?) async throws
     func getSongsNeedingCopy() async -> [Song]
     func markSongForCopy(songId: Int64) async throws
+    func updateCachedFile(songId: Int64, localFilePath: String?, state: FileState, expectedState: FileState, expectedPath: String?) async throws -> Bool
     func toggleSongAsFavorite(songId: Int64, state: Bool) async throws
 }
 
@@ -73,7 +77,16 @@ public protocol SongImportService {
         onProgress: ((Double, URL) async -> Void)?
     ) async throws
 
+    func importPathsWithFileProgress(paths: [SourcePath], onProgress: ((SongImportProgress) async -> Void)?) async throws
     func cancelImport() async
+}
+
+public extension SongImportService {
+    func importPathsWithFileProgress(paths: [SourcePath], onProgress: ((SongImportProgress) async -> Void)?) async throws {
+        try await importPaths(paths: paths) { percentage, url in
+            await onProgress?(SongImportProgress(percentage: percentage, url: url))
+        }
+    }
 }
 
 public protocol SourceService {
@@ -98,6 +111,9 @@ public protocol SourcePathRepository {
 }
 
 public protocol SourceRepository {
+    func updateSourceBookmark(sourceId: Int64, bookmark: Data, expectedBookmark: Data?) async throws -> Bool
+    func reconnectSource(sourceId: Int64, dirPath: String, pathId: Int64, bookmark: Data) async throws -> Source?
+    func updateResolvedSourceRoot(sourceId: Int64, dirPath: String, pathId: Int64, bookmark: Data, expectedBookmark: Data?) async throws -> Bool
     func deleteSource(sourceId: Int64) async throws
     func create(source: Source) async throws -> Source
     func findOneByUserId(userId: Int64, path: String?) async throws -> [Source]

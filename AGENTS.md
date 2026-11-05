@@ -18,4 +18,16 @@ Product > Run builds the app. Product > Test uses localwave.xctestplan. The test
 
 SQLite.swift and the pinned SwiftTUI fork are package dependencies. Shared Domain, Core, Data and Player targets are declared in Package.swift; Xcode links those modules. Do not re-add their source files to the app target. Song and source-path search use FTS5; song queries include BM25 ranking. AVFoundation and MediaPlayer provide playback and remote controls. Folder access uses security-scoped bookmarks; selected cloud files may need downloading before playback.
 
+## Test budget (fast by default)
+
+Default verification loop must stay fast. Budgets are hard limits; a change that breaks one must fix or move the slow test before merging.
+
+| Loop | Command | Budget |
+| --- | --- | --- |
+| Shared (every change) | `swift test` | 30 s wall, warm build |
+| iOS unit (app logic changes) | `xcodebuild ... -only-testing:musicappTests test` | 90 s wall, warm build |
+| UI flows (redesign/UI changes only, nightly or manual) | full `musicapp` plan on a simulator | on demand; never required per PR |
+
+Rules: no `sleep` or real-time waits in unit tests, use injected clocks or polling with short deadlines; no network; one shared fixture per suite; shared tests run in parallel (`swift test --parallel` when isolated); a unit test over 1 s needs a reason in a comment or moves to the UI plan. Pull-request CI runs only the first two rows; UI flows run through the manual **Verify** workflow. Release tags run `swift test` only so the TestFlight upload is not blocked on UI flows.
+
 Read the implementation before changing behavior or promising reliability. Run `swift test` for shared repository, FLAC parsing and recursive import checks, and `swift build -c release` for the macOS terminal player. Run the Xcode test plan on a compatible simulator for app checks. Physical-device playback, bookmark recovery and iCloud behavior need device qualification. `scripts/build-unsigned-ipa.sh` produces an unsigned device IPA; CI and the manual release workflow use the same script.

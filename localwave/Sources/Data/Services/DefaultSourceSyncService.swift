@@ -7,15 +7,21 @@ public actor DefaultSourceSyncService: SourceSyncService {
     let logger = createLogger(subsystem: subsystem, category: "SourceSyncService")
 
     let sourceRepository: SourceRepository
+    private let sourceAccess: SourceAccess
+    private let excludedURLs: [URL]
     let sourcePathRepository: SourcePathRepository
     let sourcePathSearchRepository: SourcePathSearchRepository
 
     public init(
         sourceRepository: SourceRepository,
         sourcePathSearchRepository: SourcePathSearchRepository,
-        sourcePathRepository: SourcePathRepository
+        sourcePathRepository: SourcePathRepository,
+        sourceAccess: SourceAccess? = nil,
+        excludedURLs: [URL] = LocalWaveGeneratedPaths.urls
     ) {
         self.sourceRepository = sourceRepository
+        self.sourceAccess = sourceAccess ?? SourceAccess(repository: sourceRepository)
+        self.excludedURLs = excludedURLs
         self.sourcePathRepository = sourcePathRepository
         self.sourcePathSearchRepository = sourcePathSearchRepository
     }
@@ -30,20 +36,19 @@ public actor DefaultSourceSyncService: SourceSyncService {
         do {
             onSetLoading?(true)
             defer { onSetLoading?(false) }
+            let root = try await sourceAccess.rootURL(sourceId: sourceId)
+            let liveSource = try await sourceRepository.getOne(id: sourceId)
+            let registeredRoot = liveSource.map { makeURLFromString($0.dirPath) } ?? folderURL
             let result = try await syncDirInner(
-                folderURL: folderURL, onCurrentURL: onCurrentURL, onSetLoading: onSetLoading
+                folderURL: folderURL, onCurrentURL: onCurrentURL, onSetLoading: onSetLoading, resolvedRootURL: root
             )
             let runId = Int64(Date().timeIntervalSince1970 * 1000)
 
             let itemsToCreate = result?.allItems.map { x in
-                var parentPathId: Int64? = nil
-                if let parentURL = x.parentURL {
-                    parentPathId = makeURLHash(parentURL)
-                    logger.debug(
-                        "\(x.url) is creating parent path [\(parentPathId ?? -1)]: \(parentURL.absoluteString)"
-                    )
-                }
-                let pathId = makeURLHash(x.url)
+                // Bookmark resolution can change /var to /private/var; keep IDs relative to the registered root.
+                let registeredURL = registeredRoot.appendingPathComponent(x.relativePath, isDirectory: x.isDirectory)
+                let parentPathId = makeURLHash(registeredURL.deletingLastPathComponent())
+                let pathId = makeURLHash(registeredURL)
                 return SourcePath(
                     id: nil,
                     sourceId: sourceId,
@@ -55,7 +60,8 @@ public actor DefaultSourceSyncService: SourceSyncService {
                     fileHashSHA256: nil,
                     runId: runId,
                     createdAt: Date(),
-                    updatedAt: nil
+                    updatedAt: nil,
+                    fileSize: x.fileSize
                 )
             }
 
@@ -82,6 +88,7 @@ public actor DefaultSourceSyncService: SourceSyncService {
                     lib.lastSyncedAt = Date()
                     lib.updatedAt = Date()
                     lib.totalPaths = totalAudioFiles
+                    lib.syncError = nil
                     return try await sourceRepository.updateSource(source: lib)
                 } else {
                     logger.error("for some reason source \(sourceId) wasn't found")
@@ -92,6 +99,7 @@ public actor DefaultSourceSyncService: SourceSyncService {
                 lib.lastSyncedAt = Date()
                 lib.updatedAt = Date()
                 lib.totalPaths = result?.totalAudioFiles ?? 0 // Ensure totalPaths is set
+                lib.syncError = nil
                 return try await sourceRepository.updateSource(source: lib)
             }
             return nil
@@ -110,57 +118,62 @@ public actor DefaultSourceSyncService: SourceSyncService {
     public func syncDirInner(
         folderURL: URL,
         onCurrentURL: ((_ url: URL) -> Void)?,
-        onSetLoading _: ((_ loading: Bool) -> Void)?
+        onSetLoading _: ((_ loading: Bool) -> Void)?,
+        resolvedRootURL: URL? = nil
     ) async throws
         -> SourceSyncResult?
     {
         var audioURLs: [SourceSyncResultItem] = []
         var result = [String: SourceSyncResultItem]()
-        let bookmarkKey = makeBookmarkKey(folderURL)
-        let audioExtensions = ["mp3", "wav", "m4a", "flac", "aac", "aiff", "aif"]
-        guard let bookmarkData = UserDefaults.standard.data(forKey: bookmarkKey) else {
-            throw CustomError.genericError("no bookmark found, pick folder")
-        }
-
-        var isStale = false
+        let audioExtensions = AudioFileSupport.extensions
         do {
-            let folderURL = try URL(
-                resolvingBookmarkData: bookmarkData,
-                options: [],
-                relativeTo: nil,
-                bookmarkDataIsStale: &isStale
-            )
-
-            if isStale {
-                // The bookmark is stale, so we need a new one
-                throw CustomError.genericError(
-                    "Bookmark is stale, user needs to pick folder again.")
+            let scanRoot: URL
+            var scoped = false
+            if let resolvedRootURL {
+                scanRoot = resolvedRootURL
+                scoped = scanRoot.startAccessingSecurityScopedResource()
+                guard scoped || FileManager.default.isReadableFile(atPath: scanRoot.path) else {
+                    throw CustomError.genericError("Folder access has expired. Reconnect its source folder.")
+                }
             }
-
-            // Start accessing security-scoped resource
-            guard folderURL.startAccessingSecurityScopedResource() || FileManager.default.isReadableFile(atPath: folderURL.path) else {
-                throw CustomError.genericError("Couldn't start accessing security scoped resource.")
+            else {
+                let key = makeBookmarkKey(folderURL)
+                guard let bookmark = LocalWavePreferences.current.data(forKey: key) else {
+                    throw CustomError.genericError("No bookmark found. Choose the source folder again.")
+                }
+                var stale = false
+                scanRoot = try URL(resolvingBookmarkData: bookmark, options: sourceBookmarkResolutionOptions, bookmarkDataIsStale: &stale)
+                scoped = scanRoot.startAccessingSecurityScopedResource()
+                guard scoped || FileManager.default.isReadableFile(atPath: scanRoot.path) else {
+                    throw CustomError.genericError("Folder access has expired. Reconnect its source folder.")
+                }
             }
-            defer { folderURL.stopAccessingSecurityScopedResource() }
+            defer { if scoped { scanRoot.stopAccessingSecurityScopedResource() } }
+            let folderURL = scanRoot
+            guard !LocalWaveGeneratedPaths.contains(folderURL, excludedURLs: excludedURLs) else {
+                throw CustomError.genericError("Choose your original music folder. LocalWave’s generated cache cannot be used as a source.")
+            }
 
             // Now we can scan the folder
             if let enumerator = FileManager.default.enumerator(
-                at: folderURL, includingPropertiesForKeys: [.isDirectoryKey],
+                at: folderURL, includingPropertiesForKeys: [.isDirectoryKey, .fileSizeKey],
                 options: [.skipsHiddenFiles, .skipsPackageDescendants]
             ) {
                 for case let file as URL in enumerator {
+                    if LocalWaveGeneratedPaths.contains(file, excludedURLs: excludedURLs) {
+                        enumerator.skipDescendants()
+                        continue
+                    }
                     do {
                         onCurrentURL?(file)
-                        let resourceValues = try file.resourceValues(forKeys: [.isDirectoryKey])
-                        if resourceValues.isDirectory == false, // file.pathExtension.lowercased() == "mp3"
-                           audioExtensions.contains(file.pathExtension.lowercased())
-                        {
+                        let resourceValues = try file.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey])
+                        if resourceValues.isDirectory == false {
                             let resultItem = SourceSyncResultItem(
-                                rootURL: folderURL, current: file, isDirectory: false
+                                rootURL: folderURL, current: file, isDirectory: false, fileSize: resourceValues.fileSize.map(Int64.init)
                             )
-                            audioURLs.append(resultItem)
+                            if audioExtensions.contains(file.pathExtension.lowercased()) { audioURLs.append(resultItem) }
                             result[FileHelper(fileURL: file).toString()] = resultItem
-                        } else {
+                        } else if resourceValues.isDirectory == true {
                             let resultItem = SourceSyncResultItem(
                                 rootURL: folderURL, current: file, isDirectory: true
                             )

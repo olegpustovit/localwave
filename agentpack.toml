@@ -1,0 +1,8 @@
+# Agentpack project manifest — direct dependencies only. Run `agentpack lock` to refresh pack.lock.
+
+name = "localwave"
+version = "0.0.1"
+
+[dependencies]
+"github.com/dietrichgebert/ponytail" = {}
+# "github.com/owner/repo/path" = {}

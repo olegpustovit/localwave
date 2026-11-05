@@ -80,7 +80,15 @@ struct SongMetadataEditorView: View {
                                 updatedAt: Date(),
                                 localFilePath: song.localFilePath,
                                 fileState: song.fileState,
-                                isFavorite: song.isFavorite
+                                isFavorite: song.isFavorite,
+                                sourceId: song.sourceId,
+                                relativePath: song.relativePath,
+                                duration: song.duration,
+                                fileSize: song.fileSize,
+                                fileExtension: song.fileExtension,
+                                sampleRate: song.sampleRate,
+                                bitDepth: song.bitDepth,
+                                sourceAvailability: song.sourceAvailability
                             )
                             do {
                                 _ = try await songRepo.upsertSong(updatedSong)
