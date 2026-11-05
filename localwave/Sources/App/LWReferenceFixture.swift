@@ -168,3 +168,14 @@ private final class LWReferenceWindow: UIWindow {
     override var safeAreaInsets: UIEdgeInsets { .zero }
 }
 #endif
+
+#if DEBUG && os(macOS)
+import LocalWaveDomain
+
+enum LWReferenceFixture {
+    static let enabled = false
+    static let screen = ""
+    static func sourceDisplay(source: Source) -> (name: String, root: String, scanned: String)? { nil }
+    static func peaks(for song: Song?, count: Int) -> [Float]? { nil }
+}
+#endif

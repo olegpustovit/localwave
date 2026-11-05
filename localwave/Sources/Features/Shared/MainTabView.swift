@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
 import Combine
 import UniformTypeIdentifiers
@@ -328,7 +328,7 @@ struct MainTabView: View {
                             NavigationStack {
                                 WaveSettingsView(onBack: closeSettings, initialEntryStartedAt: contentEntryStartedAt)
                                     .environment(\.lwLibraryKeyboardCovered, !didStart || showCommands || showKeyboardHelp || sheetPresenter.content != nil || nativeImporterActive)
-                                    .toolbar(.hidden, for: .navigationBar)
+                                    .toolbar(.hidden)
                             }.background(LWTheme.paper)
                                 .modifier(LWAppear(translation: CGSize(width: wide ? 0 : 32, height: 0), duration: wide ? LWMotion.base : LWMotion.slow, enabled: !wide || contentEntry != nil))
                                 .transition(.identity)
@@ -352,7 +352,7 @@ struct MainTabView: View {
                 } else if !compactSelection {
                 WaveTransport(compact: !wide, panelVisible: showPanel) {
                     if wide { showPanel.toggle() }
-                    else { _ = UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil); closeNowTask?.cancel(); closeNowTask = nil; artworkMatching = true; nowClosing = false; withAnimation(reduceMotion ? nil : LWMotion.out(LWMotion.slow)) { showNow = true } }
+                    else { dismissTextInput(); closeNowTask?.cancel(); closeNowTask = nil; artworkMatching = true; nowClosing = false; withAnimation(reduceMotion ? nil : LWMotion.out(LWMotion.slow)) { showNow = true } }
                 }
                 }
                 if !wide && !showNow && !compactSelection { navigationDeck }
@@ -748,7 +748,7 @@ struct MainTabView: View {
         }
     }
     private func dismissNowForNavigation() {
-        _ = UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        dismissTextInput()
         closeNowTask?.cancel(); closeNowTask = nil
         var transaction = Transaction(); transaction.disablesAnimations = true
         withTransaction(transaction) { showNow = false; nowClosing = false; artworkMatching = false }

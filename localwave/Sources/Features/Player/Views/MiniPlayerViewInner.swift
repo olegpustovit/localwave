@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -27,8 +27,8 @@ struct MiniPlayerViewInner: View {
                 onTap()
             }) {
                 HStack {
-                    if let song = currentSong, let cover = coverArt(of: song) {
-                        Image(uiImage: cover)
+                    if let song = currentSong, let cover = loadCoverArt(for: song) {
+                        Image(localWaveImage: cover)
                             .resizable()
                             .frame(width: 50, height: 50)
                             .cornerRadius(5)
@@ -55,7 +55,7 @@ struct MiniPlayerViewInner: View {
                     .buttonStyle(PlainButtonStyle())
                 }
                 .padding(.trailing, 15)
-                .background(Color(UIColor.secondarySystemBackground))
+                .background(LWTheme.panel)
                 .overlay(
                     Rectangle()
                         .frame(height: 0.2) // Height for the top border

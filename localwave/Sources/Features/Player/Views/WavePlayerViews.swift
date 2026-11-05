@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import AVFoundation
 import AVKit
 import LocalWaveCore
@@ -1008,15 +1008,22 @@ struct WaveAudioRoute: View {
     @Environment(\.lwReduceMotion) private var reduceMotion
     @State private var pressed = false
     var body: some View {
+#if os(iOS)
         PlayerNativeAudioRoute(pressed: $pressed).overlay {
             (pressed ? LWTheme.panel : background)
                 .overlay { LWIcon("route", size: 22).foregroundStyle(LWTheme.ink) }
                 .allowsHitTesting(false)
         }
         .animation(reduceMotion ? nil : LWMotion.out(LWMotion.quick), value: pressed)
+#else
+        Image(systemName: "hifispeaker")
+            .foregroundStyle(background)
+            .accessibilityHidden(true)
+#endif
     }
 }
 
+#if os(iOS)
 private struct PlayerNativeAudioRoute: UIViewRepresentable {
     @Binding var pressed: Bool
     func makeCoordinator() -> Coordinator { Coordinator(pressed: $pressed) }
@@ -1046,6 +1053,7 @@ private struct PlayerNativeAudioRoute: UIViewRepresentable {
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
     }
 }
+#endif
 
 private extension View {
     func monospaced() -> some View { font(LWTheme.data()).monospacedDigit() }

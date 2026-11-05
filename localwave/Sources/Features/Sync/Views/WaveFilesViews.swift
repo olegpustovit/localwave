@@ -1,10 +1,13 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
 import CoreText
 import UniformTypeIdentifiers
 import LocalWaveDomain
 import LocalWaveCore
 import LocalWaveData
+#if os(macOS)
+import AppKit
+#endif
 
 struct WaveFolderNavigationState {
     struct DirectorySummary { var count: Int; var bytes: Int64 }
@@ -150,7 +153,7 @@ struct WaveFilesView: View {
                         .modifier(LWAppear(translation: CGSize(width: wideLayout ? 0 : 32, height: 0), duration: wideLayout ? LWMotion.base : LWMotion.slow, enabled: sourceDestinationAnimates))
                 }
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar(.hidden)
             .task {
                 model.loadSources()
                 cacheBytes = (try? await Task.detached(priority: .utility) { try BackgroundFileService.cachedByteCount() }.value) ?? 0
@@ -696,7 +699,7 @@ struct WaveFolderView: View {
             .id(folderRevision)
         }
         .background(LWTheme.paper).foregroundStyle(LWTheme.ink).buttonStyle(.plain)
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar(.hidden)
             .task(id: model.searchTerm) {
                 if skipInitialBrowseRead {
                     risingPathIDs = Set((wideLayout ? desktopItems : visibleItems).prefix(wideLayout ? 16 : 14).map(\.pathId))
@@ -1109,7 +1112,16 @@ struct WaveFolderView: View {
         return Group {
             if item.isDirectory || item.isAudio {
             row.contentShape(Rectangle()).onHover { hoveredPathID = $0 ? item.pathId : nil }
+#if os(iOS)
             .gesture(WaveModifierCapture { modifierKeys = $0 })
+#else
+            .simultaneousGesture(TapGesture().onEnded {
+                var modifiers: EventModifiers = []
+                if NSEvent.modifierFlags.contains(.command) { modifiers.insert(.command) }
+                if NSEvent.modifierFlags.contains(.shift) { modifiers.insert(.shift) }
+                modifierKeys = modifiers
+            })
+#endif
             .onTapGesture(count: 2) {
                 if item.isDirectory { navigateIntoFolder(item) }
                 else if item.isAudio { Task { await play(item) } }
@@ -1968,7 +1980,7 @@ struct WaveSettingsView: View {
                 }.font(LWTheme.text(14)).foregroundStyle(LWTheme.secondary).padding(16).padding(.top, 8)
             }.padding(.top, 10).padding(.bottom, 24)
         }.background(LWTheme.paper).foregroundStyle(LWTheme.ink).buttonStyle(.plain)
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar(.hidden)
             .background {
                 if !keyboardCovered, presenter.content == nil {
                     Button("Back in settings", action: settingsBack).keyboardShortcut("[", modifiers: .command).hidden()

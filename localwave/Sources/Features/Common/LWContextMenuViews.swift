@@ -1,6 +1,6 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
-import UIKit
+import LocalWaveCore
 import LocalWaveDomain
 
 struct LWMenuTrackPreview: View {
@@ -105,7 +105,7 @@ struct LWContextMenuSurface: View {
                 guard !Task.isCancelled, ready, generation == renderGeneration,
                       presenter.revealMenu(requestID: request.id, presentationID: presentationID) else { return }
                 if !wide && generation == 0 {
-                    _ = UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    dismissTextInput()
                 }
                 settledGeneration = generation
                 if wide { keyboardFocused = true }

@@ -1,7 +1,10 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
 import Combine
 import CoreText
+#if os(macOS)
+import AppKit
+#endif
 import LocalWaveDomain
 import LocalWaveCore
 import LocalWaveData
@@ -629,7 +632,7 @@ struct WaveLibraryView: View {
                 }
                 .modifier(WaveLibraryPageEntrance(route: nil))
                 .accessibilityHidden(keyboardCovered)
-                .toolbar(.hidden, for: .navigationBar)
+                .toolbar(.hidden)
                 .navigationDestination(for: WaveLibraryRoute.self) { route in
                     detail(route, compact: compact).modifier(WaveLibraryPageEntrance(route: route)).accessibilityHidden(keyboardCovered)
                 }
@@ -953,8 +956,9 @@ struct WaveLibraryView: View {
 
     private func artistColumnWidths(_ artists: [String]) -> [CGFloat] {
         func width(_ text: String, face: String, size: CGFloat) -> CGFloat {
-            let font = UIFont(name: face, size: size * tableTextScale) ?? .systemFont(ofSize: size * tableTextScale)
-            return (text as NSString).size(withAttributes: [.font: font]).width
+            let font = CTFontCreateWithName(face as CFString, size * tableTextScale, nil)
+            let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]))
+            return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
         }
         let headings = ["Name", "Albums", "Songs", "Time"]
         var preferred = headings.enumerated().map { index, title in width(title, face: "HostGrotesk-Medium", size: 12) + (index == 0 ? 40 : index == 3 ? 28 : 16) }
@@ -1290,7 +1294,7 @@ struct WaveLibraryView: View {
             }
         }
         .task(id: album.id + "|" + String(songs.first?.sourceId ?? -1)) { await loadAlbumFolder(album) }
-        .background(LWTheme.paper).toolbar(.hidden, for: .navigationBar)
+        .background(LWTheme.paper).toolbar(.hidden)
     }
 
     private func phoneAlbumMetadata(_ album: Album, songs: [Song]) -> some View {
@@ -1441,7 +1445,7 @@ struct WaveLibraryView: View {
                 if compact { sectionLabel("Songs") }
                 songRows(compact ? Array(songs.prefix(12)) : songs, compact: compact, playbackSongs: songs, hideArtist: true, entranceIndexOffset: albums.count)
             }
-        }.background(LWTheme.paper).toolbar(.hidden, for: .navigationBar)
+        }.background(LWTheme.paper).toolbar(.hidden)
     }
 
     private func desktopArtistTitle(_ artist: String, summary: String) -> some View {
@@ -1453,7 +1457,7 @@ struct WaveLibraryView: View {
     }
 
     private func automaticDetail(_ name: String, compact: Bool) -> some View {
-        ScrollView { automaticContent(name, compact: compact) }.background(LWTheme.paper).toolbar(.hidden, for: .navigationBar)
+        ScrollView { automaticContent(name, compact: compact) }.background(LWTheme.paper).toolbar(.hidden)
     }
 
     private func automaticContent(_ name: String, compact: Bool) -> some View {
@@ -1829,7 +1833,16 @@ private struct WaveLibrarySongRow: View {
         .opacity(compact && blockedSource != nil ? 0.45 : 1)
         .disabled(compact && blockedSource != nil)
         .onHover { hovering = $0 }
+#if os(iOS)
         .gesture(WaveModifierCapture { modifierKeys = $0 })
+#else
+        .simultaneousGesture(TapGesture().onEnded {
+            var modifiers: EventModifiers = []
+            if NSEvent.modifierFlags.contains(.command) { modifiers.insert(.command) }
+            if NSEvent.modifierFlags.contains(.shift) { modifiers.insert(.shift) }
+            modifierKeys = modifiers
+        })
+#endif
         .overlay(alignment: .top) { if compact && index > 0 { Rectangle().fill(LWTheme.line).frame(height: 1).padding(.leading, 16) } }
         .modifier(LWCollapsedTableRules(top: !compact, bottom: !compact && selectionOrder.last == song.uniqueId))
         .overlay { if !compact && dropTargeted { Rectangle().strokeBorder(LWTheme.signal, lineWidth: 2) } }
@@ -1996,6 +2009,7 @@ private struct WaveSongDrag: ViewModifier {
     }
 }
 
+#if os(iOS)
 struct WaveModifierCapture: UIGestureRecognizerRepresentable {
     var changed: (EventModifiers) -> Void
 
@@ -2021,6 +2035,7 @@ struct WaveModifierCapture: UIGestureRecognizerRepresentable {
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool { true }
     }
 }
+#endif
 
 private struct WaveListDetail: View {
     @ObservedObject var model: WaveLibraryModel
@@ -2087,9 +2102,9 @@ private struct WaveListDetail: View {
                 }
             }
         }
-        .background(LWTheme.paper).toolbar(.hidden, for: .navigationBar)
+        .background(LWTheme.paper).toolbar(.hidden)
         }
-        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden)
         .sheet(isPresented: $addingSongs) {
             NavigationStack {
                 List(model.songs, id: \.uniqueId) { song in
@@ -2635,12 +2650,9 @@ private struct WaveSongColumns {
 
     static func make(songs: [Song], available: CGFloat, scale: CGFloat, artist: Bool, album: Bool, format: Bool, state: Bool, numbered: Bool, currentID: Int64?, sort: String?) -> WaveSongColumns {
         func width(_ text: String, face: String, size: CGFloat, tabular: Bool = false) -> CGFloat {
-            var font = UIFont(name: face, size: size * scale) ?? .systemFont(ofSize: size * scale)
-            if tabular {
-                let descriptor = font.fontDescriptor.addingAttributes([.featureSettings: [[UIFontDescriptor.FeatureKey.type: kNumberSpacingType, UIFontDescriptor.FeatureKey.selector: kMonospacedNumbersSelector]]])
-                font = UIFont(descriptor: descriptor, size: size * scale)
-            }
-            return (text as NSString).size(withAttributes: [.font: font]).width
+            let font = CTFontCreateWithName((tabular ? "GeistMono-Regular" : face) as CFString, size * scale, nil)
+            let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]))
+            return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
         }
         var columns: [WaveSongColumn] = [.number, .title]
         if artist { columns.append(.artist) }; if album { columns.append(.album) }

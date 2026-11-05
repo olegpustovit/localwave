@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 import LocalWaveCore
 import LocalWaveData
 import LocalWaveDomain
@@ -61,10 +63,20 @@ enum LWSourceFileSharing {
     }
 }
 
+#if os(iOS)
 struct LWShareSheet: UIViewControllerRepresentable {
     let urls: [URL]
     func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: urls, applicationActivities: nil) }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) { }
 }
+#else
+struct LWShareSheet: View {
+    let urls: [URL]
+    var body: some View {
+        ShareLink(items: urls) { Label("Share", systemImage: "square.and.arrow.up") }
+            .padding()
+    }
+}
+#endif
 
 #endif

@@ -51,9 +51,15 @@ public var sourceBookmarkResolutionOptions: URL.BookmarkResolutionOptions {
 #if canImport(UIKit)
 import UIKit
 public typealias PlatformImage = UIImage
+@MainActor public func dismissTextInput() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
 #elseif canImport(AppKit)
 import AppKit
 public typealias PlatformImage = NSImage
+@MainActor public func dismissTextInput() {
+    NSApp.keyWindow?.makeFirstResponder(nil)
+}
 #else
 // Fallback for platforms without image support
 public struct PlatformImage {

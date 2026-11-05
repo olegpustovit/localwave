@@ -1,17 +1,25 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import CoreText
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 /// Desktop CSS buttons use fractional max-content widths; native Text rounds
 /// its intrinsic width to the display pixel before horizontal padding is added.
 struct LWDialogLabelMetrics {
     static func width(for title: String, pointSize: CGFloat, medium: Bool) -> CGFloat? {
+#if os(iOS)
         guard let font = UIFont(name: medium ? "HostGrotesk-Medium" : "HostGrotesk-Regular", size: pointSize) else { return nil }
-        return width(for: title, font: font)
+        let ctFont = CTFontCreateWithName(font.fontName as CFString, font.pointSize, nil)
+#else
+        let ctFont = CTFontCreateWithName((medium ? "HostGrotesk-Medium" : "HostGrotesk-Regular") as CFString, pointSize, nil)
+#endif
+        return width(for: title, font: ctFont)
     }
 
     static func scaledWidth(for title: String, medium: Bool, dynamicType: DynamicTypeSize) -> CGFloat? {
+#if os(iOS)
         guard let base = UIFont(name: medium ? "HostGrotesk-Medium" : "HostGrotesk-Regular", size: 13) else { return nil }
         let category: UIContentSizeCategory
         switch dynamicType {
@@ -33,11 +41,15 @@ struct LWDialogLabelMetrics {
         // or a scaled unit multiplier. Match Font.custom(...relativeTo: .body).
         let font = UIFontMetrics(forTextStyle: .body).scaledFont(for: base,
             compatibleWith: UITraitCollection(preferredContentSizeCategory: category))
-        return width(for: title, font: font)
+        let ctFont = CTFontCreateWithName(font.fontName as CFString, font.pointSize, nil)
+        return width(for: title, font: ctFont)
+#else
+        width(for: title, pointSize: 13, medium: medium)
+#endif
     }
 
-    private static func width(for title: String, font: UIFont) -> CGFloat? {
-        let line = CTLineCreateWithAttributedString(NSAttributedString(string: title, attributes: [.font: font]))
+    private static func width(for title: String, font: CTFont) -> CGFloat? {
+        let line = CTLineCreateWithAttributedString(NSAttributedString(string: title, attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font]))
         let advance = CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
         guard advance.isFinite, advance >= 0 else { return nil }
         // Verified against browser Cancel/Create/Save/Delete List measurements.

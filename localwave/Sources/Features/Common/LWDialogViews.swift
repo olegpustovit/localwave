@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 enum LWDialogLayout {
     static func keyboardOffset(canvasHeight: CGFloat, panelHeight: CGFloat, keyboardTop: CGFloat?) -> CGFloat {
@@ -58,12 +60,14 @@ struct LWDialogSurface: View {
                 .padding(.bottom, actionSheet ? 24 : 0)
                 .offset(y: wide || actionSheet ? 0 : LWDialogLayout.keyboardOffset(canvasHeight: geometry.size.height, panelHeight: measuredHeight, keyboardTop: keyboardTop.map { $0 - geometry.frame(in: .global).minY }))
             }
+#if os(iOS)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
                 guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect,
                       let window = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).flatMap(\.windows).first(where: \.isKeyWindow) else { return }
                 keyboardTop = window.convert(frame, from: window.screen.coordinateSpace).minY
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardTop = nil }
+#endif
             .accessibilityElement(children: .contain)
             .accessibilityLabel(request.title)
             .background {
@@ -155,6 +159,7 @@ struct LWDialogSurface: View {
     private func submit() { presenter.submit(dialog: request, value: text) }
 }
 
+#if os(iOS)
 private struct LWDialogTextField: UIViewRepresentable {
     @Binding var text: String
     @Binding var focused: Bool
@@ -210,5 +215,23 @@ private struct LWDialogTextField: UIViewRepresentable {
         func textFieldShouldReturn(_ textField: UITextField) -> Bool { parent.submit(); return false }
     }
 }
+#else
+private struct LWDialogTextField: View {
+    @Binding var text: String
+    @Binding var focused: Bool
+    @FocusState private var fieldFocused: Bool
+    let input: LWDialogInput
+    let label: String
+    let submit: () -> Void
+    var body: some View {
+        TextField(label, text: $text)
+            .textFieldStyle(.plain)
+            .focused($fieldFocused)
+            .onSubmit(submit)
+            .onChange(of: fieldFocused) { _, value in focused = value }
+            .onAppear { fieldFocused = true }
+    }
+}
+#endif
 
 #endif
