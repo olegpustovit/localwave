@@ -6,6 +6,12 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'TestFlight marketing version (ignored when running a tag)'
+        required: true
+        default: '1.0.0'
+        type: string
 
 permissions:
   contents: write
@@ -21,8 +27,17 @@ jobs:
   test:
     runs-on: macos-26
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      build: ${{ steps.metadata.outputs.build }}
     steps:
       - uses: actions/checkout@v4
+      - run: python3 scripts/test-release-metadata.py
+      - name: Resolve Apple bundle versions
+        id: metadata
+        env:
+          RELEASE_VERSION: ${{ inputs.version }}
+        run: bash scripts/release-metadata.sh >> "$GITHUB_OUTPUT"
       - run: swift test --parallel
 
   testflight:
@@ -36,24 +51,24 @@ jobs:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
           ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          VERSION: ${{ needs.test.outputs.version }}
+          BUILD: ${{ needs.test.outputs.build }}
         run: |
           set -euo pipefail
           for v in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8_BASE64; do
             [ -n "${!v}" ] || { echo "::error::Missing secret $v"; exit 1; }
           done
           key="$RUNNER_TEMP/AuthKey_$ASC_KEY_ID.p8"
-          echo "$ASC_KEY_P8_BASE64" | base64 --decode > "$key"
+          umask 077
+          trap 'rm -f "$key"' EXIT
+          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$key"
           args=(-allowProvisioningUpdates -authenticationKeyPath "$key" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
-          # Unique, increasing build number; marketing version comes from the tag when present.
-          build=$(date -u +%y%m%d%H%M)
-          settings=(CURRENT_PROJECT_VERSION="$build")
-          if [[ "$GITHUB_REF_TYPE" == tag ]]; then settings+=(MARKETING_VERSION="${GITHUB_REF_NAME#v}"); fi
+          settings=(CURRENT_PROJECT_VERSION="$BUILD" MARKETING_VERSION="$VERSION")
           xcodebuild -project localwave.xcodeproj -scheme musicapp -configuration Release \
             -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/localwave.xcarchive" \
             "${args[@]}" "${settings[@]}" archive
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/localwave.xcarchive" \
             -exportOptionsPlist scripts/ExportOptions-testflight.plist -exportPath "$RUNNER_TEMP/export" "${args[@]}"
-          rm -f "$key"
 
   mac-dmg:
     if: github.ref_type == 'tag'
@@ -90,14 +105,14 @@ jobs:
         env:
           SIGN_ID: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           NOTARY_PROFILE: LocalWaveRelease
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}" BUILD="$(date -u +%y%m%d%H%M)" bash scripts/build-mac-dmg.sh "$RUNNER_TEMP/dmg"
-      - name: Publish GitHub release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/dmg/* --verify-tag --title "LocalWave $GITHUB_REF_NAME" --notes-file docs/release-notes.md || \
-            gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP"/dmg/* --clobber
+          VERSION: ${{ needs.test.outputs.version }}
+          BUILD: ${{ needs.test.outputs.build }}
+        run: bash scripts/build-mac-dmg.sh "$RUNNER_TEMP/dmg"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-mac-dmg
+          path: ${{ runner.temp }}/dmg/*
+          if-no-files-found: error
       - name: Remove signing material
         if: always()
         run: |
@@ -112,9 +127,34 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash scripts/build-unsigned-ipa.sh "$RUNNER_TEMP/unsigned"
+        env:
+          VERSION: ${{ needs.test.outputs.version }}
+          BUILD: ${{ needs.test.outputs.build }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unsigned-ipa
+          path: ${{ runner.temp }}/unsigned/*
+          if-no-files-found: error
+
+  publish:
+    needs: [mac-dmg, unsigned-ipa]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" "$RUNNER_TEMP"/unsigned/* --verify-tag --title "LocalWave $GITHUB_REF_NAME" --notes-file docs/release-notes.md || \
-            gh release upload "$GITHUB_REF_NAME" "$RUNNER_TEMP"/unsigned/* --clobber
+          set -euo pipefail
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" release-assets/* --clobber
+          else
+            flags=()
+            if [[ "$GITHUB_REF_NAME" == *-* ]]; then flags+=(--prerelease); fi
+            gh release create "$GITHUB_REF_NAME" release-assets/* --verify-tag \
+              --title "LocalWave $GITHUB_REF_NAME" --notes-file docs/release-notes.md "${flags[@]}"
+          fi

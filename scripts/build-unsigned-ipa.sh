@@ -8,10 +8,14 @@ output_dir="$(cd "$output_dir" && pwd)"
 work_dir="$(mktemp -d "${TMPDIR:-/tmp}/localwave-ipa.XXXXXX")"
 trap 'rm -rf "$work_dir"' EXIT
 
+settings=()
+[ -z "${VERSION:-}" ] || settings+=(MARKETING_VERSION="$VERSION")
+[ -z "${BUILD:-}" ] || settings+=(CURRENT_PROJECT_VERSION="$BUILD")
+
 xcodebuild -project "$repo_dir/localwave.xcodeproj" -scheme musicapp \
   -configuration Release -destination 'generic/platform=iOS' \
   -derivedDataPath "$work_dir/DerivedData" \
-  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO build
+  CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO ${settings[@]+"${settings[@]}"} build
 
 mkdir -p "$work_dir/package/Payload"
 ditto --norsrc "$work_dir/DerivedData/Build/Products/Release-iphoneos/localwave.app" \
