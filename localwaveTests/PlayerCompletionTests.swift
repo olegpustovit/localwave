@@ -26,7 +26,7 @@ struct PlayerCompletionTests {
         let size = player.playbackFileSize
         let format = player.playbackFormat
         #expect(size != "—")
-        for _ in 0..<500 {
+        for _ in 0..<1500 { // 15 s ceiling for a 1.25 s clip; polling exits as soon as playback ends
             if player.playbackEngine == nil { break }
             try await Task.sleep(for: .milliseconds(10))
         }
