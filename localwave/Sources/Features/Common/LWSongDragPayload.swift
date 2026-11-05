@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import SwiftUI
 
@@ -50,3 +51,5 @@ struct LWOrderedSongDrag: ViewModifier {
         }
     }
 }
+
+#endif

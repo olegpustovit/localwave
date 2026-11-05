@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UIKit
 import LocalWaveCore
@@ -65,3 +66,5 @@ struct LWShareSheet: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> UIActivityViewController { UIActivityViewController(activityItems: urls, applicationActivities: nil) }
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) { }
 }
+
+#endif

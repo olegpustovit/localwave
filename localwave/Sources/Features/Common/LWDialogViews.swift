@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UIKit
 
@@ -209,3 +210,5 @@ private struct LWDialogTextField: UIViewRepresentable {
         func textFieldShouldReturn(_ textField: UITextField) -> Bool { parent.submit(); return false }
     }
 }
+
+#endif

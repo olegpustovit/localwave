@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -64,3 +65,5 @@ struct SourceBrowseView: View {
         }
     }
 }
+
+#endif

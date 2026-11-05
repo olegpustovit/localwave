@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -27,3 +28,5 @@ struct ErrorView: View {
         }
     }
 }
+
+#endif

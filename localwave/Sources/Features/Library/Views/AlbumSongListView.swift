@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -36,3 +37,5 @@ struct AlbumSongListView: View {
             }
     }
 }
+
+#endif

@@ -7,6 +7,7 @@
 
 import AVFoundation
 import Combine
+import SwiftUI
 import os
 import LocalWaveDomain
 import LocalWaveCore
@@ -106,7 +107,7 @@ class PlayerViewModel: NSObject, ObservableObject {
     }
 
     var remainingTime: String {
-        #if DEBUG
+        #if DEBUG && os(iOS)
         if LWReferenceFixture.enabled {
             let parts = currentTime.split(separator: ":").compactMap { Double($0) }
             let elapsed = parts.reduce(0) { $0 * 60 + $1 }
@@ -212,7 +213,7 @@ class PlayerViewModel: NSObject, ObservableObject {
 
     @Published var volume: Float = 1.0 {
         didSet {
-            #if targetEnvironment(macCatalyst)
+            #if os(macOS)
             player?.volume = volume
             #else
             player?.volume = 1.0
@@ -693,7 +694,7 @@ class PlayerViewModel: NSObject, ObservableObject {
     private func installEngine(firstItem: AVPlayerItem) {
         let engine = AVQueuePlayer(items: [firstItem])
         engine.actionAtItemEnd = .advance
-        #if targetEnvironment(macCatalyst)
+        #if os(macOS)
         engine.volume = volume
         #else
         engine.volume = 1
@@ -1021,11 +1022,11 @@ class PlayerViewModel: NSObject, ObservableObject {
 
     #if canImport(MediaPlayer)
     // Helper function to load cover art for a song (iOS-specific for Now Playing)
-    private func loadCoverArt(for song: Song) -> UIImage? {
+    private func loadCoverArt(for song: Song) -> PlatformImage? {
         guard let path = song.coverArtPath else { return nil }
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
         let url = docs.appendingPathComponent(path)
-        return UIImage(contentsOfFile: url.path)
+        return PlatformImage(contentsOfFile: url.path)
     }
     #endif
 }

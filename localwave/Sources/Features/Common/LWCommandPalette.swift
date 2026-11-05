@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import LocalWaveDomain
 
@@ -223,3 +224,5 @@ struct LWKeyboardHelp: View {
     }
 
 }
+
+#endif

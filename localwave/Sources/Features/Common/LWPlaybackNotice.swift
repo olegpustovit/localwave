@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UIKit
 
@@ -71,3 +72,5 @@ extension EnvironmentValues {
         set { self[LWNoticeLifetimeScaleKey.self] = newValue }
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UniformTypeIdentifiers
 import LocalWaveCore
@@ -195,3 +196,5 @@ private struct WaveDisclosureMarker: View {
         .accessibilityHidden(true)
     }
 }
+
+#endif

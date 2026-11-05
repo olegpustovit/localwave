@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct PrivacyView: View {
@@ -24,3 +25,5 @@ struct PrivacyView: View {
         .navigationTitle("About & Privacy")
     }
 }
+
+#endif

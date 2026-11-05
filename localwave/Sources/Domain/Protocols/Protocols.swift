@@ -33,6 +33,8 @@ public protocol SongRepository {
 
     func getAllArtists() async throws -> [String]
     func getAllAlbums() async throws -> [Album]
+    func getSongsByArtist(_ artist: String) async throws -> [Song]
+    func getSongsByAlbum(_ album: String, artist: String?) async throws -> [Song]
 
     func getSongs(ids: [Int64]) async -> [Song]
     func getSongByURL(_ url: URL) async -> Song?
@@ -140,4 +142,16 @@ public protocol UserCloudService {
 public protocol ICloudProvider {
     func getCurrentICloudUserID() async throws -> Int64?
     func isICloudAvailable() -> Bool
+}
+
+public extension SongRepository {
+    func getSongsByArtist(_ artist: String) async throws -> [Song] {
+        try await searchSongsFTS(query: artist, limit: Int.max, offset: 0).filter { $0.artist == artist }
+    }
+
+    func getSongsByAlbum(_ album: String, artist: String?) async throws -> [Song] {
+        try await searchSongsFTS(query: album, limit: Int.max, offset: 0).filter {
+            $0.album == album && (artist == nil || $0.artist == artist)
+        }
+    }
 }

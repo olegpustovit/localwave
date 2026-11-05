@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 /// Chromium rounds font-box metrics to CSS pixels, then floors the half-leading.
@@ -130,3 +131,5 @@ extension View {
         modifier(LWCSSLineBox(fontSize: fontSize, lineHeight: lineHeight, data: data))
     }
 }
+
+#endif

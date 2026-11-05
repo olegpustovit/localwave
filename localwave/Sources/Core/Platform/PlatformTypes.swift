@@ -33,7 +33,7 @@ public func withOfflineCacheLock<T>(_ operation: () throws -> T) rethrows -> T {
 }
 
 public var sourceBookmarkCreationOptions: URL.BookmarkCreationOptions {
-    #if targetEnvironment(macCatalyst)
+    #if os(macOS)
     return .withSecurityScope
     #else
     return []
@@ -41,7 +41,7 @@ public var sourceBookmarkCreationOptions: URL.BookmarkCreationOptions {
 }
 
 public var sourceBookmarkResolutionOptions: URL.BookmarkResolutionOptions {
-    #if targetEnvironment(macCatalyst)
+    #if os(macOS)
     return .withSecurityScope
     #else
     return []

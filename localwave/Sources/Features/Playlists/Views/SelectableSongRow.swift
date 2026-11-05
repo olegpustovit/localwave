@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -45,3 +46,5 @@ struct SelectableSongRow: View {
         .padding(.vertical, 4)
     }
 }
+
+#endif

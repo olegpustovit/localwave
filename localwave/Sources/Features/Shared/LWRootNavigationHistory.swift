@@ -1,3 +1,4 @@
+#if os(iOS)
 import Foundation
 import LocalWaveDomain
 
@@ -100,3 +101,5 @@ struct LWRootNavigationHistory {
         return result
     }
 }
+
+#endif

@@ -1,6 +1,6 @@
 # LocalWave
 
-A SwiftUI music player for MP3, FLAC and other supported audio files on iPhone, iPad and Mac Catalyst. Choose music from Files or a mounted file provider. Browse your library by artist, album or song, search it, and play tracks without an Apple Music subscription.
+A SwiftUI music player for MP3, FLAC and other supported audio files on iPhone, iPad and native macOS. Choose music from Files or Finder. Browse your library by artist, album or song, search it, and play tracks without an Apple Music subscription.
 
 ![LocalWave album library, source-folder import and player](https://olegpustovit.com/posts/why-i-built-a-native-mp3-player-in-swiftui/frame_source.webp)
 
@@ -21,7 +21,7 @@ open localwave.xcodeproj
 3. Choose **Product > Run**. On a physical iPhone, enable **Settings > Privacy & Security > Developer Mode** if requested, restart, and confirm it. If iOS reports an untrusted developer, open **Settings > General > VPN & Device Management**, select your developer profile, and trust it. Keep the iPhone unlocked and accept the Mac’s pairing prompt. Personal Team builds expire and need to be re-signed according to your account’s limits.
 4. Open **Folders**, tap **Add music**, and choose folders or audio files. Folders scan and import automatically; individually selected audio is copied into **Added Files**.
 5. Open **Library**, choose a song, and use the bottom deck or Now playing panel. **Lists** holds playlists and automatic collections; **Find** searches across sources.
-6. On Mac, select **My Mac (Mac Catalyst)** in the same **musicapp** scheme. The same SwiftUI shell switches to a sidebar, library and collapsible player panel at 900 points. Narrow windows use the phone deck. Finder drops, a command palette (⌘K) and native Controls menu use the same player and import services.
+6. On Mac, select **My Mac** in the same **musicapp** scheme. The native macOS app uses a sidebar, sortable song table, folder browser and transport bar. Drop folders or audio files into the window, or use **Add Folder…** and **Add Audio Files…**. The app requires macOS 15 or newer.
 
 Importing an iCloud source can require a network connection to download its files. Local playback depends on the selected files being available and accessible; this is not a promise that every cloud-backed file works offline.
 
@@ -31,13 +31,13 @@ An empty library offers **Try the demo library**: 92 real synthesized recordings
 
 The app includes folder import, metadata and artwork, artist/album/song views, playlists, a playback queue, shuffle/repeat controls and lock-screen remote commands. Background audio is declared in the app's configuration. SQLite FTS5 provides indexed song and path search. Find preserves library order among matching songs; repository queries also support BM25 ranking.
 
-FLAC imports read Vorbis comments (including artist, title, album artist, year, track and disc) and embedded cover art. Device volume is controlled with the iPhone’s hardware buttons or Control Center. Favorites use the heart action. Kept-offline pins protect cached copies from the configurable LRU cache limit; releasing a pin keeps its copy until space is needed. System appearance, signal color and reduced motion are available in Settings.
+FLAC imports read Vorbis comments (including artist, title, album artist, year, track and disc) and embedded cover art. On iPhone, device volume is controlled with hardware buttons or Control Center. Favorites use the heart action. Kept-offline pins protect cached copies from the configurable LRU cache limit; releasing a pin keeps its copy until space is needed. System appearance, signal color and reduced motion are available in Settings.
 
 M4A imports also read native album-artist, release-date, track and disc tags, including the binary track/disc fields.
 
 Automated checks cover shared database upgrades, Favorites persistence, recursive local FLAC import and native decoding. Physical-device audio routes, iCloud downloads, and long-running background playback still require device testing. Known evicted iCloud items and recognized provider locations are indexed without reading audio; metadata is enriched from a verified materialized copy. Generic providers expose no universal public download status, so unconfirmed availability remains unknown and provider downloads show indeterminate progress.
 
-See the [redesign qualification record](docs/redesign-qualification.md) for the shared-shell implementation, isolated test fixtures, and outstanding provider/device checks.
+The [redesign qualification record](docs/redesign-qualification.md) documents the earlier iOS/Catalyst shell; [Mac list qualification](docs/perf-mac-list.md) records the native Mac checks and outstanding performance measurements.
 
 ## Unsigned IPA
 

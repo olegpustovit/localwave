@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 /// CSS collapsed table rules paint after cell backgrounds and snap to logical
@@ -34,3 +35,5 @@ struct LWCollapsedTableRules: ViewModifier {
         context.fill(Path(rect), with: .color(color), style: FillStyle(antialiased: false))
     }
 }
+
+#endif

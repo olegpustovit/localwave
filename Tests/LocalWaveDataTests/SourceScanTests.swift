@@ -14,7 +14,7 @@ final class SourceScanTests: XCTestCase {
         try Data("private".utf8).write(to: folder.appendingPathComponent(".hidden.txt"))
         try Data([0]).write(to: nested.appendingPathComponent("track.flac"))
         let bookmark = makeBookmarkKey(folder)
-        UserDefaults.standard.set(try folder.bookmarkData(), forKey: bookmark)
+        UserDefaults.standard.set(try folder.bookmarkData(options: sourceBookmarkCreationOptions), forKey: bookmark)
         defer {
             UserDefaults.standard.removeObject(forKey: bookmark)
             try? FileManager.default.removeItem(at: folder)

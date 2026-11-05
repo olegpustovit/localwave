@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 @MainActor
@@ -204,3 +205,5 @@ extension View {
         modifier(LWSheetModifier(isPresented: isPresented, sheetContent: content))
     }
 }
+
+#endif

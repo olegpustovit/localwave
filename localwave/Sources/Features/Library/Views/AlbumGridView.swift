@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -70,3 +71,5 @@ struct AlbumGridView: View {
         .frame(maxHeight: .infinity)
     }
 }
+
+#endif

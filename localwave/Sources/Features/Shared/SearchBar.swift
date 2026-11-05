@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -61,3 +62,5 @@ struct SearchBar: View {
         }
     }
 }
+
+#endif

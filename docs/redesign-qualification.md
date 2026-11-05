@@ -1,10 +1,12 @@
-# Redesign implementation and qualification
+# Historical redesign implementation and qualification
+
+This record covers the earlier iOS and Mac Catalyst implementation. Mac Catalyst has since been removed and replaced by the native macOS target in `MacApp.swift`. Its screenshots, simulator logs and platform-specific claims below are historical evidence for that version, not qualification of the current Mac app. See [Mac list qualification](perf-mac-list.md) for the current performance status.
 
 Reference: [LocalWave redesign, version 4](https://artifacts.microapps.space/a/mh0ydns8mzyg). Reference HTML SHA-256: `5fb5615a8d8f587ec1fbf39033dddf4177374056049048a5251428ef98113d90`.
 
 ## Implementation
 
-`MainTabView` supplies one SwiftUI shell. Below 900 points it uses the mobile deck and full-screen player; wider windows use the sidebar, content, collapsible Now panel and bottom transport. Mac support uses Mac Catalyst in the same app target. The reference's older P4 native-macOS column-browser proposal was superseded by its Round 3 return to the sidebar layout; this implementation follows that final visual layout.
+The historical `MainTabView` supplied one SwiftUI shell. Below 900 points it used the mobile deck and full-screen player; wider windows used the sidebar, content, collapsible Now panel and bottom transport. The current native Mac app has its own `NavigationSplitView` shell. The reference's older P4 native-macOS column-browser proposal was superseded by its Round 3 return to the sidebar layout.
 
 The shared views bundle Host Grotesk and Geist Mono, draw the 5×7 matrix numerals in Canvas, supply ten deterministic fallback-cover families, and use the reference's square controls, waveform hairlines, baseline progress and signal playhead. Motion includes pressed keys, staggered entrances, matrix row changes, waveform reveal, favorite particles and player zoom. System Reduce Motion and the app preference disable motion together.
 

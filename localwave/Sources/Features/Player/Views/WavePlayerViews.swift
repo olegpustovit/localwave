@@ -1,3 +1,4 @@
+#if os(iOS)
 import AVFoundation
 import AVKit
 import LocalWaveCore
@@ -118,11 +119,7 @@ struct WaveTransport: View {
                     WaveformView(song: player.currentSong, sourceURL: player.playbackURL, progress: player.playbackProgress, height: 40, barCount: 200, seek: player.seekByFraction)
                     Text(player.remainingTime).font(LWTheme.data()).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary).frame(width: timeWidth, alignment: .trailing)
                     WaveModeKeys(showQueue: false, panelVisible: panelVisible, onQueue: onExpand)
-                    #if targetEnvironment(macCatalyst)
-                    WaveVolumeLevels().frame(width: 106, height: 44)
-                    #else
                     WaveAudioRoute(background: LWTheme.panel).frame(width: 44, height: 44)
-                    #endif
                 }.padding(.trailing, 20)
                     .frame(minHeight: 71).fixedSize(horizontal: false, vertical: true)
             }
@@ -549,11 +546,7 @@ struct WaveNowView: View {
     }
     private var locationLabel: String {
         guard player.currentSong?.fileState == .copied else { return "in cloud" }
-        #if targetEnvironment(macCatalyst)
-        return "on this Mac"
-        #else
         return "on device"
-        #endif
     }
     private var folderLabel: String {
         guard let relative = player.currentSong?.relativePath else { return sourceName }
@@ -1197,3 +1190,5 @@ private struct PlayerFavoriteBurst: View {
         }
     }
 }
+
+#endif
