@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -63,7 +63,7 @@ struct SourceGridCell: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(.tertiarySystemBackground))
+        .background(LWTheme.panel)
         .cornerRadius(8)
         .contextMenu {
             Button(role: .destructive) {

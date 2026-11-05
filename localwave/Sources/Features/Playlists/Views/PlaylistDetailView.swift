@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -65,11 +65,13 @@ struct PlaylistDetailView: View {
             }
         }
         .toolbar {
-            ToolbarItemGroup(placement: .navigationBarTrailing) {
+            ToolbarItemGroup(placement: .automatic) {
                 Button("Add Songs") {
                     viewModel.showAddSongs = true
                 }
+#if os(iOS)
                 EditButton()
+#endif
             }
         }
         .sheet(isPresented: $viewModel.showAddSongs) {

@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
 import LocalWaveDomain
 
@@ -87,15 +87,11 @@ struct LWCommandPalette: View {
     var body: some View {
         GeometryReader { bounds in
             let rows = items
-            let groupCount = rows.enumerated().filter { $0.offset == 0 || rows[$0.offset - 1].group != $0.element.group }.count
+            let groupCount = Set(rows.map(\.group)).count
             ZStack(alignment: .top) {
                 Color(red: 10/255, green: 10/255, blue: 10/255).opacity(0.28).ignoresSafeArea().onTapGesture(perform: dismiss)
                 VStack(spacing: 0) {
-                    TextField("Search songs, folders, or type a command", text: $query,
-                              prompt: Text("Search songs, folders, or type a command").foregroundStyle(Color(white: 117.0 / 255)))
-                        .font(LWTheme.text(20)).textFieldStyle(.plain).padding(.horizontal, 20).frame(height: 59)
-                        .focused($focused).onSubmit { activate(rows, index: selected) }
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
+                    searchField
                     Rectangle().fill(LWTheme.line).frame(height: 1)
                     ScrollViewReader { proxy in
                         ScrollView {
@@ -135,6 +131,16 @@ struct LWCommandPalette: View {
         .onKeyPress(.upArrow) { selected = items.isEmpty ? 0 : (selected + items.count - 1) % items.count; return .handled }
         .onKeyPress(.escape) { dismiss(); return .handled }
         .task(id: SearchInput(query: query, songs: songs, sourceIDs: sources.map(\.stableId))) { await searchCatalogue() }
+    }
+    private var searchField: some View {
+        TextField("Search songs, folders, or type a command", text: $query,
+                  prompt: Text("Search songs, folders, or type a command").foregroundStyle(LWTheme.secondary))
+            .font(LWTheme.text(20)).textFieldStyle(.plain).padding(.horizontal, 20).frame(height: 59)
+            .focused($focused).onSubmit { activate(items, index: selected) }
+            .autocorrectionDisabled()
+#if os(iOS)
+            .textInputAutocapitalization(.never)
+#endif
     }
     private func activate(_ rows: [Item], index: Int) {
         guard rows.indices.contains(index) else { return }

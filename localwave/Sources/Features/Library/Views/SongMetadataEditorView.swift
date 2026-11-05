@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -52,11 +52,17 @@ struct SongMetadataEditorView: View {
                 }
                 Section(header: Text("Additional Info")) {
                     TextField("Release Year", text: $releaseYear)
+#if os(iOS)
                         .keyboardType(.numberPad)
+#endif
                     TextField("Disc Number", text: $discNumber)
+#if os(iOS)
                         .keyboardType(.numberPad)
+#endif
                     TextField("Track Number", text: $trackNumber)
+#if os(iOS)
                         .keyboardType(.numberPad)
+#endif
                 }
             }
             .navigationTitle("Edit Metadata")

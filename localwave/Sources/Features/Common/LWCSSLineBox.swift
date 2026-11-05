@@ -1,5 +1,9 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
+import CoreText
+#if os(iOS)
+import UIKit
+#endif
 
 /// Chromium rounds font-box metrics to CSS pixels, then floors the half-leading.
 /// The fixtures in CSSLineBoxTests come from zero-height inline baseline markers.
@@ -91,6 +95,7 @@ private struct LWCSSLineBox: ViewModifier {
     let data: Bool
     @Environment(\.dynamicTypeSize) private var dynamicType
 
+#if os(iOS)
     private var contentSizeCategory: UIContentSizeCategory {
         switch dynamicType {
         case .xSmall: return .extraSmall
@@ -108,9 +113,11 @@ private struct LWCSSLineBox: ViewModifier {
         @unknown default: return .large
         }
     }
+#endif
 
     func body(content: Content) -> some View {
         let face = data ? "GeistMono-Regular" : "HostGrotesk-Regular"
+#if os(iOS)
         let base = UIFont(name: face, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
         // Font.custom scales the font itself, including point-size rounding.
         // Scaling a one-point value and multiplying it by the base size gives
@@ -119,6 +126,10 @@ private struct LWCSSLineBox: ViewModifier {
             compatibleWith: UITraitCollection(preferredContentSizeCategory: contentSizeCategory))
         let scale = font.pointSize / base.pointSize
         let metrics = LWCSSFontLineMetrics(ascent: font.ascender, descent: -font.descender, lineHeight: max(0.01, lineHeight * scale))
+#else
+        let font = CTFontCreateWithName(face as CFString, fontSize, nil)
+        let metrics = LWCSSFontLineMetrics(ascent: CTFontGetAscent(font), descent: CTFontGetDescent(font), lineHeight: max(0.01, lineHeight))
+#endif
         LWCSSLineBoxLayout(metrics: metrics) {
             content.lineSpacing(0).textRenderer(LWCSSLineRenderer(lineHeight: metrics.lineHeight, ascent: metrics.ascent, descent: metrics.descent))
         }

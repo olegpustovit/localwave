@@ -1,6 +1,5 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
-import UIKit
 
 struct LWPlaybackNotice: View {
     let message: String
@@ -47,10 +46,12 @@ struct LWPlaybackNotice: View {
                     // Coalesce rapid replacements before queuing a VoiceOver announcement.
                     try await Task.sleep(for: .seconds(LWMotion.quick))
                     guard !completed else { return }
+#if os(iOS)
                     let announcement = NSAttributedString(string: message, attributes: [
                         .accessibilitySpeechAnnouncementPriority: UIAccessibilityPriority.low.rawValue
                     ])
                     UIAccessibility.post(notification: .announcement, argument: announcement)
+#endif
                     try await Task.sleep(for: .seconds((actionable ? 4 : 2) * lifetimeScale - LWMotion.quick))
                     guard !Task.isCancelled, !completed else { return }
                     withAnimation(reduceMotion ? nil : LWMotion.in(LWMotion.quick)) { visible = false }

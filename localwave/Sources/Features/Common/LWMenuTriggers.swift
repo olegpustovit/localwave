@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 struct LWMenuButton<Label: View>: View {
     let request: () -> LWMenuRequest
@@ -17,6 +19,7 @@ struct LWMenuButton<Label: View>: View {
     }
 }
 
+#if os(iOS)
 private struct LWContextMenuTrigger: ViewModifier {
     let enabled: Bool
     let request: () -> LWMenuRequest
@@ -43,6 +46,39 @@ private struct LWContextMenuTrigger: ViewModifier {
         .accessibilityAction(named: Text("Show actions")) { if enabled { presenter.present(menu: request()) } }
     }
 }
+#else
+private struct LWContextMenuTrigger: ViewModifier {
+    let enabled: Bool
+    let request: () -> LWMenuRequest
+    func body(content: Content) -> some View {
+        if enabled {
+            content.contextMenu { menuItems(request().groups) }
+        } else {
+            content
+        }
+    }
+
+    private func menuItems(_ groups: [LWMenuGroup]) -> AnyView {
+        AnyView(VStack {
+            ForEach(groups) { group in
+                Section {
+                    ForEach(group.actions) { item in
+                        if let submenu = item.submenu {
+                            Menu(item.title) { menuItems(submenu()) }
+                        } else {
+                            Button(role: item.destructive ? .destructive : nil, action: item.action) {
+                                if let icon = item.icon { Label(item.title, systemImage: icon) }
+                                else { Text(item.title) }
+                            }
+                            .disabled(item.disabled)
+                        }
+                    }
+                }
+            }
+        })
+    }
+}
+#endif
 
 extension View {
     func lwContextMenu(enabled: Bool = true, request: @escaping () -> LWMenuRequest) -> some View {
@@ -50,6 +86,7 @@ extension View {
     }
 }
 
+#if os(iOS)
 private struct LWMenuTouchRegion: UIViewRepresentable {
     let secondaryEnabled: Bool
     let isAvailable: () -> Bool
@@ -120,6 +157,6 @@ private final class LWMenuTouchRegistry: NSObject, UIContextMenuInteractionDeleg
         return nil
     }
 }
-
+#endif
 
 #endif

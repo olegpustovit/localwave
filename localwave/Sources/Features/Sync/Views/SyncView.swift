@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -34,7 +34,7 @@ struct SyncView: View {
                 .navigationTitle("Music Sources")
                 .toolbar {
                     // Always allow adding a source.
-                    ToolbarItem(placement: .navigationBarTrailing) {
+                    ToolbarItem(placement: .automatic) {
                         Button {
                             showingFolderPicker = true
                         } label: {
@@ -85,7 +85,7 @@ struct SyncView: View {
                     }
                 }
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
+                    ToolbarItem(placement: .automatic) {
                         Button("Grid") {
                             showGrid = true
                         }
@@ -95,7 +95,7 @@ struct SyncView: View {
         } else {
             sourceGridView
                 .toolbar {
-                    ToolbarItem(placement: .navigationBarLeading) {
+                    ToolbarItem(placement: .automatic) {
                         Button("Back to Grid") {
                             showGrid = true
                         }
@@ -145,7 +145,7 @@ struct SyncView: View {
                             }
                         )
                         .padding()
-                        .background(Color(.secondarySystemBackground))
+                        .background(LWTheme.panel)
                         .cornerRadius(12)
                     }
                     .buttonStyle(PlainButtonStyle())

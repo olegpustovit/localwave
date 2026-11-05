@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
 
 /// The reference's 24-unit vectors, compiled as template SVG assets.

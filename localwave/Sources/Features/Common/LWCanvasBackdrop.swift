@@ -1,6 +1,8 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
+#if os(iOS)
 import UIKit
+#endif
 
 private struct LWCanvasSnapshotSourceKey: EnvironmentKey {
     static let defaultValue: LWCanvasSnapshotSource? = nil
@@ -17,14 +19,17 @@ extension EnvironmentValues {
 /// proxy of that tree; it never mounts a second copy of the canvas content.
 @MainActor
 final class LWCanvasSnapshotSource: ObservableObject {
+#if os(iOS)
     private(set) weak var view: UIView?
 
     fileprivate func attach(_ view: UIView) { self.view = view }
     fileprivate func detach(_ view: UIView) {
         if self.view === view { self.view = nil }
     }
+#endif
 }
 
+#if os(iOS)
 struct LWCanvasHost<Content: View>: UIViewControllerRepresentable {
     let source: LWCanvasSnapshotSource
     private let content: Content
@@ -230,5 +235,19 @@ struct LWMenuBackdrop: UIViewRepresentable {
         @objc func tick() { coordinator?.capture() }
     }
 }
+#else
+struct LWCanvasHost<Content: View>: View {
+    let source: LWCanvasSnapshotSource
+    private let content: Content
+    init(source: LWCanvasSnapshotSource, @ViewBuilder content: () -> Content) { self.source = source; self.content = content() }
+    var body: some View { content }
+}
+
+struct LWMenuBackdrop: View {
+    let source: LWCanvasSnapshotSource
+    var onFirstFrame: () -> Void = {}
+    var body: some View { Color.clear.onAppear(perform: onFirstFrame) }
+}
+#endif
 
 #endif

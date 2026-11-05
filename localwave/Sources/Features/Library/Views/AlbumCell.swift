@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -17,14 +17,14 @@ import SwiftUI
 
 struct AlbumCell: View {
     let album: Album
-    @State private var artwork: UIImage?
+    @State private var artwork: PlatformImage?
     @EnvironmentObject private var dependencies: DependencyContainer
 
     var body: some View {
         VStack(alignment: .leading) {
             ZStack {
                 if let artwork = artwork {
-                    Image(uiImage: artwork)
+                    Image(localWaveImage: artwork)
                         .resizable()
                         .aspectRatio(1, contentMode: .fill)
                 } else {
@@ -73,7 +73,7 @@ struct AlbumCell: View {
         let url = docs.appendingPathComponent(path)
 
         DispatchQueue.global(qos: .userInitiated).async {
-            if let image = UIImage(contentsOfFile: url.path) {
+            if let image = PlatformImage(contentsOfFile: url.path) {
                 DispatchQueue.main.async {
                     self.artwork = image
                 }

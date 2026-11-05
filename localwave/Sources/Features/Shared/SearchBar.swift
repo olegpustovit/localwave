@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -30,7 +30,7 @@ struct SearchBar: View {
             TextField(placeholder, text: $text)
                 .padding(8)
                 .padding(.horizontal, 25)
-                .background(Color(.systemGray6))
+                .background(LWTheme.panel)
                 .cornerRadius(8)
                 .overlay(
                     HStack {

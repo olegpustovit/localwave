@@ -1,15 +1,38 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import LocalWaveCore
 import SwiftUI
 import ImageIO
 import LocalWaveDomain
+#if os(iOS)
+import UIKit
+#else
+import AppKit
+#endif
+
+extension Image {
+    init(localWaveImage: PlatformImage) {
+#if os(iOS)
+        self.init(uiImage: localWaveImage)
+#else
+        self.init(nsImage: localWaveImage)
+#endif
+    }
+}
 
 enum LWTheme {
     private static func color(_ light: UInt32, _ dark: UInt32) -> Color {
+#if os(iOS)
         Color(UIColor { traits in
             let hex = traits.userInterfaceStyle == .dark ? dark : light
             return UIColor(red: CGFloat((hex >> 16) & 255) / 255, green: CGFloat((hex >> 8) & 255) / 255, blue: CGFloat(hex & 255) / 255, alpha: 1)
         })
+#else
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let hex = isDark ? dark : light
+            return NSColor(srgbRed: CGFloat((hex >> 16) & 255) / 255, green: CGFloat((hex >> 8) & 255) / 255, blue: CGFloat(hex & 255) / 255, alpha: 1)
+        })
+#endif
     }
     static let paper = color(0xF3F3F3, 0x101010)
     static let panel = color(0xE6E6E6, 0x1A1A1A)
@@ -294,7 +317,7 @@ struct LWArtwork: View {
     var song: Song?
     var size: CGFloat
     var matched = false
-    nonisolated static func thumbnail(at url: URL, maxPixelSize: Int) -> UIImage? {
+    nonisolated static func thumbnail(at url: URL, maxPixelSize: Int) -> PlatformImage? {
         guard maxPixelSize > 0,
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
@@ -303,15 +326,19 @@ struct LWArtwork: View {
                 kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
                 kCGImageSourceShouldCacheImmediately: true
               ] as CFDictionary) else { return nil }
+#if os(iOS)
         return UIImage(cgImage: image)
+#else
+        return NSImage(cgImage: image, size: NSSize(width: image.width, height: image.height))
+#endif
     }
-    @State private var image: UIImage?
+    @State private var image: PlatformImage?
     @Environment(\.displayScale) private var displayScale
     private var imagePixelSize: Int { max(1, Int(ceil(size * displayScale))) }
     private var identity: String { song?.coverArtPath ?? song?.album ?? "" }
     var body: some View {
         ZStack {
-            if let image { Image(uiImage: image).resizable().interpolation(.high).scaledToFill() }
+            if let image { Image(localWaveImage: image).resizable().interpolation(.high).scaledToFill() }
             else {
                 Canvas { context, bounds in
                     let seed = identity.utf8.reduce(UInt64(2166136261)) { ($0 ^ UInt64($1)) &* 16777619 }

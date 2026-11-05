@@ -1,4 +1,4 @@
-#if os(iOS)
+#if os(iOS) || os(macOS)
 import SwiftUI
 
 /// CSS collapsed table rules paint after cell backgrounds and snap to logical
