@@ -1,7 +1,7 @@
 name: Release
 # Push a tag such as v1.0.1: tests, uploads a signed build to TestFlight, and publishes a notarized Mac DMG and the unsigned IPA.
 # Mac DMG secrets (Developer ID + notarization): APPLE_CERTIFICATE_BASE64, APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_TEAM_ID, APPLE_APP_SPECIFIC_PASSWORD.
-# Required TestFlight secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64 (App Store Connect API key, App Manager role).
+# Required TestFlight secrets: ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8_BASE64 (App Store Connect team API key, Admin role for cloud-managed distribution signing).
 on:
   push:
     tags: ['v*']
