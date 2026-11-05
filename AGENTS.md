@@ -4,7 +4,7 @@ LocalWave is an iOS MP3 player. Read [README.md](README.md) for the current buil
 
 ## Build and test
 
-Open localwave.xcodeproj in Xcode 16.2 or newer. Select the shared musicapp scheme, which builds the localwave app. The app target requires iOS 18.0; use an iOS 18.2 or newer simulator for the project defaults and unit-test target. Targets retain Swift 5 language mode.
+Open localwave.xcodeproj in Xcode 16.2 or newer (CI and TestFlight builds use Xcode 26.6). Select the shared musicapp scheme, which builds the localwave app. The app target requires iOS 18.0; use an iOS 18.2 or newer simulator for the project defaults and unit-test target. Targets retain Swift 5 language mode.
 
 Product > Run builds the app. Product > Test uses localwave.xctestplan. The test targets retain the names musicappTests and musicappUITests. Existing cases in localwaveTests/Tests.swift use Swift Testing. Do not infer broad UI coverage from target names.
 

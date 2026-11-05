@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   shared-and-tui:
-    runs-on: macos-15
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Test shared repositories and FLAC metadata
@@ -18,10 +18,10 @@ jobs:
       - name: Build terminal app
         run: swift build -c release
   ios:
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 25
     env:
-      DEVELOPER_DIR: /Applications/Xcode_16.4.app/Contents/Developer
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
       - name: Choose an available iPhone simulator
