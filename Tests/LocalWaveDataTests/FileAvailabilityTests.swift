@@ -27,7 +27,7 @@ final class FileAvailabilityTests: XCTestCase {
         try await importer.importPaths(paths: [path], onProgress: nil)
         let placeholderRow = await songs.getSong(sourceId: sourceID, relativePath: path.relativePath)
         let placeholder = try XCTUnwrap(placeholderRow)
-        XCTAssertEqual(placeholder.title, "evicted.flac")
+        XCTAssertEqual(placeholder.title, "evicted")
         XCTAssertEqual(placeholder.sourceAvailability, .inCloud)
         XCTAssertNil(placeholder.duration)
         XCTAssertNil(placeholder.bookmark)

@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import CoreText
 import UniformTypeIdentifiers
@@ -2188,3 +2189,5 @@ private struct WaveFolderOptionsSheet: View {
         }.foregroundStyle(LWTheme.ink).background(LWTheme.paper)
     }
 }
+
+#endif

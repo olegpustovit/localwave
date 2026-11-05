@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -17,3 +18,5 @@ import SwiftUI
 protocol TabViewBuilder {
     var tabs: [TabItem] { get }
 }
+
+#endif

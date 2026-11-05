@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveDomain
 import LocalWaveCore
 import LocalWaveData
@@ -9,7 +10,6 @@ import SwiftUI
 
 @main
 struct LocalWave: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var dependencies: DependencyContainer
     @StateObject private var playerVM: PlayerViewModel
     @StateObject private var tabState = TabState()
@@ -130,3 +130,5 @@ struct LocalWave: App {
         }
     }
 }
+
+#endif

@@ -186,7 +186,7 @@ public actor DefaultSongImportService: SongImportService {
                 } else {
                     let size = try fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize.map(Int64.init)
                     let placeholder = Song(id: nil, songKey: hashStringToInt64("source:\(filePath.sourceId)/\(filePath.relativePath)"),
-                        artist: "Unknown Artist", title: fileURL.lastPathComponent, album: "Unknown Album", albumArtist: "Unknown Artist",
+                        artist: "Unknown Artist", title: Self.fallbackTitle(for: fileURL.lastPathComponent), album: "Unknown Album", albumArtist: "Unknown Artist",
                         releaseYear: nil, discNumber: nil, trackNumber: nil, coverArtPath: nil, bookmark: nil,
                         pathHash: makeURLHash(fileURL), createdAt: Date(), updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly,
                         sourceId: filePath.sourceId, relativePath: filePath.relativePath, fileSize: size,
@@ -225,7 +225,7 @@ public actor DefaultSongImportService: SongImportService {
 
             // 3) Read metadata
             let (artist, title, album, albumArtist, releaseYear, trackNumber, discNumber) =
-                await readMetadataAVAsset(url: metadataURL, fallbackTitle: filePath.name)
+                await readMetadataAVAsset(url: metadataURL, fallbackTitle: Self.fallbackTitle(for: filePath.name))
             let songKey = generateSongKey(artist: artist, title: title, album: album)
 
             // 4) Extract artwork
@@ -355,14 +355,14 @@ public actor DefaultSongImportService: SongImportService {
             func number(_ key: String) -> Int? {
                 tags[key].flatMap { Int($0.split(separator: "/").first.map(String.init) ?? "") }
             }
-            return (artist, tags["TITLE"] ?? fallbackTitle ?? url.lastPathComponent,
+            return (artist, tags["TITLE"] ?? fallbackTitle.map(Self.fallbackTitle(for:)) ?? Self.fallbackTitle(for: url.lastPathComponent),
                     tags["ALBUM"] ?? "Unknown Album",
                     tags["ALBUMARTIST"] ?? tags["ALBUM ARTIST"] ?? artist,
                     tags["DATE"].flatMap { Int($0.prefix(4)) } ?? number("YEAR"),
                     number("TRACKNUMBER"), number("DISCNUMBER"))
         }
         let asset = AVURLAsset(url: url)
-        var defaultSongTitle = fallbackTitle ?? url.lastPathComponent
+        var defaultSongTitle = Self.fallbackTitle(for: fallbackTitle ?? url.lastPathComponent)
         if defaultSongTitle.isEmpty {
             defaultSongTitle = "Unknown Title"
         }
@@ -458,6 +458,12 @@ public actor DefaultSongImportService: SongImportService {
                 "Unknown Artist", defaultSongTitle, "Unknown Album", "Unknown Artist", nil, nil, nil
             )
         }
+    }
+
+    nonisolated static func fallbackTitle(for fileName: String) -> String {
+        let stem = URL(fileURLWithPath: fileName).deletingPathExtension().lastPathComponent
+        let title = stem.replacingOccurrences(of: #"^\s*\d{1,3}\s*[-–—._)]\s*"#, with: "", options: .regularExpression)
+        return title.isEmpty ? stem : title
     }
 
     /// iTunes trkn/disk payloads begin with two reserved bytes, then the

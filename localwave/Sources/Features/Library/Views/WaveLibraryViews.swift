@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import Combine
 import CoreText
@@ -2706,3 +2707,5 @@ func waveBlockedSourceName(song: Song, availability: FileAvailability, blockedSo
     return blockedSources[sourceID]
 }
 
+
+#endif

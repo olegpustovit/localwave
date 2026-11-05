@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -247,3 +248,5 @@ struct PlayerView: View {
         }
     }
 }
+
+#endif

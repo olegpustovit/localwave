@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveCore
 import SwiftUI
 import ImageIO
@@ -436,3 +437,5 @@ extension EnvironmentValues {
         set { self[LWFolderFilterKey.self] = newValue }
     }
 }
+
+#endif

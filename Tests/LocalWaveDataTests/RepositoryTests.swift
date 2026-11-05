@@ -5,6 +5,18 @@ import LocalWaveDomain
 @testable import LocalWaveData
 
 final class RepositoryTests: XCTestCase {
+    func testRepositoryArtistAndAlbumLookupsWorkThroughProtocol() async throws {
+        let db = try Connection(.inMemory)
+        let repository: any SongRepository = try SQLiteSongRepository(db: db)
+        for (key, artist, album) in [(1, "North", "First"), (2, "North", "Second"), (3, "South", "First")] {
+            _ = try await repository.upsertSong(Song(id: nil, songKey: Int64(key), artist: artist, title: "Track \(key)", album: album, albumArtist: artist, releaseYear: nil, discNumber: nil, trackNumber: nil, coverArtPath: nil, bookmark: nil, pathHash: Int64(key), createdAt: Date(), updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly))
+        }
+        let north = try await repository.getSongsByArtist("North")
+        let southAlbum = try await repository.getSongsByAlbum("First", artist: "South")
+        XCTAssertEqual(north.count, 2)
+        XCTAssertEqual(southAlbum.map(\.artist), ["South"])
+    }
+
     func testSourceRelativeIdentityAndMeasurementsSurviveEditsAndMetadataChanges() async throws {
         let database = try Connection(.inMemory)
         let repository = try SQLiteSongRepository(db: database)

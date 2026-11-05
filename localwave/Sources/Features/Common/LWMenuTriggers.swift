@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UIKit
 
@@ -86,7 +87,7 @@ private struct LWMenuTouchRegion: UIViewRepresentable {
     }
 }
 
-/// UIKit routes Catalyst secondary clicks through its context interaction path.
+/// UIKit routes secondary clicks through its context interaction path.
 /// One interaction serves the window regardless of lazy row count; it never
 /// supplies a native menu because the shared presenter owns the rendered menu.
 /// The transparent measurement views never intercept row taps, selection or dragging.
@@ -120,3 +121,5 @@ private final class LWMenuTouchRegistry: NSObject, UIContextMenuInteractionDeleg
     }
 }
 
+
+#endif

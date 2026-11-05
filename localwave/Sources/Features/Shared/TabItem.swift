@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -30,3 +31,5 @@ struct TabItem: Identifiable {
         self.content = AnyView(content())
     }
 }
+
+#endif

@@ -1,3 +1,4 @@
+#if os(iOS)
 import CoreText
 import SwiftUI
 import UIKit
@@ -79,3 +80,5 @@ struct LWDialogLabelLayout: Layout {
         return subviews.first?.dimensions(in: .unspecified)[guide]
     }
 }
+
+#endif

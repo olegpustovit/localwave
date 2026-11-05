@@ -12,7 +12,7 @@ public enum LocalWaveGeneratedPaths {
         let documents = manager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let caches = manager.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         var result = [documents.appendingPathComponent("CoverArt", isDirectory: true), manager.temporaryDirectory.appendingPathComponent("LocalWave Share", isDirectory: true)]
-        #if os(iOS) || targetEnvironment(macCatalyst)
+        #if os(iOS)
         result.append(documents.appendingPathComponent("Music", isDirectory: true))
         #endif
         var names = ["musicApp\(schemaVersion).sqlite"]

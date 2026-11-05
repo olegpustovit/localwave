@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UIKit
 
@@ -229,3 +230,5 @@ struct LWMenuBackdrop: UIViewRepresentable {
         @objc func tick() { coordinator?.capture() }
     }
 }
+
+#endif

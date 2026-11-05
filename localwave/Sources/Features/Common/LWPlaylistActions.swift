@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import LocalWaveCore
 import LocalWaveDomain
@@ -144,3 +145,5 @@ struct LWPlaylistMenuPreview: View {
         }
     }
 }
+
+#endif

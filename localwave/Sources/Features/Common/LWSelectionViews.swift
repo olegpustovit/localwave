@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct LWCompactSelectionDeck<Content: View>: View {
@@ -67,3 +68,5 @@ struct LWCompactSelectionHeader: View {
         .padding(.horizontal, inset ? 16 : 0).padding(.top, inset ? 10 : 0)
     }
 }
+
+#endif

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Builds the Mac Catalyst app, signs it with Developer ID, notarizes and staples a DMG.
+# Builds the native Mac app, signs it with Developer ID, notarizes and staples a DMG.
 # Env: SIGN_ID (Developer ID Application identity), VERSION (optional), NOTARY_PROFILE + optional NOTARY_KEYCHAIN
 # (a notarytool keychain profile); without NOTARY_PROFILE notarization is skipped (local smoke only).
 set -euo pipefail
@@ -17,11 +17,11 @@ settings=()
 [ -z "${BUILD:-}" ] || settings+=(CURRENT_PROJECT_VERSION="$BUILD")
 
 xcodebuild -project "$repo_dir/localwave.xcodeproj" -scheme musicapp \
-  -configuration Release -destination 'platform=macOS,variant=Mac Catalyst' \
+  -configuration Release -destination 'platform=macOS' \
   -derivedDataPath "$work_dir/DerivedData" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO ${settings[@]+"${settings[@]}"} build
 
-app="$work_dir/DerivedData/Build/Products/Release-maccatalyst/localwave.app"
+app="$work_dir/DerivedData/Build/Products/Release/localwave.app"
 keychain=()
 [ -z "${SIGN_KEYCHAIN:-}" ] || keychain=(--keychain "$SIGN_KEYCHAIN")
 codesign --force --deep --timestamp --options runtime ${keychain[@]+"${keychain[@]}"} \

@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import Combine
 import UniformTypeIdentifiers
@@ -1048,3 +1049,5 @@ private struct LWNativeMusicImporters: ViewModifier {
             .fileImporter(isPresented: $audio, allowedContentTypes: [.audio], allowsMultipleSelection: true) { complete($0, false) }
     }
 }
+
+#endif

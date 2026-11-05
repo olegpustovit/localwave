@@ -1,3 +1,4 @@
+#if os(iOS)
 import LocalWaveData
 import LocalWaveCore
 import LocalWaveDomain
@@ -68,3 +69,5 @@ struct CustomTabView: View {
         return TabViewContainer(tabs: components)
     }
 }
+
+#endif

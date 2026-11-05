@@ -8,6 +8,13 @@ import LocalWaveDomain
 @testable import LocalWaveData
 
 final class ImportTests: XCTestCase {
+    func testFallbackTitlesDropExtensionAndLeadingTrackNumbers() {
+        XCTAssertEqual(DefaultSongImportService.fallbackTitle(for: "01 – COUSINS.m4a"), "COUSINS")
+        XCTAssertEqual(DefaultSongImportService.fallbackTitle(for: "07.artist-name.flac"), "artist-name")
+        XCTAssertEqual(DefaultSongImportService.fallbackTitle(for: "1984.m4a"), "1984")
+        XCTAssertEqual(DefaultSongImportService.fallbackTitle(for: "CJKタイトル.wav"), "CJKタイトル")
+    }
+
     func testM4AReadsITunesTagsArtworkAndAudibleNativeAudio() async throws {
         // One-second generated three-tone AAC, with real M4A tags and PNG art.
         // Album artist differs deliberately so a fallback to artist cannot pass.
@@ -64,7 +71,7 @@ final class ImportTests: XCTestCase {
         let target = nested.appendingPathComponent("tagged.flac")
         try FileManager.default.copyItem(at: fixture, to: target)
         let bookmarkKey = makeBookmarkKey(folder)
-        UserDefaults.standard.set(try folder.bookmarkData(), forKey: bookmarkKey)
+        UserDefaults.standard.set(try folder.bookmarkData(options: sourceBookmarkCreationOptions), forKey: bookmarkKey)
         defer {
             UserDefaults.standard.removeObject(forKey: bookmarkKey)
             try? FileManager.default.removeItem(at: folder)

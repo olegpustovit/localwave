@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 /// The reference's 24-unit vectors, compiled as template SVG assets.
@@ -15,3 +16,5 @@ struct LWIcon: View {
             .frame(width: size, height: size).accessibilityHidden(true)
     }
 }
+
+#endif

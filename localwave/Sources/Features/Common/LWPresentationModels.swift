@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 
 struct LWDialogInput {
@@ -66,3 +67,5 @@ enum LWPresentationNotice {
         NotificationCenter.default.post(name: Notification.Name("LWShowNotice"), object: text)
     }
 }
+
+#endif

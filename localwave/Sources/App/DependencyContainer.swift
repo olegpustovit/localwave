@@ -29,7 +29,7 @@ class DependencyContainer: ObservableObject {
     let logger = Logger(subsystem: subsystem, category: "DependencyContainer")
 
     func handleAppLaunch() {
-        #if DEBUG
+        #if DEBUG && os(iOS)
         if LWReferenceFixture.enabled { return }
         #endif
         logger.debug("Handling app launch...")

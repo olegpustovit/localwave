@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import UIKit
 import LocalWaveDomain
@@ -272,3 +273,5 @@ private struct LWMenuDrop: ViewModifier {
             .animation(reduceMotion ? nil : LWMotion.out(LWMotion.quick), value: shown)
     }
 }
+
+#endif

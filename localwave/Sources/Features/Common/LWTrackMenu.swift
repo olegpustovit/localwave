@@ -1,3 +1,4 @@
+#if os(iOS)
 import SwiftUI
 import LocalWaveDomain
 
@@ -120,3 +121,5 @@ enum LWTrackMenu {
         LWPresentationNotice.show(songs.count > 1 ? "\(songs.count) songs play next" : "Plays next")
     }
 }
+
+#endif
