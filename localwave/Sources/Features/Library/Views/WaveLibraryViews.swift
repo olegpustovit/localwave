@@ -200,8 +200,13 @@ final class WaveLibraryModel: ObservableObject {
     }
 
     func searchFolders(_ query: String) async {
-        let text = query.split(whereSeparator: \.isWhitespace).map(String.init)
-            .filter { !["cloud", "offline", "favorites", "fav", "flac", "mp3", "m4a", "unplayed"].contains($0.lowercased()) && !$0.lowercased().hasPrefix("year:") }.joined(separator: " ")
+        let filterWords: Set<String> = ["cloud", "offline", "favorites", "fav", "flac", "mp3", "m4a", "unplayed"]
+        let words: [String] = query.split(whereSeparator: { $0.isWhitespace }).map { String($0) }
+        let kept: [String] = words.filter { word in
+            let lowered = word.lowercased()
+            return !filterWords.contains(lowered) && !lowered.hasPrefix("year:")
+        }
+        let text: String = kept.joined(separator: " ")
         guard !text.isEmpty else { foundFolders = []; foundFolderQuery = WaveSongQuery(query).text; return }
         do {
             try await Task.sleep(for: .milliseconds(150))
@@ -211,7 +216,7 @@ final class WaveLibraryModel: ObservableObject {
             for source in sources {
                 guard let sourceID = source.id else { continue }
                 let paths = try await dependencies.sourceService.importService().search(sourceId: sourceID, query: text)
-                results += paths.filter(\.isDirectory).map { WaveFolderResult(source: source, path: $0) }
+                for path in paths where path.isDirectory { results.append(WaveFolderResult(source: source, path: path)) }
             }
             try Task.checkCancellation()
             foundFolders = results

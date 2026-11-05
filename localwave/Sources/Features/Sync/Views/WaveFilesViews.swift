@@ -683,7 +683,7 @@ struct WaveFolderView: View {
             .alert("Folder action failed", isPresented: folderErrorPresented) { Button("OK") { error = nil } } message: { Text(error ?? "") }
     }
 
-    private var folderObservedPage: some View {
+    private var folderPageCore: some View {
         ZStack {
             Group {
                 if wideLayout { desktopFolder } else { mobileFolder }
@@ -724,6 +724,10 @@ struct WaveFolderView: View {
             .onChange(of: desktopSort) { _, _ in publishFolderState() }
             .onChange(of: desktopAscending) { _, _ in publishFolderState() }
             .onChange(of: model.parentPathId, initial: true) { _, _ in publishSourceRoot() }
+    }
+
+    private var folderPageInputs: some View {
+        folderPageCore
             .background {
                 if !keyboardCovered {
                     Button("Back in folder", action: folderBack).keyboardShortcut("[", modifiers: .command).hidden()
@@ -742,6 +746,10 @@ struct WaveFolderView: View {
             .onChange(of: tableTextScale) { _, _ in updateColumnMetrics() }
             .onChange(of: tableDataScale) { _, _ in updateColumnMetrics() }
             .onChange(of: source.pathId) { _, id in model.resetRoot(to: id) }
+    }
+
+    private var folderObservedPage: some View {
+        folderPageInputs
             .task(id: model.parentPathId) {
                 if skipInitialFolderSummary { skipInitialFolderSummary = false; return }
                 if let songs = try? await folderSongs(), !Task.isCancelled { updateFolderKeptState(songs) }
