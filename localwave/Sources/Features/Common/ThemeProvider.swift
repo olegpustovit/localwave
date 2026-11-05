@@ -235,11 +235,20 @@ struct MatrixText: View {
         "/":["001","001","010","010","010","100","100"], " ":["00","00","00","00","00","00","00"]
     ]
     private var columns: Int { max(1, text.reduce(0) { $0 + (Self.glyphs[$1]?.first?.count ?? 0) + 1 } - 1) }
+    private var changeTimes: [Date] {
+        if reduceMotion { return [] }
+        var times: [Date] = [changedAt]
+        for row in 0..<7 {
+            let base: TimeInterval = Double(row) * 0.016
+            times.append(changedAt.addingTimeInterval(base + LWMotion.quick / 2))
+            times.append(changedAt.addingTimeInterval(base + LWMotion.quick))
+        }
+        return times.sorted()
+    }
+
     var body: some View {
         LWMatrixLayout(width: (CGFloat(columns) - 0.22) * height * displayScale / 7, height: height * displayScale) {
-        TimelineView(.explicit(reduceMotion ? [] : [changedAt] + (0..<7).flatMap { row in
-            [LWMotion.quick / 2, LWMotion.quick].map { changedAt.addingTimeInterval(Double(row) * 0.016 + $0) }
-        }.sorted())) { timeline in
+        TimelineView(.explicit(changeTimes)) { timeline in
             Canvas { context, size in
                 let unit = min(size.height / 7, size.width / (CGFloat(columns) - 0.22))
                 var x: CGFloat = 0

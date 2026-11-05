@@ -136,9 +136,13 @@ struct WaveLibraryTests {
             let id = Int64(number)
             return Song(id: id, songKey: id, artist: "Artist", title: "Track \(id)", album: "Album", albumArtist: "Artist", releaseYear: nil, discNumber: nil, trackNumber: nil, coverArtPath: nil, bookmark: nil, pathHash: id, createdAt: Date(timeIntervalSince1970: Double(number)), updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly)
         }
-        #expect(waveRecentlyAddedSongs(songs).map(\.uniqueId) == Array((7...30).reversed()).map(Int64.init))
+        let recentIDs: [Int64] = waveRecentlyAddedSongs(songs).map(\.uniqueId)
+        let expectedRecent: [Int64] = (7...30).reversed().map { Int64($0) }
+        #expect(recentIDs == expectedRecent)
         let counts = Dictionary(uniqueKeysWithValues: (1...26).map { (String($0), $0) })
-        #expect(waveMostPlayedSongs(songs, counts: counts).map(\.uniqueId) == Array((3...26).reversed()).map(Int64.init))
+        let playedIDs: [Int64] = waveMostPlayedSongs(songs, counts: counts).map(\.uniqueId)
+        let expectedPlayed: [Int64] = (3...26).reversed().map { Int64($0) }
+        #expect(playedIDs == expectedPlayed)
         #expect(waveMostPlayedSongs(songs, counts: [:]).isEmpty)
         #expect(waveRecentlyAddedSongs(Array(songs.prefix(3))).count == 3)
     }

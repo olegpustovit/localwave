@@ -40,9 +40,7 @@ final class WaveLibraryModel: ObservableObject {
         self.dependencies = dependencies
         self.playlistSongRepository = playlistSongRepository ?? dependencies.playlistSongRepo
         // Keep pending refreshes alive across SwiftUI view updates.
-        refreshObservation = NotificationCenter.default.publisher(for: Notification.Name("SongListRefresh"))
-            .merge(with: NotificationCenter.default.publisher(for: Notification.Name("LibraryRefresh")))
-            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
+        refreshObservation = LWRefresh.libraryChanges
             .sink { [weak self] _ in
                 Task { @MainActor [weak self] in
                     await self?.reload()
@@ -944,7 +942,7 @@ struct WaveLibraryView: View {
     }
 
     private func artistMinutes(_ songs: [Song]) -> String {
-        "\(Int((songs.compactMap(\.duration).reduce(0, +) / 60).rounded())) min"
+        waveMinutesLabel(songs)
     }
 
     private func artistColumnWidths(_ artists: [String]) -> [CGFloat] {
@@ -1085,7 +1083,7 @@ struct WaveLibraryView: View {
             LWArtwork(song: cover, size: 44)
             VStack(alignment: .leading, spacing: 0) {
                 Text(name).font(LWTheme.text(15).weight(.medium)).lwLineBox(15, 21)
-                Text(automatic ? "updates itself" : "\(Int((songs.compactMap(\.duration).reduce(0, +) / 60).rounded())) min").font(LWTheme.text(13)).lwLineBox(13, 18.2).foregroundStyle(LWTheme.secondary)
+                Text(automatic ? "updates itself" : waveMinutesLabel(songs)).font(LWTheme.text(13)).lwLineBox(13, 18.2).foregroundStyle(LWTheme.secondary)
             }
             Spacer()
             Text(String(songs.count)).font(LWTheme.text(13)).lwLineBox(13, 18.2).foregroundStyle(LWTheme.secondary)
@@ -2167,7 +2165,7 @@ private struct WaveListDetail: View {
         }
     }
 
-    private var listMinutes: String { "\(Int((songs.compactMap(\.duration).reduce(0, +) / 60).rounded())) min" }
+    private var listMinutes: String { waveMinutesLabel(songs) }
 
     private var listMenuGroups: [LWMenuGroup] {
         [
@@ -2258,6 +2256,11 @@ func waveHighlightedLabel(_ text: String, query: String) -> Text {
 func waveDuration(_ duration: Double?) -> String {
     guard let duration, duration.isFinite, duration >= 0, duration < Double(Int.max) else { return "—" }
     return String(format: "%d:%02d", Int(duration) / 60, Int(duration) % 60)
+}
+
+func waveMinutesLabel(_ songs: [Song]) -> String {
+    let seconds: Double = songs.compactMap(\.duration).reduce(0, +)
+    return "\(Int((seconds / 60).rounded())) min"
 }
 
 /// Repository search determines membership; a result page keeps the library's

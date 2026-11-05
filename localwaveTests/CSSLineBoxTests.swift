@@ -146,8 +146,9 @@ struct CSSLineBoxTests {
             return true
         }
         #expect(drawn)
-        let yellowPixels = stride(from: 0, to: pixels.count, by: 4).filter {
-            pixels[$0] > 150 && pixels[$0 + 1] > 150 && pixels[$0 + 2] < 30 && pixels[$0 + 3] > 200
+        let yellowPixels = stride(from: 0, to: pixels.count, by: 4).filter { offset -> Bool in
+            let red = pixels[offset], green = pixels[offset + 1], blue = pixels[offset + 2], alpha = pixels[offset + 3]
+            return red > 150 && green > 150 && blue < 30 && alpha > 200
         }.count
         #expect(yellowPixels > 20, "Search highlights must remain visible through the custom text renderer")
     }

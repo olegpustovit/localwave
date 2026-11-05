@@ -1178,7 +1178,9 @@ private struct PlayerFavoriteBurst: View {
                 guard active, age >= 0, age < LWMotion.slow, !reduceMotion else { return }
                 let progress = LWMotion.outProgress(age / LWMotion.slow)
                 for (x, y) in rays {
-                    let rect = CGRect(x: size.width / 2 + x * 18 * progress - 2, y: size.height / 2 + y * 18 * progress - 2, width: 4, height: 4)
+                    let offsetX = CGFloat(x * 18 * progress)
+                    let offsetY = CGFloat(y * 18 * progress)
+                    let rect = CGRect(x: size.width / 2 + offsetX - 2, y: size.height / 2 + offsetY - 2, width: 4, height: 4)
                     context.fill(Path(rect), with: .color(LWTheme.signal.opacity(1 - progress)))
                 }
             }

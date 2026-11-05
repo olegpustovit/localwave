@@ -750,9 +750,7 @@ struct WaveFolderView: View {
                 if skipInitialTrackInspection { skipInitialTrackInspection = false; return }
                 await refreshTracks()
             }
-            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("SongListRefresh"))
-                .merge(with: NotificationCenter.default.publisher(for: Notification.Name("LibraryRefresh")))
-                .debounce(for: .milliseconds(150), scheduler: RunLoop.main)) { _ in
+            .onReceive(LWRefresh.libraryChanges) { _ in
                 Task { await refreshTracks() }
             }
 

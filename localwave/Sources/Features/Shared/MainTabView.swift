@@ -130,9 +130,7 @@ struct MainTabView: View {
             playerVM.setDownloadAhead(playerVM.downloadAheadEnabled)
         }
         .task {
-            refreshObservation = NotificationCenter.default.publisher(for: Notification.Name("SongListRefresh"))
-                .merge(with: NotificationCenter.default.publisher(for: Notification.Name("LibraryRefresh")))
-                .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
+            refreshObservation = LWRefresh.libraryChanges
                 .sink { _ in Task { @MainActor in await refreshCounts() } }
             dependencies.handleAppLaunch()
             await refreshCounts()
@@ -895,8 +893,13 @@ struct MainTabView: View {
         Text(title).font(LWTheme.text(12).weight(.medium)).lwLineBox(12, 16.8).foregroundStyle(LWTheme.secondary).frame(height: dynamicTypeSize.isAccessibilitySize ? nil : 16.8).padding(.horizontal, 8).padding(.top, 14).padding(.bottom, 6)
     }
     private func sideItem(_ label: String, count: Int? = nil, symbol: String? = nil, route: String? = nil, height: CGFloat = 32, warning: String? = nil, status: String? = nil, progress: Double? = nil, countText: String? = nil) -> some View {
-        Button { select(route ?? label) } label: {
-            HStack(spacing: 8) {
+        let key: String = route ?? label
+        let isSelected: Bool = selectedSidebarRoute == key
+        let isListRoute: Bool = route?.hasPrefix("List:") == true
+        let isDropTarget: Bool = isListRoute && targetedSidebarListRoute == route
+        let restingFill: Color = isSelected ? LWTheme.panel2 : (hoveredSideItem == key ? LWTheme.panel : Color.clear)
+        let minHeight: CGFloat = dynamicTypeSize.isAccessibilitySize ? max(44, height) : height
+        let rowLabel = HStack(spacing: 8) {
                 if let symbol { LWIcon(symbol, size: 16) }
                 Text(label).lwLineBox(14, 19.6)
                 if let warning { Text(warning).font(LWTheme.text(11)).lwLineBox(11, 15.4).padding(.horizontal, 6).padding(.vertical, 1).background(LWTheme.ink).foregroundStyle(LWTheme.onInk).padding(.leading, -2) }
@@ -905,29 +908,36 @@ struct MainTabView: View {
                 if let countText { Text(countText).font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
                 else if let progress { Text(String(format: "%.0f%%", progress)).font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
                 else if let count { Text("\(count)").font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
-            }.font(LWTheme.text(14)).padding(.horizontal, 8).frame(minHeight: dynamicTypeSize.isAccessibilitySize ? max(44, height) : height)
-                .foregroundStyle(selectedSidebarRoute == (route ?? label) ? LWTheme.ink : LWTheme.secondary)
+            }.font(LWTheme.text(14)).padding(.horizontal, 8).frame(minHeight: minHeight)
+                .foregroundStyle(isSelected ? LWTheme.ink : LWTheme.secondary)
                 .background {
-                    if let route, route.hasPrefix("List:"), targetedSidebarListRoute == route {
+                    if isDropTarget {
                         LWTheme.paper.overlay(LWTheme.signal.opacity(0.08))
-                    } else { (selectedSidebarRoute == (route ?? label) ? LWTheme.panel2 : hoveredSideItem == (route ?? label) ? LWTheme.panel : Color.clear) }
+                    } else { restingFill }
                 }
-                .overlay { if let route, route.hasPrefix("List:"), targetedSidebarListRoute == route { Rectangle().strokeBorder(LWTheme.signal, lineWidth: 2) } }
+                .overlay { if isDropTarget { Rectangle().strokeBorder(LWTheme.signal, lineWidth: 2) } }
                 .animation(reduceMotion ? nil : LWMotion.out(LWMotion.quick), value: hoveredSideItem)
                 .animation(reduceMotion ? nil : LWMotion.out(LWMotion.quick), value: selectedSidebarRoute)
                 .contentShape(Rectangle())
-        }.accessibilityLabel(label)
-        .onHover { hoveredSideItem = $0 ? (route ?? label) : nil }
-        .modifier(LWPlaylistActions(playlist: sidebarPlaylist(route), dependencies: dependencies, onDelete: {
+        let button = Button { select(key) } label: { rowLabel }
+            .accessibilityLabel(label)
+            .onHover { hoveredSideItem = $0 ? key : nil }
+        let playlistActions = LWPlaylistActions(playlist: sidebarPlaylist(route), dependencies: dependencies, onDelete: {
             if let route, section == route { select("Lists") }
-        }))
-        .modifier(LWSourceActions(source: sidebarSource(route), songs: sidebarSourceSongs(route), dependencies: dependencies,
+        })
+        let sourceActions = LWSourceActions(source: sidebarSource(route), songs: sidebarSourceSongs(route), dependencies: dependencies,
             onOpen: { if let route { select(route) } }, onRemoved: {
                 if let route, section == route { select("Folders") }
                 else if case .folder(let sourceID, _, _)? = playbackDestination, route == "Source:\(sourceID)" { select("Folders") }
-            }))
-        .accessibilityValue(countText ?? progress.map { String(format: "%.0f percent", $0) } ?? status ?? count.map(String.init) ?? "")
-        .accessibilityAddTraits(selectedSidebarRoute == (route ?? label) ? .isSelected : [])
+            })
+        let progressText: String? = progress.map { String(format: "%.0f percent", $0) }
+        let countLabel: String? = count.map { String($0) }
+        let spokenValue: String = countText ?? progressText ?? status ?? countLabel ?? ""
+        return button
+            .modifier(playlistActions)
+            .modifier(sourceActions)
+            .accessibilityValue(spokenValue)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
         .dropDestination(for: String.self) { values, _ in
             guard let route, route.hasPrefix("List:"), let listID = Int64(route.dropFirst(5)) else { return false }
             let ids = LWSongDragPayload.decode(values)
