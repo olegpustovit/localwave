@@ -41,7 +41,11 @@ final class ArtworkRenderingTests: XCTestCase {
                 }
                 XCTAssertTrue(drew)
                 XCTAssertTrue(stride(from: 3, to: pixels.count, by: 4).allSatisfy { pixels[$0] == 255 }, "Transparent cover: \(title)")
-                XCTAssertTrue(stride(from: 0, to: pixels.count, by: 4).contains { Int(pixels[$0 + 2]) > Int(pixels[$0]) + 12 && Int(pixels[$0 + 2]) > Int(pixels[$0 + 1]) + 12 }, "Signal missing: \(title)")
+                let hasSignal = stride(from: 0, to: pixels.count, by: 4).contains { offset in
+                    let red = Int(pixels[offset]), green = Int(pixels[offset + 1]), blue = Int(pixels[offset + 2])
+                    return blue > red + 12 && blue > green + 12
+                }
+                XCTAssertTrue(hasSignal, "Signal missing: \(title)")
                 if size == 128 { images.append(image) }
             }
         }
