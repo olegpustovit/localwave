@@ -35,6 +35,7 @@ jobs:
       - name: Test iOS app (unit tests; UI flows only on manual runs)
         timeout-minutes: 15
         run: |
+          export TEST_RUNNER_LOCALWAVE_NO_AUDIO_DEVICE=1 # runner VMs have no audio hardware
           scope=(-only-testing:musicappTests)
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then scope=(); fi
           xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" "${scope[@]}" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test

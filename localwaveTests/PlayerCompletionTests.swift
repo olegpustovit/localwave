@@ -7,7 +7,9 @@ import Testing
 @testable import localwave
 
 struct PlayerCompletionTests {
-    @MainActor @Test func naturalCompletionRetainsMeasuredMetadataAndReplayStartsAtZero() async throws {
+    // GitHub runner VMs have no audio hardware: the item never reaches its end there (FigFilePlayer -12864).
+    @MainActor @Test(.disabled(if: ProcessInfo.processInfo.environment["LOCALWAVE_NO_AUDIO_DEVICE"] != nil, "Needs a real audio clock"))
+    func naturalCompletionRetainsMeasuredMetadataAndReplayStartsAtZero() async throws {
         let url = try makeAudio(seconds: 1.25)
         defer { try? FileManager.default.removeItem(at: url) }
         let database = try Connection(.inMemory)
