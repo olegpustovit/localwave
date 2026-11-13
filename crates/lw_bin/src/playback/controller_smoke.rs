@@ -76,6 +76,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     });
     let worker_context = context.clone();
     let (ids, receive) = mpsc::sync_channel(1);
+    let (release, ready) = mpsc::sync_channel(1);
     let mut player = Controller::open(
         move || {
             let original = worker_base.join("Originals");
@@ -131,6 +132,9 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                 ..Default::default()
             })?;
             ids.send((bad, good)).map_err(io::Error::other)?;
+            ready
+                .recv_timeout(Duration::from_secs(1))
+                .map_err(io::Error::other)?;
             Ok(library)
         },
         wake,
@@ -139,9 +143,48 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     let (bad, good) = receive
         .recv_timeout(Duration::from_secs(1))
         .map_err(io::Error::other)?;
+    // Fill ordinary delivery before releasing the worker, then exercise the reserved Stop and browse slots.
+    player.command(Command::Volume(0.2))?;
+    for _ in 0..31 {
+        player.command(Command::DismissNotice)?;
+    }
+    player.command(Command::Stop)?;
+    player.command(Command::Volume(0.25))?;
+    let mut browse_revision = 0;
+    let request = lw_ui::browse::Request {
+        scope: lw_ui::browse::Scope::Find,
+        query: lw_ui::browse::Query::new("Controller").unwrap(),
+        sort: lw_ui::browse::Sort::Title,
+        ascending: true,
+    };
+    for _ in 0..100 {
+        browse_revision = player.browse(request)?;
+    }
+    release.send(()).map_err(io::Error::other)?;
     until(&mut player, deadline, &mut |player| {
         player.status().initialized
+            && player.status().processed_command >= browse_revision
+            && player
+                .catalog()
+                .view
+                .as_ref()
+                .is_some_and(|view| view.request == request)
     })?;
+    if player
+        .catalog()
+        .view
+        .as_ref()
+        .unwrap()
+        .collection
+        .ids
+        .as_ref()
+        != [good]
+    {
+        return Err(error(
+            "Coalesced browse request was lost behind the full playback queue",
+        ));
+    }
+
     if player.status().queue_len != 3
         || player.status().settings.appearance != lw_core::preferences::Appearance::Dark
         || !player.status().settings.reduce_motion
@@ -244,13 +287,14 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         player.command(Command::Volume(0.0))?;
         player.command(Command::Seek(0.0))?;
         player.command(Command::RefreshCatalog)?;
+        player.browse(request)?;
         player.run_loop(Duration::from_millis(1));
         player.poll()?;
         if player.status().phase == Phase::Playing && player.native_snapshot().queued[2] != 0 {
             break;
         }
         if Instant::now() >= deadline {
-            return Err(error("Continuous seek/volume starved preparation"));
+            return Err(error("Continuous seek/volume/browse starved preparation"));
         }
     }
     if player.status().current_index != Some(1) || player.status().message.is_empty() {

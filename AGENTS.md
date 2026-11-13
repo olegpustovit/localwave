@@ -91,3 +91,19 @@ Glyph atlas pages (ABI 1.7) are bounded to two fixed pages per mask/colour kind.
 FrameIn ABI 1.8 appends appearance/reduced_motion after the frozen 48-byte prefix; keep the legacy allocation test, partial-tail refusal, larger-descriptor bounds and matching static/dynamic validation. Keep the old layout row frozen and record complete versions separately. Host reduced motion overrides scoped themes, snaps active keyframes and restores authored flags when disabled. Parsed root themes use use_theme between frames, preserving owner/callback guards. The main-thread Environment caches AppKit KVO/workspace notifications, wakes only on changed facts, and removes observers before the SDL window dies. Do not poll OS/defaults in frames; saved settings come through worker-owned controller status. Cache both parsed themes, update native background only on reported change, and preserve cached-read/theme/native-pixel/allocation regressions.
 
 ABI 1.9 exposes retained view opacity/scale/clip and measured virtual lists. Opacity is per instance; clip coordinates are window points and NULL clears the clip. Scale accepts finite zero/negative values and resets earlier rotation/fixed-pivot transforms. Equal control values must preserve transform-table storage and retained instances. Measured lists require an active frame, count <= 1,000,000, a finite positive estimate and finite estimated total; row callbacks use only their current borrowed UI handle and may repeat while measurements settle. Preserve static/dynamic validation, callback recovery, hit geometry, native pixels, draw counts and warm allocation checks.
+
+Browse delivery uses one coalesced fixed-capacity request slot, separate from the 32 playback commands
+and reserved Pause/Stop slot. New browse requests do not fence preparation. Drive native preparation
+and acknowledgements before sorting; command revisions and preparation identities must never decrease
+when a reserved control follows a newer coalesced ordinary control. Preserve the full-queue/latest-browse
+and continuous browse/seek/volume native regression.
+
+Catalog views share an immutable `Arc<Library>` label arena and ID index. Find uses distinct FTS
+membership in original library order; column string orders use worker-owned native localized natural
+keys, with song ID ties ascending and unknown durations last in either direction. Establish a SQLite
+read snapshot before reading data_version; refresh after same-connection edits explicitly. Find must
+hide results for an older query, retain editor focus through worker replies and reset result scrolling
+for a new query. Query packets hold 1,024 UTF-8 bytes; reject oversized edits visibly without truncation.
+The focused scroll regression includes app and dylib Rust allocations. `make performance` runs both
+Songs and prepared Find/title-descending workloads even if one fails. Native memory, filter tokens,
+other Find result sections and the full reference UI remain unqualified.

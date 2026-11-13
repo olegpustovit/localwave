@@ -6,6 +6,8 @@ use lw_core::playback::{Fault, Phase, Reading};
 use lw_core::player::{Action, Session, Ticket};
 use lw_core::preferences::{PlayerState, Settings};
 use lw_core::queue::{Entry, RepeatMode};
+use lw_ui::browse::Request;
+use lw_ui::catalog::Catalog;
 use std::collections::VecDeque;
 use std::io;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -195,6 +197,7 @@ struct Inbox {
     retired_catalog: Option<Arc<lw_ui::catalog::Catalog>>,
     commands: VecDeque<Envelope>,
     priority: Option<Envelope>,
+    browse: Option<(u64, Request)>,
     events: VecDeque<Event>,
     native: Snapshot,
     dirty: bool,
@@ -234,7 +237,6 @@ struct Shared {
     inbox: Mutex<Inbox>,
     changed: Condvar,
     cancelled: AtomicBool,
-    revision: AtomicU64,
     preparation: AtomicU64,
     wake: extern "C" fn(),
 }
@@ -289,6 +291,7 @@ impl Controller {
                 retired_catalog: None,
                 commands: VecDeque::with_capacity(32),
                 priority: None,
+                browse: None,
                 events: VecDeque::with_capacity(128),
                 native: native.snapshot(),
                 dirty: false,
@@ -302,7 +305,6 @@ impl Controller {
             }),
             changed: Condvar::new(),
             cancelled: AtomicBool::new(false),
-            revision: AtomicU64::new(0),
             preparation: AtomicU64::new(0),
             wake,
         });
@@ -379,7 +381,6 @@ impl Controller {
                 inbox.commands.push_back(envelope);
             }
             self.revision = revision;
-            self.shared.revision.store(revision, Ordering::SeqCst);
             if fences_preparation {
                 self.preparation = preparation;
                 self.shared.preparation.store(preparation, Ordering::SeqCst);
@@ -388,6 +389,24 @@ impl Controller {
         }
         if interrupts {
             self.native.pause();
+        }
+        self.shared.changed.notify_one();
+        Ok(revision)
+    }
+    /// Keep only the latest browse packet, independently of the bounded playback queue.
+    pub fn browse(&mut self, request: Request) -> io::Result<u64> {
+        self.poll_inner(false, &mut |_, _| {})?;
+        let revision = self
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| io::Error::other("Playback command identity exhausted"))?;
+        {
+            let mut inbox = self.shared.inbox.lock().unwrap();
+            if inbox.closed || inbox.stop_requested {
+                return Err(io::ErrorKind::BrokenPipe.into());
+            }
+            inbox.browse = Some((revision, request));
+            self.revision = revision;
         }
         self.shared.changed.notify_one();
         Ok(revision)
@@ -576,6 +595,9 @@ impl Drop for Controller {
 }
 
 struct Worker {
+    catalog: Catalog,
+    browse: Option<Request>,
+    browse_dirty: bool,
     catalog_dirty: bool,
     catalog_error: Option<Arc<str>>,
     settings: Settings,
@@ -617,8 +639,8 @@ impl Worker {
         let setup = || -> io::Result<Self> {
             let mut library = factory()?;
             let settings = library.load_settings();
-            let catalog = Arc::new(library.catalog()?);
-            shared.inbox.lock().unwrap().catalog = Some(catalog);
+            let catalog = library.catalog()?;
+            shared.inbox.lock().unwrap().catalog = Some(Arc::new(catalog.clone()));
             library.release_all_playback()?;
             let mut saved = library.load_player_state()?;
             let context = Arc::new(library.playback_context(saved.context_data.as_deref()));
@@ -638,6 +660,9 @@ impl Worker {
             let empty: Arc<str> = Arc::from("");
             let native = shared.inbox.lock().unwrap().native;
             Ok(Self {
+                catalog,
+                browse: None,
+                browse_dirty: false,
                 catalog_dirty: false,
                 catalog_error: None,
                 settings,
@@ -709,7 +734,7 @@ impl Worker {
         loop {
             let mut controls: [Option<Envelope>; 32] = std::array::from_fn(|_| None);
             let mut events = [None; 128];
-            let (ack, fault, dirty, snapshot, priority, retired_catalog, catalog_waiting) = {
+            let (ack, fault, dirty, snapshot, priority, browse, retired_catalog, catalog_waiting) = {
                 let mut inbox = self.shared.inbox.lock().unwrap();
                 if inbox.closed {
                     return Ok(());
@@ -727,6 +752,7 @@ impl Worker {
                     dirty,
                     inbox.native,
                     inbox.priority.take(),
+                    inbox.browse.take(),
                     inbox.retired_catalog.take(),
                     inbox.catalog.is_some(),
                 )
@@ -768,28 +794,10 @@ impl Worker {
             if let Some(priority) = priority {
                 self.command(priority)?;
             }
-            if std::mem::take(&mut self.catalog_dirty) {
-                match self.library.catalog() {
-                    Ok(catalog) => {
-                        self.metadata_id = None;
-                        if self
-                            .catalog_error
-                            .take()
-                            .is_some_and(|error| Arc::ptr_eq(&error, &self.message))
-                        {
-                            self.message = self.empty.clone();
-                        }
-                        let catalog = Arc::new(catalog);
-                        let previous = self.shared.inbox.lock().unwrap().catalog.replace(catalog);
-                        drop(previous);
-                        (self.shared.wake)();
-                    }
-                    Err(error) => {
-                        eprintln!("LocalWave catalog refresh: {error}");
-                        self.message = Arc::from("Could not refresh the library. Try again.");
-                        self.catalog_error = Some(self.message.clone());
-                    }
-                }
+            if let Some((revision, request)) = browse {
+                self.revision = self.revision.max(revision);
+                self.browse = Some(request);
+                self.browse_dirty = true;
             }
             let index = self.session.queue().current_index().unwrap_or(0) as i64;
             if self.saved.current_index != index {
@@ -799,15 +807,50 @@ impl Worker {
             self.retire()?;
             self.publish();
             if self.pending.is_none()
-                && self.revision == self.shared.revision.load(Ordering::SeqCst)
+                && self.preparation == self.shared.preparation.load(Ordering::SeqCst)
                 && self.drive()?
             {
                 continue;
+            }
+            if self.pending.is_none() {
+                let reload = std::mem::take(&mut self.catalog_dirty);
+                if std::mem::take(&mut self.browse_dirty) || reload {
+                    match self
+                        .library
+                        .catalog_view(if reload { None } else { Some(&self.catalog) }, self.browse)
+                    {
+                        Ok(catalog) => {
+                            if !Arc::ptr_eq(&self.catalog.library, &catalog.library) {
+                                self.metadata_id = None;
+                            }
+                            if self
+                                .catalog_error
+                                .take()
+                                .is_some_and(|error| Arc::ptr_eq(&error, &self.message))
+                            {
+                                self.message = self.empty.clone();
+                            }
+                            self.catalog = catalog.clone();
+                            let catalog = Arc::new(catalog);
+                            let previous =
+                                self.shared.inbox.lock().unwrap().catalog.replace(catalog);
+                            drop(previous);
+                            (self.shared.wake)();
+                        }
+                        Err(error) => {
+                            eprintln!("LocalWave catalog refresh: {error}");
+                            self.message = Arc::from("Could not refresh the library. Try again.");
+                            self.catalog_error = Some(self.message.clone());
+                        }
+                    }
+                }
+                self.publish();
             }
             let mut inbox = self.shared.inbox.lock().unwrap();
             while !inbox.closed
                 && inbox.commands.is_empty()
                 && inbox.priority.is_none()
+                && inbox.browse.is_none()
                 && inbox.events.is_empty()
                 && inbox.ack.is_none()
                 && inbox.fault.is_none()
@@ -969,8 +1012,8 @@ impl Worker {
         true
     }
     fn command(&mut self, envelope: Envelope) -> io::Result<()> {
-        self.revision = envelope.revision;
-        self.preparation = envelope.preparation;
+        self.revision = self.revision.max(envelope.revision);
+        self.preparation = self.preparation.max(envelope.preparation);
         if matches!(
             envelope.command,
             Command::Next | Command::Previous | Command::Pause | Command::Stop
@@ -1417,6 +1460,7 @@ mod tests {
                 retired_catalog: None,
                 commands: VecDeque::new(),
                 priority: None,
+                browse: None,
                 events: VecDeque::with_capacity(128),
                 native: Snapshot::default(),
                 dirty: false,
@@ -1430,7 +1474,6 @@ mod tests {
             }),
             changed: Condvar::new(),
             cancelled: AtomicBool::new(false),
-            revision: AtomicU64::new(0),
             preparation: AtomicU64::new(0),
             wake,
         })

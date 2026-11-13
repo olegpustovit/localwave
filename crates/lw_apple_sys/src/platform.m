@@ -7,6 +7,18 @@
 #include <os/signpost.h>
 #include "platform.h"
 
+void *lw_collation_create(const unsigned char *bytes, size_t len) {
+    if (!bytes && len) return NULL;
+    @autoreleasepool {
+        NSString *key = [[NSString alloc] initWithBytes:bytes ?: (const unsigned char *)"" length:len encoding:NSUTF8StringEncoding];
+        return key ? (void *)CFBridgingRetain(key) : NULL;
+    }
+}
+int32_t lw_collation_compare(void *left, void *right) {
+    @autoreleasepool { return (int32_t)[(__bridge NSString *)left localizedStandardCompare:(__bridge NSString *)right]; }
+}
+void lw_collation_release(void *key) { if (key) CFRelease(key); }
+
 char *lw_normalized_file_url(const char *path) {
     @autoreleasepool {
         NSString *text = path ? [NSString stringWithUTF8String:path] : nil;

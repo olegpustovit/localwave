@@ -30,6 +30,10 @@ fn run() -> Result<(), String> {
     let smoke = std::env::args().any(|arg| arg == "--smoke-test");
     let performance = std::env::args().any(|arg| arg == "--performance-check");
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
+    let performance_find = std::env::args().any(|arg| arg == "--performance-find");
+    if performance_find && !performance {
+        return Err("--performance-find requires --performance-check".into());
+    }
     mem_sys::set_peer(pxui::library_counter);
     let mut window = Window::open_with("LocalWave", 1440, 872, true, false, true)?;
     let environment =
@@ -130,6 +134,44 @@ fn run() -> Result<(), String> {
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
     let mut shell_state = lw_ui::ShellState::default();
+    if performance_find {
+        use lw_ui::{
+            Intent,
+            browse::{Query, Sort},
+            catalog::Route,
+        };
+        shell_state.apply(Intent::Navigate(Route::Find));
+        shell_state.apply(Intent::Search(Query::new("Track").unwrap()));
+        shell_state.apply(Intent::Sort(Sort::Title));
+        shell_state.apply(Intent::Sort(Sort::Title));
+        let request = shell_state.request(player.catalog()).unwrap();
+        player.browse(request).map_err(|error| error.to_string())?;
+        let deadline = window.time() + 5.0;
+        loop {
+            player
+                .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
+                .map_err(|error| error.to_string())?;
+            if player
+                .catalog()
+                .view
+                .as_ref()
+                .is_some_and(|view| view.request == request)
+            {
+                if shell_state
+                    .collection(player.catalog())
+                    .map(|group| group.rows.len())
+                    != Some(10_000)
+                {
+                    return Err("Find performance fixture must match 10,000 songs".into());
+                }
+                break;
+            }
+            if window.time() >= deadline {
+                return Err("Find preparation timed out during qualification".into());
+            }
+            window.wait(Some(window.time() + 0.05));
+        }
+    }
     let mut command_error: Option<&'static str> = None;
     let mut error_revision = 0;
     loop {
@@ -259,8 +301,19 @@ fn run() -> Result<(), String> {
                 }
             }
             if let Some(intent) = intent {
+                let mut browse = None;
                 let command = if shell_state.apply(intent) {
-                    None
+                    if matches!(
+                        intent,
+                        lw_ui::Intent::Navigate(_)
+                            | lw_ui::Intent::Search(_)
+                            | lw_ui::Intent::Sort(_)
+                    ) {
+                        browse = shell_state.request(player.catalog());
+                        None
+                    } else {
+                        None
+                    }
                 } else {
                     Some(match intent {
                         lw_ui::Intent::Play => Command::Play,
@@ -269,9 +322,8 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::Next => Command::Next,
                         lw_ui::Intent::Previous => Command::Previous,
                         lw_ui::Intent::PlayRow(index) => {
-                            let Some(collection) = player
-                                .catalog()
-                                .collection(shell_state.route)
+                            let Some(collection) = shell_state
+                                .collection(player.catalog())
                                 .filter(|collection| index < collection.ids.len())
                             else {
                                 continue;
@@ -299,10 +351,17 @@ fn run() -> Result<(), String> {
                         }
                         lw_ui::Intent::Navigate(_)
                         | lw_ui::Intent::SelectRow(_)
+                        | lw_ui::Intent::Search(_)
+                        | lw_ui::Intent::SearchTooLong
+                        | lw_ui::Intent::Sort(_)
                         | lw_ui::Intent::TogglePanel => unreachable!("handled by ShellState"),
                     })
                 };
-                let result = command.map_or(Ok(0), |command| player.command(command));
+                let result = if let Some(request) = browse {
+                    player.browse(request)
+                } else {
+                    command.map_or(Ok(0), |command| player.command(command))
+                };
                 command_error = match result {
                     Ok(_) => None,
                     Err(error) => Some(match error.kind() {
@@ -344,7 +403,12 @@ fn run() -> Result<(), String> {
             build_samples.sort_unstable();
             cpu_samples.sort_unstable();
             println!(
-                "LocalWave performance: songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}"
+                "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
+                if performance_find {
+                    "find-title-descending"
+                } else {
+                    "songs-original"
+                }
             );
             println!(
                 "LocalWave build timing: wall_us_p50={} wall_us_p95={} wall_us_p99={} cpu_us_p50={} cpu_us_p95={} cpu_us_p99={} cpu_us_max={}",

@@ -1,9 +1,9 @@
 //! Owned once by the library worker; frame construction only borrows these labels and orders.
 use lw_core::context::PlaybackContext;
 use lw_core::{FileState, Song};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::{DefaultHasher, Hash, Hasher};
-use std::ops::Range;
+use std::ops::{Deref, Range};
 use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -12,6 +12,7 @@ pub enum Route {
     Songs,
     Albums,
     Artists,
+    Find,
     Album(usize),
     Artist(usize),
     Collection(usize),
@@ -25,17 +26,21 @@ pub struct Row<'a> {
     pub album: &'a str,
     pub format: &'a str,
     pub duration: &'a str,
+    pub seconds: Option<f64>,
     pub favorite: bool,
     pub state: FileState,
 }
 
+#[derive(Clone)]
 struct StoredRow {
     id: i64,
     labels: [Range<usize>; 5],
     favorite: bool,
     state: FileState,
+    seconds: Option<f64>,
 }
 
+#[derive(Clone)]
 pub struct Collection {
     pub key: u64,
     pub title: String,
@@ -46,10 +51,11 @@ pub struct Collection {
     pub context: Arc<PlaybackContext>,
 }
 
-#[derive(Default)]
-pub struct Catalog {
+#[derive(Clone, Default)]
+pub struct Library {
     labels: String,
     rows: Vec<StoredRow>,
+    by_id: HashMap<i64, usize>,
     pub all: Option<Collection>,
     pub albums: Vec<Collection>,
     pub artists: Vec<Collection>,
@@ -59,7 +65,7 @@ pub struct Catalog {
     pub song_count: String,
 }
 
-impl Catalog {
+impl Library {
     pub fn new(songs: Vec<Song>) -> Self {
         let mut albums = BTreeMap::<(String, String), Vec<usize>>::new();
         let mut artists = BTreeMap::<String, Vec<usize>>::new();
@@ -93,10 +99,10 @@ impl Catalog {
                 .or_default()
                 .push(index);
             artists.entry(song.artist.clone()).or_default().push(index);
-            let seconds = song
+            let seconds_value = song
                 .duration
-                .filter(|value| value.is_finite() && *value >= 0.0)
-                .map(|value| value as u64);
+                .filter(|value| value.is_finite() && *value >= 0.0);
+            let seconds = seconds_value.map(|value| value as u64);
             let format = song.file_extension.unwrap_or_default().to_ascii_uppercase();
             let duration = seconds.map_or_else(
                 || "—".into(),
@@ -116,8 +122,15 @@ impl Catalog {
                 labels,
                 favorite: song.is_favorite != 0,
                 state: song.file_state,
+                seconds: seconds_value,
             });
         }
+        out.by_id = out
+            .rows
+            .iter()
+            .enumerate()
+            .map(|(index, row)| (row.id, index))
+            .collect();
         for ((artist, name), mut rows) in albums {
             rows.sort_unstable_by(|a, b| {
                 tracks[*a]
@@ -200,6 +213,7 @@ impl Catalog {
             duration,
             favorite: row.favorite,
             state: row.state,
+            seconds: row.seconds,
         }
     }
     pub fn add_collection(&mut self, name: &str, rows: Vec<usize>, context: PlaybackContext) {
@@ -234,8 +248,95 @@ impl Catalog {
             Route::Album(index) => self.albums.get(index),
             Route::Artist(index) => self.artists.get(index),
             Route::Collection(index) => self.collections.get(index),
-            Route::Albums | Route::Artists => None,
+            Route::Albums | Route::Artists | Route::Find => None,
         }
+    }
+}
+
+// Each prepared view shares the library's arena and collection data.
+#[derive(Clone, Default)]
+pub struct Catalog {
+    pub library: Arc<Library>,
+    pub view: Option<Arc<View>>,
+    pub source_version: Option<i64>,
+}
+pub struct View {
+    pub request: crate::browse::Request,
+    pub collection: Collection,
+}
+impl Deref for Catalog {
+    type Target = Library;
+    fn deref(&self) -> &Library {
+        &self.library
+    }
+}
+impl Catalog {
+    pub fn new(songs: Vec<Song>) -> Self {
+        Self {
+            library: Arc::new(Library::new(songs)),
+            view: None,
+            source_version: None,
+        }
+    }
+    pub fn add_collection(&mut self, name: &str, rows: Vec<usize>, context: PlaybackContext) {
+        Arc::make_mut(&mut self.library).add_collection(name, rows, context);
+    }
+    pub fn row_index(&self, id: i64) -> Option<usize> {
+        self.library.by_id.get(&id).copied()
+    }
+    pub fn base_collection(&self, key: u64) -> Option<&Collection> {
+        self.all
+            .iter()
+            .chain(self.albums.iter())
+            .chain(self.artists.iter())
+            .chain(self.collections.iter())
+            .find(|group| group.key == key)
+    }
+    pub fn scope(&self, route: Route) -> Option<crate::browse::Scope> {
+        if route == Route::Find {
+            Some(crate::browse::Scope::Find)
+        } else {
+            self.library
+                .collection(route)
+                .map(|group| crate::browse::Scope::Collection(group.key))
+        }
+    }
+    pub fn collection(&self, route: Route) -> Option<&Collection> {
+        let scope = self.scope(route)?;
+        if let Some(view) = self
+            .view
+            .as_ref()
+            .filter(|view| view.request.scope == scope)
+        {
+            return Some(&view.collection);
+        }
+        self.library.collection(route)
+    }
+    pub fn project(&mut self, request: crate::browse::Request, rows: Vec<usize>) {
+        let collection = match request.scope {
+            crate::browse::Scope::Find => self.library.make_collection(
+                "Songs",
+                "Find results",
+                rows,
+                PlaybackContext::Selection("Find results".into()),
+            ),
+            crate::browse::Scope::Collection(key) => {
+                let Some(base) = self.base_collection(key) else {
+                    self.view = None;
+                    return;
+                };
+                self.library.make_collection(
+                    &base.title,
+                    &base.subtitle,
+                    rows,
+                    (*base.context).clone(),
+                )
+            }
+        };
+        self.view = Some(Arc::new(View {
+            request,
+            collection,
+        }));
     }
 }
 

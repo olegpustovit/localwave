@@ -46,6 +46,26 @@ impl SongSearchRows {
     }
 }
 impl LibraryRepository {
+    pub fn data_version(&self) -> Result<i64> {
+        let mut version = None;
+        self.db.query("PRAGMA data_version", &[], &mut |row| {
+            version = row.integer(0)?;
+            Ok(())
+        })?;
+        required(version)
+    }
+
+    /// Find determines membership; its view keeps the library's original order.
+    pub fn matching_song_ids(&self, query: &str) -> Result<Vec<i64>> {
+        if query.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        let query = prefix_query(query);
+        let mut ids = Vec::new();
+        self.db.query("SELECT DISTINCT s.id FROM songs s JOIN songs_fts fts ON s.id=fts.songId WHERE songs_fts MATCH ?",&[Text(&query)],&mut |row| { ids.push(required(row.integer(0)?)?);Ok(()) })?;
+        Ok(ids)
+    }
+
     /// Borrow a consistent catalog across song, playlist and membership queries.
     pub fn read_snapshot<T>(&self, read: impl FnOnce(&Self) -> Result<T>) -> Result<T> {
         self.db.read_transaction(|| read(self))
@@ -558,6 +578,31 @@ mod tests {
     }
 
     #[test]
+    fn find_membership_deduplicates_legacy_fts_rows_and_ignores_orphans() {
+        let mut repo = LibraryRepository::open(":memory:").unwrap();
+        let song = repo
+            .upsert_song(
+                &Song {
+                    song_key: 1,
+                    title: "Blue sky".into(),
+                    ..Song::default()
+                },
+                1.0,
+            )
+            .unwrap();
+        let id = song.id.unwrap();
+        repo.db.execute("INSERT INTO songs_fts(rowid,songId,title) VALUES (700,?,'Blue sky'),(701,900,'Blue sky')",&[Integer(id)]).unwrap();
+        assert_eq!(repo.matching_song_ids("Blu").unwrap(), [id]);
+        assert!(repo.matching_song_ids("  ").unwrap().is_empty());
+        assert!(repo.matching_song_ids("missing").unwrap().is_empty());
+        assert_eq!(
+            repo.search_songs("Blu", 10, 0).unwrap().len(),
+            2,
+            "ranked repository search retains its existing wire behavior"
+        );
+    }
+
+    #[test]
     fn catalog_read_snapshot_keeps_one_version_and_rolls_back_errors() {
         let path =
             std::env::temp_dir().join(format!("lw-read-snapshot-{}.sqlite", std::process::id()));
@@ -576,6 +621,7 @@ mod tests {
         let mut writer = LibraryRepository::open(path.to_str().unwrap()).unwrap();
         repo.read_snapshot(|snapshot| {
             assert_eq!(snapshot.song_count("")?, 0);
+            let version = snapshot.data_version()?;
             writer.upsert_song(
                 &Song {
                     song_key: 1,
@@ -585,6 +631,11 @@ mod tests {
                 1.0,
             )?;
             assert_eq!(snapshot.song_count("")?, 0);
+            assert_eq!(
+                snapshot.data_version()?,
+                version,
+                "the version stamp belongs to the held read snapshot"
+            );
             assert!(snapshot.search_songs("", 10, 0)?.is_empty());
             Ok(())
         })

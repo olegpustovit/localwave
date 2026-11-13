@@ -1,3 +1,4 @@
+use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
 use pxui::ui::*;
@@ -7,6 +8,11 @@ pub struct ShellState {
     pub route: Route,
     pub selected: Option<usize>,
     pub panel_visible: bool,
+    pub query: Query,
+    pub sort: Sort,
+    pub ascending: bool,
+    query_too_long: bool,
+    query_revision: u64,
     revision: u64,
 }
 impl Default for ShellState {
@@ -15,13 +21,43 @@ impl Default for ShellState {
             route: Route::Songs,
             selected: None,
             panel_visible: true,
+            query: Query::default(),
+            sort: Sort::Original,
+            ascending: true,
+            query_too_long: false,
+            query_revision: 0,
             revision: 0,
         }
     }
 }
 impl ShellState {
+    pub fn collection<'a>(&self, catalog: &'a Catalog) -> Option<&'a crate::catalog::Collection> {
+        if self.route == Route::Find {
+            catalog
+                .view
+                .as_ref()
+                .filter(|view| {
+                    view.request.scope == Scope::Find && view.request.query == self.query
+                })
+                .map(|view| &view.collection)
+        } else {
+            catalog.collection(self.route)
+        }
+    }
+    pub fn request(&self, catalog: &Catalog) -> Option<Request> {
+        Some(Request {
+            scope: catalog.scope(self.route)?,
+            query: if self.route == Route::Find {
+                self.query
+            } else {
+                Query::default()
+            },
+            sort: self.sort,
+            ascending: self.ascending,
+        })
+    }
     pub fn refresh(&mut self, previous: &Catalog, next: &Catalog) {
-        let old = previous.collection(self.route);
+        let old = self.collection(previous);
         let selected = old.and_then(|group| {
             self.selected
                 .and_then(|index| group.ids.get(index).copied())
@@ -59,8 +95,8 @@ impl ShellState {
                 .map_or(Route::Songs, Route::Collection),
             route => route,
         };
-        self.selected = next
-            .collection(self.route)
+        self.selected = self
+            .collection(next)
             .filter(|group| same(group))
             .and_then(|group| {
                 selected.and_then(|selected| {
@@ -81,9 +117,25 @@ impl ShellState {
             Intent::Navigate(route) => {
                 self.route = route;
                 self.selected = None;
+                self.sort = Sort::Original;
+                self.ascending = true;
             }
             Intent::SelectRow(index) => self.selected = Some(index),
             Intent::TogglePanel => self.panel_visible = !self.panel_visible,
+            Intent::Search(query) => {
+                self.query = query;
+                self.selected = None;
+                self.query_too_long = false;
+                self.query_revision = self.query_revision.wrapping_add(1);
+            }
+            Intent::SearchTooLong => {
+                self.query_too_long = true;
+                self.query_revision = self.query_revision.wrapping_add(1);
+            }
+            Intent::Sort(sort) => {
+                self.ascending = self.sort != sort || !self.ascending;
+                self.sort = sort;
+            }
             _ => return false,
         }
         self.revision = self.revision.wrapping_add(1);
@@ -204,6 +256,7 @@ enum Icon {
     Shuffle,
     Repeat,
     Refresh,
+    Clear,
 }
 fn icon_button(
     ui: &mut Ui,
@@ -317,6 +370,10 @@ fn icon_button(
                             paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
                             paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
                         }
+                        Icon::Clear => {
+                            paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
+                            paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
+                        }
                     }
                 });
             },
@@ -347,6 +404,22 @@ mod button_tests {
     use super::*;
     use pxui::{Event, FrameIn, Platform, Str, ThemeSource};
     use std::cell::Cell;
+    #[test]
+    fn row_number_labels_cover_zero_and_the_largest_unsigned_value_on_the_stack() {
+        mem_sys::local_reset();
+        for (value, expected) in [
+            (0, "0"),
+            (1, "1"),
+            (10000, "10000"),
+            (u64::MAX, "18446744073709551615"),
+        ] {
+            assert_eq!(
+                std::str::from_utf8(ClockLabel::integer(value).bytes()).unwrap(),
+                expected
+            );
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
 
     #[test]
     fn pressed_visual_scales_without_shrinking_hit_area_or_allocating_when_warm() {
@@ -508,7 +581,10 @@ pub fn shell(
                 Size::Grow,
                 &mut |ui| {
                     let mut route_key = DefaultHasher::new();
-                    if let Some(group) = catalog.collection(state.route) {
+                    if let Some(group) = catalog
+                        .collection(state.route)
+                        .filter(|_| state.route != Route::Find)
+                    {
                         (true, group.key).hash(&mut route_key);
                     } else {
                         (false, state.route).hash(&mut route_key);
@@ -553,8 +629,8 @@ pub fn shell(
         && ui.key_pressed(input::Key::Enter)
         && !ui.text_input_focused()
         && let Some(index) = state.selected
-        && catalog
-            .collection(state.route)
+        && state
+            .collection(catalog)
             .is_some_and(|collection| index < collection.rows.len())
     {
         *intent = Some(Intent::PlayRow(index));
@@ -697,6 +773,7 @@ fn sidebar(
             p,
             intent,
         );
+        side_row(ui, "find", ("Find", ""), Route::Find, state, p, intent);
         spacer(ui, "lists-gap", 14.0);
         text(
             ui,
@@ -761,10 +838,11 @@ fn content(
         },
     );
     ui.within(&root, &mut |ui| {
-        let collection = catalog.collection(state.route);
+        let collection = state.collection(catalog);
         let title = match state.route {
             Route::Albums => "Albums",
             Route::Artists => "Artists",
+            Route::Find => "Find",
             _ => collection.map_or("Songs", |group| group.title.as_str()),
         };
         let heading = container(
@@ -789,10 +867,56 @@ fn content(
                 *intent = Some(Intent::RefreshLibrary);
             }
         });
+        if state.route == Route::Find {
+            ui.view(
+                "find-query",
+                state.query_revision,
+                Size::Grow,
+                Size::Px(44.0),
+                &mut |ui| {
+                    let row =
+                        container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, p.paper);
+                    ui.within(&row, &mut |ui| {
+                        let field = ui.box_(
+                            "query-field",
+                            BoxOpts::default().w(Size::Grow).h(Size::Grow),
+                        );
+                        ui.within(&field, &mut |ui| {
+                            if let Some(value) = ui.text_field("Find songs", state.query.as_str()) {
+                                *intent = Some(
+                                    Query::new(value).map_or(Intent::SearchTooLong, Intent::Search),
+                                );
+                            }
+                        });
+                        if icon_button(
+                            ui,
+                            "clear-query",
+                            "Clear search",
+                            Icon::Clear,
+                            (36.0, 36.0),
+                            false,
+                            p,
+                        ) {
+                            *intent = Some(Intent::Search(Query::default()));
+                        }
+                    });
+                },
+            );
+        }
         text(
             ui,
             "subtitle",
-            collection.map_or("Browse your library", |group| group.subtitle.as_str()),
+            if state.query_too_long && state.route == Route::Find {
+                "Search text is too long. Shorten it."
+            } else if state.route == Route::Find && collection.is_none() {
+                if state.query.as_str().trim().is_empty() {
+                    "Search song titles, artists and albums"
+                } else {
+                    "Searching…"
+                }
+            } else {
+                collection.map_or("Browse your library", |group| group.subtitle.as_str())
+            },
             14,
             p.secondary,
             (Size::Grow, 34.0),
@@ -889,104 +1013,218 @@ fn content(
                 p.paper,
             );
             ui.within(&header, &mut |ui| {
-                for (key, value, size) in [
-                    ("title", "Title", Size::Grow),
-                    ("artist", "Artist", Size::Pct(0.24)),
-                    ("album", "Album", Size::Pct(0.26)),
-                    ("time", "Time", Size::Px(48.0)),
+                let applied = catalog
+                    .view
+                    .as_ref()
+                    .filter(|view| Some(view.request.scope) == catalog.scope(state.route))
+                    .map(|view| (view.request.sort, view.request.ascending));
+                for (key, column, value, up, down, name, size) in [
+                    (
+                        "number",
+                        Sort::Original,
+                        "#",
+                        "#",
+                        "#",
+                        "Sort by original order",
+                        Size::Px(44.0),
+                    ),
+                    (
+                        "title",
+                        Sort::Title,
+                        "Title",
+                        "Title ↑",
+                        "Title ↓",
+                        "Sort by Title",
+                        Size::Grow,
+                    ),
+                    (
+                        "artist",
+                        Sort::Artist,
+                        "Artist",
+                        "Artist ↑",
+                        "Artist ↓",
+                        "Sort by Artist",
+                        Size::Pct(0.24),
+                    ),
+                    (
+                        "album",
+                        Sort::Album,
+                        "Album",
+                        "Album ↑",
+                        "Album ↓",
+                        "Sort by Album",
+                        Size::Pct(0.26),
+                    ),
+                    (
+                        "time",
+                        Sort::Duration,
+                        "Time",
+                        "Time ↑",
+                        "Time ↓",
+                        "Sort by Time",
+                        Size::Px(48.0),
+                    ),
                 ] {
-                    text(ui, key, value, 12, p.secondary, (size, 28.0), false);
-                }
-            });
-            rule(ui, "columns-divider", false, p);
-            let row_width = (width - 56.0).max(1.0);
-            ui.grid_list(
-                "songs",
-                collection.rows.len(),
-                row_width,
-                38.0,
-                &mut |ui, index| {
-                    let row = catalog.row(collection.rows[index]);
-                    let node = ui.node(
-                        "song",
+                    let shown = match applied.filter(|(sort, _)| *sort == column) {
+                        Some((_, true)) => up,
+                        Some(_) => down,
+                        None => value,
+                    };
+                    let heading = ui.node(
+                        key,
                         Node {
-                            flags: CLICKABLE | TAB_STOP,
-                            axis: Axis::Row,
-                            align: Align::Center,
-                            w: Size::Grow,
-                            h: Size::Px(38.0),
-                            role: Role::ListItem,
+                            flags: CLICKABLE | TAB_STOP | FIT_TEXT,
+                            w: size,
+                            h: Size::Px(28.0),
+                            role: Role::Button,
+                            look: Look {
+                                text: p.secondary,
+                                font: Font {
+                                    size: 12,
+                                    ..Font::BODY
+                                },
+                                ..Look::NONE
+                            },
                             ..Node::DEFAULT
                         },
                     );
-                    let signal = ui.signal(&node);
-                    ui.a11y_name(&node, row.title);
-                    ui.set_look(
-                        &node,
-                        Look {
-                            fill: if state.selected == Some(index) {
-                                p.selected
-                            } else if signal.hovered {
-                                p.panel
-                            } else {
-                                p.paper
-                            },
-                            ..Look::NONE
+                    ui.text(&heading, shown);
+                    let action = match applied.filter(|(sort, _)| *sort == column) {
+                        None => name,
+                        Some((sort, ascending)) => match (sort, ascending) {
+                            (Sort::Title, true) => "Sort by Title, ascending",
+                            (Sort::Title, false) => "Sort by Title, descending",
+                            (Sort::Artist, true) => "Sort by Artist, ascending",
+                            (Sort::Artist, false) => "Sort by Artist, descending",
+                            (Sort::Album, true) => "Sort by Album, ascending",
+                            (Sort::Album, false) => "Sort by Album, descending",
+                            (Sort::Duration, true) => "Sort by Time, ascending",
+                            (Sort::Duration, false) => "Sort by Time, descending",
+                            _ => name,
                         },
-                        State::default(),
-                    );
-                    ui.within(&node, &mut |ui| {
-                        text(
-                            ui,
-                            "title",
-                            row.title,
-                            14,
-                            if player.current_id == Some(row.id) {
-                                p.signal
-                            } else {
-                                p.ink
-                            },
-                            (Size::Grow, 20.0),
-                            false,
-                        );
-                        text(
-                            ui,
-                            "artist",
-                            row.artist,
-                            14,
-                            p.secondary,
-                            (Size::Pct(0.24), 20.0),
-                            false,
-                        );
-                        text(
-                            ui,
-                            "album",
-                            row.album,
-                            14,
-                            p.secondary,
-                            (Size::Pct(0.26), 20.0),
-                            false,
-                        );
-                        text(
-                            ui,
-                            "duration",
-                            row.duration,
-                            12,
-                            p.secondary,
-                            (Size::Px(48.0), 20.0),
-                            true,
-                        );
-                    });
-                    if signal.clicked {
-                        *intent = Some(Intent::SelectRow(index));
+                    };
+                    ui.a11y_name(&heading, action);
+                    if ui.signal(&heading).clicked {
+                        *intent = Some(Intent::Sort(column));
                     }
-                    if signal.double_clicked
-                        || (signal.clicked && ui.key_pressed(input::Key::Enter))
-                    {
-                        *intent = Some(Intent::PlayRow(index));
-                    }
+                }
+            });
+            rule(ui, "columns-divider", false, p);
+            let results = ui.node_keyed(
+                int_key(
+                    root.box_key,
+                    if state.route == Route::Find {
+                        state.query_revision as i64
+                    } else {
+                        0
+                    },
+                ),
+                Node {
+                    w: Size::Grow,
+                    h: Size::Grow,
+                    ..Node::DEFAULT
                 },
             );
+            ui.within(&results, &mut |ui| {
+                let row_width = (width - 56.0).max(1.0);
+                ui.grid_list(
+                    "songs",
+                    collection.rows.len(),
+                    row_width,
+                    38.0,
+                    &mut |ui, index| {
+                        let row = catalog.row(collection.rows[index]);
+                        let node = ui.node(
+                            "song",
+                            Node {
+                                flags: CLICKABLE | TAB_STOP,
+                                axis: Axis::Row,
+                                align: Align::Center,
+                                w: Size::Grow,
+                                h: Size::Px(38.0),
+                                role: Role::ListItem,
+                                ..Node::DEFAULT
+                            },
+                        );
+                        let signal = ui.signal(&node);
+                        ui.a11y_name(&node, row.title);
+                        ui.set_look(
+                            &node,
+                            Look {
+                                fill: if state.selected == Some(index) {
+                                    p.selected
+                                } else if signal.hovered {
+                                    p.panel
+                                } else {
+                                    p.paper
+                                },
+                                ..Look::NONE
+                            },
+                            State::default(),
+                        );
+                        ui.within(&node, &mut |ui| {
+                            let number = ClockLabel::integer((index + 1) as u64);
+                            text(
+                                ui,
+                                "number",
+                                std::str::from_utf8(number.bytes()).unwrap(),
+                                12,
+                                p.secondary,
+                                (Size::Px(44.0), 20.0),
+                                true,
+                            );
+                            text(
+                                ui,
+                                "title",
+                                row.title,
+                                14,
+                                if player.current_id == Some(row.id) {
+                                    p.signal
+                                } else {
+                                    p.ink
+                                },
+                                (Size::Grow, 20.0),
+                                false,
+                            );
+                            text(
+                                ui,
+                                "artist",
+                                row.artist,
+                                14,
+                                p.secondary,
+                                (Size::Pct(0.24), 20.0),
+                                false,
+                            );
+                            text(
+                                ui,
+                                "album",
+                                row.album,
+                                14,
+                                p.secondary,
+                                (Size::Pct(0.26), 20.0),
+                                false,
+                            );
+                            text(
+                                ui,
+                                "duration",
+                                row.duration,
+                                12,
+                                p.secondary,
+                                (Size::Px(48.0), 20.0),
+                                true,
+                            );
+                        });
+                        if signal.clicked {
+                            *intent = Some(Intent::SelectRow(index));
+                        }
+                        if signal.double_clicked
+                            || (signal.clicked && ui.key_pressed(input::Key::Enter))
+                        {
+                            *intent = Some(Intent::PlayRow(index));
+                        }
+                    },
+                );
+            });
         }
     });
 }
@@ -1114,6 +1352,21 @@ struct ClockLabel {
     start: usize,
 }
 impl ClockLabel {
+    fn integer(mut number: u64) -> Self {
+        let mut out = Self {
+            bytes: [0; 24],
+            start: 24,
+        };
+        loop {
+            out.start -= 1;
+            out.bytes[out.start] = b'0' + (number % 10) as u8;
+            number /= 10;
+            if number == 0 {
+                return out;
+            }
+        }
+    }
+
     fn new(seconds: u64, remaining: bool) -> Self {
         let mut out = Self {
             bytes: [0; 24],

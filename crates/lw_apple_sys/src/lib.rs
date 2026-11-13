@@ -2,6 +2,9 @@
 pub mod sqlite;
 
 #[cfg(target_os = "macos")]
+pub mod collation;
+
+#[cfg(target_os = "macos")]
 pub mod timing;
 
 #[cfg(target_os = "macos")]

@@ -1,4 +1,5 @@
 //! LocalWave's pxui views. Application state changes are returned as intents.
+pub mod browse;
 pub mod catalog;
 pub mod motion;
 mod shell;
@@ -9,6 +10,8 @@ pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf")
 pub const LIGHT: &str = include_str!("../themes/light.theme");
 pub const DARK: &str = include_str!("../themes/dark.theme");
 
+// The fixed UTF-8 search packet avoids a heap allocation when handing an edit to the worker.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Intent {
     Play,
@@ -25,6 +28,9 @@ pub enum Intent {
     SeekFraction(f64),
     Volume(f32),
     RefreshLibrary,
+    Search(browse::Query),
+    SearchTooLong,
+    Sort(browse::Sort),
 }
 
 #[derive(Default)]
@@ -49,6 +55,306 @@ pub struct PlayerView<'a> {
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+
+    #[test]
+    fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
+        use browse::{Query, Scope, Sort};
+        use catalog::{Catalog, Route};
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = Catalog::new(
+            (0..10000)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Track {id:05}"),
+                    artist: "Artist".into(),
+                    album: "Album".into(),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(Route::Find));
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView {
+            initialized: true,
+            ..PlayerView::default()
+        };
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..Default::default()
+        };
+        let mut intent = None;
+        for _ in 0..2 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
+        let field = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| {
+                node.is_role(pxui::ui::Role::TextField) && ui.a11y_name_of(node) == "Find songs"
+            })
+            .unwrap()
+            .rect;
+        let (x, y) = (
+            f64::from(field.x + field.w * 0.8),
+            f64::from(field.y + field.h * 0.5),
+        );
+        let click = [
+            pxui::Event {
+                kind: input::wire::POINTER_MOVED,
+                x,
+                y,
+                ..Default::default()
+            },
+            pxui::Event {
+                kind: input::wire::POINTER_PRESSED,
+                code: 0,
+                x,
+                y,
+                ..Default::default()
+            },
+            pxui::Event {
+                kind: input::wire::POINTER_RELEASED,
+                code: 0,
+                x,
+                y,
+                ..Default::default()
+            },
+        ];
+        ui.frame(
+            &FrameIn {
+                events: click.as_ptr(),
+                event_count: click.len(),
+                ..frame
+            },
+            &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+        )
+        .unwrap();
+        assert!(ui.text_input_focused());
+        let typed = pxui::Event {
+            kind: input::wire::TEXT_INPUT,
+            text: Str {
+                ptr: "track".as_ptr(),
+                len: 5,
+            },
+            ..Default::default()
+        };
+        ui.frame(
+            &FrameIn {
+                events: &typed,
+                event_count: 1,
+                ..frame
+            },
+            &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+        )
+        .unwrap();
+        assert_eq!(intent, Some(Intent::Search(Query::new("track").unwrap())));
+        state.apply(intent.take().unwrap());
+        let request = state.request(&catalog).unwrap();
+        assert_eq!(request.scope, Scope::Find);
+        let mut found = catalog.clone();
+        found.project(request, (0..400).collect());
+        state.refresh(&catalog, &found);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &found, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            ui.text_input_focused(),
+            "result adoption keeps the editor's identity"
+        );
+        assert_eq!(state.collection(&found).unwrap().ids.len(), 400);
+        for tick in 0..120 {
+            let wheel = [
+                pxui::Event {
+                    kind: input::wire::POINTER_MOVED,
+                    x: 650.0,
+                    y: 400.0,
+                    ..Default::default()
+                },
+                pxui::Event {
+                    kind: input::wire::SCROLLED,
+                    y: if tick % 40 < 20 { -1.0 } else { 1.0 },
+                    ..Default::default()
+                },
+            ];
+            if tick >= 80 {
+                mem_sys::local_reset();
+            }
+            ui.frame(
+                &FrameIn {
+                    time: tick as f64 / 60.0,
+                    events: wheel.as_ptr(),
+                    event_count: wheel.len(),
+                    ..frame
+                },
+                &mut |ui| shell(ui, &player, &found, &state, &mut intent),
+            )
+            .unwrap();
+            if tick >= 80 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "focused Find warm scroll at tick {tick}"
+                );
+            }
+            assert!(ui.text_input_focused());
+        }
+        let frame = FrameIn { time: 2.0, ..frame };
+        state.apply(Intent::Search(Query::new("other").unwrap()));
+        assert!(
+            state.collection(&found).is_none(),
+            "old responses never appear under a newer query"
+        );
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &found, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| node.is_role(pxui::ui::Role::ListItem)
+                    && ui.a11y_name_of(node).starts_with("Track "))
+        );
+        let mut next = catalog.clone();
+        next.project(state.request(&catalog).unwrap(), (100..400).collect());
+        state.refresh(&found, &next);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &next, &state, &mut intent)
+        })
+        .unwrap();
+        let first = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| {
+                node.is_role(pxui::ui::Role::ListItem) && ui.a11y_name_of(node) == "Track 00100"
+            })
+            .unwrap();
+        assert!(
+            first.rect.y > 100.0,
+            "a new query starts at the top of its own results"
+        );
+        assert!(ui.text_input_focused());
+        assert_eq!(next.view.as_ref().unwrap().request.sort, Sort::Original);
+        let clear = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Clear search")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: clear,
+            action_code: 1,
+            ..Default::default()
+        }]);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &next, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent, Some(Intent::Search(Query::default())));
+    }
+
+    #[test]
+    fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows() {
+        use browse::Sort;
+        use catalog::{Catalog, Route};
+        let catalog = Catalog::new(
+            (0..30)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Track {id:03}"),
+                    duration: Some(id as f64),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        let mut state = ShellState::default();
+        state.apply(Intent::SelectRow(10));
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView::default();
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        let heading = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Sort by Time")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: heading,
+            action_code: 1,
+            ..Default::default()
+        }]);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent, Some(Intent::Sort(Sort::Duration)));
+        state.apply(intent.take().unwrap());
+        assert!(state.ascending);
+        state.apply(Intent::Sort(Sort::Duration));
+        assert!(!state.ascending);
+        let mut sorted = catalog.clone();
+        sorted.project(state.request(&catalog).unwrap(), (0..30).rev().collect());
+        state.refresh(&catalog, &sorted);
+        assert_eq!(state.selected, Some(19));
+        assert_eq!(state.collection(&sorted).unwrap().ids[19], 10);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &sorted, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Sort by Time, descending")
+        );
+        let enter = pxui::Event {
+            kind: input::wire::KEY_PRESSED,
+            code: input::Key::Enter.code(),
+            ..Default::default()
+        };
+        ui.frame(
+            &FrameIn {
+                events: &enter,
+                event_count: 1,
+                ..frame
+            },
+            &mut |ui| shell(ui, &player, &sorted, &state, &mut intent),
+        )
+        .unwrap();
+        assert_eq!(intent.take(), Some(Intent::PlayRow(19)));
+        let reset = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Sort by original order")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: reset,
+            action_code: 1,
+            ..Default::default()
+        }]);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &sorted, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent, Some(Intent::Sort(Sort::Original)));
+        assert_eq!(sorted.collection(Route::Songs).unwrap().ids.len(), 30);
+    }
 
     #[test]
     fn transport_buttons_return_intents_and_update_retained_labels() {

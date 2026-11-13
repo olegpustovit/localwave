@@ -31,4 +31,7 @@ check: target/sdl/lib/libSDL3.a
 performance: PROFILE = release
 performance: bundle
 	tools/check-macos-bundle.sh
-	target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check
+	@performance_result=0; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-find || performance_result=1; \
+	  exit "$$performance_result"
