@@ -34,7 +34,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | --- | --- | --- |
 | P0: scaffold/bundle | Four-crate Rust workspace, pinned pxui submodule, static SDL3, dynamic pxui, sandbox bundle, remote-pointer check, Rust CI job, VS Code build/debug tasks. Terminal app, target, SwiftTUI dependency and obsolete terminal instructions removed. | Developer/team signature and provisioning qualification remain. Local ad hoc scaffold checks pass; see evidence below. |
 | P1: core | Song model and raw states, masked UTF-8 FNV identity, Swift-compatible scalar lowercase, complete song hydration, additive song migrations, transactional song upsert and FTS updates, BM25 prefix search, Favorites, guarded cache updates, native FLAC comments/pictures, occurrence-based queue/reorder/shuffle/repeat/Clear/Undo and two-item prequeue selection. User/source/path/playlist repositories, transactional metadata/FTS removal, guarded bookmark/root replacement and source selection, SQLite.swift-compatible UTC text dates, indexed path rescans, album grouping without correlated rescans, and duplicate-preserving bulk reads without redundant Song copies. System SQLite through safe FFI. Indexed recursive import selection, transactional song/FTS/digest commits, pure import policy with progress/cancellation, cloud placeholders, verified-cache enrichment/invalidation, unchanged-file skipping and Unicode track-prefix cleanup. Thread-confined application scan/import service, generated-path exclusions, native bookmark/pin/cache-proof preferences, atomic scan publication and legacy-song relocation. LRU cache policy and a serialized application copy/eviction service with native coordinated copies and pin/playback protection. Native queue/volume/settings persistence, typed Swift-compatible playback contexts, duplicate-aware queue restoration, isolated UI-test suites and validated waveform JSON/SQLite storage. The application waveform service uses coordinated PCM extraction and Swift-compatible source signatures. | Library/import/catalog UI command integration, source observation; port coverage from all 18 SwiftPM test files. Fixture exchange does not qualify a full user library. |
-| P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. The GUI publishes Now Playing metadata/artwork and routes seven bounded MediaPlayer commands through that controller. | Guarded playback-failure database updates and complete library/UI integration, physical media-key/Control Center qualification, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
+| P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. The GUI publishes Now Playing metadata/artwork and routes seven bounded MediaPlayer commands through that controller. Guarded preparation/native failure writes, actual-start recovery and worker catalog invalidation now preserve newer cache/import records. | Complete library/UI integration and native decoder/provider failure qualification, physical media-key/Control Center qualification, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release; ABI 1.14 adds fractional fills and output partition capacity reuse. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
@@ -1418,3 +1418,74 @@ Final Clippy passes **1.63 s**; the final focused native media check passes **5.
 case**, including its rebuild. Logs: `/tmp/localwave-media-final-clippy.log`,
 `/tmp/localwave-media-final-focused.log`. Playing clock policy uses injected times in the pure check;
 the native warm loop has no wall-clock-sensitive count assertion. The existing GUI remains alive.
+
+
+## Guarded playback file failures and recovery (2026-11-13)
+
+Unreadable/missing files previously advanced the queue without saving their failure state. The
+library service now records eligible preparation errors, and the controller accepts native item
+failures only when token, generation and occurrence match one of its six retained playback leases.
+Each lease retains the Song snapshot associated with the prepared physical file on the worker.
+The repository changes only `fileState`, using one UPDATE guarded by ID, song key, path hash,
+created/updated dates, previous state, local path, source ID, relative path, bookmark bytes, size and
+source availability. A newer cache, import/access record, deleted row or replayed event cannot be
+overwritten. Paths and bytes, metadata, favorites, playlist membership and FTS remain intact.
+
+An already-local Failed file retains that state through successful preparation. Its actual Started
+event records history once and attempts guarded recovery to Copied; the lease advances its expected
+state after our own successful writes so a recovered physical item can fail again. Ordinary verified
+materialization retains its existing Copied behavior. Recovery/failure writes are best effort: a
+state-write error is logged while preserving the file/decoder error, native playback and lease
+cleanup. No automatic file deletion or byte repair is introduced.
+
+Cancellation, bounded-mailbox backpressure, invalid requests and offline simulation do not persist
+failure markers. Typed SQLite errors stay identifiable across materialization fallback. A database
+read/commit error produces a session fault at the current queue index instead of treating successive
+songs as broken. An injected rejected cache-pointer commit verifies that an unavailable alternate
+source cannot mask that database error. Before leasing, preparation checks its canonical path and
+original import version against the reread row; a replacement requests a retry and catalog refresh
+before any native item opens old bytes for a new record.
+
+Changed file states/cache associations coalesce into the existing worker catalog refresh, after
+native event delivery and before catalog publication. Database/file work and the new snapshots stay
+off the UI thread. Native operations keep priority over catalog loading. The real controller fixture
+now checks the missing song reaches the catalog as Failed, and a deliberately unavailable songs
+table leaves a Session fault at index zero, no native item and no file-failure traversal. Its existing
+six-start/history, waveform, queue, cache-lease, rapid-control and zero-warm-poll-allocation checks
+remain.
+
+### Checks
+
+- **131 bounded app checks pass / 17.661 s wall / 11.595 s summed**, zero skips. The existing runner
+  automatically retries two pre-existing audio cases after contention; both attempts remain in
+  `/tmp/localwave-failure-state-verified-tests.log`. Controller **2.548 s**, real artwork/Metal
+  **1.193 s**. Earlier complete matrices remain in `/tmp/localwave-failure-state-tests.log` and
+  `/tmp/localwave-failure-state-final-tests.log`.
+- Two new repository cases check preserved metadata/favorites/playlist/FTS, duplicate events,
+  recovery, read-only errors and **22 stale-version combinations** (eleven guarded fields for
+  failure and recovery). A new pure classification case checks cancellation/backpressure/offline,
+  invalid input, typed SQL errors and genuine file errors.
+- The existing worker fixture additionally checks corrupted bytes remain intact; cancellation and
+  cloud/offline states are untouched; actual-start recovery followed by another native failure;
+  an old token cannot mark a replacement pointer; replacement during copy-to-lease; rejected cache
+  commits keep their SQL identity; and a rejected failure-state write keeps the decode error and
+  leaves no playback/cache lease. Focused log: `/tmp/localwave-failure-state-focused.log`; final
+  expanded coverage is in the complete verified matrix.
+- Final Clippy with `-D warnings` passes **2.02 s**. Formatting and whitespace checks pass. The first
+  Clippy attempt rejected two unnecessary test-only Song clones; those are now borrowed slices.
+  Logs: `/tmp/localwave-failure-state-clippy.log`, `/tmp/localwave-failure-state-verified-clippy.log`.
+
+No dependency, schema, public pxui ABI or shipping Swift/iOS change is needed. Pxui remains at
+published `d611cee` (ABI 1.14). Swift/device/provider/native-memory suites are not repeated. The
+seven signed frame workloads were not repeated for this worker/repository-only change; their
+previous zero warm Rust allocations and strict **1 ms wall maximum failures** remain the current
+frame evidence in `/tmp/localwave-media-final-performance.log`. This does not resolve stable
+latency, real media-key delivery, the full Mac UI or iOS/device/distribution qualification. The
+normal GUI process and its database/defaults are preserved; the overall port remains in progress.
+
+
+The updated signed bundle passes dependency, sandbox-entitlement, macOS 15 minimum, default stack,
+embedded dylib ID and portable rpath checks. It draws once and stays idle **507.8 ms**. Release
+library/app builds take **0.64 / 10.16 s**. Logs: `/tmp/localwave-failure-state-bundle.log`,
+`/tmp/localwave-failure-state-bundle-check.log`. Normal GUI PID 69331 remains alive on its mapped
+older build, with its library and defaults untouched.

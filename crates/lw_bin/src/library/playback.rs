@@ -1,4 +1,4 @@
-use super::{LibraryWorker, check, db};
+use super::{LibraryWorker, check, database_error, db};
 use lw_apple_sys::{audio, player::Prepared};
 use lw_core::Song;
 use std::io;
@@ -13,11 +13,44 @@ pub struct PreparedPlayback {
 
 pub(super) struct Lease {
     song_id: i64,
+    expected: Song,
     path: PathBuf,
     counted: bool,
 }
 
 impl LibraryWorker {
+    pub fn take_playback_file_changes(&mut self) -> bool {
+        std::mem::take(&mut self.playback_file_changes)
+    }
+    /// The caller verifies this leased token against the native event's generation and occurrence.
+    pub fn record_playback_failure(&mut self, token: u64) -> io::Result<bool> {
+        let Some(lease) = self.playback_files.get_mut(&token) else {
+            return Ok(false);
+        };
+        let changed = self
+            .repository
+            .mark_playback_failed(&lease.expected)
+            .map_err(db)?;
+        self.playback_file_changes |= changed;
+        if changed {
+            lease.expected.file_state = lw_core::FileState::Failed;
+        }
+        Ok(changed)
+    }
+    fn remember_preparation_failure(
+        &mut self,
+        expected: &Song,
+        error: &io::Error,
+        cancelled: &AtomicBool,
+    ) {
+        if cancelled.load(std::sync::atomic::Ordering::SeqCst) || !file_failure(error) {
+            return;
+        }
+        match self.repository.mark_playback_failed(expected) {
+            Ok(changed) => self.playback_file_changes |= changed,
+            Err(error) => eprintln!("LocalWave file failure state: {error}"),
+        }
+    }
     pub fn may_prepare_ahead(&mut self, song_id: i64, now: f64) -> io::Result<bool> {
         if !now.is_finite() {
             return Err(io::ErrorKind::InvalidInput.into());
@@ -51,6 +84,15 @@ impl LibraryWorker {
         }
         self.preferences.record_playback(lease.song_id, now)?;
         lease.counted = true;
+        match self.repository.recover_playback_file(&lease.expected) {
+            Ok(changed) => {
+                self.playback_file_changes |= changed;
+                if changed {
+                    lease.expected.file_state = lw_core::FileState::Copied;
+                }
+            }
+            Err(error) => eprintln!("LocalWave file recovery state: {error}"),
+        }
         // Recency must never prevent playback or count the same start twice after an IO error.
         if let Ok(root) = super::cache::music_root(&self.paths.documents) {
             lw_apple_sys::history::touch_cache_file(&lease.path, &root, now);
@@ -153,85 +195,112 @@ impl LibraryWorker {
             .get_song(song_id)
             .map_err(db)?
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "This song was removed"))?;
-        let docs = self.paths.documents.canonicalize().ok();
-        let candidate = song
-            .local_file_path
-            .as_ref()
-            .map(|stored| {
-                if std::path::Path::new(stored).is_absolute() {
-                    Ok(PathBuf::from(stored))
-                } else {
-                    lw_core::file_access::source_file(&self.paths.documents, stored)
+        let path = (|| -> io::Result<PathBuf> {
+            let docs = self.paths.documents.canonicalize().ok();
+            let candidate = song
+                .local_file_path
+                .as_ref()
+                .map(|stored| {
+                    if std::path::Path::new(stored).is_absolute() {
+                        Ok(PathBuf::from(stored))
+                    } else {
+                        lw_core::file_access::source_file(&self.paths.documents, stored)
+                    }
+                })
+                .transpose();
+            let candidate = match candidate {
+                Ok(candidate) => candidate,
+                Err(error) if error.kind() == io::ErrorKind::NotFound => None,
+                Err(error) => return Err(error),
+            };
+            let local = candidate
+                .and_then(|path| path.canonicalize().ok())
+                .filter(|path| path.is_file());
+            let path = if let Some(local) = local {
+                let attempt = (|| -> io::Result<PathBuf> {
+                    let private = docs.as_ref().is_some_and(|docs| local.starts_with(docs));
+                    let info = audio::probe(&local, private)?;
+                    if self.preferences.no_network()
+                        && info.availability != audio::Availability::OnDevice
+                    {
+                        return Err(io::ErrorKind::NotConnected.into());
+                    }
+                    if info.availability == audio::Availability::InCloud
+                        || (info.provider && info.availability == audio::Availability::Unknown)
+                    {
+                        return Err(io::Error::new(
+                            io::ErrorKind::NotConnected,
+                            "Playback file is not confirmed local",
+                        ));
+                    }
+                    if private {
+                        return Ok(local);
+                    }
+                    let copied = lw_apple_sys::copy::copy(
+                        &local,
+                        &super::cache::music_root(&self.paths.documents)?,
+                        &self.preferences,
+                        cancelled,
+                    )?;
+                    check(cancelled)?;
+                    if !self.save_materialized(&song, &copied)? {
+                        return Err(io::Error::new(
+                            io::ErrorKind::Interrupted,
+                            "Song cache changed during playback preparation",
+                        ));
+                    }
+                    Ok(copied.path)
+                })();
+                match attempt {
+                    Err(error)
+                        if error.kind() != io::ErrorKind::Interrupted
+                            && !database_error(&error)
+                            && (song.bookmark.is_some()
+                                || (song.source_id.is_some() && song.relative_path.is_some())) =>
+                    {
+                        self.materialize_for_playback(&song, now, cancelled)?
+                    }
+                    result => result?,
                 }
-            })
-            .transpose();
-        let candidate = match candidate {
-            Ok(candidate) => candidate,
-            Err(error) if error.kind() == io::ErrorKind::NotFound => None,
-            Err(error) => return Err(error),
-        };
-        let local = candidate
-            .and_then(|path| path.canonicalize().ok())
-            .filter(|path| path.is_file());
-        let path = if let Some(local) = local {
-            let attempt = (|| -> io::Result<PathBuf> {
-                let private = docs.as_ref().is_some_and(|docs| local.starts_with(docs));
-                let info = audio::probe(&local, private)?;
-                if self.preferences.no_network()
-                    && info.availability != audio::Availability::OnDevice
-                {
-                    return Err(io::ErrorKind::NotConnected.into());
-                }
-                if info.availability == audio::Availability::InCloud
-                    || (info.provider && info.availability == audio::Availability::Unknown)
-                {
-                    return Err(io::Error::new(
-                        io::ErrorKind::NotConnected,
-                        "Playback file is not confirmed local",
-                    ));
-                }
-                if private {
-                    return Ok(local);
-                }
-                let copied = lw_apple_sys::copy::copy(
-                    &local,
-                    &super::cache::music_root(&self.paths.documents)?,
-                    &self.preferences,
-                    cancelled,
-                )?;
-                check(cancelled)?;
-                if !self.save_materialized(&song, &copied)? {
-                    return Err(io::Error::new(
-                        io::ErrorKind::Interrupted,
-                        "Song cache changed during playback preparation",
-                    ));
-                }
-                Ok(copied.path)
-            })();
-            match attempt {
-                Err(error)
-                    if error.kind() != io::ErrorKind::Interrupted
-                        && (song.bookmark.is_some()
-                            || (song.source_id.is_some() && song.relative_path.is_some())) =>
-                {
-                    self.materialize_for_playback(&song, now, cancelled)?
-                }
-                result => result?,
-            }
-        } else {
-            self.materialize_for_playback(&song, now, cancelled)?
-        };
-        let path = path.canonicalize()?;
+            } else {
+                self.materialize_for_playback(&song, now, cancelled)?
+            };
+            path.canonicalize()
+        })()
+        .inspect_err(|error| self.remember_preparation_failure(&song, error, cancelled))?;
         check(cancelled)?;
-        let song = self
+        let latest = self
             .repository
             .get_song(song_id)
             .map_err(db)?
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "This song was removed"))?;
+        let stored = latest.local_file_path.as_deref().and_then(|stored| {
+            if std::path::Path::new(stored).is_absolute() {
+                std::fs::canonicalize(stored).ok()
+            } else {
+                lw_core::file_access::source_file(&self.paths.documents, stored).ok()
+            }
+        });
+        if latest.song_key != song.song_key
+            || latest.created_at != song.created_at
+            || latest.updated_at != song.updated_at
+            || latest.file_size != song.file_size
+            || stored.as_deref() != Some(path.as_path())
+        {
+            self.playback_file_changes = true;
+            return Err(io::Error::new(
+                io::ErrorKind::Interrupted,
+                "Song cache changed during playback preparation",
+            ));
+        }
+        self.playback_file_changes |=
+            latest.file_state != song.file_state || latest.local_file_path != song.local_file_path;
+        let song = latest;
         self.playback_files.insert(
             token,
             Lease {
                 song_id,
+                expected: song.clone(),
                 path: path.clone(),
                 counted: false,
             },
@@ -245,10 +314,21 @@ impl LibraryWorker {
             Err(error) => {
                 self.playback_files.remove(&token);
                 self.sync_playback_protection()?;
+                self.remember_preparation_failure(&song, &error, cancelled);
                 Err(error)
             }
         }
     }
+}
+
+fn file_failure(error: &io::Error) -> bool {
+    !matches!(
+        error.kind(),
+        io::ErrorKind::Interrupted
+            | io::ErrorKind::WouldBlock
+            | io::ErrorKind::NotConnected
+            | io::ErrorKind::InvalidInput
+    ) && !database_error(error)
 }
 
 #[cfg(test)]
@@ -258,6 +338,31 @@ mod tests {
     use lw_core::{FileState, Source};
     use std::path::Path;
     use std::sync::atomic::Ordering;
+    #[test]
+    fn playback_failure_classification_keeps_cancellation_backpressure_offline_and_sql_errors_distinct()
+     {
+        for kind in [
+            io::ErrorKind::Interrupted,
+            io::ErrorKind::WouldBlock,
+            io::ErrorKind::NotConnected,
+            io::ErrorKind::InvalidInput,
+        ] {
+            assert!(!file_failure(&io::Error::from(kind)));
+        }
+        assert!(!file_failure(&db(lw_apple_sys::sqlite::Error::invalid(
+            "database error"
+        ))));
+        for kind in [
+            io::ErrorKind::NotFound,
+            io::ErrorKind::PermissionDenied,
+            io::ErrorKind::InvalidData,
+        ] {
+            assert!(file_failure(&io::Error::from(kind)));
+        }
+        assert!(file_failure(&io::Error::other(
+            "Native audio decoder rejected the file"
+        )));
+    }
     #[test]
     fn playback_materializes_bookmarks_and_leases_duplicate_files_until_native_retirement() {
         let base = std::env::temp_dir().join(format!(
@@ -485,6 +590,19 @@ mod tests {
                 .is_err()
         );
         assert!(worker.playback_files.is_empty());
+        assert_eq!(
+            worker
+                .repository
+                .get_song(bad.id.unwrap())
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::Failed
+        );
+        assert_eq!(std::fs::read(&broken).unwrap(), b"not audio");
+        assert!(worker.take_playback_file_changes());
+        assert!(!worker.take_playback_file_changes());
+        let before_cancel = worker.repository.get_song(id).unwrap();
         cancel.store(true, Ordering::Relaxed);
         assert_eq!(
             worker
@@ -494,6 +612,8 @@ mod tests {
                 .kind(),
             io::ErrorKind::Interrupted
         );
+        assert_eq!(worker.repository.get_song(id).unwrap(), before_cancel);
+        assert!(!worker.take_playback_file_changes());
         cancel.store(false, Ordering::Relaxed);
         let provider = base.join("Library/CloudStorage/Provider");
         std::fs::create_dir_all(&provider).unwrap();
@@ -537,6 +657,16 @@ mod tests {
                 .is_err()
         );
         assert!(worker.playback_files.is_empty());
+        assert_eq!(
+            worker
+                .repository
+                .get_song(cloud.id.unwrap())
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::BookmarkOnly
+        );
+        assert!(!worker.take_playback_file_changes());
         let fallback = worker
             .repository
             .upsert_song(
@@ -600,5 +730,200 @@ mod tests {
         assert_eq!(second.history().get(id).plays, 2);
         drop(prepared);
         worker.release_playback(117).unwrap();
+
+        let prepared = worker
+            .prepare_playback(private.id.unwrap(), 120, 120, 3.0, &cancel)
+            .unwrap();
+        worker.take_playback_file_changes();
+        assert!(worker.record_playback_failure(120).unwrap());
+        assert!(!worker.record_playback_failure(120).unwrap());
+        assert!(worker.take_playback_file_changes());
+        assert_eq!(
+            worker
+                .repository
+                .get_song(private.id.unwrap())
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::Failed
+        );
+        drop(prepared);
+        worker.release_playback(120).unwrap();
+        assert!(!worker.record_playback_failure(120).unwrap());
+        let retried = worker
+            .prepare_playback(private.id.unwrap(), 121, 121, 3.0, &cancel)
+            .unwrap();
+        assert_eq!(
+            retried.song.file_state,
+            FileState::Failed,
+            "preparation alone must not clear a failure"
+        );
+        assert!(!worker.take_playback_file_changes());
+        assert!(worker.record_playback_start(121, 106.0).unwrap());
+        assert_eq!(
+            worker
+                .repository
+                .get_song(private.id.unwrap())
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::Copied
+        );
+        assert!(worker.take_playback_file_changes());
+        assert!(!worker.record_playback_start(121, 107.0).unwrap());
+        assert!(!worker.take_playback_file_changes());
+        assert!(
+            worker.record_playback_failure(121).unwrap(),
+            "a recovered physical item can fail again"
+        );
+        assert_eq!(
+            worker
+                .repository
+                .get_song(private.id.unwrap())
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::Failed
+        );
+        assert!(worker.take_playback_file_changes());
+        drop(retried);
+        worker.release_playback(121).unwrap();
+
+        let prepared = worker
+            .prepare_playback(private.id.unwrap(), 122, 122, 3.0, &cancel)
+            .unwrap();
+        assert!(worker.record_playback_start(122, 108.0).unwrap());
+        assert!(worker.take_playback_file_changes());
+        assert!(
+            worker
+                .repository
+                .update_cached_file(
+                    private.id.unwrap(),
+                    Some("Added Files/replaced.m4a"),
+                    FileState::Copied,
+                    FileState::Copied,
+                    private.local_file_path.as_deref()
+                )
+                .unwrap()
+        );
+        assert!(
+            !worker.record_playback_failure(122).unwrap(),
+            "retired native errors must preserve a replacement cache pointer"
+        );
+        assert!(!worker.take_playback_file_changes());
+        drop(prepared);
+        worker.release_playback(122).unwrap();
+
+        let external = base.join("external-broken.m4a");
+        std::fs::write(&external, b"not audio").unwrap();
+        let replacement = worker
+            .repository
+            .upsert_song(
+                &Song {
+                    song_key: 99,
+                    local_file_path: Some(external.to_str().unwrap().into()),
+                    file_state: FileState::Copied,
+                    ..Song::default()
+                },
+                3.0,
+            )
+            .unwrap();
+        let peer =
+            lw_apple_sys::sqlite::Connection::open(base.join("library.sqlite").to_str().unwrap())
+                .unwrap();
+        peer.execute_batch(&format!("CREATE TRIGGER replace_preparing_cache AFTER UPDATE OF localFilePath ON songs WHEN NEW.id={} BEGIN UPDATE songs SET localFilePath='Added Files/track.m4a' WHERE id=NEW.id; END;", replacement.id.unwrap())).unwrap();
+        let error = worker
+            .prepare_playback(replacement.id.unwrap(), 123, 123, 3.0, &cancel)
+            .err()
+            .unwrap();
+        assert_eq!(
+            error.kind(),
+            io::ErrorKind::Interrupted,
+            "a replaced cache must retry before opening old bytes: {error}"
+        );
+        let latest = worker
+            .repository
+            .get_song(replacement.id.unwrap())
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            latest.local_file_path.as_deref(),
+            Some("Added Files/track.m4a")
+        );
+        assert_eq!(latest.file_state, FileState::Copied);
+        assert!(worker.playback_files.is_empty());
+        assert!(worker.take_playback_file_changes());
+        peer.execute_batch("DROP TRIGGER replace_preparing_cache")
+            .unwrap();
+
+        let cache_write = worker
+            .repository
+            .upsert_song(
+                &Song {
+                    song_key: 100,
+                    source_id: Some(source),
+                    relative_path: Some("missing-fallback.m4a".into()),
+                    local_file_path: Some(input.to_str().unwrap().into()),
+                    file_state: FileState::Copied,
+                    ..Song::default()
+                },
+                3.0,
+            )
+            .unwrap();
+        peer.execute_batch(&format!("CREATE TRIGGER reject_cache_pointer BEFORE UPDATE OF localFilePath ON songs WHEN NEW.id={} BEGIN SELECT RAISE(ABORT,'injected cache pointer failure'); END;", cache_write.id.unwrap())).unwrap();
+        let error = worker
+            .prepare_playback(cache_write.id.unwrap(), 125, 125, 3.0, &cancel)
+            .err()
+            .unwrap();
+        assert!(
+            database_error(&error),
+            "a failed cache commit must not fall back and turn into a file error: {error}"
+        );
+        assert_eq!(
+            worker.repository.get_song(cache_write.id.unwrap()).unwrap(),
+            Some(cache_write)
+        );
+        assert!(!worker.take_playback_file_changes());
+        assert!(worker.playback_files.is_empty());
+        peer.execute_batch("DROP TRIGGER reject_cache_pointer")
+            .unwrap();
+
+        assert!(
+            worker
+                .repository
+                .update_cached_file(
+                    bad.id.unwrap(),
+                    bad.local_file_path.as_deref(),
+                    FileState::Copied,
+                    FileState::Failed,
+                    bad.local_file_path.as_deref()
+                )
+                .unwrap()
+        );
+        peer.execute_batch("CREATE TRIGGER reject_failure_state BEFORE UPDATE OF fileState ON songs WHEN NEW.fileState=3 BEGIN SELECT RAISE(ABORT,'injected file-state write failure'); END;").unwrap();
+        let error = worker
+            .prepare_playback(bad.id.unwrap(), 124, 124, 3.0, &cancel)
+            .err()
+            .unwrap();
+        assert!(file_failure(&error));
+        assert!(
+            !error
+                .to_string()
+                .contains("injected file-state write failure"),
+            "keep the original decode error"
+        );
+        assert_eq!(
+            worker
+                .repository
+                .get_song(bad.id.unwrap())
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::Copied
+        );
+        assert!(worker.playback_files.is_empty());
+        assert!(!worker.take_playback_file_changes());
+        peer.execute_batch("DROP TRIGGER reject_failure_state")
+            .unwrap();
     }
 }

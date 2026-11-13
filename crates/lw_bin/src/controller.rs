@@ -1,5 +1,5 @@
 //! Bounded main-thread/native and worker/model bridge. No database or file work runs in `poll`.
-use crate::library::LibraryWorker;
+use crate::library::{LibraryWorker, database_error};
 use lw_apple_sys::player::{Event, Kind, Player, Prepared, Snapshot};
 use lw_core::context::PlaybackContext;
 use lw_core::playback::{Fault, Phase, Reading};
@@ -896,6 +896,7 @@ impl Worker {
                 self.saved.current_index = index;
             }
             self.retire()?;
+            self.catalog_dirty |= self.library.take_playback_file_changes();
             self.publish();
             if self.pending.is_none()
                 && self.preparation == self.shared.preparation.load(Ordering::SeqCst)
@@ -1060,6 +1061,14 @@ impl Worker {
         match event.kind {
             Kind::EngineFailed => self.session_error(io::Error::other(event.message())),
             Kind::Failed => {
+                if self.leases.iter().flatten().any(|ticket| {
+                    ticket.token == event.token()
+                        && ticket.generation == event.generation()
+                        && ticket.entry.id == event.occurrence()
+                }) && let Err(error) = self.library.record_playback_failure(event.token())
+                {
+                    eprintln!("LocalWave native file failure state: {error}");
+                }
                 let ticket = self.session.planned().into_iter().flatten().find(|ticket| {
                     ticket.token == event.token() && ticket.generation == event.generation()
                 });
@@ -1528,6 +1537,7 @@ impl Worker {
                 self.session.retry_request(ticket);
                 return Ok(false);
             }
+            Err(error) if database_error(&error) => self.session_error(error),
             Err(error) => {
                 let action = self.session.file_failed(ticket);
                 self.action(action);

@@ -34,10 +34,16 @@ pub struct LibraryWorker {
     waveforms: Option<lw_core::waveform::Repository>,
     playback_files: HashMap<u64, playback::Lease>,
     active_playback: Option<u64>,
+    playback_file_changes: bool,
 }
 
 fn db(error: lw_apple_sys::sqlite::Error) -> io::Error {
     io::Error::other(error)
+}
+pub(crate) fn database_error(error: &io::Error) -> bool {
+    error
+        .get_ref()
+        .is_some_and(|cause| cause.is::<lw_apple_sys::sqlite::Error>())
 }
 fn text(path: &Path) -> io::Result<&str> {
     path.to_str()
@@ -108,6 +114,7 @@ impl LibraryWorker {
             waveforms: None,
             playback_files: HashMap::new(),
             active_playback: None,
+            playback_file_changes: false,
         })
     }
 

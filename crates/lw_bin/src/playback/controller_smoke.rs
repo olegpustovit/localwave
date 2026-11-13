@@ -418,6 +418,11 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     until(&mut player, deadline, &mut |player| {
         player.status().phase == Phase::Paused && !player.native_snapshot().playing()
     })?;
+    until(&mut player, deadline, &mut |player| {
+        player.catalog().row_index(bad).is_some_and(|index| {
+            player.catalog().library.row(index).state == lw_core::FileState::Failed
+        })
+    })?;
     let original = player.catalog().queue.as_ref().unwrap().entries.clone();
     if original.len() != 4 {
         return Err(error("Configured queue snapshot is stale"));
@@ -688,6 +693,47 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             "Natural completion did not preserve the final playback start",
         ));
     }
+    let failed_base = base.clone();
+    let failed_suite = suite.clone();
+    let mut database_failed =
+        Controller::open(move || open_library(&failed_base, &failed_suite), wake)?;
+    until(&mut database_failed, deadline, &mut |player| {
+        player.status().initialized
+    })?;
+    let database = base.join("library.sqlite");
+    std::thread::spawn(move || {
+        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+            .execute_batch("ALTER TABLE songs RENAME TO unavailable_songs")
+    })
+    .join()
+    .unwrap()
+    .map_err(io::Error::other)?;
+    database_failed.command(Command::Configure {
+        songs: Arc::from([good, good]),
+        start: 0,
+        autoplay: true,
+        context: None,
+    })?;
+    until(&mut database_failed, deadline, &mut |player| {
+        player.status().phase == Phase::Failed
+    })?;
+    if database_failed.status().fault != Some(lw_core::playback::Fault::Session)
+        || database_failed.status().current_index != Some(0)
+        || database_failed.native_snapshot().token != 0
+    {
+        return Err(error(
+            "A database read error was traversed as a broken audio file",
+        ));
+    }
+    drop(database_failed);
+    let database = base.join("library.sqlite");
+    std::thread::spawn(move || {
+        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+            .execute_batch("ALTER TABLE unavailable_songs RENAME TO songs")
+    })
+    .join()
+    .unwrap()
+    .map_err(io::Error::other)?;
     let mut failed = Controller::open(
         || Err(error("Injected library initialization failure")),
         wake,

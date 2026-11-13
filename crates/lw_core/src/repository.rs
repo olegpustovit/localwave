@@ -371,6 +371,33 @@ impl LibraryRepository {
         Ok(self.db.execute("UPDATE songs SET localFilePath=?,fileState=? WHERE id=? AND fileState=? AND localFilePath IS ?",
             &[path.map_or(Null, Text), Integer(state as i64), Integer(id), Integer(expected_state as i64), expected_path.map_or(Null, Text)])? > 0)
     }
+
+    pub fn mark_playback_failed(&self, expected: &Song) -> Result<bool> {
+        if expected.file_state == FileState::Failed {
+            return Ok(false);
+        }
+        self.update_playback_file_state(expected, FileState::Failed)
+    }
+
+    pub fn recover_playback_file(&self, expected: &Song) -> Result<bool> {
+        if expected.file_state != FileState::Failed || expected.local_file_path.is_none() {
+            return Ok(false);
+        }
+        self.update_playback_file_state(expected, FileState::Copied)
+    }
+
+    fn update_playback_file_state(&self, expected: &Song, state: FileState) -> Result<bool> {
+        let id = expected
+            .id
+            .ok_or_else(|| Error::invalid("Unsaved playback file"))?;
+        // An old native item must not label a replacement cache or a newer import as failed.
+        Ok(self.db.execute("UPDATE songs SET fileState=? WHERE id=? AND songKey=? AND pathHash=? AND createdAt=? AND updatedAt IS ? AND fileState=? AND localFilePath IS ? AND sourceId IS ? AND relativePath IS ? AND bookmark IS ? AND fileSize IS ? AND sourceAvailability IS ?", &[
+            Integer(state as i64), Integer(id), Integer(expected.song_key), Integer(expected.path_hash), Real(expected.created_at),
+            expected.updated_at.map_or(Null, Real), Integer(expected.file_state as i64), expected.local_file_path.as_deref().map_or(Null, Text),
+            expected.source_id.map_or(Null, Integer), expected.relative_path.as_deref().map_or(Null, Text), expected.bookmark.as_deref().map_or(Null, Blob),
+            expected.file_size.map_or(Null, Integer), expected.source_availability.map_or(Null, |value| Text(value.as_str())),
+        ])? != 0)
+    }
 }
 
 pub(crate) fn store_song(
@@ -553,6 +580,109 @@ pub(crate) fn prefix_query(query: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn playback_file_state_changes_preserve_metadata_favorites_membership_and_fts() {
+        let mut repo = LibraryRepository::open(":memory:").unwrap();
+        let original = repo
+            .upsert_song(
+                &Song {
+                    song_key: 42,
+                    title: "Preserved title 🎵".into(),
+                    artist: "Artist".into(),
+                    bookmark: Some(vec![0, 255, 1]),
+                    local_file_path: Some("Music/audio.m4a".into()),
+                    file_state: FileState::Copied,
+                    ..Song::default()
+                },
+                1.0,
+            )
+            .unwrap();
+        let id = original.id.unwrap();
+        let list = repo.create_playlist("Keep", 1.0).unwrap();
+        repo.add_playlist_songs(list.id, &[id]).unwrap();
+        repo.set_favorite(id, true).unwrap();
+        assert!(repo.mark_playback_failed(&original).unwrap());
+        assert!(!repo.mark_playback_failed(&original).unwrap());
+        let failed = repo.get_song(id).unwrap().unwrap();
+        let mut expected = original.clone();
+        expected.file_state = FileState::Failed;
+        expected.is_favorite = 1;
+        assert_eq!(failed, expected);
+        assert_eq!(
+            repo.playlist_songs(list.id).unwrap().as_slice(),
+            std::slice::from_ref(&failed)
+        );
+        assert_eq!(
+            repo.search_songs("Preserved", 10, 0).unwrap().as_slice(),
+            std::slice::from_ref(&failed)
+        );
+        assert!(repo.recover_playback_file(&failed).unwrap());
+        assert!(!repo.recover_playback_file(&failed).unwrap());
+        expected.file_state = FileState::Copied;
+        assert_eq!(repo.get_song(id).unwrap(), Some(expected));
+        assert!(repo.mark_playback_failed(&Song::default()).is_err());
+        repo.db.execute_batch("PRAGMA query_only=ON").unwrap();
+        assert!(repo.mark_playback_failed(&original).is_err());
+        assert_eq!(
+            repo.get_song(id).unwrap().unwrap().file_state,
+            FileState::Copied
+        );
+    }
+
+    #[test]
+    fn playback_state_guards_reject_new_cache_import_access_and_deleted_versions() {
+        for failed in [false, true] {
+            for (column, value) in [
+                ("songKey", Integer(99)),
+                ("pathHash", Integer(99)),
+                ("createdAt", Real(3.0)),
+                ("updatedAt", Real(3.0)),
+                ("fileState", Integer(if failed { 2 } else { 3 })),
+                ("localFilePath", Text("Music/replaced.m4a")),
+                ("sourceId", Integer(99)),
+                ("relativePath", Text("New/track.m4a")),
+                ("bookmark", Blob(&[9, 0, 8])),
+                ("fileSize", Integer(1024)),
+                ("sourceAvailability", Text("inCloud")),
+            ] {
+                let mut repo = LibraryRepository::open(":memory:").unwrap();
+                let original = repo
+                    .upsert_song(
+                        &Song {
+                            song_key: 42,
+                            local_file_path: Some("Music/original.m4a".into()),
+                            file_state: if failed {
+                                FileState::Failed
+                            } else {
+                                FileState::Copied
+                            },
+                            ..Song::default()
+                        },
+                        1.0,
+                    )
+                    .unwrap();
+                let id = original.id.unwrap();
+                repo.db
+                    .execute(
+                        &format!("UPDATE songs SET {column}=? WHERE id=?"),
+                        &[value, Integer(id)],
+                    )
+                    .unwrap();
+                let replacement = repo.get_song(id).unwrap();
+                let changed = if failed {
+                    repo.recover_playback_file(&original)
+                } else {
+                    repo.mark_playback_failed(&original)
+                }
+                .unwrap();
+                assert!(!changed, "stale {column} must not change playback state");
+                assert_eq!(repo.get_song(id).unwrap(), replacement);
+                repo.delete_song(id).unwrap();
+                assert!(!repo.mark_playback_failed(&original).unwrap());
+                assert!(!repo.recover_playback_file(&original).unwrap());
+            }
+        }
+    }
     fn song() -> Song {
         Song {
             song_key: 123,

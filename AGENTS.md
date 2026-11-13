@@ -187,3 +187,21 @@ RGBA batch and epoch/path/revision checks, and retain just the native Now Playin
 pending current cover first place in the same bounded request packet so a full gallery cannot starve
 it. Cold native image/dictionary creation is outside Rust allocator qualification. Physical keys,
 Control Center, native memory and iOS interruption/session qualification remain open.
+
+
+Playback file-state writes compare the saved Song's ID, key, path hash, dates, state, cached path,
+source/path/bookmark, size and availability in one guarded UPDATE. Keep metadata, paths, favorites,
+playlist membership and FTS unchanged. Native failures must match a leased token, generation and
+occurrence; never fetch the newest row and mark it on behalf of an old native item. The six existing
+worker-side leases retain their prepared Song snapshot. Update only its state after our successful
+failure/recovery write, so the same physical item can fail again after recovery.
+
+Do not mark cancellation, backpressure, invalid requests, offline simulation or typed SQLite errors
+as file failures. Preserve a cache-commit database error through fallback selection; the controller
+reports a session fault without traversing the queue. A rejected failure-state write must preserve
+the original file error and cache protection cleanup. Already-local Failed files remain Failed
+through preparation and recover on actual native Started; verified materialization retains its
+existing Copied semantics. Coalesce file-state/cache changes through take_playback_file_changes
+and the controller's existing worker catalog refresh. Compare the prepared canonical path and import
+version against the row before leasing: a replacement retries without opening old bytes for a new
+row. Native decode/provider/device failures and native memory still require platform qualification.
