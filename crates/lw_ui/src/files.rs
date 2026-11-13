@@ -8,6 +8,13 @@ pub struct Location {
     pub parent: Option<i64>,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct Target {
+    pub user: i64,
+    pub source: i64,
+    pub root: i64,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Request {
     Roots,
@@ -20,6 +27,7 @@ pub enum Request {
 
 pub struct Folder {
     pub id: i64,
+    pub root: i64,
     pub name: String,
     pub path: String,
     pub detail: String,
@@ -36,6 +44,7 @@ pub struct Entry {
 
 pub struct Directory {
     pub location: Location,
+    pub source_root: i64,
     pub up: Option<i64>,
     pub title: String,
     pub path: String,

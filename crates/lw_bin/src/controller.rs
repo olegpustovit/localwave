@@ -1684,24 +1684,32 @@ impl Worker {
             self.waveform_key = None;
             self.waveform = None;
             self.metadata_id = id;
-            match id
+            let fetched = match id
                 .map(|id| self.library.repository.get_song(id))
                 .transpose()
             {
-                Ok(Some(Some(song))) => {
-                    self.title = Arc::from(song.title);
-                    self.artist = Arc::from(song.artist);
-                    self.album = Arc::from(song.album);
-                }
-                result => {
-                    self.title = self.empty.clone();
-                    self.artist = self.empty.clone();
-                    self.album = self.empty.clone();
-                    if let Err(error) = result {
-                        self.message = Arc::from(error.to_string());
-                    }
+                Ok(song) => song.flatten(),
+                Err(error) => {
+                    self.message = Arc::from(error.to_string());
+                    None
                 }
             };
+            // A removed library row can still own the current physical cached item.
+            let song = fetched.as_ref().or_else(|| {
+                current
+                    .filter(|entry| entry.id == self.native.occurrence && self.native.token != 0)
+                    .and_then(|_| self.library.playback_song(self.native.token))
+                    .filter(|song| song.id == id)
+            });
+            if let Some(song) = song {
+                self.title = Arc::from(song.title.as_str());
+                self.artist = Arc::from(song.artist.as_str());
+                self.album = Arc::from(song.album.as_str());
+            } else {
+                self.title = self.empty.clone();
+                self.artist = self.empty.clone();
+                self.album = self.empty.clone();
+            }
         }
         let transport = self.session.transport();
         let status = Status {

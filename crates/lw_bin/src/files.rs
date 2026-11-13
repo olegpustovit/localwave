@@ -276,6 +276,7 @@ fn refresh_sources(library: &mut LibraryWorker, snapshot: &mut Snapshot) -> io::
                 id: source
                     .id
                     .ok_or_else(|| io::Error::other("Source is not saved"))?,
+                root: source.path_id,
                 name,
                 path: path.to_string_lossy().into_owned(),
                 current: source.is_current,
@@ -350,6 +351,7 @@ fn browse_directory(
         .collect::<Vec<_>>();
     let root = file_path(&source.dir_path)?;
     let directory = Directory {
+        source_root: source.path_id,
         location: Location {
             parent: Some(parent),
             ..location

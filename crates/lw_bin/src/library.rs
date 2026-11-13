@@ -163,24 +163,7 @@ impl LibraryWorker {
         if moved {
             resolved.dir_path = text(access.path())?.to_owned();
             resolved.path_id = hash(access.path())?;
-            for path in self
-                .repository
-                .source_paths(source_id, None)
-                .map_err(db)?
-                .into_iter()
-                .filter(|path| !path.is_directory)
-            {
-                if !lw_core::models::valid_relative_path(&path.relative_path) {
-                    return Err(io::Error::other("Invalid legacy source-relative path"));
-                }
-                for identity in [
-                    path.path_id,
-                    hash(&registered.join(&path.relative_path))?,
-                    hash(&access.path().join(&path.relative_path))?,
-                ] {
-                    locations.push((identity, path.relative_path.clone()));
-                }
-            }
+            locations = self.source_locations(&source, access.path())?;
         }
         let saved = if moved || resolved.bookmark != source.bookmark {
             self.repository

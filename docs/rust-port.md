@@ -1740,3 +1740,28 @@ All workloads keep **200 waveform bars**; scrubbing commits exactly **nine** rel
 Settings makes **45 exact input actions**, visiting all **eight themes**. Gallery retains at least
 **18 image quads**, **3,756,032 texel bytes** and **zero warm cover requests**. The original traces
 and all earlier allocation/latency failures remain recorded; no gate or warm-up was relaxed.
+
+## Source actions prerequisite: guarded migration and native retention
+
+Reconnect/removal worker services validate the captured account/source/root, validate a new
+bookmark and generated-path exclusions for reconnect, and gather legacy identities from indexed,
+registered, canonical and resolved paths. Migration and root replacement/deletion now share a
+transaction guarded by the source owner, directory/hash, bookmark, error and update stamp.
+Injected deletion failure rolls back migrated legacy songs, FTS and playlist membership together.
+Reconnect retains source/song IDs, creation dates, Favorites and membership; removal follows Swift's
+existing metadata policy and leaves original/cache files untouched. These services are not exposed
+as UI actions yet; the Files options/confirmation/picker flow is the next step.
+
+The native retention check also found that a catalog refresh cleared current metadata after its
+row was removed. The controller now reads the matching current physical token/occurrence's leased
+Song when the row is absent. The real paused AVPlayerItem keeps its token, occurrence, title/artist
+and cache protection after source removal; protection clears after controller/native retirement.
+No playback queue reset or original-file access is required for an already prepared cached item.
+
+The focused source matrix passes **13 checks in 8.401 s wall / 1.228 s summed**, including the
+new atomic migration and main-thread native checks. Native retention takes **0.185 s** including
+its harness. `/tmp/localwave-source-actions-foundation-fixed-tests.log`. The first native check
+used the uncanonicalized `/var` test path against the intentionally canonical cache-protection
+keys; the corrected check uses the actual canonical path, preserving the equality contract.
+Its initial log remains `/tmp/localwave-source-actions-foundation-tests.log`. Frame construction
+has not changed and the signed performance matrix was not repeated for this prerequisite.

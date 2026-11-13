@@ -14,6 +14,153 @@ fn cloud_identity_reads_reject_the_initial_thread() {
     assert!(lw_apple_sys::cloud::current_identity().is_err());
 }
 
+fn removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_retirement() {
+    // Native paused-item installation and AppKit callbacks require the initial-thread integration host.
+    use lw_apple_sys::preferences::{AppPaths, Preferences};
+    use lw_bin::{
+        controller::{Command, Controller},
+        library::LibraryWorker,
+    };
+    use std::{
+        sync::{Arc, mpsc},
+        time::{Duration, Instant},
+    };
+    let base = std::env::temp_dir().join(format!("lw-source-player-{}", std::process::id()));
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let path = base.join("Documents/Added Files/track.m4a");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged-m4a.m4a"),
+    )
+    .unwrap();
+    let path = path.canonicalize().unwrap();
+    let suite = format!("localwave.source-player.{}", std::process::id());
+    let factory_base = base.clone();
+    let factory_suite = suite.clone();
+    let (send, receive) = mpsc::sync_channel(1);
+    extern "C" fn wake() {}
+    let mut controller = Controller::open(
+        move || {
+            let mut library = LibraryWorker::open(
+                &factory_base.join("library.sqlite"),
+                Preferences::open(Some(&factory_suite))?,
+                AppPaths {
+                    documents: factory_base.join("Documents"),
+                    caches: factory_base.join("Caches"),
+                    temporary: factory_base.join("tmp"),
+                    test_database: None,
+                },
+            )?;
+            let user = library
+                .repository
+                .get_or_create_user(-1)
+                .map_err(std::io::Error::other)?;
+            let source = library
+                .repository
+                .create_source(&lw_core::Source {
+                    user_id: user.id,
+                    dir_path: "/Original music".into(),
+                    path_id: 77,
+                    ..Default::default()
+                })
+                .map_err(std::io::Error::other)?;
+            let song = library
+                .repository
+                .upsert_song(
+                    &lw_core::Song {
+                        song_key: 1,
+                        source_id: source.id,
+                        title: "Retained current item".into(),
+                        artist: "Retained artist".into(),
+                        local_file_path: Some("Added Files/track.m4a".into()),
+                        file_state: lw_core::FileState::Copied,
+                        ..Default::default()
+                    },
+                    1.0,
+                )
+                .map_err(std::io::Error::other)?;
+            send.send((song.id.unwrap(), source))
+                .map_err(std::io::Error::other)?;
+            Ok(library)
+        },
+        wake,
+    )
+    .unwrap();
+    let (id, source) = receive.recv_timeout(Duration::from_secs(1)).unwrap();
+    controller
+        .command(Command::Configure {
+            songs: Arc::from([id]),
+            start: 0,
+            autoplay: false,
+            context: None,
+        })
+        .unwrap();
+    let until = |controller: &mut Controller, deleted: bool| {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            controller.run_loop(Duration::from_millis(1));
+            controller.poll().unwrap();
+            if controller.native_snapshot().token != 0
+                && controller.status().title.as_ref() == "Retained current item"
+                && (!deleted || controller.catalog().row_index(id).is_none())
+            {
+                break;
+            }
+            assert!(Instant::now() < deadline, "{:?}", controller.status());
+        }
+    };
+    until(&mut controller, false);
+    let native = controller.native_snapshot();
+    let database = base.join("library.sqlite");
+    std::thread::spawn(move || {
+        let mut repository = lw_core::LibraryRepository::open(database.to_str().unwrap()).unwrap();
+        repository
+            .delete_source_with_locations(&source, &[])
+            .unwrap();
+    })
+    .join()
+    .unwrap();
+    controller.command(Command::RefreshCatalog).unwrap();
+    until(&mut controller, true);
+    assert_eq!(controller.native_snapshot().token, native.token);
+    assert_eq!(controller.native_snapshot().occurrence, native.occurrence);
+    assert_eq!(controller.status().artist.as_ref(), "Retained artist");
+    assert!(controller.status().fault.is_none());
+    let inspect_suite = suite.clone();
+    let inspect_path = path.clone();
+    std::thread::spawn(move || {
+        let preferences = Preferences::open(Some(&inspect_suite)).unwrap();
+        assert!(
+            preferences
+                .cache_protection()
+                .path_protected(&inspect_path)
+                .unwrap()
+        );
+    })
+    .join()
+    .unwrap();
+    assert!(path.is_file());
+    drop(controller);
+    std::thread::spawn(move || {
+        let preferences = Preferences::open(Some(&suite)).unwrap();
+        assert!(
+            !preferences
+                .cache_protection()
+                .path_protected(&path)
+                .unwrap()
+        );
+    })
+    .join()
+    .unwrap();
+}
+
 fn native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once() {
     // Initial-thread AppKit/SDL startup can exceed one second; no real picker or timed wait is used.
     let mut window = pxui_sdl::Window::open_with(
@@ -599,6 +746,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_retirement",
+            removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_retirement,
+        ),
         (
             "native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once",
             native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once,

@@ -249,3 +249,10 @@ must retain separate layouts. Keep the Settings regression alternating storage_b
 original 18 samples/round and unchanged warm-up; a coalesced real worker reply can otherwise hide
 the collision. Hidden Files progress must not change the library draw revision or force frames;
 catalog changes from completed imports still pass through the existing controller refresh.
+
+Source reconnect/removal migrate legacy song hashes from the registered, canonical and resolved
+root spellings before changing ownership. Keep that migration in the same guarded transaction as
+the root update or deletion. Revalidate the account/root captured by an action; the transaction
+also checks owner, root, bookmark, error and update stamp. Never delete original or cache files
+when removing a source. Current native items retain their cached-file lease and metadata from the
+leased Song after the library row disappears; release cache protection only after native retirement.

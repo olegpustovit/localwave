@@ -19,6 +19,10 @@ pub(super) struct Lease {
 }
 
 impl LibraryWorker {
+    pub fn playback_song(&self, token: u64) -> Option<&Song> {
+        self.playback_files.get(&token).map(|lease| &lease.expected)
+    }
+
     pub fn take_playback_file_changes(&mut self) -> bool {
         std::mem::take(&mut self.playback_file_changes)
     }

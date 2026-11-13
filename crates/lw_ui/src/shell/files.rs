@@ -159,6 +159,7 @@ mod tests {
             source_count: "1 source".into(),
             sources: Arc::from([Folder {
                 id: 7,
+                root: 11,
                 name: "Original music".into(),
                 path: "/Music/Original".into(),
                 detail: "10000 indexed items".into(),
@@ -283,6 +284,7 @@ mod tests {
         );
         files.revision += 1;
         files.directory = Some(Arc::new(Directory {
+            source_root: 11,
             location: Location {
                 parent: Some(11),
                 ..location

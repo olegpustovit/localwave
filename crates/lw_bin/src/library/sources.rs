@@ -1,11 +1,12 @@
 //! Source ownership follows the same secure iCloud identity as the shipping Swift app.
-use super::{LibraryWorker, Root, check, db, text};
+use super::{LibraryWorker, Root, check, db, hash, text};
 use lw_apple_sys::{
     bookmarks::{self, Access},
     preferences::file_path,
     scan::Scan,
 };
 use lw_core::{Source, User, hash_string};
+use lw_ui::files::Target;
 use std::{io, path::Path, sync::atomic::AtomicBool};
 
 pub struct SourceAccount {
@@ -85,15 +86,105 @@ impl LibraryWorker {
         self.register_folder_for_user(&user, expected_user, folder, now, cancelled)
     }
 
-    fn register_folder_for_user(
+    fn source_target(&mut self, target: Target) -> io::Result<Source> {
+        let source = self.owned_source(target.user, target.source)?;
+        if source.path_id != target.root {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "This folder changed. Reload folders and try again.",
+            ));
+        }
+        Ok(source)
+    }
+
+    pub fn reconnect_folder(
         &mut self,
-        user: &User,
-        expected_user: i64,
+        target: Target,
         folder: &Path,
         now: f64,
         cancelled: &AtomicBool,
     ) -> io::Result<Source> {
-        require_user(user, expected_user)?;
+        check(cancelled)?;
+        let expected = self.source_target(target)?;
+        let (bookmark, access) = self.folder_access(folder, now, cancelled)?;
+        let locations = self.source_locations(&expected, access.path())?;
+        let mut resolved = expected.clone();
+        resolved.dir_path = text(folder)?.to_owned();
+        resolved.path_id = hash(folder)?;
+        resolved.bookmark = Some(bookmark.clone());
+        resolved.sync_error = None;
+        resolved.updated_at = Some(now);
+        self.current_source_user(target.user)?;
+        check(cancelled)?;
+        let saved = self
+            .repository
+            .save_source_access(&expected, &resolved, &locations, now)
+            .map_err(db)?;
+        self.preferences
+            .set_bookmark(saved.path_id, Some(&bookmark))?;
+        self.roots.insert(target.source, Root { bookmark, access });
+        Ok(saved)
+    }
+
+    pub fn remove_source(&mut self, target: Target, cancelled: &AtomicBool) -> io::Result<()> {
+        check(cancelled)?;
+        let expected = self.source_target(target)?;
+        let registered = file_path(&expected.dir_path)?;
+        let root = self
+            .roots
+            .get(&target.source)
+            .map_or(registered.as_path(), |root| root.access.path());
+        let locations = self.source_locations(&expected, root)?;
+        self.current_source_user(target.user)?;
+        check(cancelled)?;
+        self.repository
+            .delete_source_with_locations(&expected, &locations)
+            .map_err(db)?;
+        self.roots.remove(&target.source);
+        Ok(())
+    }
+
+    pub(super) fn source_locations(
+        &self,
+        source: &Source,
+        root: &Path,
+    ) -> io::Result<Vec<(i64, String)>> {
+        let id = source
+            .id
+            .ok_or_else(|| io::Error::other("Source is not saved"))?;
+        let registered = file_path(&source.dir_path)?;
+        let canonical = registered
+            .canonicalize()
+            .unwrap_or_else(|_| registered.clone());
+        let mut locations = Vec::new();
+        for path in self
+            .repository
+            .source_paths(id, None)
+            .map_err(db)?
+            .into_iter()
+            .filter(|path| !path.is_directory)
+        {
+            if !lw_core::models::valid_relative_path(&path.relative_path) {
+                return Err(io::Error::other("Invalid legacy source-relative path"));
+            }
+            for identity in [
+                path.path_id,
+                hash(&registered.join(&path.relative_path))?,
+                hash(&canonical.join(&path.relative_path))?,
+                hash(&root.join(&path.relative_path))?,
+            ] {
+                locations.push((identity, path.relative_path.clone()));
+            }
+        }
+        Ok(locations)
+    }
+
+    fn folder_access(
+        &self,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+    ) -> io::Result<(Vec<u8>, Access)> {
         check(cancelled)?;
         if !now.is_finite() || !folder.is_absolute() {
             return Err(io::Error::new(
@@ -107,6 +198,20 @@ impl LibraryWorker {
         }
         let access = Access::resolve(&bookmark)?;
         drop(Scan::open(&access, folder, &self.excluded)?);
+        check(cancelled)?;
+        Ok((bookmark, access))
+    }
+
+    fn register_folder_for_user(
+        &mut self,
+        user: &User,
+        expected_user: i64,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+    ) -> io::Result<Source> {
+        require_user(user, expected_user)?;
+        let (bookmark, access) = self.folder_access(folder, now, cancelled)?;
         let url = lw_apple_sys::normalized_file_url(text(folder)?)?;
         let key = hash_string(&url);
         // Keep a legacy file-URL spelling so reselecting the same Swift folder reuses its row.

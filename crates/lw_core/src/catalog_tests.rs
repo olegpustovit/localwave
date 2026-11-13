@@ -589,6 +589,88 @@ fn source_path_identity_search_metadata_pruning_and_removal_are_atomic() {
 }
 
 #[test]
+fn source_reconnect_and_guarded_removal_migrate_legacy_rows_atomically_and_reject_stale_owners() {
+    let mut repo = LibraryRepository::open(":memory:").unwrap();
+    let original = source(&repo, 1, "/original");
+    let foreign = source(&repo, 2, "/foreign");
+    let id = original.id.unwrap();
+    let mut legacy = song(&mut repo, 1, None);
+    legacy.path_hash = 17;
+    let legacy = repo.upsert_song(&legacy, 101.0).unwrap();
+    repo.set_favorite(legacy.id.unwrap(), true).unwrap();
+    let legacy = repo.get_song(legacy.id.unwrap()).unwrap().unwrap();
+    let linked = song(&mut repo, 2, Some(id));
+    let mut other = song(&mut repo, 3, foreign.id);
+    other.path_hash = 17;
+    let other = repo.upsert_song(&other, 101.0).unwrap();
+    let list = repo.create_playlist("All sources", 100.0).unwrap();
+    let ids = [legacy.id.unwrap(), linked.id.unwrap(), other.id.unwrap()];
+    repo.add_playlist_songs(list.id, &ids).unwrap();
+    let locations = [(17, "Album/legacy.flac".into())];
+    repo.db.execute_batch("CREATE TEMP TRIGGER refuse_remove BEFORE DELETE ON sources BEGIN SELECT RAISE(FAIL,'injected removal failure'); END").unwrap();
+    assert!(
+        repo.delete_source_with_locations(&original, &locations)
+            .is_err()
+    );
+    assert_eq!(
+        repo.get_song(legacy.id.unwrap()).unwrap(),
+        Some(legacy.clone()),
+        "legacy migration must roll back with deletion"
+    );
+    assert_eq!(repo.playlist_songs(list.id).unwrap().len(), 3);
+    assert_eq!(repo.search_songs("Track", 10, 0).unwrap().len(), 3);
+    repo.db.execute_batch("DROP TRIGGER refuse_remove").unwrap();
+    let mut wrong = original.clone();
+    wrong.user_id = 2;
+    assert!(
+        repo.delete_source_with_locations(&wrong, &locations)
+            .is_err()
+    );
+    assert!(
+        repo.save_source_access(&wrong, &wrong, &locations, 200.0)
+            .is_err()
+    );
+    let mut resolved = original.clone();
+    resolved.dir_path = "/reconnected".into();
+    resolved.path_id = 99;
+    resolved.bookmark = Some(vec![9]);
+    resolved.sync_error = None;
+    resolved.updated_at = Some(200.0);
+    let saved = repo
+        .save_source_access(&original, &resolved, &locations, 200.0)
+        .unwrap();
+    assert_eq!(saved.id, original.id);
+    assert_eq!(saved.created_at, original.created_at);
+    let migrated = repo.get_song(legacy.id.unwrap()).unwrap().unwrap();
+    assert_eq!(migrated.source_id, Some(id));
+    assert_eq!(migrated.relative_path.as_deref(), Some("Album/legacy.flac"));
+    assert_eq!(migrated.is_favorite, 1);
+    assert_eq!(repo.playlist_songs(list.id).unwrap().len(), 3);
+    assert_eq!(
+        repo.get_song(other.id.unwrap()).unwrap(),
+        Some(other.clone())
+    );
+    assert!(
+        repo.delete_source_with_locations(&original, &locations)
+            .is_err()
+    );
+    repo.delete_source_with_locations(&saved, &locations)
+        .unwrap();
+    assert!(repo.source(id).unwrap().is_none());
+    assert!(repo.get_song(legacy.id.unwrap()).unwrap().is_none());
+    assert!(repo.get_song(linked.id.unwrap()).unwrap().is_none());
+    assert_eq!(
+        repo.playlist_songs(list.id).unwrap().as_slice(),
+        std::slice::from_ref(&other)
+    );
+    assert_eq!(repo.search_songs("Track", 10, 0).unwrap(), [other]);
+    assert!(
+        repo.delete_source_with_locations(&saved, &locations)
+            .is_err()
+    );
+}
+
+#[test]
 fn source_batches_roll_back_all_metadata_and_search_rows_on_failure() {
     let mut repo = LibraryRepository::open(":memory:").unwrap();
     let saved = source(&repo, 1, "/source");

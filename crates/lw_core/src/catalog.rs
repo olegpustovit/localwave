@@ -322,14 +322,22 @@ impl LibraryRepository {
 
     pub fn delete_source(&mut self, id: i64) -> Result<()> {
         self.song_fts.invalidate();
+        self.db.transaction(|db| delete_source_rows(db, id))
+    }
+
+    /// Migrate legacy identities and remove only the source version inspected by the worker.
+    pub fn delete_source_with_locations(
+        &mut self,
+        expected: &Source,
+        locations: &[(i64, String)],
+    ) -> Result<()> {
+        let id = required(expected.id)?;
+        let hashes = legacy_locations(locations)?;
+        self.song_fts.invalidate();
         self.db.transaction(|db| {
-            db.execute("DELETE FROM playlist_songs WHERE songId IN (SELECT id FROM songs WHERE sourceId=?)", &[Integer(id)])?;
-            db.execute("DELETE FROM songs_fts WHERE songId IN (SELECT id FROM songs WHERE sourceId=?)", &[Integer(id)])?;
-            db.execute("DELETE FROM songs WHERE sourceId=?", &[Integer(id)])?;
-            db.execute("DELETE FROM source_paths_fts WHERE sourceId=?", &[Integer(id)])?;
-            db.execute("DELETE FROM source_paths WHERE sourceId=?", &[Integer(id)])?;
-            db.execute("DELETE FROM sources WHERE id=?", &[Integer(id)])?;
-            Ok(())
+            require_source_version(db, expected)?;
+            migrate_locations(db, id, &hashes)?;
+            delete_source_rows(db, id)
         })
     }
 
@@ -350,27 +358,13 @@ impl LibraryRepository {
         {
             return Err(Error::invalid("Invalid resolved music source"));
         }
-        let mut hashes = HashMap::with_capacity(locations.len());
-        for (hash, path) in locations {
-            if !crate::models::valid_relative_path(path)
-                || hashes
-                    .insert(hash, path)
-                    .is_some_and(|previous| previous != path)
-            {
-                return Err(Error::invalid("Ambiguous or invalid legacy song location"));
-            }
-        }
+        let hashes = legacy_locations(locations)?;
         self.db.transaction(|db| {
-            let current = required(source(db, id)?)?;
-            if current.dir_path != expected.dir_path || current.path_id != expected.path_id || current.bookmark != expected.bookmark || current.updated_at != expected.updated_at {
-                return Err(Error::invalid("This music source changed while resolving access; try again"));
-            }
-            for (hash, path) in hashes {
-                db.execute("UPDATE songs SET sourceId=?,relativePath=? WHERE sourceId IS NULL AND pathHash=?", &[Integer(id), Text(path), Integer(*hash)])?;
-            }
+            let current = require_source_version(db, expected)?;
+            migrate_locations(db, id, &hashes)?;
             let moved = current.dir_path != resolved.dir_path || current.path_id != resolved.path_id;
-            let stamp = if moved { Some(now.max(current.updated_at.unwrap_or(current.created_at) + 0.001)) } else { current.updated_at };
-            db.execute("UPDATE sources SET dirPath=?,pathId=?,bookmark=?,updatedAt=strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch') WHERE id=?", &[Text(&resolved.dir_path), Integer(resolved.path_id), Blob(bookmark), stamp.map_or(Null, Real), Integer(id)])?;
+            let stamp = if moved || current.updated_at != resolved.updated_at { Some(now.max(current.updated_at.unwrap_or(current.created_at) + 0.001)) } else { current.updated_at };
+            db.execute("UPDATE sources SET dirPath=?,pathId=?,bookmark=?,syncError=?,updatedAt=strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch') WHERE id=?", &[Text(&resolved.dir_path), Integer(resolved.path_id), Blob(bookmark), resolved.sync_error.as_deref().map_or(Null, Text), stamp.map_or(Null, Real), Integer(id)])?;
             required(source(db, id)?)
         })
     }
@@ -692,6 +686,65 @@ fn select_source(db: &Connection, user_id: i64, id: i64) -> Result<Source> {
     )?;
     db.execute("UPDATE sources SET isCurrent=1 WHERE id=?", &[Integer(id)])?;
     required(source(db, id)?)
+}
+
+fn delete_source_rows(db: &Connection, id: i64) -> Result<()> {
+    db.execute(
+        "DELETE FROM playlist_songs WHERE songId IN (SELECT id FROM songs WHERE sourceId=?)",
+        &[Integer(id)],
+    )?;
+    db.execute(
+        "DELETE FROM songs_fts WHERE songId IN (SELECT id FROM songs WHERE sourceId=?)",
+        &[Integer(id)],
+    )?;
+    db.execute("DELETE FROM songs WHERE sourceId=?", &[Integer(id)])?;
+    db.execute(
+        "DELETE FROM source_paths_fts WHERE sourceId=?",
+        &[Integer(id)],
+    )?;
+    db.execute("DELETE FROM source_paths WHERE sourceId=?", &[Integer(id)])?;
+    db.execute("DELETE FROM sources WHERE id=?", &[Integer(id)])?;
+    Ok(())
+}
+
+fn require_source_version(db: &Connection, expected: &Source) -> Result<Source> {
+    let current = required(source(db, required(expected.id)?)?)?;
+    if current.user_id != expected.user_id
+        || current.dir_path != expected.dir_path
+        || current.path_id != expected.path_id
+        || current.bookmark != expected.bookmark
+        || current.updated_at != expected.updated_at
+        || current.sync_error != expected.sync_error
+    {
+        return Err(Error::invalid(
+            "This music source changed. Reload folders and try again.",
+        ));
+    }
+    Ok(current)
+}
+
+fn legacy_locations(locations: &[(i64, String)]) -> Result<HashMap<i64, &str>> {
+    let mut hashes = HashMap::with_capacity(locations.len());
+    for (hash, path) in locations {
+        if !crate::models::valid_relative_path(path)
+            || hashes
+                .insert(*hash, path.as_str())
+                .is_some_and(|previous| previous != path)
+        {
+            return Err(Error::invalid("Ambiguous or invalid legacy song location"));
+        }
+    }
+    Ok(hashes)
+}
+
+fn migrate_locations(db: &Connection, id: i64, hashes: &HashMap<i64, &str>) -> Result<()> {
+    for (hash, path) in hashes {
+        db.execute(
+            "UPDATE songs SET sourceId=?,relativePath=? WHERE sourceId IS NULL AND pathHash=?",
+            &[Integer(id), Text(path), Integer(*hash)],
+        )?;
+    }
+    Ok(())
 }
 
 fn source(db: &Connection, id: i64) -> Result<Option<Source>> {
