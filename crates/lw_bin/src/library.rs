@@ -15,6 +15,8 @@ mod files;
 mod find;
 mod playback;
 mod preferences;
+mod sources;
+pub use sources::SourceAccount;
 mod waveform;
 pub use cache::CopySummary;
 pub use playback::PreparedPlayback;

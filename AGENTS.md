@@ -221,3 +221,11 @@ menu presses, narrow wrapped paragraphs, keyboard activation and warm cache-limi
 `make performance` also runs Settings with 45 real input actions and all eight themes, with the same
 182 frames / 82 warm-up / 100 measured frames and strict allocation/wall-time limits. Rescan all
 sources remains with Files/source integration; do not expose a disconnected action.
+
+Files source ownership uses the Swift secure-keyed-archive/base64 iCloud identity and the shared
+masked FNV hash; only an absent native identity maps to account -1. Archive/read errors must remain
+errors, never silently switch accounts. Read identity only on the library worker. Scope source
+listing and current selection to that user; revalidate the expected account before selection and
+let the repository transaction reject foreign sources. Preserve the Swift-generated fixture,
+signed-out/resumed account selection and stale/foreign rejection checks. Files UI/pickers/rescan
+and real account/provider transitions remain unqualified.

@@ -23,6 +23,9 @@ pub mod scan;
 pub mod preferences;
 
 #[cfg(target_os = "macos")]
+pub mod cloud;
+
+#[cfg(target_os = "macos")]
 pub mod history;
 
 #[cfg(target_os = "macos")]

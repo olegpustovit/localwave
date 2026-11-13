@@ -10,6 +10,10 @@ mod harness;
 
 fn release_keepalive() {} // This target creates no shared GPU device.
 
+fn cloud_identity_reads_reject_the_initial_thread() {
+    assert!(lw_apple_sys::cloud::current_identity().is_err());
+}
+
 fn media_commands_wait_for_controller_capacity_without_losing_accepted_events() {
     use lw_apple_sys::preferences::{AppPaths, Preferences};
     use lw_bin::{
@@ -546,6 +550,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "cloud_identity_reads_reject_the_initial_thread",
+            cloud_identity_reads_reject_the_initial_thread,
+        ),
         (
             "media_commands_wait_for_controller_capacity_without_losing_accepted_events",
             media_commands_wait_for_controller_capacity_without_losing_accepted_events,

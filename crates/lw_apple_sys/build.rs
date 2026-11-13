@@ -6,6 +6,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/audio.m");
     println!("cargo:rerun-if-changed=src/scan.m");
     println!("cargo:rerun-if-changed=src/preferences.m");
+    println!("cargo:rerun-if-changed=src/cloud.m");
     println!("cargo:rerun-if-changed=src/artwork.m");
     println!("cargo:rerun-if-changed=src/copy.m");
     println!("cargo:rerun-if-changed=src/profile.m");
@@ -27,6 +28,7 @@ fn main() {
             .file("src/audio.m")
             .file("src/scan.m")
             .file("src/preferences.m")
+            .file("src/cloud.m")
             .file("src/artwork.m")
             .file("src/copy.m")
             .file("src/profile.m")
