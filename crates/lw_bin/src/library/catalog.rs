@@ -4,7 +4,6 @@ use lw_core::{LibraryRepository, context::PlaybackContext};
 use lw_ui::browse::{Request, Scope, Sort};
 use lw_ui::catalog::Catalog;
 use std::cmp::Ordering;
-use std::collections::HashSet;
 use std::io;
 
 fn load(repository: &LibraryRepository, count: usize) -> lw_apple_sys::sqlite::Result<Catalog> {
@@ -89,7 +88,11 @@ impl LibraryWorker {
         current: Option<&Catalog>,
         request: Option<Request>,
     ) -> io::Result<Catalog> {
-        let (mut catalog, mut rows) = self
+        let find = request
+            .filter(|request| request.scope == Scope::Find)
+            .map(|request| super::find::Find::new(self, request.query.as_str()))
+            .transpose()?;
+        let (mut catalog, mut rows, candidates) = self
             .repository
             .read_snapshot(|repository| {
                 // Establish the SQLite read snapshot before stamping or reusing library data.
@@ -102,32 +105,23 @@ impl LibraryWorker {
                     };
                 catalog.source_version = Some(version);
                 catalog.view = None;
+                let mut candidates = None;
                 let rows = match request.map(|request| request.scope) {
                     Some(Scope::Find) => {
-                        let matching: HashSet<_> = repository
-                            .matching_song_ids(request.unwrap().query.as_str())?
-                            .into_iter()
-                            .collect();
-                        Some(
-                            catalog
-                                .all
-                                .as_ref()
-                                .unwrap()
-                                .rows
-                                .iter()
-                                .copied()
-                                .filter(|index| matching.contains(&catalog.row(*index).id))
-                                .collect::<Vec<_>>(),
-                        )
+                        candidates = Some(find.as_ref().unwrap().prepare(repository, &catalog)?);
+                        None
                     }
                     Some(Scope::Collection(key)) => {
                         catalog.base_collection(key).map(|group| group.rows.clone())
                     }
-                    None => None,
+                    Some(Scope::Overview) | None => None,
                 };
-                Ok((catalog, rows))
+                Ok((catalog, rows, candidates))
             })
             .map_err(io::Error::other)?;
+        if let (Some(find), Some(candidates)) = (find, candidates) {
+            rows = Some(find.finish(self, &catalog, candidates));
+        }
         if let (Some(request), Some(rows)) = (request, rows.as_mut())
             && (request.scope == Scope::Find || request.sort != Sort::Original)
         {

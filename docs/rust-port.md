@@ -36,7 +36,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P1: core | Song model and raw states, masked UTF-8 FNV identity, Swift-compatible scalar lowercase, complete song hydration, additive song migrations, transactional song upsert and FTS updates, BM25 prefix search, Favorites, guarded cache updates, native FLAC comments/pictures, occurrence-based queue/reorder/shuffle/repeat/Clear/Undo and two-item prequeue selection. User/source/path/playlist repositories, transactional metadata/FTS removal, guarded bookmark/root replacement and source selection, SQLite.swift-compatible UTC text dates, indexed path rescans, album grouping without correlated rescans, and duplicate-preserving bulk reads without redundant Song copies. System SQLite through safe FFI. Indexed recursive import selection, transactional song/FTS/digest commits, pure import policy with progress/cancellation, cloud placeholders, verified-cache enrichment/invalidation, unchanged-file skipping and Unicode track-prefix cleanup. Thread-confined application scan/import service, generated-path exclusions, native bookmark/pin/cache-proof preferences, atomic scan publication and legacy-song relocation. LRU cache policy and a serialized application copy/eviction service with native coordinated copies and pin/playback protection. Native queue/volume/settings persistence, typed Swift-compatible playback contexts, duplicate-aware queue restoration, isolated UI-test suites and validated waveform JSON/SQLite storage. The application waveform service uses coordinated PCM extraction and Swift-compatible source signatures. | Library/import/catalog UI command integration, source observation; port coverage from all 18 SwiftPM test files. Fixture exchange does not qualify a full user library. |
 | P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. | Guarded playback-failure database updates and complete library/UI integration, Now Playing/media keys, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
-| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed song-text Find and Title/Artist/Album/Time sorting share immutable labels. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. | Artwork and waveform UI delivery, Find filter tokens and album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, full queue and presenters, shortcuts, drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
+| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. | Artwork and waveform UI delivery, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, full queue and presenters, shortcuts, drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | No changes. | Static SDL device/simulator spike, Metal/host/touch port, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
@@ -669,3 +669,117 @@ Logs: `/tmp/localwave-rust-browse-{root-matrix,engine-matrix,engine-scaling-alon
 editor-native-pixels,clippy-final,bundle,bundle-check}.log`; focused editor allocation failures are
 retained in `find-ui-compiled`, `editor-public-static` and `editor-regression-counted` logs with the
 same prefix. The normal GUI process remains untouched.
+
+## Find filters and live Unplayed results checkpoint
+
+Find now parses the reference tokens: `cloud`, `offline`, `fav`/`favorites`, `unplayed`, `flac`, `mp3`,
+`m4a`, `wav`, `aiff` and `year:<integer>`. Every token is conjunctive. Only normalized free text goes
+to FTS; its membership still preserves original library order. Free terms also use Apple's localized
+containment across title, artist, album and album artist, including case/diacritic matching. Every
+`year:` word is excluded from FTS; an invalid integer still matches that literal word in metadata,
+as in Swift. Blank Find displays no songs; the pure predicate itself remains unrestricted for a
+blank query, matching the Swift helper contract.
+
+The catalog now retains album artist, release year and whether an extension was present. Metadata
+filters reuse that shared arena and cached playback-history snapshot. File locations are bulk-read
+only for surviving rows that need availability or legacy format inference; source identities come
+from the same read transaction. Resource probes run after the transaction ends, without opening an
+audio stream or requesting downloads. Each source, including a failed lookup, is resolved at most once per request.
+An explicit format precedes relative-path, local-path and bookmark inference; a present empty
+extension/path stops fallback. Current resource metadata, rather than Copied state or persisted
+sourceAvailability, decides Cloud/Offline. Source-relative containment and bookmark lifetimes stay
+validated. Native NSString temporaries are confined to autorelease pools on the worker; this does
+not qualify native process allocation or large provider-library probe latency.
+
+The visible `flac`, `cloud`, `offline`, `year:2019` and `unplayed` chips wrap, expose checked toggle
+semantics and preserve the user's remaining text/case. Removing a chip removes all case-insensitive
+occurrences. Additions use the existing 1,024-byte UTF-8 packet; overflow preserves the accepted query
+and shows the error. Warm activation/query updates allocate no Rust objects. An actual native start
+now rebuilds an active Unplayed projection automatically. Entering Albums/Artists sends an Overview
+packet that clears the old projection, ending that Find subscription.
+
+Qualification:
+
+- All **97 bounded application checks pass** in **10.881 s wall / 8.860 s summed cases**. The native
+  controller case takes **1.741 s**, including a real muted start that removes its song from Unplayed
+  without another browse request, exact first-start/history counts and subsequent queue/retirement
+  checks. The new start changes the later exact history expectations from 3/4/5 to 4/5/6; the initial
+  stale-fixture failure is retained rather than loosening those assertions. The preceding complete
+  passing matrix took **16.021 s**; its results are also retained.
+- The worker regression covers compound text/tokens, album-artist accents, saved history, real cache,
+  source and legacy-bookmark metadata, extension precedence/empty values, missing/inaccessible files,
+  invalid legacy relative paths and unknown availability. Metadata-only queries assert no file
+  hydration. It passes in **0.278 s** after building. Its first fixture incorrectly used the guarded
+  write API for invalid paths; the corrected fixture uses explicit legacy SQL rows while preserving
+  production validation.
+- The two focused Find UI checks pass in **4.616 s wall / 0.087 s cases**, including the existing
+  focused 10,000-row scrolling check and new chip/overflow checks. Chips remain within bounds and
+  disjoint at 960, 650 and 390 points; 390-point wrapping is not iOS qualification. Native localized
+  containment is also checked with composed/decomposed café text. Native bridges remain deferred.
+
+The signed filtered-Find workload now searches `Track m4a year:2019 unplayed`, sorts Title descending
+and requires all 10,000 songs; the isolated seed sets their release year to 2019. Songs and Find keep
+the same 82 warmup/100 measured frames and strict 1,000 µs maximum. Filter parsing, SQLite and file
+work remain outside frame construction. Cold probe latency, real provider downloads/observation,
+other Find result sections, full P4 goldens/shortcuts, native allocations and iOS/distribution gates
+remain unfinished. Swift/iOS suites were not rerun for this Rust-only checkpoint.
+
+Logs use `/tmp/localwave-rust-find-filters-`: `worker` (first fixture failure), `worker-fixed`,
+`parser`, `ui-tests`, `live-history` (old count failure), `live-history-fixed`, `matrix` (old count
+failure), `matrix-final`, `matrix-overview` and `clippy-overview`. The first parser run was **31.333 s**
+including native/test bootstrap (**0.030 s case**); this is not a warm focused-loop timing claim.
+
+### Keyboard-chip allocation correction (PXUI 1.10)
+
+Keyboard activation then found **four Rust allocations per warm Space activation**. PXUI now
+reuses signal accumulator and per-event modifier buffers at their observed peaks, and its existing
+signal ABI encodes borrowed core events into retained chunks. The new Rust `signal_state` method
+returns the same scalars without copying an unused owned key vector. The shell uses it throughout.
+The existing `signal` API still delivers complete ordered key/text/IME events. ABI minor 1.10
+advances for the public Rust addition; no C signature or wire layout changes.
+
+PXUI `a459f01` is published before this app pin. The corrected app chip check passes at zero warm
+Rust allocations (**4.513 s including build / 0.031 s case**), alternating accessibility activation
+and actual Space press/release. Chips expose both checkable and checked states. Core plus native
+render checks pass **235 cases in 13.419 s wall / 12.111 summed cases**. Static wrapper/ABI/type
+checks pass **86 cases in 7.386 s / 2.634 s**; a subsequent static extension verifies UTF-8 text/IME
+encoding (**5.353 s / 0.028 s**). The final dynamic wrapper suite passes **46 cases in 5.461 s /
+1.584 s**, including that text/IME check. Dependency, C header, snapshot and dynamic-export gates
+pass. The full 97-case app run above uses this corrected library. Prior 13.765- and 16.021-second
+passing matrices remain recorded, together with the original four-allocation keyboard failure.
+
+This qualifies numeric keyboard routing and state reads. It does not qualify all owned text/input,
+legacy owned key-vector reads, native process allocations or stable wall latency. The prior
+sub-second edited-core check requirement remains open; the initial multi-crate core/ABI/wrapper
+check here took **2.87 s**, without profile, target-directory, linker or stack changes. Logs use
+`/tmp/localwave-rust-find-filters-signal-` for `check`, `core`, `engine`, `static`, `static-text`,
+`dynamic` and the library builds; `/tmp/localwave-rust-find-filters-keyboard{,-fixed}.log` retains the
+failure and fix. Final app logs are `matrix-signal` and `clippy-signal` with the same base prefix.
+
+### Final signed bundle and performance
+
+The rebuilt PXUI library/app take **29.94/15.32 s**. `make performance` exits successfully: the
+bundle verifier confirms signatures/entitlements, macOS 15 minimums, default stack, embedded
+`@rpath/libpxui.1.dylib` and sole app rpath `@executable_path/../Frameworks`. Smoke records one
+frame/draw then **506.7 ms idle**. Each performance workload draws all **182 frames** and records
+**zero warm Rust allocations** across app plus libpxui:
+
+| Workload | Wall max / p50 / p95 / p99 (µs) | CPU max / p50 / p95 / p99 (µs) |
+| --- | --- | --- |
+| Songs, original order | 162 / 143 / 155 / 160 | 160 / 143 / 155 / 159 |
+| Find, format/year/Unplayed, Title descending | 371 / 140 / 155 / 318 | 276 / 141 / 154 / 266 |
+
+Both pass the unchanged 1,000 µs wall maximum in this run. Earlier 2,185/2,365 µs failures and all
+prior timing evidence remain recorded; this pass does not establish stable latency or prove the
+cause of the difference. Native process allocation, cold provider probing, full P4 and platform
+qualification remain open. Final app Clippy with warnings denied passes in **1.56 s**; formatting
+and whitespace checks pass. No Swift/iOS suites or native process-memory profile were run.
+
+Log: `/tmp/localwave-rust-find-filters-performance-final.log`. The earlier pre-keyboard-correction
+bundle build remains at `/tmp/localwave-rust-find-filters-bundle.log` (**0.45/20.12 s**); it is not
+the final runtime artifact. The normal GUI was preserved; all qualification processes and databases
+are isolated.
+
+A subsequent no-change release library/app build takes **0.14/0.05 s**, reusing the shared target
+and linker configuration (`/tmp/localwave-rust-find-filters-warm-build.log`). This does not establish
+a clean-build or edited-core budget.

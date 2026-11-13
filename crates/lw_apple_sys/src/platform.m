@@ -18,6 +18,13 @@ int32_t lw_collation_compare(void *left, void *right) {
     @autoreleasepool { return (int32_t)[(__bridge NSString *)left localizedStandardCompare:(__bridge NSString *)right]; }
 }
 void lw_collation_release(void *key) { if (key) CFRelease(key); }
+int32_t lw_collation_contains(void *needle, const unsigned char *bytes, size_t len) {
+    if (!needle || (!bytes && len)) return 0;
+    @autoreleasepool {
+        NSString *value = [[NSString alloc] initWithBytes:bytes ?: (const unsigned char *)"" length:len encoding:NSUTF8StringEncoding];
+        return value && [value localizedStandardContainsString:(__bridge NSString *)needle];
+    }
+}
 
 char *lw_normalized_file_url(const char *path) {
     @autoreleasepool {

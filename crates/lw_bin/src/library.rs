@@ -10,6 +10,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 mod cache;
 mod catalog;
 mod files;
+mod find;
 mod playback;
 mod preferences;
 mod waveform;

@@ -277,7 +277,7 @@ fn icon_button(
             ..Node::DEFAULT
         },
     );
-    let signal = ui.signal(&node);
+    let signal = ui.signal_state(&node);
     ui.a11y_name(&node, label);
     let fill = if inverse {
         p.ink
@@ -533,7 +533,7 @@ mod button_tests {
             (ui.rect(&surface).w - original.w * 0.96).abs() < 0.001,
             "reduced motion: surface {:?}, button held {}",
             ui.rect(&surface),
-            ui.signal(&button).held
+            ui.signal_state(&button).held
         );
         ui.frame(
             &input(7.01, &[pointer(input::wire::POINTER_RELEASED)]),
@@ -664,7 +664,7 @@ fn side_row(
             ..Node::DEFAULT
         },
     );
-    let signal = ui.signal(&node);
+    let signal = ui.signal_state(&node);
     ui.set_look(
         &node,
         Look {
@@ -902,18 +902,17 @@ fn content(
                     });
                 },
             );
+            find_tokens(ui, state, (width - 56.0).max(1.0), p, intent);
         }
         text(
             ui,
             "subtitle",
             if state.query_too_long && state.route == Route::Find {
                 "Search text is too long. Shorten it."
+            } else if state.route == Route::Find && state.query.as_str().trim().is_empty() {
+                "Search titles, artists, albums or add a filter"
             } else if state.route == Route::Find && collection.is_none() {
-                if state.query.as_str().trim().is_empty() {
-                    "Search song titles, artists and albums"
-                } else {
-                    "Searching…"
-                }
+                "Searching…"
             } else {
                 collection.map_or("Browse your library", |group| group.subtitle.as_str())
             },
@@ -954,7 +953,7 @@ fn content(
                         },
                     );
                     ui.a11y_name(&node, &group.title);
-                    let signal = ui.signal(&node);
+                    let signal = ui.signal_state(&node);
                     ui.set_look(
                         &node,
                         Look {
@@ -1104,7 +1103,7 @@ fn content(
                         },
                     };
                     ui.a11y_name(&heading, action);
-                    if ui.signal(&heading).clicked {
+                    if ui.signal_state(&heading).clicked {
                         *intent = Some(Intent::Sort(column));
                     }
                 }
@@ -1146,7 +1145,7 @@ fn content(
                                 ..Node::DEFAULT
                             },
                         );
-                        let signal = ui.signal(&node);
+                        let signal = ui.signal_state(&node);
                         ui.a11y_name(&node, row.title);
                         ui.set_look(
                             &node,
@@ -1227,6 +1226,100 @@ fn content(
             });
         }
     });
+}
+
+fn find_tokens(
+    ui: &mut Ui,
+    state: &ShellState,
+    width: f32,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
+    const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
+    let widths = TOKENS.map(|token| (ui.text_width(Some(13), token) + 24.0).min(width));
+    let positions = {
+        let (mut x, mut y) = (0.0, 0.0);
+        widths.map(|w| {
+            if x > 0.0 && x + w > width {
+                x = 0.0;
+                y += 38.0;
+            }
+            let at = (x, y);
+            x += w + 6.0;
+            at
+        })
+    };
+    let mut revision = DefaultHasher::new();
+    (state.query_revision, width.to_bits()).hash(&mut revision);
+    ui.view(
+        "find-tokens",
+        revision.finish(),
+        Size::Grow,
+        Size::Px(positions[4].1 + 44.0),
+        &mut |ui| {
+            for (index, token) in TOKENS.into_iter().enumerate() {
+                let selected = state.query.has_token(token);
+                let chip = ui.node(
+                    token,
+                    Node {
+                        flags: CLICKABLE | TAB_STOP | CLIP,
+                        role: Role::Toggle,
+                        w: Size::Px(widths[index]),
+                        h: Size::Px(32.0),
+                        at: Some(positions[index]).into(),
+                        look: Look {
+                            fill: if selected { p.ink } else { p.panel },
+                            ..Look::NONE
+                        },
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.set_role(
+                    &chip,
+                    Role::Toggle,
+                    pxui::a11y::state::CHECKABLE
+                        | if selected {
+                            pxui::a11y::state::CHECKED
+                        } else {
+                            0
+                        },
+                );
+                ui.a11y_name(&chip, token);
+                ui.within(&chip, &mut |ui| {
+                    let label = ui.node(
+                        "label",
+                        Node {
+                            flags: FIT_TEXT,
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            inset: Edges {
+                                l: 12.0,
+                                ..Edges::ZERO
+                            },
+                            look: Look {
+                                text: if selected { p.paper } else { p.secondary },
+                                font: Font {
+                                    size: 13,
+                                    ..Font::BODY
+                                },
+                                ..Look::NONE
+                            },
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.text(&label, token);
+                });
+                if ui.signal_state(&chip).clicked {
+                    *intent = Some(
+                        state
+                            .query
+                            .toggle_token(token)
+                            .map_or(Intent::SearchTooLong, Intent::Search),
+                    );
+                }
+            }
+        },
+    );
 }
 
 fn now_panel(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Option<Intent>) {
@@ -1558,7 +1651,7 @@ fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
                 p.ink,
             );
         });
-        let signal = ui.signal(&scrubber);
+        let signal = ui.signal_state(&scrubber);
         let rect = ui.rect(&scrubber);
         if (signal.clicked || signal.dragging) && rect.w > 0.0 {
             *intent = Some(Intent::SeekFraction(
@@ -1627,7 +1720,7 @@ fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
                 p.ink,
             );
         });
-        let signal = ui.signal(&volume);
+        let signal = ui.signal_state(&volume);
         let rect = ui.rect(&volume);
         if (signal.clicked || signal.dragging) && rect.w > 0.0 {
             *intent = Some(Intent::Volume(

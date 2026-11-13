@@ -10,6 +10,7 @@ pub mod models;
 pub mod playback;
 pub mod player;
 pub mod preferences;
+pub mod query;
 pub mod queue;
 pub mod repository;
 pub mod waveform;

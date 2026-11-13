@@ -771,7 +771,14 @@ impl Worker {
                 .flatten()
                 .filter(|event| event.kind == Kind::Started)
             {
-                self.library.record_playback_start(event.token(), now())?;
+                if self.library.record_playback_start(event.token(), now())?
+                    && self.browse.is_some_and(|request| {
+                        request.scope == lw_ui::browse::Scope::Find
+                            && request.query.has_token("unplayed")
+                    })
+                {
+                    self.browse_dirty = true;
+                }
             }
             if dirty {
                 self.observe(snapshot);

@@ -5,6 +5,7 @@
 void *lw_collation_create(const unsigned char *bytes, size_t len);
 int32_t lw_collation_compare(void *left, void *right);
 void lw_collation_release(void *key);
+int32_t lw_collation_contains(void *needle, const unsigned char *bytes, size_t len);
 typedef struct { uint32_t appearance, reduced_motion; } LWEnvironmentState;
 void *lw_environment_create(void (*wake)(void));
 void lw_environment_read(void *environment, LWEnvironmentState *state);

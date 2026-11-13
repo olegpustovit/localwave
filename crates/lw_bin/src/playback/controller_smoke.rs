@@ -206,6 +206,46 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         return Err(error("Worker catalog snapshot was not delivered"));
     }
     let database = base.join("library.sqlite");
+    // A real start must remove the song from an active Unplayed result without another browse request.
+    let unplayed = lw_ui::browse::Request {
+        query: lw_ui::browse::Query::new("Controller unplayed").unwrap(),
+        ..request
+    };
+    player.browse(unplayed)?;
+    until(&mut player, deadline, &mut |player| {
+        player
+            .catalog()
+            .view
+            .as_ref()
+            .is_some_and(|view| view.request == unplayed && view.collection.ids.as_ref() == [good])
+    })?;
+    player.command(Command::Volume(0.0))?;
+    player.command(Command::Play)?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().phase == Phase::Playing
+            && player
+                .catalog()
+                .view
+                .as_ref()
+                .is_some_and(|view| view.request == unplayed && view.collection.ids.is_empty())
+    })?;
+    player.command(Command::Stop)?;
+    until(&mut player, deadline, &mut |player| {
+        player.native_snapshot().token == 0
+    })?;
+    if Preferences::open(Some(&suite))?.history().get(good).plays != 1 {
+        return Err(error(
+            "Unplayed qualification must count exactly one actual start",
+        ));
+    }
+    let overview = player.browse(lw_ui::browse::Request {
+        scope: lw_ui::browse::Scope::Overview,
+        query: lw_ui::browse::Query::default(),
+        ..request
+    })?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= overview && player.catalog().view.is_none()
+    })?;
     std::thread::spawn(move || -> io::Result<()> {
         let mut repository = lw_core::LibraryRepository::open(database.to_str().unwrap())
             .map_err(io::Error::other)?;
@@ -410,9 +450,9 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         ));
     }
     let history = prefs.history().get(good);
-    if history.plays != 3 {
+    if history.plays != 4 {
         return Err(error(&format!(
-            "Controller counted {} starts instead of three",
+            "Controller counted {} starts instead of four",
             history.plays
         )));
     }
@@ -472,7 +512,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         player.status().phase == Phase::Failed && player.native_snapshot().token == 0
     })?;
     drop(blocked);
-    if prefs.history().get(good).plays != 4 {
+    if prefs.history().get(good).plays != 5 {
         return Err(error("Failure shutdown counted an extra playback start"));
     }
     if prefs.cache_protection().owner_protected(good) {
@@ -500,7 +540,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             && player.native_snapshot().rate == 0.0
     })?;
     drop(ended);
-    if prefs.history().get(good).plays != 5 {
+    if prefs.history().get(good).plays != 6 {
         return Err(error(
             "Natural completion did not preserve the final playback start",
         ));
@@ -516,7 +556,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         return Err(error("A failed library accepted a playback command"));
     }
     println!(
-        "controller_smoke=ok restored_paused=true skipped_missing=true preserved_prequeue=true continuous_controls_prepare=true history_plays=5 natural_end_paused=true rapid_next_ordered=true stop_priority=true stale_stop_rejected=true bounded_commands=32 failure_stop_ack=true warm_poll_allocations=0"
+        "controller_smoke=ok restored_paused=true skipped_missing=true preserved_prequeue=true continuous_controls_prepare=true history_plays=6 live_unplayed=true natural_end_paused=true rapid_next_ordered=true stop_priority=true stale_stop_rejected=true bounded_commands=32 failure_stop_ack=true warm_poll_allocations=0"
     );
     Ok(())
 }

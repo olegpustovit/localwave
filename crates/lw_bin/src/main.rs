@@ -141,7 +141,9 @@ fn run() -> Result<(), String> {
             catalog::Route,
         };
         shell_state.apply(Intent::Navigate(Route::Find));
-        shell_state.apply(Intent::Search(Query::new("Track").unwrap()));
+        shell_state.apply(Intent::Search(
+            Query::new("Track m4a year:2019 unplayed").unwrap(),
+        ));
         shell_state.apply(Intent::Sort(Sort::Title));
         shell_state.apply(Intent::Sort(Sort::Title));
         let request = shell_state.request(player.catalog()).unwrap();
@@ -405,7 +407,7 @@ fn run() -> Result<(), String> {
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
                 if performance_find {
-                    "find-title-descending"
+                    "find-filters-title-descending"
                 } else {
                     "songs-original"
                 }

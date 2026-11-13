@@ -105,5 +105,28 @@ read snapshot before reading data_version; refresh after same-connection edits e
 hide results for an older query, retain editor focus through worker replies and reset result scrolling
 for a new query. Query packets hold 1,024 UTF-8 bytes; reject oversized edits visibly without truncation.
 The focused scroll regression includes app and dylib Rust allocations. `make performance` runs both
-Songs and prepared Find/title-descending workloads even if one fails. Native memory, filter tokens,
-other Find result sections and the full reference UI remain unqualified.
+Songs and prepared filtered-Find/title-descending workloads even if one fails. Native memory, provider
+qualification, other Find result sections and the full reference UI remain unqualified.
+
+Find tokens live in `lw_core::query::SongQuery`; only its text goes to FTS. All free words also use
+native localized containment across title/artist/album/album artist. Preserve invalid year: handling,
+conjunctive token semantics and legacy format precedence (present extension, relative path, local
+path, bookmark; a present empty value stops fallback). Album artist/year/format presence stay in the
+shared catalog; hydrate file facts only for survivors that need legacy inference or availability.
+Read song/source facts in one snapshot, then probe resource metadata after ending that transaction.
+Cache each source grant or failure once per request. Copied state and stored sourceAvailability are
+not proof of current availability; probes must not read audio or request downloads. Preserve path
+containment, balanced grants and the isolated resource regression. Provider/device tests remain open.
+
+Filter chips use bounded UTF-8 packets, keep user text casing and reject an overflowing addition
+without losing the accepted query. Keep their wrapping, checked semantics and warm allocation test.
+A successful actual playback start invalidates active Unplayed results; do not poll defaults in a
+frame. Overview browse packets clear stale Find projections when navigating to Albums or Artists.
+The signed Find workload uses `Track m4a year:2019 unplayed`, with all 10,000 fixture songs dated 2019;
+it must still match 10,000 rows and obey the unchanged warm allocation and wall-time gates.
+
+The shell reads `Ui::signal_state` (ABI 1.10) because it consumes no owned key vectors. Preserve the
+keyboard-chip warm regression, including Space press/release with modifiers. PXUI retains routed
+signal/modifier storage and encodes borrowed events into its existing ABI chunks; `signal` must
+still return every ordered key/text/IME event. Owned key-vector reads and text payloads remain
+separate allocation paths. No input event may be dropped to meet the numeric allocation gate.

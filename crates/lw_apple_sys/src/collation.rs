@@ -10,6 +10,7 @@ unsafe extern "C" {
     fn lw_collation_create(bytes: *const u8, len: usize) -> *mut c_void;
     fn lw_collation_compare(left: *mut c_void, right: *mut c_void) -> i32;
     fn lw_collation_release(key: *mut c_void);
+    fn lw_collation_contains(needle: *mut c_void, bytes: *const u8, len: usize) -> i32;
 }
 
 pub struct Key {
@@ -29,6 +30,9 @@ impl Key {
     pub fn compare(&self, other: &Self) -> Ordering {
         unsafe { lw_collation_compare(self.raw.as_ptr(), other.raw.as_ptr()) }.cmp(&0)
     }
+    pub fn contained_in(&self, value: &str) -> bool {
+        unsafe { lw_collation_contains(self.raw.as_ptr(), value.as_ptr(), value.len()) != 0 }
+    }
 }
 impl Drop for Key {
     fn drop(&mut self) {
@@ -46,10 +50,15 @@ mod tests {
         let empty = Key::new("").unwrap();
         assert_eq!(two.compare(&ten), Ordering::Less);
         assert_eq!(empty.compare(&two), Ordering::Less);
+        let cafe = Key::new("cafe").unwrap();
+        assert!(cafe.contained_in("CAFÉ del Mar"));
+        assert!(cafe.contained_in("Cafe\u{301}"));
+        assert!(!cafe.contained_in("Tea"));
         mem_sys::local_reset();
         for _ in 0..100 {
             assert_eq!(two.compare(&ten), Ordering::Less);
             assert_eq!(ten.compare(&two), Ordering::Greater);
+            assert!(cafe.contained_in("CAFÉ del Mar"));
         }
         assert_eq!(mem_sys::local_alloc_count(), 0);
     }

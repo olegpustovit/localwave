@@ -24,9 +24,12 @@ pub struct Row<'a> {
     pub title: &'a str,
     pub artist: &'a str,
     pub album: &'a str,
+    pub album_artist: &'a str,
     pub format: &'a str,
     pub duration: &'a str,
     pub seconds: Option<f64>,
+    pub release_year: Option<i64>,
+    pub has_format: bool,
     pub favorite: bool,
     pub state: FileState,
 }
@@ -34,10 +37,12 @@ pub struct Row<'a> {
 #[derive(Clone)]
 struct StoredRow {
     id: i64,
-    labels: [Range<usize>; 5],
+    labels: [Range<usize>; 6],
     favorite: bool,
     state: FileState,
     seconds: Option<f64>,
+    release_year: Option<i64>,
+    has_format: bool,
 }
 
 #[derive(Clone)]
@@ -77,6 +82,7 @@ impl Library {
                         song.title.len()
                             + song.artist.len()
                             + song.album.len()
+                            + song.album_artist.len()
                             + song.file_extension.as_ref().map_or(0, String::len)
                             + 32
                     })
@@ -103,12 +109,21 @@ impl Library {
                 .duration
                 .filter(|value| value.is_finite() && *value >= 0.0);
             let seconds = seconds_value.map(|value| value as u64);
+            let has_format = song.file_extension.is_some();
             let format = song.file_extension.unwrap_or_default().to_ascii_uppercase();
             let duration = seconds.map_or_else(
                 || "—".into(),
                 |seconds| format!("{}:{:02}", seconds / 60, seconds % 60),
             );
-            let labels = [&song.title, &song.artist, &song.album, &format, &duration].map(|text| {
+            let labels = [
+                &song.title,
+                &song.artist,
+                &song.album,
+                &format,
+                &duration,
+                &song.album_artist,
+            ]
+            .map(|text| {
                 let start = out.labels.len();
                 out.labels.push_str(text);
                 start..out.labels.len()
@@ -123,6 +138,8 @@ impl Library {
                 favorite: song.is_favorite != 0,
                 state: song.file_state,
                 seconds: seconds_value,
+                release_year: song.release_year,
+                has_format,
             });
         }
         out.by_id = out
@@ -200,7 +217,7 @@ impl Library {
     }
     pub fn row(&self, index: usize) -> Row<'_> {
         let row = &self.rows[index];
-        let [title, artist, album, format, duration] = row
+        let [title, artist, album, format, duration, album_artist] = row
             .labels
             .each_ref()
             .map(|range| &self.labels[range.clone()]);
@@ -209,11 +226,14 @@ impl Library {
             title,
             artist,
             album,
+            album_artist,
             format,
             duration,
             favorite: row.favorite,
             state: row.state,
             seconds: row.seconds,
+            release_year: row.release_year,
+            has_format: row.has_format,
         }
     }
     pub fn add_collection(&mut self, name: &str, rows: Vec<usize>, context: PlaybackContext) {
@@ -295,6 +315,8 @@ impl Catalog {
     pub fn scope(&self, route: Route) -> Option<crate::browse::Scope> {
         if route == Route::Find {
             Some(crate::browse::Scope::Find)
+        } else if matches!(route, Route::Albums | Route::Artists) {
+            Some(crate::browse::Scope::Overview)
         } else {
             self.library
                 .collection(route)
@@ -314,6 +336,10 @@ impl Catalog {
     }
     pub fn project(&mut self, request: crate::browse::Request, rows: Vec<usize>) {
         let collection = match request.scope {
+            crate::browse::Scope::Overview => {
+                self.view = None;
+                return;
+            }
             crate::browse::Scope::Find => self.library.make_collection(
                 "Songs",
                 "Find results",

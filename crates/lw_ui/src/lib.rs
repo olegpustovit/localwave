@@ -57,6 +57,182 @@ mod tests {
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
 
     #[test]
+    fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_queries() {
+        use browse::Query;
+        use catalog::{Catalog, Route};
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = Catalog::new(Vec::new());
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(Route::Find));
+        state.apply(Intent::Search(Query::new("CAFÉ").unwrap()));
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView {
+            initialized: true,
+            ..Default::default()
+        };
+        let mut frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..Default::default()
+        };
+        let mut intent = None;
+        for _ in 0..2 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
+        let keyboard = [
+            pxui::Event {
+                kind: input::wire::KEY_PRESSED,
+                code: input::Key::Space.code(),
+                ..Default::default()
+            },
+            pxui::Event {
+                kind: input::wire::KEY_RELEASED,
+                code: input::Key::Space.code(),
+                ..Default::default()
+            },
+        ];
+        for cycle in 0..24 {
+            let chip = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| {
+                    node.is_role(pxui::ui::Role::Toggle) && ui.a11y_name_of(node) == "flac"
+                })
+                .unwrap();
+            assert_eq!(
+                chip.states & pxui::a11y::state::CHECKED != 0,
+                cycle % 2 == 1
+            );
+            assert_ne!(chip.states & pxui::a11y::state::CHECKABLE, 0);
+            ui.inject_a11y(&[pxui::A11yAction {
+                id: chip.id,
+                action_code: if cycle % 2 == 0 { 1 } else { 2 },
+                ..Default::default()
+            }]);
+            if cycle % 2 == 1 {
+                ui.frame(&frame, &mut |ui| {
+                    shell(ui, &player, &catalog, &state, &mut intent)
+                })
+                .unwrap();
+                assert!(intent.is_none());
+                frame.events = keyboard.as_ptr();
+                frame.event_count = keyboard.len();
+            }
+            mem_sys::local_reset();
+            frame.time += 0.01;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+            let expected = if cycle % 2 == 0 {
+                "CAFÉ flac"
+            } else {
+                "CAFÉ"
+            };
+            assert_eq!(intent, Some(Intent::Search(Query::new(expected).unwrap())));
+            state.apply(intent.take().unwrap());
+            frame.events = std::ptr::null();
+            frame.event_count = 0;
+            frame.time += 0.01;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+            if cycle >= 6 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm filter-chip interaction"
+                );
+            }
+        }
+        for width in [960.0, 650.0, 390.0] {
+            frame.width = width;
+            frame.time += 0.01;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+            let chips: Vec<_> = ui
+                .a11y_nodes()
+                .iter()
+                .filter(|node| {
+                    node.is_role(pxui::ui::Role::Toggle)
+                        && matches!(
+                            ui.a11y_name_of(node),
+                            "flac" | "cloud" | "offline" | "year:2019" | "unplayed"
+                        )
+                })
+                .collect();
+            assert_eq!(chips.len(), 5);
+            for (index, chip) in chips.iter().enumerate() {
+                assert!(
+                    chip.rect.x >= 0.0
+                        && chip.rect.x + chip.rect.w <= width + 0.5
+                        && chip.rect.h == 32.0,
+                    "chip {:?} outside {width}",
+                    chip.rect
+                );
+                for other in &chips[index + 1..] {
+                    assert!(
+                        chip.rect.x + chip.rect.w <= other.rect.x
+                            || other.rect.x + other.rect.w <= chip.rect.x
+                            || chip.rect.y + chip.rect.h <= other.rect.y
+                            || other.rect.y + other.rect.h <= chip.rect.y
+                    );
+                }
+            }
+            if width == 390.0 {
+                assert!(chips[4].rect.y > chips[0].rect.y);
+            }
+        }
+        let maximum = "🎵".repeat(browse::MAX_QUERY_BYTES / 4);
+        state.apply(Intent::Search(Query::new(&maximum).unwrap()));
+        frame.width = 1440.0;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(pxui::ui::Role::Toggle) && ui.a11y_name_of(node) == "flac")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent, Some(Intent::SearchTooLong));
+        state.apply(intent.take().unwrap());
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(state.query.as_str(), maximum);
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Search text is too long. Shorten it.")
+        );
+        state.apply(Intent::Navigate(Route::Albums));
+        assert_eq!(
+            state.request(&catalog).unwrap().scope,
+            browse::Scope::Overview
+        );
+        assert!(state.request(&catalog).unwrap().query.as_str().is_empty());
+    }
+
+    #[test]
     fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         use browse::{Query, Scope, Sort};
         use catalog::{Catalog, Route};
