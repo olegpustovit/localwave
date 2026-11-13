@@ -2,13 +2,12 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "swift-build-tui",
+            "label": "rust-build",
             "type": "shell",
-            "command": "swift",
+            "command": "make",
             "args": [
                 "build",
-                "--product",
-                "localwave-tui"
+                "PROFILE=debug"
             ],
             "group": {
                 "kind": "build",
@@ -18,21 +17,7 @@
                 "reveal": "always",
                 "panel": "shared"
             },
-            "problemMatcher": {
-                "owner": "swift",
-                "fileLocation": [
-                    "relative",
-                    "${workspaceFolder}"
-                ],
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
+            "problemMatcher": "$rustc"
         },
         {
             "label": "swift-build-all",

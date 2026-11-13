@@ -1,0 +1,3 @@
+[submodule "pxui"]
+	path = pxui
+	url = git@github.com:olegpustovit/pxui.git

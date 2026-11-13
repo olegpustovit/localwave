@@ -17,7 +17,7 @@ public enum LocalWaveGeneratedPaths {
         #endif
         var names = ["musicApp\(schemaVersion).sqlite"]
         if let testID = ProcessInfo.processInfo.environment["LOCALWAVE_UI_TEST_ID"], UUID(uuidString: testID) != nil { names.append("uitest-\(testID).sqlite") }
-        for file in names.map({ documents.appendingPathComponent($0) }) + [caches.appendingPathComponent("waveforms.sqlite")] {
+        for file in names.map({ documents.appendingPathComponent($0) }) + [caches.appendingPathComponent("waveforms.sqlite"), caches.appendingPathComponent("LocalWave/waveforms.sqlite")] {
             result.append(contentsOf: [file, URL(fileURLWithPath: file.path + "-wal"), URL(fileURLWithPath: file.path + "-shm")])
         }
         return result

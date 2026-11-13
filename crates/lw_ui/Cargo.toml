@@ -1,0 +1,16 @@
+[package]
+name = "lw_ui"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+input = { path = "../../pxui/crates/open/input" }
+lw_core = { path = "../lw_core" }
+pxui = { path = "../../pxui/crates/public/pxui" }
+
+[dev-dependencies]
+mem_sys = { path = "../../pxui/crates/open/mem_sys" }
+
+[lints]
+workspace = true

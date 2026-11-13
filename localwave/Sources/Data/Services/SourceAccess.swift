@@ -247,7 +247,10 @@ public actor SourceAccess {
         }
         var entries: [String] = []
         for case let file as URL in enumerator {
-            if LocalWaveGeneratedPaths.contains(file, excludedURLs: excludedURLs) { enumerator.skipDescendants(); continue }
+            if LocalWaveGeneratedPaths.contains(file, excludedURLs: excludedURLs) {
+                if (try? file.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true { enumerator.skipDescendants() }
+                continue
+            }
             let values = try file.resourceValues(forKeys: keys)
             let path = FileHelper(fileURL: file).relativePath(from: root) ?? file.path
             if values.isDirectory == true { entries.append(path + "/") }

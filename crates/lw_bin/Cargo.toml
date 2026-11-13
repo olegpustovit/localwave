@@ -1,0 +1,36 @@
+[package]
+name = "lw_bin"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "localwave"
+
+[[bin]]
+name = "localwave"
+path = "src/main.rs"
+
+[[bin]]
+name = "localwave-playback"
+path = "src/playback.rs"
+
+[dependencies]
+lw_ui = { path = "../lw_ui" }
+lw_core = { path = "../lw_core" }
+lw_apple_sys = { path = "../lw_apple_sys", features = ["metal"] }
+mem_sys = { path = "../../pxui/crates/open/mem_sys" }
+pxui = { path = "../../pxui/crates/public/pxui" }
+pxui_sdl = { path = "../../pxui/crates/open/pxui_sdl" }
+input = { path = "../../pxui/crates/open/input" }
+ogpu_core = { path = "../../pxui/crates/open/ogpu_core" }
+ogpu_metal = { path = "../../pxui/crates/open/ogpu_metal" }
+
+[dev-dependencies]
+sdl3_sys = { path = "../../pxui/crates/open/sdl3_sys", features = ["test-util"] }
+
+[[test]]
+name = "window_input"
+path = "tests/window_input.rs"
+harness = false
+
+[lints]
+workspace = true

@@ -9,14 +9,41 @@ permissions:
   contents: read
 
 jobs:
-  shared-and-tui:
+  rust:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install pinned Rust toolchain
+        run: rustup show active-toolchain
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            target
+          key: rust-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml', 'pxui/Cargo.lock', 'packaging/build-sdl-macos.sh') }}
+      - name: Check pinned pxui commit
+        run: tools/check-pxui-remote.sh
+      - name: Check Rust formatting
+        run: cargo fmt -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --check
+      - name: Check Rust core and warm shell allocation contract
+        run: cargo t -p lw_core -p lw_apple_sys -p lw_ui
+      - name: Check Swift and Rust database exchange
+        run: tools/check-database-compatibility.sh
+      - name: Build signed sandboxed Rust bundle
+        run: make bundle
+      - name: Check warmed host input allocation contract
+        run: cargo t -p lw_bin
+      - name: Check Rust lints
+        run: cargo clippy --locked -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --all-targets --features lw_apple_sys/interop-test -- -D warnings
+  shared:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - name: Test shared repositories and FLAC metadata
         run: swift test --parallel
-      - name: Build terminal app
-        run: swift build -c release
   macos:
     runs-on: macos-26
     timeout-minutes: 15

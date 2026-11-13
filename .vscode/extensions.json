@@ -1,6 +1,7 @@
 {
     "recommendations": [
         "sswg.swift-lang",
-        "vadimcn.vscode-lldb"
+        "vadimcn.vscode-lldb",
+        "rust-lang.rust-analyzer"
     ]
 }

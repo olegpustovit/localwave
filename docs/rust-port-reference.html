@@ -1,0 +1,275 @@
+<title>LocalWave Rust Port</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Host+Grotesk:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column on LocalWave's own paper/ink/signal tokens; square corners, 1px rules, mono for data. */
+:root {
+  --paper: #F3F3F3; --panel: #E6E6E6; --ink: #111111; --secondary: #585858; --line: #CFCFCF;
+  --signal: #2340FF; --ok: #007A4E; --warn: #8A5200; --danger: #C01818;
+  --text: "Host Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --paper: #101010; --panel: #1A1A1A; --ink: #EDEDED; --secondary: #9B9B9B; --line: #333333;
+  --signal: #8A95FF; --ok: #35C98F; --warn: #E0A040; --danger: #F26A6A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --paper: #101010; --panel: #1A1A1A; --ink: #EDEDED; --secondary: #9B9B9B; --line: #333333;
+  --signal: #8A95FF; --ok: #35C98F; --warn: #E0A040; --danger: #F26A6A; color-scheme: dark }
+
+body { background: var(--paper); color: var(--ink); font: 15px/1.5 var(--text); }
+.wrap { max-width: 920px; margin: 0 auto; padding-block: 40px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 56px; }
+section { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+h1 { font: 500 40px/1.05 var(--text); letter-spacing: -1.2px; margin: 0; text-wrap: balance; }
+h2 { font: 500 24px/1.2 var(--text); letter-spacing: -0.72px; margin: 0; padding-top: 16px; border-top: 1px solid var(--ink); text-wrap: balance; }
+h3 { font: 500 15px/1.4 var(--text); margin: 8px 0 0; }
+p, ul, ol { margin: 0; max-width: 68ch; }
+ul, ol { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.lede { font-size: 19px; line-height: 1.4; letter-spacing: -0.285px; max-width: 60ch; }
+.meta, .k, code, pre, th, .tag { font-family: var(--mono); }
+.meta { font-size: 12px; color: var(--secondary); }
+code { font-size: 12.5px; background: var(--panel); padding: 1px 4px; }
+pre { font-size: 12px; line-height: 1.55; background: var(--panel); padding: 14px 16px; margin: 0; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+th { text-align: left; font-weight: 400; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary); padding: 6px 12px 6px 0; border-bottom: 1px solid var(--ink); white-space: nowrap; }
+td { padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+td:first-child { font-weight: 500; }
+.tag { display: inline-block; font-size: 11px; letter-spacing: 0.04em; padding: 1px 6px; border: 1px solid currentColor; white-space: nowrap; }
+.fits { color: var(--ok); } .app { color: var(--secondary); } .fix { color: var(--warn); } .new { color: var(--danger); }
+.verdict { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0; border-top: 1px solid var(--ink); border-bottom: 1px solid var(--ink); }
+.verdict div { padding: 14px 16px 14px 0; min-width: 0; }
+.verdict .k { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary); }
+.verdict b { display: block; font: 500 20px/1.25 var(--text); letter-spacing: -0.2px; margin-top: 4px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--secondary); }
+.stack { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+.stack > div { background: var(--paper); padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.stack .n { font: 500 13px var(--mono); min-width: 150px; }
+.stack .d { color: var(--secondary); font-size: 14px; flex: 1 1 280px; min-width: 0; }
+.stack .dy { background: var(--panel); }
+.phase { display: grid; grid-template-columns: 56px 1fr; gap: 4px 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.phase .id { font: 500 13px var(--mono); color: var(--signal); }
+.phase h3 { margin: 0; }
+.phase p, .phase ul { grid-column: 2; font-size: 14px; }
+.gate { color: var(--secondary); }
+.gate b { color: var(--ink); font-weight: 500; }
+a { color: var(--signal); }
+@media (max-width: 520px) { h1 { font-size: 32px; } .phase { grid-template-columns: 1fr; } .phase p, .phase ul { grid-column: 1; } }
+</style>
+
+<div class="wrap">
+
+<header style="display:flex;flex-direction:column;gap:16px">
+  <div class="meta">PLAN · 2026-11-12 · localwave@af73743 · pxui@59d6f45 (dev)</div>
+  <h1>LocalWave Rust Port</h1>
+  <p class="lede">Move LocalWave from SwiftUI to Rust on pxui, with <code>libpxui</code> built from a submodule and bundled inside the app, the same way Rays does it. This page says what fits today, what pxui has to gain first, and the order to do it in.</p>
+  <div class="verdict">
+    <div><span class="k">macOS look and motion</span><b>Reachable 1:1 after 11 pxui fixes</b></div>
+    <div><span class="k">Design fit</span><b>Good. Both are square, hairline, mono-data</b></div>
+    <div><span class="k">pxui on iOS</span><b>Does not exist yet. It is its own project</b></div>
+    <div><span class="k">Zero-alloc frames</span><b>Already a tested pxui contract</b></div>
+  </div>
+  <p>The short answer on theming: tokens, looks, state transitions, shadows, blur and canvas drawing cover most of the app. Theming alone is not enough for 1:1. The gaps are in animation curves, scale animation, text features and accessibility, and each one is a contained pxui change listed below.</p>
+</header>
+
+<section>
+  <h2>How the app is put together</h2>
+  <p>Rust owns every line of logic and UI. Apple frameworks that have no Rust equivalent (AVFoundation, MediaPlayer, security-scoped bookmarks, file coordination, ImageIO, pickers) stay behind one small Objective-C shim crate, the same pattern pxui uses for Metal in <code>metal_sys</code>.</p>
+  <div class="stack">
+    <div><span class="n">lw_bin</span><span class="d">Entry point. Owns the window, the Metal device and the frame loop. Links <code>ogpu_metal</code> and <code>pxui_sdl</code> statically, as Rays does.</span></div>
+    <div><span class="n">lw_ui</span><span class="d">All views: shell, Library, Player, Files, sheet/dialog/menu presenter, command palette, canvas drawings. Talks to pxui through the safe <code>pxui</code> wrapper.</span></div>
+    <div class="dy"><span class="n">libpxui.1.dylib</span><span class="d">Shared library, built from <code>pxui/</code> (submodule) by <code>make lib</code>. Lives in <code>Contents/Frameworks</code>, loaded through <code>@rpath</code>.</span></div>
+    <div><span class="n">lw_core</span><span class="d">Models, queue and shuffle, SQLite repositories and FTS5 search, import, FLAC tag parser, offline cache, preferences. No UI, no Apple calls.</span></div>
+    <div><span class="n">lw_apple_sys</span><span class="d">Objective-C shim with a C header: queue player, audio session, Now Playing and remote commands, bookmarks, file coordinator and presenter, ImageIO thumbnails, tag reading, waveform PCM, pickers, share, appearance and reduce-motion signals.</span></div>
+  </div>
+
+  <h3>Repository layout and build, mirroring <code>../rays</code></h3>
+<pre><code>localwave/
+  pxui/                  git submodule  git@github.com:olegpustovit/pxui.git  (pinned commit)
+  Cargo.toml             workspace: members = ["crates/*"], exclude = ["pxui"]
+  .cargo/config.toml     alias t = pxui/tools/t ; rpath link args (no 256 MB stack wrapper)
+  Makefile               lib -> build -> install
+  crates/lw_core  lw_apple_sys  lw_ui  lw_bin
+  packaging/bundle-macos.sh   bundle-ios.sh   Info.plist   *.entitlements
+  tools/check-pxui-remote.sh  (copied from rays: refuses an unpushed submodule pointer)</code></pre>
+<pre><code>make lib      # cargo build --release --manifest-path pxui/Cargo.toml -p pxui_dylib --target-dir target
+              # ln -sfn libpxui.dylib target/release/libpxui.1.dylib
+make build    # cargo build --release -p lw_bin        (the pxui crate links the dylib found in target/release)
+make install  # packaging/bundle-macos.sh: LocalWave.app/Contents/{MacOS/localwave, Frameworks/libpxui.1.dylib, ...}
+              # install_name_tool rpath -> @executable_path/../Frameworks, sign dylibs first, then the app</code></pre>
+  <p>Three things differ from the Rays script and must be added:</p>
+  <ul>
+    <li><b>Sandbox and entitlements.</b> LocalWave's Mac app is sandboxed (<code>app-sandbox</code>, <code>files.user-selected.read-only</code>, <code>files.bookmarks.app-scope</code>). The bundle script has to sign with <code>--entitlements</code> and embed a provisioning profile for TestFlight. Rays signs for Developer ID only.</li>
+    <li><b>Same bundle id.</b> Keep <code>com.olegpustovit.localwave</code> and the same team, so the container, the database, the preferences and the stored bookmarks carry over without a migration.</li>
+    <li><b>SDL3 inside the bundle.</b> The Rays script already copies non-system dylibs into Frameworks. For a sandboxed store build, link SDL3 statically instead so only <code>libpxui</code> ships as a dylib.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Does pxui cover the current UI?</h2>
+  <div class="legend">
+    <span><span class="tag fits">FITS</span> works today</span>
+    <span><span class="tag app">APP</span> built in app code from pxui primitives</span>
+    <span><span class="tag fix">FIX</span> small pxui change</span>
+    <span><span class="tag new">NEW</span> new pxui subsystem</span>
+  </div>
+  <p>LocalWave already draws almost everything itself: its own sheets, dialogs, menus, swipe actions, toggles, sliders and tab deck, with radius 0 and no gradients, masks or blend modes. That is why the list of fits is long.</p>
+  <div class="scroll"><table>
+    <tr><th>LocalWave needs</th><th>pxui today</th><th>Status</th></tr>
+    <tr><td>12 colour tokens, light and dark, 4 accent choices</td><td>6 base tokens plus per-part looks in a <code>.theme</code> file; animated <code>set_theme</code>; scoped overrides</td><td><span class="tag fits">FITS</span> two theme files, accent patched at run time</td></tr>
+    <tr><td>Host Grotesk and Geist Mono from bundled files</td><td>Fonts load from bytes</td><td><span class="tag fits">FITS</span> check the variable weight axis, else ship static Regular/Medium/SemiBold</td></tr>
+    <tr><td>Square shapes, 1 pt pixel-snapped rules, dashed strokes</td><td>pxui's native design language</td><td><span class="tag fits">FITS</span></td></tr>
+    <tr><td>Soft shadows under dialogs, menus, palette</td><td>Look shadows with blur and spread</td><td><span class="tag fits">FITS</span> replaces the blurred-rectangle trick</td></tr>
+    <tr><td>Bezier easings (out, in, inOut) with fixed durations</td><td><code>Curve::Bezier</code></td><td><span class="tag fits">FITS</span></td></tr>
+    <tr><td>Hover, press and selection fills animating</td><td>Looks interpolate between states with no rebuild</td><td><span class="tag fits">FITS</span></td></tr>
+    <tr><td>Matrix clock, waveform, equalizer, state glyphs, favourite burst, 10 generated cover styles</td><td><code>canvas</code> with rects, lines, arcs, circles, dashes, text; <code>repaint_at</code> scheduling</td><td><span class="tag fits">FITS</span> none need filled paths</td></tr>
+    <tr><td>Song table: virtualized rows, sticky header, jump to any row</td><td><code>list_view</code>, <code>STICKY</code>, fixed row height makes scroll-to arithmetic</td><td><span class="tag fits">FITS</span></td></tr>
+    <tr><td>Album grid, sortable columns, split layout, text fields, context menus, toasts, modals</td><td>All present</td><td><span class="tag fits">FITS</span></td></tr>
+    <tr><td>Drag songs to queue and playlists, drop files on the window</td><td><code>carry</code> / <code>drop_target</code>, <code>FileDropped</code></td><td><span class="tag fits">FITS</span></td></tr>
+    <tr><td>Sheets, dialogs, swipe rows, toggle, segmented control, volume cells, scrubber, nav deck, page push</td><td>No ready widgets, but the Swift versions are hand-built too</td><td><span class="tag app">APP</span> port the existing logic</td></tr>
+    <tr><td>Row entrance stagger, exit after a delay</td><td>No insert/remove transitions</td><td><span class="tag app">APP</span> the Swift code already times these by hand</td></tr>
+    <tr><td>Mini-player artwork morphing into Now artwork</td><td>No shared-element support</td><td><span class="tag app">APP</span> one floating image animated between two measured rects</td></tr>
+    <tr><td>The "spring": a 12-point sampled curve peaking at 1.043, and CSS <code>steps(n)</code></td><td>Only bezier and a critically damped spring, which cannot overshoot</td><td><span class="tag fix">FIX 1</span></td></tr>
+    <tr><td>Scale animation: key press 0.96, dialog 0.94, pop 0.3 to 1, menu scaleY from a corner</td><td><code>animate</code> targets Look, Offset, Opacity only; view scale exists in core but is not in the ABI</td><td><span class="tag fix">FIX 2</span></td></tr>
+    <tr><td>Blurred live backdrop behind the mobile menu, saturation 0.9, paper tint</td><td><code>view_backdrop_blur(sigma)</code>; no saturation; the blur layer may allocate</td><td><span class="tag fix">FIX 3</span> simpler than the Swift snapshot loop</td></tr>
+    <tr><td>Group opacity on overlapping content</td><td>Opacity multiplies each alpha</td><td><span class="tag fix">FIX 4</span> only if goldens show a difference</td></tr>
+    <tr><td>Tabular digits on proportional text</td><td>No OpenType feature field</td><td><span class="tag fix">FIX 5</span></td></tr>
+    <tr><td>Mixed weight and colour in one line; search-match highlight with underline rule</td><td>No inline spans outside the code editor</td><td><span class="tag fix">FIX 6</span></td></tr>
+    <tr><td>Middle truncation for paths</td><td>End ellipsis only</td><td><span class="tag fix">FIX 7</span></td></tr>
+    <tr><td>CJK, Cyrillic, Arabic, emoji in song tags; symbols such as ⌘ ⌥ ⇧</td><td>Fallback only across fonts the app loaded; one glyph atlas page</td><td><span class="tag fix">FIX 8</span> system font fallback and atlas growth</td></tr>
+    <tr><td>Follow system light/dark and reduce-motion</td><td>Tokens exist, no OS query</td><td><span class="tag fix">FIX 9</span> host feeds them in</td></tr>
+    <tr><td>Core view features missing from the public wrapper</td><td><code>view_opacity</code>, <code>view_scale</code>, <code>view_clip</code>, <code>list_measured</code></td><td><span class="tag fix">FIX 10</span> export them</td></tr>
+    <tr><td>Album art thumbnails</td><td>Takes GPU textures; one draw call per texture; no decode</td><td><span class="tag fix">FIX 11</span> optional image atlas for covers up to 64 pt</td></tr>
+    <tr><td>VoiceOver: labels, traits, adjustable scrubber, named actions, modal containment, announcements</td><td>Engine has the tree; only a Linux bridge exists</td><td><span class="tag app">DEFERRED</span> both platforms ship without VoiceOver support for now</td></tr>
+    <tr><td>Touch, safe areas, soft keyboard, Dynamic Type, edge-swipe back</td><td>Nothing</td><td><span class="tag new">NEW</span> see pxui on iOS</td></tr>
+  </table></div>
+  <h3>Where 1:1 has a hard edge</h3>
+  <ul>
+    <li><b>Glyph rendering.</b> pxui rasterizes with swash, SwiftUI with CoreText. Layout can match to the pixel because both read the same font tables, and the app already forces explicit line boxes. The antialiasing of individual glyphs will differ slightly. The existing Chromium reference tests (19 baselines, 1/64 pt label widths) become the acceptance test for the text stack.</li>
+    <li><b>Native pieces that go away.</b> The macOS right-click menu becomes the app's own panel (already built for the menu button). Alerts become the app's own dialog. The system audio-route button on iOS has to stay a native view placed over the canvas.</li>
+    <li><b>Input latency.</b> pxui delivers input one frame late by design. At 120 Hz that is 8 ms on scrubbing and swipes. Measure it on device before accepting.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>pxui fixes, in order</h2>
+  <p>Each lands in pxui with a golden or a counting-allocator test, then the submodule pointer moves. The ABI is still unreleased, so signatures can change in place.</p>
+  <div class="scroll"><table>
+    <tr><th>#</th><th>Change</th><th>How, with no per-frame allocation</th><th>Size</th></tr>
+    <tr><td>1</td><td><code>Curve::Table</code> and <code>Curve::Steps</code></td><td>Inline <code>[f32; 16]</code> plus count and duration in the <code>repr(C)</code> enum; linear interpolation between samples. Port <code>MotionTokenTests</code> (spring to 1e-6).</td><td>S</td></tr>
+    <tr><td>2</td><td><code>Target::Scale { x, y, anchor }</code> and keyframes for it</td><td>Reuses the existing per-view transform slot; export through the ABI.</td><td>S</td></tr>
+    <tr><td>3</td><td>Blur: saturation uniform, preallocated targets</td><td>One float in the composite shader. Allocate the two blur targets at resize, never in a frame. Extend the zero-alloc test to a blurred layer.</td><td>S</td></tr>
+    <tr><td>4</td><td>True group opacity (optional)</td><td>Reuse the blur path's offscreen target with sigma 0.</td><td>M</td></tr>
+    <tr><td>5</td><td>OpenType features in <code>TextStyle</code></td><td>The <code>reserved: u32</code> field becomes a feature bitset (<code>tnum</code> first). Part of the layout cache key.</td><td>S</td></tr>
+    <tr><td>6</td><td>Inline spans</td><td>Fixed array of up to 8 (range, weight, colour, background, underline) per text node, shaped once and cached like any layout.</td><td>M</td></tr>
+    <tr><td>7</td><td>Middle and head ellipsis</td><td>Extra values of the existing <code>ellipsis: u8</code>.</td><td>S</td></tr>
+    <tr><td>8</td><td>System font fallback; atlas pages</td><td>On a missing glyph, ask CoreText for a covering font once, load its bytes, cache by script. Add a second atlas page before evicting. Allocation happens on first sight of a script, never on a warm frame.</td><td>M</td></tr>
+    <tr><td>9</td><td>Appearance and reduce-motion inputs</td><td>Two fields on <code>FrameIn</code>; the host reads them from the OS on change.</td><td>S</td></tr>
+    <tr><td>10</td><td>Export core-only view calls</td><td>Wrapper and header entries; <code>gate -- abi-header</code> keeps them honest.</td><td>S</td></tr>
+    <tr><td>11</td><td>Image atlas for small covers</td><td>Fixed-size atlas texture with LRU slots so a screen of 40 pt covers is one draw call. Skip until a trace shows draw calls matter.</td><td>M</td></tr>
+    <tr><td>12</td><td>Accessibility bridges (deferred)</td><td>Not in this plan. The app still sets labels, roles and actions on nodes through <code>set_a11y</code> as views are written, so a later bridge needs no UI rework.</td><td>later</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>pxui on iOS</h2>
+  <p>There is no iOS code in pxui today: no target cfg, no touch events, no host. The engine core is platform-free and the Metal shim only uses frameworks that exist on iOS, so this is a port, not a rewrite. It should be developed and proven inside pxui with the gallery app before LocalWave depends on it.</p>
+  <div class="scroll"><table>
+    <tr><th>Piece</th><th>Work</th><th>Size</th></tr>
+    <tr><td>Metal backend</td><td>Widen <code>ogpu_metal</code> and <code>metal_sys</code> from <code>macos</code> to Apple targets; build the shim with the <code>iphoneos</code> and <code>iphonesimulator</code> SDKs; drop macOS-only calls (IOSurface paths, managed storage mode).</td><td>M</td></tr>
+    <tr><td>Host</td><td>Decided: SDL3 through the existing <code>pxui_sdl</code> crate. SDL supplies the window, Metal view, finger events, on-screen keyboard and safe-area query. Native extras (pickers, share sheet, route button, haptics) attach to SDL's <code>UIWindow</code> from <code>lw_apple_sys</code>. First task is a spike that builds SDL3 as a static library for device and simulator.</td><td>M</td></tr>
+    <tr><td>Touch input</td><td>New pointer kind with finger id and phase in <code>input::Event</code>. Touch-drag scrolling with deceleration and rubber-band, feeding the momentum model pxui already has for trackpads. Long-press and tap slop.</td><td>L</td></tr>
+    <tr><td>Safe areas and keyboard</td><td>Insets and keyboard frame on <code>FrameIn</code>; text fields request the keyboard and report the caret rect (the IME path exists for desktop).</td><td>M</td></tr>
+    <tr><td>Frame pacing and lifecycle</td><td>Drive frames from the display link at 120 Hz; stop all GPU work when the app goes to the background, since iOS kills apps that render there. Audio keeps running in the shim.</td><td>S</td></tr>
+    <tr><td>Dynamic Type</td><td>Host maps the content size category to <code>set_font_size</code>. The accessibility-size layout swaps are app code.</td><td>S</td></tr>
+    <tr><td>Accessibility</td><td>Deferred with the macOS bridge.</td><td>later</td></tr>
+    <tr><td>Shared library on iOS</td><td>iOS allows dynamic libraries only as embedded frameworks. Build <code>pxui_dylib</code> for <code>aarch64-apple-ios</code> and <code>aarch64-apple-ios-sim</code>, wrap each as <code>pxui.framework</code> with install name <code>@rpath/pxui.framework/pxui</code>, combine into <code>pxui.xcframework</code>, embed and sign it in the app's Frameworks folder.</td><td>M</td></tr>
+    <tr><td>Stack size</td><td>The 256 MB main-thread stack wrapper is a Rays requirement. LocalWave and the iOS build must not use it.</td><td>S</td></tr>
+  </table></div>
+  <h3>What has to feel like iOS</h3>
+  <p>None of this comes from the host. A custom-drawn UI gets no system scrolling or navigation from either SDL3 or UIKit, so pxui has to reproduce each behaviour and the P6 gate checks them side by side with the current app on a device.</p>
+  <div class="scroll"><table>
+    <tr><th>Behaviour</th><th>Target</th></tr>
+    <tr><td>Scroll deceleration</td><td>Match <code>UIScrollView</code>'s normal rate (velocity × 0.998 per ms). Compare travel distance for the same flick, within a few points.</td></tr>
+    <tr><td>Rubber-band at the edges</td><td>System resistance curve (constant 0.55) and spring-back. Pull to refresh hangs off the same overscroll.</td></tr>
+    <tr><td>Touch-down while coasting</td><td>Stops the scroll at once and does not register as a tap on the row.</td></tr>
+    <tr><td>Tap versus scroll</td><td>Row highlight is delayed until the touch is known not to be a scroll; about 10 pt of slop.</td></tr>
+    <tr><td>Edge-swipe back</td><td>Interactive: the page follows the finger from the left edge and completes or cancels on release velocity. Today this is the one thing the app borrows from <code>NavigationStack</code>.</td></tr>
+    <tr><td>Axis lock</td><td>Horizontal row swipe and vertical scroll never fight; the first 8 pt decide.</td></tr>
+    <tr><td>Keyboard</td><td>Dialogs move with the keyboard on the system's own curve and duration, not after it.</td></tr>
+    <tr><td>120 Hz</td><td>ProMotion enabled in <code>Info.plist</code>; frame pacing verified on a Pro device.</td></tr>
+    <tr><td>System edges</td><td>Home indicator and status bar stay clear of content; bottom-edge swipes are not stolen by the nav deck.</td></tr>
+    <tr><td>Text editing</td><td>Autocorrect off where the app sets it, Done key, dictation and marked text for CJK input. No magnifier loupe; fields are single-line names and search.</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Port sequence</h2>
+  <p>macOS first, because pxui already runs there and the Mac app is the smaller surface. The SwiftUI app keeps shipping until each platform's Rust build passes its gate.</p>
+  <div>
+    <div class="phase"><span class="id">P0</span><h3>Scaffold and bundle</h3>
+      <p>Add the submodule, workspace, Makefile and bundle script. Ship an empty pxui window as a signed, sandboxed <code>LocalWave.app</code>. Delete <code>localwave-tui</code>, its SwiftPM target and the SwiftTUI dependency, and update <code>AGENTS.md</code>.</p>
+      <p class="gate"><b>Gate:</b> <code>otool -L</code> shows <code>@rpath/libpxui.1.dylib</code>; <code>codesign --verify --deep --strict</code> passes; the app launches from <code>/Applications</code>.</p></div>
+    <div class="phase"><span class="id">P1</span><h3>Core in Rust, no UI</h3>
+      <p>Port Domain and Data (about 4,000 lines of Swift): models, queue and shuffle, SQLite repositories, FTS5 search with BM25, import, FLAC parser, offline cache. Open the existing <code>musicApp29.sqlite</code> as is, with the system SQLite. Port the 18 SwiftPM data test files to <code>cargo t</code>.</p>
+      <p class="gate"><b>Gate:</b> Rust and Swift read each other's database; <code>songKey</code> and <code>pathId</code> are byte-identical on a fixture library; <code>cargo t</code> under 30 s.</p></div>
+    <div class="phase"><span class="id">P2</span><h3>Apple shim and playback</h3>
+      <p>Write <code>lw_apple_sys</code>. Port the player view model (about 1,500 lines) to a Rust state machine driving the queue player through the shim. A headless binary plays a queue.</p>
+      <p class="gate"><b>Gate:</b> gapless pre-queue of 2 items, Now Playing and media keys, interruption handling, bookmarks from the Swift app still resolve.</p></div>
+    <div class="phase"><span class="id">P3</span><h3>pxui fixes 1 to 10</h3>
+      <p>Runs alongside P1 and P2, in the pxui repository.</p>
+      <p class="gate"><b>Gate:</b> each fix has a golden or allocator test in pxui; the gallery shows the LocalWave theme.</p></div>
+    <div class="phase"><span class="id">P4</span><h3>macOS UI</h3>
+      <p>In this order: theme files and motion tokens, shell (sidebar, transport, Now panel), song table and album grid, player and queue, Files and settings, presenter (sheet, dialog, menu, palette, toast), keyboard shortcuts, drag and drop. About 15,000 lines of SwiftUI to replace.</p>
+      <p class="gate"><b>Gate:</b> pxui goldens against the existing 1440×872 reference canvases; every shortcut in the current table works; 10,000-song library meets the budgets below.</p></div>
+    <div class="phase"><span class="id">P5</span><h3>Ship macOS</h3>
+      <p>TestFlight build from the bundle script, replace <code>build-mac-dmg.sh</code> and the CI release job. Remove the SwiftUI Mac target.</p>
+      <p class="gate"><b>Gate:</b> one release cycle on TestFlight with no regressions reported.</p></div>
+    <div class="phase"><span class="id">P6</span><h3>pxui on iOS</h3>
+      <p>The table above, proven with the pxui gallery on a device and in the simulator.</p>
+      <p class="gate"><b>Gate:</b> gallery scrolls at 120 Hz on device with zero warm-frame allocations; text field with keyboard works; every row of the iOS feel table passes next to the SwiftUI app.</p></div>
+    <div class="phase"><span class="id">P7</span><h3>iOS UI and ship</h3>
+      <p>Narrow layout: nav deck, mini-player, bottom sheets, swipe rows, long-press menus with the blurred backdrop, pull to refresh, pickers and share through the shim. Background audio check on device.</p>
+      <p class="gate"><b>Gate:</b> goldens against the 390×778 reference canvases; device qualification for playback, bookmark recovery and cloud files. Then delete the Xcode project and the Swift sources.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Performance rules for the app</h2>
+  <p>pxui already asserts zero allocations on a warm frame with a counting allocator. The app has to keep that property, so these are written as tests, not intentions.</p>
+  <div class="scroll"><table>
+    <tr><th>Rule</th><th>How it is enforced</th></tr>
+    <tr><td>0 allocations per warm frame</td><td>A <code>mem_sys</code> counter test scrolls a 10,000-song table, scrubs the waveform and opens a menu. Any allocation fails the test.</td></tr>
+    <tr><td>Frame build under 1 ms at 10,000 songs</td><td>Fixed-height virtualized rows. pxui's recorded cost is about 240 µs for 500 rebuilt widgets on an M1.</td></tr>
+    <tr><td>No frames when idle; only dirty layers while playing</td><td>The transport clock and equalizer sit in their own view so the table is skipped by revision. Assert the idle frame count is 0.</td></tr>
+    <tr><td>No per-frame string building</td><td>Song text lives in one arena per library load and rows borrow from it. Times and counts format into stack buffers with <code>cfmt</code>.</td></tr>
+    <tr><td>Column widths measured once</td><td>Today SwiftUI re-measures and re-sorts the whole array on each render. Measure on data change and cache.</td></tr>
+    <tr><td>Artwork never decodes on the UI thread</td><td>Worker thread decodes through ImageIO; a fixed-capacity LRU of textures replaces today's decode-on-every-appear.</td></tr>
+    <tr><td>Worker to UI messages without allocation</td><td>Preallocated ring buffer plus a host wake. Database and import work stay off the UI thread; pxui itself is single-threaded.</td></tr>
+  </table></div>
+</section>
+
+<section>
+  <h2>Decisions</h2>
+  <ul>
+    <li><b>Objective-C shim:</b> accepted. Apple framework calls live in <code>lw_apple_sys</code>.</li>
+    <li><b>Terminal player:</b> removed in P0.</li>
+    <li><b>iOS host:</b> SDL3.</li>
+    <li><b>Accessibility bridges:</b> deferred on macOS and iOS. The Rust app will be a VoiceOver regression from the SwiftUI app until they land.</li>
+    <li><b>Still open:</b> how strict 1:1 is on glyph antialiasing. Layout parity is testable and planned. Matching CoreText's rasterization exactly would mean a CoreText rasterizer inside pxui.</li>
+  </ul>
+</section>
+
+<section>
+  <h2>Not verified</h2>
+  <ul>
+    <li>Nothing was built or run. pxui findings come from reading the source at <code>59d6f45</code>; the LocalWave inventory from reading the Swift sources.</li>
+    <li>Whether cosmic-text 0.19 selects weights on Host Grotesk's variable axis, and how it exposes OpenType features. Both decide the size of fixes 5 and 8.</li>
+    <li>Whether <code>sdl3_sys</code>'s build script can target iOS (it finds SDL through Homebrew today), and how SDL 3.4 behaves on iOS for keyboard frame reporting, marked text and 120 Hz pacing. The P6 spike answers these.</li>
+    <li>That stored bookmarks and a path-opened SQLite database behave identically under the sandbox when the picker is SDL's instead of SwiftUI's.</li>
+    <li>There is no measured performance baseline for the current app at large library sizes, so "as fast as today" has no number yet.</li>
+  </ul>
+</section>
+
+</div>

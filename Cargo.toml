@@ -1,0 +1,29 @@
+[workspace]
+resolver = "2"
+members = ["crates/*"]
+exclude = ["pxui"]
+default-members = ["crates/lw_bin"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT"
+
+[profile.dev]
+opt-level = 1
+debug = 0
+incremental = true
+codegen-units = 256
+overflow-checks = true
+
+[profile.dev.package.mem_sys]
+opt-level = 3
+
+[profile.release]
+codegen-units = 16
+lto = "thin"
+debug = "line-tables-only"
+
+[workspace.lints.rust]
+warnings = "deny"

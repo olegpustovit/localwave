@@ -51,14 +51,25 @@ bash scripts/build-unsigned-ipa.sh /tmp/localwave-unsigned
 
 Pull-request CI also uploads an unsigned IPA as a workflow artifact. Pushing a tag such as `v1.0.1` runs the **Release** workflow: it runs `swift test --parallel`, uploads a signed build to internal TestFlight, and publishes a Developer ID signed, notarized Mac DMG plus the unsigned IPA as a GitHub release (`bash scripts/build-mac-dmg.sh` builds the DMG locally). The DMG needs `APPLE_CERTIFICATE_BASE64`, `APPLE_CERTIFICATE_PASSWORD`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_SPECIFIC_PASSWORD`. TestFlight needs `ASC_KEY_ID`, `ASC_ISSUER_ID` and `ASC_KEY_P8_BASE64` (an App Store Connect team API key with Admin access for cloud-managed distribution signing, base64-encoded). Signing uses automatic cloud-managed certificates; the tag sets the numeric marketing version (for example, `v1.0.0-beta.2` becomes `1.0.0`) and the workflow run number plus attempt sets the build number. The workflow can also be run manually with a marketing version to upload a TestFlight build without a tag, or against a tag to build all release assets. Signed DMGs are also retained as workflow artifacts; a single publishing job uploads the DMG and unsigned IPA to avoid concurrent release creation. See [release notes](docs/release-notes.md) for distribution limits.
 
-## macOS terminal player
+## Rust migration
+
+The [Rust port plan](https://artifacts.microapps.space/a/w474jy87pnxg) is being implemented in `crates/`, with pxui pinned as a submodule. The Swift app remains the shipping app until the replacement passes the plan's platform gates. The terminal player has been removed. The Rust window restores a paused queue and shows a worker-prepared library with sidebar navigation, virtual song rows, album/artist browsing, a Now panel and transport controls. Double-click a song to play. Native font fallback now renders the tested multilingual tags and emoji; first-time font discovery may allocate. The complete reference UI remains unfinished.
+
+The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 
 ```sh
-swift build -c release
-.build/release/localwave-tui
+git clone --branch rust-port --recurse-submodules git@github.com:olegpustovit/localwave.git
+cd localwave
+make build                  # static SDL3, libpxui, Rust macOS app
+make bundle                 # signed sandboxed target/bundle/LocalWave.app
+open target/bundle/LocalWave.app
+make install                # install to /Applications (APPDIR overrides)
+cargo t -p lw_core          # Rust storage and model checks
+cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
+make performance            # signed app: zero warm Rust allocations, <1 ms build, no idle frames
 ```
 
-The TUI uses the same repositories and import service as iOS, with its own database under `~/Library/Application Support/localwave` (or `$XDG_DATA_HOME/localwave`). Add and scan a source under Sync, then browse/import it. Use Ctrl+G/A/B/L/P/R for Sync/Artists/Albums/Songs/Playlists/Player, j/k to navigate, Space to play, p to add a song to a playlist, and Ctrl+X to quit. `?` shows global help. The checked-in SwiftTUI revision is fetched automatically; a separate local checkout is not required. See [TUI.md](TUI.md).
+Warm library/app builds have measured 0.14/0.04 seconds, and 78 bounded app checks 6.42 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
 
 ## Development
 
@@ -68,4 +79,4 @@ Report a reproducible problem in [GitHub issues](https://github.com/olegpustovit
 
 ## License
 
-[MIT](LICENSE). SQLite.swift and bundled fonts retain their own licenses.
+[MIT](LICENSE). SQLite.swift and bundled fonts retain their own licenses. Rust filename cleanup uses Unicode data under the [Unicode License v3](crates/lw_core/UNICODE-LICENSE.txt).

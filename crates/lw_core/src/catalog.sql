@@ -1,0 +1,24 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, icloudId INTEGER NOT NULL UNIQUE
+);
+CREATE TABLE IF NOT EXISTS playlists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+    createdAt TEXT NOT NULL, updatedAt TEXT
+);
+CREATE TABLE IF NOT EXISTS playlist_songs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, playlistId INTEGER NOT NULL,
+    songId INTEGER NOT NULL, position INTEGER NOT NULL, UNIQUE(playlistId,songId)
+);
+CREATE TABLE IF NOT EXISTS sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, dirPath TEXT NOT NULL, pathId INTEGER NOT NULL,
+    userId INTEGER NOT NULL, type TEXT, bookmark BLOB, totalPaths INTEGER, syncError TEXT,
+    isCurrent INTEGER NOT NULL, createdAt TEXT NOT NULL, lastSyncedAt TEXT, updatedAt TEXT
+);
+CREATE TABLE IF NOT EXISTS source_paths (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, sourceId INTEGER NOT NULL, pathId INTEGER NOT NULL,
+    parentPathId INTEGER, name TEXT NOT NULL, relativePath TEXT NOT NULL, isDirectory INTEGER NOT NULL,
+    fileSize INTEGER, fileHashSHA256 BLOB, runId INTEGER NOT NULL, createdAt TEXT NOT NULL, updatedAt TEXT
+);
+CREATE VIRTUAL TABLE IF NOT EXISTS source_paths_fts USING fts5(
+    pathId UNINDEXED, sourceId UNINDEXED, runId UNINDEXED, fullPath, fileName, tokenize='unicode61'
+);

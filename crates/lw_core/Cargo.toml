@@ -1,0 +1,14 @@
+[package]
+name = "lw_core"
+version.workspace = true
+edition.workspace = true
+license = "MIT AND Unicode-3.0"
+
+[dependencies]
+lw_apple_sys = { path = "../lw_apple_sys" }
+
+[dev-dependencies]
+mem_sys = { path = "../../pxui/crates/open/mem_sys" }
+
+[lints]
+workspace = true

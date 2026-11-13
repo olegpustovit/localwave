@@ -52,3 +52,6 @@ Package.resolved
 # Browser inspection outputs
 .playwright-mcp/
 *.profraw
+
+# Rust build products and bundled native dependencies
+target/

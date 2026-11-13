@@ -22,6 +22,7 @@
 
   // Files to exclude from search
   "files.exclude": {
+    "**/target": true,
     "**/.build": true,
     "**/.swiftpm": true,
     "**/DerivedData": true
@@ -29,6 +30,7 @@
 
   // Search settings
   "search.exclude": {
+    "**/target": true,
     "**/.build": true,
     "**/.swiftpm": true,
     "**/DerivedData": true,
@@ -44,10 +46,5 @@
   "lldb.launch.terminal": "integrated",
   "lldb.displayFormat": "auto",
   "lldb.showDisassembly": "auto",
-  "lldb.dereferencePointers": true,
-
-  // Terminal settings for TUI
-  "terminal.integrated.env.osx": {
-    "TERM": "xterm-256color"
-  }
+  "lldb.dereferencePointers": true
 }

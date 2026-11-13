@@ -161,7 +161,7 @@ public actor DefaultSourceSyncService: SourceSyncService {
             ) {
                 for case let file as URL in enumerator {
                     if LocalWaveGeneratedPaths.contains(file, excludedURLs: excludedURLs) {
-                        enumerator.skipDescendants()
+                        if (try? file.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true { enumerator.skipDescendants() }
                         continue
                     }
                     do {

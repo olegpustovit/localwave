@@ -1,0 +1,11 @@
+tokens.panel = #101010
+tokens.foreground = #EDEDED
+tokens.control = #1A1A1A
+tokens.input = #101010
+tokens.track = #333333
+tokens.accent = #8A95FF
+tokens.radius.small = 0
+tokens.radius.medium = 0
+tokens.radius.large = 0
+tokens.motion.fast = 0.14
+tokens.motion.normal = 0.24

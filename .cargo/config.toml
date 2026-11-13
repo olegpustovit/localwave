@@ -1,0 +1,15 @@
+[alias]
+t = "run -q --manifest-path pxui/tools/t/Cargo.toml --target-dir target --"
+
+[env]
+MACOSX_DEPLOYMENT_TARGET = "15.0"
+PXUI_CONSUMER_DEFAULT_STACK = "1"
+PKG_CONFIG = { value = "tools/pkg-config-static.sh", relative = true }
+PKG_CONFIG_PATH = { value = "target/sdl/lib/pkgconfig", relative = true }
+
+[target.aarch64-apple-darwin]
+linker = "pxui/tools/cc-stack.sh"
+rustflags = ["-Clink-arg=-Wl,-rpath,@executable_path", "-Clink-arg=-Wl,-rpath,@executable_path/..", "-Clink-arg=-Wl,-rpath,@executable_path/../Frameworks"]
+
+[target.x86_64-apple-darwin]
+rustflags = ["-Clink-arg=-Wl,-rpath,@executable_path", "-Clink-arg=-Wl,-rpath,@executable_path/..", "-Clink-arg=-Wl,-rpath,@executable_path/../Frameworks"]
