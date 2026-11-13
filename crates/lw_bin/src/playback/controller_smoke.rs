@@ -125,6 +125,11 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                 volume: Some(0.25),
                 context_data: Some(library.playback_context_data(&worker_context)?),
             })?;
+            library.save_settings(&lw_core::preferences::Settings {
+                appearance: lw_core::preferences::Appearance::Dark,
+                reduce_motion: true,
+                ..Default::default()
+            })?;
             ids.send((bad, good)).map_err(io::Error::other)?;
             Ok(library)
         },
@@ -138,6 +143,8 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         player.status().initialized
     })?;
     if player.status().queue_len != 3
+        || player.status().settings.appearance != lw_core::preferences::Appearance::Dark
+        || !player.status().settings.reduce_motion
         || player.status().context.as_ref() != context.as_ref()
         || player.status().current_index != Some(1)
         || player.status().wants_playback

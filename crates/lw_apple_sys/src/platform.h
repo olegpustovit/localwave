@@ -2,6 +2,10 @@
 #define LW_PLATFORM_H
 #include <stdint.h>
 #include <stddef.h>
+typedef struct { uint32_t appearance, reduced_motion; } LWEnvironmentState;
+void *lw_environment_create(void (*wake)(void));
+void lw_environment_read(void *environment, LWEnvironmentState *state);
+void lw_environment_release(void *environment);
 typedef struct { unsigned char *data; size_t len; } LWBytes;
 typedef struct { int availability, provider; int64_t size; double modified; } LWFileInfo;
 typedef struct { char *name, *relative, *url, *parent; int directory; int64_t size; } LWScanEntry;

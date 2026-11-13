@@ -7,7 +7,7 @@ use lw_bin::{
     controller::{Command, Controller},
     library::LibraryWorker,
 };
-use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+use pxui::{FrameIn, Platform, Ui};
 use pxui_sdl::Window;
 
 extern "C" fn wake() {
@@ -32,17 +32,18 @@ fn run() -> Result<(), String> {
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
     mem_sys::set_peer(pxui::library_counter);
     let mut window = Window::open_with("LocalWave", 1440, 872, true, false, true)?;
+    let environment =
+        lw_apple_sys::environment::Environment::open(wake).map_err(|error| error.to_string())?;
+    let mut preferences = environment.snapshot();
     let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
     ui.enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
-    ui.set_theme(&ThemeSource {
-        source: Str {
-            ptr: lw_ui::LIGHT.as_ptr(),
-            len: lw_ui::LIGHT.len(),
-        },
-        ..ThemeSource::default()
-    })
-    .map_err(|code| format!("Theme failed ({code}): {}", ui.last_error()))?;
+    let mut themes = lw_bin::appearance::Themes::new(&ui)?;
+    themes.apply(
+        &mut ui,
+        &lw_core::preferences::Settings::default(),
+        preferences,
+    );
     if trace_frames {
         ui.set_timing(true);
     }
@@ -144,6 +145,9 @@ fn run() -> Result<(), String> {
         if let Some(error) = window.take_failure() {
             return Err(error);
         }
+        let next_preferences = environment.snapshot();
+        let preferences_changed = next_preferences != preferences;
+        preferences = next_preferences;
         let player_changed = player.poll().map_err(|error| error.to_string())?;
         if performance && frames >= 2 {
             events.push(HostEvent::PointerMoved((650.0, 400.0)));
@@ -171,6 +175,7 @@ fn run() -> Result<(), String> {
             || resized
             || !events.is_empty()
             || player_changed
+            || preferences_changed
             || repaint.is_some_and(|time| now >= time)
         {
             first = false;
@@ -185,6 +190,7 @@ fn run() -> Result<(), String> {
             let build_started = std::time::Instant::now();
             let mut intent = None;
             let status = player.status();
+            themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
                 revision: status.revision + error_revision,
                 title: &status.title,
@@ -211,6 +217,10 @@ fn run() -> Result<(), String> {
                     height: extent.logical.1 as f32,
                     scale: window.scale() as f32,
                     time: now,
+                    appearance: preferences.appearance,
+                    reduced_motion: u32::from(
+                        preferences.reduced_motion != 0 || status.settings.reduce_motion,
+                    ),
                     events: wire.as_ptr(),
                     event_count: wire.len(),
                     ..FrameIn::default()
@@ -228,6 +238,15 @@ fn run() -> Result<(), String> {
             };
             if let Some(interval) = interval {
                 interval.finish(build_us as u64, cpu_us);
+            }
+            let platform = &ui.output().platform;
+            if platform.has_background != 0 {
+                let color = platform.background;
+                window.set_background((
+                    f64::from(color.r) / 255.0,
+                    f64::from(color.g) / 255.0,
+                    f64::from(color.b) / 255.0,
+                ))?;
             }
             frames += 1;
             repaint = ui.repaint_at();

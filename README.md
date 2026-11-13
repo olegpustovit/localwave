@@ -53,7 +53,7 @@ Pull-request CI also uploads an unsigned IPA as a workflow artifact. Pushing a t
 
 ## Rust migration
 
-The [Rust port plan](https://artifacts.microapps.space/a/w474jy87pnxg) is being implemented in `crates/`, with pxui pinned as a submodule. The Swift app remains the shipping app until the replacement passes the plan's platform gates. The terminal player has been removed. The Rust window restores a paused queue and shows a worker-prepared library with sidebar navigation, virtual song rows, album/artist browsing, a Now panel and transport controls. Double-click a song to play. Native font fallback now renders the tested multilingual tags and emoji; first-time font discovery may allocate. The complete reference UI remains unfinished.
+The [Rust port plan](https://artifacts.microapps.space/a/w474jy87pnxg) is being implemented in `crates/`, with pxui pinned as a submodule. The Swift app remains the shipping app until the replacement passes the plan's platform gates. The terminal player has been removed. The Rust window restores a paused queue and shows a worker-prepared library with sidebar navigation, virtual song rows, album/artist browsing, a Now panel and transport controls. Double-click a song to play. Native font fallback now renders the tested multilingual tags and emoji; first-time font discovery may allocate. System appearance and reduced motion now update through native notifications, with cached themes and saved settings loaded on the worker. The complete reference UI remains unfinished.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 

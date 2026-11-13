@@ -5,6 +5,9 @@ pub mod sqlite;
 pub mod timing;
 
 #[cfg(target_os = "macos")]
+pub mod environment;
+
+#[cfg(target_os = "macos")]
 pub mod bookmarks;
 
 #[cfg(target_os = "macos")]

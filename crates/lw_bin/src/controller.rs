@@ -4,7 +4,7 @@ use lw_apple_sys::player::{Event, Kind, Player, Prepared, Snapshot};
 use lw_core::context::PlaybackContext;
 use lw_core::playback::{Fault, Phase, Reading};
 use lw_core::player::{Action, Session, Ticket};
-use lw_core::preferences::PlayerState;
+use lw_core::preferences::{PlayerState, Settings};
 use lw_core::queue::{Entry, RepeatMode};
 use std::collections::VecDeque;
 use std::io;
@@ -91,6 +91,7 @@ impl Command {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Status {
+    pub settings: Settings,
     pub revision: u64,
     pub initialized: bool,
     pub processed_command: u64,
@@ -115,6 +116,7 @@ pub struct Status {
 impl Default for Status {
     fn default() -> Self {
         Self {
+            settings: Settings::default(),
             revision: 0,
             context: Arc::new(PlaybackContext::Library),
             initialized: false,
@@ -514,6 +516,7 @@ impl Drop for Controller {
 }
 
 struct Worker {
+    settings: Settings,
     context: Arc<PlaybackContext>,
     library: LibraryWorker,
     shared: Arc<Shared>,
@@ -550,6 +553,7 @@ impl Worker {
     fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>) {
         let setup = || -> io::Result<Self> {
             let mut library = factory()?;
+            let settings = library.load_settings();
             // shortcut: one initial catalog snapshot; reload on import/edit when those commands are connected.
             let catalog = Arc::new(library.catalog()?);
             shared.inbox.lock().unwrap().catalog = Some(catalog);
@@ -572,6 +576,7 @@ impl Worker {
             let empty: Arc<str> = Arc::from("");
             let native = shared.inbox.lock().unwrap().native;
             Ok(Self {
+                settings,
                 context,
                 library,
                 shared: shared.clone(),
@@ -1269,6 +1274,7 @@ impl Worker {
         }
         let transport = self.session.transport();
         let status = Status {
+            settings: self.settings,
             context: self.context.clone(),
             revision: self.status.revision,
             initialized: true,

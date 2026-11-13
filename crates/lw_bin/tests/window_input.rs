@@ -8,6 +8,31 @@ mod harness;
 
 fn release_keepalive() {} // This target creates no shared GPU device.
 
+fn system_preferences_use_appkit_notifications_and_cached_warm_reads() {
+    extern "C" fn wake() {}
+    let mut window =
+        pxui_sdl::Window::open_with("LocalWave preferences check", 320, 240, false, true, true)
+            .unwrap();
+    let environment = lw_apple_sys::environment::Environment::open(wake).unwrap();
+    let first = environment.snapshot();
+    assert!((1..=2).contains(&first.appearance) && first.reduced_motion <= 1);
+    for _ in 0..20 {
+        mem_sys::local_reset();
+        assert_eq!(environment.snapshot(), first);
+        assert_eq!(
+            mem_sys::local_alloc_count(),
+            0,
+            "cached AppKit reads allocate nothing"
+        );
+    }
+    assert!(
+        lw_apple_sys::environment::verify_notifications(),
+        "appearance KVO, workspace notifications, duplicate suppression and observer teardown"
+    );
+    drop(environment);
+    window.destroy().unwrap();
+}
+
 // SDL startup and real event routing require a main-thread integration process, bounded by cargo t.
 fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     mem_sys::set_peer(pxui::library_counter);
@@ -84,8 +109,14 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 }
 
 fn main() {
-    harness::run(&[(
-        "real_numeric_input_and_ui_build_allocate_nothing_when_warm",
-        real_numeric_input_and_ui_build_allocate_nothing_when_warm,
-    )]);
+    harness::run(&[
+        (
+            "system_preferences_use_appkit_notifications_and_cached_warm_reads",
+            system_preferences_use_appkit_notifications_and_cached_warm_reads,
+        ),
+        (
+            "real_numeric_input_and_ui_build_allocate_nothing_when_warm",
+            real_numeric_input_and_ui_build_allocate_nothing_when_warm,
+        ),
+    ]);
 }

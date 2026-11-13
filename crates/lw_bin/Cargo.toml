@@ -25,6 +25,7 @@ ogpu_core = { path = "../../pxui/crates/open/ogpu_core" }
 ogpu_metal = { path = "../../pxui/crates/open/ogpu_metal" }
 
 [dev-dependencies]
+lw_apple_sys = { path = "../lw_apple_sys", features = ["interop-test"] }
 sdl3_sys = { path = "../../pxui/crates/open/sdl3_sys", features = ["test-util"] }
 
 [[test]]
