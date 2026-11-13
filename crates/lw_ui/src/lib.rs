@@ -2,6 +2,7 @@
 pub mod browse;
 pub mod catalog;
 pub mod motion;
+pub mod queue;
 mod shell;
 pub use shell::{ShellState, shell};
 
@@ -31,6 +32,14 @@ pub enum Intent {
     Search(browse::Query),
     SearchTooLong,
     Sort(browse::Sort),
+    PlayQueue(u64),
+    RemoveQueue(u64),
+    MoveQueue {
+        occurrence: u64,
+        before: Option<u64>,
+    },
+    ClearQueue,
+    UndoQueue,
 }
 
 #[derive(Default)]
@@ -55,6 +64,227 @@ pub struct PlayerView<'a> {
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+
+    #[test]
+    fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_drag() {
+        use catalog::Catalog;
+        use lw_core::{context::PlaybackContext, queue::Entry};
+        use std::sync::Arc;
+        mem_sys::set_peer(pxui::library_counter);
+        let mut catalog = Catalog::new(vec![lw_core::Song {
+            id: Some(7),
+            title: "Duplicate queued song".into(),
+            artist: "Artist".into(),
+            ..Default::default()
+        }]);
+        let entries: Arc<[Entry]> = (1..=10_000).map(|id| Entry { id, song_id: 7 }).collect();
+        let context = Arc::new(PlaybackContext::Library);
+        catalog.queue = Some(Arc::new(queue::Snapshot::new(
+            1,
+            entries.clone(),
+            Some(0),
+            context.clone(),
+            false,
+        )));
+        let mut state = ShellState::default();
+        state.apply(Intent::SelectRow(0));
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let mut player = PlayerView {
+            initialized: true,
+            duration: 20_000.0,
+            ..Default::default()
+        };
+        let mut frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..Default::default()
+        };
+        let mut intent = None;
+        for _ in 0..3 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
+        let grips: Vec<_> = ui
+            .a11y_nodes()
+            .iter()
+            .filter(|node| ui.a11y_name_of(node) == "Reorder queued track")
+            .map(|node| (node.id, node.rect))
+            .collect();
+        assert!(
+            grips.len() >= 3 && grips.len() < 100,
+            "only the visible queue is built: {}",
+            grips.len()
+        );
+        let first = grips[0].1;
+        let third = grips[2].1;
+        let event = |kind, rect: pxui::geom::Rect, dy| pxui::Event {
+            kind,
+            x: (rect.x + 10.0) as f64,
+            y: (rect.y + dy) as f64,
+            ..Default::default()
+        };
+        for cycle in 0..24 {
+            mem_sys::local_reset();
+            for e in [
+                Some(event(input::wire::POINTER_PRESSED, first, 10.0)),
+                Some(event(input::wire::POINTER_MOVED, third, 10.0)),
+                Some(event(input::wire::POINTER_RELEASED, third, 10.0)),
+                None,
+            ] {
+                frame.events = e.as_ref().map_or(std::ptr::null(), |e| e);
+                frame.event_count = usize::from(e.is_some());
+                frame.time += 0.01;
+                player.revision += 1;
+                player.position += 1.0;
+                ui.frame(&frame, &mut |ui| {
+                    shell(ui, &player, &catalog, &state, &mut intent)
+                })
+                .unwrap();
+                if e.is_some_and(|e| e.kind == input::wire::POINTER_RELEASED) {
+                    assert_eq!(
+                        intent.take(),
+                        Some(Intent::MoveQueue {
+                            occurrence: 2,
+                            before: Some(4)
+                        })
+                    );
+                } else {
+                    assert!(intent.is_none());
+                }
+            }
+            if cycle > 5 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm queue gesture and clock update"
+                );
+            }
+        }
+        for cancel in [
+            pxui::Event {
+                kind: input::wire::POINTER_CANCELLED,
+                ..Default::default()
+            },
+            pxui::Event {
+                kind: input::wire::FOCUS_LOST,
+                ..Default::default()
+            },
+            pxui::Event {
+                kind: input::wire::KEY_PRESSED,
+                code: input::Key::Escape.code(),
+                ..Default::default()
+            },
+        ] {
+            for e in [
+                event(input::wire::POINTER_PRESSED, first, 10.0),
+                event(input::wire::POINTER_MOVED, third, 10.0),
+                cancel,
+                event(input::wire::POINTER_RELEASED, third, 10.0),
+            ] {
+                frame.events = &e;
+                frame.event_count = 1;
+                frame.time += 0.01;
+                ui.frame(&frame, &mut |ui| {
+                    shell(ui, &player, &catalog, &state, &mut intent)
+                })
+                .unwrap();
+                assert!(intent.is_none(), "cancelled drags never reorder");
+            }
+            assert!(ui.carrying_ref().is_none());
+        }
+        frame.events = std::ptr::null();
+        frame.event_count = 0;
+        let mut next = catalog.clone();
+        let mut reordered = entries.to_vec();
+        reordered.swap(1, 2);
+        next.queue = Some(Arc::new(queue::Snapshot::new(
+            2,
+            reordered.into(),
+            Some(0),
+            context.clone(),
+            false,
+        )));
+        mem_sys::local_reset();
+        state.refresh(&catalog, &next);
+        assert_eq!(
+            mem_sys::local_alloc_count(),
+            0,
+            "queue-only adoption does not scan library selection"
+        );
+        assert_eq!(state.selected, Some(0));
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &next, &state, &mut intent)
+        })
+        .unwrap();
+        let moved = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.id == grips[0].0)
+            .unwrap();
+        assert!(
+            (moved.rect.y - first.y - 44.0).abs() < 0.1,
+            "occurrence identity follows the reordered row"
+        );
+        for (name, expected) in [
+            ("Duplicate queued song", Intent::PlayQueue(3)),
+            ("Remove from queue", Intent::RemoveQueue(3)),
+            ("Clear up next", Intent::ClearQueue),
+        ] {
+            let node = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node) == name)
+                .unwrap()
+                .id;
+            ui.inject_a11y(&[pxui::A11yAction {
+                id: node,
+                action_code: 1,
+                ..Default::default()
+            }]);
+            frame.time += 0.01;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &next, &state, &mut intent)
+            })
+            .unwrap();
+            assert_eq!(intent.take(), Some(expected));
+        }
+        let mut cleared = next.clone();
+        cleared.queue = Some(Arc::new(queue::Snapshot::new(
+            3,
+            Arc::from([entries[0]]),
+            Some(0),
+            context,
+            true,
+        )));
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &cleared, &state, &mut intent)
+        })
+        .unwrap();
+        let undo = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Undo clear up next")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: undo,
+            action_code: 1,
+            ..Default::default()
+        }]);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &cleared, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent, Some(Intent::UndoQueue));
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Remove from queue")
+        );
+    }
 
     #[test]
     fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_queries() {

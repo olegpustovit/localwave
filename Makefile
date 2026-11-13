@@ -34,4 +34,5 @@ performance: bundle
 	@performance_result=0; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-find || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-queue || performance_result=1; \
 	  exit "$$performance_result"

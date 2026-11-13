@@ -34,6 +34,10 @@ fn run() -> Result<(), String> {
     if performance_find && !performance {
         return Err("--performance-find requires --performance-check".into());
     }
+    let performance_queue = std::env::args().any(|arg| arg == "--performance-queue");
+    if performance_queue && !performance {
+        return Err("--performance-queue requires --performance-check".into());
+    }
     mem_sys::set_peer(pxui::library_counter);
     let mut window = Window::open_with("LocalWave", 1440, 872, true, false, true)?;
     let environment =
@@ -92,6 +96,14 @@ fn run() -> Result<(), String> {
                 )?;
                 if performance {
                     smoke::seed_catalog(&base.join("library.sqlite"))?;
+                    if performance_queue {
+                        library.save_player_state(&lw_core::preferences::PlayerState {
+                            song_ids: (1..=10_000).collect(),
+                            current_index: 0,
+                            volume: Some(0.0),
+                            context_data: None,
+                        })?;
+                    }
                 }
                 Ok(library)
             },
@@ -105,21 +117,35 @@ fn run() -> Result<(), String> {
     lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
     if smoke || performance {
         let deadline = window.time() + 5.0;
-        while !player.status().initialized {
+        loop {
             player.poll().map_err(|error| error.to_string())?;
+            if player.status().initialized {
+                if !player.status().message.is_empty() {
+                    return Err(player.status().message.to_string());
+                }
+                // Queue and status travel through separate bounded handoffs.
+                if !performance_queue || player.catalog().queue.is_some() {
+                    break;
+                }
+            }
             if window.time() >= deadline {
                 return Err("Library initialization timed out during qualification".into());
             }
-            if !player.status().initialized {
-                window.wait(Some(window.time() + 0.05));
-            }
-        }
-        if !player.status().message.is_empty() {
-            return Err(player.status().message.to_string());
+            window.wait(Some(window.time() + 0.05));
         }
     }
     if performance && player.catalog().len() != 10_000 {
         return Err("Performance fixture must contain 10,000 songs".into());
+    }
+    if performance_queue
+        && player
+            .catalog()
+            .queue
+            .as_ref()
+            .map(|queue| queue.upcoming().len())
+            != Some(9_999)
+    {
+        return Err("Queue performance fixture must contain 9,999 upcoming occurrences".into());
     }
     let mut extent = window.extent();
     let mut events: Vec<HostEvent> = Vec::with_capacity(256);
@@ -194,7 +220,11 @@ fn run() -> Result<(), String> {
             .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
             .map_err(|error| error.to_string())?;
         if performance && frames >= 2 {
-            events.push(HostEvent::PointerMoved((650.0, 400.0)));
+            events.push(HostEvent::PointerMoved(if performance_queue {
+                (1300.0, 690.0)
+            } else {
+                (650.0, 400.0)
+            }));
             events.push(HostEvent::Scrolled((
                 0.0,
                 if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 },
@@ -348,6 +378,16 @@ fn run() -> Result<(), String> {
                         }),
                         lw_ui::Intent::Volume(value) => Command::Volume(value),
                         lw_ui::Intent::RefreshLibrary => Command::RefreshCatalog,
+                        lw_ui::Intent::PlayQueue(occurrence) => Command::Select {
+                            occurrence,
+                            autoplay: true,
+                        },
+                        lw_ui::Intent::RemoveQueue(occurrence) => Command::Remove(occurrence),
+                        lw_ui::Intent::MoveQueue { occurrence, before } => {
+                            Command::MoveUpcoming { occurrence, before }
+                        }
+                        lw_ui::Intent::ClearQueue => Command::ClearUpcoming,
+                        lw_ui::Intent::UndoQueue => Command::UndoClear,
                         lw_ui::Intent::SeekFraction(fraction) => {
                             Command::Seek(fraction * player.status().duration)
                         }
@@ -406,7 +446,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_find {
+                if performance_queue {
+                    "queue-occurrences"
+                } else if performance_find {
                     "find-filters-title-descending"
                 } else {
                     "songs-original"

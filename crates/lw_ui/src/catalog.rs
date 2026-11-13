@@ -279,6 +279,7 @@ pub struct Catalog {
     pub library: Arc<Library>,
     pub view: Option<Arc<View>>,
     pub source_version: Option<i64>,
+    pub queue: Option<Arc<crate::queue::Snapshot>>,
 }
 pub struct View {
     pub request: crate::browse::Request,
@@ -296,6 +297,7 @@ impl Catalog {
             library: Arc::new(Library::new(songs)),
             view: None,
             source_version: None,
+            queue: None,
         }
     }
     pub fn add_collection(&mut self, name: &str, rows: Vec<usize>, context: PlaybackContext) {

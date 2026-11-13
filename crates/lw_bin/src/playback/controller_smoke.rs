@@ -205,6 +205,24 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     {
         return Err(error("Worker catalog snapshot was not delivered"));
     }
+    let queue = player
+        .catalog()
+        .queue
+        .as_ref()
+        .ok_or_else(|| error("Restored queue snapshot was not delivered"))?;
+    if queue.current != Some(1)
+        || queue.entries.len() != 3
+        || queue.upcoming().len() != 1
+        || queue.entries.iter().any(|entry| entry.song_id != good)
+        || queue
+            .entries
+            .windows(2)
+            .any(|pair| pair[0].id == pair[1].id)
+    {
+        return Err(error(
+            "Restored duplicate occurrences were not projected correctly",
+        ));
+    }
     let database = base.join("library.sqlite");
     // A real start must remove the song from an active Unplayed result without another browse request.
     let unplayed = lw_ui::browse::Request {
@@ -345,9 +363,13 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     until(&mut player, deadline, &mut |player| {
         player.status().phase == Phase::Paused && !player.native_snapshot().playing()
     })?;
-    let revision = player.command(Command::Reorder {
-        indices: Arc::from([3]),
-        destination: 2,
+    let original = player.catalog().queue.as_ref().unwrap().entries.clone();
+    if original.len() != 4 {
+        return Err(error("Configured queue snapshot is stale"));
+    }
+    let revision = player.command(Command::MoveUpcoming {
+        occurrence: original[3].id,
+        before: Some(original[2].id),
     })?;
     until(&mut player, deadline, &mut |player| {
         let native = player.native_snapshot();
@@ -355,13 +377,20 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             && native.token == initial.token
             && native.queued[2] != 0
             && native.queued[1] != initial.queued[1]
+            && player.catalog().queue.as_ref().is_some_and(|queue| {
+                queue.entries.as_ref() == [original[0], original[1], original[3], original[2]]
+            })
     })?;
+    let reordered = player.catalog().queue.as_ref().unwrap().entries.clone();
     let next = player.native_snapshot().queued[1];
     player.command(Command::Next)?;
     until(&mut player, deadline, &mut |player| {
         player.status().current_index == Some(2)
             && player.native_snapshot().token == next
             && player.status().phase == Phase::Playing
+            && player.catalog().queue.as_ref().is_some_and(|queue| {
+                queue.current == Some(2) && Arc::ptr_eq(&queue.entries, &reordered)
+            })
     })?;
     player.command(Command::Pause)?;
     until(&mut player, deadline, &mut |player| {
@@ -372,6 +401,11 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         player.status().processed_command >= revision
             && player.status().queue_len == 3
             && player.native_snapshot().queued == [next, 0, 0]
+            && player
+                .catalog()
+                .queue
+                .as_ref()
+                .is_some_and(|queue| queue.can_undo && queue.upcoming().is_empty())
     })?;
     let revision = player.command(Command::UndoClear)?;
     until(&mut player, deadline, &mut |player| {
@@ -379,6 +413,9 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             && player.status().queue_len == 4
             && player.native_snapshot().token == next
             && player.native_snapshot().queued[1] != 0
+            && player.catalog().queue.as_ref().is_some_and(|queue| {
+                !queue.can_undo && queue.entries.as_ref() == reordered.as_ref()
+            })
     })?;
     let revision = player.command(Command::Repeat(RepeatMode::One))?;
     until(&mut player, deadline, &mut |player| {
@@ -556,7 +593,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         return Err(error("A failed library accepted a playback command"));
     }
     println!(
-        "controller_smoke=ok restored_paused=true skipped_missing=true preserved_prequeue=true continuous_controls_prepare=true history_plays=6 live_unplayed=true natural_end_paused=true rapid_next_ordered=true stop_priority=true stale_stop_rejected=true bounded_commands=32 failure_stop_ack=true warm_poll_allocations=0"
+        "controller_smoke=ok immutable_queue=true occurrence_reorder=true queue_clear_undo=true restored_paused=true skipped_missing=true preserved_prequeue=true continuous_controls_prepare=true history_plays=6 live_unplayed=true natural_end_paused=true rapid_next_ordered=true stop_priority=true stale_stop_rejected=true bounded_commands=32 failure_stop_ack=true warm_poll_allocations=0"
     );
     Ok(())
 }

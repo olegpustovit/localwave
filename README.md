@@ -66,10 +66,10 @@ open target/bundle/LocalWave.app
 make install                # install to /Applications (APPDIR overrides)
 cargo t -p lw_core          # Rust storage and model checks
 cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
-make performance            # signed Songs + Find: zero warm Rust allocations, <1 ms build, idle check
+make performance            # signed Songs + Find + Queue: zero warm Rust allocations, <1 ms build, idle check
 ```
 
-Warm library/app builds have measured 0.14/0.04 seconds, and the latest 97 bounded app checks 10.88 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
+Warm library/app builds have measured 0.14/0.04 seconds, and the latest 100 bounded app checks 10.05 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
 
 ## Development
 

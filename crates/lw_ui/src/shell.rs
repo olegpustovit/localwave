@@ -57,6 +57,14 @@ impl ShellState {
         })
     }
     pub fn refresh(&mut self, previous: &Catalog, next: &Catalog) {
+        let same_view = match (&previous.view, &next.view) {
+            (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        if std::sync::Arc::ptr_eq(&previous.library, &next.library) && same_view {
+            return;
+        }
         let old = self.collection(previous);
         let selected = old.and_then(|group| {
             self.selected
@@ -552,6 +560,9 @@ pub fn shell(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
+    if ui.key_pressed(input::Key::Escape.code()) {
+        ui.cancel_carry();
+    }
     let p = palette(ui);
     let (width, _) = ui.view_size();
     let panel = state.panel_visible && width >= 900.0;
@@ -607,12 +618,19 @@ pub fn shell(
             );
             if panel {
                 rule(ui, "panel-divider", true, p);
+                let mut panel_revision = DefaultHasher::new();
+                (
+                    player.revision,
+                    catalog.queue.as_ref().map(|queue| queue.revision),
+                    std::sync::Arc::as_ptr(&catalog.library) as usize,
+                )
+                    .hash(&mut panel_revision);
                 ui.view(
                     "now-panel",
-                    player.revision,
+                    panel_revision.finish(),
                     Size::Px(319.0),
                     Size::Grow,
-                    &mut |ui| now_panel(ui, player, p, intent),
+                    &mut |ui| now_panel(ui, player, catalog, p, intent),
                 );
             }
         });
@@ -1322,7 +1340,13 @@ fn find_tokens(
     );
 }
 
-fn now_panel(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Option<Intent>) {
+fn now_panel(
+    ui: &mut Ui,
+    player: &PlayerView<'_>,
+    catalog: &Catalog,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
     let root = ui.node(
         "now",
         Node {
@@ -1427,6 +1451,7 @@ fn now_panel(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
             (Size::Grow, 24.0),
             false,
         );
+        // Keep the queue viewport stable when playback reports a notice.
         text(
             ui,
             "playback-notice",
@@ -1436,7 +1461,260 @@ fn now_panel(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
             (Size::Grow, 44.0),
             false,
         );
+        spacer(ui, "queue-gap", 14.0);
+        rule(ui, "queue-divider", false, p);
+        let mut queue_revision = DefaultHasher::new();
+        (
+            catalog.queue.as_ref().map(|queue| queue.revision),
+            std::sync::Arc::as_ptr(&catalog.library) as usize,
+        )
+            .hash(&mut queue_revision);
+        ui.view(
+            "up-next",
+            queue_revision.finish(),
+            Size::Grow,
+            Size::Grow,
+            &mut |ui| queue_rows(ui, catalog, p, intent),
+        );
     });
+}
+
+fn queue_action(ui: &mut Ui, key: &str, label: &str, name: &str, p: Palette) -> bool {
+    let button = ui.node(
+        key,
+        Node {
+            flags: CLICKABLE | TAB_STOP | FIT_TEXT,
+            role: Role::Button,
+            w: Size::Px(44.0),
+            h: Size::Px(28.0),
+            look: Look {
+                text: p.secondary,
+                font: Font {
+                    size: 12,
+                    ..Font::BODY
+                },
+                ..Look::NONE
+            },
+            ..Node::DEFAULT
+        },
+    );
+    ui.text(&button, label);
+    ui.a11y_name(&button, name);
+    ui.signal_state(&button).clicked
+}
+
+fn queue_rows(ui: &mut Ui, catalog: &Catalog, p: Palette, intent: &mut Option<Intent>) {
+    let Some(queue) = &catalog.queue else { return };
+    let entries = queue.upcoming();
+    let header = container(
+        ui,
+        "queue-heading",
+        Axis::Row,
+        Size::Grow,
+        Size::Px(34.0),
+        p.paper,
+    );
+    ui.within(&header, &mut |ui| {
+        text(
+            ui,
+            "queue-context",
+            &queue.heading,
+            13,
+            p.secondary,
+            (Size::Grow, 28.0),
+            false,
+        );
+        text(
+            ui,
+            "queue-count",
+            &queue.count,
+            12,
+            p.secondary,
+            (Size::Px(30.0), 28.0),
+            true,
+        );
+        if !entries.is_empty() && queue_action(ui, "clear", "Clear", "Clear up next", p) {
+            *intent = Some(Intent::ClearQueue);
+        }
+        if queue.can_undo && queue_action(ui, "undo", "Undo", "Undo clear up next", p) {
+            *intent = Some(Intent::UndoQueue);
+        }
+    });
+    if entries.is_empty() {
+        text(
+            ui,
+            "queue-empty",
+            if queue.can_undo {
+                "Up next cleared."
+            } else {
+                "Queue is empty."
+            },
+            14,
+            p.secondary,
+            (Size::Grow, 44.0),
+            false,
+        );
+        return;
+    }
+    ui.grid_list(
+        "queue-entries",
+        entries.len(),
+        279.0,
+        44.0,
+        &mut |ui, index| {
+            let entry = entries[index];
+            let row = catalog
+                .row_index(entry.song_id)
+                .map(|index| catalog.row(index));
+            let title = row.map_or("Unavailable track", |row| {
+                if row.title.is_empty() {
+                    "Untitled track"
+                } else {
+                    row.title
+                }
+            });
+            let artist = row.map_or("", |row| row.artist);
+            let item = ui.node_keyed(
+                int_key(Ui::key_of(0, "localwave-queue-entry"), entry.id as i64),
+                Node {
+                    w: Size::Grow,
+                    h: Size::Px(44.0),
+                    axis: Axis::Row,
+                    flags: CLICKABLE,
+                    role: Role::ListItem,
+                    ..Node::DEFAULT
+                },
+            );
+            ui.a11y_name(&item, title);
+            ui.within(&item, &mut |ui| {
+                let grip = ui.node(
+                    "reorder-queued",
+                    Node {
+                        flags: CLICKABLE | TAB_STOP,
+                        role: Role::Button,
+                        w: Size::Px(24.0),
+                        h: Size::Px(44.0),
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.a11y_name(&grip, "Reorder queued track");
+                ui.draw(&grip, move |paint, rect| {
+                    for x in [8.0, 12.0] {
+                        for y in [17.0, 21.0, 25.0] {
+                            paint.fill(rect.x + x, rect.y + y, 2.0, 2.0, p.secondary);
+                        }
+                    }
+                });
+                let signal = ui.signal_state(&grip);
+                // shortcut: capture ends when the source row is virtualized away; use list-owned capture for cross-page drags.
+                if signal.held || signal.clicked {
+                    let id = ClockLabel::integer(entry.id);
+                    const PREFIX: &[u8] = b"localwave.queue-occurrence:";
+                    let mut kind = [0u8; 64];
+                    kind[..PREFIX.len()].copy_from_slice(PREFIX);
+                    let len = PREFIX.len() + id.bytes().len();
+                    kind[PREFIX.len()..len].copy_from_slice(id.bytes());
+                    ui.carry(
+                        if signal.clicked { None } else { Some(&grip) },
+                        std::str::from_utf8(&kind[..len]).expect("queue drag kind is ASCII"),
+                        title,
+                    );
+                }
+                let art = container(
+                    ui,
+                    "queue-art",
+                    Axis::Stack,
+                    Size::Px(30.0),
+                    Size::Px(30.0),
+                    p.panel,
+                );
+                ui.a11y_name(&art, "Track artwork");
+                let play = ui.node(
+                    "play-queued",
+                    Node {
+                        flags: CLICKABLE | TAB_STOP,
+                        role: Role::Button,
+                        w: Size::Grow,
+                        h: Size::Grow,
+                        padding: Edges {
+                            l: 10.0,
+                            ..Edges::ZERO
+                        },
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.a11y_name(&play, title);
+                ui.within(&play, &mut |ui| {
+                    text(
+                        ui,
+                        "queue-title",
+                        title,
+                        13,
+                        p.ink,
+                        (Size::Grow, 19.0),
+                        false,
+                    );
+                    text(
+                        ui,
+                        "queue-artist",
+                        artist,
+                        12,
+                        p.secondary,
+                        (Size::Grow, 17.0),
+                        false,
+                    );
+                });
+                if ui.signal_state(&play).clicked {
+                    *intent = Some(Intent::PlayQueue(entry.id));
+                }
+                if icon_button(
+                    ui,
+                    "remove-queued",
+                    "Remove from queue",
+                    Icon::Clear,
+                    (28.0, 44.0),
+                    false,
+                    p,
+                ) {
+                    *intent = Some(Intent::RemoveQueue(entry.id));
+                }
+            });
+            let drop = ui.drop_target_ref(&item).and_then(|drop| {
+                let (dropped, payload) = match drop {
+                    pxui::DropRef::Hover(p) => (false, p),
+                    pxui::DropRef::Dropped(p) => (true, p),
+                };
+                payload
+                    .kind
+                    .strip_prefix("localwave.queue-occurrence:")?
+                    .parse::<u64>()
+                    .ok()
+                    .map(|id| (dropped, id))
+            });
+            if let Some((dropped, occurrence)) = drop {
+                let after = ui.signal_state(&item).pointer.1 >= ui.rect(&item).y + 22.0;
+                let before = if after {
+                    entries.get(index + 1).map(|entry| entry.id)
+                } else {
+                    Some(entry.id)
+                };
+                if before != Some(occurrence) {
+                    ui.draw(&item, move |paint, rect| {
+                        paint.fill(
+                            rect.x,
+                            if after { rect.y + rect.h - 2.0 } else { rect.y },
+                            rect.w,
+                            2.0,
+                            p.ink,
+                        );
+                    });
+                    if dropped {
+                        *intent = Some(Intent::MoveQueue { occurrence, before });
+                    }
+                }
+            }
+        },
+    );
 }
 
 #[derive(Clone, Copy)]

@@ -473,6 +473,38 @@ impl Session {
         }
         changed
     }
+    /// Resolve a displayed drag by occurrence against the current queue; played/current rows stay fixed.
+    pub fn move_upcoming(&mut self, occurrence: u64, before: Option<u64>) -> bool {
+        let Some(current) = self.queue.current_index() else {
+            return false;
+        };
+        let Some(from) = self
+            .queue
+            .entries()
+            .iter()
+            .position(|entry| entry.id == occurrence)
+            .filter(|index| *index > current)
+        else {
+            return false;
+        };
+        let destination = match before {
+            Some(id) => match self
+                .queue
+                .entries()
+                .iter()
+                .position(|entry| entry.id == id)
+                .filter(|index| *index > current)
+            {
+                Some(index) => index,
+                None => return false,
+            },
+            None => self.queue.entries().len(),
+        };
+        if destination == from || destination == from + 1 {
+            return false;
+        }
+        self.reorder(&[from], destination)
+    }
     pub fn remove(&mut self, occurrence: u64) -> bool {
         let changed = self.queue.remove(occurrence);
         if changed {
@@ -535,6 +567,34 @@ impl Session {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn upcoming_moves_resolve_occurrences_and_refuse_stale_current_and_noop_targets() {
+        let mut session = Session::default();
+        session.configure(&[7, 7, 8, 9], 1);
+        let entries = session.queue().entries().to_vec();
+        let current = session.queue().current();
+        assert!(session.move_upcoming(entries[3].id, Some(entries[2].id)));
+        assert_eq!(
+            session.queue().entries(),
+            [entries[0], entries[1], entries[3], entries[2]]
+        );
+        assert_eq!(session.queue().current(), current);
+        assert!(session.move_upcoming(entries[3].id, None));
+        assert_eq!(session.queue().entries(), entries);
+        assert!(!session.move_upcoming(entries[0].id, None));
+        assert!(!session.move_upcoming(entries[1].id, None));
+        assert!(!session.move_upcoming(entries[2].id, Some(entries[0].id)));
+        assert!(!session.move_upcoming(entries[2].id, Some(entries[1].id)));
+        assert!(!session.move_upcoming(entries[2].id, Some(entries[2].id)));
+        assert!(!session.move_upcoming(entries[2].id, Some(entries[3].id)));
+        assert!(session.remove(entries[3].id));
+        assert!(!session.move_upcoming(entries[2].id, Some(entries[3].id)));
+        session.configure(&[7, 7, 8, 9], 1);
+        assert!(
+            !session.move_upcoming(entries[2].id, None),
+            "reconfigured occurrences must not alias old rows"
+        );
+    }
     fn load(action: Action) -> Ticket {
         let Action::Load(ticket) = action else {
             panic!("Expected a load, got {action:?}");

@@ -42,6 +42,10 @@ pub enum Command {
         indices: Arc<[usize]>,
         destination: usize,
     },
+    MoveUpcoming {
+        occurrence: u64,
+        before: Option<u64>,
+    },
     Remove(u64),
     Append(i64),
     ClearUpcoming,
@@ -596,6 +600,8 @@ impl Drop for Controller {
 
 struct Worker {
     catalog: Catalog,
+    queue: Option<Arc<lw_ui::queue::Snapshot>>,
+    queue_dirty: bool,
     browse: Option<Request>,
     browse_dirty: bool,
     catalog_dirty: bool,
@@ -661,6 +667,8 @@ impl Worker {
             let native = shared.inbox.lock().unwrap().native;
             Ok(Self {
                 catalog,
+                queue: None,
+                queue_dirty: true,
                 browse: None,
                 browse_dirty: false,
                 catalog_dirty: false,
@@ -826,7 +834,7 @@ impl Worker {
                         .library
                         .catalog_view(if reload { None } else { Some(&self.catalog) }, self.browse)
                     {
-                        Ok(catalog) => {
+                        Ok(mut catalog) => {
                             if !Arc::ptr_eq(&self.catalog.library, &catalog.library) {
                                 self.metadata_id = None;
                             }
@@ -837,12 +845,9 @@ impl Worker {
                             {
                                 self.message = self.empty.clone();
                             }
-                            self.catalog = catalog.clone();
-                            let catalog = Arc::new(catalog);
-                            let previous =
-                                self.shared.inbox.lock().unwrap().catalog.replace(catalog);
-                            drop(previous);
-                            (self.shared.wake)();
+                            catalog.queue = self.queue.clone();
+                            self.catalog = catalog;
+                            self.publish_catalog();
                         }
                         Err(error) => {
                             eprintln!("LocalWave catalog refresh: {error}");
@@ -1115,6 +1120,10 @@ impl Worker {
                 structural = self.session.reorder(&indices, destination);
                 Action::None
             }
+            Command::MoveUpcoming { occurrence, before } => {
+                structural = self.session.move_upcoming(occurrence, before);
+                Action::None
+            }
             Command::Remove(occurrence) => {
                 structural = self.session.remove(occurrence);
                 Action::None
@@ -1158,6 +1167,7 @@ impl Worker {
             self.undo = None;
         }
         if structural {
+            self.queue_dirty = true;
             self.saved.song_ids.clear();
             self.saved.song_ids.extend(
                 self.session
@@ -1396,7 +1406,48 @@ impl Worker {
         self.advance = None;
         self.seek = None;
     }
+    fn publish_catalog(&self) {
+        let previous = self
+            .shared
+            .inbox
+            .lock()
+            .unwrap()
+            .catalog
+            .replace(Arc::new(self.catalog.clone()));
+        drop(previous);
+        (self.shared.wake)();
+    }
     fn publish(&mut self) {
+        let cursor = self.session.queue().current_index();
+        let can_undo = self.undo.is_some();
+        if self.queue_dirty
+            || self.queue.as_ref().is_none_or(|queue| {
+                queue.current != cursor
+                    || queue.can_undo != can_undo
+                    || !Arc::ptr_eq(&queue.context, &self.context)
+            })
+        {
+            let entries = if self.queue_dirty {
+                Arc::from(self.session.queue().entries())
+            } else {
+                self.queue.as_ref().unwrap().entries.clone()
+            };
+            let revision = self
+                .queue
+                .as_ref()
+                .map_or(1, |queue| queue.revision.wrapping_add(1));
+            let queue = Arc::new(lw_ui::queue::Snapshot::new(
+                revision,
+                entries,
+                cursor,
+                self.context.clone(),
+                can_undo,
+            ));
+            self.queue = Some(queue.clone());
+            self.catalog.queue = Some(queue);
+            self.queue_dirty = false;
+            self.publish_catalog();
+        }
         let current = self.session.queue().current();
         let id = current.map(|entry| entry.song_id);
         if id != self.metadata_id {
@@ -1532,7 +1583,21 @@ mod tests {
     #[test]
     fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
         let shared = shared();
-        let mut current = Arc::new(Catalog::default());
+        let entries: Arc<[lw_core::queue::Entry]> = (0..10_000)
+            .map(|id| lw_core::queue::Entry { id, song_id: 7 })
+            .collect();
+        let old_entries = Arc::downgrade(&entries);
+        let catalog = Catalog {
+            queue: Some(Arc::new(lw_ui::queue::Snapshot::new(
+                1,
+                entries,
+                Some(0),
+                Arc::new(PlaybackContext::Library),
+                false,
+            ))),
+            ..Catalog::default()
+        };
+        let mut current = Arc::new(catalog);
         let old = Arc::downgrade(&current);
         shared.inbox.lock().unwrap().catalog = Some(Arc::new(Catalog::new(Vec::new())));
         // Warm the condition variable before measuring exchanges.
@@ -1557,6 +1622,11 @@ mod tests {
             !shared.update_catalog(&mut current, &mut |_, _| panic!("retirement backpressure"))
         );
         assert!(shared.inbox.lock().unwrap().catalog.is_some());
+        assert_eq!(
+            old_entries.strong_count(),
+            1,
+            "the queue array stays in the bounded retirement slot"
+        );
         let worker = shared.clone();
         std::thread::spawn(move || {
             let retired = worker.inbox.lock().unwrap().retired_catalog.take();
@@ -1564,6 +1634,10 @@ mod tests {
             assert!(
                 old.upgrade().is_none(),
                 "the worker releases the final strong owner"
+            );
+            assert!(
+                old_entries.upgrade().is_none(),
+                "the worker releases large queue arrays too"
             );
         })
         .join()
