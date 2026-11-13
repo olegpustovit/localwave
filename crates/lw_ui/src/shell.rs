@@ -4,6 +4,8 @@ use crate::{Intent, PlayerView};
 use pxui::ui::*;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+mod settings;
+
 pub struct ShellState {
     pub route: Route,
     pub selected: Option<usize>,
@@ -19,6 +21,9 @@ pub struct ShellState {
     query_too_long: bool,
     query_revision: u64,
     revision: u64,
+    settings_visible: bool,
+    privacy_visible: bool,
+    settings_menu: Option<(crate::SettingsMenu, (f32, f32))>,
 }
 impl Default for ShellState {
     fn default() -> Self {
@@ -37,6 +42,9 @@ impl Default for ShellState {
             query_too_long: false,
             query_revision: 0,
             revision: 0,
+            settings_visible: false,
+            privacy_visible: false,
+            settings_menu: None,
         }
     }
 }
@@ -139,6 +147,9 @@ impl ShellState {
     pub fn apply(&mut self, intent: Intent) -> bool {
         match intent {
             Intent::Navigate(route) => {
+                self.settings_visible = false;
+                self.privacy_visible = false;
+                self.settings_menu = None;
                 self.route = route;
                 self.selected = None;
                 self.sort = Sort::Original;
@@ -146,7 +157,10 @@ impl ShellState {
             }
             Intent::SelectRow(index) => self.selected = Some(index),
             Intent::TogglePanel => self.panel_visible = !self.panel_visible,
-            Intent::ShowQueue => self.queue_visible = true,
+            Intent::ShowQueue => {
+                self.queue_visible = true;
+                self.settings_menu = None;
+            }
             Intent::CloseQueue => {
                 self.queue_visible = false;
                 self.playlist_editing = false;
@@ -171,6 +185,33 @@ impl ShellState {
             Intent::Sort(sort) => {
                 self.ascending = self.sort != sort || !self.ascending;
                 self.sort = sort;
+            }
+            Intent::ShowSettings => {
+                self.settings_visible = true;
+                self.privacy_visible = false;
+                self.queue_visible = false;
+                self.settings_menu = None;
+            }
+            Intent::CloseSettings => {
+                self.settings_visible = false;
+                self.privacy_visible = false;
+                self.settings_menu = None;
+            }
+            Intent::ShowPrivacy => {
+                self.privacy_visible = true;
+                self.settings_menu = None;
+            }
+            Intent::ClosePrivacy => self.privacy_visible = false,
+            Intent::SettingsMenu(menu, at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.settings_menu = Some((menu, at));
+                }
+            }
+            Intent::CloseSettingsMenu => self.settings_menu = None,
+            Intent::Setting(_) => {
+                self.settings_menu = None;
+                self.revision = self.revision.wrapping_add(1);
+                return false;
             }
             _ => return false,
         }
@@ -781,8 +822,14 @@ pub fn shell(
     if state.queue_visible {
         queue_sheet(ui, player, catalog, state, p, intent);
     }
+    if let Some((menu, at)) = state.settings_menu {
+        settings::popup(ui, player, menu, at, p, intent);
+    }
     let (width, height) = ui.view_size();
-    let panel = state.panel_visible && width >= 900.0 && height - state.top_inset >= 640.0;
+    let panel = !state.settings_visible
+        && state.panel_visible
+        && width >= 900.0
+        && height - state.top_inset >= 640.0;
     let sidebar_width = if width >= 900.0 { 231.0 } else { 180.0 };
     let content_width = (width - sidebar_width - 1.0 - if panel { 320.0 } else { 0.0 }).max(100.0);
     let root = container(ui, "shell", Axis::Column, Size::Grow, Size::Grow, p.paper);
@@ -806,6 +853,14 @@ pub fn shell(
                 revision,
                 player.current_id,
                 player.artwork.map_or(0, crate::artwork::Images::revision),
+                player.settings,
+                player.cache_usage.as_ptr() as usize,
+                player.cache_usage.len(),
+                player.storage_busy,
+                player.settings_message.as_ptr() as usize,
+                player.settings_message.len(),
+                player.message.as_ptr() as usize,
+                player.message.len(),
             )
                 .hash(&mut library_revision);
             ui.view(
@@ -835,7 +890,11 @@ pub fn shell(
                         },
                     );
                     ui.within(&route, &mut |ui| {
-                        content(ui, catalog, state, player, content_width, p, intent)
+                        if state.settings_visible {
+                            settings::view(ui, player, state, content_width, p, intent);
+                        } else {
+                            content(ui, catalog, state, player, content_width, p, intent);
+                        }
                     });
                 },
             );
@@ -869,6 +928,7 @@ pub fn shell(
     });
     if intent.is_none()
         && !state.queue_visible
+        && !state.settings_visible
         && ui.key_pressed(input::Key::Enter)
         && !ui.text_input_focused()
         && let Some(index) = state.selected
@@ -877,6 +937,19 @@ pub fn shell(
             .is_some_and(|collection| index < collection.rows.len())
     {
         *intent = Some(Intent::PlayRow(index));
+    }
+    let settings_shortcut = ui.key_pressed(',') && ui.key_down(input::Key::Meta.code());
+    if settings_shortcut {
+        *intent = Some(Intent::ShowSettings);
+    }
+    if state.settings_visible && !state.queue_visible && ui.key_pressed(input::Key::Escape.code()) {
+        *intent = Some(if state.settings_menu.is_some() {
+            Intent::CloseSettingsMenu
+        } else if state.privacy_visible {
+            Intent::ClosePrivacy
+        } else {
+            Intent::CloseSettings
+        });
     }
 }
 
@@ -911,7 +984,7 @@ fn side_row(
     ui.set_look(
         &node,
         Look {
-            fill: if state.route == route {
+            fill: if !state.settings_visible && state.route == route {
                 p.selected
             } else if signal.hovered {
                 p.panel
@@ -929,7 +1002,7 @@ fn side_row(
             "title",
             title,
             14,
-            if state.route == route {
+            if !state.settings_visible && state.route == route {
                 p.ink
             } else {
                 p.secondary
@@ -1054,6 +1127,34 @@ fn sidebar(
             (Size::Grow, 26.0),
             false,
         );
+        let button = ui.node(
+            "settings",
+            Node {
+                flags: CLICKABLE | FOCUSABLE,
+                role: Role::Button,
+                w: Size::Grow,
+                h: Size::Px(36.0),
+                look: Look {
+                    fill: if state.settings_visible {
+                        p.selected
+                    } else {
+                        Rgba::default()
+                    },
+                    text: p.ink,
+                    font: Font {
+                        size: 15,
+                        ..Font::BODY
+                    },
+                    ..Look::NONE
+                },
+                ..Node::DEFAULT
+            },
+        );
+        ui.text(&button, "Settings");
+        ui.a11y_name(&button, "Settings");
+        if ui.signal_state(&button).clicked {
+            *intent = Some(Intent::ShowSettings);
+        }
     });
 }
 

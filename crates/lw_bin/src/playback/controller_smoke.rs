@@ -131,6 +131,15 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                 reduce_motion: true,
                 ..Default::default()
             })?;
+            std::fs::create_dir_all(worker_base.join("Documents/Music"))?;
+            std::fs::create_dir_all(worker_base.join("Documents/Added Files"))?;
+            std::fs::write(
+                worker_base.join("Documents/Added Files/keep.txt"),
+                b"keep added files",
+            )?;
+            let sparse = std::fs::File::create(worker_base.join("Documents/Music/old-cache.m4a"))?;
+            sparse.set_len(3_000_000_000)?;
+            sparse.set_modified(std::time::UNIX_EPOCH)?;
             ids.send((bad, good)).map_err(io::Error::other)?;
             ready
                 .recv_timeout(Duration::from_secs(1))
@@ -266,6 +275,55 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             && !player.status().wants_playback
             && player.native_snapshot().token == 0
     })?;
+    use lw_core::preferences::{Appearance, Change, Signal};
+    let mut settings_revision = 0;
+    for change in [
+        Change::ToggleDownloadAhead,
+        Change::ToggleDownloadAhead,
+        Change::ToggleNoNetwork,
+        Change::ToggleNoNetwork,
+        Change::ToggleShowNonAudio,
+        Change::ToggleShowNonAudio,
+        Change::Appearance(Appearance::Light),
+        Change::Signal(Signal::Green),
+        Change::ToggleReduceMotion,
+        Change::CacheGB(2),
+    ] {
+        settings_revision = player.command(Command::Setting(change))?;
+    }
+    player.command(Command::ReadStorage)?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= settings_revision
+            && !player.status().storage_busy
+            && !player.status().cache_usage.is_empty()
+    })?;
+    let settings = player.status().settings;
+    if !settings.download_ahead
+        || settings.simulate_no_network
+        || settings.show_non_audio
+        || settings.reduce_motion
+        || settings.appearance != Appearance::Light
+        || settings.signal != Signal::Green
+        || settings.cache_gb != 2
+        || player.native_snapshot().token != 0
+        || player.status().queue_len != 3
+        || base.join("Documents/Music/old-cache.m4a").exists()
+        || std::fs::read(base.join("Documents/Added Files/keep.txt"))? != b"keep added files"
+    {
+        return Err(error(
+            "Settings deltas or protected offline-space trimming changed the player or Added Files",
+        ));
+    }
+    let native_settings = Preferences::open(Some(&suite))?.load_settings();
+    if native_settings.appearance != 1
+        || native_settings.signal != 2
+        || native_settings.cache_gb != 2
+        || native_settings.reduce_motion != 0
+    {
+        return Err(error(
+            "Controller settings did not persist through the native keys",
+        ));
+    }
     // A real start must remove the song from an active Unplayed result without another browse request.
     let unplayed = lw_ui::browse::Request {
         query: lw_ui::browse::Query::new("Controller unplayed").unwrap(),

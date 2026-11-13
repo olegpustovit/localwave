@@ -41,6 +41,7 @@ void lw_player_set_wake(void *player, void (*wake)(void));
 int lw_player_trim(void *player, uint64_t generation, uint64_t current, size_t keep, char **error);
 void lw_player_release(void *player);
 void lw_player_run_loop(double seconds);
+int lw_window_open_link(int kind);
 
 typedef struct { int kind; double seconds; } LWMediaCommand;
 typedef struct {

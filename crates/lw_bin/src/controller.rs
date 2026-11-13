@@ -4,7 +4,7 @@ use lw_apple_sys::player::{Event, Kind, Player, Prepared, Snapshot};
 use lw_core::context::PlaybackContext;
 use lw_core::playback::{Fault, Phase, Reading};
 use lw_core::player::{Action, Session, Ticket};
-use lw_core::preferences::{PlayerState, Settings};
+use lw_core::preferences::{Change as SettingChange, PlayerState, Settings};
 use lw_core::queue::{Entry, RepeatMode};
 use lw_ui::browse::Request;
 use lw_ui::catalog::Catalog;
@@ -60,6 +60,8 @@ pub enum Command {
     SaveQueue(lw_ui::browse::Query),
     DismissNotice,
     RefreshCatalog,
+    Setting(SettingChange),
+    ReadStorage,
 }
 impl Command {
     fn validate(&self) -> io::Result<()> {
@@ -81,6 +83,7 @@ impl Command {
             Self::Seek(seconds) => !seconds.is_finite(),
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
             Self::SaveQueue(name) => name.as_str().trim().is_empty(),
+            Self::Setting(change) => Settings::default().applying(*change).is_err(),
             _ => false,
         };
         if invalid {
@@ -97,6 +100,14 @@ impl Command {
                 | Self::DismissNotice
                 | Self::RefreshCatalog
                 | Self::SaveQueue(_)
+                | Self::ReadStorage
+                | Self::Setting(
+                    SettingChange::Appearance(_)
+                        | SettingChange::Signal(_)
+                        | SettingChange::ToggleReduceMotion
+                        | SettingChange::ToggleShowNonAudio
+                        | SettingChange::CacheGB(_)
+                )
         )
     }
     fn interrupts(&self) -> bool {
@@ -116,6 +127,9 @@ impl Command {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Status {
     pub settings: Settings,
+    pub cache_usage: Arc<str>,
+    pub settings_message: Arc<str>,
+    pub storage_busy: bool,
     pub waveform: Option<lw_core::waveform::Peaks>,
     pub revision: u64,
     pub initialized: bool,
@@ -142,6 +156,9 @@ impl Default for Status {
     fn default() -> Self {
         Self {
             settings: Settings::default(),
+            cache_usage: Arc::from(""),
+            settings_message: Arc::from(""),
+            storage_busy: false,
             waveform: None,
             revision: 0,
             context: Arc::new(PlaybackContext::Library),
@@ -420,6 +437,7 @@ impl Controller {
                     (Command::Volume(_), Command::Volume(_))
                         | (Command::Seek(_), Command::Seek(_))
                         | (Command::RefreshCatalog, Command::RefreshCatalog)
+                        | (Command::ReadStorage, Command::ReadStorage)
                 )
             });
             if inbox.commands.len() == 32 && !priority {
@@ -679,6 +697,9 @@ struct Worker {
     catalog_dirty: bool,
     catalog_error: Option<Arc<str>>,
     settings: Settings,
+    cache_usage: Arc<str>,
+    settings_message: Arc<str>,
+    storage_pending: bool,
     context: Arc<PlaybackContext>,
     library: LibraryWorker,
     shared: Arc<Shared>,
@@ -748,6 +769,9 @@ impl Worker {
                 catalog_dirty: false,
                 catalog_error: None,
                 settings,
+                cache_usage: empty.clone(),
+                settings_message: empty.clone(),
+                storage_pending: false,
                 context,
                 library,
                 shared: shared.clone(),
@@ -905,6 +929,7 @@ impl Worker {
                 continue;
             }
             if self.pending.is_none() {
+                self.load_storage();
                 let reload = std::mem::take(&mut self.catalog_dirty);
                 if std::mem::take(&mut self.browse_dirty) || reload {
                     match self
@@ -949,6 +974,38 @@ impl Worker {
                 && inbox.retired_catalog.is_none()
             {
                 inbox = self.shared.changed.wait(inbox).unwrap();
+            }
+        }
+    }
+    fn load_storage(&mut self) {
+        if !std::mem::take(&mut self.storage_pending) {
+            return;
+        }
+        match self.library.enforce_cache_limit() {
+            Ok(eviction) => {
+                self.catalog_dirty |= eviction.files != 0;
+                let bytes = eviction.remaining_bytes;
+                let usage = if bytes >= 1_000_000_000 {
+                    format!("{:.1} GB", bytes as f64 / 1_000_000_000.0)
+                } else if bytes >= 1_000_000 {
+                    format!("{:.1} MB", bytes as f64 / 1_000_000.0)
+                } else if bytes >= 1_000 {
+                    format!("{:.1} KB", bytes as f64 / 1_000.0)
+                } else {
+                    format!("{bytes} bytes")
+                };
+                let summary = format!(
+                    "{usage} cached. Kept songs may exceed the limit; Added Files are never removed."
+                );
+                if self.cache_usage.as_ref() != summary {
+                    self.cache_usage = Arc::from(summary);
+                }
+                self.settings_message = self.empty.clone();
+            }
+            Err(error) => {
+                eprintln!("LocalWave offline space: {error}");
+                self.settings_message =
+                    Arc::from("Could not read or trim offline space. Try again.");
             }
         }
     }
@@ -1308,6 +1365,31 @@ impl Worker {
                 self.catalog_dirty = true;
                 Action::None
             }
+            Command::ReadStorage => {
+                self.storage_pending = true;
+                Action::None
+            }
+            Command::Setting(change) => {
+                let next = self.settings.applying(change)?;
+                if next != self.settings {
+                    match self.library.save_settings(&next) {
+                        Ok(()) => {
+                            self.storage_pending |= next.cache_gb != self.settings.cache_gb;
+                            if next.download_ahead != self.settings.download_ahead {
+                                self.deferred = [None; 3];
+                            }
+                            self.settings = next;
+                            self.settings_message = self.empty.clone();
+                        }
+                        Err(error) => {
+                            eprintln!("LocalWave settings: {error}");
+                            self.settings_message =
+                                Arc::from("Could not save this setting. Try again.");
+                        }
+                    }
+                }
+                Action::None
+            }
         };
         self.action(action);
         if structural && !keep_undo {
@@ -1624,6 +1706,9 @@ impl Worker {
         let transport = self.session.transport();
         let status = Status {
             settings: self.settings,
+            cache_usage: self.cache_usage.clone(),
+            settings_message: self.settings_message.clone(),
+            storage_busy: self.storage_pending,
             waveform: self.waveform,
             context: self.context.clone(),
             revision: self.status.revision,
@@ -1662,6 +1747,36 @@ mod tests {
     use super::*;
     use lw_ui::catalog::Catalog;
     extern "C" fn wake() {}
+    #[test]
+    fn settings_requests_validate_limits_and_only_file_policy_changes_fence_preparation() {
+        for change in [
+            SettingChange::Appearance(lw_core::preferences::Appearance::Light),
+            SettingChange::Signal(lw_core::preferences::Signal::Green),
+            SettingChange::ToggleReduceMotion,
+            SettingChange::ToggleShowNonAudio,
+            SettingChange::CacheGB(2),
+        ] {
+            let command = Command::Setting(change);
+            assert!(command.validate().is_ok());
+            assert!(!command.fences_preparation());
+            assert!(!command.interrupts());
+        }
+        for change in [
+            SettingChange::ToggleDownloadAhead,
+            SettingChange::ToggleNoNetwork,
+        ] {
+            let command = Command::Setting(change);
+            assert!(command.fences_preparation());
+            assert!(!command.interrupts());
+        }
+        assert!(
+            Command::Setting(SettingChange::CacheGB(3))
+                .validate()
+                .is_err()
+        );
+        assert!(!Command::ReadStorage.fences_preparation());
+        assert!(!Command::ReadStorage.interrupts());
+    }
     #[test]
     fn saving_queue_names_is_bounded_and_does_not_fence_or_interrupt_preparation() {
         for name in ["", "  \t\n"] {

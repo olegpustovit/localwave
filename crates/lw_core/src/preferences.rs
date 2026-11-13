@@ -3,7 +3,7 @@ use crate::{LibraryRepository, Song};
 use lw_apple_sys::sqlite::Result;
 use std::io;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum Appearance {
     #[default]
@@ -11,7 +11,7 @@ pub enum Appearance {
     Light,
     Dark,
 }
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(i32)]
 pub enum Signal {
     #[default]
@@ -20,7 +20,7 @@ pub enum Signal {
     Green,
     Mono,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Settings {
     pub download_ahead: bool,
     pub show_non_audio: bool,
@@ -41,6 +41,32 @@ impl Default for Settings {
             reduce_motion: false,
             cache_gb: 8,
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Change {
+    ToggleDownloadAhead,
+    ToggleShowNonAudio,
+    ToggleNoNetwork,
+    Appearance(Appearance),
+    Signal(Signal),
+    ToggleReduceMotion,
+    CacheGB(i64),
+}
+impl Settings {
+    pub fn applying(mut self, change: Change) -> io::Result<Self> {
+        match change {
+            Change::ToggleDownloadAhead => self.download_ahead = !self.download_ahead,
+            Change::ToggleShowNonAudio => self.show_non_audio = !self.show_non_audio,
+            Change::ToggleNoNetwork => self.simulate_no_network = !self.simulate_no_network,
+            Change::Appearance(value) => self.appearance = value,
+            Change::Signal(value) => self.signal = value,
+            Change::ToggleReduceMotion => self.reduce_motion = !self.reduce_motion,
+            Change::CacheGB(value) if [2, 4, 8, 16, 32].contains(&value) => self.cache_gb = value,
+            Change::CacheGB(_) => return Err(io::ErrorKind::InvalidInput.into()),
+        }
+        Ok(self)
     }
 }
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -99,6 +125,46 @@ impl LibraryRepository {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn settings_deltas_preserve_other_values_and_reject_unsupported_cache_limits() {
+        let mut settings = Settings::default();
+        for change in [
+            Change::ToggleDownloadAhead,
+            Change::ToggleShowNonAudio,
+            Change::ToggleNoNetwork,
+            Change::Appearance(Appearance::Dark),
+            Change::Signal(Signal::Green),
+            Change::ToggleReduceMotion,
+            Change::CacheGB(32),
+        ] {
+            settings = settings.applying(change).unwrap();
+        }
+        assert_eq!(
+            settings,
+            Settings {
+                download_ahead: false,
+                show_non_audio: true,
+                simulate_no_network: true,
+                appearance: Appearance::Dark,
+                signal: Signal::Green,
+                reduce_motion: true,
+                cache_gb: 32
+            }
+        );
+        let unchanged = settings;
+        for value in [i64::MIN, -1, 0, 1, 3, 6, 64, i64::MAX] {
+            assert!(settings.applying(Change::CacheGB(value)).is_err());
+        }
+        assert_eq!(settings, unchanged);
+        assert_eq!(
+            settings
+                .applying(Change::ToggleDownloadAhead)
+                .unwrap()
+                .applying(Change::ToggleDownloadAhead)
+                .unwrap(),
+            settings
+        );
+    }
     #[test]
     fn restore_keeps_duplicate_occurrences_after_deletions_and_rejects_invalid_writes() {
         let mut repo = LibraryRepository::open(":memory:").unwrap();

@@ -1489,3 +1489,116 @@ embedded dylib ID and portable rpath checks. It draws once and stays idle **507.
 library/app builds take **0.64 / 10.16 s**. Logs: `/tmp/localwave-failure-state-bundle.log`,
 `/tmp/localwave-failure-state-bundle-check.log`. Normal GUI PID 69331 remains alive on its mapped
 older build, with its library and defaults untouched.
+
+
+## Settings, appearance and protected offline space (2026-11-13)
+
+The macOS shell now opens Settings from its sidebar or Command-comma. Back/Escape restore the
+existing library route, sort and selection. Keyboard activation stays in Settings instead of
+playing the selected library row. Escape closes a Settings menu before About or the page, while
+the queue sheet retains modal priority. Settings and About use wrapped, explicitly measured
+paragraphs at narrow widths; the retained page does not rebuild for ordinary player clock ticks.
+
+Typed deltas enter the existing bounded controller mailbox and apply against the worker's latest
+Settings. Rapid toggles do not overwrite one another with a stale full snapshot. Persistence uses
+the existing Swift-compatible native keys. Download-ahead/offline-policy changes fence preparation
+without interrupting the current native player; appearance/signal/reduced-motion/cache/UI policy
+changes do not fence it. Save/read failures produce a settings notice.
+
+The visible controls cover download-ahead, simulated no-network mode, 4/8/16 GB and System/Light/
+Dark. Right-click menus expose 2/32 GB, four signal colours and reduced motion. All **eight**
+appearance/signal themes are parsed before frames; live changes only select a cached theme. The
+previous host ignored the persisted signal setting; it now uses the reference light/dark blue,
+red, green and monochrome values. Show-non-audio remains hidden in the desktop layout, matching
+Swift's wide layout, while its saved delta remains supported.
+
+Offline-space summaries and trimming run on the serialized library worker after pending
+preparation work. The existing cache service preserves pin/active/queued protection and never
+removes Added Files. Unchanged summaries keep their Arc identity. The isolated controller fixture
+uses a sparse 3,000,000,000-byte old cache entry and an Added Files sentinel, applies rapid paired
+toggles and saved deltas, then verifies eviction, preserved queue/native state, the sentinel and
+reopened native preferences. No normal app data or defaults are used.
+
+About & Privacy offers the existing fixed privacy-policy and support URLs through an initial-
+thread NSWorkspace bridge; worker-thread attempts are rejected. Browser launch itself is not
+exercised by these checks. The macOS data-removal text does not claim deleting an app bundle
+automatically removes its data. Source rescan belongs to the still-unfinished Files/source
+integration and is not exposed as a disconnected button. Exact nested-menu/reference-motion
+parity, screenshots/goldens and full Settings qualification remain open.
+
+### Shared fixes and allocation evidence
+
+PXUI **f19637b**, published on `rust-port` before the parent pin, includes ABI **1.15** raw held-
+key queries and the follow-up shared fixes. Event-only input retains modifiers across frames;
+focused and modal ownership does not hide this scalar query or consume presses. Popup filtering
+recycles discarded keyboard buffers. Dismissed popup roots, including attached roots, cannot
+intercept a press over their previous bounds on the next frame. The app dismisses only after
+the popup call returns. Two signed preflights caught immediate-menu presses being swallowed
+at frames 6 and 10; both failed logs remain under `/tmp/localwave-settings-performance-*.log`.
+
+A measurement-cache key collision was in **LocalWave's caller**: recurring 2/32 GB detail text
+shared a key and reshaped each change. Each variant now keeps its own measured layout. The
+remaining four allocations were traced to **pxui's SlotTable**, which grew due to tombstones
+with no increase in its live working set. It now reuses tombstones and grows from actual live
+load; cleanup reuses its spare arrays. Recycled text buffers choose the smallest sufficient
+donor, including newly assigned identities with oversized empty buffers. Existing identities
+keep their constant-time capacity check. A rejected broad scan slowed layout; the final path
+restricts it to new identities and insufficient buffers. Temporary allocator tracing is removed.
+
+The original signed eight-workload run records **10 Settings allocations**, 45 actual changes
+and all eight themes. Its diagnostic follow-up identifies recurring detail-layout work and a
+later four-allocation growth event. These failures remain retained; the budgets, frame counts
+and assertions were not relaxed. Logs: `/tmp/localwave-settings-final-performance.log`,
+`/tmp/localwave-settings-allocation-trace.log`,
+`/tmp/localwave-settings-allocation-backtrace8.log`. A registered 100-frame core case varies
+60 node identities and short/medium/long labels beside 100 fixed nodes and requires zero warm
+allocations. The app regression alternates cache limits and both menus while advancing clock
+digits within the same warm-up.
+
+### Checkpoint checks
+
+- **136 app checks pass in 17.314 s wall / 14.371 s summed**, zero skips. Controller **2.867 s**,
+  native artwork/Metal **1.733 s**. `/tmp/localwave-settings-checkpoint-app-tests.log`.
+- **251 core/dynamic-wrapper checks pass in 14.206 / 11.458 s**, zero skips; all 52 dynamic
+  public checks pass. `/tmp/localwave-settings-pxui-checkpoint-tests.log`. Earlier static/core/
+  text/ABI/renderer matrix: 365 passes in 22.674 s, before the follow-up hit/table fixes.
+- C header, ABI snapshot, exported-symbol and dependency gates pass. Final app Clippy with
+  `-D warnings` passes in **1.84 s**. Formatting/diff checks pass.
+- Earlier scaling-ratio failures, the intermediate 5-second scan regression and the subsequent
+  passing check remain documented in pxui's qualification record. No timing pass establishes
+  stable latency or changes the strict signed-app wall maximum.
+
+Large cache/provider-maintenance latency, native process memory, actual browser/media-key delivery,
+Files/import/source observation, full reference screens/motion and macOS 15/iOS/device/distribution
+qualification remain open. Swift/iOS suites were not repeated for these Rust-only changes. The
+normal GUI process and its database/defaults were preserved.
+
+
+### Final signed bundle and unchanged strict gate
+
+The final bundle passes signature, macOS minimum, default executable stack, embedded dylib ID
+and portable rpath checks. Smoke builds/draws once and remains idle **508.6 ms**. Each workload
+uses the same 1440×872 window, 10,000 songs, **182 frames/draws**, **82 warm-up frames** and
+**100 measured frames**. All eight have **zero warm Rust allocations**; every strict
+**1,000 microsecond wall maximum still fails**. `make performance` returns nonzero as required.
+
+| Workload | Warm Rust alloc max | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- | --- |
+| songs-original | 0 | 2343/503/1818/2312 | 642/451/555/579 |
+| find-filters-title-descending | 0 | 3236/478/1958/3094 | 581/436/534/554 |
+| queue-occurrences | 0 | 2827/558/2149/2582 | 674/496/613/668 |
+| queue-carry-scroll-cancel | 0 | 2714/419/2299/2367 | 1811/375/647/1783 |
+| full-queue-playlist-editor | 0 | 4228/741/2265/2722 | 866/552/796/861 |
+| albums-artwork | 0 | 5270/520/1601/3672 | 727/484/600/653 |
+| waveform-scrub-and-scroll | 0 | 4348/446/1609/3088 | 564/394/531/562 |
+| settings-menus-appearance | 0 | 2684/334/1380/2463 | 619/294/506/602 |
+
+Settings verifies **45 exact intended input actions** and all **eight themes**, with no swallowed
+presses. Gallery retains **18 minimum actual image quads**, **3,756,032 resident texel bytes**,
+and **zero warm cover requests**. All workloads render **200 waveform bars**; the scrub case
+commits exactly **nine** release-only seeks. The ordinary seven workloads retain their original
+traces. No warm-up count, allocator check, time threshold or frame count changed.
+
+Log: `/tmp/localwave-settings-checkpoint-performance.log`. The earlier 10-allocation Settings
+run and all strict-latency failures remain retained. This is Rust allocation and tested local-
+gallery evidence, not native memory, stable wall latency or real-provider/device qualification.

@@ -12,6 +12,12 @@ pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf")
 pub const LIGHT: &str = include_str!("../themes/light.theme");
 pub const DARK: &str = include_str!("../themes/dark.theme");
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum SettingsMenu {
+    Cache,
+    Appearance,
+}
+
 // Fixed UTF-8 packets avoid heap allocations when handing searches or playlist names to the worker.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -52,10 +58,23 @@ pub enum Intent {
     PlaylistNameTooLong,
     CancelPlaylistName,
     SaveQueue(browse::Query),
+    ShowSettings,
+    CloseSettings,
+    ShowPrivacy,
+    ClosePrivacy,
+    SettingsMenu(SettingsMenu, (f32, f32)),
+    CloseSettingsMenu,
+    Setting(lw_core::preferences::Change),
+    PrivacyPolicy,
+    Support,
 }
 
 #[derive(Default)]
 pub struct PlayerView<'a> {
+    pub settings: lw_core::preferences::Settings,
+    pub cache_usage: &'a str,
+    pub settings_message: &'a str,
+    pub storage_busy: bool,
     pub artwork: Option<&'a artwork::Images>,
     pub waveform: Option<&'a lw_core::waveform::Peaks>,
     pub revision: u64,

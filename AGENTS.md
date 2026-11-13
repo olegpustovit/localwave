@@ -205,3 +205,19 @@ existing Copied semantics. Coalesce file-state/cache changes through take_playba
 and the controller's existing worker catalog refresh. Compare the prepared canonical path and import
 version against the row before leasing: a replacement retries without opening old bytes for a new
 row. Native decode/provider/device failures and native memory still require platform qualification.
+
+
+Settings sends typed deltas to the serialized controller, applies them against its latest saved
+settings and persists through the existing native keys. Do not send stale full Settings snapshots
+from frames. Appearance/signal selection uses eight pre-parsed themes; never parse in a frame.
+Cache usage and protected trimming run on the library worker after preparation work. Preserve the
+Added Files exclusion and pin/active/queued protection; reuse unchanged summary Arcs.
+
+Settings/About preserve library route, sort and selection. Exclude playback clock revisions from
+the retained Settings page; use content-specific measurement keys for recurring label variants.
+Dismiss custom popup acceptance after Ui::popup returns. Command-comma uses the raw scalar held-key
+query; routed key vectors hide focused modifiers and can allocate. Preserve immediate overlapping
+menu presses, narrow wrapped paragraphs, keyboard activation and warm cache-limit/menu checks.
+`make performance` also runs Settings with 45 real input actions and all eight themes, with the same
+182 frames / 82 warm-up / 100 measured frames and strict allocation/wall-time limits. Rescan all
+sources remains with Files/source integration; do not expose a disconnected action.

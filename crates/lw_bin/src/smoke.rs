@@ -1,5 +1,99 @@
 pub const FRAME_BUILD_LIMIT_US: u128 = 1_000;
 
+/// Exercise real Settings hit targets, all eight themes and both advanced menus in two cycles.
+pub fn settings_events(
+    frame: usize,
+    top: f64,
+    events: &mut Vec<input::Event>,
+) -> Option<lw_ui::Intent> {
+    use input::{Event, MouseButton};
+    use lw_core::preferences::{Appearance, Change, Signal};
+    use lw_ui::{Intent, SettingsMenu};
+    let phase = frame % 40;
+    let (button, at, action) = match phase & !1 {
+        0 | 8 | 14 | 22 | 30 => (
+            MouseButton::RightButton,
+            (1330.0, top + 320.0),
+            Intent::SettingsMenu(SettingsMenu::Appearance, (1330.0, top as f32 + 320.0)),
+        ),
+        4 | 18 => (
+            MouseButton::RightButton,
+            (1330.0, top + 260.0),
+            Intent::SettingsMenu(SettingsMenu::Cache, (1330.0, top as f32 + 260.0)),
+        ),
+        2 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 375.0),
+            Intent::Setting(Change::Signal(Signal::Red)),
+        ),
+        6 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 315.0),
+            Intent::Setting(Change::CacheGB(32)),
+        ),
+        10 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 411.0),
+            Intent::Setting(Change::Signal(Signal::Green)),
+        ),
+        12 => (
+            MouseButton::LeftButton,
+            (
+                if (frame / 40).is_multiple_of(2) {
+                    1390.0
+                } else {
+                    1322.0
+                },
+                top + 320.0,
+            ),
+            Intent::Setting(Change::Appearance(if (frame / 40).is_multiple_of(2) {
+                Appearance::Dark
+            } else {
+                Appearance::Light
+            })),
+        ),
+        16 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 447.0),
+            Intent::Setting(Change::Signal(Signal::Mono)),
+        ),
+        20 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 279.0),
+            Intent::Setting(Change::CacheGB(2)),
+        ),
+        24 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 339.0),
+            Intent::Setting(Change::Signal(Signal::Blue)),
+        ),
+        26 => (
+            MouseButton::LeftButton,
+            (1390.0, top + 140.0),
+            Intent::Setting(Change::ToggleDownloadAhead),
+        ),
+        28 => (
+            MouseButton::LeftButton,
+            (1390.0, top + 200.0),
+            Intent::Setting(Change::ToggleNoNetwork),
+        ),
+        32 => (
+            MouseButton::LeftButton,
+            (1300.0, top + 483.0),
+            Intent::Setting(Change::ToggleReduceMotion),
+        ),
+        _ => return None,
+    };
+    let pressed = phase.is_multiple_of(2);
+    events.push(Event::PointerMoved(at));
+    events.push(if pressed {
+        Event::PointerPressed(button, at)
+    } else {
+        Event::PointerReleased(button, at)
+    });
+    ((button == MouseButton::RightButton) == pressed).then_some(action)
+}
+
 #[derive(Clone, Copy, Default)]
 pub struct FrameTiming {
     pub wall: u128,

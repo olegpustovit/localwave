@@ -31,6 +31,25 @@ fn run() -> Result<(), String> {
     let performance = std::env::args().any(|arg| arg == "--performance-check");
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
+    let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
+    if performance_settings
+        && (!performance
+            || std::env::args().any(|arg| {
+                matches!(
+                    arg.as_str(),
+                    "--performance-find"
+                        | "--performance-waveform"
+                        | "--performance-artwork"
+                        | "--performance-queue"
+                        | "--performance-queue-drag"
+                        | "--performance-queue-sheet"
+                )
+            }))
+    {
+        return Err(
+            "--performance-settings requires --performance-check and its own workload".into(),
+        );
+    }
     let performance_waveform = std::env::args().any(|arg| arg == "--performance-waveform");
     if performance_waveform && !performance {
         return Err("--performance-waveform requires --performance-check".into());
@@ -119,6 +138,12 @@ fn run() -> Result<(), String> {
                     },
                 )?;
                 if performance {
+                    if performance_settings {
+                        library.save_settings(&lw_core::preferences::Settings {
+                            appearance: lw_core::preferences::Appearance::Light,
+                            ..Default::default()
+                        })?;
+                    }
                     smoke::seed_catalog(&base.join("library.sqlite"))?;
                     if performance_artwork {
                         smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
@@ -193,6 +218,7 @@ fn run() -> Result<(), String> {
     let mut revision = u64::MAX;
     let (mut frames, mut draws) = (0, 0);
     let mut waveform_seeks = 0;
+    let (mut settings_changes, mut settings_themes) = (0, 0u8);
     let mut min_waveform_bars = usize::MAX;
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
     let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
@@ -202,6 +228,12 @@ fn run() -> Result<(), String> {
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
     let mut shell_state = lw_ui::ShellState::default();
+    if performance_settings {
+        shell_state.apply(lw_ui::Intent::ShowSettings);
+        player
+            .command(Command::ReadStorage)
+            .map_err(|error| error.to_string())?;
+    }
     if performance_artwork {
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
     }
@@ -279,8 +311,12 @@ fn run() -> Result<(), String> {
             std::sync::Arc::as_ptr(&player.catalog().library) as usize,
             artwork.ready_images(),
         )?;
+        let mut expected_settings_intent = None;
         if performance && frames >= 2 {
-            if performance_waveform {
+            if performance_settings {
+                expected_settings_intent =
+                    smoke::settings_events(frames - 2, window_chrome.top_inset, &mut events);
+            } else if performance_waveform {
                 smoke::waveform_events(frames - 2, &mut events);
             } else if performance_queue_drag {
                 smoke::queue_drag_events(frames - 2, window_chrome.top_inset, &mut events);
@@ -361,6 +397,10 @@ fn run() -> Result<(), String> {
             }
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
+                settings: status.settings,
+                cache_usage: &status.cache_usage,
+                settings_message: &status.settings_message,
+                storage_busy: status.storage_busy,
                 artwork: Some(&graphics.artwork.images),
                 waveform: status.waveform.as_ref(),
                 revision: if performance {
@@ -403,6 +443,19 @@ fn run() -> Result<(), String> {
                 &mut |ui| lw_ui::shell(ui, &view, player.catalog(), &shell_state, &mut intent),
             )
             .map_err(|code| format!("Frame failed ({code})"))?;
+            if performance_settings {
+                if intent != expected_settings_intent {
+                    return Err(format!(
+                        "Settings input at frame {frames}: expected {expected_settings_intent:?}, got {intent:?}"
+                    ));
+                }
+                settings_changes += usize::from(matches!(intent, Some(lw_ui::Intent::Setting(_))));
+                settings_themes |= 1
+                    << (usize::from(
+                        status.settings.appearance == lw_core::preferences::Appearance::Dark,
+                    ) * 4
+                        + status.settings.signal as usize);
+            }
             let mut image_requests = graphics.artwork.images.visible_requests(&ui);
             if let Some(media) = player.media_controls() {
                 media.request_artwork(&mut image_requests);
@@ -505,6 +558,22 @@ fn run() -> Result<(), String> {
                     artwork.cancel().map_err(|error| error.to_string())?;
                 }
                 let mut browse = None;
+                if matches!(
+                    intent,
+                    lw_ui::Intent::PrivacyPolicy | lw_ui::Intent::Support
+                ) {
+                    let link = if matches!(intent, lw_ui::Intent::PrivacyPolicy) {
+                        lw_apple_sys::window::Link::PrivacyPolicy
+                    } else {
+                        lw_apple_sys::window::Link::Support
+                    };
+                    command_error = lw_apple_sys::window::open_link(link)
+                        .err()
+                        .map(|_| "Could not open this link.");
+                    error_revision += 1;
+                    repaint = Some(now);
+                    continue;
+                }
                 let command = if shell_state.apply(intent) {
                     if matches!(
                         intent,
@@ -514,6 +583,8 @@ fn run() -> Result<(), String> {
                     ) {
                         browse = shell_state.request(player.catalog());
                         None
+                    } else if matches!(intent, lw_ui::Intent::ShowSettings) {
+                        Some(Command::ReadStorage)
                     } else {
                         None
                     }
@@ -549,6 +620,7 @@ fn run() -> Result<(), String> {
                         }),
                         lw_ui::Intent::Volume(value) => Command::Volume(value),
                         lw_ui::Intent::RefreshLibrary => Command::RefreshCatalog,
+                        lw_ui::Intent::Setting(change) => Command::Setting(change),
                         lw_ui::Intent::PlayQueue(occurrence) => Command::Select {
                             occurrence,
                             autoplay: true,
@@ -584,6 +656,15 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::PlaylistNameTooLong
                         | lw_ui::Intent::CancelPlaylistName => {
                             unreachable!("handled by ShellState")
+                        }
+                        lw_ui::Intent::ShowSettings
+                        | lw_ui::Intent::CloseSettings
+                        | lw_ui::Intent::ShowPrivacy
+                        | lw_ui::Intent::ClosePrivacy
+                        | lw_ui::Intent::SettingsMenu(_, _)
+                        | lw_ui::Intent::CloseSettingsMenu => unreachable!("handled by ShellState"),
+                        lw_ui::Intent::PrivacyPolicy | lw_ui::Intent::Support => {
+                            unreachable!("handled above")
                         }
                     })
                 };
@@ -701,7 +782,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_waveform {
+                if performance_settings {
+                    "settings-menus-appearance"
+                } else if performance_waveform {
                     "waveform-scrub-and-scroll"
                 } else if performance_artwork {
                     "albums-artwork"
@@ -720,6 +803,14 @@ fn run() -> Result<(), String> {
             println!(
                 "LocalWave waveform: peaks=512 min_bars={min_waveform_bars} scrub_commits={waveform_seeks}"
             );
+            if performance_settings {
+                println!(
+                    "LocalWave settings: changes={settings_changes} themes={settings_themes:#04x}"
+                );
+                if settings_changes != 45 || settings_themes != 255 {
+                    return Err("Settings workload missed an action or theme".into());
+                }
+            }
             if performance_waveform && (waveform_seeks != 9 || min_waveform_bars < 200) {
                 return Err("Waveform qualification did not exercise all nine scrub cycles".into());
             }
