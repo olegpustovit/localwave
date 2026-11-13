@@ -29,6 +29,7 @@ pub enum Command {
         autoplay: bool,
     },
     Play,
+    Toggle,
     Pause,
     Stop,
     Next,
@@ -104,6 +105,7 @@ impl Command {
             Self::Configure { .. }
                 | Self::Select { .. }
                 | Self::Pause
+                | Self::Toggle
                 | Self::Stop
                 | Self::Next
                 | Self::Previous
@@ -314,6 +316,7 @@ pub struct Controller {
     preparation: u64,
     status: Status,
     faulted: bool,
+    media: Option<crate::media::Media>,
 }
 impl Controller {
     pub fn open(
@@ -360,7 +363,27 @@ impl Controller {
             preparation: 0,
             status,
             faulted: false,
+            media: None,
         })
+    }
+    pub fn enable_media_controls(&mut self, publish: bool) -> io::Result<()> {
+        if self.media.is_none() {
+            self.media = Some(crate::media::Media::open(publish, self.shared.wake)?);
+        }
+        Ok(())
+    }
+    pub fn media_controls(&mut self) -> Option<&mut crate::media::Media> {
+        self.media.as_mut()
+    }
+    pub fn sync_media_artwork<'a>(
+        &mut self,
+        epoch: u64,
+        ready: impl Iterator<Item = &'a crate::library::ArtworkReady>,
+    ) -> io::Result<()> {
+        if let Some(media) = &mut self.media {
+            media.artwork(&self.catalog, epoch, ready)?;
+        }
+        Ok(())
     }
     pub fn status(&self) -> &Status {
         &self.status
@@ -461,7 +484,14 @@ impl Controller {
         &mut self,
         changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
     ) -> io::Result<bool> {
-        self.poll_inner(true, changed)
+        let revision = self.status.revision;
+        let updated = self.poll_inner(true, changed)?;
+        if let Some(mut media) = self.media.take() {
+            let result = media.deliver(self).and_then(|_| media.sync(&self.status));
+            self.media = Some(media);
+            result?;
+        }
+        Ok(updated || revision != self.status.revision)
     }
     fn poll_inner(
         &mut self,
@@ -624,6 +654,7 @@ impl Controller {
 }
 impl Drop for Controller {
     fn drop(&mut self) {
+        self.media.take();
         self.native.stop();
         self.shared.cancelled.store(true, Ordering::SeqCst);
         self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
@@ -1093,7 +1124,14 @@ impl Worker {
         self.session.select(ticket.entry.id, false);
         true
     }
-    fn command(&mut self, envelope: Envelope) -> io::Result<()> {
+    fn command(&mut self, mut envelope: Envelope) -> io::Result<()> {
+        if matches!(envelope.command, Command::Toggle) {
+            envelope.command = if self.session.transport().wants_playback() {
+                Command::Pause
+            } else {
+                Command::Play
+            };
+        }
         self.revision = self.revision.max(envelope.revision);
         self.preparation = self.preparation.max(envelope.preparation);
         if matches!(
@@ -1150,6 +1188,9 @@ impl Worker {
             Command::Play => {
                 self.message = self.empty.clone();
                 self.session.play()
+            }
+            Command::Toggle => {
+                unreachable!("Toggle resolves before committing a pending selection")
             }
             Command::Pause => {
                 self.session.pause();

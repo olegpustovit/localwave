@@ -12,6 +12,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/context.m");
     println!("cargo:rerun-if-changed=src/waveform.m");
     println!("cargo:rerun-if-changed=src/player.m");
+    println!("cargo:rerun-if-changed=src/media.m");
     println!("cargo:rerun-if-changed=src/history.m");
     println!("cargo:rerun-if-changed=src/environment.m");
     println!("cargo:rerun-if-changed=src/window.m");
@@ -32,6 +33,7 @@ fn main() {
             .file("src/context.m")
             .file("src/waveform.m")
             .file("src/player.m")
+            .file("src/media.m")
             .file("src/history.m")
             .file("src/environment.m")
             .file("src/window.m")
@@ -43,6 +45,7 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=Foundation");
         println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=framework=AVFoundation");
+        println!("cargo:rustc-link-lib=framework=MediaPlayer");
         println!("cargo:rustc-link-lib=framework=CoreMedia");
         println!("cargo:rustc-link-lib=framework=ImageIO");
         println!("cargo:rustc-link-lib=framework=CoreGraphics");

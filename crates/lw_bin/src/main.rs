@@ -245,6 +245,9 @@ fn run() -> Result<(), String> {
             window.wait(Some(window.time() + 0.05));
         }
     }
+    player
+        .enable_media_controls(!smoke && !performance)
+        .map_err(|error| error.to_string())?;
     let mut command_error: Option<&'static str> = None;
     if performance_queue_sheet {
         shell_state.apply(lw_ui::Intent::ShowQueue);
@@ -347,6 +350,9 @@ fn run() -> Result<(), String> {
                 extent.logical.1 as f32,
                 window.scale() as f32,
             )?;
+            player
+                .sync_media_artwork(graphics.artwork.images.epoch(), artwork.ready_images())
+                .map_err(|error| error.to_string())?;
             let mut gpu_trace = [0u64; 4];
             let mut intent = None;
             let status = player.status();
@@ -397,7 +403,10 @@ fn run() -> Result<(), String> {
                 &mut |ui| lw_ui::shell(ui, &view, player.catalog(), &shell_state, &mut intent),
             )
             .map_err(|code| format!("Frame failed ({code})"))?;
-            let image_requests = graphics.artwork.images.visible_requests(&ui);
+            let mut image_requests = graphics.artwork.images.visible_requests(&ui);
+            if let Some(media) = player.media_controls() {
+                media.request_artwork(&mut image_requests);
+            }
             let build_us = build_started.elapsed().as_micros();
             let allocations_after = if trace_frames {
                 mem_sys::local_alloc_count()

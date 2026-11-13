@@ -140,6 +140,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         wake,
     )?;
     let deadline = Instant::now() + Duration::from_secs(4);
+    player.enable_media_controls(false)?;
     let (bad, good) = receive
         .recv_timeout(Duration::from_secs(1))
         .map_err(io::Error::other)?;
@@ -258,6 +259,13 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         ));
     }
     let database = base.join("library.sqlite");
+    player.command(Command::Toggle)?;
+    let toggled = player.command(Command::Toggle)?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= toggled
+            && !player.status().wants_playback
+            && player.native_snapshot().token == 0
+    })?;
     // A real start must remove the song from an active Unplayed result without another browse request.
     let unplayed = lw_ui::browse::Request {
         query: lw_ui::browse::Query::new("Controller unplayed").unwrap(),

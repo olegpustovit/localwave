@@ -10,6 +10,232 @@ mod harness;
 
 fn release_keepalive() {} // This target creates no shared GPU device.
 
+fn media_commands_wait_for_controller_capacity_without_losing_accepted_events() {
+    use lw_apple_sys::preferences::{AppPaths, Preferences};
+    use lw_bin::{
+        controller::{Command, Controller, Status},
+        library::LibraryWorker,
+    };
+    use std::{
+        sync::{Arc, mpsc},
+        time::{Duration, Instant},
+    };
+    let base = std::env::temp_dir().join(format!("lw-media-{}", std::process::id()));
+    std::fs::create_dir_all(&base).unwrap();
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let worker_base = base.clone();
+    let (release, blocked) = mpsc::sync_channel(1);
+    extern "C" fn wake() {}
+    let mut controller = Controller::open(
+        move || {
+            blocked.recv().map_err(std::io::Error::other)?;
+            LibraryWorker::open(
+                &worker_base.join("library.sqlite"),
+                Preferences::open(Some(&format!(
+                    "com.olegpustovit.localwave.media-{}",
+                    std::process::id()
+                )))?,
+                AppPaths {
+                    documents: worker_base.join("Documents"),
+                    caches: worker_base.join("Caches"),
+                    temporary: worker_base.join("tmp"),
+                    test_database: None,
+                },
+            )
+        },
+        wake,
+    )
+    .unwrap();
+    struct Release(std::sync::mpsc::SyncSender<()>);
+    impl Drop for Release {
+        fn drop(&mut self) {
+            let _ = self.0.try_send(());
+        }
+    }
+    let release = Release(release);
+    controller.enable_media_controls(false).unwrap();
+    for _ in 0..32 {
+        controller.command(Command::DismissNotice).unwrap();
+    }
+    let status = Status {
+        phase: lw_core::playback::Phase::Paused,
+        queue_len: 1,
+        title: Arc::from("Isolated"),
+        ..Default::default()
+    };
+    let media = controller.media_controls().unwrap();
+    media.sync(&status).unwrap();
+    for _ in 0..32 {
+        assert_eq!(media.native.inject(1, 0.0), 0);
+    }
+    assert_eq!(media.native.inject(1, 0.0), 200);
+    controller.poll().unwrap();
+    assert_eq!(
+        controller
+            .media_controls()
+            .unwrap()
+            .native
+            .peek()
+            .unwrap()
+            .kind,
+        1,
+        "busy worker must not consume the remote head"
+    );
+    release.0.send(()).unwrap();
+    let deadline = Instant::now() + Duration::from_secs(1);
+    loop {
+        controller.poll().unwrap();
+        if controller.status().processed_command >= 64 {
+            break;
+        }
+        assert!(
+            Instant::now() < deadline,
+            "accepted remote commands were lost"
+        );
+        std::thread::yield_now();
+    }
+    assert!(controller.media_controls().unwrap().native.peek().is_none());
+    assert_eq!(controller.status().queue_len, 0);
+}
+
+fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bounded() {
+    use lw_bin::controller::Status;
+    use lw_core::{Song, playback::Phase, queue::Entry};
+    use lw_ui::{
+        artwork::{Key, Request},
+        browse::Query,
+        catalog::Catalog,
+    };
+    use std::sync::Arc;
+    assert_eq!(
+        lw_apple_sys::media::verify_callbacks(),
+        0,
+        "native callback stage"
+    );
+    extern "C" fn wake() {}
+    let mut media = lw_bin::media::Media::open(false, wake).unwrap();
+    assert_eq!(media.native.inject(1, 0.0), 110);
+    let mut status = Status {
+        current: Some(Entry { id: 1, song_id: 7 }),
+        queue_len: 2,
+        generation: 9,
+        phase: Phase::Paused,
+        title: Arc::from("Track 🎵"),
+        artist: Arc::from("Artist"),
+        album: Arc::from("Album"),
+        position: 1.25,
+        duration: 30.0,
+        ..Default::default()
+    };
+    let catalog = Catalog::new(vec![Song {
+        id: Some(7),
+        title: status.title.to_string(),
+        cover_art_path: Some("cover.png".into()),
+        ..Default::default()
+    }]);
+    media.sync(&status).unwrap();
+    media.artwork(&catalog, 0, std::iter::empty()).unwrap();
+    let mut request = Request::default();
+    for id in 2..=9 {
+        assert!(request.insert(id, "other.png", 512));
+    }
+    media.request_artwork(&mut request);
+    assert_eq!(request.keys().len(), 8);
+    assert_eq!(
+        request.keys()[0].id,
+        1,
+        "Now Playing must not starve behind a full visible packet"
+    );
+    let ready = lw_bin::library::ArtworkReady {
+        epoch: 0,
+        revision: 10,
+        key: Key {
+            id: 1,
+            path: Query::new("cover.png").unwrap(),
+            max_pixels: 256,
+        },
+        thumbnail: Some(lw_apple_sys::artwork::Thumbnail {
+            width: 2,
+            height: 1,
+            pixels: vec![255, 0, 0, 255, 0, 128, 255, 128],
+        }),
+    };
+    media.artwork(&catalog, 0, std::iter::once(&ready)).unwrap();
+    assert_eq!(media.native.state().artwork_width, 2);
+    let baseline = media.native.state();
+    mem_sys::local_reset();
+    for _ in 0..1000 {
+        media.sync(&status).unwrap();
+        media.artwork(&catalog, 0, std::iter::once(&ready)).unwrap();
+        let mut request = Request::default();
+        media.request_artwork(&mut request);
+        assert!(request.keys().is_empty());
+        assert!(media.native.peek().is_none());
+    }
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+    assert_eq!(
+        media.native.state(),
+        baseline,
+        "quiet polls must not republish metadata"
+    );
+    for kind in 1..=7 {
+        assert_eq!(media.native.inject(kind, 3.5), 0);
+    }
+    for kind in 1..=7 {
+        let head = media.native.peek().unwrap();
+        assert_eq!(head.kind, kind);
+        assert_eq!(
+            media.native.peek(),
+            Some(head),
+            "backpressure must retain the head"
+        );
+        media.native.acknowledge();
+    }
+    assert!(media.native.peek().is_none());
+    assert_eq!(media.native.inject(7, f64::NAN), 200);
+    status.position += 0.001;
+    media.sync(&status).unwrap();
+    assert_eq!(
+        media.native.state().updates,
+        baseline.updates + 1,
+        "small paused seeks must publish"
+    );
+    assert_eq!(
+        media.native.state().artwork_width,
+        2,
+        "clock changes must retain artwork"
+    );
+    status.phase = Phase::Playing;
+    media.sync(&status).unwrap();
+    mem_sys::local_reset();
+    for _ in 0..1000 {
+        media.sync(&status).unwrap();
+    }
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+    status.position += 5.0;
+    media.sync(&status).unwrap();
+    assert_eq!(media.native.state().position, status.position);
+    media.artwork(&catalog, 1, std::iter::once(&ready)).unwrap();
+    assert_eq!(
+        media.native.state().artwork_width,
+        0,
+        "old-epoch artwork must be cleared"
+    );
+    status.phase = Phase::Stopped;
+    media.sync(&status).unwrap();
+    assert_eq!(media.native.state().song, 0);
+    assert_eq!(media.native.state().playback_state, 3);
+    status.queue_len = 0;
+    media.sync(&status).unwrap();
+    assert_eq!(media.native.inject(1, 0.0), 110);
+}
+
 fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_completion() {
     // ImageIO, real Metal presentation and its frame fences require this main-thread integration process.
     mem_sys::set_peer(pxui::library_counter);
@@ -320,6 +546,14 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "media_commands_wait_for_controller_capacity_without_losing_accepted_events",
+            media_commands_wait_for_controller_capacity_without_losing_accepted_events,
+        ),
+        (
+            "native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bounded",
+            native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bounded,
+        ),
         (
             "worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_completion",
             worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_completion,

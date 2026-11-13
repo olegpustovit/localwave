@@ -34,8 +34,8 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | --- | --- | --- |
 | P0: scaffold/bundle | Four-crate Rust workspace, pinned pxui submodule, static SDL3, dynamic pxui, sandbox bundle, remote-pointer check, Rust CI job, VS Code build/debug tasks. Terminal app, target, SwiftTUI dependency and obsolete terminal instructions removed. | Developer/team signature and provisioning qualification remain. Local ad hoc scaffold checks pass; see evidence below. |
 | P1: core | Song model and raw states, masked UTF-8 FNV identity, Swift-compatible scalar lowercase, complete song hydration, additive song migrations, transactional song upsert and FTS updates, BM25 prefix search, Favorites, guarded cache updates, native FLAC comments/pictures, occurrence-based queue/reorder/shuffle/repeat/Clear/Undo and two-item prequeue selection. User/source/path/playlist repositories, transactional metadata/FTS removal, guarded bookmark/root replacement and source selection, SQLite.swift-compatible UTC text dates, indexed path rescans, album grouping without correlated rescans, and duplicate-preserving bulk reads without redundant Song copies. System SQLite through safe FFI. Indexed recursive import selection, transactional song/FTS/digest commits, pure import policy with progress/cancellation, cloud placeholders, verified-cache enrichment/invalidation, unchanged-file skipping and Unicode track-prefix cleanup. Thread-confined application scan/import service, generated-path exclusions, native bookmark/pin/cache-proof preferences, atomic scan publication and legacy-song relocation. LRU cache policy and a serialized application copy/eviction service with native coordinated copies and pin/playback protection. Native queue/volume/settings persistence, typed Swift-compatible playback contexts, duplicate-aware queue restoration, isolated UI-test suites and validated waveform JSON/SQLite storage. The application waveform service uses coordinated PCM extraction and Swift-compatible source signatures. | Library/import/catalog UI command integration, source observation; port coverage from all 18 SwiftPM test files. Fixture exchange does not qualify a full user library. |
-| P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. | Guarded playback-failure database updates and complete library/UI integration, Now Playing/media keys, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
-| P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
+| P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. The GUI publishes Now Playing metadata/artwork and routes seven bounded MediaPlayer commands through that controller. | Guarded playback-failure database updates and complete library/UI integration, physical media-key/Control Center qualification, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
+| P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release; ABI 1.14 adds fractional fills and output partition capacity reuse. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | No changes. | Static SDL device/simulator spike, Metal/host/touch port, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every device feel/performance gate. |
@@ -1327,3 +1327,94 @@ Final app Clippy with `-D warnings` passes in **2.50 s**; formatting and whitesp
 `--performance-waveform` without `--performance-check` returns its expected argument error before
 opening a window. Logs: `/tmp/localwave-waveform-final-clippy.log`,
 `/tmp/localwave-waveform-invalid-flag.log`.
+
+
+## macOS Now Playing and bounded remote controls (2026-11-13)
+
+The normal GUI now registers MediaPlayer Play, Pause, Toggle, Stop, Next, Previous and Seek handlers.
+Callbacks can run away from the main thread: they only validate and append to a fixed 32-event
+native queue, then wake the host. They return failure on overflow or an invalid event and report no
+actionable item for unavailable controls. The main thread peeks without consuming; a busy worker
+leaves that accepted head in place until the existing controller mailbox accepts it. Native callbacks
+never call the player or touch the library. Teardown closes the queue, removes each exact target,
+disables its command and clears Now Playing; already captured callbacks safely reject a dead owner.
+
+Toggle is resolved against transport intent on the serialized worker, before pending-selection
+reconciliation. The real controller fixture sends two rapid toggles from restored pause and checks
+that they return to pause without starting a physical item. Previous playback/history/prequeue,
+stop priority, waveform and cache-lease assertions remain.
+
+Publication runs in controller polling outside UI drawing. Length-delimited UTF-8 metadata retains
+embedded NUL and emoji. Title/artist/album, duration, elapsed time, rate and explicit macOS
+playbackState are published for actual playback state; Stop/failure/empty state clears the item.
+Ordinary ticks use system extrapolation with 250 ms drift correction, and small paused seeks publish.
+The clock policy is checked with injected `Instant` values, including duration clamping and track,
+metadata and pause transitions. Retained metadata Arcs require no warm Rust allocation. See Apple's
+[playbackState contract](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter/playbackstate)
+and [elapsed time contract](https://developer.apple.com/documentation/mediaplayer/mpnowplayinginfocenter).
+
+Now Playing covers share the existing artwork worker and its eight-result RGBA batch. No file read,
+decode, new worker or separate GPU texture is added to media publication. The native center retains one sRGB
+image, copied only when a new matching result arrives. Identity/catalog epochs clear old covers;
+stale paths, epochs and already-consumed revisions cannot replace them. A pending current cover
+occupies the first slot of the existing eight-key request so busy gallery requests cannot starve it.
+Metadata/clock changes preserve the existing native artwork. Cold native image and dictionary
+creation still allocates outside the Rust counters.
+
+Smoke, performance and controller fixtures use the same local queue and metadata sink with system
+publication/registration disabled. Tests use isolated native center/command doubles; they never send
+media keys to another application or replace normal GUI PID 69331's session/defaults/library. Real
+physical keys, Control Center eligibility and appearance, native memory, interruption handling,
+macOS 15 runtime and iOS audio/session/device qualification remain open. This is implementation and
+isolated integration evidence, not completion of P2 or the overall port.
+
+### Checks
+
+- First complete matrix: **128 pass / 17.461 s wall / 12.735 s summed**, zero skips.
+  `/tmp/localwave-media-app-tests.log`.
+- Final implementation matrix: **128 pass / 25.684 s wall / 13.855 s summed**, zero skips. The
+  runner automatically retried four existing audio/collation cases after contention; those attempts
+  remain in the log. Controller **3.470 s**, artwork/Metal **1.422 s**. The five new cases cover
+  off-main construction rejection, deterministic clock policy, command mapping, native callback/
+  metadata/artwork/teardown and real worker-mailbox backpressure. `/tmp/localwave-media-final-app-tests.log`.
+- Native callback checks use concurrent background producers, all seven handler blocks, repeatable
+  peek/ack, full-queue rejection, invalid seek/metadata, UTF-8 and exact RGBA bytes. Main-thread bridge
+  checks preserve native artwork across clock changes, reject old epochs and count **zero warm Rust
+  allocations** during 1,000 unchanged polls and playing polls.
+- Clippy with `-D warnings` passes in **12.66 s**. Existing pxui native SDK-availability/linker warnings
+  remain. Formatting and whitespace pass. `/tmp/localwave-media-clippy.log`.
+- `make performance` release library/app builds **0.24 / 19.03 s**. Signing, sandbox entitlements,
+  macOS minimum load commands, default executable stack and portable embedded dylib/rpath pass.
+  The signed smoke draws once then remains idle **506.3 ms**. `/tmp/localwave-media-performance.log`.
+
+### Signed performance with the isolated media bridge enabled
+
+All seven unchanged workloads draw **182 frames**, load **512 waveform peaks** and retain at least
+**200 bars**. All have **zero warm Rust allocations**. Every strict **1,000 microsecond wall maximum
+still fails**, so `make performance` exits nonzero. No warm-up, workload or threshold was weakened.
+
+| Workload | Warm Rust allocations | Wall max/p50/p95/p99 (µs) | CPU max/p50/p95/p99 (µs) |
+| --- | ---: | --- | --- |
+| songs-original | 0 | 2023/430/1486/1946 | 538/408/490/517 |
+| find-filters-title-descending | 0 | 2567/413/1029/2094 | 625/394/460/500 |
+| queue-occurrences | 0 | 3695/483/1585/3075 | 662/442/573/628 |
+| queue-carry-scroll-cancel | 0 | 1357/360/862/1189 | 636/339/483/575 |
+| full-queue-playlist-editor | 0 | 1683/539/1110/1492 | 801/480/724/739 |
+| albums-artwork | 0 | 2312/517/1342/2121 | 678/474/603/641 |
+| waveform-scrub-and-scroll | 0 | 2005/403/1321/1508 | 518/377/467/497 |
+
+Gallery still has **18 minimum actual image quads**, **3,756,032 texture bytes** and **zero late
+requests**. The scrub workload commits **nine** completed seeks. The full port, stable strict
+latency, native memory, full Mac UI, real media-key delivery and iOS/device/cloud/distribution gates
+remain unfinished. Swift/platform suites were not repeated for this Rust-only checkpoint.
+
+Final host review moves media cover adoption after artwork density/cache configuration, before the
+view build and request packet, so a resize uses the newly established epoch. The final signed run
+above includes that ordering and retains all seven timing failures. The first matrix remains in
+`/tmp/localwave-media-performance.log`; the final matrix is
+`/tmp/localwave-media-final-performance.log`. Final library/app builds are **0.58 / 8.65 s**, smoke
+idle **501.6 ms**. Different timing samples do not establish a latency improvement or its cause.
+Final Clippy passes **1.63 s**; the final focused native media check passes **5.468 s wall / 0.077 s
+case**, including its rebuild. Logs: `/tmp/localwave-media-final-clippy.log`,
+`/tmp/localwave-media-final-focused.log`. Playing clock policy uses injected times in the pure check;
+the native warm loop has no wall-clock-sensitive count assertion. The existing GUI remains alive.

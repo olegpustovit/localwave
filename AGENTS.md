@@ -170,3 +170,20 @@ of warmed instances must not allocate in `Ui::output`; preserve its static/dynam
 `--trace-frames` records fixed-size host/build/after-build allocation samples and GPU/output-getter
 subphases, printing after measurement. Keep the strict 1,000 microsecond wall gate and all failures.
 Waveform reveal/stagger, native memory and platform/device qualification remain open.
+
+
+The GUI opts into `controller::Controller::enable_media_controls`; normal hosts publish through
+MediaPlayer, while smoke/performance/controller checks pass false and never register or replace a
+system media session. Native handlers enqueue at most 32 ordered commands under a lock and wake the
+host. A full queue returns failure; accepted heads stay until the existing worker mailbox accepts
+them. Resolve Toggle on the worker before committing a pending selection, so rapid presses do not
+read a stale UI intent. Remove each exact target and reject late callbacks before stopping the player.
+
+Now Playing publication stays in controller polling, outside drawing. Reuse retained metadata Arcs
+and let the system extrapolate ordinary playback ticks, with 250 ms drift correction; paused seeks,
+identity, metadata, duration and state changes publish. macOS needs explicit playbackState as well
+as dictionary playback rate. Read no files or tags there. Covers reuse the existing artwork worker's
+RGBA batch and epoch/path/revision checks, and retain just the native Now Playing image. Give a
+pending current cover first place in the same bounded request packet so a full gallery cannot starve
+it. Cold native image/dictionary creation is outside Rust allocator qualification. Physical keys,
+Control Center, native memory and iOS interruption/session qualification remain open.

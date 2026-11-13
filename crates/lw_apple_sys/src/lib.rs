@@ -44,6 +44,9 @@ pub mod waveform;
 pub mod player;
 
 #[cfg(target_os = "macos")]
+pub mod media;
+
+#[cfg(target_os = "macos")]
 pub fn require_worker_thread() -> std::io::Result<()> {
     unsafe extern "C" {
         fn lw_is_main_thread() -> i32;

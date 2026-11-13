@@ -41,6 +41,31 @@ void lw_player_set_wake(void *player, void (*wake)(void));
 int lw_player_trim(void *player, uint64_t generation, uint64_t current, size_t keep, char **error);
 void lw_player_release(void *player);
 void lw_player_run_loop(double seconds);
+
+typedef struct { int kind; double seconds; } LWMediaCommand;
+typedef struct {
+    int64_t song;
+    uint64_t generation;
+    const unsigned char *title; size_t title_len;
+    const unsigned char *artist; size_t artist_len;
+    const unsigned char *album; size_t album_len;
+    double position, duration;
+    int playback_state, has_queue;
+} LWMediaInfo;
+typedef struct {
+    int64_t song;
+    uint64_t generation;
+    double position, duration;
+    int playback_state;
+    uint32_t artwork_width, artwork_height;
+    uint64_t updates;
+} LWMediaState;
+void *lw_media_create(int publish, void (*wake)(void));
+int lw_media_peek(void *media, LWMediaCommand *command);
+void lw_media_ack(void *media);
+int lw_media_update(void *media, const LWMediaInfo *info);
+int lw_media_artwork(void *media, const unsigned char *pixels, size_t len, uint32_t width, uint32_t height);
+void lw_media_release(void *media);
 void *lw_preferences_for_ui_test(const char *test_id);
 int lw_preferences_is_standard(void *preferences);
 void lw_preferences_settings(void *preferences, LWSettings *settings);
