@@ -14,3 +14,12 @@ repo = 'ponytail'
 commit = '96608e078b2d5ea607c5c3b8b5a54d1c1fba6846'
 cache_key = '7ae494108cad437234445be08170165738913f689f6a68d0550b31f8edcb41d6'
 content_hash = 'sha256-tree-v1:34f4356d0a3a2fe9bd51b051844d171bd9125f9c6fc36e9d784694183e45e71d'
+
+[[mcp_servers]]
+name = 'dbman'
+source = 'manifest'
+launcher = 'command'
+status = 'unpinnable'
+definition = 'sha256:4c1505ae2d833276ce9ea8c16050621f3e39fde9c25aefcf00146ddd9e2ca71f'
+command = '/Applications/DBMan.app/Contents/Helpers/dbman-mcp'
+reason = 'local command: agentpack does not manage what it runs'

@@ -23,7 +23,7 @@ struct WaveformTests {
         let peaks = try await WaveformCache.decode(url: url)
         #expect(peaks.count == 512)
         #expect(peaks.prefix(256).allSatisfy { $0 == 0 })
-        #expect(peaks.suffix(256).allSatisfy { $0 == 1 })
+        #expect(peaks.suffix(256).allSatisfy { $0 > 0 && $0 <= 1 })
     }
 
     @MainActor @Test func queueSelectionSurvivesShuffleEditsAfterUnavailableQueueStops() async throws {

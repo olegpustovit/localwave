@@ -18,6 +18,84 @@ struct WaveOnboardingView: View {
     @State private var songCount = 0
 
     var body: some View {
+        layout
+        .background(LWTheme.paper).foregroundStyle(LWTheme.ink).buttonStyle(.plain)
+        .accessibilityElement(children: .contain).accessibilityAddTraits(.isModal)
+        .task { await checkDemoAvailability() }
+        .fileImporter(isPresented: $folderPicker, allowedContentTypes: [.folder], allowsMultipleSelection: true) { importFiles($0, play: false) }
+        // Two fileImporters on one view: SwiftUI honours only the last, so the audio one lives on a background node.
+        .background(Color.clear.fileImporter(isPresented: $audioPicker, allowedContentTypes: [.audio], allowsMultipleSelection: true) { importFiles($0, play: true) })
+        .alert("Unable to add music", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK") { error = nil }
+        } message: { Text(error ?? "") }
+    }
+
+    @ViewBuilder private var layout: some View {
+        #if os(macOS)
+        macLayout
+        #else
+        phoneLayout
+        #endif
+    }
+
+    #if os(macOS)
+    /// Two columns once the window is wide enough; one centred column below that. Content is capped so it never stretches across a big display.
+    private var macLayout: some View {
+        GeometryReader { bounds in
+            let wide = bounds.size.width >= 760
+            ScrollView {
+                Group {
+                    if wide {
+                        HStack(alignment: .center, spacing: 72) {
+                            macIntro.frame(maxWidth: .infinity, alignment: .leading)
+                            macActions.frame(maxWidth: 400)
+                        }
+                    } else {
+                        VStack(alignment: .leading, spacing: 40) { macIntro; macActions }.frame(maxWidth: 480)
+                    }
+                }
+                .padding(.horizontal, 40).padding(.vertical, 40)
+                .frame(maxWidth: 1040)
+                .frame(maxWidth: .infinity, minHeight: bounds.size.height, alignment: .center)
+            }.scrollIndicators(.automatic)
+        }
+    }
+
+    private var macIntro: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            MatrixText(text: String(format: "%02d", songCount), height: 96)
+            Text("songs so far").font(LWTheme.text(15)).foregroundStyle(LWTheme.secondary).padding(.top, 8)
+            Text("Point it at a folder.\nIt stays in sync.")
+                .font(LWTheme.text(44).weight(.medium)).tracking(-1.5)
+                .fixedSize(horizontal: false, vertical: true).padding(.top, 32)
+            Text("Your files stay where they are. Nothing is uploaded.")
+                .font(LWTheme.text(16)).foregroundStyle(LWTheme.secondary).padding(.top, 12)
+        }
+    }
+
+    private var macActions: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(spacing: 0) {
+                Rectangle().fill(LWTheme.line).frame(height: 1)
+                step("1", "Choose a folder, or drop one in this window")
+                step("2", "LocalWave indexes it in the background")
+                step("3", "Play at once; iCloud songs download on play")
+            }
+            Button { folderPicker = true } label: {
+                HStack(spacing: 8) {
+                    LWIcon("folder", size: 20)
+                    Text(adding ? "Adding music…" : "Choose a folder…").lwLineBox(15, 21)
+                }.font(LWTheme.text(15).weight(.medium)).frame(maxWidth: .infinity).frame(height: 48)
+                    .background(LWTheme.ink).foregroundStyle(LWTheme.onInk)
+            }.buttonStyle(LWKeyStyle()).disabled(adding).keyboardShortcut(.defaultAction).padding(.top, 28)
+            Button { audioPicker = true } label: { underlined("Pick some files") }.disabled(adding).padding(.top, 8)
+            Text("iCloud Drive, external drives, network shares: anything Finder can open.")
+                .font(LWTheme.text(13)).foregroundStyle(LWTheme.secondary).padding(.top, 12)
+        }
+    }
+    #endif
+
+    private var phoneLayout: some View {
         GeometryReader { bounds in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -46,14 +124,6 @@ struct WaveOnboardingView: View {
                 .padding(.horizontal, 16).padding(.top, 16).padding(.bottom, 34)
             }.scrollIndicators(.hidden)
         }
-        .background(LWTheme.paper).foregroundStyle(LWTheme.ink).buttonStyle(.plain)
-        .accessibilityElement(children: .contain).accessibilityAddTraits(.isModal)
-        .task { await checkDemoAvailability() }
-        .fileImporter(isPresented: $folderPicker, allowedContentTypes: [.folder], allowsMultipleSelection: true) { importFiles($0, play: false) }
-        .fileImporter(isPresented: $audioPicker, allowedContentTypes: [.audio], allowsMultipleSelection: true) { importFiles($0, play: true) }
-        .alert("Unable to add music", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-            Button("OK") { error = nil }
-        } message: { Text(error ?? "") }
     }
 
     private var heading: some View {
@@ -158,6 +228,7 @@ struct WaveOnboardingView: View {
             defer { adding = false }
             do {
                 let songs = try await dependencies.addMusicURLs(result.get())
+                if songs.isEmpty { throw CustomError.genericError("No supported audio files were found in the selection.") }
                 if play, let first = songs.first {
                     playerVM.configureQueue(songs: songs, startIndex: 0, context: .selection("Selected files"))
                     playerVM.playSong(first)

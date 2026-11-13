@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import Testing
 import UIKit
@@ -58,3 +59,5 @@ private struct BorderFixture: View {
         }.frame(width: 100, height: 240).background(paper)
     }
 }
+
+#endif

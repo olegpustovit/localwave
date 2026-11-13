@@ -13,6 +13,12 @@ final class FolderSortingTests: XCTestCase {
         XCTAssertEqual(WaveFolderView.sortPaths(paths, songs: [:], column: "Name", ascending: true).map(\.pathId), [20, 30, 2, 10, 99])
         XCTAssertEqual(WaveFolderView.sortPaths(paths, songs: [:], column: "Name", ascending: false).map(\.pathId), [20, 30, 10, 2, 99])
         XCTAssertEqual(WaveFolderView.sortPaths(paths, songs: [:], column: "", ascending: true).map(\.pathId), [20, 30, 10, 2, 99])
+        let metadata = Dictionary(uniqueKeysWithValues: [(Int64(10), "A title"), (Int64(2), "Z title")].map { id, title in
+            (id, Song(id: id, songKey: id, artist: "Artist", title: title, album: "Album", albumArtist: "Artist",
+                      releaseYear: nil, discNumber: nil, trackNumber: nil, coverArtPath: nil, bookmark: nil,
+                      pathHash: id, createdAt: Date(), updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly))
+        })
+        XCTAssertEqual(WaveFolderView.sortPaths(paths, songs: metadata, column: "Name", ascending: true).map(\.pathId), [20, 30, 10, 2, 99])
         XCTAssertEqual(WaveFolderView.sortPaths(paths, songs: [:], column: "Size", ascending: false).map(\.pathId), [20, 30, 10, 2, 99], "Equal numeric values must retain order in descending sorts")
     }
     func testContextTargetsPreserveDesktopBatchOrderAndNeverInventPhoneSelection() {

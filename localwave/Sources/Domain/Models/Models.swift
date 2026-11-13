@@ -380,3 +380,30 @@ public struct Song: Sendable, Identifiable, Equatable {
         return id ?? songKey
     }
 }
+
+public extension Song {
+    /// Keep ambiguous band punctuation intact; split explicit guest/collaboration credits only.
+    static func artists(in credit: String) -> [String] {
+        let unwrapped = credit.replacingOccurrences(
+            of: #"(?i)\s*[\(\[](?:feat(?:uring)?\.?|ft\.?)\s+([^\)\]]+)[\)\]]"#,
+            with: ";$1", options: .regularExpression)
+        let separated = unwrapped.replacingOccurrences(
+            of: #"(?i)\s+(?:feat(?:uring)?\.?|ft\.?)\s+|\s+[x×]\s+|\s*;\s*"#,
+            with: ";", options: .regularExpression)
+        var seen = Set<String>()
+        return separated.components(separatedBy: ";").compactMap {
+            let name = $0.trimmingCharacters(in: .whitespacesAndNewlines)
+            return !name.isEmpty && seen.insert(name.lowercased()).inserted ? name : nil
+        }
+    }
+
+    var artistNames: [String] { Self.artists(in: artist) }
+
+    func fileDisplayTitle(fallback: String) -> String {
+        title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? fallback : title
+    }
+
+    var fileDisplaySubtitle: String {
+        [artist, album].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: " · ")
+    }
+}

@@ -94,8 +94,10 @@ struct WaveTransport: View {
                 .padding(.bottom, 1)
                 .overlay(alignment: .bottom) { Rectangle().fill(LWTheme.line).frame(height: 1) }
                 .overlay(alignment: .topLeading) {
-                    GeometryReader { proxy in
-                        Rectangle().fill(LWTheme.ink).frame(width: proxy.size.width * player.playbackProgress, height: 2)
+                    PlaybackClockReader(clock: player.clock) { clock in
+                        GeometryReader { proxy in
+                            Rectangle().fill(LWTheme.ink).frame(width: proxy.size.width * clock.progress, height: 2)
+                        }
                     }.frame(height: 2).offset(y: -1).allowsHitTesting(false)
                 }
             } else {
@@ -115,9 +117,11 @@ struct WaveTransport: View {
                             .modifier(LWAppear(translation: CGSize(width: 0, height: 10)))
                             .transition(.identity)
                     }
-                    Text(player.currentTime).font(LWTheme.data()).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary).frame(width: timeWidth, alignment: .leading)
-                    WaveformView(song: player.currentSong, sourceURL: player.playbackURL, progress: player.playbackProgress, height: 40, barCount: 200, seek: player.seekByFraction)
-                    Text(player.remainingTime).font(LWTheme.data()).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary).frame(width: timeWidth, alignment: .trailing)
+                    PlaybackClockReader(clock: player.clock) { clock in
+                        Text(clock.time).font(LWTheme.data()).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary).frame(width: timeWidth, alignment: .leading)
+                        WaveformView(song: player.currentSong, sourceURL: player.playbackURL, progress: clock.progress, height: 40, barCount: 200, seek: player.seekByFraction)
+                        Text(player.remainingTime).font(LWTheme.data()).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary).frame(width: timeWidth, alignment: .trailing)
+                    }
                     WaveModeKeys(showQueue: false, panelVisible: panelVisible, onQueue: onExpand)
                     WaveAudioRoute(background: LWTheme.panel).frame(width: 44, height: 44)
                 }.padding(.trailing, 20)
@@ -298,7 +302,9 @@ struct WaveNowView: View {
                 .modifier(WaveEntrance(appeared: appeared, index: 2))
             if compact {
                 VStack(spacing: 6) {
-                    WaveformView(song: player.currentSong, sourceURL: player.playbackURL, progress: player.playbackProgress, height: 56, seek: player.seekByFraction)
+                    PlaybackClockReader(clock: player.clock) { clock in
+                        WaveformView(song: player.currentSong, sourceURL: player.playbackURL, progress: clock.progress, height: 56, seek: player.seekByFraction)
+                    }
                     HStack { Text("0:00"); Spacer(); Text(player.duration) }
                         .font(LWTheme.data(11)).lwLineBox(11, 15.4, data: true).foregroundStyle(LWTheme.secondary)
                         .frame(minHeight: 15.4)
@@ -318,12 +324,14 @@ struct WaveNowView: View {
                     .font(LWTheme.text(compact ? 24 : 19).weight(.medium))
                     .tracking(compact ? -0.72 : -0.285)
                     .lwLineBox(compact ? 24 : 19, compact ? 27.6 : 22.8)
+                    .fixedSize(horizontal: false, vertical: true) // long titles wrap and keep their height instead of overlapping the byline
                     .frame(minHeight: compact ? 27.6 : 22.8, alignment: .leading)
                 if let song = player.currentSong {
                     if compact {
                         Text(song.artist + " — " + song.album)
                             .font(LWTheme.text(15)).foregroundStyle(LWTheme.secondary)
                             .lwLineBox(15, 21)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(minHeight: 21, alignment: .leading)
                     } else {
                         PlayerBylineFlow {
@@ -355,8 +363,10 @@ struct WaveNowView: View {
                 .accessibilityHint("Press the stop key to cancel.")
         } else {
             timeLayout {
-                MatrixText(text: paddedTime, height: compact ? 72 : 43, unlit: false)
-                    .accessibilityLabel("Elapsed time " + player.currentTime)
+                PlaybackClockReader(clock: player.clock) { clock in
+                    MatrixText(text: clock.time.count < 5 ? "0" + clock.time : clock.time, height: compact ? 72 : 43, unlit: false)
+                        .accessibilityLabel("Elapsed time " + clock.time)
+                }
                 Spacer(minLength: 4)
                 VStack(alignment: .trailing, spacing: 2) {
                     if compact { Text(formatSummary).lwLineBox(12, 16.8, data: true) }
@@ -532,7 +542,6 @@ struct WaveNowView: View {
     private var timeLayout: AnyLayout {
         dynamicTypeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .bottom))
     }
-    private var paddedTime: String { player.currentTime.count < 5 ? "0" + player.currentTime : player.currentTime }
     private var formatSummary: String {
         let format = player.currentSong?.fileExtension?.lowercased() ?? player.playbackFormat.components(separatedBy: " · ").first?.lowercased() ?? "audio"
         if let rate = player.currentSong?.sampleRate, let depth = player.currentSong?.bitDepth {

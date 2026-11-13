@@ -52,3 +52,4 @@ Package.resolved
 # Browser inspection outputs
 .playwright-mcp/
 *.profraw
+build/

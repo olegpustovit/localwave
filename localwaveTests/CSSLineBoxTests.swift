@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import CoreText
 import SwiftUI
 import Testing
@@ -214,3 +215,5 @@ private struct BaselineCapture: Layout {
         subviews.first?.place(at: bounds.origin, anchor: .topLeading, proposal: proposal)
     }
 }
+
+#endif

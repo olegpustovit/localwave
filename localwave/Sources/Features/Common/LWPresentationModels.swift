@@ -66,6 +66,10 @@ enum LWPresentationNotice {
     static func show(_ text: String) {
         NotificationCenter.default.post(name: Notification.Name("LWShowNotice"), object: text)
     }
+    /// Blocking alert for failures the user must see; also posted by the Data module under the same name.
+    static func error(_ text: String) {
+        NotificationCenter.default.post(name: Notification.Name("LWShowError"), object: text)
+    }
 }
 
 #endif

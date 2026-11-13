@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import UIKit
 import XCTest
@@ -94,3 +95,5 @@ extension PlaybackNoticeTests {
     }
 
 }
+
+#endif

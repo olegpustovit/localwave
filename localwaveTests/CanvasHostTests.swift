@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import UIKit
 import XCTest
@@ -247,3 +248,5 @@ private struct CanvasSheetMountProbe: UIViewRepresentable {
     }
     func updateUIView(_ view: UILabel, context: Context) {}
 }
+
+#endif

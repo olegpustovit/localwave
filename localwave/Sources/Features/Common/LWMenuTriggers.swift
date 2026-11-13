@@ -8,16 +8,21 @@ struct LWMenuButton<Label: View>: View {
     let request: () -> LWMenuRequest
     @ViewBuilder let label: () -> Label
     @EnvironmentObject private var presenter: LWSheetPresenter
-    @State private var bounds = CGRect.zero
+    @State private var geometry = LWLiveGeometry()
     var body: some View {
         Button {
             var menu = request()
+            let bounds = geometry.proxy?.frame(in: .global) ?? .zero
             if menu.anchor == nil { menu.anchor = CGPoint(x: bounds.minX, y: bounds.maxY) }
             presenter.present(menu: menu)
         } label: { label() }
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { bounds = $0 }
+            // The frame is read on click. Tracking it with onGeometryChange wrote @State in every visible row on every scroll frame.
+            .background { GeometryReader { proxy in Color.clear.onAppear { geometry.proxy = proxy }.onChange(of: proxy.size) { geometry.proxy = proxy } } }
     }
 }
+
+/// Holds a GeometryProxy so a frame can be read at event time without observing it.
+final class LWLiveGeometry { var proxy: GeometryProxy? }
 
 #if os(iOS)
 private struct LWContextMenuTrigger: ViewModifier {
@@ -52,11 +57,17 @@ private struct LWContextMenuTrigger: ViewModifier {
     let request: () -> LWMenuRequest
     func body(content: Content) -> some View {
         if enabled {
-            content.contextMenu { menuItems(request().groups) }
+            // The menu model is built inside a child view's body, so rows no longer build ~20 menu actions each time they scroll into view.
+            content.contextMenu { LWLazyMenuItems(request: request) }
         } else {
             content
         }
     }
+}
+
+private struct LWLazyMenuItems: View {
+    let request: () -> LWMenuRequest
+    var body: some View { menuItems(request().groups) }
 
     private func menuItems(_ groups: [LWMenuGroup]) -> AnyView {
         AnyView(VStack {

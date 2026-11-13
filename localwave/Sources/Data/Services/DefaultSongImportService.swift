@@ -89,11 +89,21 @@ public actor DefaultSongImportService: SongImportService {
         try await startImport(paths: paths, onProgress: nil, onFileProgress: onProgress)
     }
 
-    private func startImport(paths: [SourcePath], onProgress: ((Double, URL) async -> Void)?, onFileProgress: ((SongImportProgress) async -> Void)?) async throws {
-        // Cancel any existing task
+    /// True while an import (user scan or enrichment) runs; enrichment yields to user imports.
+    public var isBusy: Bool { isImporting }
+
+    /// Downloads cloud-only files in a prefetch window, reads their tags, then evicts what it downloaded.
+    public func enrichCloudPaths(paths: [SourcePath], onProgress: ((SongImportProgress) async -> Void)?) async throws {
+        // Never pre-empt a user import: refuse atomically (actor-isolated) instead of cancelling it.
+        guard !isImporting else { throw CancellationError() }
+        try await startImport(paths: paths, onProgress: nil, onFileProgress: onProgress, materializeCloud: true)
+    }
+
+    private func startImport(paths: [SourcePath], onProgress: ((Double, URL) async -> Void)?, onFileProgress: ((SongImportProgress) async -> Void)?, materializeCloud: Bool = false) async throws {
+        // A newer import pre-empts the running one; the cancelled task's CancellationError is expected here.
         if let currentTask = currentImportTask {
             currentTask.cancel()
-            try await currentTask.value
+            _ = try? await currentTask.value
         }
 
         currentImportTask = Task {
@@ -104,7 +114,7 @@ public actor DefaultSongImportService: SongImportService {
             }
 
             isImporting = true
-            try await importImplementation(paths: paths, onProgress: onProgress, onFileProgress: onFileProgress)
+            try await importImplementation(paths: paths, onProgress: onProgress, onFileProgress: onFileProgress, materializeCloud: materializeCloud)
         }
 
         try await currentImportTask!.value
@@ -132,7 +142,8 @@ public actor DefaultSongImportService: SongImportService {
     public func importImplementation(
         paths: [SourcePath],
         onProgress: ((Double, URL) async -> Void)? = nil,
-        onFileProgress: ((SongImportProgress) async -> Void)? = nil
+        onFileProgress: ((SongImportProgress) async -> Void)? = nil,
+        materializeCloud: Bool = false
     ) async throws {
         logger.debug("Gathering files from \(paths.count) paths")
         let filePaths = try await gatherAllFiles(paths: paths)
@@ -146,10 +157,32 @@ public actor DefaultSongImportService: SongImportService {
             await onFileProgress?(SongImportProgress(percentage: Double(completedFiles) / Double(filePaths.count) * 100, completedFiles: completedFiles, totalFiles: filePaths.count, url: url))
         }
 
+        var skipped = 0
+        defer {
+            if skipped > 0 {
+                NotificationCenter.default.post(name: Notification.Name("LWShowError"), object: "\(skipped) file\(skipped == 1 ? "" : "s") could not be opened and were skipped.")
+            }
+        }
+        // Enrichment: iCloud has no range reads, so start downloads a few files ahead (parallel transfer, serial parse)
+        // and remember which ones were cloud-only so only those are evicted afterwards.
+        var prefetched = -1
+        var evictable = Set<URL>()
         for (index, filePath) in filePaths.enumerated() {
             try Task.checkCancellation()
+            while materializeCloud, prefetched < min(index + 8, filePaths.count - 1) {
+                prefetched += 1
+                guard let ahead = await resolveFileURL(for: filePaths[prefetched]) else { continue }
+                if (try? availabilityInspector(ahead)) == .inCloud {
+                    evictable.insert(ahead)
+                    // A real read is what makes fileproviderd fetch the whole file (startDownloadingUbiquitousItem was a no-op here); parallel via GCD.
+                    DispatchQueue.global(qos: .utility).async {
+                        if let handle = try? FileHandle(forReadingFrom: ahead) { _ = try? handle.read(upToCount: 4096); try? handle.close() }
+                    }
+                }
+            }
             guard let fileURL = await resolveFileURL(for: filePath) else {
                 logger.error("Skipping file due to unresolved URL")
+                skipped += 1
                 continue
             }
 
@@ -166,7 +199,7 @@ public actor DefaultSongImportService: SongImportService {
             if let existingSong, let id = existingSong.id, existingSong.sourceAvailability != availability {
                 try await songRepo.updateSourceAvailability(songId: id, availability: availability)
             }
-            let deferred = availability == .inCloud || (availability == .unknown && FileAvailabilityService.isProviderLocation(fileURL))
+            let deferred = !materializeCloud && (availability == .inCloud || (availability == .unknown && FileAvailabilityService.isProviderLocation(fileURL)))
             var metadataURL = fileURL
             if deferred, let existingSong, let id = existingSong.id, let cache = verifiedCacheURL(existingSong) {
                 var version = try? BackgroundFileService.cachedSourceVersionMatches(songID: id, sourceURL: fileURL, cacheURL: cache)
@@ -185,9 +218,10 @@ public actor DefaultSongImportService: SongImportService {
                     if existingSong.sourceId == nil { try await songRepo.updateSourceLocation(songId: id, sourceId: filePath.sourceId, relativePath: filePath.relativePath) }
                 } else {
                     let size = try fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize.map(Int64.init)
+                    let guess = Self.provisionalMetadata(relativePath: filePath.relativePath)
                     let placeholder = Song(id: nil, songKey: hashStringToInt64("source:\(filePath.sourceId)/\(filePath.relativePath)"),
-                        artist: "Unknown Artist", title: Self.fallbackTitle(for: fileURL.lastPathComponent), album: "Unknown Album", albumArtist: "Unknown Artist",
-                        releaseYear: nil, discNumber: nil, trackNumber: nil, coverArtPath: nil, bookmark: nil,
+                        artist: guess.artist ?? "Unknown Artist", title: Self.fallbackTitle(for: fileURL.lastPathComponent), album: guess.album ?? "Unknown Album", albumArtist: guess.artist ?? "Unknown Artist",
+                        releaseYear: guess.year, discNumber: nil, trackNumber: guess.track, coverArtPath: nil, bookmark: nil,
                         pathHash: makeURLHash(fileURL), createdAt: Date(), updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly,
                         sourceId: filePath.sourceId, relativePath: filePath.relativePath, fileSize: size,
                         fileExtension: fileURL.pathExtension.lowercased(), sourceAvailability: availability)
@@ -276,8 +310,14 @@ public actor DefaultSongImportService: SongImportService {
             try Task.checkCancellation()
             let inserted = try await songRepo.upsertSong(newSong)
             logger.debug("Upserted song: \(inserted.title)")
-            if let id = inserted.id, LocalWavePreferences.current.stringArray(forKey: "lwPinnedSongs")?.contains(String(id)) == true {
+            let pinned = inserted.id.map { LocalWavePreferences.current.stringArray(forKey: "lwPinnedSongs")?.contains(String($0)) == true } ?? false
+            if pinned, let id = inserted.id {
                 try await songRepo.markSongForCopy(songId: id)
+            } else if evictable.contains(fileURL), cachedPath == nil, let id = inserted.id {
+                // Tags are saved; give the disk space back and record that the file is cloud-only again.
+                if (try? FileManager.default.evictUbiquitousItem(at: fileURL)) != nil {
+                    try await songRepo.updateSourceAvailability(songId: id, availability: .inCloud)
+                } else { logger.error("Could not evict \(fileURL.lastPathComponent) after reading tags") }
             }
             await reportCompleted(fileURL)
         }
@@ -458,6 +498,23 @@ public actor DefaultSongImportService: SongImportService {
                 "Unknown Artist", defaultSongTitle, "Unknown Album", "Unknown Artist", nil, nil, nil
             )
         }
+    }
+
+    /// Best-effort tags from "Artist - Album (Year)/NN - Title.ext" paths so cloud-only songs look right before real tags are read.
+    /// Only strict matches are used; real tags overwrite these.
+    nonisolated static func provisionalMetadata(relativePath: String) -> (artist: String?, album: String?, year: Int?, track: Int?) {
+        let parts = relativePath.split(separator: "/").map(String.init)
+        func groups(_ pattern: String, in text: String) -> [String?]? {
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else { return nil }
+            return (1..<match.numberOfRanges).map { Range(match.range(at: $0), in: text).map { String(text[$0]) } }
+        }
+        var artist: String?, album: String?, year: Int?, track: Int?
+        if parts.count >= 2, let g = groups(#"^(.+?)\s+[-–—]\s+(.+?)(?:\s*\((\d{4})\))?$"#, in: parts[parts.count - 2]) {
+            artist = g[0]; album = g[1]; year = g[2].flatMap { Int($0) }
+        }
+        if let last = parts.last, let g = groups(#"^\s*(\d{1,3})\s*[-–—._)]"#, in: last) { track = g[0].flatMap { Int($0) } }
+        return (artist, album, year, track)
     }
 
     nonisolated static func fallbackTitle(for fileName: String) -> String {

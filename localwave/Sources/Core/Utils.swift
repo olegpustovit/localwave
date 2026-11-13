@@ -97,10 +97,10 @@ public struct FileHelper {
     public func relativePath(from baseURL: URL) -> String? {
         let basePath = baseURL.path
         let fullPath = fileURL.path
-        guard fullPath.hasPrefix(basePath) else {
-            return nil
-        }
-        return String(fullPath.dropFirst(basePath.count + 1))
+        if fullPath == basePath { return "" }
+        let prefix = basePath.hasSuffix("/") ? basePath : basePath + "/"
+        guard fullPath.hasPrefix(prefix) else { return nil }
+        return String(fullPath.dropFirst(prefix.count))
     }
 
     public static func createURL(baseURL: URL, relativePath: String) -> URL? {

@@ -17,9 +17,10 @@ public actor SourceAccess {
     }
     private var roots: [Int64: Root] = [:]
     private var presenters: [Int64: SourceFolderPresenter] = [:]
-    private var fingerprints: [Int64: Int] = [:]
-    private var scanBaselines: [Int64: Int] = [:]
-    private var scanning = Set<Int64>()
+    private var fileVersions: [Int64: [String: String]] = [:]
+    private var pendingPaths: [Int64: Set<String>] = [:]
+    private var fullScanPending = Set<Int64>()
+    private var scanDepth: [Int64: Int] = [:]
     private var changeSubscribers: [UUID: AsyncStream<Int64>.Continuation] = [:]
 
     public init(repository: SourceRepository, preferences: UserDefaults = LocalWavePreferences.current, excludedURLs: [URL] = LocalWaveGeneratedPaths.urls, sourcePathRepository: SourcePathRepository? = nil, songRepository: SongRepository? = nil) {
@@ -78,9 +79,8 @@ public actor SourceAccess {
             throw error
         }
         if roots[sourceId]?.url == url, roots[sourceId]?.bookmark == refreshed {
-            fingerprints[sourceId] = try? fingerprint(url)
-            presenters[sourceId] = SourceFolderPresenter(url: url) { [weak self] movedRoot in
-                Task { await self?.sourceChanged(sourceId: sourceId, watchedRoot: url, movedRoot: movedRoot) }
+            presenters[sourceId] = SourceFolderPresenter(url: url) { [weak self] movedRoot, items in
+                Task { await self?.sourceChanged(sourceId: sourceId, watchedRoot: url, movedRoot: movedRoot, items: items) }
             }
         }
         return url
@@ -121,8 +121,9 @@ public actor SourceAccess {
         guard !relativePath.isEmpty, !relativePath.hasPrefix("/"), !relativePath.split(separator: "/").contains("..") else {
             throw CustomError.genericError("The audio path is outside its source folder.")
         }
-        let file = root.appendingPathComponent(relativePath).standardizedFileURL
-        let canonicalRoot = root.resolvingSymlinksInPath().standardizedFileURL.path
+        let canonicalRootURL = root.resolvingSymlinksInPath().standardizedFileURL
+        let file = canonicalRootURL.appendingPathComponent(relativePath).standardizedFileURL
+        let canonicalRoot = canonicalRootURL.path
         let canonicalFile = file.resolvingSymlinksInPath().path
         guard canonicalFile.hasPrefix(canonicalRoot.hasSuffix("/") ? canonicalRoot : canonicalRoot + "/") else {
             throw CustomError.genericError("The audio path is outside its source folder.")
@@ -181,13 +182,13 @@ public actor SourceAccess {
 
     private func releaseRoot(sourceId: Int64) {
         presenters.removeValue(forKey: sourceId)?.invalidate()
-        fingerprints.removeValue(forKey: sourceId)
+        fileVersions.removeValue(forKey: sourceId)
         if let root = roots.removeValue(forKey: sourceId), root.scoped { root.url.stopAccessingSecurityScopedResource() }
     }
 
     public func changes() -> AsyncStream<Int64> {
         let id = UUID()
-        return AsyncStream(bufferingPolicy: .bufferingNewest(32)) { continuation in
+        return AsyncStream() { continuation in
             changeSubscribers[id] = continuation
             continuation.onTermination = { [weak self] _ in Task { await self?.removeSubscriber(id) } }
         }
@@ -196,20 +197,24 @@ public actor SourceAccess {
     private func removeSubscriber(_ id: UUID) { changeSubscribers.removeValue(forKey: id) }
 
     public func beginScan(sourceId: Int64) async {
-        scanning.insert(sourceId)
-        if let root = try? await rootURL(sourceId: sourceId) { scanBaselines[sourceId] = try? fingerprint(root) }
+        scanDepth[sourceId, default: 0] += 1
+        _ = try? await rootURL(sourceId: sourceId)
     }
 
     public func endScan(sourceId: Int64) {
-        scanning.remove(sourceId)
-        let before = scanBaselines.removeValue(forKey: sourceId)
-        guard let root = roots[sourceId]?.url else { return }
-        let after = try? fingerprint(root)
-        fingerprints[sourceId] = after
-        if before != after { emitChange(sourceId) }
+        scanDepth[sourceId] = max(0, (scanDepth[sourceId] ?? 0) - 1)
+        if scanDepth[sourceId] == 0, fullScanPending.contains(sourceId) || pendingPaths[sourceId]?.isEmpty == false {
+            changeSubscribers.values.forEach { $0.yield(sourceId) }
+        }
     }
 
-    private func sourceChanged(sourceId: Int64, watchedRoot: URL, movedRoot: URL?) async {
+    /// nil requests recovery of the whole source; an empty set means the queued notification was already consumed.
+    public func takeChangedPaths(sourceId: Int64) -> Set<String>? {
+        let paths = pendingPaths.removeValue(forKey: sourceId) ?? []
+        return fullScanPending.remove(sourceId) != nil ? nil : paths
+    }
+
+    func sourceChanged(sourceId: Int64, watchedRoot: URL, movedRoot: URL?, items: Set<URL>?) async {
         guard roots[sourceId]?.url == watchedRoot else { return }
         if let movedRoot {
             let scoped = movedRoot.startAccessingSecurityScopedResource()
@@ -228,36 +233,36 @@ public actor SourceAccess {
             emitChange(sourceId)
             return
         }
-        guard !scanning.contains(sourceId) else { return }
-        let current = try? fingerprint(watchedRoot)
-        guard current != fingerprints[sourceId] else { return }
-        fingerprints[sourceId] = current
-        emitChange(sourceId)
-    }
-
-    private func emitChange(_ sourceId: Int64) {
-        changeSubscribers.values.forEach { $0.yield(sourceId) }
-    }
-
-    private func fingerprint(_ root: URL) throws -> Int {
-        let keys: Set<URLResourceKey> = [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey, .isUbiquitousItemKey, .ubiquitousItemDownloadingStatusKey]
-        var enumerationError: Error?
-        guard let enumerator = FileManager.default.enumerator(at: root, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles, .skipsPackageDescendants], errorHandler: { _, error in enumerationError = error; return false }) else {
-            throw CustomError.genericError("Unable to read the source folder.")
-        }
-        var entries: [String] = []
-        for case let file as URL in enumerator {
-            if LocalWaveGeneratedPaths.contains(file, excludedURLs: excludedURLs) { enumerator.skipDescendants(); continue }
-            let values = try file.resourceValues(forKeys: keys)
-            let path = FileHelper(fileURL: file).relativePath(from: root) ?? file.path
-            if values.isDirectory == true { entries.append(path + "/") }
-            else if values.isDirectory == false {
-                entries.append("\(path)\u{001F}\(values.contentModificationDate?.timeIntervalSince1970 ?? 0)\u{001F}\(values.fileSize ?? 0)\u{001F}\(String(describing: values.ubiquitousItemDownloadingStatus))")
+        guard let items else { emitChange(sourceId); return }
+        var changed = Set<String>()
+        for var item in items {
+            // Deleted provider URLs can retain /var while their bookmark resolves to /private/var.
+            var ancestor = item
+            var missing: [String] = []
+            while !FileManager.default.fileExists(atPath: ancestor.path), ancestor.path != "/" {
+                missing.append(ancestor.lastPathComponent)
+                ancestor.deleteLastPathComponent()
             }
+            let canonical = missing.reversed().reduce(ancestor.resolvingSymlinksInPath()) { $0.appendingPathComponent($1) }
+            guard !LocalWaveGeneratedPaths.contains(item, excludedURLs: excludedURLs),
+                  let relative = FileHelper(fileURL: canonical).relativePath(from: watchedRoot.resolvingSymlinksInPath()), !relative.isEmpty,
+                  !relative.split(separator: "/").contains(where: { $0.hasPrefix(".") }) else { continue }
+            // Provider download status is deliberately absent: only content/path changes affect the index.
+            item.removeAllCachedResourceValues()
+            let values = try? item.resourceValues(forKeys: [.isDirectoryKey, .contentModificationDateKey, .fileSizeKey])
+            let version = values.map { "\($0.isDirectory == true)|\($0.contentModificationDate?.timeIntervalSince1970 ?? 0)|\($0.fileSize ?? 0)" } ?? "missing"
+            guard fileVersions[sourceId]?[relative] != version else { continue }
+            fileVersions[sourceId, default: [:]][relative] = version
+            changed.insert(relative)
         }
-        if let enumerationError { throw enumerationError }
-        var hasher = Hasher()
-        entries.sorted().forEach { hasher.combine($0) }
-        return hasher.finalize()
+        if !changed.isEmpty { emitChange(sourceId, paths: changed) }
+    }
+
+    private func emitChange(_ sourceId: Int64, paths: Set<String>? = nil) {
+        if let paths { pendingPaths[sourceId, default: []].formUnion(paths) }
+        else { fullScanPending.insert(sourceId) }
+        if scanDepth[sourceId, default: 0] == 0 {
+            changeSubscribers.values.forEach { $0.yield(sourceId) }
+        }
     }
 }

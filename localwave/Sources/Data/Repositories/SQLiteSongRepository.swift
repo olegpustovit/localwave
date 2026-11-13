@@ -436,7 +436,7 @@ public actor SQLiteSongRepository: SongRepository {
         let query = songsTable.select(colArtist)
             .filter(colArtist != "")
             .group(colArtist)
-        return try db.prepare(query).compactMap { $0[colArtist] }
+        return Array(Set(try db.prepare(query).flatMap { Song.artists(in: $0[colArtist]) })).sorted()
     }
 
     public func getAllAlbums() async throws -> [Album] {
@@ -463,8 +463,9 @@ public actor SQLiteSongRepository: SongRepository {
     }
 
     public func getSongsByArtist(_ artist: String) async throws -> [Song] {
-        let query = songsTable.filter(colArtist == artist)
-        return try parseSongsFromRows(db.prepare(query))
+        let credits = try db.prepare(songsTable.select(colArtist).group(colArtist)).map { $0[colArtist] }
+            .filter { $0 == artist || Song.artists(in: $0).contains { $0.localizedCaseInsensitiveCompare(artist) == .orderedSame } }
+        return try parseSongsFromRows(db.prepare(songsTable.filter(credits.contains(colArtist))))
     }
 
     public func getSongsByAlbum(_ album: String, artist: String?) async throws -> [Song] {
@@ -506,6 +507,10 @@ public actor SQLiteSongRepository: SongRepository {
                 sourceAvailability: row[colSourceAvailability].flatMap(FileAvailability.init(rawValue:)) // NEWER
             )
         }
+    }
+
+    public func getSongsMissingMetadata() async -> [Song] {
+        (try? parseSongsFromRows(db.prepare(songsTable.filter(colDuration == nil && colSourceId != nil)))) ?? []
     }
 
     // NEW: getSongsNeedingCopy - returns songs with fileState of bookmarkOnly or failed  // NEW

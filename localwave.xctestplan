@@ -9,6 +9,12 @@
     }
   ],
   "defaultOptions" : {
+    "environmentVariableEntries" : [
+      {
+        "key" : "LOCALWAVE_UI_TEST_ID",
+        "value" : "53B346B7-D3DB-4A91-889F-612C03D75687"
+      }
+    ],
     "targetForVariableExpansion" : {
       "containerPath" : "container:localwave.xcodeproj",
       "identifier" : "10811E6E2D31CF01008CAD75",

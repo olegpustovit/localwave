@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import UIKit
 import XCTest
@@ -86,3 +87,5 @@ final class MatrixRenderingTests: XCTestCase {
         XCTAssertEqual(image.size.height, 180 * 7 / 24.78, accuracy: 0.5)
     }
 }
+
+#endif

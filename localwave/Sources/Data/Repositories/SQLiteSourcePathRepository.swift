@@ -23,6 +23,13 @@ public actor SQLiteSourcePathRepository: SourcePathRepository {
 
     private let logger = createLogger(subsystem: subsystem, category: "SQLiteSourcePathRepository")
 
+    public func deletePaths(sourceId: Int64, pathIds: [Int64]) async throws {
+        guard !pathIds.isEmpty else { return }
+        try db.transaction {
+            for id in pathIds { try db.run(table.filter(colSourceId == sourceId && colPathId == id).delete()) }
+        }
+    }
+
     public func getByPathId(sourceId: Int64, pathId: Int64) async throws -> SourcePath? {
         let query = table.filter(colSourceId == sourceId && colPathId == pathId)
         if let row = try db.pluck(query) {

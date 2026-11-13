@@ -25,13 +25,28 @@ import MediaPlayer
 #endif
 
 
+/// Ticks 4x/second while playing. Kept off PlayerViewModel so the song list (which observes the player) is not re-rendered on every tick.
+@MainActor
+final class PlaybackClock: ObservableObject {
+    @Published var progress: Double = 0
+    @Published var time: String = "0:00"
+}
+
+/// Re-renders only its own content when the clock ticks.
+struct PlaybackClockReader<Content: View>: View {
+    @ObservedObject var clock: PlaybackClock
+    @ViewBuilder let content: (PlaybackClock) -> Content
+    var body: some View { content(clock) }
+}
+
 @MainActor
 class PlayerViewModel: NSObject, ObservableObject {
     @Published var currentSong: Song?
     @Published private(set) var playbackContext: PlaybackContext = .library
     @Published var isPlaying = false
-    @Published var playbackProgress: Double = 0
-    @Published var currentTime: String = "0:00"
+    let clock = PlaybackClock()
+    var playbackProgress: Double { get { clock.progress } set { if clock.progress != newValue { clock.progress = newValue } } }
+    var currentTime: String { get { clock.time } set { if clock.time != newValue { clock.time = newValue } } }
     @Published var duration: String = "0:00"
 
     @Published private(set) var isShuffleEnabled: Bool = false
@@ -430,6 +445,7 @@ class PlayerViewModel: NSObject, ObservableObject {
             currentQueueIndex = songs.firstIndex { $0.songKey == song.songKey } ?? 0
         }
         isLoading = true
+        NotificationCenter.default.post(name: Notification.Name("LWPlaybackOpening"), object: nil)
         let generation = loadGeneration
         let entryID = queueEntryIDs.indices.contains(currentQueueIndex) && songs[currentQueueIndex].songKey == song.songKey ? queueEntryIDs[currentQueueIndex] : nil
         let resolver = sourceAccessResolver
@@ -939,12 +955,22 @@ class PlayerViewModel: NSObject, ObservableObject {
         }
     }
 
+    /// Seeks are async; until the last one lands, periodic updates would report the pre-seek time and bounce the playhead back.
+    private var pendingSeeks = 0
+
     func seek(to progress: Double) {
         guard let player = player else { return }
 
-        let value = max(0, min(safeSeconds(player.currentItem?.duration ?? .zero), progress))
+        let total = safeSeconds(player.currentItem?.duration ?? .zero)
+        let value = max(0, min(total, progress))
+        if total > 0 { playbackProgress = value / total; currentTime = formatTime(value) }
+        pendingSeeks += 1
         player.seek(to: CMTime(seconds: value, preferredTimescale: 600), toleranceBefore: .zero, toleranceAfter: .zero) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.updateTimeDisplay() }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.pendingSeeks -= 1
+                self.updateTimeDisplay()
+            }
         }
     }
 
@@ -988,7 +1014,7 @@ class PlayerViewModel: NSObject, ObservableObject {
     }
 
     private func updateTimeDisplay() {
-        guard let player, let item = player.currentItem else { return }
+        guard pendingSeeks == 0, let player, let item = player.currentItem else { return }
         let elapsed = safeSeconds(player.currentTime())
         let itemDuration = safeSeconds(item.duration)
         let total = itemDuration > 0 ? itemDuration : measuredDuration > 0 ? measuredDuration : storedDuration(currentSong)

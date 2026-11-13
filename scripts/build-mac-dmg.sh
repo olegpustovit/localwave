@@ -21,7 +21,7 @@ xcodebuild -project "$repo_dir/localwave.xcodeproj" -scheme musicapp \
   -derivedDataPath "$work_dir/DerivedData" \
   CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO ${settings[@]+"${settings[@]}"} build
 
-app="$work_dir/DerivedData/Build/Products/Release/localwave.app"
+app="$work_dir/DerivedData/Build/Products/Release/LocalWave.app"
 keychain=()
 [ -z "${SIGN_KEYCHAIN:-}" ] || keychain=(--keychain "$SIGN_KEYCHAIN")
 codesign --force --deep --timestamp --options runtime ${keychain[@]+"${keychain[@]}"} \

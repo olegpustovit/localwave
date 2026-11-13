@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import UIKit
 import XCTest
@@ -31,3 +32,5 @@ final class SourceScanBarTests: XCTestCase {
         return bytes
     }
 }
+
+#endif

@@ -17,17 +17,18 @@ context.fillPath()
 context.restoreGState()
 context.addPath(shape)
 context.clip()
-let colors = [CGColor(srgbRed: 0.08, green: 0.20, blue: 0.68, alpha: 1), CGColor(srgbRed: 0.16, green: 0.30, blue: 0.95, alpha: 1)]
-let gradient = CGGradient(colorsSpace: colorSpace, colors: colors as CFArray, locations: [0, 1])!
-context.drawLinearGradient(gradient, start: CGPoint(x: artwork.minX, y: artwork.minY), end: CGPoint(x: artwork.maxX, y: artwork.maxY), options: [])
-context.setStrokeColor(CGColor(srgbRed: 1, green: 1, blue: 1, alpha: 0.96))
-context.setLineWidth(34)
-context.setLineCap(.round)
-for (index, height) in [112.0, 210, 326, 454, 326, 210, 112].enumerated() {
-    let x = 298.0 + Double(index) * 71.0
-    context.move(to: CGPoint(x: x, y: 512 - height / 2))
-    context.addLine(to: CGPoint(x: x, y: 512 + height / 2))
-    context.strokePath()
+// Matches the UI kit: ink ground, square dot-matrix cells (like MatrixText), paper-coloured lit dots.
+context.setFillColor(CGColor(srgbRed: 0x11 / 255, green: 0x11 / 255, blue: 0x11 / 255, alpha: 1))
+context.fill(artwork)
+let lit = [3, 5, 9, 5, 7, 3, 9, 5, 3]
+let cell = 62.0, dot = 46.0, rows = 9
+let origin = (512 - Double(lit.count) * cell / 2, 512 - Double(rows) * cell / 2)
+for (column, count) in lit.enumerated() {
+    for row in 0..<rows {
+        let on = abs(row - rows / 2) <= count / 2
+        context.setFillColor(on ? CGColor(srgbRed: 0xF3 / 255, green: 0xF3 / 255, blue: 0xF3 / 255, alpha: 1) : CGColor(gray: 1, alpha: 0.09))
+        context.fill(CGRect(x: origin.0 + Double(column) * cell + (cell - dot) / 2, y: origin.1 + Double(row) * cell + (cell - dot) / 2, width: dot, height: dot))
+    }
 }
 let icon = context.makeImage()!
 let directory = URL(fileURLWithPath: output, isDirectory: true)

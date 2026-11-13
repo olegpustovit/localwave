@@ -26,6 +26,7 @@ struct SongMetadataEditorView: View {
     @State private var releaseYear: String
     @State private var discNumber: String
     @State private var trackNumber: String
+    @State private var saveError: String?
 
     private let logger = Logger(subsystem: subsystem, category: "SongMetadataEditorView")
 
@@ -105,6 +106,7 @@ struct SongMetadataEditorView: View {
                                 dismiss()
                             } catch {
                                 logger.error("failed to upsert: \(error)")
+                                saveError = error.localizedDescription
                             }
                         }
                     }
@@ -114,6 +116,9 @@ struct SongMetadataEditorView: View {
                 }
             }
         }
+        .alert("Unable to save", isPresented: Binding(get: { saveError != nil }, set: { if !$0 { saveError = nil } })) {
+            Button("OK") { saveError = nil }
+        } message: { Text(saveError ?? "") }
     }
 }
 

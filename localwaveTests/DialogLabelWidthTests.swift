@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import Testing
 import UIKit
@@ -81,3 +82,5 @@ private struct DialogLabelSizeCapture: Layout {
         subviews.first?.place(at: bounds.origin, anchor: .topLeading, proposal: .unspecified)
     }
 }
+
+#endif

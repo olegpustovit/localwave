@@ -10,6 +10,13 @@ struct LWCollapsedTableRules: ViewModifier {
     var color = LWTheme.line
 
     func body(content: Content) -> some View {
+#if os(macOS)
+        // AppKit scrolls on whole backing pixels and rows have integral heights, so static rules land on the same pixels as the snapped Canvas,
+        // without a per-row GeometryReader + Canvas redraw on every scroll frame (measured: the main cost of scrolling the song table).
+        content
+            .overlay(alignment: .top) { if top { Rectangle().fill(color).frame(height: 1).allowsHitTesting(false).accessibilityHidden(true) } }
+            .overlay(alignment: .bottom) { if bottom { Rectangle().fill(color).frame(height: 1).offset(y: 1).allowsHitTesting(false).accessibilityHidden(true) } }
+#else
         content.overlay {
             if top || bottom {
                 GeometryReader { proxy in
@@ -28,6 +35,7 @@ struct LWCollapsedTableRules: ViewModifier {
                 .accessibilityHidden(true)
             }
         }
+#endif
     }
 
     private func draw(_ boundary: CGFloat, in bounds: CGRect, width: CGFloat, context: inout GraphicsContext) {

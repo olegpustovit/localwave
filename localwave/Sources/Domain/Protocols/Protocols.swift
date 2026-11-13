@@ -45,6 +45,7 @@ public protocol SongRepository {
     func deleteSong(songId: Int64) async throws
     func deleteAlbum(album: String, artist: String?) async throws
     func getSongsNeedingCopy() async -> [Song]
+    func getSongsMissingMetadata() async -> [Song]
     func markSongForCopy(songId: Int64) async throws
     func updateCachedFile(songId: Int64, localFilePath: String?, state: FileState, expectedState: FileState, expectedPath: String?) async throws -> Bool
     func toggleSongAsFavorite(songId: Int64, state: Bool) async throws
@@ -61,9 +62,11 @@ public protocol SourcePathSearchRepository {
     func search(sourceId: Int64, query: String, limit: Int) async throws -> [PathSearchResult]
     func batchDeleteFTS(sourceId: Int64, excludingRunId: Int64) async throws
     func deleteAllFTS(sourceId: Int64) async throws
+    func deletePaths(sourceId: Int64, pathIds: [Int64]) async throws
 }
 
 public protocol SourceSyncService {
+    func syncPaths(sourceId: Int64, relativePaths: Set<String>) async throws -> (source: Source?, audioPaths: [SourcePath])
     func syncDir(
         sourceId: Int64,
         folderURL: URL,
@@ -110,6 +113,7 @@ public protocol SourcePathRepository {
     func batchUpsert(paths: [SourcePath]) async throws
     func deleteMany(sourceId: Int64, excludingRunId: Int64) async throws -> Int
     func deleteAllPaths(sourceId: Int64) async throws
+    func deletePaths(sourceId: Int64, pathIds: [Int64]) async throws
 }
 
 public protocol SourceRepository {
@@ -145,8 +149,11 @@ public protocol ICloudProvider {
 }
 
 public extension SongRepository {
+    /// Cloud placeholders waiting for real tags (no duration yet). Default empty for test doubles.
+    func getSongsMissingMetadata() async -> [Song] { [] }
+
     func getSongsByArtist(_ artist: String) async throws -> [Song] {
-        try await searchSongsFTS(query: artist, limit: Int.max, offset: 0).filter { $0.artist == artist }
+        try await searchSongsFTS(query: artist, limit: Int.max, offset: 0).filter { $0.artist == artist || $0.artistNames.contains { $0.localizedCaseInsensitiveCompare(artist) == .orderedSame } }
     }
 
     func getSongsByAlbum(_ album: String, artist: String?) async throws -> [Song] {

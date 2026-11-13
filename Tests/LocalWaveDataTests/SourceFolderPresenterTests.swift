@@ -12,7 +12,7 @@ final class SourceFolderPresenterTests: XCTestCase {
         let stopped = expectation(description: "No source callback after invalidation")
         stopped.isInverted = true
         let state = PresenterTestState()
-        let presenter = SourceFolderPresenter(url: folder) { movedRoot in
+        let presenter = SourceFolderPresenter(url: folder) { movedRoot, _ in
             XCTAssertNil(movedRoot)
             if state.isInvalidated { stopped.fulfill() } else { appeared.fulfill() }
         }
@@ -38,7 +38,7 @@ final class SourceFolderPresenterTests: XCTestCase {
         try FileManager.default.createDirectory(at: original, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: base) }
         let moved = expectation(description: "Renamed source root is delivered")
-        let presenter = SourceFolderPresenter(url: original) { newURL in
+        let presenter = SourceFolderPresenter(url: original) { newURL, _ in
             guard let newURL else { return }
             XCTAssertEqual(newURL.resolvingSymlinksInPath(), renamed.resolvingSymlinksInPath())
             moved.fulfill()

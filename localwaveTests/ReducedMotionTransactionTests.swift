@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import SwiftUI
 import XCTest
 @testable import localwave
@@ -56,3 +57,5 @@ private struct SamplingOffset: AnimatableModifier {
         return content.offset(x: value)
     }
 }
+
+#endif

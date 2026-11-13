@@ -34,11 +34,8 @@ struct MainTabView: View {
     @State private var dropTargeted = false
     @State private var hoveredSideItem: String?
     @State private var targetedSidebarListRoute: String?
-    @State private var scanningSourceID: Int64?
-    @State private var sourceScanProgress: Double?
-    @State private var sourceScanCompleted: Int?
-    @State private var sourceScanTotal: Int?
-    @State private var scannedSourceItems = 0
+    /// Scan progress ticks ~10x/s; a class in @State is not observed here, so only the sidebar source row (via SourceScanReader) re-renders, not this whole view.
+    @State private var scan = SourceScanState()
     @State private var addMusicRequest = 0
     @State private var nativeFolderPicker = false
     @State private var nativeAudioPicker = false
@@ -118,6 +115,10 @@ struct MainTabView: View {
             if let value { replaceNotice(PlaybackNotice(text: value)) }
             else if activePlaybackNotice?.playback == true { activePlaybackNotice = nil }
         }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LWShowError"))) { notification in
+            // One alert at a time so a repeating background failure cannot stack dialogs.
+            if let message = notification.object as? String, dataError == nil { dataError = message }
+        }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LWShowNotice"))) { notification in
             if let message = notification.object as? String { replaceNotice(PlaybackNotice(text: message, playback: false)) }
         }
@@ -185,7 +186,7 @@ struct MainTabView: View {
             case "shuffle": playerVM.setShuffle(!playerVM.isShuffleEnabled)
             case "repeat": var mode = playerVM.repeatMode; mode.toggle(); playerVM.setRepeat(mode)
             case "addMusic":
-                if isWideLayout { openNativeMusicPicker(folder: false) }
+                if isWideLayout { openNativeMusicPicker(folder: true) }
                 else { addMusicRequest += 1; select("Add Music") }
             case "addFolder": openNativeMusicPicker(folder: true)
             case "addFiles": openNativeMusicPicker(folder: false)
@@ -200,10 +201,7 @@ struct MainTabView: View {
             }
         }
         .onReceive(dependencies.waveSyncViewModel.$currentSyncSourceId.combineLatest(dependencies.waveSyncViewModel.$importProgress)) { sourceID, progress in
-            scanningSourceID = sourceID; sourceScanProgress = progress
-        }
-        .onReceive(dependencies.waveSyncViewModel.$importedFileCount.combineLatest(dependencies.waveSyncViewModel.$importFileCount, dependencies.waveSyncViewModel.$scannedItemCount)) { completed, total, scanned in
-            sourceScanCompleted = completed; sourceScanTotal = total; scannedSourceItems = scanned
+            scan.sourceID = sourceID; scan.progress = progress
         }
         .onReceive(NotificationCenter.default.publisher(for: Notification.Name("LWToggleNowPanel"))) { _ in
             showPanel.toggle()
@@ -367,6 +365,7 @@ struct MainTabView: View {
             .environment(\.lwFolderFilter, $folderFilter)
             .background(LWTheme.paper)
             .overlay { if !didStart { onboarding } }
+            .overlay { LWImportStatusBanner(model: dependencies.waveSyncViewModel, picking: nativeImportInProgress) }
             .overlay {
                 if showNow && !wide {
                     WaveNowView(compact: true, onClose: closeNow, artmatchEnabled: artworkMatching, closing: nowClosing)
@@ -387,10 +386,13 @@ struct MainTabView: View {
                 }
             }
             .dropDestination(for: URL.self) { urls, _ in
-                guard !urls.isEmpty else { return false }
+                guard !urls.isEmpty, !nativeImportInProgress else { return false }
+                nativeImportInProgress = true
                 Task {
+                    defer { nativeImportInProgress = false }
                     do {
                         let imported = try await dependencies.addMusicURLs(urls)
+                        if imported.isEmpty { throw CustomError.genericError("No supported audio files were found in the selection.") }
                         select("Folders")
                         if let first = imported.first {
                             playerVM.configureQueue(songs: imported, startIndex: 0, context: .selection("Dropped music"))
@@ -684,6 +686,7 @@ struct MainTabView: View {
             defer { nativeImportInProgress = false }
             do {
                 let imported = try await dependencies.addMusicURLs(urls)
+                if imported.isEmpty { throw CustomError.genericError("No supported audio files were found in the selection.") }
                 guard let user = try await dependencies.userCloudService.resolveCurrentICloudUser(), let userID = user.id else {
                     throw CustomError.genericError("The music source is unavailable.")
                 }
@@ -721,7 +724,7 @@ struct MainTabView: View {
         else { closeNow(); select("Find") }
     }
     private func select(_ next: String) {
-        if next == "Add Music" && isWideLayout { openNativeMusicPicker(folder: false); return }
+        if next == "Add Music" && isWideLayout { openNativeMusicPicker(folder: true); return }
         if next == "New List" { requestNewList(); return }
         if isWideLayout { pushDesktopFrame(LWRootNavigationFrame(section: next)); dismissNowForNavigation(); return }
         let sameLibrary = next == "Library" && ["Library", "Albums", "Artists", "Songs"].contains(section)
@@ -827,13 +830,14 @@ struct MainTabView: View {
                     groupLabel("Sources")
                     ForEach(sources, id: \.id) { source in
                         if let id = source.id {
-                            let scanning = scanningSourceID == id
-                            sideItem(URL(fileURLWithPath: source.dirPath).lastPathComponent,
-                                count: scanning ? nil : source.totalPaths, route: "Source:\(id)", height: rowHeight,
-                                warning: !scanning && source.syncError != nil ? "Reconnect" : nil,
-                                status: scanning ? "scanning…" : nil,
-                                progress: scanning ? sourceScanProgress : nil,
-                                countText: scanning ? sourceScanCountLabel : nil)
+                            SourceScanReader(scan: scan) { scan in
+                                let scanning = scan.sourceID == id
+                                sideItem(URL(fileURLWithPath: source.dirPath).lastPathComponent,
+                                    count: scanning ? nil : source.totalPaths, route: "Source:\(id)", height: rowHeight,
+                                    warning: !scanning && source.syncError != nil ? "Reconnect" : nil,
+                                    status: scanning ? scan.statusLabel : nil,
+                                    progress: scanning ? scan.progress : nil)
+                            }
                         }
                     }
                     if simulateNoNetwork {
@@ -893,7 +897,7 @@ struct MainTabView: View {
     private func groupLabel(_ title: String) -> some View {
         Text(title).font(LWTheme.text(12).weight(.medium)).lwLineBox(12, 16.8).foregroundStyle(LWTheme.secondary).frame(height: dynamicTypeSize.isAccessibilitySize ? nil : 16.8).padding(.horizontal, 8).padding(.top, 14).padding(.bottom, 6)
     }
-    private func sideItem(_ label: String, count: Int? = nil, symbol: String? = nil, route: String? = nil, height: CGFloat = 32, warning: String? = nil, status: String? = nil, progress: Double? = nil, countText: String? = nil) -> some View {
+    private func sideItem(_ label: String, count: Int? = nil, symbol: String? = nil, route: String? = nil, height: CGFloat = 32, warning: String? = nil, status: String? = nil, progress: Double? = nil) -> some View {
         let key: String = route ?? label
         let isSelected: Bool = selectedSidebarRoute == key
         let isListRoute: Bool = route?.hasPrefix("List:") == true
@@ -904,10 +908,9 @@ struct MainTabView: View {
                 if let symbol { LWIcon(symbol, size: 16) }
                 Text(label).lwLineBox(14, 19.6)
                 if let warning { Text(warning).font(LWTheme.text(11)).lwLineBox(11, 15.4).padding(.horizontal, 6).padding(.vertical, 1).background(LWTheme.ink).foregroundStyle(LWTheme.onInk).padding(.leading, -2) }
-                if let status { Text(status).font(LWTheme.text(12)).lwLineBox(12, 16.8) }
+                if let status { Text(status).font(LWTheme.text(12)).lwLineBox(12, 16.8).lineLimit(1) }
                 Spacer(minLength: 0)
-                if let countText { Text(countText).font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
-                else if let progress { Text(String(format: "%.0f%%", progress)).font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
+                if let progress { Text(String(format: "%.0f%%", progress)).font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
                 else if let count { Text("\(count)").font(LWTheme.text(12)).monospacedDigit().lwLineBox(12, 16.8) }
             }.font(LWTheme.text(14)).padding(.horizontal, 8).frame(minHeight: minHeight)
                 .foregroundStyle(isSelected ? LWTheme.ink : LWTheme.secondary)
@@ -933,7 +936,7 @@ struct MainTabView: View {
             })
         let progressText: String? = progress.map { String(format: "%.0f percent", $0) }
         let countLabel: String? = count.map { String($0) }
-        let spokenValue: String = countText ?? progressText ?? status ?? countLabel ?? ""
+        let spokenValue = [status, progressText ?? countLabel].compactMap { $0 }.joined(separator: ", ")
         return button
             .modifier(playlistActions)
             .modifier(sourceActions)
@@ -955,10 +958,6 @@ struct MainTabView: View {
             if targeted { targetedSidebarListRoute = route }
             else if targetedSidebarListRoute == route { targetedSidebarListRoute = nil }
         }
-    }
-    private var sourceScanCountLabel: String? {
-        if let completed = sourceScanCompleted, let total = sourceScanTotal, total > 0 { return "\(completed)/\(total)" }
-        return scannedSourceItems > 0 ? String(scannedSourceItems) : nil
     }
     private var selectedSidebarRoute: String? {
         guard !showSettings else { return nil }
@@ -1045,9 +1044,23 @@ private struct LWNativeMusicImporters: ViewModifier {
     @Binding var audio: Bool
     let complete: (Result<[URL], Error>, Bool) -> Void
     func body(content: Content) -> some View {
-        content.fileImporter(isPresented: $folder, allowedContentTypes: [.folder], allowsMultipleSelection: true) { complete($0, true) }
-            .fileImporter(isPresented: $audio, allowedContentTypes: [.audio], allowsMultipleSelection: true) { complete($0, false) }
+        content.fileImporter(isPresented: $folder, // Folders and audio files in one panel; "Add Music" must not be audio-only.
+            allowedContentTypes: [.folder, .audio], allowsMultipleSelection: true) { complete($0, (try? $0.get().first?.hasDirectoryPath) ?? true) }
+            // Two fileImporters on one view: SwiftUI honours only the last, so the audio one lives on a background node.
+            .background(Color.clear.fileImporter(isPresented: $audio, allowedContentTypes: [.audio], allowsMultipleSelection: true) { complete($0, false) })
     }
+}
+
+final class SourceScanState: ObservableObject {
+    @Published var sourceID: Int64?
+    @Published var progress: Double?
+    var statusLabel: String { progress == nil ? "scanning…" : "importing…" }
+}
+
+private struct SourceScanReader<Content: View>: View {
+    @ObservedObject var scan: SourceScanState
+    @ViewBuilder let content: (SourceScanState) -> Content
+    var body: some View { content(scan) }
 }
 
 #endif

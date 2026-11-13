@@ -70,6 +70,10 @@ public actor BackgroundFileService {
                 logger.debug("succesfully copied song id \(song.id ?? -1)")
             } catch {
                 logger.error("Failed to copy file for song \(song.id ?? -1): \(error)")
+                // Pinned failed songs retry every cycle; alert only on the transition to failed.
+                if song.fileState != .failed {
+                    NotificationCenter.default.post(name: Notification.Name("LWShowError"), object: "Couldn’t keep “\(song.title)” offline: \(error.localizedDescription)")
+                }
                 await markFailed(song: song)
             }
         }
@@ -246,6 +250,7 @@ public actor BackgroundFileService {
 
     private func markFailed(song: Song) async {
         guard let id = song.id else { return }
-        _ = try? await songRepo.updateCachedFile(songId: id, localFilePath: song.localFilePath, state: .failed, expectedState: song.fileState, expectedPath: song.localFilePath)
+        do { _ = try await songRepo.updateCachedFile(songId: id, localFilePath: song.localFilePath, state: .failed, expectedState: song.fileState, expectedPath: song.localFilePath) }
+        catch { logger.error("Unable to record failed copy for song \(id): \(error)") }
     }
 }

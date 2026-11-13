@@ -93,6 +93,7 @@ private struct LWCSSLineBox: ViewModifier {
     let fontSize: CGFloat
     let lineHeight: CGFloat
     let data: Bool
+    var plain = false
     @Environment(\.dynamicTypeSize) private var dynamicType
 
 #if os(iOS)
@@ -115,7 +116,22 @@ private struct LWCSSLineBox: ViewModifier {
     }
 #endif
 
-    func body(content: Content) -> some View {
+#if os(macOS)
+    /// macOS has no Dynamic Type scaling, so metrics depend only on face and size: cache them instead of creating a CTFont per text per render.
+    @MainActor private static var metricsCache: [String: (ascent: CGFloat, descent: CGFloat)] = [:]
+    @MainActor private static func macMetrics(face: String, fontSize: CGFloat, lineHeight: CGFloat) -> LWCSSFontLineMetrics {
+        let key = face + String(Double(fontSize))
+        let font: (ascent: CGFloat, descent: CGFloat)
+        if let cached = metricsCache[key] { font = cached } else {
+            let created = CTFontCreateWithName(face as CFString, fontSize, nil)
+            font = (CTFontGetAscent(created), CTFontGetDescent(created))
+            metricsCache[key] = font
+        }
+        return LWCSSFontLineMetrics(ascent: font.ascent, descent: font.descent, lineHeight: max(0.01, lineHeight))
+    }
+#endif
+
+    @ViewBuilder func body(content: Content) -> some View {
         let face = data ? "GeistMono-Regular" : "HostGrotesk-Regular"
 #if os(iOS)
         let base = UIFont(name: face, size: fontSize) ?? UIFont.systemFont(ofSize: fontSize)
@@ -127,19 +143,27 @@ private struct LWCSSLineBox: ViewModifier {
         let scale = font.pointSize / base.pointSize
         let metrics = LWCSSFontLineMetrics(ascent: font.ascender, descent: -font.descender, lineHeight: max(0.01, lineHeight * scale))
 #else
-        let font = CTFontCreateWithName(face as CFString, fontSize, nil)
-        let metrics = LWCSSFontLineMetrics(ascent: CTFontGetAscent(font), descent: CTFontGetDescent(font), lineHeight: max(0.01, lineHeight))
+        let metrics = Self.macMetrics(face: face, fontSize: fontSize, lineHeight: lineHeight)
 #endif
-        LWCSSLineBoxLayout(metrics: metrics) {
-            content.lineSpacing(0).textRenderer(LWCSSLineRenderer(lineHeight: metrics.lineHeight, ascent: metrics.ascent, descent: metrics.descent))
+        if plain {
+            // One line, no marks: a fixed-height frame with the baseline pinned gives the same box as the custom Layout + TextRenderer
+            // at a fraction of the cost (measured: table cells were the largest part of scrolling the song list).
+            content.lineSpacing(0).lineLimit(1)
+                .alignmentGuide(.top) { $0[.firstTextBaseline] - metrics.baseline }
+                .frame(height: metrics.lineHeight, alignment: .top)
+        } else {
+            LWCSSLineBoxLayout(metrics: metrics) {
+                content.lineSpacing(0).textRenderer(LWCSSLineRenderer(lineHeight: metrics.lineHeight, ascent: metrics.ascent, descent: metrics.descent))
+            }
         }
     }
 }
 
 extension View {
     /// Keeps the original native Text and accessibility while matching CSS line boxes.
-    func lwLineBox(_ fontSize: CGFloat, _ lineHeight: CGFloat, data: Bool = false) -> some View {
-        modifier(LWCSSLineBox(fontSize: fontSize, lineHeight: lineHeight, data: data))
+    /// `plain`: single-line text with no search marks. The renderer only re-spaces later lines and paints marks, so it is skipped (it is the slow text path).
+    func lwLineBox(_ fontSize: CGFloat, _ lineHeight: CGFloat, data: Bool = false, plain: Bool = false) -> some View {
+        modifier(LWCSSLineBox(fontSize: fontSize, lineHeight: lineHeight, data: data, plain: plain))
     }
 }
 

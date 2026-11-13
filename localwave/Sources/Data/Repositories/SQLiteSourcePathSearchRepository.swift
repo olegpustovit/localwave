@@ -5,6 +5,13 @@ import os
 import SQLite
 
 public actor SQLiteSourcePathSearchRepository: SourcePathSearchRepository {
+    public func deletePaths(sourceId: Int64, pathIds: [Int64]) async throws {
+        guard !pathIds.isEmpty else { return }
+        try db.transaction {
+            for id in pathIds { try db.run(ftsTable.filter(colFtsSourceId == sourceId && colFtsPathId == id).delete()) }
+        }
+    }
+
     public func search(sourceId: Int64, query: String, limit: Int) async throws -> [PathSearchResult] {
         let processedQuery = preprocessFTSQuery(query)
 

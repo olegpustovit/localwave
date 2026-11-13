@@ -17,6 +17,27 @@ final class RepositoryTests: XCTestCase {
         XCTAssertEqual(southAlbum.map(\.artist), ["South"])
     }
 
+    func testArtistCreditsAreParsedWithoutChangingTags() async throws {
+        let repository = try SQLiteSongRepository(db: Connection(.inMemory))
+        for (key, artist) in [(1, "Young Thug"), (2, "Young Thug feat. Drake"), (3, "ZHU × Skrillex × THEY.")] {
+            _ = try await repository.upsertSong(Song(id: nil, songKey: Int64(key), artist: artist, title: "Track", album: "Album", albumArtist: artist, releaseYear: nil, discNumber: nil, trackNumber: nil, coverArtPath: nil, bookmark: nil, pathHash: Int64(key), createdAt: Date(), updatedAt: nil, localFilePath: nil, fileState: .bookmarkOnly))
+        }
+        let artists = try await repository.getAllArtists()
+        XCTAssertEqual(Set(artists), ["Young Thug", "Drake", "ZHU", "Skrillex", "THEY."])
+        let main = try await repository.getSongsByArtist("Young Thug")
+        let guest = try await repository.getSongsByArtist("drake")
+        XCTAssertEqual(main.count, 2)
+        XCTAssertEqual(guest.map(\.artist), ["Young Thug feat. Drake"])
+        XCTAssertEqual(Song.artists(in: "Artist (FEAT. Guest)"), ["Artist", "Guest"])
+        XCTAssertEqual(Song.artists(in: "Artist ft. Guest; Guest"), ["Artist", "Guest"])
+        for band in ["AC/DC", "Earth, Wind & Fire", "The xx", "Sunn O)))", "3TEETH & Mick Gordon"] {
+            XCTAssertEqual(Song.artists(in: band), [band])
+        }
+        let song = try XCTUnwrap(main.first)
+        XCTAssertEqual(song.fileDisplayTitle(fallback: "raw UUID.mp3"), "Track")
+        XCTAssertEqual(song.fileDisplaySubtitle, song.artist + " · Album")
+    }
+
     func testSourceRelativeIdentityAndMeasurementsSurviveEditsAndMetadataChanges() async throws {
         let database = try Connection(.inMemory)
         let repository = try SQLiteSongRepository(db: database)

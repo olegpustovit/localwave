@@ -1,3 +1,4 @@
+#if canImport(UIKit)
 import LocalWaveDomain
 import SwiftUI
 import UIKit
@@ -63,3 +64,5 @@ final class ArtworkRenderingTests: XCTestCase {
         add(attachment)
     }
 }
+
+#endif

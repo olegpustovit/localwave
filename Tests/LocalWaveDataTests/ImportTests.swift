@@ -141,6 +141,23 @@ final class ImportTests: XCTestCase {
     }
 }
 
+final class ProvisionalMetadataTests: XCTestCase {
+    func testArtistAlbumYearAndTrackFromPath() {
+        let g = DefaultSongImportService.provisionalMetadata(relativePath: "Ye - HH (2025)/03 - THE HEIL SYMPHONY.mp3")
+        XCTAssertEqual(g.artist, "Ye"); XCTAssertEqual(g.album, "HH"); XCTAssertEqual(g.year, 2025); XCTAssertEqual(g.track, 3)
+    }
+
+    func testNoGuessWhenFolderDoesNotMatch() {
+        let g = DefaultSongImportService.provisionalMetadata(relativePath: "中田ヤスタカ/Song.mp3")
+        XCTAssertNil(g.artist); XCTAssertNil(g.album); XCTAssertNil(g.year); XCTAssertNil(g.track)
+    }
+
+    func testAlbumWithoutYear() {
+        let g = DefaultSongImportService.provisionalMetadata(relativePath: "A - B/12. Title.m4a")
+        XCTAssertEqual(g.artist, "A"); XCTAssertEqual(g.album, "B"); XCTAssertNil(g.year); XCTAssertEqual(g.track, 12)
+    }
+}
+
 private actor ImportProgressRecorder {
     var events: [SongImportProgress] = []
     func append(_ event: SongImportProgress) { events.append(event) }

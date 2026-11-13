@@ -118,7 +118,7 @@ struct PlayerPersistenceTests {
         let service = DefaultPlayerPersistenceService(songRepo: mockRepo)
         
         // Clear any existing values
-        UserDefaults.standard.removeObject(forKey: "playerVolume")
+        LocalWavePreferences.current.removeObject(forKey: "playerVolume")
         
         // Test nil for first time
         let initialVolume = await service.getVolume()
@@ -130,7 +130,7 @@ struct PlayerPersistenceTests {
         #expect(restoredVolume == 0.75)
         
         // Clean up
-        UserDefaults.standard.removeObject(forKey: "playerVolume")
+        LocalWavePreferences.current.removeObject(forKey: "playerVolume")
     }
     
     @Test func testPlayerQueueRestoration() async throws {
@@ -194,8 +194,8 @@ struct PlayerPersistenceTests {
         let service = DefaultPlayerPersistenceService(songRepo: mockRepo)
         
         // Clear UserDefaults
-        UserDefaults.standard.removeObject(forKey: "currentQueue")
-        UserDefaults.standard.removeObject(forKey: "currentQueueIndex")
+        LocalWavePreferences.current.removeObject(forKey: "currentQueue")
+        LocalWavePreferences.current.removeObject(forKey: "currentQueueIndex")
         
         // Create songs with specific order
         let song1 = createTestSong(id: 3, title: "Third", artist: "C")
@@ -222,8 +222,8 @@ struct PlayerPersistenceTests {
         #expect(restoredSong?.id == 1)  // Current song should be ID 1 (at index 1)
         
         // Clean up
-        UserDefaults.standard.removeObject(forKey: "currentQueue")
-        UserDefaults.standard.removeObject(forKey: "currentQueueIndex")
+        LocalWavePreferences.current.removeObject(forKey: "currentQueue")
+        LocalWavePreferences.current.removeObject(forKey: "currentQueueIndex")
     }
     
     // Helper function to create test songs

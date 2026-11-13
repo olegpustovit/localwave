@@ -87,9 +87,10 @@ struct PlayerView: View {
 
                 // Playback Progress Slider
                 VStack {
+                    PlaybackClockReader(clock: playerVM.clock) { clock in
                     Slider(
                         value: Binding(
-                            get: { playerVM.playbackProgress },
+                            get: { clock.progress },
                             set: { newValue in
                                 playerVM.seekByFraction(newValue)
                             }
@@ -100,13 +101,14 @@ struct PlayerView: View {
                     .padding(.horizontal)
 
                     HStack {
-                        Text(playerVM.currentTime)
+                        Text(clock.time)
                         Spacer()
                         Text(playerVM.duration)
                     }
                     .font(.caption)
                     .foregroundColor(.white)
                     .padding(.horizontal)
+                    }
                 }
                 .padding(.vertical)
 

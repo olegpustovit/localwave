@@ -131,9 +131,10 @@ struct WaveFilesView: View {
             .fileImporter(isPresented: $picker, allowedContentTypes: [.folder], allowsMultipleSelection: true) { selection in
                 handleFolders(selection)
             }
-            .fileImporter(isPresented: $audioPicker, allowedContentTypes: [.audio], allowsMultipleSelection: true) { selection in
+            // Two fileImporters on one view: SwiftUI honours only the last, so the audio one lives on a background node.
+            .background(Color.clear.fileImporter(isPresented: $audioPicker, allowedContentTypes: [.audio], allowsMultipleSelection: true) { selection in
                 handleAudio(selection)
-            }
+            })
             .alert("Unable to complete", isPresented: sourceErrorPresented) {
                 Button("OK") { error = nil; model.errorMessage = nil }
             } message: { Text(error ?? model.errorMessage ?? "") }
@@ -1045,7 +1046,7 @@ struct WaveFolderView: View {
             case "Time":
                 let a = songs[first.pathId]?.duration ?? 0, b = songs[second.pathId]?.duration ?? 0
                 order = a == b ? .orderedSame : a < b ? .orderedAscending : .orderedDescending
-            default: order = first.name.localizedStandardCompare(second.name)
+            default: order = (songs[first.pathId]?.fileDisplayTitle(fallback: first.name) ?? first.name).localizedStandardCompare(songs[second.pathId]?.fileDisplayTitle(fallback: second.name) ?? second.name)
             }
             return ascending ? order == .orderedAscending : order == .orderedDescending
         } + otherFiles
@@ -1096,7 +1097,12 @@ struct WaveFolderView: View {
                 else if current { LWEqualizer(playing: playerVM.isPlaying) }
                 else { Text("\(index + 1 - model.items.filter(\.isDirectory).count)").font(LWTheme.text(13)).lwLineBox(13, 18.2) }
             }.padding(.leading, 32).padding(.trailing, 8).frame(width: widths[0], alignment: .leading).foregroundStyle(LWTheme.secondary)
-            Text(item.name).lwLineBox(14, 19.6).lineLimit(1).padding(.horizontal, 8).frame(width: widths[1], alignment: .leading)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(song?.fileDisplayTitle(fallback: item.name) ?? item.name).lwLineBox(14, 19.6).lineLimit(1)
+                if let song, !song.fileDisplaySubtitle.isEmpty {
+                    Text(song.fileDisplaySubtitle).font(LWTheme.text(12)).lwLineBox(12, 16.8).foregroundStyle(LWTheme.secondary).lineLimit(1)
+                }
+            }.help(item.name).padding(.horizontal, 8).frame(width: widths[1], alignment: .leading)
             Text(item.isDirectory ? "Folder · \(summary.count) songs" : item.isAudio ? "\(song?.fileExtension ?? URL(fileURLWithPath: item.name).pathExtension) audio" : "Not audio")
                 .foregroundStyle(LWTheme.secondary).lwLineBox(14, 19.6).lineLimit(1).padding(.horizontal, 8).frame(width: widths[2], alignment: .leading)
             Text(item.isDirectory ? byteLabel(summary.bytes) : (song?.fileSize ?? item.fileSize).map { String(format: "%.1f MB", Double($0) / 1_048_576) } ?? "—")
@@ -1186,7 +1192,7 @@ struct WaveFolderView: View {
             if item.isDirectory { widths[0] = max(widths[0], 56) }
             else if !item.isAudio || current { widths[0] = max(widths[0], 54) }
             else { widths[0] = max(widths[0], Self.textWidth(String(number), face: face, size: 13 * tableTextScale) + 40) }
-            widths[1] = max(widths[1], Self.textWidth(item.name, face: face, size: 14 * tableTextScale) + 16)
+            widths[1] = max(widths[1], Self.textWidth(song?.fileDisplayTitle(fallback: item.name) ?? item.name, face: face, size: 14 * tableTextScale) + 16)
             let kind = item.isDirectory ? "Folder · \(summary.count) songs" : item.isAudio ? "\(song?.fileExtension ?? URL(fileURLWithPath: item.name).pathExtension) audio" : "Not audio"
             widths[2] = max(widths[2], Self.textWidth(kind, face: face, size: 14 * tableTextScale) + 16)
             let size = item.isDirectory ? byteLabel(summary.bytes) : (song?.fileSize ?? item.fileSize).map { String(format: "%.1f MB", Double($0) / 1_048_576) } ?? "—"
@@ -1273,7 +1279,7 @@ struct WaveFolderView: View {
                 else { Task { await play(item) } }
             } label: {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(item.name).font(LWTheme.text(15)).lwLineBox(15, 21).lineLimit(1).frame(minHeight: 21)
+                    Text(trackSongs[item.pathId]?.fileDisplayTitle(fallback: item.name) ?? item.name).font(LWTheme.text(15)).lwLineBox(15, 21).lineLimit(1).frame(minHeight: 21)
                     Text(folderFileDetail(item)).font(LWTheme.data(12)).foregroundStyle(LWTheme.secondary).lwLineBox(12, 16.8, data: true).lineLimit(1).frame(minHeight: 16.8)
                 }.frame(maxWidth: .infinity, alignment: .leading).frame(minHeight: 56)
             }.accessibilityIdentifier(item.isDirectory ? "folder.directory." + item.name : "folder.audio." + item.name)
@@ -1308,7 +1314,7 @@ struct WaveFolderView: View {
 
     private func folderFileDetail(_ item: SourcePath) -> String {
         guard let song = trackSongs[item.pathId] else { return item.isDirectory ? "Folder" : URL(fileURLWithPath: item.name).pathExtension.uppercased() }
-        var parts: [String] = []
+        var parts: [String] = song.fileDisplaySubtitle.isEmpty ? [] : [song.fileDisplaySubtitle]
         if let format = song.fileExtension { parts.append(format.uppercased()) }
         if let bytes = song.fileSize { parts.append(String(format: "%.1f MB", Double(bytes) / 1_048_576)) }
         if let duration = song.duration { parts.append(String(format: "%d:%02d", Int(duration) / 60, Int(duration) % 60)) }
@@ -1965,7 +1971,7 @@ struct WaveSettingsView: View {
                     .accessibilityAction(named: "Use red signal") { signal = "red" }
                     .accessibilityAction(named: "Use green signal") { signal = "green" }
                     .accessibilityAction(named: "Use monochrome signal") { signal = "mono" }
-                Button { dependencies.waveSyncViewModel.refreshSources() } label: {
+                Button { dependencies.waveSyncViewModel.refreshSources(force: true) } label: {
                     setting("Rescan all sources", detail: "Usually not needed — folders are watched", index: wideLayout ? 4 : 5) {
                         LWIcon("chev", size: 18)
                     }.contentShape(Rectangle())

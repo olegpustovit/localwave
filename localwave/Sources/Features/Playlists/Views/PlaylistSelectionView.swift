@@ -40,11 +40,10 @@ struct PlaylistSelectionView: View {
                 Button(playlist.name) {
                     Task {
                         guard let playlistId = playlist.id, let songId = song.id else { return }
-                        try? await viewModel.playlistSongRepo.addSong(
-                            playlistId: playlistId,
-                            songId: songId
-                        )
-                        dismiss()
+                        do {
+                            try await viewModel.playlistSongRepo.addSong(playlistId: playlistId, songId: songId)
+                            dismiss()
+                        } catch { LWPresentationNotice.error("Couldn’t add to “\(playlist.name)”: \(error.localizedDescription)") }
                     }
                 }
             }

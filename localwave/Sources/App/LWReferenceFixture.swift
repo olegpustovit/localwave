@@ -1,4 +1,4 @@
-#if DEBUG && os(iOS)
+#if DEBUG && (os(iOS) || os(macOS))
 import Foundation
 import LocalWaveCore
 import LocalWaveData
@@ -7,7 +7,9 @@ import SwiftUI
 
 /// Identical source content for reference/native screenshot comparisons, isolated by UI-test UUID.
 enum LWReferenceFixture {
+    #if os(iOS)
     @MainActor private static var canvasWindow: UIWindow?
+    #endif
     static var enabled: Bool {
         ProcessInfo.processInfo.environment["LOCALWAVE_REFERENCE_FIXTURE"] == "1" &&
         UUID(uuidString: ProcessInfo.processInfo.environment["LOCALWAVE_UI_TEST_ID"] ?? "") != nil
@@ -125,9 +127,12 @@ enum LWReferenceFixture {
         player.applyReferenceSnapshot(queue: queue, index: data.player.i, elapsed: data.player.t, volume: data.player.vol)
         NotificationCenter.default.post(name: Notification.Name("LibraryRefresh"), object: nil)
         NotificationCenter.default.post(name: Notification.Name("SongListRefresh"), object: nil)
+        #if os(iOS)
         showCanvas(dependencies, player: player)
+        #endif
         FileHandle.standardOutput.write(Data("LOCALWAVE_REFERENCE_READY=1\n".utf8))
     }
+    #if os(iOS)
     @MainActor private static func showCanvas(_ dependencies: DependencyContainer, player: PlayerViewModel) {
         guard canvasWindow == nil,
               let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else { return }
@@ -157,8 +162,10 @@ enum LWReferenceFixture {
         old?.rootViewController = nil
         host.setNeedsStatusBarAppearanceUpdate()
     }
+    #endif
 }
 
+#if os(iOS)
 private final class LWReferenceHostingController: UIHostingController<AnyView> {
     override var prefersStatusBarHidden: Bool { true }
     override var childForStatusBarHidden: UIViewController? { nil }
@@ -168,14 +175,4 @@ private final class LWReferenceWindow: UIWindow {
     override var safeAreaInsets: UIEdgeInsets { .zero }
 }
 #endif
-
-#if DEBUG && os(macOS)
-import LocalWaveDomain
-
-enum LWReferenceFixture {
-    static let enabled = false
-    static let screen = ""
-    static func sourceDisplay(source: Source) -> (name: String, root: String, scanned: String)? { nil }
-    static func peaks(for song: Song?, count: Int) -> [Float]? { nil }
-}
 #endif

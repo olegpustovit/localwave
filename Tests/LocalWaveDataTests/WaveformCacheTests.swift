@@ -18,7 +18,7 @@ final class WaveformCacheTests: XCTestCase {
         let peaks = try await cache.peaks(for: song)
         XCTAssertEqual(peaks.count, 512)
         XCTAssertTrue(peaks.prefix(256).allSatisfy { $0 == 0 })
-        XCTAssertTrue(peaks.suffix(256).allSatisfy { $0 == 1 })
+        XCTAssertTrue(peaks.suffix(256).allSatisfy { $0 > 0 && $0 <= 1 })
         try FileManager.default.removeItem(at: url)
         let reopened = WaveformCache(directory: directory.appendingPathComponent("cache"))
         let restored = try await reopened.peaks(for: song.copyWith(nil, .bookmarkOnly))
@@ -85,6 +85,28 @@ final class WaveformCacheTests: XCTestCase {
         let afterTouch = try await cache.peaks(for: fixture(audio))
         XCTAssertEqual(afterTouch, initial)
         XCTAssertEqual(try database.scalar("SELECT source_signature FROM waveforms") as? String, signature)
+    }
+
+    func testBassHeavySignalRetainsChangesAboveBass() async throws {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".caf")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48000, channels: 1))
+        let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 48000))
+        buffer.frameLength = 48000
+        let samples = try XCTUnwrap(buffer.floatChannelData?[0])
+        for index in 0..<48000 {
+            let time = Double(index) / 48000
+            let detail = index < 24000 ? 0.02 : 0.25
+            samples[index] = Float(0.7 * sin(2 * .pi * 50 * time) + detail * sin(2 * .pi * 2000 * time))
+        }
+        let file = try AVAudioFile(forWriting: url, settings: format.settings)
+        try file.write(from: buffer)
+        let peaks = try await WaveformCache.decode(url: url)
+        XCTAssertEqual(peaks.count, 512)
+        XCTAssertTrue(peaks.allSatisfy { $0.isFinite && (0...1).contains($0) })
+        let quietDetail = peaks[32..<224].reduce(0, +) / 192
+        let loudDetail = peaks[288..<480].reduce(0, +) / 192
+        XCTAssertGreaterThan(loudDetail, quietDetail * 1.2)
     }
 
     private func fixture(_ url: URL) -> Song {

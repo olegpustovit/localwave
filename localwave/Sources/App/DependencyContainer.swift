@@ -22,6 +22,7 @@ class DependencyContainer: ObservableObject {
     let playlistSongRepo: PlaylistSongRepository
 
     private var backgroundFileService: BackgroundFileService?
+    private var tagEnrichmentService: TagEnrichmentService?
 
     @Published var sourceBrowseViewModels: [Int64: SourceBrowseViewModel] = [:]
     lazy var waveSyncViewModel = makeSyncViewModel()
@@ -29,7 +30,7 @@ class DependencyContainer: ObservableObject {
     let logger = Logger(subsystem: subsystem, category: "DependencyContainer")
 
     func handleAppLaunch() {
-        #if DEBUG && os(iOS)
+        #if DEBUG
         if LWReferenceFixture.enabled { return }
         #endif
         logger.debug("Handling app launch...")
@@ -94,16 +95,24 @@ class DependencyContainer: ObservableObject {
             sourceImportService: sourceImportService
         )
         songRepository = songRepo
-        songImportService = DefaultSongImportService(
+        let importer = DefaultSongImportService(
             songRepo: songRepo,
             sourcePathRepo: sourcePathRepo,
             sourceRepo: sourceRepo,
             sourceAccess: access
         )
+        songImportService = importer
         playerPersistenceService = DefaultPlayerPersistenceService(songRepo: songRepo)
         playlistRepo = try SQLitePlaylistRepository(db: db)
         playlistSongRepo = try SQLitePlaylistSongRepository(db: db)
         backgroundFileService = BackgroundFileService(songRepo: songRepo, sourceAccess: access)
+        tagEnrichmentService = TagEnrichmentService(songRepo: songRepo, sourcePathRepo: sourcePathRepo, importer: importer, sourceAccess: access) { [weak self] done, total in
+            // Fire-and-forget: awaiting the main thread per file stalled indexing whenever the UI was busy.
+            Task { @MainActor in self?.waveSyncViewModel.tagStatus = total > 0 ? "Reading tags \(done)/\(total)" : nil }
+        }
+        if let tags = tagEnrichmentService {
+            NotificationCenter.default.addObserver(forName: Notification.Name("LWPlaybackOpening"), object: nil, queue: nil) { _ in Task { await tags.yieldToUser() } }
+        }
     }
 
     func makeSongListViewModel(filter: SongListViewModel.Filter) -> SongListViewModel {
@@ -238,11 +247,13 @@ class DependencyContainer: ObservableObject {
         logger.debug("starting background service...")
         guard let service = backgroundFileService else {
             logger.error("failed to initialise background file service")
+            LWPresentationNotice.error("Offline copying is unavailable: the background file service could not start.")
             return
         }
 
         Task {
             await service.start()
+            await tagEnrichmentService?.start()
             logger.debug("background file service startup triggered")
         }
     }

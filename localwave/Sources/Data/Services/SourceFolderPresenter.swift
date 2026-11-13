@@ -8,10 +8,11 @@ public final class SourceFolderPresenter: NSObject, NSFilePresenter, @unchecked 
     private var active = true
     private var pending: DispatchWorkItem?
     private var movedRoot: URL?
+    private var changedURLs = Set<URL>()
     private var revision = UUID()
     private let delivery = DispatchQueue(label: "localwave.source-presenter")
     private let deliveryKey = DispatchSpecificKey<Bool>()
-    private let onChange: @Sendable (URL?) -> Void
+    private let onChange: @Sendable (URL?, Set<URL>?) -> Void
 
     public var presentedItemURL: URL? {
         lock.lock()
@@ -19,7 +20,7 @@ public final class SourceFolderPresenter: NSObject, NSFilePresenter, @unchecked 
         return root
     }
 
-    public init(url: URL, onChange: @escaping @Sendable (URL?) -> Void) {
+    public init(url: URL, onChange: @escaping @Sendable (URL?, Set<URL>?) -> Void) {
         root = url
         self.onChange = onChange
         let operations = OperationQueue()
@@ -50,20 +51,21 @@ public final class SourceFolderPresenter: NSObject, NSFilePresenter, @unchecked 
     deinit { invalidate() }
 
     public func presentedItemDidChange() { changed() }
-    public func presentedSubitemDidAppear(at url: URL) { changed() }
-    public func presentedSubitemDidChange(at url: URL) { changed() }
-    public func presentedSubitem(at oldURL: URL, didMoveTo newURL: URL) { changed() }
+    public func presentedSubitemDidAppear(at url: URL) { changed(items: [url]) }
+    public func presentedSubitemDidChange(at url: URL) { changed(items: [url]) }
+    public func presentedSubitem(at oldURL: URL, didMoveTo newURL: URL) { changed(items: [oldURL, newURL]) }
     public func presentedItemDidMove(to newURL: URL) { changed(movedTo: newURL) }
 
     public func accommodatePresentedSubitemDeletion(at url: URL, completionHandler: @escaping (Error?) -> Void) {
-        changed()
+        changed(items: [url])
         completionHandler(nil)
     }
 
-    private func changed(movedTo newURL: URL? = nil) {
+    private func changed(movedTo newURL: URL? = nil, items: Set<URL> = []) {
         lock.lock()
         guard active else { lock.unlock(); return }
         if let newURL { root = newURL; movedRoot = newURL }
+        changedURLs.formUnion(items)
         pending?.cancel()
         revision = UUID()
         let event = revision
@@ -77,9 +79,11 @@ public final class SourceFolderPresenter: NSObject, NSFilePresenter, @unchecked 
         lock.lock()
         guard active && revision == event else { lock.unlock(); return }
         let moved = movedRoot
+        let items = changedURLs
+        changedURLs.removeAll()
         movedRoot = nil
         pending = nil
         lock.unlock()
-        onChange(moved)
+        onChange(moved, moved == nil && !items.isEmpty ? items : nil)
     }
 }

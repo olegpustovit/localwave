@@ -94,7 +94,7 @@ final class WaveLibraryModel: ObservableObject {
                 }
                 guard !Task.isCancelled else { return }
                 songs = loaded
-                availabilityByID = availabilityByID.filter { seen.contains($0.key) }
+                if availabilityByID.keys.contains(where: { !seen.contains($0) }) { availabilityByID = availabilityByID.filter { seen.contains($0.key) } }
                 lists = playlists
                 listSongs = contents
             } catch is CancellationError { }
@@ -141,17 +141,23 @@ final class WaveLibraryModel: ObservableObject {
                 let state = await access.availability(for: song)
                 guard !Task.isCancelled else { return }
                 batch[song.uniqueId] = state
-                if batch.count >= 250 || Date().timeIntervalSince(lastPublished) >= 0.25 {
+                if batch.count >= 250 || Date().timeIntervalSince(lastPublished) >= 1 {
                     guard let self, self.availabilityGeneration == generation else { return }
-                    self.availabilityByID.merge(batch, uniquingKeysWith: { _, latest in latest })
+                    self.mergeAvailability(batch)
                     batch = [:]
                     lastPublished = Date()
                     await Task.yield()
                 }
             }
             guard !Task.isCancelled, let self, self.availabilityGeneration == generation else { return }
-            self.availabilityByID.merge(batch, uniquingKeysWith: { _, latest in latest })
+            self.mergeAvailability(batch)
         }
+    }
+
+    /// Every publish re-sorts and re-measures the whole table, so only publish values that actually changed (repeat reloads change almost nothing).
+    private func mergeAvailability(_ batch: [Int64: FileAvailability]) {
+        let changed = batch.filter { availabilityByID[$0.key] != $0.value }
+        if !changed.isEmpty { availabilityByID.merge(changed, uniquingKeysWith: { _, latest in latest }) }
     }
 
     func perform(_ operation: () async throws -> Void) async {
@@ -181,7 +187,20 @@ final class WaveLibraryModel: ObservableObject {
         catch { self.error = error.localizedDescription }
     }
 
-    var pins: Set<String> { Set(LocalWavePreferences.current.stringArray(forKey: "lwPinnedSongs") ?? []) }
+    /// Read by every row; cached because each read parsed UserDefaults and rebuilt the Set. Cleared on any defaults change.
+    private var pinsCache: Set<String>?
+    private var pinsObservation: NSObjectProtocol?
+    var pins: Set<String> {
+        if let pinsCache { return pinsCache }
+        if pinsObservation == nil {
+            pinsObservation = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.pinsCache = nil }
+            }
+        }
+        let pins = Set(LocalWavePreferences.current.stringArray(forKey: "lwPinnedSongs") ?? [])
+        pinsCache = pins
+        return pins
+    }
 
     func togglePins(_ requested: [Song]) async {
         let songs = requested.filter { waveBlockedSourceName(song: $0, availability: availabilityByID[$0.uniqueId] ?? .unknown, blockedSources: blockedSources) == nil }
@@ -268,7 +287,10 @@ final class WaveLibraryModel: ObservableObject {
 
     private func indexLibrary() {
         insertionSongs = songs.sorted { $0.uniqueId < $1.uniqueId }
-        artistSongs = Dictionary(grouping: insertionSongs, by: \.artist)
+        artistSongs = [:]
+        for song in insertionSongs {
+            for artist in song.artistNames { artistSongs[artist, default: []].append(song) }
+        }
         var seen = Set<String>()
         var indexedAlbums: [Album] = []
         var grouped: [String: [Song]] = [:]
@@ -281,14 +303,14 @@ final class WaveLibraryModel: ObservableObject {
             grouped[id]?.sort { ($0.discNumber ?? 1, $0.trackNumber ?? Int.max, $0.title) < ($1.discNumber ?? 1, $1.trackNumber ?? Int.max, $1.title) }
         }
         albums = indexedAlbums.sorted { ($0.artist ?? "", $0.name) < ($1.artist ?? "", $1.name) }
-        artists = Array(Set(songs.map(\.artist))).sorted { waveArtistSortName($0).localizedStandardCompare(waveArtistSortName($1)) == .orderedAscending }
+        artists = Array(artistSongs.keys).sorted { waveArtistSortName($0).localizedStandardCompare(waveArtistSortName($1)) == .orderedAscending }
         albumSongs = grouped
     }
 
     func songs(in album: Album) -> [Song] { albumSongs[album.id] ?? [] }
     var firstSongInOriginalOrder: Song? { insertionSongs.first }
     var songsInOriginalOrder: [Song] { insertionSongs }
-    func songs(byArtist artist: String) -> [Song] { artistSongs[artist] ?? [] }
+    func songs(byArtist artist: String) -> [Song] { artistSongs[artist] ?? insertionSongs.filter { $0.artist == artist } }
 
     func stateKey(_ song: Song, pins suppliedPins: Set<String>? = nil) -> String {
         if waveBlockedSourceName(song: song, availability: availabilityByID[song.uniqueId] ?? .unknown, blockedSources: blockedSources) != nil { return "blocked" }
@@ -1023,7 +1045,7 @@ struct WaveLibraryView: View {
                 ForEach(Array(ordered.enumerated()), id: \.element.uniqueId) { index, song in
                     WaveLibrarySongRow(song: song, index: index, compact: compact, showArtist: !hideArtist && contentWidth >= 400, showAlbum: !hideAlbum && contentWidth >= 520, showFormat: mixedFormats && contentWidth >= 680, showTime: true, model: model, playlistID: playlistID, selectionOrder: selectionOrder, highlight: highlight, numbered: numbered, tableColumns: columns) { play(playbackSongs ?? ordered, startingAt: playbackSongs?.firstIndex { $0.uniqueId == song.uniqueId } ?? index) }
                         .id("song-" + String(song.uniqueId)).modifier(WaveLibraryEntrance(index: entranceIndexOffset + index))
-                        .anchorPreference(key: WaveSelectionTableEnd.self, value: .bounds) { !compact && index == ordered.count - 1 ? $0 : nil }
+                        .modifier(WaveSelectionEndAnchor(enabled: !compact && index == ordered.count - 1))
                 }
                 if !compact && model.selecting && model.selected.count > 1 { Color.clear.frame(height: 48) }
                 if ordered.isEmpty && showsEmptyMessage { Text("No songs here yet.").font(LWTheme.text(14)).lwLineBox(14, 19.6).foregroundStyle(LWTheme.secondary).padding(32).frame(maxWidth: .infinity, alignment: .leading) }
@@ -1224,7 +1246,7 @@ struct WaveLibraryView: View {
                     ForEach(Array(artists.enumerated()), id: \.element) { index, artist in
                         WaveLibraryRouteLink(value: WaveLibraryRoute.artist(artist)) {
                             HStack(spacing: 14) {
-                                LWArtwork(song: found.first { $0.artist == artist }, size: 44)
+                                LWArtwork(song: model.songs(byArtist: artist).first, size: 44)
                                 waveHighlightedLabel(artist, query: query).font(LWTheme.text(15).weight(.medium)).lwLineBox(15, 21).frame(maxWidth: .infinity, alignment: .leading)
                                 LWIcon("chev", size: 18).foregroundStyle(LWTheme.ink)
                             }.padding(.horizontal, 16).frame(minHeight: 64)
@@ -1584,7 +1606,7 @@ struct WaveLibraryView: View {
                     Task { await model.remove(ids, from: listID) }
                 }
             }.keyboardShortcut(.delete, modifiers: []).disabled(model.selectionListID == nil || model.selected.isEmpty)
-        }.disabled(findFocused || keyboardCovered).hidden().accessibilityHidden(true)
+        }.disabled(findFocused || keyboardCovered).opacity(0).frame(width: 0, height: 0).allowsHitTesting(false).accessibilityHidden(true)
     }
 
     private var desktopSelectionBar: some View {
@@ -1737,6 +1759,7 @@ private struct WaveLibrarySongRow: View {
     @EnvironmentObject private var playerVM: PlayerViewModel
     @EnvironmentObject private var presenter: LWSheetPresenter
     @State private var editMetadata = false
+    @State private var sheetsMounted = false
     @State private var sharedFile: LWPreparedShare?
     @State private var shareDirectory: URL?
     @State private var sharing = false
@@ -1810,10 +1833,13 @@ private struct WaveLibrarySongRow: View {
             } else if compact && blockedSource != nil { Color.clear.frame(width: compact ? 44 : 52, height: compact ? 44 : 38) }
             else { LWMenuButton(request: { menuRequest() }) { LWIcon("more", size: compact ? 18 : 16).frame(width: compact ? 44 : 32, height: compact ? 44 : 32).padding(.trailing, compact ? 0 : 20).foregroundStyle(LWTheme.secondary) }.accessibilityLabel("Actions for \(song.title)") }
         }
-        .padding(.leading, compact ? 16 : 0).padding(.trailing, compact ? 6 : 0).frame(minHeight: compact ? 56 : 38)
-        .offset(x: swipeOffset)
+        .padding(.leading, compact ? 16 : 0).padding(.trailing, compact ? 6 : 0)
+        // Desktop rows are one fixed-size line: with both dimensions given, the lazy stack sizes a row without measuring its cells.
+        .frame(minHeight: compact ? 56 : 38)
+        .frame(width: fixedDesktopSize?.width, height: fixedDesktopSize?.height)
+        .lwIf(compact) { $0.offset(x: swipeOffset) }
         .background {
-            HStack {
+            if compact { HStack {
                 HStack(spacing: 8) { LWIcon("next2", size: 16); Text("Play next").lwLineBox(14, 19.6) }
                     .padding(.horizontal, 12).frame(maxHeight: .infinity)
                     .foregroundStyle(swiping && swipeOffset > 88 ? LWTheme.onInk : LWTheme.secondary)
@@ -1823,15 +1849,17 @@ private struct WaveLibrarySongRow: View {
                     .padding(.horizontal, 12).frame(maxHeight: .infinity)
                     .foregroundStyle(swiping && swipeOffset < -88 ? LWTheme.onInk : LWTheme.secondary)
                     .background(swiping && swipeOffset < -88 ? LWTheme.ink : .clear)
-            }.font(LWTheme.text(14)).padding(.horizontal, 16).opacity(swiping ? 1 : 0)
+            }.font(LWTheme.text(14)).padding(.horizontal, 16).opacity(swiping ? 1 : 0) }
         }
         .background {
             if !compact && dropTargeted { LWTheme.paper.overlay(LWTheme.signal.opacity(0.08)) }
             else { (!compact && model.selected.contains(song.uniqueId) ? LWTheme.panel2 : hovering && !compact ? LWTheme.panel.opacity(0.6) : LWTheme.paper) }
         }
-        .accessibilityValue(compact && model.selecting ? (model.selected.contains(song.uniqueId) ? "Selected" : "Not selected") : "")
-        .opacity(compact && blockedSource != nil ? 0.45 : 1)
-        .disabled(compact && blockedSource != nil)
+        .lwIf(compact) {
+            $0.accessibilityValue(model.selecting ? (model.selected.contains(song.uniqueId) ? "Selected" : "Not selected") : "")
+                .opacity(blockedSource != nil ? 0.45 : 1)
+                .disabled(blockedSource != nil)
+        }
         .onHover { hovering = $0 }
 #if os(iOS)
         .gesture(WaveModifierCapture { modifierKeys = $0 })
@@ -1843,11 +1871,11 @@ private struct WaveLibrarySongRow: View {
             modifierKeys = modifiers
         })
 #endif
-        .overlay(alignment: .top) { if compact && index > 0 { Rectangle().fill(LWTheme.line).frame(height: 1).padding(.leading, 16) } }
+        .lwIf(compact) { $0.overlay(alignment: .top) { if index > 0 { Rectangle().fill(LWTheme.line).frame(height: 1).padding(.leading, 16) } } }
         .modifier(LWCollapsedTableRules(top: !compact, bottom: !compact && selectionOrder.last == song.uniqueId))
         .overlay { if !compact && dropTargeted { Rectangle().strokeBorder(LWTheme.signal, lineWidth: 2) } }
         .modifier(WaveConditionalClip(enabled: compact))
-        .simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { gesture in
+        .lwIf(compact) { $0.simultaneousGesture(DragGesture(minimumDistance: 8).onChanged { gesture in
             guard blockedSource == nil && compact && !model.selecting && !swipeRejected else { return }
             if !swiping {
                 guard abs(gesture.translation.width) > abs(gesture.translation.height) else { swipeRejected = true; return }
@@ -1867,38 +1895,56 @@ private struct WaveLibrarySongRow: View {
             }
             withAnimation(reduceMotion ? nil : LWMotion.out(LWMotion.quick)) { swiping = false }
             withAnimation(reduceMotion ? nil : LWMotion.springAnimation(LWMotion.slow)) { swipeOffset = 0 }
-        }, including: compact && !model.selecting ? .all : .none)
-        .lwContextMenu(enabled: !compact || !model.selecting) { menuRequest() }
+        }, including: !model.selecting ? .all : .none) }
+        .lwContextMenu(enabled: !compact || !model.selecting) { menuRequest(select: false) }
         .modifier(WaveSongDrag(enabled: !compact || !model.selecting, title: song.title, ids: dragSongIDs))
         .overlay(alignment: .trailing) { if sharing { ProgressView().frame(width: 44, height: 44).background(LWTheme.paper) } }
-        .sheet(item: $sharedFile, onDismiss: {
-            if let shareDirectory { try? FileManager.default.removeItem(at: shareDirectory) }
-            shareDirectory = nil
-        }) { item in LWShareSheet(urls: item.urls) }
-        .sheet(isPresented: $editMetadata) { SongMetadataEditorView(song: song, songRepo: model.dependencies.songRepository) }
+        .background {
+            // Mounted only while in use: an idle .sheet on every row writes preferences that each scroll frame has to combine.
+            if editMetadata || sharedFile != nil || sheetsMounted {
+                Color.clear.onAppear { sheetsMounted = true }
+                    .sheet(item: $sharedFile, onDismiss: {
+                        if let shareDirectory { try? FileManager.default.removeItem(at: shareDirectory) }
+                        shareDirectory = nil
+                        sheetsMounted = false
+                    }) { item in LWShareSheet(urls: item.urls) }
+                    .sheet(isPresented: $editMetadata, onDismiss: { sheetsMounted = false }) { SongMetadataEditorView(song: song, songRepo: model.dependencies.songRepository) }
+            }
+        }
         .overlay { if favoriteBurst { WaveFavoriteBurst().allowsHitTesting(false) } }
     }
 
     private func desktopCells(_ columns: WaveSongColumns) -> some View {
+        // Static cells: a ForEach here built a dynamic container per row, which dominated row creation while scrolling.
         HStack(alignment: .firstTextBaseline, spacing: 0) {
-            ForEach(columns.items.filter { $0 != .actions }, id: \.self) { column in
+            desktopCell(.number, columns); desktopCell(.title, columns); desktopCell(.artist, columns); desktopCell(.album, columns)
+            desktopCell(.format, columns); desktopCell(.state, columns); desktopCell(.time, columns)
+        }.contentShape(Rectangle())
+    }
+
+    @ViewBuilder private func desktopCell(_ column: WaveSongColumn, _ columns: WaveSongColumns) -> some View {
+        if columns.items.contains(column) {
                 Group {
                     switch column {
                     case .number:
                         if song.id == playerVM.currentSong?.id { LWEqualizer(playing: playerVM.isPlaying) }
-                        else { Text(String(numbered ? song.trackNumber ?? index + 1 : index + 1)).font(LWTheme.text(13).monospacedDigit()).lwLineBox(13, 18.2).foregroundStyle(LWTheme.secondary) }
-                    case .title: waveHighlightedLabel(song.title, query: highlight).font(LWTheme.text(14).weight(song.id == playerVM.currentSong?.id ? .medium : .regular)).lwLineBox(14, 19.6).foregroundStyle(LWTheme.ink).lineLimit(1)
-                    case .artist: waveHighlightedLabel(song.artist, query: highlight).font(LWTheme.text(14).weight(song.id == playerVM.currentSong?.id ? .medium : .regular)).lwLineBox(14, 19.6).foregroundStyle(LWTheme.secondary).lineLimit(1)
-                    case .album: waveHighlightedLabel(song.album, query: highlight).font(LWTheme.text(14).weight(song.id == playerVM.currentSong?.id ? .medium : .regular)).lwLineBox(14, 19.6).foregroundStyle(LWTheme.secondary).lineLimit(1)
-                    case .format: Text(song.fileExtension?.lowercased() ?? "—").font(LWTheme.data(12)).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary)
+                        else { Text(String(numbered ? song.trackNumber ?? index + 1 : index + 1)).font(LWTheme.text(13).monospacedDigit()).lwLineBox(13, 18.2, plain: true).foregroundStyle(LWTheme.secondary) }
+                    case .title: waveHighlightedLabel(song.title, query: highlight).font(LWTheme.text(14).weight(song.id == playerVM.currentSong?.id ? .medium : .regular)).lwLineBox(14, 19.6, plain: highlight.isEmpty).foregroundStyle(LWTheme.ink).lineLimit(1)
+                    case .artist: waveHighlightedLabel(song.artist, query: highlight).font(LWTheme.text(14).weight(song.id == playerVM.currentSong?.id ? .medium : .regular)).lwLineBox(14, 19.6, plain: highlight.isEmpty).foregroundStyle(LWTheme.secondary).lineLimit(1)
+                    case .album: waveHighlightedLabel(song.album, query: highlight).font(LWTheme.text(14).weight(song.id == playerVM.currentSong?.id ? .medium : .regular)).lwLineBox(14, 19.6, plain: highlight.isEmpty).foregroundStyle(LWTheme.secondary).lineLimit(1)
+                    case .format: Text(song.fileExtension?.lowercased() ?? "—").font(LWTheme.data(12)).lwLineBox(12, 16.8, data: true, plain: true).foregroundStyle(LWTheme.secondary)
                     case .state: stateGlyph
-                    case .time: Text(waveDuration(song.duration)).font(LWTheme.data(12)).lwLineBox(12, 16.8, data: true).foregroundStyle(LWTheme.secondary)
+                    case .time: Text(waveDuration(song.duration)).font(LWTheme.data(12)).lwLineBox(12, 16.8, data: true, plain: true).foregroundStyle(LWTheme.secondary).lineLimit(1).fixedSize()
                     case .actions: EmptyView()
                     }
                 }.padding(.leading, column == .number ? 32 : 8).padding(.trailing, 8)
                     .frame(width: columns[column], alignment: column == .time ? .trailing : .leading)
-            }
-        }.contentShape(Rectangle())
+        }
+    }
+
+    private var fixedDesktopSize: CGSize? {
+        guard !compact, !dynamicTypeSize.isAccessibilitySize, let tableColumns else { return nil }
+        return CGSize(width: tableColumns.totalWidth, height: 38)
     }
 
     private var blockedSource: String? { waveBlockedSourceName(song: song, availability: model.availabilityByID[song.uniqueId] ?? .unknown, blockedSources: model.blockedSources) }
@@ -1973,15 +2019,16 @@ private struct WaveLibrarySongRow: View {
         return ordered.isEmpty ? [song.uniqueId] : ordered
     }
 
-    private func menuRequest() -> LWMenuRequest {
-        if !compact { model.selectionListID = playlistID }
-        if !compact && !model.selected.contains(song.uniqueId) {
+    // select: false must not write model state; macOS builds the context menu during body, so writes there make every row re-render the others forever.
+    private func menuRequest(select: Bool = true) -> LWMenuRequest {
+        if select && !compact { model.selectionListID = playlistID }
+        if select && !compact && !model.selected.contains(song.uniqueId) {
             model.selected = [song.uniqueId]
             model.selectionAnchor = song.uniqueId
             model.selecting = true
         }
         let byID = Dictionary(model.songs.map { ($0.uniqueId, $0) }, uniquingKeysWith: { first, _ in first })
-        let selected = !compact && model.selected.count > 1
+        let selected = !compact && model.selected.count > 1 && model.selected.contains(song.uniqueId)
             ? selectionOrder.filter { model.selected.contains($0) }.compactMap { byID[$0] } : [song]
         let targets = selected.isEmpty ? [song] : selected
         return LWTrackMenu.request(song: song, targets: targets, model: model, player: playerVM, presenter: presenter,
@@ -2364,6 +2411,24 @@ private struct WaveSongTableHeading: View {
     }
 }
 
+extension LWStateGlyph {
+    /// Same geometry as the Canvas branches for blocked, on-device, unknown and cloud-only.
+    @ViewBuilder fileprivate var restingGlyph: some View {
+        Group {
+            if blocked {
+                Rectangle().strokeBorder(LWTheme.tertiary, lineWidth: 1.5)
+                    .overlay(alignment: .bottom) { Rectangle().fill(LWTheme.tertiary).frame(height: 2) }
+            } else if availability == .onDevice {
+                Rectangle().fill(LWTheme.ink)
+            } else if availability == .unknown {
+                Rectangle().inset(by: 0.75).stroke(LWTheme.tertiary, style: StrokeStyle(lineWidth: 1, dash: [2, 2]))
+            } else {
+                Rectangle().strokeBorder(state == .bookmarkOnly ? LWTheme.secondary : LWTheme.ink, lineWidth: 1.5)
+            }
+        }.frame(width: 10, height: 10)
+    }
+}
+
 struct LWStateGlyph: View {
     let state: FileState
     let availability: FileAvailability
@@ -2373,6 +2438,9 @@ struct LWStateGlyph: View {
 
     var body: some View {
         let motionReduced = reduceMotion
+        Group {
+        // The common resting states are plain shapes. A TimelineView + Canvas per row gave every row its own raster surface, which made rows slow to create while scrolling.
+        if state != .copyPending && state != .failed && !pinned { restingGlyph } else {
         TimelineView(.animation(minimumInterval: 0.5, paused: state != .copyPending || motionReduced)) { timeline in
             Canvas { context, canvasSize in
                 // CSS box shadows extend beyond the ten-point glyph. Give the
@@ -2409,6 +2477,7 @@ struct LWStateGlyph: View {
             }.frame(width: pinned ? 17 : 10, height: pinned ? 17 : 10)
                 .frame(width: 10, height: 10)
         }
+        } }
         .keyframeAnimator(initialValue: CGFloat(1), trigger: state) { content, scale in
             content.scaleEffect(motionReduced ? 1 : scale)
         } keyframes: { _ in
@@ -2479,6 +2548,14 @@ private struct WaveFavoriteBurst: View {
     }
 }
 
+/// Only the last row reports its bounds; other rows skip the preference entirely.
+private struct WaveSelectionEndAnchor: ViewModifier {
+    let enabled: Bool
+    @ViewBuilder func body(content: Content) -> some View {
+        if enabled { content.anchorPreference(key: WaveSelectionTableEnd.self, value: .bounds) { $0 } } else { content }
+    }
+}
+
 private struct WaveSelectionTableEnd: PreferenceKey {
     static var defaultValue: Anchor<CGRect>? { nil }
     static func reduce(value: inout Anchor<CGRect>?, nextValue: () -> Anchor<CGRect>?) { if let next = nextValue() { value = next } }
@@ -2525,11 +2602,16 @@ private struct WaveLibraryEntrance: ViewModifier {
     @Environment(\.lwWideLayout) private var wide
     @Environment(\.waveLibraryEntry) private var entry
 
-    func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Content) -> some View {
         let limit = wide ? 16 : 14
+        // Rows past the stagger window never animate: skip the opacity/offset/task wrappers for them.
+        if index >= limit { content } else { entrance(content, limit: limit) }
+    }
+
+    private func entrance(_ content: Content, limit: Int) -> some View {
         let entering = entry.enabled && (!mobileOnly || !wide) && index < limit && !reduceMotion
             && Date().timeIntervalSince(entry.startedAt) < LWMotion.slow + Double(limit - 1) * LWMotion.stagger
-        content.opacity(visible || !entering ? 1 : 0)
+        return content.opacity(visible || !entering ? 1 : 0)
             .offset(y: visible || !entering ? 0 : 10)
             .task(id: entry) {
                 guard entering else { visible = true; return }
@@ -2646,6 +2728,7 @@ private enum WaveSongColumn: String, Hashable {
 private struct WaveSongColumns {
     let items: [WaveSongColumn]
     let widths: [WaveSongColumn: CGFloat]
+    var totalWidth: CGFloat { items.reduce(0) { $0 + (widths[$1] ?? 0) } }
     subscript(_ column: WaveSongColumn) -> CGFloat { widths[column] ?? 0 }
 
     static func make(songs: [Song], available: CGFloat, scale: CGFloat, artist: Bool, album: Bool, format: Bool, state: Bool, numbered: Bool, currentID: Int64?, sort: String?) -> WaveSongColumns {
@@ -2665,20 +2748,34 @@ private struct WaveSongColumns {
         }
         preferred[.number] = max(44, preferred[.number] ?? 44)
         preferred[.actions] = 52
-        for (index, song) in songs.enumerated() {
-            let face = song.id == currentID ? "HostGrotesk-Medium" : "HostGrotesk-Regular"
-            let number = numbered ? song.trackNumber ?? index + 1 : index + 1
-            preferred[.number] = max(preferred[.number] ?? 44, width(String(number), face: "HostGrotesk-Regular", size: 13, tabular: true) + 40)
-            if song.id == currentID { preferred[.number] = max(preferred[.number] ?? 44, 54) }
-            preferred[.title] = max(preferred[.title] ?? 0, min(240, width(song.title, face: face, size: 14) + 16))
-            if artist { preferred[.artist] = max(preferred[.artist] ?? 0, min(240, width(song.artist, face: face, size: 14) + 16)) }
-            if album { preferred[.album] = max(preferred[.album] ?? 0, min(240, width(song.album, face: face, size: 14) + 16)) }
-            if format { preferred[.format] = max(preferred[.format] ?? 0, width(song.fileExtension?.lowercased() ?? "—", face: "GeistMono-Regular", size: 12) + 16) }
-            preferred[.time] = max(preferred[.time] ?? 0, width(waveDuration(song.duration), face: "GeistMono-Regular", size: 12) + 16)
+        // shortcut: longest-by-length stands in for widest-by-pixels (text is capped at 240pt); upgrade to a per-revision cache if columns visibly clip.
+        // Measuring every song ran ~6 CoreText layouts per song per render and froze the UI on large libraries.
+        func widest(_ strings: [String]) -> [String] { Array(strings.sorted { $0.utf16.count > $1.utf16.count }.prefix(24)) }
+        let currentFace = "HostGrotesk-Medium"
+        let current = songs.first { $0.id == currentID }
+        func textWidth(_ column: WaveSongColumn, _ value: (Song) -> String) {
+            for text in widest(songs.map(value)) { preferred[column] = max(preferred[column] ?? 0, min(240, width(text, face: "HostGrotesk-Regular", size: 14) + 16)) }
+            if let current { preferred[column] = max(preferred[column] ?? 0, min(240, width(value(current), face: currentFace, size: 14) + 16)) }
         }
-        let flexible = columns.filter { $0 != .number && $0 != .actions }
+        let largestNumber = numbered ? (songs.enumerated().map { $1.trackNumber ?? $0 + 1 }.max() ?? 1) : songs.count
+        preferred[.number] = max(preferred[.number] ?? 44, width(String(max(1, largestNumber)), face: "HostGrotesk-Regular", size: 13, tabular: true) + 40)
+        if current != nil { preferred[.number] = max(preferred[.number] ?? 44, 54) }
+        textWidth(.title) { $0.title }
+        if artist { textWidth(.artist) { $0.artist } }
+        if album { textWidth(.album) { $0.album } }
+        if format, let longest = widest(songs.map { $0.fileExtension?.lowercased() ?? "—" }).first {
+            preferred[.format] = max(preferred[.format] ?? 0, width(longest, face: "GeistMono-Regular", size: 12) + 16)
+        }
+        // Monospaced: the longest duration string is the widest.
+        if let longest = widest(songs.map { waveDuration($0.duration) }).first {
+            preferred[.time] = max(preferred[.time] ?? 0, width(longest, face: "GeistMono-Regular", size: 12) + 16)
+        }
+        // Short monospaced columns keep their full width; shrinking them wrapped durations onto two lines.
+        let fixed: Set<WaveSongColumn> = [.time, .format, .state]
+        let flexible = columns.filter { $0 != .number && $0 != .actions && !fixed.contains($0) }
         let total = max(1, flexible.reduce(CGFloat(0)) { $0 + (preferred[$1] ?? 0) })
-        let remaining = max(0, available - (preferred[.number] ?? 44) - 52)
+        let fixedWidth = columns.filter { fixed.contains($0) }.reduce(CGFloat(0)) { $0 + (preferred[$1] ?? 0) }
+        let remaining = max(0, available - (preferred[.number] ?? 44) - 52 - fixedWidth)
         var widths = preferred
         for column in flexible { widths[column] = (preferred[column] ?? 0) * remaining / total }
         return WaveSongColumns(items: columns, widths: widths)
@@ -2704,6 +2801,13 @@ private struct WaveSongColumnsHeading: View {
             }
         }.foregroundStyle(LWTheme.secondary).padding(.vertical, 10).padding(.bottom, 0.5).background(LWTheme.paper)
             .modifier(LWCollapsedTableRules(top: false, bottom: true))
+    }
+}
+
+extension View {
+    /// Applies modifiers only when they can do something, so rows that never need them don't carry the nodes.
+    @ViewBuilder func lwIf<Content: View>(_ condition: Bool, @ViewBuilder _ transform: (Self) -> Content) -> some View {
+        if condition { transform(self) } else { self }
     }
 }
 

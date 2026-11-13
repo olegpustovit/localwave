@@ -31,7 +31,7 @@ public actor WaveformCache {
         let contentAddressed = url.deletingLastPathComponent().resolvingSymlinksInPath().standardizedFileURL == audioCacheDirectory && name.count == 64 && name.allSatisfy { $0.isHexDigit }
         // Playback touches the cache date for LRU; its content hash remains the version.
         let version = contentAddressed ? name : url.standardizedFileURL.path + "|" + String((attributes[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0)
-        let identity = version + "|" + String(describing: attributes[.size])
+        let identity = "weighted-rms-v2|" + version + "|" + String(describing: attributes[.size])
         let signature = SHA256.hash(data: Data(identity.utf8)).map { String(format: "%02x", $0) }.joined()
         if cached?.signature == signature { return cached?.peaks ?? [] }
 
@@ -103,13 +103,21 @@ public actor WaveformCache {
         reader.add(output)
         guard reader.startReading() else { throw reader.error ?? CocoaError(.fileReadUnknown) }
         return try await withTaskCancellationHandler {
-            var result = [Float](repeating: 0, count: peakCount)
+            var energy = [Double](repeating: 0, count: peakCount)
+            var counts = [Int](repeating: 0, count: peakCount)
+            var previousInput: [Double] = []
+            var previousOutput: [Double] = []
             while let sample = output.copyNextSampleBuffer() {
                 try Task.checkCancellation()
                 guard let format = CMSampleBufferGetFormatDescription(sample),
                       let description = CMAudioFormatDescriptionGetStreamBasicDescription(format)?.pointee,
                       let block = CMSampleBufferGetDataBuffer(sample), description.mSampleRate > 0 else { continue }
                 let channelCount = Int(description.mChannelsPerFrame)
+                if previousInput.count != channelCount {
+                    previousInput = [Double](repeating: 0, count: channelCount)
+                    previousOutput = previousInput
+                }
+                let coefficient = exp(-2 * Double.pi * 180 / description.mSampleRate)
                 let byteCount = CMBlockBufferGetDataLength(block)
                 let frameCount = CMSampleBufferGetNumSamples(sample)
                 guard channelCount > 0, byteCount >= frameCount * channelCount * MemoryLayout<Float>.size else { throw CocoaError(.fileReadCorruptFile) }
@@ -122,15 +130,22 @@ public actor WaveformCache {
                     let position = (start + Double(frame) / description.mSampleRate) / duration
                     let bucket = max(0, min(peakCount - 1, Int(position * Double(peakCount))))
                     for channel in 0..<channelCount {
-                        let value = abs(samples[frame * channelCount + channel])
-                        if value.isFinite { result[bucket] = max(result[bucket], value) }
+                        let value = Double(samples[frame * channelCount + channel])
+                        guard value.isFinite else { continue }
+                        let filtered = coefficient * (previousOutput[channel] + value - previousInput[channel])
+                        previousInput[channel] = value
+                        previousOutput[channel] = filtered
+                        // Favor musical detail above bass while retaining low-frequency-only passages.
+                        energy[bucket] += 0.1 * value * value + 0.9 * filtered * filtered
+                        counts[bucket] += 1
                     }
                 }
             }
             try Task.checkCancellation()
             if reader.status == .failed { throw reader.error ?? CocoaError(.fileReadUnknown) }
-            let maximum = result.max() ?? 0
-            return maximum > 0 ? result.map { pow($0 / maximum, 0.7) } : result
+            let levels = zip(energy, counts).map { sum, count in count > 0 ? sqrt(sum / Double(count)) : 0 }
+            let maximum = levels.max() ?? 0
+            return maximum > 0 ? levels.map { Float(pow($0 / maximum, 1.4)) } : [Float](repeating: 0, count: peakCount)
         } onCancel: { reader.cancelReading() }
     }
 }

@@ -33,6 +33,8 @@ class SyncViewModel: ObservableObject {
     @Published var importProgress: Double?
     @Published var currentImportedFile = ""
     @Published var scannedItemCount = 0
+    /// Background tag reading for cloud-only songs, e.g. "Reading tags 12/1838"; nil when idle.
+    @Published var tagStatus: String?
     @Published var importedFileCount: Int?
     @Published var importFileCount: Int?
     private var scanProgressGeneration: UUID?
@@ -49,6 +51,7 @@ class SyncViewModel: ObservableObject {
     private var materializationWatchTask: Task<Void, Never>?
     private var queuedSourceChanges = Set<Int64>()
     private var repeatedSourceChanges = Set<Int64>()
+    private var reconciledSources = Set<Int64>()
 
     init(
         userCloudService: UserCloudService?,
@@ -73,7 +76,8 @@ class SyncViewModel: ObservableObject {
             materializationWatchTask = Task { [weak self] in
                 for await notification in NotificationCenter.default.notifications(named: Notification.Name("LWSourceMaterialized")) {
                     guard !Task.isCancelled, let self else { return }
-                    if let id = notification.object as? Int64 { self.sourceChanged(id) }
+                    // Opening a track only copies it to the cache; rescanning the whole folder for that froze the UI. Just refresh lists.
+                    if notification.object is Int64 { NotificationCenter.default.post(name: Notification.Name("SongListRefresh"), object: nil) }
                 }
             }
         }
@@ -92,7 +96,8 @@ class SyncViewModel: ObservableObject {
                 if repeatedSourceChanges.remove(id) != nil { sourceChanged(id) }
             }
             guard let source = sources.first(where: { $0.id == id }) else { return }
-            do { try await syncSource(source) }
+            let changedPaths = await sourceAccess?.takeChangedPaths(sourceId: id)
+            do { try await syncSource(source, changedPaths: source.syncError == nil ? changedPaths : nil) }
             catch is CancellationError { }
             catch { await recordFailure(error, source: source) }
         }
@@ -116,7 +121,8 @@ class SyncViewModel: ObservableObject {
         }
     }
 
-    func refreshSources() {
+    /// Reconcile once per launch, then let folder notifications drive updates. `force` is the explicit rescan.
+    func refreshSources(force: Bool = false) {
         guard !foregroundRefreshQueued else { return }
         foregroundRefreshQueued = true
         let previous = sourceWork
@@ -127,6 +133,7 @@ class SyncViewModel: ObservableObject {
                 guard let user = try await userCloudService?.resolveCurrentICloudUser() else { return }
                 sources = try await sourceService?.repository().findOneByUserId(userId: user.id ?? -1, path: nil) ?? []
                 for source in sources {
+                    if !force, source.syncError == nil, let id = source.id, reconciledSources.contains(id) { continue }
                     do { try await syncSource(source) }
                     catch is CancellationError { }
                     catch { await recordFailure(error, source: source) }
@@ -138,6 +145,7 @@ class SyncViewModel: ObservableObject {
     private func recordFailure(_ error: Error, source: Source) async {
         var updated = sources.first(where: { $0.id == source.id }) ?? source
         updated.syncError = error.localizedDescription
+        LWPresentationNotice.error("Couldn’t sync \(URL(fileURLWithPath: source.dirPath).lastPathComponent): \(error.localizedDescription)")
         if let index = sources.firstIndex(where: { $0.id == source.id }) { sources[index] = updated }
         guard let sourceService else { return }
         do {
@@ -230,11 +238,11 @@ class SyncViewModel: ObservableObject {
         }
     }
 
-    private func syncSource(_ source: Source) async throws {
-        guard let id = source.id, let sourceAccess else { try await syncSourceContents(source); return }
+    private func syncSource(_ source: Source, changedPaths: Set<String>? = nil) async throws {
+        guard let id = source.id, let sourceAccess else { try await syncSourceContents(source, changedPaths: changedPaths); return }
         await sourceAccess.beginScan(sourceId: id)
         do {
-            try await syncSourceContents(source)
+            try await syncSourceContents(source, changedPaths: changedPaths)
             await sourceAccess.endScan(sourceId: id)
         } catch {
             await sourceAccess.endScan(sourceId: id)
@@ -242,7 +250,8 @@ class SyncViewModel: ObservableObject {
         }
     }
 
-    private func syncSourceContents(_ source: Source) async throws {
+    private func syncSourceContents(_ source: Source, changedPaths: Set<String>?) async throws {
+        if changedPaths?.isEmpty == true { return }
         currentSyncSourceId = source.id
         scannedItemCount = 0
         importedFileCount = nil
@@ -268,7 +277,15 @@ class SyncViewModel: ObservableObject {
         }
 
         let folderURL = makeURLFromString(source.dirPath)
-        let updatedSource = try await sourceService?.syncService().syncDir(
+        let updatedSource: Source?
+        let incrementalPaths: [SourcePath]?
+        if let changedPaths, let sourceService {
+            let result = try await sourceService.syncService().syncPaths(sourceId: sourceId, relativePaths: changedPaths)
+            updatedSource = result.source
+            incrementalPaths = result.audioPaths
+        } else {
+            incrementalPaths = nil
+            updatedSource = try await sourceService?.syncService().syncDir(
             sourceId: sourceId,
             folderURL: folderURL,
             onCurrentURL: { url in
@@ -289,6 +306,7 @@ class SyncViewModel: ObservableObject {
             },
             onSetLoading: { _ in }
         )
+        }
 
         scannedItemCount = counter.withLock { $0.count }
         if let updated = updatedSource {
@@ -297,16 +315,22 @@ class SyncViewModel: ObservableObject {
             }
             if let error = updated.syncError { throw CustomError.genericError(error) }
         }
-        if let sourceService, let songImportService {
-            let paths = try await sourceService.importService().listItems(sourceId: sourceId, parentPathId: updatedSource?.pathId ?? source.pathId)
+        if let sourceService, let songImportService, incrementalPaths?.isEmpty != true {
+            let paths: [SourcePath]
+            if let incrementalPaths { paths = incrementalPaths }
+            else { paths = try await sourceService.importService().listItems(sourceId: sourceId, parentPathId: updatedSource?.pathId ?? source.pathId) }
             importProgress = 0
             do {
+                // Throttle off the main thread and don't await the hop: a busy UI (scrolling) must never stall indexing.
+                let throttle = OSAllocatedUnfairLock(initialState: Date.distantPast.timeIntervalSinceReferenceDate)
                 try await songImportService.importPathsWithFileProgress(paths: paths) { progress in
-                    await MainActor.run {
+                    let now = Date.timeIntervalSinceReferenceDate
+                    guard throttle.withLock({ last in
+                        guard progress.percentage >= 100 || now - last >= 0.25 else { return false }
+                        last = now; return true
+                    }) else { return }
+                    Task { @MainActor in
                         guard self.scanProgressGeneration == generation else { return }
-                        let now = Date.timeIntervalSinceReferenceDate
-                        guard progress.percentage >= 100 || now - self.lastImportPublication >= 0.1 else { return }
-                        self.lastImportPublication = now
                         self.importedFileCount = progress.completedFiles
                         self.importFileCount = progress.totalFiles
                         self.importProgress = progress.percentage
@@ -319,6 +343,7 @@ class SyncViewModel: ObservableObject {
                 throw error
             }
         }
+        reconciledSources.insert(sourceId)
     }
 
     var state: SyncViewState {
@@ -345,26 +370,6 @@ class SyncViewModel: ObservableObject {
 
     let logger = Logger(subsystem: subsystem, category: "SyncViewModel")
 
-    func registerPath(_ path: String) {
-        Task {
-            logger.debug("registering \(path)")
-            do {
-                if let currentUser = self.createdUser {
-                    let lib = try await sourceService?.registerSourcePath(
-                        userId: currentUser.id!, path: path, type: .iCloud
-                    )
-                    let libId = lib?.id ?? -1
-                    logger.debug("created source \(libId)")
-                    self.currentSource = lib
-                }
-            } catch {
-                logger.debug("failed to register lib \(error.localizedDescription)")
-            }
-
-            logger.debug("source is set...")
-        }
-    }
-
     func registerBookmark(_ folderURL: URL) throws {
         guard !LocalWaveGeneratedPaths.contains(folderURL) else {
             throw CustomError.genericError("Choose your original music folder. LocalWave’s generated cache cannot be used as a source.")
@@ -384,51 +389,6 @@ class SyncViewModel: ObservableObject {
         logger.debug("Setting bookmark key \(bookmarkKey) of \(folderURL.absoluteString)")
 
         LocalWavePreferences.current.set(bookmarkData, forKey: bookmarkKey)
-    }
-
-    func sync() {
-        Task {
-            self.isSyncing = true
-            var currentSrc = self.currentSource
-            do {
-                // Start syncing with updates
-                let folderPath = currentSource?.dirPath
-                let sourceId = currentSource?.id
-                logger.debug("started syncing...")
-                if folderPath != nil && sourceId != nil {
-                    let result = try await sourceService?.syncService().syncDir(
-                        sourceId: sourceId!, folderURL: makeURLFromString(folderPath!),
-                        onCurrentURL: { url in
-                            DispatchQueue.main.async {
-                                self.currentSyncedDir = url?.absoluteString
-                            }
-                        },
-                        onSetLoading: { loading in
-                            DispatchQueue.main.async {
-                                self.isSyncing = loading
-                            }
-                        }
-                    )
-                    currentSrc?.totalPaths = result?.totalPaths
-                } else {
-                    logger.error("failed to sync")
-                }
-                self.isSyncing = false
-                currentSrc?.lastSyncedAt = Date()
-                currentSrc = try await sourceService?.repository().updateSource(
-                    source: currentSrc!)
-                logger.debug("finished syncing...")
-                self.currentSource = currentSrc
-            } catch {
-                self.isSyncing = false
-                currentSrc?.lastSyncedAt = Date()
-                currentSrc?.syncError = error.localizedDescription
-                currentSrc = try await sourceService?.repository().updateSource(
-                    source: currentSrc!)
-                logger.debug("finished with error")
-                self.currentSource = currentSrc
-            }
-        }
     }
 
     func hasICloud() -> Bool {
