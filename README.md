@@ -59,6 +59,7 @@ The Rust window supports resizing and native zoom/full-screen controls, with con
 transparent title bar. The Queue button opens the full occurrence-based queue editor; Save as
 playlist saves its current order with duplicate songs included once. Album, Now panel and queue
 artwork load from the existing library on a separate worker, with bounded thumbnail/texture caches.
+Image identity, GPU wrapper reuse and completed-frame release live in pxui itself (ABI 1.13).
 Tracks without readable local cover files keep their placeholder.
 Quit an already running Rust app before opening a rebuilt bundle so macOS launches the new binary.
 
@@ -76,7 +77,7 @@ cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
 make performance            # signed Songs + Find + Queue + drag + queue sheet + artwork: allocation/time/idle gates
 ```
 
-Warm library/app builds have measured 0.14/0.04 seconds, and 117 bounded app checks 12.55 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
+Warm library/app builds have measured 0.14/0.04 seconds, and the latest 119 bounded app checks 28.78 seconds including compilation (13.05 seconds summed cases). The regular 10,000-song UI workload has zero warm Rust allocations; the gallery still occasionally receives late covers after warm-up, and the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
 
 ## Development
 

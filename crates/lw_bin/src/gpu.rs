@@ -67,8 +67,7 @@ impl Graphics {
         height: f32,
         density: f32,
     ) -> Result<(), String> {
-        self.artwork
-            .configure(width, height, density, self.frames.completed())
+        self.artwork.configure(width, height, density)
     }
 
     pub fn draw(&mut self, window: &mut Window, ui: &Ui) -> Result<bool, String> {
@@ -119,25 +118,28 @@ impl Graphics {
             .map_err(|code| format!("Renderer draw failed ({code})"))?;
         self.frames.submit()?;
         self.artwork.submitted(self.frames.serial());
-        self.artwork.retire_completed(self.frames.completed())?;
+        self.retire_artwork(self.frames.completed())?;
         Ok(true)
     }
 
     pub fn close(mut self) -> Result<(), String> {
         self.frames.wait()
     }
+    pub fn retire_artwork(&mut self, completed: u64) -> Result<(), String> {
+        self.artwork.retire_completed(
+            completed,
+            self.renderer.as_mut().expect("Live graphics renderer"),
+        )
+    }
     pub fn sync_artwork(
         &mut self,
         library: usize,
         ready: Option<&lw_bin::library::ArtworkReady>,
     ) -> Result<bool, String> {
-        let mut changed = self
-            .artwork
-            .sync_library(library, self.frames.completed())?;
+        self.retire_artwork(self.frames.completed())?;
+        let mut changed = self.artwork.sync_library(library)?;
         if let Some(ready) = ready {
-            changed |= self
-                .artwork
-                .upload(&self.device, ready, self.frames.completed())?;
+            changed |= self.artwork.upload(&self.device, ready)?;
         }
         Ok(changed)
     }

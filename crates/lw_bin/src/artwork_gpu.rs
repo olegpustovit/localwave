@@ -11,6 +11,7 @@ struct Texture {
     value: be::Texture,
     bytes: usize,
     serial: u64,
+    image: pxui::Image,
 }
 fn error(value: ogpu_core::error::Error) -> String {
     ogpu_core::error::to_string(&value)
@@ -19,7 +20,7 @@ fn error(value: ogpu_core::error::Error) -> String {
 pub struct ArtworkCache {
     pub images: Images,
     textures: Vec<Option<Texture>>,
-    retired: Vec<Option<Texture>>,
+    retired: Vec<Texture>,
     bytes: usize,
     library: usize,
     seen: u64,
@@ -29,7 +30,7 @@ impl Default for ArtworkCache {
         Self {
             images: Images::default(),
             textures: (0..CAPACITY).map(|_| None).collect(),
-            retired: (0..RETIRED_LIMIT).map(|_| None).collect(),
+            retired: Vec::with_capacity(RETIRED_LIMIT),
             bytes: 0,
             library: 0,
             seen: 0,
@@ -37,17 +38,10 @@ impl Default for ArtworkCache {
     }
 }
 impl ArtworkCache {
-    pub fn configure(
-        &mut self,
-        width: f32,
-        height: f32,
-        density: f32,
-        completed: u64,
-    ) -> Result<(), String> {
+    pub fn configure(&mut self, width: f32, height: f32, density: f32) -> Result<(), String> {
         if self.images.configure(width, height, density) {
-            self.retire_completed(completed)?;
             for index in 0..CAPACITY {
-                self.evict(index, completed)?;
+                self.evict(index)?;
             }
             self.images.clear();
         }
@@ -62,59 +56,53 @@ impl ArtworkCache {
             .and_then(|index| self.textures[index].as_ref())
             .map(|texture| &texture.value)
     }
-    pub fn retire_completed(&mut self, completed: u64) -> Result<(), String> {
-        for entry in &mut self.retired {
-            if entry
-                .as_ref()
-                .is_some_and(|entry| entry.serial <= completed)
-            {
-                be::destroy_texture(&entry.as_ref().unwrap().value).map_err(error)?;
-                entry.take();
+    pub fn retire_completed(
+        &mut self,
+        completed: u64,
+        renderer: &mut pxui::Renderer,
+    ) -> Result<(), String> {
+        let mut index = 0;
+        while index < self.retired.len() {
+            let entry = &self.retired[index];
+            if entry.serial <= completed {
+                renderer
+                    .forget_image(&entry.image, completed)
+                    .map_err(|code| format!("Artwork release failed ({code})"))?;
+                be::destroy_texture(&entry.value).map_err(error)?;
+                self.retired.swap_remove(index);
+            } else {
+                index += 1;
             }
         }
         Ok(())
     }
-    fn evict(&mut self, index: usize, completed: u64) -> Result<(), String> {
+    fn evict(&mut self, index: usize) -> Result<(), String> {
         if let Some(entry) = &self.textures[index] {
             let bytes = entry.bytes;
-            if entry.serial <= completed {
-                be::destroy_texture(&entry.value).map_err(error)?;
-                self.textures[index].take();
-            } else {
-                let free = self
-                    .retired
-                    .iter()
-                    .position(Option::is_none)
-                    .ok_or("Artwork retirement exceeded its three-frame bound")?;
-                self.retired[free] = self.textures[index].take();
+            if self.retired.len() == RETIRED_LIMIT {
+                return Err("Artwork retirement exceeded its three-frame bound".into());
             }
+            self.retired.push(self.textures[index].take().unwrap());
             self.bytes -= bytes;
         }
         self.images.remove(index);
         Ok(())
     }
-    pub fn sync_library(&mut self, library: usize, completed: u64) -> Result<bool, String> {
+    pub fn sync_library(&mut self, library: usize) -> Result<bool, String> {
         if self.library == library {
             return Ok(false);
         }
-        self.retire_completed(completed)?;
         for index in 0..CAPACITY {
-            self.evict(index, completed)?;
+            self.evict(index)?;
         }
         self.images.clear();
         self.library = library;
         Ok(true)
     }
-    pub fn upload(
-        &mut self,
-        device: &be::Device,
-        ready: &ArtworkReady,
-        completed: u64,
-    ) -> Result<bool, String> {
+    pub fn upload(&mut self, device: &be::Device, ready: &ArtworkReady) -> Result<bool, String> {
         if self.seen == ready.revision {
             return Ok(false);
         }
-        self.retire_completed(completed)?;
         if ready.epoch != self.images.epoch() {
             self.seen = ready.revision;
             return Ok(false);
@@ -143,7 +131,7 @@ impl ArtworkCache {
                     .filter(|index| self.textures[*index].is_some())
                     .min_by_key(|index| self.images.last_used(*index))
                     .ok_or("Invalid artwork byte accounting")?;
-                self.evict(oldest, completed)?;
+                self.evict(oldest)?;
             }
             let texture = be::create_texture(
                 device,
@@ -195,13 +183,14 @@ impl ArtworkCache {
                 value: texture,
                 bytes,
                 serial: 0,
+                image: image.unwrap(),
             });
         }
         let index = self
             .images
             .index(ready.key.id)
             .unwrap_or_else(|| self.images.oldest());
-        if let Err(failure) = self.evict(index, completed) {
+        if let Err(failure) = self.evict(index) {
             if let Some(owned) = owned {
                 let _ = be::destroy_texture(&owned.value);
             }
@@ -220,12 +209,13 @@ impl ArtworkCache {
     }
     /// The owner waits for frames and drops the renderer before destroying this cache.
     pub fn destroy(&mut self) -> Result<(), String> {
-        for entry in self.textures.iter_mut().chain(self.retired.iter_mut()) {
-            if let Some(texture) = entry {
-                be::destroy_texture(&texture.value).map_err(error)?;
-            }
+        for texture in self.textures.iter().flatten().chain(&self.retired) {
+            be::destroy_texture(&texture.value).map_err(error)?;
+        }
+        for entry in &mut self.textures {
             entry.take();
         }
+        self.retired.clear();
         self.bytes = 0;
         self.images.clear();
         Ok(())

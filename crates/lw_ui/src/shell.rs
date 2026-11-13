@@ -291,7 +291,7 @@ fn paint_artwork(
     ui.set_role(node, Role::Image, 0);
     if let (Some(row), Some(images)) = (row, images)
         && let Some(path) = row.cover_art_path
-        && let Some(image) = images.get(row.cover_art_id, path, points)
+        && let Some(image) = images.get_at(row.cover_art_id, path, points, node.box_key)
     {
         ui.draw(node, move |paint, rect| {
             paint.image_fit(
@@ -1071,7 +1071,7 @@ fn content(
                                 ui,
                                 &art,
                                 group.artwork_row.map(|index| catalog.row(index)),
-                                cell * 2.0,
+                                (cell - 20.0).max(146.0),
                                 player.artwork,
                             );
                             ui.a11y_name(&art, "Album artwork");

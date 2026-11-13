@@ -62,6 +62,10 @@ impl Request {
     }
 }
 
+struct Pending {
+    key: Key,
+    node: Option<i64>,
+}
 struct Entry {
     id: usize,
     image: Option<Image>,
@@ -72,7 +76,7 @@ pub struct Images {
     entries: Vec<Entry>,
     by_id: HashMap<usize, usize>,
     clock: Cell<u64>,
-    requests: RefCell<Request>,
+    pending: RefCell<Vec<Pending>>,
     revision: u64,
     epoch: u64,
     density: f32,
@@ -91,7 +95,7 @@ impl Default for Images {
                 .collect(),
             by_id: HashMap::with_capacity(CAPACITY),
             clock: Cell::new(0),
-            requests: RefCell::new(Request::default()),
+            pending: RefCell::new(Vec::with_capacity(CAPACITY)),
             revision: 0,
             epoch: 0,
             density: 1.0,
@@ -129,13 +133,50 @@ impl Images {
     pub fn last_used(&self, index: usize) -> u64 {
         self.entries[index].used.get()
     }
-    pub fn begin_frame(&self) {
-        let mut requests = self.requests.borrow_mut();
-        requests.count = 0;
-        requests.epoch = self.epoch;
+    pub fn cancel_requests(&self) {
+        self.pending.borrow_mut().clear();
     }
     pub fn requests(&self) -> Request {
-        *self.requests.borrow()
+        self.packet(None)
+    }
+    /// Resolve final geometry and nearby rows after layout; provisional cells must not delay covers.
+    pub fn visible_requests(&self, ui: &pxui::Ui) -> Request {
+        self.packet(Some(ui))
+    }
+    fn packet(&self, ui: Option<&pxui::Ui>) -> Request {
+        let mut pending = self.pending.borrow_mut();
+        if let Some(ui) = ui {
+            pending.retain(|wanted| wanted.node.is_none_or(|key| ui.box_of_key(key).is_some()));
+        }
+        let mut request = Request {
+            epoch: self.epoch,
+            ..Default::default()
+        };
+        for wanted in pending.iter() {
+            if let (Some(ui), Some(key)) = (ui, wanted.node) {
+                let Some(node) = ui.box_of_key(key) else {
+                    continue;
+                };
+                let rect = ui.rect(&node);
+                let (width, height) = ui.view_size();
+                let margin = rect.h * 2.0;
+                if rect.w <= 0.0
+                    || rect.h <= 0.0
+                    || rect.x >= width
+                    || rect.y >= height + margin
+                    || rect.x + rect.w <= 0.0
+                    || rect.y + rect.h <= -margin
+                {
+                    continue;
+                }
+            }
+            request.insert(
+                wanted.key.id,
+                wanted.key.path.as_str(),
+                wanted.key.max_pixels,
+            );
+        }
+        request
     }
     pub fn index(&self, id: usize) -> Option<usize> {
         self.by_id.get(&id).copied()
@@ -144,6 +185,12 @@ impl Images {
         self.index(id).map(|index| self.entries[index].quality)
     }
     pub fn get(&self, id: usize, path: &str, points: f32) -> Option<Image> {
+        self.lookup(id, path, points, None)
+    }
+    pub fn get_at(&self, id: usize, path: &str, points: f32, node: i64) -> Option<Image> {
+        self.lookup(id, path, points, Some(node))
+    }
+    fn lookup(&self, id: usize, path: &str, points: f32, node: Option<i64>) -> Option<Image> {
         let quality = ((points.max(1.0) * self.density).ceil() as u32)
             .div_ceil(32)
             .saturating_mul(32)
@@ -160,7 +207,26 @@ impl Images {
         } else {
             None
         };
-        self.requests.borrow_mut().insert(id, path, quality);
+        let mut pending = self.pending.borrow_mut();
+        if let Some(key) = pending
+            .iter_mut()
+            .find(|wanted| wanted.key.id == id && wanted.node == node)
+        {
+            key.key.max_pixels = key.key.max_pixels.max(quality);
+        } else if id != 0
+            && !path.is_empty()
+            && pending.len() < CAPACITY
+            && let Some(path) = Query::new(path)
+        {
+            pending.push(Pending {
+                key: Key {
+                    id,
+                    path,
+                    max_pixels: quality,
+                },
+                node,
+            });
+        }
         image
     }
     pub fn oldest(&self) -> usize {
@@ -177,6 +243,11 @@ impl Images {
             })
     }
     pub fn insert(&mut self, index: usize, key: Key, image: Option<Image>) {
+        let mut pending = self.pending.borrow_mut();
+        pending.retain(|wanted| {
+            wanted.key.id != key.id || (image.is_some() && wanted.key.max_pixels > key.max_pixels)
+        });
+        drop(pending);
         self.remove(index);
         let tick = self.clock.get().saturating_add(1);
         self.clock.set(tick);
@@ -197,7 +268,7 @@ impl Images {
         }
         self.revision = self.revision.wrapping_add(1);
         self.epoch = self.epoch.wrapping_add(1);
-        self.begin_frame();
+        self.cancel_requests();
     }
     pub fn remove(&mut self, index: usize) {
         self.by_id.remove(&self.entries[index].id);
@@ -225,7 +296,7 @@ mod tests {
         );
         mem_sys::local_reset();
         for _ in 0..1000 {
-            images.begin_frame();
+            images.cancel_requests();
             assert!(images.get(1, path.as_str(), 184.0).is_none());
             assert!(
                 images.requests().keys().is_empty(),
@@ -240,6 +311,97 @@ mod tests {
         images.clear();
         assert_eq!(images.oldest(), 0);
         assert!(!Request::default().insert(1, &"x".repeat(1025), 512));
+    }
+    #[test]
+    fn only_final_visible_image_nodes_request_decodes_and_cached_nodes_keep_their_requests() {
+        let images = Images::default();
+        let mut ui = pxui::Ui::new().unwrap();
+        for frame in 0..2 {
+            ui.frame(
+                &pxui::FrameIn {
+                    width: 200.0,
+                    height: 100.0,
+                    time: frame as f64,
+                    ..Default::default()
+                },
+                &mut |ui| {
+                    for (id, y) in [
+                        (1, 0.0),
+                        (2, if frame == 0 { 300.0 } else { 50.0 }),
+                        (3, 130.0),
+                    ] {
+                        let node = ui.node(
+                            match id {
+                                1 => "visible",
+                                2 => "later",
+                                _ => "prefetch",
+                            },
+                            pxui::ui::Node {
+                                w: pxui::ui::Size::Px(30.0),
+                                h: pxui::ui::Size::Px(30.0),
+                                at: Some((0.0, y)).into(),
+                                ..pxui::ui::Node::DEFAULT
+                            },
+                        );
+                        if frame == 0 {
+                            images.get_at(id, "cover.png", 30.0, node.box_key);
+                        }
+                    }
+                },
+            )
+            .unwrap();
+            let packet = images.visible_requests(&ui);
+            assert_eq!(packet.keys().len(), if frame == 0 { 2 } else { 3 });
+            assert_eq!(packet.keys()[0].id, 1);
+        }
+        mem_sys::local_reset();
+        for _ in 0..1000 {
+            assert_eq!(images.visible_requests(&ui).keys().len(), 3);
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+        ui.frame(
+            &pxui::FrameIn {
+                width: 200.0,
+                height: 100.0,
+                time: 2.0,
+                ..Default::default()
+            },
+            &mut |_| {},
+        )
+        .unwrap();
+        assert!(
+            images.visible_requests(&ui).keys().is_empty(),
+            "retired provisional cells leave no pending work"
+        );
+    }
+    #[test]
+    fn retained_views_keep_pending_covers_until_completion_instead_of_starving_other_panels() {
+        let mut images = Images::default();
+        for id in 1..=12 {
+            images.get(id, "cover.png", 184.0);
+        }
+        assert_eq!(images.requests().keys().len(), REQUEST_CAPACITY);
+        // A cached album view makes no calls on this frame; a live player still asks for its cover.
+        images.get(100, "player.png", 30.0);
+        assert_eq!(images.requests().keys()[0].id, 1);
+        for id in 1..=8 {
+            let key = images.requests().keys()[0];
+            assert_eq!(key.id, id);
+            images.insert(id - 1, key, None);
+        }
+        assert_eq!(
+            images.requests().keys()[0].id,
+            9,
+            "visible requests beyond the first packet survive until delivery"
+        );
+        for id in 9..=12 {
+            images.get(id, "cover.png", 184.0);
+        }
+        images.get(100, "player.png", 30.0);
+        assert_eq!(images.requests().keys().len(), 5);
+        assert_eq!(images.requests().keys()[4].id, 100);
+        images.cancel_requests();
+        assert!(images.requests().keys().is_empty());
     }
     #[test]
     fn visible_galleries_larger_than_sixty_four_keep_all_descriptors_without_warm_allocations() {
@@ -260,7 +422,6 @@ mod tests {
                 }),
             );
         }
-        images.begin_frame();
         mem_sys::local_reset();
         for _ in 0..10 {
             for id in 1..=768 {
@@ -297,7 +458,6 @@ mod tests {
                 ..Default::default()
             }),
         );
-        images.begin_frame();
         assert!(images.get(1, "tiny.png", 184.0).is_some());
         assert!(
             images.requests().keys().is_empty(),

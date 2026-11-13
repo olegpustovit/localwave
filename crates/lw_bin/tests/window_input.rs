@@ -42,7 +42,6 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
         .sync_artwork(std::sync::Arc::as_ptr(&catalog.library) as usize, None)
         .unwrap();
     graphics.configure_artwork(1440.0, 872.0, 1.0).unwrap();
-    graphics.artwork.images.begin_frame();
     graphics.artwork.images.get(1, path, 360.0);
     worker.request(graphics.artwork.images.requests()).unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
@@ -66,7 +65,6 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
     assert_eq!(bytes, source.thumbnail.as_ref().unwrap().pixels);
     assert_eq!(graphics.artwork.resident_bytes(), 8 * 4 * 4);
     for frame in 0..24 {
-        graphics.artwork.images.begin_frame();
         let player = lw_ui::PlayerView {
             artwork: Some(&graphics.artwork.images),
             revision: frame,
@@ -110,9 +108,9 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
         assert!(graphics.artwork.images.requests().keys().is_empty());
     }
     let original = graphics.artwork.texture(1).unwrap().clone();
-    graphics.artwork.sync_library(42, 0).unwrap();
+    graphics.artwork.sync_library(42).unwrap();
     assert!(!ogpu_core::backend::texture_destroyed(&original));
-    graphics.artwork.retire_completed(0).unwrap();
+    graphics.retire_artwork(0).unwrap();
     assert!(!ogpu_core::backend::texture_destroyed(&original));
     for frame in 0..3 {
         let player = lw_ui::PlayerView {
@@ -130,6 +128,20 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
             &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut None),
         )
         .unwrap();
+        let image_quads: usize = ui
+            .layers()
+            .map(|layer| {
+                layer
+                    .instances
+                    .iter()
+                    .filter(|instance| instance.kind == pxui::draw::kind::IMAGE)
+                    .count()
+            })
+            .sum();
+        assert_eq!(
+            image_quads, 0,
+            "cleared artwork must not leave image instances"
+        );
         assert!(graphics.draw(&mut window, &ui).unwrap());
     }
     assert!(ogpu_core::backend::texture_destroyed(&original));

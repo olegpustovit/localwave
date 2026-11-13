@@ -45,6 +45,16 @@ void *lw_artwork_thumbnail(const char *path, uint32_t maxPixels, uint32_t *width
             if (readError || !data.length || data.length > 64 * 1024 * 1024 || (coordinated.size >= 0 && data.length != (uint64_t)coordinated.size)) return;
             CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, (__bridge CFDictionaryRef)@{ (__bridge NSString *)kCGImageSourceShouldCache: @NO });
             if (!source) return;
+            NSDictionary *properties = CFBridgingRelease(CGImageSourceCopyPropertiesAtIndex(source, 0, NULL));
+            NSNumber *sourceWidth = properties[(__bridge NSString *)kCGImagePropertyPixelWidth];
+            NSNumber *sourceHeight = properties[(__bridge NSString *)kCGImagePropertyPixelHeight];
+            uint64_t w = [sourceWidth isKindOfClass:NSNumber.class] ? sourceWidth.unsignedLongLongValue : 0;
+            uint64_t h = [sourceHeight isKindOfClass:NSNumber.class] ? sourceHeight.unsignedLongLongValue : 0;
+            if (!w || !h || w > 32768 || h > 32768 || w * h > 64 * 1024 * 1024) {
+                CFRelease(source);
+                readError = [NSError errorWithDomain:@"LocalWave.Artwork" code:1 userInfo:@{NSLocalizedDescriptionKey: @"Cover art exceeds its source pixel bound"}];
+                return;
+            }
             image = CGImageSourceCreateThumbnailAtIndex(source, 0, (__bridge CFDictionaryRef)@{
                 (__bridge NSString *)kCGImageSourceCreateThumbnailFromImageAlways: @YES,
                 (__bridge NSString *)kCGImageSourceCreateThumbnailWithTransform: @YES,

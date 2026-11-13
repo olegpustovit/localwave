@@ -172,5 +172,20 @@ mod tests {
                 .to_string()
                 .contains("64 MiB")
         );
+        let tiff =
+            include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/artwork-rotated.tiff");
+        for (width, height) in [(32769u32, 3u32), (30000, 30000)] {
+            let mut declared = tiff.to_vec();
+            // Width/height LONG values in this fixture's two IFD entries; leave pixel data tiny.
+            declared[18..22].copy_from_slice(&width.to_le_bytes());
+            declared[30..34].copy_from_slice(&height.to_le_bytes());
+            std::fs::write(&file, declared).unwrap();
+            assert!(
+                thumbnail(&file, 32)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("source pixel bound")
+            );
+        }
     }
 }

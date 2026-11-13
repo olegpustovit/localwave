@@ -185,6 +185,8 @@ fn run() -> Result<(), String> {
     let (mut frames, mut draws) = (0, 0);
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
     let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
+    let mut artwork_trace =
+        [(0usize, [0usize; 8], 0u64, 0u64, 0u64); WARMUP_FRAMES + MEASURED_FRAMES];
     let (mut min_artwork_quads, mut warm_artwork_requests) = (usize::MAX, 0usize);
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
@@ -321,13 +323,17 @@ fn run() -> Result<(), String> {
             } else {
                 0
             };
+            let allocations_before = if trace_frames {
+                mem_sys::local_alloc_count()
+            } else {
+                0
+            };
             let build_started = std::time::Instant::now();
             graphics.configure_artwork(
                 extent.logical.0 as f32,
                 extent.logical.1 as f32,
                 window.scale() as f32,
             )?;
-            graphics.artwork.images.begin_frame();
             let mut intent = None;
             let status = player.status();
             themes.apply(&mut ui, &status.settings, preferences);
@@ -373,7 +379,13 @@ fn run() -> Result<(), String> {
                 &mut |ui| lw_ui::shell(ui, &view, player.catalog(), &shell_state, &mut intent),
             )
             .map_err(|code| format!("Frame failed ({code})"))?;
+            let image_requests = graphics.artwork.images.visible_requests(&ui);
             let build_us = build_started.elapsed().as_micros();
+            let allocations_after = if trace_frames {
+                mem_sys::local_alloc_count()
+            } else {
+                0
+            };
             let cpu_us = if performance {
                 (lw_apple_sys::thread_cpu_time_ns().map_err(|error| error.to_string())?
                     - cpu_started)
@@ -385,7 +397,7 @@ fn run() -> Result<(), String> {
                 interval.finish(build_us as u64, cpu_us);
             }
             artwork
-                .request(graphics.artwork.images.requests())
+                .request(image_requests)
                 .map_err(|error| error.to_string())?;
             if performance_queue_drag && frames >= 2 {
                 let carrying = ui.carrying_ref();
@@ -425,6 +437,24 @@ fn run() -> Result<(), String> {
                     repaint = Some(now + 1.0 / 60.0);
                 }
             }
+            if trace_frames && performance_artwork {
+                let keys = image_requests;
+                let mut ids = [0usize; 8];
+                for (out, key) in ids.iter_mut().zip(keys.keys()) {
+                    *out = key.id;
+                }
+                artwork_trace[frames - 1] = (
+                    if artwork_updated {
+                        artwork.ready().map_or(0, |ready| ready.key.id)
+                    } else {
+                        0
+                    },
+                    ids,
+                    allocations_before,
+                    allocations_after - allocations_before,
+                    mem_sys::local_alloc_count() - allocations_after,
+                );
+            }
             if let Some(intent) = intent {
                 if matches!(
                     intent,
@@ -432,6 +462,7 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::TogglePanel
                         | lw_ui::Intent::CloseQueue
                 ) {
+                    graphics.artwork.images.cancel_requests();
                     artwork.cancel().map_err(|error| error.to_string())?;
                 }
                 let mut browse = None;
@@ -546,8 +577,7 @@ fn run() -> Result<(), String> {
                     })
                     .sum();
                 min_artwork_quads = min_artwork_quads.min(image_quads);
-                warm_artwork_requests =
-                    warm_artwork_requests.max(graphics.artwork.images.requests().keys().len());
+                warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
             }
             if performance && frames > WARMUP_FRAMES {
                 warm_allocations = warm_allocations.max(mem_sys::local_alloc_count());
@@ -566,6 +596,16 @@ fn run() -> Result<(), String> {
         if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
             let artwork_bytes = graphics.artwork.resident_bytes();
             graphics.close()?;
+            if trace_frames && performance_artwork {
+                for (frame, (ready, keys, host, build, draw)) in artwork_trace.iter().enumerate() {
+                    if *ready != 0 || *host + *build + *draw != 0 || keys[0] != 0 {
+                        println!(
+                            "LocalWave image diagnostic: frame={} ready={ready} keys={keys:?} allocs_host_build_draw={host}/{build}/{draw}",
+                            frame + 1
+                        );
+                    }
+                }
+            }
             if trace_frames {
                 let mut out = std::io::stdout().lock();
                 for (index, sample) in timings.iter().enumerate() {

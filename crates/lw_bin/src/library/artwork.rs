@@ -151,10 +151,6 @@ impl ArtworkWorker {
         })
     }
     pub fn request(&mut self, request: Request) -> io::Result<()> {
-        // Cached views need not call get() again while their first thumbnail is decoding.
-        if request.keys().is_empty() && request.epoch() == self.sent.epoch() {
-            return Ok(());
-        }
         self.send(request)
     }
     pub fn cancel(&mut self) -> io::Result<()> {
@@ -223,8 +219,8 @@ mod tests {
         let mut request = Request::default();
         request.insert(1, fixture.to_str().unwrap(), 512);
         worker.request(request).unwrap();
-        // A cached UI frame with no new queries must not cancel the decode it is waiting for.
-        worker.request(Request::default()).unwrap();
+        // Cached views keep their outstanding packet until the result is adopted.
+        worker.request(request).unwrap();
         let until = |worker: &mut ArtworkWorker, path: &str| {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
             loop {
