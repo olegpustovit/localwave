@@ -131,14 +131,14 @@ impl Graphics {
             self.renderer.as_mut().expect("Live graphics renderer"),
         )
     }
-    pub fn sync_artwork(
+    pub fn sync_artwork<'a>(
         &mut self,
         library: usize,
-        ready: Option<&lw_bin::library::ArtworkReady>,
+        ready: impl IntoIterator<Item = &'a lw_bin::library::ArtworkReady>,
     ) -> Result<bool, String> {
         self.retire_artwork(self.frames.completed())?;
         let mut changed = self.artwork.sync_library(library)?;
-        if let Some(ready) = ready {
+        for ready in ready {
             changed |= self.artwork.upload(&self.device, ready)?;
         }
         Ok(changed)

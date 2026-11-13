@@ -1,6 +1,7 @@
 use super::LibraryWorker;
 use lw_apple_sys::artwork::{self, Thumbnail};
-use lw_ui::artwork::{Key, Request};
+use lw_ui::artwork::{Key, REQUEST_CAPACITY, Request};
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
@@ -28,11 +29,14 @@ pub struct ArtworkReady {
     pub key: Key,
     pub thumbnail: Option<Thumbnail>,
 }
+type Batch = [Option<Arc<ArtworkReady>>; REQUEST_CAPACITY];
+const READY_BYTE_LIMIT: usize = 8 * 1024 * 1024;
+
 struct Mailbox {
     request: Option<Request>,
-    result: Option<Arc<ArtworkReady>>,
-    retired: Option<Arc<ArtworkReady>>,
-    final_result: Option<Arc<ArtworkReady>>,
+    results: VecDeque<Arc<ArtworkReady>>,
+    retired: Batch,
+    final_results: Batch,
     closed: bool,
 }
 struct Shared {
@@ -43,7 +47,7 @@ struct Shared {
 pub struct ArtworkWorker {
     shared: Arc<Shared>,
     worker: Option<JoinHandle<()>>,
-    result: Option<Arc<ArtworkReady>>,
+    results: Batch,
     sent: Request,
 }
 impl ArtworkWorker {
@@ -52,9 +56,9 @@ impl ArtworkWorker {
         let shared = Arc::new(Shared {
             mailbox: Mutex::new(Mailbox {
                 request: None,
-                result: None,
-                retired: None,
-                final_result: None,
+                results: VecDeque::with_capacity(REQUEST_CAPACITY),
+                retired: [const { None }; REQUEST_CAPACITY],
+                final_results: [const { None }; REQUEST_CAPACITY],
                 closed: false,
             }),
             changed: Condvar::new(),
@@ -70,36 +74,66 @@ impl ArtworkWorker {
                 let mut pending = Request::default();
                 let (mut next, mut revision) = (0, 0u64);
                 loop {
-                    let (key, retired, retry) = {
-                        let mut inbox = owner.mailbox.lock().unwrap();
-                        loop {
-                            if inbox.closed {
-                                let remaining = (
-                                    inbox.result.take(),
-                                    inbox.retired.take(),
-                                    inbox.final_result.take(),
-                                );
-                                drop(inbox);
-                                drop(remaining);
-                                return;
+                    let (key, retired, retry) =
+                        {
+                            let mut inbox = owner.mailbox.lock().unwrap();
+                            loop {
+                                if inbox.closed {
+                                    let remaining = (
+                                        std::mem::take(&mut inbox.results),
+                                        std::mem::replace(
+                                            &mut inbox.retired,
+                                            [const { None }; REQUEST_CAPACITY],
+                                        ),
+                                        std::mem::replace(
+                                            &mut inbox.final_results,
+                                            [const { None }; REQUEST_CAPACITY],
+                                        ),
+                                    );
+                                    drop(inbox);
+                                    drop(remaining);
+                                    return;
+                                }
+                                if let Some(request) = inbox.request.take() {
+                                    pending = request;
+                                    next = 0;
+                                }
+                                if inbox.retired.iter().any(Option::is_some) {
+                                    let retired = std::mem::replace(
+                                        &mut inbox.retired,
+                                        [const { None }; REQUEST_CAPACITY],
+                                    );
+                                    break (None, retired, !inbox.results.is_empty());
+                                }
+                                if let Some(key) = pending.keys().get(next).copied() {
+                                    if inbox.results.iter().any(|ready| {
+                                        ready.epoch == pending.epoch() && ready.key == key
+                                    }) {
+                                        next += 1;
+                                        continue;
+                                    }
+                                    let bytes: usize = inbox
+                                        .results
+                                        .iter()
+                                        .filter_map(|ready| ready.thumbnail.as_ref())
+                                        .map(|image| image.pixels.len())
+                                        .sum();
+                                    let required =
+                                        key.max_pixels as usize * key.max_pixels as usize * 4;
+                                    if inbox.results.len() < REQUEST_CAPACITY
+                                        && bytes + required <= READY_BYTE_LIMIT
+                                    {
+                                        next += 1;
+                                        break (
+                                            Some((key, pending.epoch())),
+                                            [const { None }; REQUEST_CAPACITY],
+                                            false,
+                                        );
+                                    }
+                                }
+                                inbox = owner.changed.wait(inbox).unwrap();
                             }
-                            if let Some(request) = inbox.request.take() {
-                                pending = request;
-                                next = 0;
-                            }
-                            let retired = inbox.retired.take();
-                            if retired.is_some() {
-                                break (None, retired, inbox.result.is_some());
-                            }
-                            if inbox.result.is_none()
-                                && let Some(key) = pending.keys().get(next).copied()
-                            {
-                                next += 1;
-                                break (Some((key, pending.epoch())), None, false);
-                            }
-                            inbox = owner.changed.wait(inbox).unwrap();
-                        }
-                    };
+                        };
                     drop(retired);
                     if retry {
                         (owner.wake)();
@@ -118,7 +152,7 @@ impl ArtworkWorker {
                             None
                         }
                     };
-                    revision = revision.wrapping_add(1);
+                    revision = revision.checked_add(1).expect("Artwork identity exhausted");
                     let ready = Arc::new(ArtworkReady {
                         revision,
                         epoch,
@@ -138,7 +172,7 @@ impl ArtworkWorker {
                         drop(ready);
                         continue;
                     }
-                    inbox.result = Some(ready);
+                    inbox.results.push_back(ready);
                     drop(inbox);
                     (owner.wake)();
                 }
@@ -146,7 +180,7 @@ impl ArtworkWorker {
         Ok(Self {
             shared,
             worker: Some(worker),
-            result: None,
+            results: [const { None }; REQUEST_CAPACITY],
             sent: Request::default(),
         })
     }
@@ -174,19 +208,22 @@ impl ArtworkWorker {
     }
     pub fn poll(&mut self) -> bool {
         let mut inbox = self.shared.mailbox.lock().unwrap();
-        if inbox.retired.is_some() {
+        if inbox.retired.iter().any(Option::is_some) || inbox.results.is_empty() {
             return false;
         }
-        let Some(ready) = inbox.result.take() else {
-            return false;
-        };
-        inbox.retired = self.result.replace(ready);
+        inbox.retired = std::mem::replace(&mut self.results, [const { None }; REQUEST_CAPACITY]);
+        for result in &mut self.results {
+            *result = inbox.results.pop_front();
+        }
         drop(inbox);
         self.shared.changed.notify_one();
         true
     }
     pub fn ready(&self) -> Option<&ArtworkReady> {
-        self.result.as_deref()
+        self.ready_images().last()
+    }
+    pub fn ready_images(&self) -> impl Iterator<Item = &ArtworkReady> {
+        self.results.iter().filter_map(Option::as_deref)
     }
 }
 impl Drop for ArtworkWorker {
@@ -194,7 +231,8 @@ impl Drop for ArtworkWorker {
         {
             let mut inbox = self.shared.mailbox.lock().unwrap();
             inbox.closed = true;
-            inbox.final_result = self.result.take();
+            inbox.final_results =
+                std::mem::replace(&mut self.results, [const { None }; REQUEST_CAPACITY]);
         }
         self.shared.changed.notify_one();
         if let Some(worker) = self.worker.take() {
@@ -240,7 +278,7 @@ mod tests {
         };
         until(&mut worker, fixture.to_str().unwrap());
         assert!(worker.ready().unwrap().thumbnail.is_some());
-        let old = Arc::downgrade(worker.result.as_ref().unwrap());
+        let old = Arc::downgrade(worker.results.iter().flatten().last().unwrap());
         let mut missing = Request::default();
         missing.insert(2, "not-present.png", 512);
         worker.request(missing).unwrap();
@@ -266,9 +304,10 @@ mod tests {
         let mut received = 0u8;
         while received != u8::MAX {
             if worker.poll() {
-                let ready = worker.ready().unwrap();
-                assert!(ready.thumbnail.is_some());
-                received |= 1 << (ready.key.id - 10);
+                for ready in worker.ready_images() {
+                    assert!(ready.thumbnail.is_some());
+                    received |= 1 << (ready.key.id - 10);
+                }
             }
             assert!(std::time::Instant::now() < deadline, "batch stalled");
             std::thread::yield_now();
@@ -288,9 +327,78 @@ mod tests {
             );
             std::thread::yield_now();
         }
-        let last = Arc::downgrade(worker.result.as_ref().unwrap());
+        let last = Arc::downgrade(worker.results.iter().flatten().last().unwrap());
         drop(worker);
         assert_eq!(last.strong_count(), 0);
+    }
+
+    #[test]
+    fn full_thumbnail_packet_finishes_before_the_ui_polls_and_retires_off_thread() {
+        extern "C" fn wake() {}
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../Tests/LocalWaveDataTests/Fixtures/artwork-rgba.png");
+        let mut worker =
+            ArtworkWorker::open(Some(fixture.parent().unwrap().to_owned()), wake).unwrap();
+        let mut request = Request::default();
+        for id in 1..=REQUEST_CAPACITY {
+            assert!(request.insert(id, fixture.to_str().unwrap(), 160));
+        }
+        worker.request(request).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        loop {
+            let inbox = worker.shared.mailbox.lock().unwrap();
+            if inbox.results.len() == REQUEST_CAPACITY {
+                assert!(inbox.results.iter().all(|ready| ready.thumbnail.is_some()));
+                let bytes: usize = inbox
+                    .results
+                    .iter()
+                    .map(|ready| ready.thumbnail.as_ref().unwrap().pixels.len())
+                    .sum();
+                assert!(bytes <= READY_BYTE_LIMIT);
+                break;
+            }
+            drop(inbox);
+            assert!(
+                std::time::Instant::now() < deadline,
+                "decoder still waits for a frame between covers"
+            );
+            std::thread::yield_now();
+        }
+        mem_sys::local_reset();
+        assert!(worker.poll());
+        assert_eq!(worker.ready_images().count(), REQUEST_CAPACITY);
+        assert_eq!(
+            mem_sys::local_alloc_count(),
+            0,
+            "batch delivery must not allocate on the UI thread"
+        );
+        let old: Vec<_> = worker
+            .results
+            .iter()
+            .flatten()
+            .map(Arc::downgrade)
+            .collect();
+        let mut missing = Request::default();
+        assert!(missing.insert(100, "not-present.png", 160));
+        worker.request(missing).unwrap();
+        loop {
+            worker.poll();
+            if worker.ready().is_some_and(|ready| ready.key.id == 100)
+                && old.iter().all(|ready| ready.strong_count() == 0)
+            {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "batch retirement or replacement stalled"
+            );
+            std::thread::yield_now();
+        }
+        assert!(worker.ready().unwrap().thumbnail.is_none());
+        worker.cancel().unwrap();
+        for _ in 0..1000 {
+            assert!(!worker.poll());
+        }
     }
 
     #[test]

@@ -263,7 +263,7 @@ fn run() -> Result<(), String> {
         let artwork_changed = artwork.poll();
         let artwork_updated = graphics.sync_artwork(
             std::sync::Arc::as_ptr(&player.catalog().library) as usize,
-            artwork.ready(),
+            artwork.ready_images(),
         )?;
         if performance && frames >= 2 {
             if performance_queue_drag {

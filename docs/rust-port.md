@@ -36,7 +36,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P1: core | Song model and raw states, masked UTF-8 FNV identity, Swift-compatible scalar lowercase, complete song hydration, additive song migrations, transactional song upsert and FTS updates, BM25 prefix search, Favorites, guarded cache updates, native FLAC comments/pictures, occurrence-based queue/reorder/shuffle/repeat/Clear/Undo and two-item prequeue selection. User/source/path/playlist repositories, transactional metadata/FTS removal, guarded bookmark/root replacement and source selection, SQLite.swift-compatible UTC text dates, indexed path rescans, album grouping without correlated rescans, and duplicate-preserving bulk reads without redundant Song copies. System SQLite through safe FFI. Indexed recursive import selection, transactional song/FTS/digest commits, pure import policy with progress/cancellation, cloud placeholders, verified-cache enrichment/invalidation, unchanged-file skipping and Unicode track-prefix cleanup. Thread-confined application scan/import service, generated-path exclusions, native bookmark/pin/cache-proof preferences, atomic scan publication and legacy-song relocation. LRU cache policy and a serialized application copy/eviction service with native coordinated copies and pin/playback protection. Native queue/volume/settings persistence, typed Swift-compatible playback contexts, duplicate-aware queue restoration, isolated UI-test suites and validated waveform JSON/SQLite storage. The application waveform service uses coordinated PCM extraction and Swift-compatible source signatures. | Library/import/catalog UI command integration, source observation; port coverage from all 18 SwiftPM test files. Fixture exchange does not qualify a full user library. |
 | P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. | Guarded playback-failure database updates and complete library/UI integration, Now Playing/media keys, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
-| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, and worker-loaded Album/Now/queue covers are implemented. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects; a late gallery load still appears in the final run. | Waveform UI delivery, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
+| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, and worker-loaded Album/Now/queue covers are implemented. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform UI delivery, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | No changes. | Static SDL device/simulator spike, Metal/host/touch port, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
@@ -1183,3 +1183,58 @@ qualify reliably completed loading. This remains an open application loading/per
 shared warmed wrapper reuse passes its focused native regression. All six workloads also miss the
 strict 1,000 µs wall maximum. No warm-up duration, allocation gate or timing threshold was relaxed,
 and no rerun was made to replace this failure. Log: `/tmp/localwave-rust-image-release-performance.log`.
+
+
+## Remove the one-cover-per-frame handoff (2026-11-13)
+
+The late-cover failure above was left open too early. The worker could publish only one completed
+thumbnail and had to wait for UI adoption before decoding the next. This serialized a grid of covers
+through repeated frame handoffs even when ImageIO could decode faster. The pre-change trace finished
+its uploads at frame **63**; the preceding complete run crossed frame 82 and recorded one late request
+and 12 allocations. Both results remain retained.
+
+The same worker now decodes ahead into a preallocated queue of at most **eight** results and
+**8 MiB** decoded RGBA. A UI poll drains a fixed batch and the GPU host uploads every new result in
+order. Already queued keys are skipped when requests coalesce. Monotonic revision rejection prevents
+replaying an older entry of the retained batch. Replaced pixel buffers move in fixed retirement
+batches and are released on the worker outside the mutex; retirement re-wakes a consumer when another
+batch is waiting. Request coalescing, stale-epoch rejection, negative caching, public pxui image
+caching and actual completed-GPU serial release remain in use. No decoder threads or dependencies
+were added. Incoming/current/retiring batches each hold at most 8 MiB of raw pixels; one in-progress
+thumbnail can add at most 4 MiB. These are payload bounds, not total native memory limits.
+
+Evidence for the final source:
+
+- A deterministic regression waits for **all eight requested covers to finish before any UI poll**,
+  then asserts one allocation-free batch adoption, bounded payload, replacement and off-thread
+  retirement. The old one-result pipeline cannot satisfy that condition.
+- The real Metal check requests eight covers, waits for all eight completions before polling, uploads
+  the batch, reads every texture's exact pixels, verifies allocation-free replay/build/draw, rejects
+  stale batch revival after invalidation, and checks actual completed-fence retirement.
+- **120 app checks pass in 11.050 s wall / 11.041 s summed**, zero skips. The native artwork case
+  takes **0.601 s**; controller **2.147 s**. Focused four-case artwork run: **5.821 / 1.595 s**
+  including compilation. Full suite was run once for this checkpoint.
+  Logs: `/tmp/localwave-artwork-batch-{all-tests,integration-fixed}.log`.
+- App Clippy with `-D warnings` passes in **10.32 s**. Formatting and diff whitespace checks pass.
+  No pxui source changed, so its ABI/dependency suites were not repeated.
+- Release library/app builds take **0.28/7.61 s**. Signatures, macOS minimum, default stack,
+  bundled dylib ID/rpath and smoke pass; one draw then **500.7 ms** idle.
+  Logs: `/tmp/localwave-artwork-batch-{clippy,bundle,bundle-check}.log`.
+
+Three predetermined, sequential signed gallery runs use the same **182 frames**, **82 warm-up
+frames**, **100 measured frames**, actual images and unchanged **1,000 µs** wall limit:
+
+| Run | Last cover upload frame | Warm requests / Rust allocations | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- | --- | --- |
+| 1 | 21 | 0 / 0 | 2227/448/1527/1916 | 566/437/541/566 |
+| 2 | 25 | 0 / 0 | 2022/505/1537/1833 | 637/444/591/629 |
+| 3 | 21 | 0 / 0 | 2727/471/1270/2103 | 627/431/553/574 |
+
+All three retain at least **18 actual image quads** and **3,756,032 resident texture bytes**.
+All pass the artwork working-set/allocation conditions and all still return exit 1 for the strict
+wall-time gate. No retries were used to replace a failed result, and no threshold, warm-up duration
+or workload was weakened. Logs: `/tmp/localwave-artwork-batch-gallery-{1,2,3}.log`; pre-change trace:
+`/tmp/localwave-artwork-late-reproduction.log`. This verifies the bounded delivery fix for the tested
+local gallery. Cold decode/upload still allocates. Provider/device behavior, native memory, stable
+latency and the full port remain unfinished. Normal GUI PID 69331 and its library/defaults were
+left untouched.

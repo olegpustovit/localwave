@@ -18,7 +18,9 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
             .unwrap();
     let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
     let mut graphics = gpu::Graphics::open(&mut window, &ui).unwrap();
+    static DECODED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     extern "C" fn wake() {
+        DECODED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         pxui_sdl::wake();
     }
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -42,29 +44,48 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
         .sync_artwork(std::sync::Arc::as_ptr(&catalog.library) as usize, None)
         .unwrap();
     graphics.configure_artwork(1440.0, 872.0, 1.0).unwrap();
-    graphics.artwork.images.get(1, path, 360.0);
+    for id in 1..=lw_ui::artwork::REQUEST_CAPACITY {
+        graphics.artwork.images.get(id, path, 360.0);
+    }
     worker.request(graphics.artwork.images.requests()).unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-    while !worker.poll() {
+    while DECODED.load(std::sync::atomic::Ordering::SeqCst) < lw_ui::artwork::REQUEST_CAPACITY {
         assert!(
             std::time::Instant::now() < deadline,
             "artwork worker timed out"
         );
         std::thread::yield_now();
     }
-    let source = worker.ready().unwrap();
-    assert!(source.thumbnail.is_some());
+    assert!(worker.poll());
+    assert_eq!(
+        worker.ready_images().count(),
+        lw_ui::artwork::REQUEST_CAPACITY
+    );
     graphics
         .sync_artwork(
             std::sync::Arc::as_ptr(&catalog.library) as usize,
-            Some(source),
+            worker.ready_images(),
         )
         .unwrap();
-    let texture = graphics.artwork.texture(1).unwrap();
-    let bytes = ogpu_core::backend::read_texture(texture, 8 * 4).unwrap();
-    assert_eq!(bytes, source.thumbnail.as_ref().unwrap().pixels);
-    assert_eq!(graphics.artwork.resident_bytes(), 8 * 4 * 4);
+    for source in worker.ready_images() {
+        let texture = graphics.artwork.texture(source.key.id).unwrap();
+        let bytes = ogpu_core::backend::read_texture(texture, 8 * 4).unwrap();
+        assert_eq!(bytes, source.thumbnail.as_ref().unwrap().pixels);
+    }
+    assert_eq!(
+        graphics.artwork.resident_bytes(),
+        8 * 4 * 4 * lw_ui::artwork::REQUEST_CAPACITY
+    );
     for frame in 0..24 {
+        mem_sys::local_reset();
+        assert!(
+            !graphics
+                .sync_artwork(
+                    std::sync::Arc::as_ptr(&catalog.library) as usize,
+                    worker.ready_images()
+                )
+                .unwrap()
+        );
         let player = lw_ui::PlayerView {
             artwork: Some(&graphics.artwork.images),
             revision: frame,
@@ -74,7 +95,6 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
             position: frame as f64,
             ..Default::default()
         };
-        mem_sys::local_reset();
         ui.frame(
             &pxui::FrameIn {
                 width: 1440.0,
@@ -109,6 +129,13 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
     }
     let original = graphics.artwork.texture(1).unwrap().clone();
     graphics.artwork.sync_library(42).unwrap();
+    assert!(!graphics.sync_artwork(42, worker.ready_images()).unwrap());
+    for id in 1..=lw_ui::artwork::REQUEST_CAPACITY {
+        assert!(
+            graphics.artwork.images.quality(id).is_none(),
+            "a replayed batch must not resurrect evicted covers"
+        );
+    }
     assert!(!ogpu_core::backend::texture_destroyed(&original));
     graphics.retire_artwork(0).unwrap();
     assert!(!ogpu_core::backend::texture_destroyed(&original));

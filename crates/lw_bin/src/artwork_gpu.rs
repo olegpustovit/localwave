@@ -100,7 +100,7 @@ impl ArtworkCache {
         Ok(true)
     }
     pub fn upload(&mut self, device: &be::Device, ready: &ArtworkReady) -> Result<bool, String> {
-        if self.seen == ready.revision {
+        if ready.revision <= self.seen {
             return Ok(false);
         }
         if ready.epoch != self.images.epoch() {
