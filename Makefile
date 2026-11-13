@@ -40,4 +40,5 @@ performance: bundle
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artwork || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-waveform || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-settings || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-files || performance_result=1; \
 	  exit "$$performance_result"

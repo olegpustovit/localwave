@@ -31,7 +31,14 @@ fn context(ui: &Ui, node: &Handle, menu: SettingsMenu, intent: &mut Option<Inten
         *intent = Some(Intent::SettingsMenu(menu, signal.pointer));
     }
 }
-fn paragraph(ui: &mut Ui, key: &str, value: &str, width: f32, size: f32, color: Rgba) -> Handle {
+pub(super) fn paragraph(
+    ui: &mut Ui,
+    key: &str,
+    value: &str,
+    width: f32,
+    size: f32,
+    color: Rgba,
+) -> Handle {
     let style = pxui::TextStyle {
         size_points: size,
         line_height: size * 1.4,
@@ -41,7 +48,7 @@ fn paragraph(ui: &mut Ui, key: &str, value: &str, width: f32, size: f32, color: 
     let metrics = ui
         .text_service()
         .measure(
-            Ui::key_of(0x5e771, key) as u64,
+            Ui::key_of(Ui::key_of(0x5e771, key), value) as u64,
             value,
             &style,
             width.max(1.0),
@@ -773,7 +780,7 @@ mod tests {
         for round in 0..8 {
             mem_sys::local_reset();
             let mut trace = [(0u64, 0u64); 18];
-            let mut index = 0;
+            let mut index = 0usize;
             for cache_gb in [2, 32] {
                 player.settings.cache_gb = cache_gb;
                 for menu in [
@@ -784,6 +791,7 @@ mod tests {
                     state.settings_menu = menu.map(|menu| (menu, (500.0, 200.0)));
                     state.revision += 1;
                     for _ in 0..3 {
+                        player.storage_busy = index.is_multiple_of(2);
                         player.revision += 1;
                         player.position = player.revision as f64;
                         frame.time += 0.02;

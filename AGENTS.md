@@ -229,3 +229,23 @@ listing and current selection to that user; revalidate the expected account befo
 let the repository transaction reject foreign sources. Preserve the Swift-generated fixture,
 signed-out/resumed account selection and stale/foreign rejection checks. Files UI/pickers/rescan
 and real account/provider transitions remain unqualified.
+
+Files uses its own lazy LibraryWorker/SQLite connection so enumeration/import cannot occupy the
+playback worker. Keep one coalesced browse request, one bounded mutation, explicit cancellation,
+worker-formatted progress and immutable row snapshots retired on the worker. Add-folder registration
+validates its bookmark and generated-path exclusions before atomically saving the grant and current
+selection; preserve the selected path's Swift identity when bookmark resolution changes /var aliases.
+Use the existing asynchronous SDL folder picker, match its exact request ID once and retain the
+account captured when it opened. SDL completion must wake the idle host for every outcome.
+Rescan from a nested directory indexes/imports the whole source. Cancelled scans keep the previous
+index; completed per-file imports remain. Completion/cancellation invalidates the controller catalog.
+The ninth signed workload uses 10,000 indexed fixture paths and verifies actual virtualized draws;
+preserve the existing eight workloads and unchanged allocation/wall-time/warm-up gates. Audio-file
+selection, reconnect/removal, automatic observation and real sandbox/provider/device qualification
+remain unfinished; do not present these as completed by the folder workflow.
+
+Wrapped paragraph measurement keys include their text, as recurring busy/ready cache summaries
+must retain separate layouts. Keep the Settings regression alternating storage_busy within its
+original 18 samples/round and unchanged warm-up; a coalesced real worker reply can otherwise hide
+the collision. Hidden Files progress must not change the library draw revision or force frames;
+catalog changes from completed imports still pass through the existing controller refresh.

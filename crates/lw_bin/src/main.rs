@@ -32,6 +32,24 @@ fn run() -> Result<(), String> {
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
     let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
+    let performance_files = std::env::args().any(|arg| arg == "--performance-files");
+    if performance_files
+        && (!performance
+            || std::env::args().any(|arg| {
+                matches!(
+                    arg.as_str(),
+                    "--performance-settings"
+                        | "--performance-find"
+                        | "--performance-waveform"
+                        | "--performance-artwork"
+                        | "--performance-queue"
+                        | "--performance-queue-drag"
+                        | "--performance-queue-sheet"
+                )
+            }))
+    {
+        return Err("--performance-files requires --performance-check and its own workload".into());
+    }
     if performance_settings
         && (!performance
             || std::env::args().any(|arg| {
@@ -43,6 +61,7 @@ fn run() -> Result<(), String> {
                         | "--performance-queue"
                         | "--performance-queue-drag"
                         | "--performance-queue-sheet"
+                        | "--performance-files"
                 )
             }))
     {
@@ -127,7 +146,7 @@ fn run() -> Result<(), String> {
                     "com.olegpustovit.localwave.{}",
                     base.file_name().unwrap().to_string_lossy()
                 );
-                let library = LibraryWorker::open(
+                let mut library = LibraryWorker::open(
                     &base.join("library.sqlite"),
                     lw_apple_sys::preferences::Preferences::open(Some(&suite))?,
                     lw_apple_sys::preferences::AppPaths {
@@ -149,6 +168,9 @@ fn run() -> Result<(), String> {
                         smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
                     }
                     smoke::seed_waveform(&base.join("Caches"))?;
+                    if performance_files {
+                        smoke::seed_files(&mut library)?;
+                    }
                     library.save_player_state(&lw_core::preferences::PlayerState {
                         song_ids: if performance_queue {
                             (1..=10_000).collect()
@@ -173,7 +195,31 @@ fn run() -> Result<(), String> {
         wake,
     )
     .map_err(|error| error.to_string())?;
-    // Both workers are already spawned, so they do not inherit the UI's interactive QoS.
+    let files_base = fixture.0.clone();
+    let mut files = lw_bin::files::FilesWorker::open(
+        move || {
+            if let Some(base) = files_base {
+                LibraryWorker::open(
+                    &base.join("library.sqlite"),
+                    lw_apple_sys::preferences::Preferences::open(Some(&format!(
+                        "com.olegpustovit.localwave.{}",
+                        base.file_name().unwrap().to_string_lossy()
+                    )))?,
+                    lw_apple_sys::preferences::AppPaths {
+                        documents: base.join("Documents"),
+                        caches: base.join("Caches"),
+                        temporary: base.join("tmp"),
+                        test_database: None,
+                    },
+                )
+            } else {
+                LibraryWorker::current()
+            }
+        },
+        wake,
+    )
+    .map_err(|error| error.to_string())?;
+    // Workers do not inherit the UI's interactive QoS.
     lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
     if smoke || performance {
         let deadline = window.time() + 5.0;
@@ -225,6 +271,7 @@ fn run() -> Result<(), String> {
     let mut frame_trace =
         [(0usize, [0usize; 8], 0u64, 0u64, 0u64, [0u64; 4], 0u64); WARMUP_FRAMES + MEASURED_FRAMES];
     let (mut min_artwork_quads, mut warm_artwork_requests) = (usize::MAX, 0usize);
+    let (mut min_files_rows, mut max_files_rows) = (usize::MAX, 0usize);
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
     let mut shell_state = lw_ui::ShellState::default();
@@ -233,6 +280,47 @@ fn run() -> Result<(), String> {
         player
             .command(Command::ReadStorage)
             .map_err(|error| error.to_string())?;
+    }
+    if performance_files {
+        use lw_ui::files::{Location, Request};
+        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+        files
+            .request(Request::Roots)
+            .map_err(|error| error.to_string())?;
+        let deadline = window.time() + 5.0;
+        let mut browsing = false;
+        loop {
+            files.poll();
+            let snapshot = files.snapshot();
+            if !browsing
+                && let Some(user) = snapshot.account
+                && let Some(source) = snapshot.sources.first()
+            {
+                files
+                    .request(Request::Browse(Location {
+                        user,
+                        source: source.id,
+                        parent: None,
+                    }))
+                    .map_err(|error| error.to_string())?;
+                browsing = true;
+            }
+            if files
+                .snapshot()
+                .directory
+                .as_ref()
+                .is_some_and(|directory| directory.entries.len() == 10_000)
+            {
+                break;
+            }
+            if window.time() >= deadline {
+                return Err(format!(
+                    "Files fixture preparation failed: {}",
+                    files.snapshot().message
+                ));
+            }
+            window.wait(Some(window.time() + 0.05));
+        }
     }
     if performance_artwork {
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
@@ -289,6 +377,8 @@ fn run() -> Result<(), String> {
         ));
     }
     let mut error_revision = 0;
+    let mut folder_picker = None;
+    let mut files_catalog_revision = 0;
     loop {
         if performance {
             mem_sys::local_reset();
@@ -300,12 +390,29 @@ fn run() -> Result<(), String> {
         if let Some(error) = window.take_failure() {
             return Err(error);
         }
+        if let Some(selection) = events::folder_selection(&mut folder_picker, &mut events) {
+            command_error = match selection {
+                Ok(None) => None,
+                Ok(Some((user, path))) => files
+                    .add_folder(user, path)
+                    .err()
+                    .map(|_| "Could not add this folder. Try again."),
+                Err(message) => Some(message),
+            };
+            error_revision += 1;
+        }
         let next_preferences = environment.snapshot();
         let preferences_changed = next_preferences != preferences;
         preferences = next_preferences;
         let player_changed = player
             .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
             .map_err(|error| error.to_string())?;
+        let files_changed = files.poll() && shell_state.files_visible();
+        if files.snapshot().catalog_revision != files_catalog_revision
+            && player.command(Command::RefreshCatalog).is_ok()
+        {
+            files_catalog_revision = files.snapshot().catalog_revision;
+        }
         let artwork_changed = artwork.poll();
         let artwork_updated = graphics.sync_artwork(
             std::sync::Arc::as_ptr(&player.catalog().library) as usize,
@@ -361,6 +468,7 @@ fn run() -> Result<(), String> {
             || resized
             || !events.is_empty()
             || player_changed
+            || files_changed
             || artwork_changed
             || artwork_updated
             || preferences_changed
@@ -397,6 +505,7 @@ fn run() -> Result<(), String> {
             }
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
+                files: Some(files.snapshot()),
                 settings: status.settings,
                 cache_usage: &status.cache_usage,
                 settings_message: &status.settings_message,
@@ -548,6 +657,40 @@ fn run() -> Result<(), String> {
                 }
             }
             if let Some(intent) = intent {
+                if let lw_ui::Intent::Files(request) = intent {
+                    command_error = files
+                        .request(request)
+                        .err()
+                        .map(|_| "Folder work is busy or unavailable. Try again.");
+                    error_revision += 1;
+                    repaint = Some(now);
+                    continue;
+                }
+                if intent == lw_ui::Intent::ChooseFolder {
+                    if folder_picker.is_none()
+                        && let Some(user) = files.snapshot().account
+                    {
+                        match window.show_dialog(&[], None, pxui_sdl::DialogKind::OpenFolder) {
+                            Ok(id) => {
+                                folder_picker = Some((id, user));
+                                command_error = None;
+                            }
+                            Err(_) => {
+                                command_error = Some("Could not open the folder picker.");
+                            }
+                        }
+                        error_revision += 1;
+                        repaint = Some(now);
+                    }
+                    continue;
+                }
+                if intent == lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files) {
+                    command_error = files
+                        .request(lw_ui::files::Request::Roots)
+                        .err()
+                        .map(|_| "Folders are unavailable. Try again.");
+                    error_revision += 1;
+                }
                 if matches!(
                     intent,
                     lw_ui::Intent::Navigate(_)
@@ -666,6 +809,9 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::PrivacyPolicy | lw_ui::Intent::Support => {
                             unreachable!("handled above")
                         }
+                        lw_ui::Intent::Files(_) | lw_ui::Intent::ChooseFolder => {
+                            unreachable!("handled above")
+                        }
                     })
                 };
                 let result = if let Some(request) = browse {
@@ -723,6 +869,19 @@ fn run() -> Result<(), String> {
                     .sum();
                 min_artwork_quads = min_artwork_quads.min(image_quads);
                 warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
+            }
+            if performance_files && frames > WARMUP_FRAMES {
+                let rows = ui
+                    .layers()
+                    .flat_map(|layer| layer.instances.iter())
+                    .filter(|instance| {
+                        instance.kind == pxui::draw::kind::RECT
+                            && (instance.rect[2] - instance.rect[0] - 72.0).abs() < 0.01
+                            && (instance.rect[3] - instance.rect[1] - 36.0).abs() < 0.01
+                    })
+                    .count();
+                min_files_rows = min_files_rows.min(rows);
+                max_files_rows = max_files_rows.max(rows);
             }
             if performance && frames > WARMUP_FRAMES {
                 let bars = ui
@@ -784,6 +943,8 @@ fn run() -> Result<(), String> {
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
                 if performance_settings {
                     "settings-menus-appearance"
+                } else if performance_files {
+                    "files-indexed-directory"
                 } else if performance_waveform {
                     "waveform-scrub-and-scroll"
                 } else if performance_artwork {
@@ -809,6 +970,14 @@ fn run() -> Result<(), String> {
                 );
                 if settings_changes != 45 || settings_themes != 255 {
                     return Err("Settings workload missed an action or theme".into());
+                }
+            }
+            if performance_files {
+                println!(
+                    "LocalWave files: indexed_rows=10000 min_drawn_rows={min_files_rows} max_drawn_rows={max_files_rows}"
+                );
+                if min_files_rows < 8 || max_files_rows > 40 {
+                    return Err("Files workload did not draw its virtualized rows".into());
                 }
             }
             if performance_waveform && (waveform_seeks != 9 || min_waveform_bars < 200) {

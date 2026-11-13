@@ -14,6 +14,55 @@ fn cloud_identity_reads_reject_the_initial_thread() {
     assert!(lw_apple_sys::cloud::current_identity().is_err());
 }
 
+fn native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once() {
+    // Initial-thread AppKit/SDL startup can exceed one second; no real picker or timed wait is used.
+    let mut window = pxui_sdl::Window::open_with(
+        "LocalWave folder delivery check",
+        800,
+        600,
+        false,
+        true,
+        true,
+    )
+    .unwrap();
+    let mut events = Vec::with_capacity(32);
+    assert!(window.pump(&mut events));
+    let chosen = sdl3_sys::test_util::dialog_reserve();
+    let mut pending = Some((i64::from(chosen), 42));
+    assert!(sdl3_sys::test_util::dialog_finish(
+        chosen,
+        Some(&["/Music/名前"])
+    ));
+    assert!(sdl3_sys::wait_event_timeout(0));
+    events.clear();
+    assert!(window.pump(&mut events));
+    assert_eq!(
+        events::folder_selection(&mut pending, &mut events),
+        Some(Ok(Some((42, "/Music/名前".into()))))
+    );
+    assert!(events::folder_selection(&mut pending, &mut events).is_none());
+    for failed in [false, true] {
+        let id = sdl3_sys::test_util::dialog_reserve();
+        pending = Some((i64::from(id), 43));
+        assert!(if failed {
+            sdl3_sys::test_util::dialog_fail(id)
+        } else {
+            sdl3_sys::test_util::dialog_finish(id, Some(&[]))
+        });
+        assert!(sdl3_sys::wait_event_timeout(0));
+        events.clear();
+        assert!(window.pump(&mut events));
+        let result = events::folder_selection(&mut pending, &mut events).unwrap();
+        if failed {
+            assert!(result.is_err());
+        } else {
+            assert_eq!(result, Ok(None));
+        }
+        assert!(pending.is_none());
+    }
+    window.destroy().unwrap();
+}
+
 fn media_commands_wait_for_controller_capacity_without_losing_accepted_events() {
     use lw_apple_sys::preferences::{AppPaths, Preferences};
     use lw_bin::{
@@ -550,6 +599,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once",
+            native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once,
+        ),
         (
             "cloud_identity_reads_reject_the_initial_thread",
             cloud_identity_reads_reject_the_initial_thread,

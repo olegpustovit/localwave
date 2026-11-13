@@ -1,7 +1,12 @@
 //! Source ownership follows the same secure iCloud identity as the shipping Swift app.
-use super::{LibraryWorker, db};
+use super::{LibraryWorker, Root, check, db, text};
+use lw_apple_sys::{
+    bookmarks::{self, Access},
+    preferences::file_path,
+    scan::Scan,
+};
 use lw_core::{Source, User, hash_string};
-use std::io;
+use std::{io, path::Path, sync::atomic::AtomicBool};
 
 pub struct SourceAccount {
     pub user: User,
@@ -41,9 +46,101 @@ impl LibraryWorker {
 
     /// Reject requests from an older account snapshot before changing any source selection.
     pub fn select_source(&mut self, expected_user: i64, source_id: i64) -> io::Result<Source> {
+        let user = self.current_source_user(expected_user)?;
+        self.select_source_for_user(&user, expected_user, source_id)
+    }
+
+    fn current_source_user(&mut self, expected_user: i64) -> io::Result<User> {
         let encoded = lw_apple_sys::cloud::current_identity()?;
         let user = self.user_for_identity(encoded.as_deref())?;
-        self.select_source_for_user(&user, expected_user, source_id)
+        require_user(&user, expected_user)?;
+        Ok(user)
+    }
+
+    pub fn owned_source(&mut self, expected_user: i64, source_id: i64) -> io::Result<Source> {
+        self.current_source_user(expected_user)?;
+        let source = self
+            .repository
+            .source(source_id)
+            .map_err(db)?
+            .ok_or_else(|| io::Error::other("This music source was removed"))?;
+        if source.user_id != expected_user {
+            return Err(io::Error::new(
+                io::ErrorKind::PermissionDenied,
+                "This source belongs to another account",
+            ));
+        }
+        Ok(source)
+    }
+
+    /// Validate access and generated-path exclusions before committing a bookmark or selection.
+    pub fn register_folder(
+        &mut self,
+        expected_user: i64,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+    ) -> io::Result<Source> {
+        let user = self.current_source_user(expected_user)?;
+        self.register_folder_for_user(&user, expected_user, folder, now, cancelled)
+    }
+
+    fn register_folder_for_user(
+        &mut self,
+        user: &User,
+        expected_user: i64,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+    ) -> io::Result<Source> {
+        require_user(user, expected_user)?;
+        check(cancelled)?;
+        if !now.is_finite() || !folder.is_absolute() {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "Expected an absolute folder and finite date",
+            ));
+        }
+        let bookmark = bookmarks::create(folder)?;
+        if bookmark.len() > 64 * 1024 * 1024 {
+            return Err(io::Error::other("Bookmark exceeds its memory limit"));
+        }
+        let access = Access::resolve(&bookmark)?;
+        drop(Scan::open(&access, folder, &self.excluded)?);
+        let url = lw_apple_sys::normalized_file_url(text(folder)?)?;
+        let key = hash_string(&url);
+        // Keep a legacy file-URL spelling so reselecting the same Swift folder reuses its row.
+        let existing = self
+            .repository
+            .sources(user.id)
+            .map_err(db)?
+            .into_iter()
+            .find(|source| {
+                source.path_id == key
+                    && file_path(&source.dir_path).is_ok_and(|path| {
+                        text(&path)
+                            .ok()
+                            .and_then(|path| lw_apple_sys::normalized_file_url(path).ok())
+                            .as_deref()
+                            == Some(url.as_str())
+                    })
+            });
+        let directory = existing
+            .as_ref()
+            .map_or_else(|| text(folder), |source| Ok(source.dir_path.as_str()))?;
+        check(cancelled)?;
+        let source = self
+            .repository
+            .register_source_folder(user.id, directory, key, &bookmark, now)
+            .map_err(db)?;
+        self.preferences.set_bookmark(key, Some(&bookmark))?;
+        self.roots.insert(
+            source
+                .id
+                .ok_or_else(|| io::Error::other("Source is not saved"))?,
+            Root { bookmark, access },
+        );
+        Ok(source)
     }
 
     fn select_source_for_user(
@@ -52,22 +149,131 @@ impl LibraryWorker {
         expected_user: i64,
         source_id: i64,
     ) -> io::Result<Source> {
-        if user.id != expected_user {
-            return Err(io::Error::new(
-                io::ErrorKind::PermissionDenied,
-                "The iCloud account changed. Reload folders.",
-            ));
-        }
+        require_user(user, expected_user)?;
         self.repository
             .set_current_source(user.id, source_id)
             .map_err(db)
     }
 }
 
+fn require_user(user: &User, expected: i64) -> io::Result<()> {
+    if user.id == expected {
+        return Ok(());
+    }
+    Err(io::Error::new(
+        io::ErrorKind::PermissionDenied,
+        "The iCloud account changed. Reload folders.",
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use lw_apple_sys::preferences::{AppPaths, Preferences};
+    #[test]
+    fn folder_registration_validates_grants_exclusions_cancellation_and_legacy_identity() {
+        let base = std::env::temp_dir().join(format!("lw-register-folder-{}", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(base.clone());
+        let original = base.join("Música 名前");
+        let documents = base.join("Documents");
+        std::fs::create_dir_all(&original).unwrap();
+        std::fs::create_dir_all(documents.join("CoverArt")).unwrap();
+        std::fs::write(
+            original.join("audio.flac"),
+            include_bytes!("../../../../Tests/LocalWaveDataTests/Fixtures/tagged.flac"),
+        )
+        .unwrap();
+        let mut worker = LibraryWorker::open(
+            &base.join("library.sqlite"),
+            Preferences::open(Some(&format!(
+                "localwave.register-folder.{}",
+                std::process::id()
+            )))
+            .unwrap(),
+            AppPaths {
+                documents: documents.clone(),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+        )
+        .unwrap();
+        let user = worker.user_for_identity(None).unwrap();
+        let other = worker.user_for_identity(Some("other")).unwrap();
+        let url = lw_apple_sys::normalized_file_url(original.to_str().unwrap()).unwrap();
+        let key = hash_string(&url);
+        let legacy = worker
+            .repository
+            .create_source(&Source {
+                user_id: user.id,
+                dir_path: url.clone(),
+                path_id: key,
+                created_at: 1.0,
+                ..Source::default()
+            })
+            .unwrap();
+        let cancel = AtomicBool::new(false);
+        let registered = worker
+            .register_folder_for_user(&user, user.id, &original, 2.0, &cancel)
+            .unwrap();
+        assert_eq!(registered.id, legacy.id);
+        assert_eq!(registered.dir_path, url);
+        assert!(registered.is_current);
+        assert!(
+            registered
+                .bookmark
+                .as_ref()
+                .is_some_and(|bookmark| !bookmark.is_empty())
+        );
+        assert_eq!(
+            worker.preferences.bookmark(key).unwrap(),
+            registered.bookmark
+        );
+        assert_eq!(worker.repository.sources(user.id).unwrap().len(), 1);
+        assert_eq!(worker.roots.len(), 1);
+        let saved = registered.clone();
+        for invalid in [
+            documents.join("CoverArt"),
+            original.join("audio.flac"),
+            base.join("missing"),
+            std::path::PathBuf::from("relative"),
+        ] {
+            assert!(
+                worker
+                    .register_folder_for_user(&user, user.id, &invalid, 3.0, &cancel)
+                    .is_err()
+            );
+        }
+        assert!(
+            worker
+                .register_folder_for_user(&user, user.id, &original, f64::NAN, &cancel)
+                .is_err()
+        );
+        assert_eq!(
+            worker
+                .register_folder_for_user(&other, user.id, &original, 3.0, &cancel)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(
+            worker
+                .register_folder_for_user(&user, user.id, &original, 3.0, &cancel)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::Interrupted
+        );
+        assert_eq!(worker.repository.sources(user.id).unwrap(), [saved]);
+        assert!(worker.repository.sources(other.id).unwrap().is_empty());
+    }
+
     #[test]
     fn source_accounts_preserve_swift_identity_current_selection_and_other_account_folders() {
         let base = std::env::temp_dir().join(format!("lw-source-account-{}", std::process::id()));

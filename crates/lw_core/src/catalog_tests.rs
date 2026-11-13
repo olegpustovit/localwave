@@ -379,6 +379,60 @@ fn playlist_membership_order_dates_duplicate_adds_and_rollback() {
 }
 
 #[test]
+fn folder_registration_reuses_owners_rows_and_rolls_back_bookmark_and_selection_together() {
+    let mut repo = LibraryRepository::open(":memory:").unwrap();
+    let user = repo.get_or_create_user(-1).unwrap();
+    let other = repo.get_or_create_user(42).unwrap();
+    let first = repo
+        .register_source_folder(user.id, "/first", 1, &[1], 100.125)
+        .unwrap();
+    let second = repo
+        .register_source_folder(user.id, "/second", 2, &[2], 101.0)
+        .unwrap();
+    let foreign = repo
+        .register_source_folder(other.id, "/first", 1, &[3], 102.0)
+        .unwrap();
+    let renewed = repo
+        .register_source_folder(user.id, "/first", 1, &[4], 103.25)
+        .unwrap();
+    assert_eq!(first.id, renewed.id);
+    assert_eq!(renewed.created_at, first.created_at);
+    assert_eq!(renewed.updated_at, Some(103.25));
+    assert_eq!(renewed.bookmark, Some(vec![4]));
+    assert_eq!(renewed.source_type.as_deref(), Some("iCloud"));
+    assert_eq!(repo.sources(user.id).unwrap().len(), 2);
+    assert!(!repo.source(second.id.unwrap()).unwrap().unwrap().is_current);
+    assert_eq!(repo.source(foreign.id.unwrap()).unwrap(), Some(foreign));
+    repo.db.execute_batch("CREATE TEMP TRIGGER refuse_source_selection BEFORE UPDATE OF isCurrent ON sources BEGIN SELECT RAISE(FAIL,'injected selection failure'); END").unwrap();
+    assert!(
+        repo.register_source_folder(user.id, "/third", 3, &[5], 104.0)
+            .is_err()
+    );
+    assert!(
+        repo.register_source_folder(user.id, "/second", 2, &[6], 104.0)
+            .is_err()
+    );
+    assert_eq!(repo.sources(user.id).unwrap().len(), 2);
+    assert_eq!(repo.source(first.id.unwrap()).unwrap().unwrap(), renewed);
+    assert_eq!(
+        repo.source(second.id.unwrap()).unwrap().unwrap().bookmark,
+        Some(vec![2])
+    );
+    assert!(
+        repo.register_source_folder(user.id, "/first", 1, &[9], f64::NAN)
+            .is_err()
+    );
+    assert!(
+        repo.register_source_folder(user.id, "/first", 1, &[], 104.0)
+            .is_err()
+    );
+    assert!(
+        repo.register_source_folder(9999, "/missing", 9, &[9], 104.0)
+            .is_err()
+    );
+}
+
+#[test]
 fn users_source_ownership_bookmark_compare_and_swap_and_reconnect() {
     let mut repo = LibraryRepository::open(":memory:").unwrap();
     let user = repo.get_or_create_user(12345).unwrap();

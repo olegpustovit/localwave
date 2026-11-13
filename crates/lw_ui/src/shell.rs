@@ -4,6 +4,7 @@ use crate::{Intent, PlayerView};
 use pxui::ui::*;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+mod files;
 mod settings;
 
 pub struct ShellState {
@@ -49,6 +50,9 @@ impl Default for ShellState {
     }
 }
 impl ShellState {
+    pub fn files_visible(&self) -> bool {
+        self.route == Route::Files && !self.settings_visible
+    }
     pub fn set_window_inset(&mut self, top: f32) {
         if top.is_finite() && top >= 0.0 && self.top_inset != top {
             self.top_inset = top;
@@ -827,6 +831,7 @@ pub fn shell(
     }
     let (width, height) = ui.view_size();
     let panel = !state.settings_visible
+        && state.route != Route::Files
         && state.panel_visible
         && width >= 900.0
         && height - state.top_inset >= 640.0;
@@ -861,6 +866,11 @@ pub fn shell(
                 player.settings_message.len(),
                 player.message.as_ptr() as usize,
                 player.message.len(),
+                if state.files_visible() {
+                    player.files.map_or(0, |files| files.revision)
+                } else {
+                    0
+                },
             )
                 .hash(&mut library_revision);
             ui.view(
@@ -892,6 +902,8 @@ pub fn shell(
                     ui.within(&route, &mut |ui| {
                         if state.settings_visible {
                             settings::view(ui, player, state, content_width, p, intent);
+                        } else if state.route == Route::Files {
+                            files::view(ui, player, content_width, p, intent);
                         } else {
                             content(ui, catalog, state, player, content_width, p, intent);
                         }
@@ -1090,6 +1102,7 @@ fn sidebar(
             intent,
         );
         side_row(ui, "find", ("Find", ""), Route::Find, state, p, intent);
+        side_row(ui, "files", ("Files", ""), Route::Files, state, p, intent);
         spacer(ui, "lists-gap", 14.0);
         text(
             ui,

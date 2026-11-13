@@ -13,6 +13,7 @@ pub enum Route {
     Albums,
     Artists,
     Find,
+    Files,
     Album(usize),
     Artist(usize),
     Collection(usize),
@@ -297,7 +298,7 @@ impl Library {
             Route::Album(index) => self.albums.get(index),
             Route::Artist(index) => self.artists.get(index),
             Route::Collection(index) => self.collections.get(index),
-            Route::Albums | Route::Artists | Route::Find => None,
+            Route::Albums | Route::Artists | Route::Find | Route::Files => None,
         }
     }
 }

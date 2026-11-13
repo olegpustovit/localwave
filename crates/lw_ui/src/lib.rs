@@ -2,6 +2,7 @@
 pub mod artwork;
 pub mod browse;
 pub mod catalog;
+pub mod files;
 pub mod motion;
 pub mod queue;
 mod shell;
@@ -67,10 +68,13 @@ pub enum Intent {
     Setting(lw_core::preferences::Change),
     PrivacyPolicy,
     Support,
+    Files(files::Request),
+    ChooseFolder,
 }
 
 #[derive(Default)]
 pub struct PlayerView<'a> {
+    pub files: Option<&'a files::Snapshot>,
     pub settings: lw_core::preferences::Settings,
     pub cache_usage: &'a str,
     pub settings_message: &'a str,

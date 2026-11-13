@@ -230,12 +230,44 @@ impl LibraryRepository {
     }
 
     pub fn create_source(&self, source: &Source) -> Result<Source> {
-        self.db.execute("INSERT INTO sources (dirPath,pathId,userId,type,bookmark,totalPaths,syncError,isCurrent,createdAt,lastSyncedAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'),strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'),strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'))", &[
-            Text(&source.dir_path), Integer(source.path_id), Integer(source.user_id), source.source_type.as_deref().map_or(Null, Text),
-            source.bookmark.as_deref().map_or(Null, Blob), source.total_paths.map_or(Null, Integer), source.sync_error.as_deref().map_or(Null, Text),
-            Integer(source.is_current as i64), Real(source.created_at), source.last_synced_at.map_or(Null, Real), source.updated_at.map_or(Null, Real)
-        ])?;
-        required(self.source(self.db.last_insert_id())?)
+        create_source(&self.db, source)
+    }
+
+    /// A validated folder grant and its current selection commit together, including re-selection.
+    pub fn register_source_folder(
+        &mut self,
+        user_id: i64,
+        directory: &str,
+        path_id: i64,
+        bookmark: &[u8],
+        now: f64,
+    ) -> Result<Source> {
+        if !now.is_finite() || directory.is_empty() || bookmark.is_empty() {
+            return Err(Error::invalid("Invalid source registration"));
+        }
+        self.db.transaction(|db| {
+            require_row(db, "SELECT 1 FROM users WHERE id=?", user_id, "This account was removed")?;
+            let mut existing = None;
+            db.query("SELECT id FROM sources WHERE userId=? AND dirPath=? ORDER BY id LIMIT 1", &[Integer(user_id), Text(directory)], &mut |row| {
+                existing = row.integer(0)?;
+                Ok(())
+            })?;
+            let id = if let Some(id) = existing {
+                db.execute("UPDATE sources SET bookmark=?,syncError=NULL,updatedAt=strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch') WHERE id=?", &[Blob(bookmark), Real(now), Integer(id)])?;
+                id
+            } else {
+                required(create_source(db, &Source {
+                    user_id,
+                    dir_path: directory.into(),
+                    path_id,
+                    source_type: Some("iCloud".into()),
+                    bookmark: Some(bookmark.to_vec()),
+                    created_at: now,
+                    ..Source::default()
+                })?.id)?
+            };
+            select_source(db, user_id, id)
+        })
     }
 
     pub fn update_source(&self, source: &Source) -> Result<Source> {
@@ -248,21 +280,8 @@ impl LibraryRepository {
     }
 
     pub fn set_current_source(&mut self, user_id: i64, source_id: i64) -> Result<Source> {
-        self.db.transaction(|db| {
-            let chosen = required(source(db, source_id)?)?;
-            if chosen.user_id != user_id {
-                return Err(Error::invalid("This source belongs to another user"));
-            }
-            db.execute(
-                "UPDATE sources SET isCurrent=0 WHERE userId=?",
-                &[Integer(user_id)],
-            )?;
-            db.execute(
-                "UPDATE sources SET isCurrent=1 WHERE id=?",
-                &[Integer(source_id)],
-            )?;
-            required(source(db, source_id)?)
-        })
+        self.db
+            .transaction(|db| select_source(db, user_id, source_id))
     }
 
     pub fn update_source_bookmark(
@@ -651,6 +670,28 @@ fn read_playlist(row: &Row<'_>) -> Result<Playlist> {
         created_at: required(row.real(2)?)?,
         updated_at: row.real(3)?,
     })
+}
+
+fn create_source(db: &Connection, source: &Source) -> Result<Source> {
+    db.execute("INSERT INTO sources (dirPath,pathId,userId,type,bookmark,totalPaths,syncError,isCurrent,createdAt,lastSyncedAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'),strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'),strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'))", &[
+        Text(&source.dir_path), Integer(source.path_id), Integer(source.user_id), source.source_type.as_deref().map_or(Null, Text),
+        source.bookmark.as_deref().map_or(Null, Blob), source.total_paths.map_or(Null, Integer), source.sync_error.as_deref().map_or(Null, Text),
+        Integer(source.is_current as i64), Real(source.created_at), source.last_synced_at.map_or(Null, Real), source.updated_at.map_or(Null, Real)
+    ])?;
+    required(self::source(db, db.last_insert_id())?)
+}
+
+fn select_source(db: &Connection, user_id: i64, id: i64) -> Result<Source> {
+    let chosen = required(source(db, id)?)?;
+    if chosen.user_id != user_id {
+        return Err(Error::invalid("This source belongs to another user"));
+    }
+    db.execute(
+        "UPDATE sources SET isCurrent=0 WHERE userId=?",
+        &[Integer(user_id)],
+    )?;
+    db.execute("UPDATE sources SET isCurrent=1 WHERE id=?", &[Integer(id)])?;
+    required(source(db, id)?)
 }
 
 fn source(db: &Connection, id: i64) -> Result<Option<Source>> {

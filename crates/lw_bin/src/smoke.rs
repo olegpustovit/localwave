@@ -191,6 +191,39 @@ pub fn seed_catalog(path: &std::path::Path) -> std::io::Result<()> {
     db.execute_batch("BEGIN IMMEDIATE; WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<10000) INSERT INTO songs (songKey,artist,title,album,albumArtist,pathHash,createdAt,duration,fileExtension,isFavorite,releaseYear) SELECT n,'Artist '||(n%10),printf('Track %05d',n),'Album '||(n%100),'Artist '||(n%10),n,n,240,'m4a',n%2,2019 FROM seq; INSERT INTO songs_fts(songId,artist,title,album,albumArtist) SELECT id,artist,title,album,albumArtist FROM songs; COMMIT").map_err(std::io::Error::other)
 }
 
+/// Indexed metadata only: Files performance must never enumerate a user's real folders.
+pub fn seed_files(library: &mut lw_bin::library::LibraryWorker) -> std::io::Result<()> {
+    let account = library.current_sources()?;
+    let source = library
+        .repository
+        .create_source(&lw_core::Source {
+            user_id: account.user.id,
+            dir_path: "/qualification/original-music".into(),
+            path_id: 1_000_000,
+            is_current: true,
+            total_paths: Some(10_000),
+            created_at: 1.0,
+            ..Default::default()
+        })
+        .map_err(std::io::Error::other)?;
+    let paths: Vec<_> = (1..=10_000)
+        .map(|id| lw_core::SourcePath {
+            source_id: source.id.unwrap(),
+            path_id: id,
+            parent_path_id: Some(source.path_id),
+            name: format!("Track {id:05}.flac"),
+            relative_path: format!("Track {id:05}.flac"),
+            file_size: Some(2_000_000),
+            created_at: 1.0,
+            ..Default::default()
+        })
+        .collect();
+    library
+        .repository
+        .upsert_source_paths(&paths)
+        .map_err(std::io::Error::other)
+}
+
 pub fn seed_artwork(
     database: &std::path::Path,
     documents: &std::path::Path,

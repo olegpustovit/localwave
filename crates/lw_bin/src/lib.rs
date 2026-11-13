@@ -6,6 +6,8 @@ pub mod artwork_gpu;
 #[cfg(target_os = "macos")]
 pub mod controller;
 #[cfg(target_os = "macos")]
+pub mod files;
+#[cfg(target_os = "macos")]
 pub mod library;
 #[cfg(target_os = "macos")]
 pub mod media;
