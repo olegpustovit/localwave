@@ -8,6 +8,39 @@ mod harness;
 
 fn release_keepalive() {} // This target creates no shared GPU device.
 
+fn native_window_resizes_enables_zoom_and_measures_titlebar_clearance() {
+    // Native AppKit/SDL startup and window geometry require a main-thread integration process.
+    let mut window =
+        pxui_sdl::Window::open_with("LocalWave chrome check", 800, 600, false, true, true).unwrap();
+    window.set_resizable(true).unwrap();
+    let chrome = lw_apple_sys::window::Chrome::open(window.token().unwrap()).unwrap();
+    for (width, height) in [(800, 600), (1000, 720), (640, 480)] {
+        window.resize(width, height).unwrap();
+        let state = chrome.snapshot().unwrap();
+        assert_eq!(
+            (
+                state.resizable,
+                state.zoom_enabled,
+                state.full_size_content,
+                state.full_screen_primary
+            ),
+            (1, 1, 1, 1),
+            "{state:?}"
+        );
+        assert!(state.top_inset > 0.0 && state.top_inset < 80.0, "{state:?}");
+        assert_eq!(window.extent().logical, (width, height));
+        assert_eq!(
+            (state.content_width, state.content_height),
+            (width as f64, height as f64)
+        );
+    }
+    window.destroy().unwrap();
+    assert!(
+        chrome.snapshot().is_err(),
+        "invalidated native tokens cannot be queried"
+    );
+}
+
 fn system_preferences_use_appkit_notifications_and_cached_warm_reads() {
     extern "C" fn wake() {}
     let mut window =
@@ -110,6 +143,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "native_window_resizes_enables_zoom_and_measures_titlebar_clearance",
+            native_window_resizes_enables_zoom_and_measures_titlebar_clearance,
+        ),
         (
             "system_preferences_use_appkit_notifications_and_cached_warm_reads",
             system_preferences_use_appkit_notifications_and_cached_warm_reads,

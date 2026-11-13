@@ -11,7 +11,7 @@ pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf")
 pub const LIGHT: &str = include_str!("../themes/light.theme");
 pub const DARK: &str = include_str!("../themes/dark.theme");
 
-// The fixed UTF-8 search packet avoids a heap allocation when handing an edit to the worker.
+// Fixed UTF-8 packets avoid heap allocations when handing searches or playlist names to the worker.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Intent {
@@ -38,8 +38,19 @@ pub enum Intent {
         occurrence: u64,
         before: Option<u64>,
     },
+    MoveFullQueue {
+        occurrence: u64,
+        before: Option<u64>,
+    },
     ClearQueue,
     UndoQueue,
+    ShowQueue,
+    CloseQueue,
+    NamePlaylist,
+    EditPlaylistName(browse::Query),
+    PlaylistNameTooLong,
+    CancelPlaylistName,
+    SaveQueue(browse::Query),
 }
 
 #[derive(Default)]
@@ -64,6 +75,355 @@ pub struct PlayerView<'a> {
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+
+    #[test]
+    fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_warm_allocations()
+    {
+        use catalog::Catalog;
+        use lw_core::{context::PlaybackContext, queue::Entry};
+        use std::sync::Arc;
+        mem_sys::set_peer(pxui::library_counter);
+        let mut catalog = Catalog::new(vec![lw_core::Song {
+            id: Some(7),
+            title: "Repeated queue song".into(),
+            artist: "Artist".into(),
+            ..Default::default()
+        }]);
+        catalog.queue = Some(Arc::new(queue::Snapshot::new(
+            1,
+            (1..=10_000).map(|id| Entry { id, song_id: 7 }).collect(),
+            Some(1),
+            Arc::new(PlaybackContext::Library),
+            false,
+        )));
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let mut state = ShellState::default();
+        state.apply(Intent::SelectRow(0));
+        state.apply(Intent::ShowQueue);
+        let mut player = PlayerView {
+            initialized: true,
+            title: "Repeated queue song",
+            duration: 30_000.0,
+            ..Default::default()
+        };
+        let mut frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..Default::default()
+        };
+        let mut intent = None;
+        for _ in 0..3 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
+        assert!(
+            ui.a11y_nodes().len() < 700,
+            "ten thousand occurrences remain virtual"
+        );
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Currently playing")
+        );
+        let queue_rect = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Full playback queue")
+            .unwrap()
+            .rect;
+        let rows: Vec<_> = ui
+            .a11y_nodes()
+            .iter()
+            .filter(|node| {
+                node.is_role(pxui::ui::Role::ListItem)
+                    && ui.a11y_name_of(node) == "Repeated queue song"
+                    && node.rect.x >= queue_rect.x
+                    && node.rect.x < queue_rect.x + queue_rect.w
+            })
+            .map(|node| node.rect)
+            .collect();
+        assert!(rows.len() > 3 && rows.len() < 30);
+        assert!(
+            rows.windows(2)
+                .all(|rows| (rows[1].y - rows[0].y - 44.0).abs() < 0.1),
+            "one column of 44-point rows: {rows:?}"
+        );
+        let current_remove = ui.a11y_nodes().iter().any(|node| {
+            ui.a11y_name_of(node) == "Remove from queue"
+                && node.rect.x >= queue_rect.x
+                && node.rect.x < queue_rect.x + queue_rect.w
+                && (node.rect.y - rows[1].y).abs() < 0.1
+        });
+        assert!(!current_remove, "the current occurrence cannot be removed");
+        let grips: Vec<_> = ui
+            .a11y_nodes()
+            .iter()
+            .filter(|node| {
+                ui.a11y_name_of(node) == "Reorder queued track"
+                    && node.rect.x >= queue_rect.x
+                    && node.rect.x < queue_rect.x + queue_rect.w
+                    && node.rect.y > rows[1].y
+            })
+            .map(|node| (node.id, node.rect))
+            .collect();
+        let pointer = |kind, rect: pxui::geom::Rect| pxui::Event {
+            kind,
+            x: (rect.x + 10.0) as f64,
+            y: (rect.y + 10.0) as f64,
+            ..Default::default()
+        };
+        for event in [
+            pointer(input::wire::POINTER_PRESSED, grips[0].1),
+            pointer(input::wire::POINTER_MOVED, grips[2].1),
+            pxui::Event {
+                kind: input::wire::SCROLLED,
+                y: -30.0,
+                ..Default::default()
+            },
+        ] {
+            frame.events = &event;
+            frame.event_count = 1;
+            frame.time += 0.01;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+            assert!(intent.is_none());
+        }
+        assert_eq!(
+            ui.carrying_ref().unwrap().kind,
+            "localwave.queue-occurrence:3"
+        );
+        assert!(
+            !ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
+            "the modal's drag survives pruning its source row"
+        );
+        let release = pointer(input::wire::POINTER_RELEASED, grips[2].1);
+        frame.events = &release;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(
+            intent.take(),
+            Some(Intent::MoveFullQueue {
+                occurrence: 3,
+                before: Some(35)
+            })
+        );
+        let scroll_back = pxui::Event {
+            kind: input::wire::SCROLLED,
+            y: 30.0,
+            ..Default::default()
+        };
+        frame.events = &scroll_back;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        frame.events = std::ptr::null();
+        frame.event_count = 0;
+        let activate = |ui: &mut Ui, name: &str| {
+            let id = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node) == name)
+                .unwrap()
+                .id;
+            ui.inject_a11y(&[pxui::A11yAction {
+                id,
+                action_code: 1,
+                ..Default::default()
+            }]);
+        };
+        activate(&mut ui, "Save queue as playlist");
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent.take(), Some(Intent::NamePlaylist));
+        state.apply(Intent::NamePlaylist);
+        for _ in 0..3 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Create playlist from queue")
+        );
+        activate(&mut ui, "Cancel playlist creation");
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent.take(), Some(Intent::CancelPlaylistName));
+        state.apply(Intent::CancelPlaylistName);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Playlist name")
+        );
+        state.apply(Intent::NamePlaylist);
+        let name = browse::Query::new("  Air 🎵  ").unwrap();
+        state.apply(Intent::EditPlaylistName(name));
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        activate(&mut ui, "Create playlist from queue");
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent.take(), Some(Intent::SaveQueue(name)));
+        state.apply(Intent::PlaylistNameTooLong);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Create playlist from queue")
+        );
+        state.apply(Intent::EditPlaylistName(name));
+        for cycle in 0..24 {
+            mem_sys::local_reset();
+            let events = [
+                pxui::Event {
+                    kind: input::wire::POINTER_MOVED,
+                    x: (queue_rect.x + 100.0) as f64,
+                    y: (queue_rect.y + 100.0) as f64,
+                    ..Default::default()
+                },
+                pxui::Event {
+                    kind: input::wire::SCROLLED,
+                    y: if cycle % 2 == 0 { -4.0 } else { 4.0 },
+                    ..Default::default()
+                },
+            ];
+            frame.events = events.as_ptr();
+            frame.event_count = events.len();
+            frame.time += 0.02;
+            player.revision += 1;
+            player.position += 1.0;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+            if cycle > 8 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm modal/editor/queue scroll and live clock"
+                );
+            }
+            assert!(intent.is_none());
+        }
+        let escape = pxui::Event {
+            kind: input::wire::KEY_PRESSED,
+            code: input::Key::Escape.code(),
+            ..Default::default()
+        };
+        frame.events = &escape;
+        frame.event_count = 1;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        assert_eq!(intent.take(), Some(Intent::CloseQueue));
+        state.apply(Intent::CloseQueue);
+        frame.events = std::ptr::null();
+        frame.event_count = 0;
+        state.apply(Intent::ShowQueue);
+        frame.width = 390.0;
+        frame.height = 778.0;
+        for _ in 0..3 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
+        let list = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Full playback queue")
+            .unwrap();
+        assert!(
+            list.rect.x >= 0.0
+                && list.rect.x + list.rect.w <= 390.0
+                && list.rect.y + list.rect.h <= 778.0,
+            "{list:?}"
+        );
+    }
+
+    #[test]
+    fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let catalog = catalog::Catalog::new(Vec::new());
+        let mut state = ShellState::default();
+        let player = PlayerView::default();
+        for inset in [28.0, f32::NAN, -1.0, 0.0, 44.0] {
+            state.set_window_inset(inset);
+            for _ in 0..3 {
+                ui.frame(
+                    &FrameIn {
+                        width: 1440.0,
+                        height: 872.0,
+                        ..Default::default()
+                    },
+                    &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                )
+                .unwrap();
+            }
+            let expected = if inset.is_nan() || inset < 0.0 {
+                28.0
+            } else {
+                inset
+            };
+            assert!(
+                ui.a11y_nodes()
+                    .iter()
+                    .filter(|node| node.is_role(pxui::ui::Role::Button))
+                    .all(|node| node.rect.y >= expected),
+                "controls overlap native title bar at {inset}"
+            );
+        }
+        for _ in 0..3 {
+            ui.frame(
+                &FrameIn {
+                    width: 1000.0,
+                    height: 480.0,
+                    ..Default::default()
+                },
+                &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+            )
+            .unwrap();
+        }
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Current track artwork"),
+            "the tall player panel collapses in a short window"
+        );
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Show full queue"
+                    && node.rect.y + node.rect.h <= 480.0)
+        );
+    }
 
     #[test]
     fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_drag() {

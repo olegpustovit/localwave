@@ -283,6 +283,37 @@ fn song(repo: &mut LibraryRepository, key: i64, source_id: Option<i64>) -> Song 
 }
 
 #[test]
+fn creating_a_playlist_with_songs_is_atomic_and_keeps_first_occurrence_order() {
+    let mut repo = LibraryRepository::open(":memory:").unwrap();
+    let first = song(&mut repo, 1, None).id.unwrap();
+    let second = song(&mut repo, 2, None).id.unwrap();
+    assert!(
+        repo.create_playlist_with_songs("Failed", &[first, 9999], 1.0)
+            .is_err()
+    );
+    assert!(repo.playlists().unwrap().is_empty());
+    let list = repo
+        .create_playlist_with_songs("Queue 🎵", &[second, first, second], 100.125)
+        .unwrap();
+    assert_eq!(list.name, "Queue 🎵");
+    assert_eq!(list.created_at, 100.125);
+    assert_eq!(
+        repo.playlist_songs(list.id)
+            .unwrap()
+            .iter()
+            .map(|song| song.id.unwrap())
+            .collect::<Vec<_>>(),
+        [second, first]
+    );
+    repo.db.execute_batch("PRAGMA query_only=ON").unwrap();
+    assert!(
+        repo.create_playlist_with_songs("Read only", &[first], 2.0)
+            .is_err()
+    );
+    assert_eq!(repo.playlists().unwrap(), [list]);
+}
+
+#[test]
 fn playlist_membership_order_dates_duplicate_adds_and_rollback() {
     let mut repo = LibraryRepository::open(":memory:").unwrap();
     let songs: Vec<_> = (1..=5)

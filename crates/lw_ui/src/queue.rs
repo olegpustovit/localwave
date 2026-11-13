@@ -9,6 +9,7 @@ pub struct Snapshot {
     pub context: Arc<PlaybackContext>,
     pub heading: String,
     pub count: String,
+    pub total: String,
     pub can_undo: bool,
 }
 impl Snapshot {
@@ -27,6 +28,7 @@ impl Snapshot {
             revision,
             heading: format!("Up next · {}", context.title()),
             count: (entries.len() - start).to_string(),
+            total: entries.len().to_string(),
             entries,
             current,
             context,

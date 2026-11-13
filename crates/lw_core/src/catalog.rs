@@ -110,8 +110,20 @@ impl LibraryRepository {
     }
 
     pub fn create_playlist(&self, name: &str, now: f64) -> Result<Playlist> {
-        self.db.execute("INSERT INTO playlists (name,createdAt) VALUES (?,strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'))", &[Text(name), Real(now)])?;
-        required(playlist(&self.db, self.db.last_insert_id())?)
+        create_playlist(&self.db, name, now)
+    }
+
+    pub fn create_playlist_with_songs(
+        &mut self,
+        name: &str,
+        song_ids: &[i64],
+        now: f64,
+    ) -> Result<Playlist> {
+        self.db.transaction(|db| {
+            let list = create_playlist(db, name, now)?;
+            add_playlist_songs(db, list.id, song_ids)?;
+            Ok(list)
+        })
     }
 
     pub fn rename_playlist(&self, id: i64, name: &str, now: f64) -> Result<Playlist> {
@@ -138,12 +150,13 @@ impl LibraryRepository {
 
     pub fn add_playlist_songs(&mut self, list_id: i64, song_ids: &[i64]) -> Result<()> {
         self.db.transaction(|db| {
-            require_row(db, "SELECT 1 FROM playlists WHERE id=?", list_id, "This playlist was removed")?;
-            for id in song_ids {
-                require_row(db, "SELECT 1 FROM songs WHERE id=?", *id, "This song was removed")?;
-                db.execute("INSERT INTO playlist_songs (playlistId,songId,position) SELECT ?,?,COALESCE(MAX(position),-1)+1 FROM playlist_songs WHERE playlistId=? ON CONFLICT(playlistId,songId) DO NOTHING", &[Integer(list_id), Integer(*id), Integer(list_id)])?;
-            }
-            Ok(())
+            require_row(
+                db,
+                "SELECT 1 FROM playlists WHERE id=?",
+                list_id,
+                "This playlist was removed",
+            )?;
+            add_playlist_songs(db, list_id, song_ids)
         })
     }
 
@@ -596,6 +609,24 @@ fn store_paths(db: &Connection, paths: &[SourcePath]) -> Result<()> {
         }
         db.execute("INSERT INTO source_paths_fts (pathId,sourceId,runId,fullPath,fileName) VALUES (?,?,?,?,?)", &[Integer(next.path_id), Integer(next.source_id), Integer(next.run_id), Text(&next.relative_path), Text(&next.name)])?;
         fts_rows.insert((next.source_id, next.path_id), vec![db.last_insert_id()]);
+    }
+    Ok(())
+}
+
+fn create_playlist(db: &Connection, name: &str, now: f64) -> Result<Playlist> {
+    db.execute("INSERT INTO playlists (name,createdAt) VALUES (?,strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'))", &[Text(name), Real(now)])?;
+    required(playlist(db, db.last_insert_id())?)
+}
+
+fn add_playlist_songs(db: &Connection, list_id: i64, song_ids: &[i64]) -> Result<()> {
+    for id in song_ids {
+        require_row(
+            db,
+            "SELECT 1 FROM songs WHERE id=?",
+            *id,
+            "This song was removed",
+        )?;
+        db.execute("INSERT INTO playlist_songs (playlistId,songId,position) SELECT ?,?,COALESCE(MAX(position),-1)+1 FROM playlist_songs WHERE playlistId=? ON CONFLICT(playlistId,songId) DO NOTHING", &[Integer(list_id), Integer(*id), Integer(list_id)])?;
     }
     Ok(())
 }

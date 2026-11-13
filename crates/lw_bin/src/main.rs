@@ -35,16 +35,26 @@ fn run() -> Result<(), String> {
         return Err("--performance-find requires --performance-check".into());
     }
     let performance_queue_drag = std::env::args().any(|arg| arg == "--performance-queue-drag");
+    let performance_queue_sheet = std::env::args().any(|arg| arg == "--performance-queue-sheet");
+    if performance_queue_sheet && !performance {
+        return Err("--performance-queue-sheet requires --performance-check".into());
+    }
     if performance_queue_drag && !performance {
         return Err("--performance-queue-drag requires --performance-check".into());
     }
-    let performance_queue =
-        performance_queue_drag || std::env::args().any(|arg| arg == "--performance-queue");
+    let performance_queue = performance_queue_drag
+        || performance_queue_sheet
+        || std::env::args().any(|arg| arg == "--performance-queue");
     if performance_queue && !performance {
         return Err("--performance-queue requires --performance-check".into());
     }
     mem_sys::set_peer(pxui::library_counter);
     let mut window = Window::open_with("LocalWave", 1440, 872, true, false, true)?;
+    window.set_resizable(true)?;
+    let chrome =
+        lw_apple_sys::window::Chrome::open(window.token()?).map_err(|error| error.to_string())?;
+    window.resize(1440, 872)?;
+    let mut window_chrome = chrome.snapshot().map_err(|error| error.to_string())?;
     let environment =
         lw_apple_sys::environment::Environment::open(wake).map_err(|error| error.to_string())?;
     let mut preferences = environment.snapshot();
@@ -206,6 +216,13 @@ fn run() -> Result<(), String> {
         }
     }
     let mut command_error: Option<&'static str> = None;
+    if performance_queue_sheet {
+        shell_state.apply(lw_ui::Intent::ShowQueue);
+        shell_state.apply(lw_ui::Intent::NamePlaylist);
+        shell_state.apply(lw_ui::Intent::EditPlaylistName(
+            lw_ui::browse::Query::new("Qualification queue").unwrap(),
+        ));
+    }
     let mut error_revision = 0;
     loop {
         if performance {
@@ -226,9 +243,11 @@ fn run() -> Result<(), String> {
             .map_err(|error| error.to_string())?;
         if performance && frames >= 2 {
             if performance_queue_drag {
-                smoke::queue_drag_events(frames - 2, &mut events);
+                smoke::queue_drag_events(frames - 2, window_chrome.top_inset, &mut events);
             } else {
-                events.push(HostEvent::PointerMoved(if performance_queue {
+                events.push(HostEvent::PointerMoved(if performance_queue_sheet {
+                    (650.0, 400.0)
+                } else if performance_queue {
                     (1300.0, 690.0)
                 } else {
                     (650.0, 400.0)
@@ -252,7 +271,9 @@ fn run() -> Result<(), String> {
         let resized = current != extent;
         if resized {
             extent = current;
+            window_chrome = chrome.snapshot().map_err(|error| error.to_string())?;
         }
+        shell_state.set_window_inset(window_chrome.top_inset as f32);
         if performance && extent.logical != (1440, 872) {
             return Err("Performance qualification requires a 1440x872 logical window".into());
         }
@@ -421,8 +442,12 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::MoveQueue { occurrence, before } => {
                             Command::MoveUpcoming { occurrence, before }
                         }
+                        lw_ui::Intent::MoveFullQueue { occurrence, before } => {
+                            Command::MoveEntry { occurrence, before }
+                        }
                         lw_ui::Intent::ClearQueue => Command::ClearUpcoming,
                         lw_ui::Intent::UndoQueue => Command::UndoClear,
+                        lw_ui::Intent::SaveQueue(name) => Command::SaveQueue(name),
                         lw_ui::Intent::SeekFraction(fraction) => {
                             Command::Seek(fraction * player.status().duration)
                         }
@@ -431,7 +456,15 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::Search(_)
                         | lw_ui::Intent::SearchTooLong
                         | lw_ui::Intent::Sort(_)
-                        | lw_ui::Intent::TogglePanel => unreachable!("handled by ShellState"),
+                        | lw_ui::Intent::TogglePanel
+                        | lw_ui::Intent::ShowQueue
+                        | lw_ui::Intent::CloseQueue
+                        | lw_ui::Intent::NamePlaylist
+                        | lw_ui::Intent::EditPlaylistName(_)
+                        | lw_ui::Intent::PlaylistNameTooLong
+                        | lw_ui::Intent::CancelPlaylistName => {
+                            unreachable!("handled by ShellState")
+                        }
                     })
                 };
                 let result = if let Some(request) = browse {
@@ -440,7 +473,12 @@ fn run() -> Result<(), String> {
                     command.map_or(Ok(0), |command| player.command(command))
                 };
                 command_error = match result {
-                    Ok(_) => None,
+                    Ok(_) => {
+                        if matches!(intent, lw_ui::Intent::SaveQueue(_)) {
+                            shell_state.apply(lw_ui::Intent::CancelPlaylistName);
+                        }
+                        None
+                    }
                     Err(error) => Some(match error.kind() {
                         std::io::ErrorKind::WouldBlock => "Playback is busy. Try again.",
                         std::io::ErrorKind::InvalidInput => "This action is unavailable.",
@@ -481,7 +519,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_queue_drag {
+                if performance_queue_sheet {
+                    "full-queue-playlist-editor"
+                } else if performance_queue_drag {
                     "queue-carry-scroll-cancel"
                 } else if performance_queue {
                     "queue-occurrences"

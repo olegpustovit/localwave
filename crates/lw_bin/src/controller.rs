@@ -15,6 +15,8 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+// Inline name packets keep delivery through the bounded mailbox allocation-free.
+#[allow(clippy::large_enum_variant)]
 pub enum Command {
     Configure {
         songs: Arc<[i64]>,
@@ -46,10 +48,15 @@ pub enum Command {
         occurrence: u64,
         before: Option<u64>,
     },
+    MoveEntry {
+        occurrence: u64,
+        before: Option<u64>,
+    },
     Remove(u64),
     Append(i64),
     ClearUpcoming,
     UndoClear,
+    SaveQueue(lw_ui::browse::Query),
     DismissNotice,
     RefreshCatalog,
 }
@@ -72,6 +79,7 @@ impl Command {
             Self::Volume(volume) => !volume.is_finite() || !(0.0..=1.0).contains(volume),
             Self::Seek(seconds) => !seconds.is_finite(),
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
+            Self::SaveQueue(name) => name.as_str().trim().is_empty(),
             _ => false,
         };
         if invalid {
@@ -83,7 +91,11 @@ impl Command {
     fn fences_preparation(&self) -> bool {
         !matches!(
             self,
-            Self::Volume(_) | Self::Seek(_) | Self::DismissNotice | Self::RefreshCatalog
+            Self::Volume(_)
+                | Self::Seek(_)
+                | Self::DismissNotice
+                | Self::RefreshCatalog
+                | Self::SaveQueue(_)
         )
     }
     fn interrupts(&self) -> bool {
@@ -1124,6 +1136,10 @@ impl Worker {
                 structural = self.session.move_upcoming(occurrence, before);
                 Action::None
             }
+            Command::MoveEntry { occurrence, before } => {
+                structural = self.session.move_entry(occurrence, before);
+                Action::None
+            }
             Command::Remove(occurrence) => {
                 structural = self.session.remove(occurrence);
                 Action::None
@@ -1149,6 +1165,29 @@ impl Worker {
             Command::UndoClear => {
                 if let Some(entries) = self.undo.take() {
                     structural = self.session.restore(&entries);
+                }
+                Action::None
+            }
+            Command::SaveQueue(name) => {
+                if self.saved.song_ids.is_empty() {
+                    self.message =
+                        Arc::from("The queue is empty. Add tracks before saving a playlist.");
+                } else {
+                    match self.library.repository.create_playlist_with_songs(
+                        name.as_str().trim(),
+                        &self.saved.song_ids,
+                        now(),
+                    ) {
+                        Ok(_) => {
+                            self.catalog_dirty = true;
+                            self.metadata_id = None;
+                            self.message = Arc::from("Playlist saved.");
+                        }
+                        Err(error) => {
+                            eprintln!("LocalWave save queue: {error}");
+                            self.message = Arc::from("Could not save the playlist. Try again.");
+                        }
+                    }
                 }
                 Action::None
             }
@@ -1511,6 +1550,20 @@ mod tests {
     use super::*;
     use lw_ui::catalog::Catalog;
     extern "C" fn wake() {}
+    #[test]
+    fn saving_queue_names_is_bounded_and_does_not_fence_or_interrupt_preparation() {
+        for name in ["", "  \t\n"] {
+            assert!(
+                Command::SaveQueue(lw_ui::browse::Query::new(name).unwrap())
+                    .validate()
+                    .is_err()
+            );
+        }
+        let command = Command::SaveQueue(lw_ui::browse::Query::new("  Playlist 🎵  ").unwrap());
+        assert!(command.validate().is_ok());
+        assert!(!command.fences_preparation());
+        assert!(!command.interrupts());
+    }
     fn shared() -> Arc<Shared> {
         Arc::new(Shared {
             inbox: Mutex::new(Inbox {

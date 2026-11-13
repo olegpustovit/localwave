@@ -478,12 +478,19 @@ impl Session {
         let Some(current) = self.queue.current_index() else {
             return false;
         };
+        self.move_entry_after(occurrence, before, current + 1)
+    }
+    /// Full-queue editing preserves the current occurrence even when its index changes.
+    pub fn move_entry(&mut self, occurrence: u64, before: Option<u64>) -> bool {
+        self.move_entry_after(occurrence, before, 0)
+    }
+    fn move_entry_after(&mut self, occurrence: u64, before: Option<u64>, first: usize) -> bool {
         let Some(from) = self
             .queue
             .entries()
             .iter()
             .position(|entry| entry.id == occurrence)
-            .filter(|index| *index > current)
+            .filter(|index| *index >= first)
         else {
             return false;
         };
@@ -493,7 +500,7 @@ impl Session {
                 .entries()
                 .iter()
                 .position(|entry| entry.id == id)
-                .filter(|index| *index > current)
+                .filter(|index| *index >= first)
             {
                 Some(index) => index,
                 None => return false,
@@ -566,6 +573,23 @@ impl Session {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn full_queue_moves_preserve_the_current_duplicate_occurrence() {
+        let mut session = super::Session::default();
+        session.configure(&[7, 7, 8, 7], 1);
+        let entries = session.queue().entries().to_vec();
+        assert!(session.move_entry(entries[1].id, Some(entries[0].id)));
+        assert_eq!(session.queue().current(), Some(entries[1]));
+        assert_eq!(session.queue().current_index(), Some(0));
+        assert!(session.move_entry(entries[0].id, None));
+        assert_eq!(
+            session.queue().entries(),
+            [entries[1], entries[2], entries[3], entries[0]]
+        );
+        assert!(!session.move_entry(999, None));
+        assert!(!session.move_entry(entries[1].id, Some(999)));
+        assert!(!session.move_entry(entries[1].id, Some(entries[1].id)));
+    }
     use super::*;
     #[test]
     fn upcoming_moves_resolve_occurrences_and_refuse_stale_current_and_noop_targets() {

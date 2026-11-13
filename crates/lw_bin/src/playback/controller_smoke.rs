@@ -306,6 +306,19 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     .join()
     .unwrap()
     .map_err(io::Error::other)?;
+    let failed_save = player.command(Command::SaveQueue(
+        lw_ui::browse::Query::new("Failed save").unwrap(),
+    ))?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= failed_save
+            && player.status().message.as_ref() == "Could not save the playlist. Try again."
+    })?;
+    if player.status().fault.is_some()
+        || player.status().queue_len != 3
+        || player.native_snapshot().token != 0
+    {
+        return Err(error("Failed playlist save faulted or changed the player"));
+    }
     let failed = player.command(Command::RefreshCatalog)?;
     until(&mut player, deadline, &mut |player| {
         player.status().processed_command >= failed && !player.status().message.is_empty()
@@ -407,6 +420,28 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                 .as_ref()
                 .is_some_and(|queue| queue.can_undo && queue.upcoming().is_empty())
     })?;
+    let cleared_entries = player.catalog().queue.as_ref().unwrap().entries.clone();
+    let revision = player.command(Command::SaveQueue(
+        lw_ui::browse::Query::new("  Saved queue 🎵  ").unwrap(),
+    ))?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= revision
+            && player
+                .catalog()
+                .collections
+                .iter()
+                .any(|list| list.title == "Saved queue 🎵" && list.ids.as_ref() == [bad, good])
+    })?;
+    if player.status().phase != Phase::Paused
+        || player.native_snapshot().token != next
+        || player.catalog().queue.as_ref().is_none_or(|queue| {
+            !queue.can_undo || queue.entries.as_ref() != cleared_entries.as_ref()
+        })
+    {
+        return Err(error(
+            "Saving the queue changed playback, occurrences or clear Undo",
+        ));
+    }
     let revision = player.command(Command::UndoClear)?;
     until(&mut player, deadline, &mut |player| {
         player.status().processed_command >= revision
@@ -417,6 +452,23 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                 !queue.can_undo && queue.entries.as_ref() == reordered.as_ref()
             })
     })?;
+    for (before, expected_index) in [(reordered[1].id, 1), (reordered[3].id, 2)] {
+        let revision = player.command(Command::MoveEntry {
+            occurrence: reordered[2].id,
+            before: Some(before),
+        })?;
+        until(&mut player, deadline, &mut |player| {
+            player.status().processed_command >= revision
+                && player.status().current_index == Some(expected_index)
+                && player.native_snapshot().token == next
+                && player.native_snapshot().queued[1] != 0
+        })?;
+        if player.status().phase != Phase::Paused {
+            return Err(error(
+                "Moving the current queue occurrence interrupted playback",
+            ));
+        }
+    }
     let revision = player.command(Command::Repeat(RepeatMode::One))?;
     until(&mut player, deadline, &mut |player| {
         player.status().processed_command >= revision

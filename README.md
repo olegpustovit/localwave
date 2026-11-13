@@ -55,6 +55,11 @@ Pull-request CI also uploads an unsigned IPA as a workflow artifact. Pushing a t
 
 The [Rust port plan](https://artifacts.microapps.space/a/w474jy87pnxg) is being implemented in `crates/`, with pxui pinned as a submodule. The Swift app remains the shipping app until the replacement passes the plan's platform gates. The terminal player has been removed. The Rust window restores a paused queue and shows a worker-prepared library with sidebar navigation, virtual song rows, album/artist browsing, a Now panel and transport controls. Double-click a song to play. Find searches song text; click Title, Artist, Album or Time to sort, or # to restore library order. Find supports format tokens (flac/mp3/m4a/wav/aiff), fav/favorites, year:2019, unplayed, cloud and offline; the visible chips toggle common filters. Other Find result sections remain unfinished. Native font fallback now renders the tested multilingual tags and emoji; first-time font discovery may allocate. System appearance and reduced motion now update through native notifications, with cached themes and saved settings loaded on the worker. Use the Refresh library button to load database changes without restarting; current selection follows song/collection identity. Automatic source observation and the complete reference UI remain unfinished.
 
+The Rust window supports resizing and native zoom/full-screen controls, with content behind its
+transparent title bar. The Queue button opens the full occurrence-based queue editor; Save as
+playlist saves its current order with duplicate songs included once. Artwork is still a placeholder.
+Quit an already running Rust app before opening a rebuilt bundle so macOS launches the new binary.
+
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 
 ```sh
@@ -66,10 +71,10 @@ open target/bundle/LocalWave.app
 make install                # install to /Applications (APPDIR overrides)
 cargo t -p lw_core          # Rust storage and model checks
 cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
-make performance            # signed Songs + Find + Queue + drag: zero warm Rust allocations, <1 ms build, idle check
+make performance            # signed Songs + Find + Queue + drag + queue sheet: allocation/time/idle gates
 ```
 
-Warm library/app builds have measured 0.14/0.04 seconds, and 101 bounded app checks 11.25 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
+Warm library/app builds have measured 0.14/0.04 seconds, and 107 bounded app checks 12.01 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
 
 ## Development
 

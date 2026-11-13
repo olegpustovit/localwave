@@ -137,10 +137,25 @@ no activation on release. The queue regression scrolls 30 rows while holding dup
 occurrences, checks the original grip disappears, and counts warm Rust allocations with live clocks.
 A11y IDs are stable while a node remains live; refresh the identity probe after virtualization.
 
-`make performance` runs Songs, filtered Find, Queue and queue carry/scroll/cancel, even if an earlier
+`make performance` runs Songs, filtered Find, Queue, queue carry/scroll/cancel and the full queue
+sheet with its playlist editor, even if an earlier
 workload fails. Qualification requires a 1440x872 logical window. Every performance frame advances
 PlayerView revision along with position; changing the value alone can leave the Now panel cached.
 The 40-frame carry trace repeats through two warm cycles before measurement, asserts retained
 payload identity/capture, and cancels before release; any resulting application intent is an error.
 The trace must not edit the fixture queue or touch the normal database/defaults. Preserve the exact
 1,000 µs wall maximum, both Rust allocator counters, correlated diagnostics and recorded failures.
+
+Enable SDL resizing before configuring AppKit full-size content. Window chrome uses the live Metal
+layer token and measures contentLayoutRect only at startup/native size changes; never query it in
+UI builds. Keep interactive content below its measured top inset, collapse the tall Now panel in
+short windows, and preserve native zoom/full-screen eligibility. Do not replace the native controls
+or raise the default stack. Actual full-screen/Spaces gestures and native allocation remain separate
+qualification from style, button-enabled and geometry tests.
+
+Full queue editing resolves occurrence IDs on the worker and preserves the current physical item
+when its index moves. Up next retains its stricter upcoming-only boundary. Saving a queue creates
+the playlist and its deduplicated first-occurrence membership in one database transaction; failures
+must retain the queue, playback and Clear/Undo. Save commands do not fence preparation. Publish the
+refreshed catalog after success; playlist names use the existing bounded UTF-8 packet and reject
+blank or oversized input visibly. Artwork delivery remains unfinished in the Rust UI.

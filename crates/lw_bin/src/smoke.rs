@@ -21,24 +21,24 @@ impl FrameTiming {
 }
 
 /// Repeat one pointer carry across 30 rows and cancel before returning to its source page.
-pub fn queue_drag_events(frame: usize, events: &mut Vec<input::Event>) {
+pub fn queue_drag_events(frame: usize, top_inset: f64, events: &mut Vec<input::Event>) {
     use input::{Event, Key, MouseButton};
     match frame % 40 {
         0 => {
-            events.push(Event::PointerMoved((1151.0, 558.0)));
+            events.push(Event::PointerMoved((1151.0, 558.0 + top_inset)));
             events.push(Event::PointerPressed(
                 MouseButton::LeftButton,
-                (1151.0, 558.0),
+                (1151.0, 558.0 + top_inset),
             ));
         }
-        1 => events.push(Event::PointerMoved((1151.0, 646.0))),
+        1 => events.push(Event::PointerMoved((1151.0, 646.0 + top_inset))),
         2 => events.push(Event::Scrolled((0.0, -30.0))),
         20 => events.push(Event::KeyPressed(Key::Escape)),
         21 => {
             events.push(Event::KeyReleased(Key::Escape));
             events.push(Event::PointerReleased(
                 MouseButton::LeftButton,
-                (1151.0, 646.0),
+                (1151.0, 646.0 + top_inset),
             ));
         }
         22 => events.push(Event::Scrolled((0.0, 30.0))),
@@ -161,19 +161,20 @@ mod tests {
         for frame in 0..120 {
             events.clear();
             mem_sys::local_reset();
-            super::queue_drag_events(frame, &mut events);
+            let top_inset = (frame / 40) as f64 * 14.0;
+            super::queue_drag_events(frame, top_inset, &mut events);
             assert_eq!(mem_sys::local_alloc_count(), 0);
             let expected: &[Event] = match frame % 40 {
                 0 => &[
-                    Event::PointerMoved((1151.0, 558.0)),
-                    Event::PointerPressed(MouseButton::LeftButton, (1151.0, 558.0)),
+                    Event::PointerMoved((1151.0, 558.0 + top_inset)),
+                    Event::PointerPressed(MouseButton::LeftButton, (1151.0, 558.0 + top_inset)),
                 ],
-                1 => &[Event::PointerMoved((1151.0, 646.0))],
+                1 => &[Event::PointerMoved((1151.0, 646.0 + top_inset))],
                 2 => &[Event::Scrolled((0.0, -30.0))],
                 20 => &[Event::KeyPressed(Key::Escape)],
                 21 => &[
                     Event::KeyReleased(Key::Escape),
-                    Event::PointerReleased(MouseButton::LeftButton, (1151.0, 646.0)),
+                    Event::PointerReleased(MouseButton::LeftButton, (1151.0, 646.0 + top_inset)),
                 ],
                 22 => &[Event::Scrolled((0.0, 30.0))],
                 _ => &[],

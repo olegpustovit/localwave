@@ -947,3 +947,108 @@ in **1.30 s**. Formatting/whitespace and the exact published PXUI pin checks pas
 `--performance-queue-drag` flag returns its expected requires-performance-check error before any
 window/library setup. Final logs: `/tmp/localwave-rust-carry-owner-app-final.log`,
 `/tmp/localwave-rust-carry-owner-clippy-final.log` and `/tmp/localwave-rust-carry-owner-remote.log`.
+## Full queue editor and macOS window chrome
+
+PXUI **25b43a6** is published on `rust-port` before the parent pin. Its ABI remains 1.12:
+the changes reuse internal storage without adding exports. Modal input filtering retains its
+signal map in place, and fitted plain labels use the painter's existing string buffer instead of
+formatting a new ellipsis string on every repaint. The legacy cut, tiny-width fallback, UTF-8
+boundaries and ASCII caps match complete plain-label draw instances across the regression vectors.
+
+The desktop Queue button opens a virtualized full queue sheet. Current and played occurrences can
+be selected and reordered; moving the current occurrence preserves its physical native item.
+The Now panel keeps its upcoming-only drag boundary. The sheet distinguishes the current occurrence,
+prevents removing it, supports cross-page carries, and retains its header/editor/content between
+changes. It also fits the 390x778 headless layout fixture; this is not iOS platform qualification.
+
+Save as playlist uses the existing 1,024-byte UTF-8 packet, rejects blank/oversized names, and retains
+the accepted name for retry. The worker creates the list and all membership in one transaction,
+deduplicating songs in first-occurrence queue order, matching the current Swift action. Success
+refreshes the catalog; failure does not stop playback or change the queue. Saving does not fence
+preparation or discard Clear/Undo. The isolated native controller fixture checks those invariants,
+failed saves and moving the active occurrence while paused.
+
+The macOS host now enables SDL resizing explicitly. It configures AppKit full-size content behind
+the transparent title bar, preserves the native traffic lights and full-screen eligibility, and
+measures the title-bar clearance from `contentLayoutRect`. Chrome reads occur at startup/size changes;
+frames use the cached inset. The tall Now panel collapses in short windows, and the native content
+minimum is 640x480. The main-thread fixture checks 800x600, 1000x720 and 640x480 against both SDL
+and actual native view bounds, zoom-button enablement, full-size/full-screen style, and stale-token
+refusal after destroying its own hidden window. Actual full-screen/Spaces gestures remain unqualified.
+The normal GUI process **69331** was left running; quit/reopen to load the new executable.
+
+Verification:
+
+- PXUI core/ABI/dynamic: **283 cases**, **8.480 s wall / 11.632 s summed** on the final recheck.
+  Static wrapper: **49 cases**, **4.490 / 1.658 s**. The deps gate and diff checks passed.
+  An earlier matrix failed `layout_scaling` at 139 vs 212 ns/node (the unchanged ratio limit is 1.5).
+  The failure is retained at `/tmp/localwave-rust-modal-child-final.log`; the successful recheck is
+  `/tmp/localwave-rust-modal-child-recheck.log`. A recheck does not prove stable latency.
+- App/core/native/UI: **107 cases**, **14.040 s wall / 10.081 s summed**, exit 0; the controller case
+  took **2.385 s**. Log: `/tmp/localwave-rust-full-queue-window-verified.log`.
+  Final Clippy with `-D warnings` passed in **2.24 s**; formatting/diff checks passed.
+- The full queue regression covers 10,000 duplicate occurrences, one-column virtualization,
+  current protection, cross-page drag identity, Create/Cancel/name validation, 390x778 resize,
+  and zero warm app+dylib Rust allocations while scrolling with live clocks and the editor open.
+  It caught the initially missing semantic role on the current indicator; the indicator is now
+  an authored Image. Native accessibility bridges remain a separate deferred requirement.
+
+`make performance` now also runs the full queue sheet with the playlist editor open, after the four
+existing workloads, even if an earlier case fails. The carry coordinates include measured native
+title-bar clearance, and their bounded trace test covers multiple inset values. Every measured
+frame still advances the clock revision and the 1,000 µs wall maximum remains unchanged.
+
+The first signed run passed packaging/signature/rpath/default-stack checks and **502.9 ms** idle,
+with zero warm Rust allocations in all five workloads, but **failed the time gate in every workload**:
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| Songs | 2893 / 430 / 1540 / 2458 | 542 / 409 / 495 / 542 |
+| Find | 2332 / 362 / 951 / 1720 | 490 / 360 / 459 / 484 |
+| Queue | 2600 / 475 / 1811 / 2302 | 605 / 433 / 565 / 596 |
+| Carry / wheel / cancel | 1952 / 343 / 1299 / 1821 | 612 / 330 / 453 / 499 |
+| Full queue / playlist editor | 2963 / 642 / 1510 / 2333 | 770 / 526 / 700 / 744 |
+
+Log: `/tmp/localwave-rust-full-queue-window-performance.log`. A Songs trace also failed with a
+**2437 µs** wall maximum and **620 µs** CPU maximum; medians by phase were 15/129/12/39/175/0/9 µs
+(begin/build/intrinsic/arrange/paint/a11y/finish). Log:
+`/tmp/localwave-rust-full-queue-window-trace.log`. These measurements do not identify the cause of
+the wall/CPU gap. Further runs and intermediate failing current-indicator checks are retained in
+the `/tmp/localwave-rust-full-queue-*` logs. No test threshold was relaxed.
+
+A rebuilt source (with the retained sheet body and corrected current-indicator role) is
+recorded at `/tmp/localwave-rust-full-queue-window-performance-verified.log`. It passed signature,
+rpath, default-stack and **500.1 ms** idle checks. Every workload again measured zero warm Rust
+allocations across 182 frames/draws, but the command exited nonzero: four time gates still failed.
+
+| Final workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| Songs | 2621 / 393 / 1344 / 2047 | 621 / 385 / 512 / 536 |
+| Find | 1896 / 340 / 1570 / 1855 | 510 / 340 / 452 / 503 |
+| Queue | 2155 / 498 / 1821 / 2150 | 629 / 444 / 558 / 590 |
+| Carry / wheel / cancel | 218 / 138 / 192 / 214 | 219 / 138 / 193 / 215 |
+| Full queue / playlist editor | 3229 / 509 / 2019 / 3188 | 796 / 460 / 698 / 778 |
+
+Unchanged library/rebuilt app release build times in that run were **0.69 / 8.63 s**. The one passing
+carry workload does not resolve the other misses or prove native allocator behavior.
+
+The last run after widening the count for the maximum queue size is
+`/tmp/localwave-rust-full-queue-window-release-final.log`: **0.18 / 9.60 s** library/app builds,
+valid bundle checks, **508.4 ms** idle, and zero warm Rust allocations in all five workloads.
+Four time gates passed; Songs still failed, so `make performance` correctly returned nonzero.
+
+| Last workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| Songs | 1935 / 172 / 429 / 1085 | 428 / 171 / 380 / 424 |
+| Find | 192 / 159 / 172 / 183 | 176 / 159 / 172 / 173 |
+| Queue | 443 / 186 / 210 / 366 | 398 / 185 / 208 / 240 |
+| Carry / wheel / cancel | 584 / 145 / 205 / 257 | 351 / 146 / 205 / 257 |
+| Full queue / playlist editor | 292 / 204 / 263 / 284 | 285 / 205 / 262 / 273 |
+
+The last complete app matrix after the count-width change and explicit Cancel-button check passed
+**107 cases in 12.006 s wall / 8.755 s summed**, exit 0; controller **2.346 s**. Log:
+`/tmp/localwave-rust-full-queue-window-commit-tests.log`. The final 20 UI cases also passed separately
+in **5.425 / 0.891 s**. The normal process 69331 remained alive throughout qualification.
+
+This checkpoint does not qualify the strict latency gate, native allocator behavior, artwork
+delivery, physical-device/provider behavior, iOS, distribution signing or the complete reference UI.

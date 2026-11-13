@@ -14,6 +14,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/player.m");
     println!("cargo:rerun-if-changed=src/history.m");
     println!("cargo:rerun-if-changed=src/environment.m");
+    println!("cargo:rerun-if-changed=src/window.m");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
         let mut native = cc::Build::new();
         if std::env::var_os("CARGO_FEATURE_INTEROP_TEST").is_some() {
@@ -33,6 +34,7 @@ fn main() {
             .file("src/player.m")
             .file("src/history.m")
             .file("src/environment.m")
+            .file("src/window.m")
             .flag("-fobjc-arc")
             .flag("-mmacosx-version-min=15.0")
             .warnings(true)

@@ -84,6 +84,13 @@ char *lw_app_path(unsigned int slot);
 char *lw_file_path(const char *value);
 int lw_artwork_store(const char *documents, const unsigned char *bytes, size_t length, char **relative, char **error);
 int lw_is_main_thread(void);
+typedef struct {
+    double top_inset;
+    double content_width, content_height;
+    uint32_t resizable, zoom_enabled, full_size_content, full_screen_primary;
+} LWWindowState;
+int lw_window_configure(void *layer);
+int lw_window_read(void *layer, LWWindowState *state);
 int lw_ui_thread_priority(void);
 void *lw_bookmark_url(void *access);
 void *lw_scan_open(void *root_url, const char *registered_root, const char *const *excluded, size_t excluded_count, char **error);

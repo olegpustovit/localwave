@@ -60,6 +60,9 @@ pub fn require_worker_thread() -> std::io::Result<()> {
 #[cfg(all(target_os = "macos", feature = "metal"))]
 pub mod metal;
 
+#[cfg(all(target_os = "macos", feature = "metal"))]
+pub mod window;
+
 #[cfg(target_os = "macos")]
 pub fn thread_cpu_time_ns() -> std::io::Result<u64> {
     unsafe extern "C" {
