@@ -31,6 +31,10 @@ fn run() -> Result<(), String> {
     let performance = std::env::args().any(|arg| arg == "--performance-check");
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
+    let performance_artwork = std::env::args().any(|arg| arg == "--performance-artwork");
+    if performance_artwork && !performance {
+        return Err("--performance-artwork requires --performance-check".into());
+    }
     if performance_find && !performance {
         return Err("--performance-find requires --performance-check".into());
     }
@@ -44,6 +48,7 @@ fn run() -> Result<(), String> {
     }
     let performance_queue = performance_queue_drag
         || performance_queue_sheet
+        || performance_artwork
         || std::env::args().any(|arg| arg == "--performance-queue");
     if performance_queue && !performance {
         return Err("--performance-queue requires --performance-check".into());
@@ -111,6 +116,9 @@ fn run() -> Result<(), String> {
                 )?;
                 if performance {
                     smoke::seed_catalog(&base.join("library.sqlite"))?;
+                    if performance_artwork {
+                        smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
+                    }
                     if performance_queue {
                         library.save_player_state(&lw_core::preferences::PlayerState {
                             song_ids: (1..=10_000).collect(),
@@ -128,7 +136,12 @@ fn run() -> Result<(), String> {
         Controller::open(LibraryWorker::current, wake)
     }
     .map_err(|error| error.to_string())?;
-    // The library worker is already spawned, so it does not inherit the UI's interactive QoS.
+    let mut artwork = lw_bin::library::ArtworkWorker::open(
+        fixture.0.as_ref().map(|base| base.join("Documents")),
+        wake,
+    )
+    .map_err(|error| error.to_string())?;
+    // Both workers are already spawned, so they do not inherit the UI's interactive QoS.
     lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
     if smoke || performance {
         let deadline = window.time() + 5.0;
@@ -172,9 +185,13 @@ fn run() -> Result<(), String> {
     let (mut frames, mut draws) = (0, 0);
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
     let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
+    let (mut min_artwork_quads, mut warm_artwork_requests) = (usize::MAX, 0usize);
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
     let mut shell_state = lw_ui::ShellState::default();
+    if performance_artwork {
+        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
+    }
     if performance_find {
         use lw_ui::{
             Intent,
@@ -241,20 +258,28 @@ fn run() -> Result<(), String> {
         let player_changed = player
             .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
             .map_err(|error| error.to_string())?;
+        let artwork_changed = artwork.poll();
+        let artwork_updated = graphics.sync_artwork(
+            std::sync::Arc::as_ptr(&player.catalog().library) as usize,
+            artwork.ready(),
+        )?;
         if performance && frames >= 2 {
             if performance_queue_drag {
                 smoke::queue_drag_events(frames - 2, window_chrome.top_inset, &mut events);
             } else {
-                events.push(HostEvent::PointerMoved(if performance_queue_sheet {
-                    (650.0, 400.0)
-                } else if performance_queue {
-                    (1300.0, 690.0)
-                } else {
-                    (650.0, 400.0)
-                }));
+                events.push(HostEvent::PointerMoved(
+                    if performance_queue_sheet || performance_artwork {
+                        (650.0, 400.0)
+                    } else if performance_queue {
+                        (1300.0, 690.0)
+                    } else {
+                        (650.0, 400.0)
+                    },
+                ));
                 events.push(HostEvent::Scrolled((
                     0.0,
-                    if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 },
+                    (if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 })
+                        * if performance_artwork { 0.2 } else { 1.0 },
                 )));
             }
         }
@@ -282,6 +307,8 @@ fn run() -> Result<(), String> {
             || resized
             || !events.is_empty()
             || player_changed
+            || artwork_changed
+            || artwork_updated
             || preferences_changed
             || repaint.is_some_and(|time| now >= time)
         {
@@ -295,10 +322,17 @@ fn run() -> Result<(), String> {
                 0
             };
             let build_started = std::time::Instant::now();
+            graphics.configure_artwork(
+                extent.logical.0 as f32,
+                extent.logical.1 as f32,
+                window.scale() as f32,
+            )?;
+            graphics.artwork.images.begin_frame();
             let mut intent = None;
             let status = player.status();
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
+                artwork: Some(&graphics.artwork.images),
                 revision: if performance {
                     frames as u64
                 } else {
@@ -350,6 +384,9 @@ fn run() -> Result<(), String> {
             if let Some(interval) = interval {
                 interval.finish(build_us as u64, cpu_us);
             }
+            artwork
+                .request(graphics.artwork.images.requests())
+                .map_err(|error| error.to_string())?;
             if performance_queue_drag && frames >= 2 {
                 let carrying = ui.carrying_ref();
                 let expected = (1..20).contains(&((frames - 2) % 40));
@@ -389,6 +426,14 @@ fn run() -> Result<(), String> {
                 }
             }
             if let Some(intent) = intent {
+                if matches!(
+                    intent,
+                    lw_ui::Intent::Navigate(_)
+                        | lw_ui::Intent::TogglePanel
+                        | lw_ui::Intent::CloseQueue
+                ) {
+                    artwork.cancel().map_err(|error| error.to_string())?;
+                }
                 let mut browse = None;
                 let command = if shell_state.apply(intent) {
                     if matches!(
@@ -489,6 +534,21 @@ fn run() -> Result<(), String> {
                 error_revision += 1;
                 repaint = Some(now);
             }
+            if performance_artwork && frames > WARMUP_FRAMES {
+                let image_quads = ui
+                    .layers()
+                    .map(|layer| {
+                        layer
+                            .instances
+                            .iter()
+                            .filter(|instance| instance.kind == pxui::draw::kind::IMAGE)
+                            .count()
+                    })
+                    .sum();
+                min_artwork_quads = min_artwork_quads.min(image_quads);
+                warm_artwork_requests =
+                    warm_artwork_requests.max(graphics.artwork.images.requests().keys().len());
+            }
             if performance && frames > WARMUP_FRAMES {
                 warm_allocations = warm_allocations.max(mem_sys::local_alloc_count());
                 warm_build_us = warm_build_us.max(build_us);
@@ -504,6 +564,7 @@ fn run() -> Result<(), String> {
             }
         }
         if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
+            let artwork_bytes = graphics.artwork.resident_bytes();
             graphics.close()?;
             if trace_frames {
                 let mut out = std::io::stdout().lock();
@@ -519,7 +580,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_queue_sheet {
+                if performance_artwork {
+                    "albums-artwork"
+                } else if performance_queue_sheet {
                     "full-queue-playlist-editor"
                 } else if performance_queue_drag {
                     "queue-carry-scroll-cancel"
@@ -541,6 +604,16 @@ fn run() -> Result<(), String> {
                 cpu_samples[98],
                 cpu_samples[99]
             );
+            if performance_artwork {
+                println!(
+                    "LocalWave artwork: texture_bytes={artwork_bytes} min_image_quads={min_artwork_quads} max_warm_requests={warm_artwork_requests}"
+                );
+                if artwork_bytes == 0 || min_artwork_quads < 10 || warm_artwork_requests != 0 {
+                    return Err(
+                        "Artwork workload did not retain its warmed image working set".into(),
+                    );
+                }
+            }
             if trace_frames {
                 let mut phase_samples: [[u64; MEASURED_FRAMES]; 7] =
                     std::array::from_fn(|phase| timings.map(|sample| sample.phases[phase]));

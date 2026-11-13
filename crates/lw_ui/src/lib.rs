@@ -1,4 +1,5 @@
 //! LocalWave's pxui views. Application state changes are returned as intents.
+pub mod artwork;
 pub mod browse;
 pub mod catalog;
 pub mod motion;
@@ -55,6 +56,7 @@ pub enum Intent {
 
 #[derive(Default)]
 pub struct PlayerView<'a> {
+    pub artwork: Option<&'a artwork::Images>,
     pub revision: u64,
     pub title: &'a str,
     pub context: &'a str,
@@ -75,6 +77,49 @@ pub struct PlayerView<'a> {
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+
+    #[test]
+    fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let catalog = catalog::Catalog::new(Vec::new());
+        let state = ShellState::default();
+        for (revision, (position, duration)) in [
+            (23.0, 0.0),
+            (2.0, 1.0),
+            (-1.0, 2.0),
+            (f64::NAN, f64::INFINITY),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let player = PlayerView {
+                revision: revision as u64,
+                position,
+                duration,
+                ..Default::default()
+            };
+            ui.frame(
+                &FrameIn {
+                    width: 1440.0,
+                    height: 872.0,
+                    ..Default::default()
+                },
+                &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+            )
+            .unwrap();
+            let progress = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| ui.a11y_name_of(node) == "Playback position")
+                .unwrap();
+            assert!(progress.is_role(if duration.is_finite() && duration > 0.0 {
+                pxui::ui::Role::Slider
+            } else {
+                pxui::ui::Role::Progress
+            }));
+        }
+    }
 
     #[test]
     fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_warm_allocations()

@@ -57,7 +57,9 @@ The [Rust port plan](https://artifacts.microapps.space/a/w474jy87pnxg) is being 
 
 The Rust window supports resizing and native zoom/full-screen controls, with content behind its
 transparent title bar. The Queue button opens the full occurrence-based queue editor; Save as
-playlist saves its current order with duplicate songs included once. Artwork is still a placeholder.
+playlist saves its current order with duplicate songs included once. Album, Now panel and queue
+artwork load from the existing library on a separate worker, with bounded thumbnail/texture caches.
+Tracks without readable local cover files keep their placeholder.
 Quit an already running Rust app before opening a rebuilt bundle so macOS launches the new binary.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
@@ -71,10 +73,10 @@ open target/bundle/LocalWave.app
 make install                # install to /Applications (APPDIR overrides)
 cargo t -p lw_core          # Rust storage and model checks
 cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
-make performance            # signed Songs + Find + Queue + drag + queue sheet: allocation/time/idle gates
+make performance            # signed Songs + Find + Queue + drag + queue sheet + artwork: allocation/time/idle gates
 ```
 
-Warm library/app builds have measured 0.14/0.04 seconds, and 107 bounded app checks 12.01 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
+Warm library/app builds have measured 0.14/0.04 seconds, and 117 bounded app checks 12.55 seconds. The regular 10,000-song UI workload has zero warm Rust allocations, but the strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
 
 ## Development
 

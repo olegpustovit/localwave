@@ -1,12 +1,142 @@
 #[path = "../src/events.rs"]
 #[allow(unused_imports)] // The harness-free target omits events.rs's libtest functions.
 mod events;
+#[path = "../src/gpu.rs"]
+mod gpu;
 #[path = "../../../pxui/tools/t/window_harness.rs"]
 #[allow(clippy::type_complexity)] // Shared test registry signatures.
 #[rustfmt::skip] // Keep the shared harness's upstream formatting.
 mod harness;
 
 fn release_keepalive() {} // This target creates no shared GPU device.
+
+fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_completion() {
+    // ImageIO, real Metal presentation and its frame fences require this main-thread integration process.
+    mem_sys::set_peer(pxui::library_counter);
+    let mut window =
+        pxui_sdl::Window::open_with("LocalWave artwork check", 1440, 872, false, true, true)
+            .unwrap();
+    let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+    let mut graphics = gpu::Graphics::open(&mut window, &ui).unwrap();
+    extern "C" fn wake() {
+        pxui_sdl::wake();
+    }
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../Tests/LocalWaveDataTests/Fixtures/artwork-rgba.png");
+    let path = path.to_str().unwrap();
+    let mut worker = lw_bin::library::ArtworkWorker::open(
+        Some(std::path::Path::new(path).parent().unwrap().to_owned()),
+        wake,
+    )
+    .unwrap();
+    let catalog = lw_ui::catalog::Catalog::new(vec![lw_core::Song {
+        id: Some(7),
+        title: "Covered song".into(),
+        album: "Covered album".into(),
+        cover_art_path: Some(path.into()),
+        ..Default::default()
+    }]);
+    let mut state = lw_ui::ShellState::default();
+    state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
+    graphics
+        .sync_artwork(std::sync::Arc::as_ptr(&catalog.library) as usize, None)
+        .unwrap();
+    graphics.configure_artwork(1440.0, 872.0, 1.0).unwrap();
+    graphics.artwork.images.begin_frame();
+    graphics.artwork.images.get(1, path, 360.0);
+    worker.request(graphics.artwork.images.requests()).unwrap();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+    while !worker.poll() {
+        assert!(
+            std::time::Instant::now() < deadline,
+            "artwork worker timed out"
+        );
+        std::thread::yield_now();
+    }
+    let source = worker.ready().unwrap();
+    assert!(source.thumbnail.is_some());
+    graphics
+        .sync_artwork(
+            std::sync::Arc::as_ptr(&catalog.library) as usize,
+            Some(source),
+        )
+        .unwrap();
+    let texture = graphics.artwork.texture(1).unwrap();
+    let bytes = ogpu_core::backend::read_texture(texture, 8 * 4).unwrap();
+    assert_eq!(bytes, source.thumbnail.as_ref().unwrap().pixels);
+    assert_eq!(graphics.artwork.resident_bytes(), 8 * 4 * 4);
+    for frame in 0..24 {
+        graphics.artwork.images.begin_frame();
+        let player = lw_ui::PlayerView {
+            artwork: Some(&graphics.artwork.images),
+            revision: frame,
+            current_id: Some(7),
+            initialized: true,
+            title: "Covered song",
+            position: frame as f64,
+            ..Default::default()
+        };
+        mem_sys::local_reset();
+        ui.frame(
+            &pxui::FrameIn {
+                width: 1440.0,
+                height: 872.0,
+                time: frame as f64 * 0.02,
+                ..Default::default()
+            },
+            &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut None),
+        )
+        .unwrap();
+        assert!(graphics.draw(&mut window, &ui).unwrap());
+        assert!(
+            ui.layers()
+                .map(|layer| layer
+                    .instances
+                    .iter()
+                    .filter(|instance| instance.kind == pxui::draw::kind::IMAGE)
+                    .count())
+                .sum::<usize>()
+                >= 2,
+            "album and Now panel must contain actual image draws"
+        );
+        // The first ten clocks visit every digit before measuring the warm glyph/image paths.
+        if frame >= 10 {
+            assert_eq!(
+                mem_sys::local_alloc_count(),
+                0,
+                "warm artwork build, glyphs, image wrappers and native draw"
+            );
+        }
+        assert!(graphics.artwork.images.requests().keys().is_empty());
+    }
+    let original = graphics.artwork.texture(1).unwrap().clone();
+    graphics.artwork.sync_library(42, 0).unwrap();
+    assert!(!ogpu_core::backend::texture_destroyed(&original));
+    graphics.artwork.retire_completed(0).unwrap();
+    assert!(!ogpu_core::backend::texture_destroyed(&original));
+    for frame in 0..3 {
+        let player = lw_ui::PlayerView {
+            artwork: Some(&graphics.artwork.images),
+            revision: 30 + frame,
+            ..Default::default()
+        };
+        ui.frame(
+            &pxui::FrameIn {
+                width: 1440.0,
+                height: 872.0,
+                time: 1.0 + frame as f64 * 0.02,
+                ..Default::default()
+            },
+            &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut None),
+        )
+        .unwrap();
+        assert!(graphics.draw(&mut window, &ui).unwrap());
+    }
+    assert!(ogpu_core::backend::texture_destroyed(&original));
+    drop(worker);
+    graphics.close().unwrap();
+    window.destroy().unwrap();
+}
 
 fn native_window_resizes_enables_zoom_and_measures_titlebar_clearance() {
     // Native AppKit/SDL startup and window geometry require a main-thread integration process.
@@ -47,6 +177,12 @@ fn system_preferences_use_appkit_notifications_and_cached_warm_reads() {
         pxui_sdl::Window::open_with("LocalWave preferences check", 320, 240, false, true, true)
             .unwrap();
     let environment = lw_apple_sys::environment::Environment::open(wake).unwrap();
+    let cover = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../Tests/LocalWaveDataTests/Fixtures/artwork-rgba.png");
+    assert!(
+        lw_apple_sys::artwork::thumbnail(&cover, 32).is_err(),
+        "image decoding must never run on the UI thread"
+    );
     let first = environment.snapshot();
     assert!((1..=2).contains(&first.appearance) && first.reduced_motion <= 1);
     for _ in 0..20 {
@@ -143,6 +279,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_completion",
+            worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_completion,
+        ),
         (
             "native_window_resizes_enables_zoom_and_measures_titlebar_clearance",
             native_window_resizes_enables_zoom_and_measures_titlebar_clearance,

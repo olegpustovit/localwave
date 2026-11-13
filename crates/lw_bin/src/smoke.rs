@@ -55,6 +55,27 @@ pub fn seed_catalog(path: &std::path::Path) -> std::io::Result<()> {
     db.execute_batch("BEGIN IMMEDIATE; WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<10000) INSERT INTO songs (songKey,artist,title,album,albumArtist,pathHash,createdAt,duration,fileExtension,isFavorite,releaseYear) SELECT n,'Artist '||(n%10),printf('Track %05d',n),'Album '||(n%100),'Artist '||(n%10),n,n,240,'m4a',n%2,2019 FROM seq; INSERT INTO songs_fts(songId,artist,title,album,albumArtist) SELECT id,artist,title,album,albumArtist FROM songs; COMMIT").map_err(std::io::Error::other)
 }
 
+pub fn seed_artwork(
+    database: &std::path::Path,
+    documents: &std::path::Path,
+) -> std::io::Result<()> {
+    let directory = documents.join("CoverArt");
+    std::fs::create_dir_all(&directory)?;
+    for index in 0..100 {
+        std::fs::write(
+            directory.join(format!("benchmark-{index}.png")),
+            include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/artwork-large.png"),
+        )?;
+    }
+    let database = database
+        .to_str()
+        .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?;
+    lw_apple_sys::sqlite::Connection::open(database)
+        .map_err(std::io::Error::other)?
+        .execute_batch("UPDATE songs SET coverArtPath='CoverArt/benchmark-'||(songKey%100)||'.png'")
+        .map_err(std::io::Error::other)
+}
+
 /// Observe a full idle interval after the first draw, independent of startup duration.
 pub struct Smoke {
     timeout: f64,

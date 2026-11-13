@@ -44,6 +44,8 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=AppKit");
         println!("cargo:rustc-link-lib=framework=AVFoundation");
         println!("cargo:rustc-link-lib=framework=CoreMedia");
+        println!("cargo:rustc-link-lib=framework=ImageIO");
+        println!("cargo:rustc-link-lib=framework=CoreGraphics");
         if std::env::var_os("CARGO_FEATURE_METAL").is_some() {
             cc::Build::new()
                 .file("src/metal.m")

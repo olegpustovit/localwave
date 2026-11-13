@@ -8,6 +8,7 @@ fn message(error: ogpu_core::error::Error) -> String {
 }
 
 pub struct Graphics {
+    pub artwork: lw_bin::artwork_gpu::ArtworkCache,
     renderer: Option<Renderer>,
     frames: Frames,
     queue: be::Queue,
@@ -51,12 +52,23 @@ impl Graphics {
             },
         )?;
         Ok(Self {
+            artwork: lw_bin::artwork_gpu::ArtworkCache::default(),
             renderer: Some(renderer),
             frames,
             queue,
             device,
             blur_extent: (0, 0),
         })
+    }
+
+    pub fn configure_artwork(
+        &mut self,
+        width: f32,
+        height: f32,
+        density: f32,
+    ) -> Result<(), String> {
+        self.artwork
+            .configure(width, height, density, self.frames.completed())
     }
 
     pub fn draw(&mut self, window: &mut Window, ui: &Ui) -> Result<bool, String> {
@@ -106,11 +118,28 @@ impl Graphics {
             })
             .map_err(|code| format!("Renderer draw failed ({code})"))?;
         self.frames.submit()?;
+        self.artwork.submitted(self.frames.serial());
+        self.artwork.retire_completed(self.frames.completed())?;
         Ok(true)
     }
 
     pub fn close(mut self) -> Result<(), String> {
         self.frames.wait()
+    }
+    pub fn sync_artwork(
+        &mut self,
+        library: usize,
+        ready: Option<&lw_bin::library::ArtworkReady>,
+    ) -> Result<bool, String> {
+        let mut changed = self
+            .artwork
+            .sync_library(library, self.frames.completed())?;
+        if let Some(ready) = ready {
+            changed |= self
+                .artwork
+                .upload(&self.device, ready, self.frames.completed())?;
+        }
+        Ok(changed)
     }
 }
 
@@ -119,6 +148,7 @@ impl Drop for Graphics {
         // Renderer resources must outlive all submitted GPU work, including early error exits.
         let _ = self.frames.wait();
         drop(self.renderer.take());
+        let _ = self.artwork.destroy();
         let _ = be::destroy_queue(&self.queue);
         let _ = be::destroy_device(&self.device);
     }

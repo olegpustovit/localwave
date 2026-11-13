@@ -281,6 +281,37 @@ fn rule(ui: &mut Ui, key: &str, vertical: bool, p: Palette) {
     );
 }
 
+fn paint_artwork(
+    ui: &mut Ui,
+    node: &Handle,
+    row: Option<crate::catalog::Row<'_>>,
+    points: f32,
+    images: Option<&crate::artwork::Images>,
+) {
+    ui.set_role(node, Role::Image, 0);
+    if let (Some(row), Some(images)) = (row, images)
+        && let Some(path) = row.cover_art_path
+        && let Some(image) = images.get(row.cover_art_id, path, points)
+    {
+        ui.draw(node, move |paint, rect| {
+            paint.image_fit(
+                rect.x,
+                rect.y,
+                rect.w,
+                rect.h,
+                &image,
+                Fit::Cover,
+                Rgba {
+                    r: 255,
+                    g: 255,
+                    b: 255,
+                    a: 255,
+                },
+            )
+        });
+    }
+}
+
 #[derive(Clone, Copy)]
 enum Icon {
     Play,
@@ -623,7 +654,12 @@ pub fn shell(
             );
             rule(ui, "sidebar-divider", true, p);
             let mut library_revision = DefaultHasher::new();
-            (revision, player.current_id).hash(&mut library_revision);
+            (
+                revision,
+                player.current_id,
+                player.artwork.map_or(0, crate::artwork::Images::revision),
+            )
+                .hash(&mut library_revision);
             ui.view(
                 "library",
                 library_revision.finish(),
@@ -660,6 +696,7 @@ pub fn shell(
                 let mut panel_revision = DefaultHasher::new();
                 (
                     player.revision,
+                    player.artwork.map_or(0, crate::artwork::Images::revision),
                     catalog.queue.as_ref().map(|queue| queue.revision),
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
                 )
@@ -1029,6 +1066,13 @@ fn content(
                                 Size::Grow,
                                 Size::Px(146.0),
                                 p.panel,
+                            );
+                            paint_artwork(
+                                ui,
+                                &art,
+                                group.artwork_row.map(|index| catalog.row(index)),
+                                cell * 2.0,
+                                player.artwork,
                             );
                             ui.a11y_name(&art, "Album artwork");
                         }
@@ -1429,6 +1473,16 @@ fn now_panel(
             Size::Px(184.0),
             p.panel,
         );
+        paint_artwork(
+            ui,
+            &art,
+            player
+                .current_id
+                .and_then(|id| catalog.row_index(id))
+                .map(|index| catalog.row(index)),
+            184.0,
+            player.artwork,
+        );
         ui.a11y_name(&art, "Current track artwork");
         spacer(ui, "artwork-bottom-gap", 14.0);
         text(
@@ -1474,8 +1528,9 @@ fn now_panel(
             p.paper,
         );
         ui.a11y_name(&clock, "Elapsed time");
-        ui.a11y_number(&clock, player.position, 0.0, player.duration.max(0.0), 1.0);
         let seconds = player.position.max(0.0) as u64;
+        ui.set_role(&clock, Role::Label, 0);
+        ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0);
         ui.draw(&clock, move |paint, rect| {
             matrix_clock(paint, rect, seconds, p.ink)
         });
@@ -1507,6 +1562,7 @@ fn now_panel(
         (
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,
+            player.artwork.map_or(0, crate::artwork::Images::revision),
         )
             .hash(&mut queue_revision);
         ui.view(
@@ -1514,7 +1570,7 @@ fn now_panel(
             queue_revision.finish(),
             Size::Grow,
             Size::Grow,
-            &mut |ui| queue_rows(ui, catalog, false, 279.0, p, intent),
+            &mut |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, p, intent),
         );
     });
 }
@@ -1558,6 +1614,7 @@ fn queue_sheet(
         let mut revision = DefaultHasher::new();
         (
             state.revision,
+            player.artwork.map_or(0, crate::artwork::Images::revision),
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,
             player.message.as_ptr() as usize,
@@ -1732,6 +1789,7 @@ fn queue_sheet(
                         catalog.queue.as_ref().map(|queue| queue.revision),
                         std::sync::Arc::as_ptr(&catalog.library) as usize,
                         width.to_bits(),
+                        player.artwork.map_or(0, crate::artwork::Images::revision),
                     )
                         .hash(&mut revision);
                     ui.view(
@@ -1739,7 +1797,9 @@ fn queue_sheet(
                         revision.finish(),
                         Size::Grow,
                         Size::Grow,
-                        &mut |ui| queue_rows(ui, catalog, true, width - 42.0, p, intent),
+                        &mut |ui| {
+                            queue_rows(ui, catalog, true, width - 42.0, player.artwork, p, intent)
+                        },
                     );
                 });
             },
@@ -1755,6 +1815,7 @@ fn queue_rows(
     catalog: &Catalog,
     full: bool,
     width: f32,
+    images: Option<&crate::artwork::Images>,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
@@ -1926,7 +1987,7 @@ fn queue_rows(
                     Size::Px(30.0),
                     p.panel,
                 );
-                ui.set_role(&art, Role::Image, 0);
+                paint_artwork(ui, &art, row, 30.0, images);
                 ui.a11y_name(
                     &art,
                     if current {
@@ -2229,27 +2290,39 @@ fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
         });
         let elapsed = player.position.max(0.0) as u64;
         let remaining = (player.duration - player.position).max(0.0) as u64;
+        let duration = if player.duration.is_finite() {
+            player.duration.max(0.0)
+        } else {
+            0.0
+        };
+        let position = if player.position.is_finite() {
+            player.position.clamp(0.0, duration)
+        } else {
+            0.0
+        };
         small_clock(ui, "elapsed", elapsed, false, 44.0, p.secondary);
         let scrubber = ui.node(
             "scrubber",
             Node {
-                flags: CLICKABLE | TAB_STOP,
+                flags: if duration > 0.0 {
+                    CLICKABLE | TAB_STOP
+                } else {
+                    0
+                },
                 w: Size::Grow,
                 h: Size::Px(40.0),
-                role: Role::Slider,
+                role: if duration > 0.0 {
+                    Role::Slider
+                } else {
+                    Role::Progress
+                },
                 ..Node::DEFAULT
             },
         );
         ui.a11y_name(&scrubber, "Playback position");
-        ui.a11y_number(
-            &scrubber,
-            player.position,
-            0.0,
-            player.duration.max(0.0),
-            5.0,
-        );
-        let fraction = if player.duration > 0.0 {
-            (player.position / player.duration).clamp(0.0, 1.0) as f32
+        ui.a11y_number(&scrubber, position, 0.0, duration, 5.0);
+        let fraction = if duration > 0.0 {
+            (position / duration) as f32
         } else {
             0.0
         };
@@ -2265,17 +2338,15 @@ fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
         });
         let signal = ui.signal_state(&scrubber);
         let rect = ui.rect(&scrubber);
-        if (signal.clicked || signal.dragging) && rect.w > 0.0 {
+        if duration > 0.0 && (signal.clicked || signal.dragging) && rect.w > 0.0 {
             *intent = Some(Intent::SeekFraction(
                 ((signal.pointer.0 - rect.x) / rect.w).clamp(0.0, 1.0) as f64,
             ));
         }
         if let Some(value) = signal.a11y_value
-            && player.duration > 0.0
+            && duration > 0.0
         {
-            *intent = Some(Intent::SeekFraction(
-                (value / player.duration).clamp(0.0, 1.0),
-            ));
+            *intent = Some(Intent::SeekFraction((value / duration).clamp(0.0, 1.0)));
         }
         small_clock(ui, "remaining", remaining, true, 50.0, p.secondary);
         if icon_button(

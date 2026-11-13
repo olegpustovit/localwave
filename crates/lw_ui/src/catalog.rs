@@ -30,6 +30,8 @@ pub struct Row<'a> {
     pub seconds: Option<f64>,
     pub release_year: Option<i64>,
     pub has_format: bool,
+    pub cover_art_path: Option<&'a str>,
+    pub cover_art_id: usize,
     pub favorite: bool,
     pub state: FileState,
 }
@@ -43,6 +45,7 @@ struct StoredRow {
     seconds: Option<f64>,
     release_year: Option<i64>,
     has_format: bool,
+    cover_art: usize,
 }
 
 #[derive(Clone)]
@@ -54,11 +57,14 @@ pub struct Collection {
     pub rows: Vec<usize>,
     pub ids: Arc<[i64]>,
     pub context: Arc<PlaybackContext>,
+    /// A representative row with artwork, prepared once with the collection.
+    pub artwork_row: Option<usize>,
 }
 
 #[derive(Clone, Default)]
 pub struct Library {
     labels: String,
+    covers: Vec<Range<usize>>,
     rows: Vec<StoredRow>,
     by_id: HashMap<i64, usize>,
     pub all: Option<Collection>,
@@ -92,7 +98,8 @@ impl Library {
         };
         out.rows.reserve_exact(songs.len());
         let mut tracks = Vec::with_capacity(songs.len());
-        for song in songs {
+        let mut covers = HashMap::new();
+        for mut song in songs {
             let Some(id) = song.id else { continue };
             let index = out.rows.len();
             let artist = if song.album_artist.is_empty() {
@@ -128,6 +135,18 @@ impl Library {
                 out.labels.push_str(text);
                 start..out.labels.len()
             });
+            let cover_art = song
+                .cover_art_path
+                .take()
+                .filter(|path| !path.is_empty())
+                .map_or(0, |path| {
+                    *covers.entry(path).or_insert_with_key(|path| {
+                        let start = out.labels.len();
+                        out.labels.push_str(path);
+                        out.covers.push(start..out.labels.len());
+                        out.covers.len()
+                    })
+                });
             tracks.push((
                 song.disc_number.unwrap_or(1),
                 song.track_number.unwrap_or(i64::MAX),
@@ -140,6 +159,7 @@ impl Library {
                 seconds: seconds_value,
                 release_year: song.release_year,
                 has_format,
+                cover_art,
             });
         }
         out.by_id = out
@@ -234,6 +254,11 @@ impl Library {
             seconds: row.seconds,
             release_year: row.release_year,
             has_format: row.has_format,
+            cover_art_id: row.cover_art,
+            cover_art_path: row
+                .cover_art
+                .checked_sub(1)
+                .map(|index| &self.labels[self.covers[index].clone()]),
         }
     }
     pub fn add_collection(&mut self, name: &str, rows: Vec<usize>, context: PlaybackContext) {
@@ -258,6 +283,10 @@ impl Library {
             subtitle: subtitle.into(),
             count: rows.len().to_string(),
             ids: rows.iter().map(|index| self.rows[*index].id).collect(),
+            artwork_row: rows
+                .iter()
+                .copied()
+                .find(|index| self.rows[*index].cover_art != 0),
             rows,
             context: Arc::new(context),
         }
@@ -370,6 +399,64 @@ impl Catalog {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn cover_paths_share_storage_and_collections_keep_a_representative_row() {
+        let catalog = super::Catalog::new(vec![
+            lw_core::Song {
+                id: Some(1),
+                title: "A".into(),
+                album: "Album".into(),
+                track_number: Some(1),
+                ..Default::default()
+            },
+            lw_core::Song {
+                id: Some(2),
+                title: "B".into(),
+                album: "Album".into(),
+                track_number: Some(2),
+                cover_art_path: Some("CoverArt/shared.png".into()),
+                ..Default::default()
+            },
+            lw_core::Song {
+                id: Some(3),
+                title: "C".into(),
+                album: "Other".into(),
+                cover_art_path: Some("CoverArt/shared.png".into()),
+                ..Default::default()
+            },
+            lw_core::Song {
+                id: Some(4),
+                title: "D".into(),
+                album: "Empty".into(),
+                cover_art_path: Some(String::new()),
+                ..Default::default()
+            },
+        ]);
+        assert_eq!(catalog.library.covers.len(), 1);
+        assert!(catalog.row(0).cover_art_path.is_none());
+        assert!(catalog.row(3).cover_art_path.is_none());
+        assert_eq!(
+            catalog
+                .albums
+                .iter()
+                .find(|album| album.title == "Album")
+                .unwrap()
+                .artwork_row,
+            Some(1)
+        );
+        let first = catalog.row(1).cover_art_path.unwrap();
+        let second = catalog.row(2).cover_art_path.unwrap();
+        assert_eq!(first, "CoverArt/shared.png");
+        assert_eq!(first.as_ptr(), second.as_ptr());
+        mem_sys::local_reset();
+        for _ in 0..1000 {
+            assert_eq!(
+                catalog.row(2).cover_art_path.unwrap().as_ptr(),
+                first.as_ptr()
+            );
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
     use super::*;
     #[test]
     fn catalog_prepares_real_labels_groups_and_queue_orders_once() {

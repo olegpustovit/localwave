@@ -83,6 +83,9 @@ void lw_preferences_set_cache_version(void *preferences, int64_t song, const cha
 char *lw_app_path(unsigned int slot);
 char *lw_file_path(const char *value);
 int lw_artwork_store(const char *documents, const unsigned char *bytes, size_t length, char **relative, char **error);
+void *lw_artwork_thumbnail(const char *path, uint32_t max_pixels, uint32_t *width, uint32_t *height, char **error);
+int lw_artwork_pixels(void *image, unsigned char *pixels, size_t length);
+void lw_artwork_thumbnail_release(void *image);
 int lw_is_main_thread(void);
 typedef struct {
     double top_inset;

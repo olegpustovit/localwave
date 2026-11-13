@@ -1,8 +1,97 @@
 #import <Foundation/Foundation.h>
 #import <CommonCrypto/CommonDigest.h>
+#import <ImageIO/ImageIO.h>
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include "platform.h"
+
+static void artwork_error(char **error, NSString *message) {
+    if (error) *error = strdup((message ?: @"Could not decode cover art").UTF8String);
+}
+
+void *lw_artwork_thumbnail(const char *path, uint32_t maxPixels, uint32_t *width, uint32_t *height, char **error) {
+    @autoreleasepool {
+        NSString *name = path ? [NSString stringWithUTF8String:path] : nil;
+        if (NSThread.isMainThread || !name.isAbsolutePath || !width || !height || !maxPixels || maxPixels > 1024) {
+            artwork_error(error, @"Cover thumbnails require an absolute file path, a worker and 1...1024 pixels"); return NULL;
+        }
+        LWFileInfo before;
+        if (!lw_file_probe(path, 0, &before, error)) return NULL;
+        if (before.availability == 2 || (before.provider && before.availability != 1)) {
+            artwork_error(error, @"Cover art is not confirmed local"); return NULL;
+        }
+        if (before.size > 64 * 1024 * 1024) { artwork_error(error, @"Cover art exceeds 64 MiB"); return NULL; }
+        NSURL *url = [NSURL fileURLWithPath:name];
+        __block CGImageRef image = NULL;
+        __block NSError *readError = nil;
+        NSError *coordinationError = nil;
+        NSFileCoordinator *coordinator = [NSFileCoordinator new];
+        [coordinator coordinateReadingItemAtURL:url options:0 error:&coordinationError byAccessor:^(NSURL *readable) {
+            LWFileInfo coordinated;
+            char *probeError = NULL;
+            if (!lw_file_probe(readable.path.UTF8String, 0, &coordinated, &probeError) || coordinated.availability == 2 || (coordinated.provider && coordinated.availability != 1)) {
+                free(probeError); return;
+            }
+            NSNumber *regular = nil;
+            if (![readable getResourceValue:&regular forKey:NSURLIsRegularFileKey error:&readError] || !regular.boolValue) return;
+            NSFileHandle *file = [NSFileHandle fileHandleForReadingFromURL:readable error:&readError];
+            if (!file) return;
+            NSUInteger limit = (NSUInteger)(coordinated.size >= 0 && coordinated.size < 64 * 1024 * 1024 ? coordinated.size + 1 : 64 * 1024 * 1024 + 1);
+            NSData *data = [file readDataUpToLength:limit error:&readError];
+            NSError *closeError = nil;
+            [file closeAndReturnError:&closeError];
+            if (!readError) readError = closeError;
+            if (readError || !data.length || data.length > 64 * 1024 * 1024 || (coordinated.size >= 0 && data.length != (uint64_t)coordinated.size)) return;
+            CGImageSourceRef source = CGImageSourceCreateWithData((__bridge CFDataRef)data, (__bridge CFDictionaryRef)@{ (__bridge NSString *)kCGImageSourceShouldCache: @NO });
+            if (!source) return;
+            image = CGImageSourceCreateThumbnailAtIndex(source, 0, (__bridge CFDictionaryRef)@{
+                (__bridge NSString *)kCGImageSourceCreateThumbnailFromImageAlways: @YES,
+                (__bridge NSString *)kCGImageSourceCreateThumbnailWithTransform: @YES,
+                (__bridge NSString *)kCGImageSourceThumbnailMaxPixelSize: @(maxPixels),
+                (__bridge NSString *)kCGImageSourceShouldCacheImmediately: @YES
+            });
+            CFRelease(source);
+        }];
+        if (!image || readError || coordinationError) {
+            if (image) CGImageRelease(image);
+            artwork_error(error, (readError ?: coordinationError).localizedDescription); return NULL;
+        }
+        LWFileInfo after;
+        if (!lw_file_probe(path, 0, &after, error)) { CGImageRelease(image); return NULL; }
+        if (before.size != after.size || (isfinite(before.modified) && isfinite(after.modified) && before.modified != after.modified)) {
+            CGImageRelease(image); artwork_error(error, @"Cover art changed during decoding; retry it"); return NULL;
+        }
+        size_t w = CGImageGetWidth(image), h = CGImageGetHeight(image);
+        if (!w || !h || w > maxPixels || h > maxPixels) { CGImageRelease(image); artwork_error(error, @"Invalid cover thumbnail dimensions"); return NULL; }
+        *width = (uint32_t)w; *height = (uint32_t)h;
+        return (void *)image;
+    }
+}
+
+int lw_artwork_pixels(void *raw, unsigned char *pixels, size_t length) {
+    @autoreleasepool {
+        if (NSThread.isMainThread || !raw || !pixels) return 0;
+        CGImageRef image = (CGImageRef)raw;
+        size_t w = CGImageGetWidth(image), h = CGImageGetHeight(image);
+        if (!w || !h || w > 1024 || h > 1024 || length != w * h * 4) return 0;
+        CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+        CGContextRef context = space ? CGBitmapContextCreate(pixels, w, h, 8, w * 4, space, kCGBitmapByteOrder32Big | kCGImageAlphaPremultipliedLast) : NULL;
+        if (space) CGColorSpaceRelease(space);
+        if (!context) return 0;
+        CGContextSetBlendMode(context, kCGBlendModeCopy);
+        CGContextDrawImage(context, CGRectMake(0, 0, w, h), image);
+        CGContextRelease(context);
+        // PXUI samples straight-alpha images; Core Graphics writes premultiplied RGBA.
+        for (size_t i = 0; i < length; i += 4) {
+            unsigned alpha = pixels[i + 3];
+            if (alpha == 255) continue;
+            for (size_t c = 0; c < 3; ++c) pixels[i + c] = alpha ? (unsigned char)MIN(255u, ((unsigned)pixels[i + c] * 255u + alpha / 2u) / alpha) : 0;
+        }
+        return 1;
+    }
+}
+void lw_artwork_thumbnail_release(void *raw) { if (raw) CGImageRelease((CGImageRef)raw); }
 
 int lw_artwork_store(const char *documents, const unsigned char *bytes, size_t length, char **relative, char **error) {
     @autoreleasepool {

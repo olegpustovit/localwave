@@ -7,6 +7,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod artwork;
+pub use artwork::{ArtworkReady, ArtworkWorker};
 mod cache;
 mod catalog;
 mod files;
