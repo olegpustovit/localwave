@@ -1556,7 +1556,7 @@ fn queue_rows(ui: &mut Ui, catalog: &Catalog, p: Palette, intent: &mut Option<In
         );
         return;
     }
-    ui.grid_list(
+    let list = ui.grid_list(
         "queue-entries",
         entries.len(),
         279.0,
@@ -1606,7 +1606,6 @@ fn queue_rows(ui: &mut Ui, catalog: &Catalog, p: Palette, intent: &mut Option<In
                     }
                 });
                 let signal = ui.signal_state(&grip);
-                // shortcut: capture ends when the source row is virtualized away; use list-owned capture for cross-page drags.
                 if signal.held || signal.clicked {
                     let id = ClockLabel::integer(entry.id);
                     const PREFIX: &[u8] = b"localwave.queue-occurrence:";
@@ -1715,6 +1714,8 @@ fn queue_rows(ui: &mut Ui, catalog: &Catalog, p: Palette, intent: &mut Option<In
             }
         },
     );
+    ui.a11y_name(&list, "Up next queue");
+    ui.transfer_carry(&list);
 }
 
 #[derive(Clone, Copy)]

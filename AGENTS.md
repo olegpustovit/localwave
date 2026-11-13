@@ -130,3 +130,17 @@ keyboard-chip warm regression, including Space press/release with modifiers. PXU
 signal/modifier storage and encodes borrowed events into its existing ABI chunks; `signal` must
 still return every ordered key/text/IME event. Owned key-vector reads and text payloads remain
 separate allocation paths. No input event may be dropped to meet the numeric allocation gate.
+
+Queue drags transfer pointer capture to the stable list with ABI 1.12 `transfer_carry`; source rows
+may be virtualized away. Preserve wheel/edge scrolling, exact occurrence targets, cancellation and
+no activation on release. The queue regression scrolls 30 rows while holding duplicate-song
+occurrences, checks the original grip disappears, and counts warm Rust allocations with live clocks.
+A11y IDs are stable while a node remains live; refresh the identity probe after virtualization.
+
+`make performance` runs Songs, filtered Find, Queue and queue carry/scroll/cancel, even if an earlier
+workload fails. Qualification requires a 1440x872 logical window. Every performance frame advances
+PlayerView revision along with position; changing the value alone can leave the Now panel cached.
+The 40-frame carry trace repeats through two warm cycles before measurement, asserts retained
+payload identity/capture, and cancels before release; any resulting application intent is an error.
+The trace must not edit the fixture queue or touch the normal database/defaults. Preserve the exact
+1,000 µs wall maximum, both Rust allocator counters, correlated diagnostics and recorded failures.

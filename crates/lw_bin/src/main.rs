@@ -34,7 +34,12 @@ fn run() -> Result<(), String> {
     if performance_find && !performance {
         return Err("--performance-find requires --performance-check".into());
     }
-    let performance_queue = std::env::args().any(|arg| arg == "--performance-queue");
+    let performance_queue_drag = std::env::args().any(|arg| arg == "--performance-queue-drag");
+    if performance_queue_drag && !performance {
+        return Err("--performance-queue-drag requires --performance-check".into());
+    }
+    let performance_queue =
+        performance_queue_drag || std::env::args().any(|arg| arg == "--performance-queue");
     if performance_queue && !performance {
         return Err("--performance-queue requires --performance-check".into());
     }
@@ -220,15 +225,19 @@ fn run() -> Result<(), String> {
             .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
             .map_err(|error| error.to_string())?;
         if performance && frames >= 2 {
-            events.push(HostEvent::PointerMoved(if performance_queue {
-                (1300.0, 690.0)
+            if performance_queue_drag {
+                smoke::queue_drag_events(frames - 2, &mut events);
             } else {
-                (650.0, 400.0)
-            }));
-            events.push(HostEvent::Scrolled((
-                0.0,
-                if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 },
-            )));
+                events.push(HostEvent::PointerMoved(if performance_queue {
+                    (1300.0, 690.0)
+                } else {
+                    (650.0, 400.0)
+                }));
+                events.push(HostEvent::Scrolled((
+                    0.0,
+                    if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 },
+                )));
+            }
         }
         let now = window.time();
         let current = window.extent();
@@ -243,6 +252,9 @@ fn run() -> Result<(), String> {
         let resized = current != extent;
         if resized {
             extent = current;
+        }
+        if performance && extent.logical != (1440, 872) {
+            return Err("Performance qualification requires a 1440x872 logical window".into());
         }
         if first
             || performance
@@ -266,7 +278,11 @@ fn run() -> Result<(), String> {
             let status = player.status();
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
-                revision: status.revision + error_revision,
+                revision: if performance {
+                    frames as u64
+                } else {
+                    status.revision + error_revision
+                },
                 title: &status.title,
                 context: status.context.title(),
                 message: command_error.unwrap_or(&status.message),
@@ -312,6 +328,25 @@ fn run() -> Result<(), String> {
             };
             if let Some(interval) = interval {
                 interval.finish(build_us as u64, cpu_us);
+            }
+            if performance_queue_drag && frames >= 2 {
+                let carrying = ui.carrying_ref();
+                let expected = (1..20).contains(&((frames - 2) % 40));
+                if expected != carrying.is_some()
+                    || (expected
+                        && (!ui.captured()
+                            || carrying.is_none_or(|p| {
+                                p.kind != "localwave.queue-occurrence:2" || p.value != "Track 00002"
+                            })))
+                {
+                    return Err(
+                        "Queue carry did not survive the cross-page scroll or cancel correctly"
+                            .into(),
+                    );
+                }
+                if intent.is_some() {
+                    return Err("Cancelled queue carry produced an application action".into());
+                }
             }
             let platform = &ui.output().platform;
             if platform.has_background != 0 {
@@ -446,7 +481,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_queue {
+                if performance_queue_drag {
+                    "queue-carry-scroll-cancel"
+                } else if performance_queue {
                     "queue-occurrences"
                 } else if performance_find {
                     "find-filters-title-descending"

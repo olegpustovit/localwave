@@ -163,6 +163,57 @@ mod tests {
                 );
             }
         }
+        for cycle in 0..16 {
+            mem_sys::local_reset();
+            let scroll = |y| pxui::Event {
+                kind: input::wire::SCROLLED,
+                y,
+                ..Default::default()
+            };
+            for e in [
+                Some(event(input::wire::POINTER_PRESSED, first, 10.0)),
+                Some(event(input::wire::POINTER_MOVED, third, 10.0)),
+                Some(scroll(-30.0)),
+                None,
+                Some(event(input::wire::POINTER_RELEASED, third, 10.0)),
+                Some(scroll(30.0)),
+                None,
+            ] {
+                frame.events = e.as_ref().map_or(std::ptr::null(), |e| e);
+                frame.event_count = usize::from(e.is_some());
+                frame.time += 0.02;
+                player.revision += 1;
+                player.position += 1.0;
+                ui.frame(&frame, &mut |ui| {
+                    shell(ui, &player, &catalog, &state, &mut intent)
+                })
+                .unwrap();
+                if e.is_none() && intent.is_none() && ui.carrying_ref().is_some() {
+                    assert!(
+                        !ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
+                        "the original grip is virtualized away"
+                    );
+                }
+                if e.is_some_and(|e| e.kind == input::wire::POINTER_RELEASED) {
+                    assert_eq!(
+                        intent.take(),
+                        Some(Intent::MoveQueue {
+                            occurrence: 2,
+                            before: Some(34)
+                        })
+                    );
+                } else {
+                    assert!(intent.is_none());
+                }
+            }
+            if cycle > 4 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm cross-page queue drag with live clocks"
+                );
+            }
+        }
         for cancel in [
             pxui::Event {
                 kind: input::wire::POINTER_CANCELLED,
@@ -197,6 +248,15 @@ mod tests {
         }
         frame.events = std::ptr::null();
         frame.event_count = 0;
+        let visible_first_grip = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| {
+                ui.a11y_name_of(node) == "Reorder queued track"
+                    && (node.rect.y - first.y).abs() < 0.1
+            })
+            .unwrap()
+            .id;
         let mut next = catalog.clone();
         let mut reordered = entries.to_vec();
         reordered.swap(1, 2);
@@ -222,7 +282,7 @@ mod tests {
         let moved = ui
             .a11y_nodes()
             .iter()
-            .find(|node| node.id == grips[0].0)
+            .find(|node| node.id == visible_first_grip)
             .unwrap();
         assert!(
             (moved.rect.y - first.y - 44.0).abs() < 0.1,

@@ -36,7 +36,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P1: core | Song model and raw states, masked UTF-8 FNV identity, Swift-compatible scalar lowercase, complete song hydration, additive song migrations, transactional song upsert and FTS updates, BM25 prefix search, Favorites, guarded cache updates, native FLAC comments/pictures, occurrence-based queue/reorder/shuffle/repeat/Clear/Undo and two-item prequeue selection. User/source/path/playlist repositories, transactional metadata/FTS removal, guarded bookmark/root replacement and source selection, SQLite.swift-compatible UTC text dates, indexed path rescans, album grouping without correlated rescans, and duplicate-preserving bulk reads without redundant Song copies. System SQLite through safe FFI. Indexed recursive import selection, transactional song/FTS/digest commits, pure import policy with progress/cancellation, cloud placeholders, verified-cache enrichment/invalidation, unchanged-file skipping and Unicode track-prefix cleanup. Thread-confined application scan/import service, generated-path exclusions, native bookmark/pin/cache-proof preferences, atomic scan publication and legacy-song relocation. LRU cache policy and a serialized application copy/eviction service with native coordinated copies and pin/playback protection. Native queue/volume/settings persistence, typed Swift-compatible playback contexts, duplicate-aware queue restoration, isolated UI-test suites and validated waveform JSON/SQLite storage. The application waveform service uses coordinated PCM extraction and Swift-compatible source signatures. | Library/import/catalog UI command integration, source observation; port coverage from all 18 SwiftPM test files. Fixture exchange does not qualify a full user library. |
 | P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. | Guarded playback-failure database updates and complete library/UI integration, Now Playing/media keys, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
-| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, visible-row drag reordering, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. | Artwork and waveform UI delivery, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, queue sheet/Save as list and cross-page queue drags, other presenters, shortcuts, external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
+| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. | Artwork and waveform UI delivery, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, source/folder/settings screens, queue sheet/Save as list, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | No changes. | Static SDL device/simulator spike, Metal/host/touch port, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
@@ -859,3 +859,91 @@ artwork/waveform delivery and the rest of P4 remain. Native process memory, stab
 macOS 15/Vulkan, release/distribution and iOS/device/cloud gates remain open. Swift/iOS suites
 were not rerun; their earlier source-observer failures remain recorded. The normal GUI is
 preserved and all qualification apps/data are isolated.
+
+
+## Cross-page queue dragging and clock benchmark correction
+
+PXUI **6130090** is published on `rust-port` before this parent pin. The queue panel transfers
+pointer capture to its stable scroll list through additive ABI **1.12** `transfer_carry`. Source
+rows can now leave virtualization while their occurrence/title payload remains held. Both wheel
+scrolling and pointer-edge scrolling work; the prior cross-page `shortcut:` is removed. Edge
+movement is time-based, bounded to 50 ms per step, and retains subpixel travel in two UI-level f64
+remainders rather than adding storage to every slot. Engine checks cover both axes and RTL, including
+one-microsecond input steps at 100,000-point offsets in 100,000-cell virtual grids.
+
+Unrelated or retired owners cannot take capture; key carries retain press-to-drop behavior. A
+release or explicit cancellation never clicks the capture owner. Focus loss, pointer cancellation
+and removing the owning container still end the carry; removal also removes the floating label in
+that same frame. Captured press modifiers retain their values while their vectors reuse capacity.
+
+The app's repeated 10,000-occurrence regression holds a duplicate-song occurrence through a
+30-row scroll, verifies the original grip actually disappears, drops before the exact target, and
+returns to the original page with clocks advancing. Warm gestures allocate zero Rust objects across
+app and library. After virtualization the test reacquires its visible accessibility identity before
+checking stability under reorder: retired node IDs are not a lifetime promise across slot reuse.
+
+This stronger trace found a repeated floating-label allocation in `Ui::text`. A temporary allocator
+backtrace isolated the path: retired slots retained nonempty strings which the existing empty-buffer
+donor path could not reuse until those slots were reassigned. Retiring now clears text/name/value
+contents while retaining their capacity. The warm assertion passes, and the temporary allocator
+instrumentation is removed. Development failures and the backtrace remain in
+`/tmp/localwave-rust-carry-owner-{ui,ui-diagnostic,allocation-trace}.log`.
+
+### Qualification
+
+Core/ABI/dynamic checks pass **281 cases in 8.870 s wall / 12.050 s summed**; the four-direction
+100,000-cell edge/precision/allocation case takes **0.575 s**. The static wrapper passes **49 cases
+in 2.168 s / 1.760 s**. Raw C validation includes null UI/box/output and retired handles. Dependency,
+header, snapshot and dynamic-export gates pass. The initial C fixture's wrong expectation for an
+unknown slot is corrected to the existing stale-handle contract; the production validation was not
+weakened. Final focused app cross-page checks pass in **3.636 s / 0.046 s**.
+
+The first complete app matrix passes **101 cases in 14.692 s / 9.420 s**; native controller smoke
+is **1.955 s**. A small event-trace regression pins the exact pointer/Escape sequence, repeats it
+and verifies retained event capacity. Clippy with warnings denied passes in **1.48 s**; formatting
+and whitespace checks pass. Logs use `/tmp/localwave-rust-carry-owner-` with `engine-final`,
+`static-matrix`, `abi-fixed`, `ui-final`, `app-tests`, `clippy` and `gate-*` suffixes.
+
+### Corrected signed performance workload
+
+Audit found the earlier signed harness changed `PlayerView.position` without advancing its revision.
+The cached Now panel could therefore keep its clock during Songs/Find scrolling. Earlier recorded
+passes remain evidence for their actual retained-panel workload; they do not fully qualify clock
+rebuilds. The harness now advances the revision every performance frame. This corrects earlier
+"changing clocks" claims for signed runs; the headless UI regressions already advanced revision.
+
+`make performance` now runs four workloads even after a failure. The new native trace holds the
+first upcoming occurrence through a 30-row wheel scroll, checks payload identity and capture, then
+cancels with Escape before releasing and returning to the source page. Any application intent fails
+the trace, so it does not edit the fixture queue. Qualification now requires a 1440x872 logical
+window, keeping fixed event coordinates and the measured scene consistent. All four workloads
+retain 82 warmup frames, 100 measured frames, zero warm Rust allocations and the unchanged maximum
+strictly below **1,000 µs**.
+
+The corrected `make performance` run **passes all four workloads**, each completing **182 frames/
+draws with zero warm Rust allocations across app and dylib**:
+
+| Workload | Wall max / p50 / p95 / p99 (µs) | CPU max / p50 / p95 / p99 (µs) |
+| --- | --- | --- |
+| Songs, original | 184 / 159 / 176 / 183 | 184 / 160 / 176 / 183 |
+| Find, filters and Title descending | 419 / 167 / 198 / 365 | 398 / 168 / 181 / 367 |
+| Queue, 9,999 upcoming occurrences | 545 / 190 / 213 / 491 | 472 / 190 / 211 / 433 |
+| Queue carry, cross-page wheel scroll and cancel | 378 / 154 / 234 / 309 | 379 / 154 / 234 / 289 |
+
+The changed release library/app builds take **21.28/10.99 s**. Bundle checks pass signatures,
+entitlements, macOS 15 minimums, default stack, bundled dylib ID and sole portable rpath. Smoke draws
+once then observes **507.3 ms idle**. Log: `/tmp/localwave-rust-carry-owner-performance.log`.
+Previous timing failures remain; this pass does not establish stable latency or their cause. The
+native carry workload qualifies wheel scrolling; pointer-edge motion has the separate engine
+allocation/geometry checks above. Native process memory and broader platform qualification remain
+open. The ordinary GUI is preserved; all qualification data/apps are isolated. No Swift/iOS or
+physical-device suites were rerun. Queue sheet/Save as list and the remaining P4/P5/P6/P7 work are
+still required for the full port.
+
+
+A final app rerun after the window-size guard passes **101 cases in 11.254 s wall / 8.981 s
+summed**, including native controller smoke in **3.351 s**. Final Clippy with warnings denied passes
+in **1.30 s**. Formatting/whitespace and the exact published PXUI pin checks pass. The standalone
+`--performance-queue-drag` flag returns its expected requires-performance-check error before any
+window/library setup. Final logs: `/tmp/localwave-rust-carry-owner-app-final.log`,
+`/tmp/localwave-rust-carry-owner-clippy-final.log` and `/tmp/localwave-rust-carry-owner-remote.log`.
