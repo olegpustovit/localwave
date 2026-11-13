@@ -162,6 +162,73 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     {
         return Err(error("Worker catalog snapshot was not delivered"));
     }
+    let database = base.join("library.sqlite");
+    std::thread::spawn(move || -> io::Result<()> {
+        let mut repository = lw_core::LibraryRepository::open(database.to_str().unwrap())
+            .map_err(io::Error::other)?;
+        let mut song = repository
+            .get_song(good)
+            .map_err(io::Error::other)?
+            .unwrap();
+        song.title = "Refreshed controller fixture".into();
+        repository
+            .upsert_song(&song, 2.0)
+            .map_err(io::Error::other)?;
+        repository
+            .set_favorite(good, true)
+            .map_err(io::Error::other)?;
+        Ok(())
+    })
+    .join()
+    .unwrap()?;
+    let generation = player.status().generation;
+    let mut refreshed = 0;
+    for _ in 0..100 {
+        refreshed = player.command(Command::RefreshCatalog)?;
+    }
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= refreshed
+            && &*player.status().title == "Refreshed controller fixture"
+            && player.catalog().collections[0].ids.as_ref() == [good]
+    })?;
+    if player.status().generation != generation
+        || player.status().queue_len != 3
+        || player.status().wants_playback
+    {
+        return Err(error("Catalog refresh changed the restored transport"));
+    }
+    let database = base.join("library.sqlite");
+    std::thread::spawn(move || {
+        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+            .execute_batch("ALTER TABLE playlists RENAME TO unavailable_playlists")
+    })
+    .join()
+    .unwrap()
+    .map_err(io::Error::other)?;
+    let failed = player.command(Command::RefreshCatalog)?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= failed && !player.status().message.is_empty()
+    })?;
+    if player.catalog().len() != 2
+        || player.status().fault.is_some()
+        || player.status().queue_len != 3
+    {
+        return Err(error(
+            "Failed catalog refresh discarded the last good catalog or faulted playback",
+        ));
+    }
+    let database = base.join("library.sqlite");
+    std::thread::spawn(move || {
+        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+            .execute_batch("ALTER TABLE unavailable_playlists RENAME TO playlists")
+    })
+    .join()
+    .unwrap()
+    .map_err(io::Error::other)?;
+    let recovered = player.command(Command::RefreshCatalog)?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().processed_command >= recovered && player.status().message.is_empty()
+    })?;
     player.command(Command::Volume(0.0))?;
     until(&mut player, deadline, &mut |player| {
         player.native_snapshot().volume == 0.0
@@ -176,6 +243,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     loop {
         player.command(Command::Volume(0.0))?;
         player.command(Command::Seek(0.0))?;
+        player.command(Command::RefreshCatalog)?;
         player.run_loop(Duration::from_millis(1));
         player.poll()?;
         if player.status().phase == Phase::Playing && player.native_snapshot().queued[2] != 0 {

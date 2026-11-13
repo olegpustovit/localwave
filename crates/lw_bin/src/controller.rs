@@ -45,6 +45,7 @@ pub enum Command {
     ClearUpcoming,
     UndoClear,
     DismissNotice,
+    RefreshCatalog,
 }
 impl Command {
     fn validate(&self) -> io::Result<()> {
@@ -74,7 +75,10 @@ impl Command {
         }
     }
     fn fences_preparation(&self) -> bool {
-        !matches!(self, Self::Volume(_) | Self::Seek(_) | Self::DismissNotice)
+        !matches!(
+            self,
+            Self::Volume(_) | Self::Seek(_) | Self::DismissNotice | Self::RefreshCatalog
+        )
     }
     fn interrupts(&self) -> bool {
         matches!(
@@ -188,6 +192,7 @@ struct Envelope {
 }
 struct Inbox {
     catalog: Option<Arc<lw_ui::catalog::Catalog>>,
+    retired_catalog: Option<Arc<lw_ui::catalog::Catalog>>,
     commands: VecDeque<Envelope>,
     priority: Option<Envelope>,
     events: VecDeque<Event>,
@@ -208,6 +213,32 @@ struct Shared {
     revision: AtomicU64,
     preparation: AtomicU64,
     wake: extern "C" fn(),
+}
+
+impl Shared {
+    fn update_catalog(
+        &self,
+        current: &mut Arc<lw_ui::catalog::Catalog>,
+        changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
+    ) -> bool {
+        let catalog = {
+            let mut inbox = self.inbox.lock().unwrap();
+            if !inbox.closed && inbox.retired_catalog.is_none() {
+                inbox.catalog.take()
+            } else {
+                None
+            }
+        };
+        if let Some(catalog) = catalog {
+            changed(current, &catalog);
+            let old = std::mem::replace(current, catalog);
+            self.inbox.lock().unwrap().retired_catalog = Some(old);
+            self.changed.notify_one();
+            true
+        } else {
+            false
+        }
+    }
 }
 
 pub struct Controller {
@@ -231,6 +262,7 @@ impl Controller {
         let shared = Arc::new(Shared {
             inbox: Mutex::new(Inbox {
                 catalog: None,
+                retired_catalog: None,
                 commands: VecDeque::with_capacity(32),
                 priority: None,
                 events: VecDeque::with_capacity(128),
@@ -276,7 +308,7 @@ impl Controller {
     }
     pub fn command(&mut self, command: Command) -> io::Result<u64> {
         command.validate()?;
-        self.poll_inner(false)?;
+        self.poll_inner(false, &mut |_, _| {})?;
         let revision = self
             .revision
             .checked_add(1)
@@ -297,7 +329,9 @@ impl Controller {
             inbox.commands.retain(|pending| {
                 !matches!(
                     (&command, &pending.command),
-                    (Command::Volume(_), Command::Volume(_)) | (Command::Seek(_), Command::Seek(_))
+                    (Command::Volume(_), Command::Volume(_))
+                        | (Command::Seek(_), Command::Seek(_))
+                        | (Command::RefreshCatalog, Command::RefreshCatalog)
                 )
             });
             if inbox.commands.len() == 32 && !priority {
@@ -336,9 +370,20 @@ impl Controller {
     }
     /// Main-thread event delivery and acknowledgements only; retained buffers bound every message.
     pub fn poll(&mut self) -> io::Result<bool> {
-        self.poll_inner(true)
+        self.poll_with_catalog(&mut |_, _| {})
     }
-    fn poll_inner(&mut self, apply_output: bool) -> io::Result<bool> {
+    /// Repair view state while both snapshots are borrowed; old catalog storage retires on the worker.
+    pub fn poll_with_catalog(
+        &mut self,
+        changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
+    ) -> io::Result<bool> {
+        self.poll_inner(true, changed)
+    }
+    fn poll_inner(
+        &mut self,
+        apply_output: bool,
+        changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
+    ) -> io::Result<bool> {
         self.native.run_loop(Duration::ZERO);
         let stop_requested = self.shared.inbox.lock().unwrap().stop_requested;
         if stop_requested {
@@ -420,13 +465,9 @@ impl Controller {
             inbox.ack = Some(Ack { result, snapshot });
         }
         self.shared.changed.notify_one();
-        let mut inbox = self.shared.inbox.lock().unwrap();
-        let catalog_changed = if let Some(catalog) = inbox.catalog.take() {
-            self.catalog = catalog;
-            true
-        } else {
-            false
-        };
+        let catalog_changed =
+            apply_output && self.shared.update_catalog(&mut self.catalog, changed);
+        let inbox = self.shared.inbox.lock().unwrap();
         if inbox.status.revision == self.status.revision {
             return Ok(catalog_changed);
         }
@@ -516,6 +557,8 @@ impl Drop for Controller {
 }
 
 struct Worker {
+    catalog_dirty: bool,
+    catalog_error: Option<Arc<str>>,
     settings: Settings,
     context: Arc<PlaybackContext>,
     library: LibraryWorker,
@@ -549,12 +592,12 @@ fn now() -> f64 {
         .unwrap_or_default()
         .as_secs_f64()
 }
+
 impl Worker {
     fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>) {
         let setup = || -> io::Result<Self> {
             let mut library = factory()?;
             let settings = library.load_settings();
-            // shortcut: one initial catalog snapshot; reload on import/edit when those commands are connected.
             let catalog = Arc::new(library.catalog()?);
             shared.inbox.lock().unwrap().catalog = Some(catalog);
             library.release_all_playback()?;
@@ -576,6 +619,8 @@ impl Worker {
             let empty: Arc<str> = Arc::from("");
             let native = shared.inbox.lock().unwrap().native;
             Ok(Self {
+                catalog_dirty: false,
+                catalog_error: None,
                 settings,
                 context,
                 library,
@@ -645,7 +690,7 @@ impl Worker {
         loop {
             let mut controls: [Option<Envelope>; 32] = std::array::from_fn(|_| None);
             let mut events = [None; 128];
-            let (ack, fault, dirty, snapshot, priority) = {
+            let (ack, fault, dirty, snapshot, priority, retired_catalog, catalog_waiting) = {
                 let mut inbox = self.shared.inbox.lock().unwrap();
                 if inbox.closed {
                     return Ok(());
@@ -663,8 +708,15 @@ impl Worker {
                     dirty,
                     inbox.native,
                     inbox.priority.take(),
+                    inbox.retired_catalog.take(),
+                    inbox.catalog.is_some(),
                 )
             };
+            let retired = retired_catalog.is_some();
+            drop(retired_catalog);
+            if retired && catalog_waiting {
+                (self.shared.wake)();
+            }
             if let Some(ack) = ack {
                 self.acknowledge(ack)?;
             }
@@ -697,6 +749,29 @@ impl Worker {
             if let Some(priority) = priority {
                 self.command(priority)?;
             }
+            if std::mem::take(&mut self.catalog_dirty) {
+                match self.library.catalog() {
+                    Ok(catalog) => {
+                        self.metadata_id = None;
+                        if self
+                            .catalog_error
+                            .take()
+                            .is_some_and(|error| Arc::ptr_eq(&error, &self.message))
+                        {
+                            self.message = self.empty.clone();
+                        }
+                        let catalog = Arc::new(catalog);
+                        let previous = self.shared.inbox.lock().unwrap().catalog.replace(catalog);
+                        drop(previous);
+                        (self.shared.wake)();
+                    }
+                    Err(error) => {
+                        eprintln!("LocalWave catalog refresh: {error}");
+                        self.message = Arc::from("Could not refresh the library. Try again.");
+                        self.catalog_error = Some(self.message.clone());
+                    }
+                }
+            }
             let index = self.session.queue().current_index().unwrap_or(0) as i64;
             if self.saved.current_index != index {
                 self.library.save_player_index(index)?;
@@ -718,6 +793,7 @@ impl Worker {
                 && inbox.ack.is_none()
                 && inbox.fault.is_none()
                 && !inbox.dirty
+                && inbox.retired_catalog.is_none()
             {
                 inbox = self.shared.changed.wait(inbox).unwrap();
             }
@@ -1003,6 +1079,10 @@ impl Worker {
                 self.message = self.empty.clone();
                 Action::None
             }
+            Command::RefreshCatalog => {
+                self.catalog_dirty = true;
+                Action::None
+            }
         };
         self.action(action);
         if structural && !keep_undo {
@@ -1251,7 +1331,6 @@ impl Worker {
         let current = self.session.queue().current();
         let id = current.map(|entry| entry.song_id);
         if id != self.metadata_id {
-            // shortcut: refresh on song identity; invalidate this cache when catalog edit commands are connected.
             self.metadata_id = id;
             match id
                 .map(|id| self.library.repository.get_song(id))
@@ -1304,5 +1383,85 @@ impl Worker {
             drop(inbox);
             (self.shared.wake)();
         }
+    }
+}
+
+#[cfg(test)]
+mod catalog_tests {
+    use super::*;
+    use lw_ui::catalog::Catalog;
+    extern "C" fn wake() {}
+    #[test]
+    fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
+        let shared = Arc::new(Shared {
+            inbox: Mutex::new(Inbox {
+                catalog: None,
+                retired_catalog: None,
+                commands: VecDeque::new(),
+                priority: None,
+                events: VecDeque::new(),
+                native: Snapshot::default(),
+                dirty: false,
+                ack: None,
+                output: None,
+                fault: None,
+                status: Status::default(),
+                closed: false,
+                stop_requested: false,
+                stopped: false,
+            }),
+            changed: Condvar::new(),
+            cancelled: AtomicBool::new(false),
+            revision: AtomicU64::new(0),
+            preparation: AtomicU64::new(0),
+            wake,
+        });
+        let mut current = Arc::new(Catalog::default());
+        let old = Arc::downgrade(&current);
+        shared.inbox.lock().unwrap().catalog = Some(Arc::new(Catalog::new(Vec::new())));
+        // Controller::poll has already notified the worker before adopting a catalog.
+        shared.changed.notify_one();
+        mem_sys::local_reset();
+        assert!(shared.update_catalog(&mut current, &mut |previous, next| {
+            assert!(previous.all.is_none());
+            assert!(next.all.is_some());
+            assert!(
+                shared.inbox.try_lock().is_ok(),
+                "view-state repair must not hold the mailbox lock"
+            );
+        }));
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+        assert_eq!(
+            old.strong_count(),
+            1,
+            "only the worker's retirement slot keeps the old catalog alive"
+        );
+        shared.inbox.lock().unwrap().catalog = Some(Arc::new(Catalog::default()));
+        assert!(
+            !shared.update_catalog(&mut current, &mut |_, _| panic!("retirement backpressure"))
+        );
+        assert!(shared.inbox.lock().unwrap().catalog.is_some());
+        let worker = shared.clone();
+        std::thread::spawn(move || {
+            let retired = worker.inbox.lock().unwrap().retired_catalog.take();
+            drop(retired);
+            assert!(
+                old.upgrade().is_none(),
+                "the worker releases the final strong owner"
+            );
+        })
+        .join()
+        .unwrap();
+        assert!(shared.update_catalog(&mut current, &mut |previous, next| {
+            assert!(previous.all.is_some());
+            assert!(next.all.is_none());
+        }));
+        {
+            let mut inbox = shared.inbox.lock().unwrap();
+            inbox.retired_catalog.take();
+            inbox.catalog = Some(Arc::new(Catalog::new(Vec::new())));
+            inbox.closed = true;
+        }
+        assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("closed mailbox")));
     }
 }

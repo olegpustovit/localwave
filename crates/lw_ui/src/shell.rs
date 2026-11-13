@@ -20,6 +20,62 @@ impl Default for ShellState {
     }
 }
 impl ShellState {
+    pub fn refresh(&mut self, previous: &Catalog, next: &Catalog) {
+        let old = previous.collection(self.route);
+        let selected = old.and_then(|group| {
+            self.selected
+                .and_then(|index| group.ids.get(index).copied())
+        });
+        let occurrence = old.zip(self.selected).map_or(0, |(group, index)| {
+            group.ids[..index.min(group.ids.len())]
+                .iter()
+                .filter(|id| Some(**id) == selected)
+                .count()
+        });
+        let same = |group: &crate::catalog::Collection| {
+            old.is_some_and(|old| match (&*old.context, &*group.context) {
+                (
+                    lw_core::context::PlaybackContext::Playlist { id: a, .. },
+                    lw_core::context::PlaybackContext::Playlist { id: b, .. },
+                ) => a == b,
+                (a, b) => a == b,
+            })
+        };
+        self.route = match self.route {
+            Route::Album(_) => next
+                .albums
+                .iter()
+                .position(same)
+                .map_or(Route::Albums, Route::Album),
+            Route::Artist(_) => next
+                .artists
+                .iter()
+                .position(same)
+                .map_or(Route::Artists, Route::Artist),
+            Route::Collection(_) => next
+                .collections
+                .iter()
+                .position(same)
+                .map_or(Route::Songs, Route::Collection),
+            route => route,
+        };
+        self.selected = next
+            .collection(self.route)
+            .filter(|group| same(group))
+            .and_then(|group| {
+                selected.and_then(|selected| {
+                    group
+                        .ids
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, id)| **id == selected)
+                        .nth(occurrence)
+                        .map(|(index, _)| index)
+                })
+            });
+        self.revision = self.revision.wrapping_add(1);
+    }
+
     pub fn apply(&mut self, intent: Intent) -> bool {
         match intent {
             Intent::Navigate(route) => {
@@ -147,6 +203,7 @@ enum Icon {
     Panel,
     Shuffle,
     Repeat,
+    Refresh,
 }
 fn icon_button(
     ui: &mut Ui,
@@ -251,6 +308,14 @@ fn icon_button(
                             paint.line((x + 17.0, y + 5.0), (x + 17.0, y + 15.0), color);
                             paint.line((x + 17.0, y + 15.0), (x + 3.0, y + 15.0), color);
                             paint.line((x + 3.0, y + 15.0), (x + 3.0, y + 9.0), color);
+                        }
+                        Icon::Refresh => {
+                            paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
+                            paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
+                            paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), color);
+                            paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), color);
+                            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
+                            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
                         }
                     }
                 });
@@ -443,7 +508,11 @@ pub fn shell(
                 Size::Grow,
                 &mut |ui| {
                     let mut route_key = DefaultHasher::new();
-                    state.route.hash(&mut route_key);
+                    if let Some(group) = catalog.collection(state.route) {
+                        (true, group.key).hash(&mut route_key);
+                    } else {
+                        (false, state.route).hash(&mut route_key);
+                    }
                     let route = ui.node_keyed(
                         int_key(
                             Ui::key_of(0, "localwave-library-route"),
@@ -698,7 +767,28 @@ fn content(
             Route::Artists => "Artists",
             _ => collection.map_or("Songs", |group| group.title.as_str()),
         };
-        text(ui, "heading", title, 34, p.ink, (Size::Grow, 44.0), false);
+        let heading = container(
+            ui,
+            "heading-row",
+            Axis::Row,
+            Size::Grow,
+            Size::Px(44.0),
+            p.paper,
+        );
+        ui.within(&heading, &mut |ui| {
+            text(ui, "heading", title, 34, p.ink, (Size::Grow, 44.0), false);
+            if icon_button(
+                ui,
+                "refresh",
+                "Refresh library",
+                Icon::Refresh,
+                (36.0, 36.0),
+                false,
+                p,
+            ) {
+                *intent = Some(Intent::RefreshLibrary);
+            }
+        });
         text(
             ui,
             "subtitle",

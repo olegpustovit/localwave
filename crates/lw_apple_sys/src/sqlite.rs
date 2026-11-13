@@ -200,6 +200,16 @@ impl Connection {
         unsafe { sqlite3_last_insert_rowid(self.raw) }
     }
 
+    /// Keep multiple reads on one SQLite version without reserving the writer lock.
+    pub fn read_transaction<T>(&self, operation: impl FnOnce() -> Result<T>) -> Result<T> {
+        self.execute_batch("BEGIN DEFERRED")?;
+        let rollback = Rollback(self);
+        let result = operation()?;
+        self.execute_batch("COMMIT")?;
+        std::mem::forget(rollback);
+        Ok(result)
+    }
+
     pub fn transaction<T>(
         &mut self,
         operation: impl FnOnce(&Connection) -> Result<T>,

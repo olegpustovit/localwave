@@ -148,7 +148,9 @@ fn run() -> Result<(), String> {
         let next_preferences = environment.snapshot();
         let preferences_changed = next_preferences != preferences;
         preferences = next_preferences;
-        let player_changed = player.poll().map_err(|error| error.to_string())?;
+        let player_changed = player
+            .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
+            .map_err(|error| error.to_string())?;
         if performance && frames >= 2 {
             events.push(HostEvent::PointerMoved((650.0, 400.0)));
             events.push(HostEvent::Scrolled((
@@ -293,6 +295,7 @@ fn run() -> Result<(), String> {
                             lw_core::queue::RepeatMode::One => lw_core::queue::RepeatMode::None,
                         }),
                         lw_ui::Intent::Volume(value) => Command::Volume(value),
+                        lw_ui::Intent::RefreshLibrary => Command::RefreshCatalog,
                         lw_ui::Intent::SeekFraction(fraction) => {
                             Command::Seek(fraction * player.status().duration)
                         }

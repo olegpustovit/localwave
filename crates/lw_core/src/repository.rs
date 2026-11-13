@@ -46,6 +46,11 @@ impl SongSearchRows {
     }
 }
 impl LibraryRepository {
+    /// Borrow a consistent catalog across song, playlist and membership queries.
+    pub fn read_snapshot<T>(&self, read: impl FnOnce(&Self) -> Result<T>) -> Result<T> {
+        self.db.read_transaction(|| read(self))
+    }
+
     pub fn open(path: &str) -> Result<Self> {
         Self::new(Connection::open(path)?)
     }
@@ -550,6 +555,52 @@ mod tests {
             source_availability: Some(FileAvailability::OnDevice),
             ..Song::default()
         }
+    }
+
+    #[test]
+    fn catalog_read_snapshot_keeps_one_version_and_rolls_back_errors() {
+        let path =
+            std::env::temp_dir().join(format!("lw-read-snapshot-{}.sqlite", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                for suffix in ["", "-wal", "-shm"] {
+                    let _ = std::fs::remove_file(format!("{}{suffix}", self.0.display()));
+                }
+            }
+        }
+        let _cleanup = Cleanup(path.clone());
+        let repo = LibraryRepository::open(path.to_str().unwrap()).unwrap();
+        // WAL permits a concurrent commit while the reader retains its earlier snapshot.
+        repo.db.execute_batch("PRAGMA journal_mode=WAL").unwrap();
+        let mut writer = LibraryRepository::open(path.to_str().unwrap()).unwrap();
+        repo.read_snapshot(|snapshot| {
+            assert_eq!(snapshot.song_count("")?, 0);
+            writer.upsert_song(
+                &Song {
+                    song_key: 1,
+                    title: "Concurrent insert".into(),
+                    ..Song::default()
+                },
+                1.0,
+            )?;
+            assert_eq!(snapshot.song_count("")?, 0);
+            assert!(snapshot.search_songs("", 10, 0)?.is_empty());
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(repo.song_count("").unwrap(), 1);
+        let failure: Result<()> = repo.read_snapshot(|snapshot| {
+            assert_eq!(snapshot.song_count("")?, 1);
+            assert!(snapshot.read_snapshot(|_| Ok(())).is_err());
+            Err(Error::invalid("deliberate snapshot failure"))
+        });
+        assert!(failure.is_err());
+        assert_eq!(
+            repo.read_snapshot(|snapshot| snapshot.song_count(""))
+                .unwrap(),
+            1
+        );
     }
 
     #[test]

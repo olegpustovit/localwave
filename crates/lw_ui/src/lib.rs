@@ -24,6 +24,7 @@ pub enum Intent {
     Repeat,
     SeekFraction(f64),
     Volume(f32),
+    RefreshLibrary,
 }
 
 #[derive(Default)]
@@ -71,6 +72,7 @@ mod tests {
             ..FrameIn::default()
         };
         for (name, expected) in [
+            ("Refresh library", Intent::RefreshLibrary),
             ("Play", Intent::Play),
             ("Pause", Intent::Pause),
             ("Previous", Intent::Previous),
@@ -101,6 +103,232 @@ mod tests {
             })
             .unwrap();
             assert_eq!(intent, Some(expected));
+        }
+    }
+
+    #[test]
+    fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
+        use catalog::{Catalog, Route};
+        use lw_core::{Song, context::PlaybackContext};
+        let song = |id, title: &str, artist: &str, album: &str| Song {
+            id: Some(id),
+            title: title.into(),
+            artist: artist.into(),
+            album: album.into(),
+            ..Song::default()
+        };
+        let mut before = Catalog::new(vec![song(1, "Before", "B", "Z")]);
+        before.add_collection(
+            "Old playlist name",
+            vec![0, 0],
+            PlaybackContext::Playlist {
+                id: 7,
+                name: "Old playlist name".into(),
+            },
+        );
+        let mut after = Catalog::new(vec![
+            song(2, "Inserted", "A", "A"),
+            song(1, "After", "B", "Z"),
+        ]);
+        after.add_collection(
+            "Another playlist",
+            vec![0],
+            PlaybackContext::Playlist {
+                id: 8,
+                name: "Another playlist".into(),
+            },
+        );
+        after.add_collection(
+            "Renamed playlist",
+            vec![0, 1, 1],
+            PlaybackContext::Playlist {
+                id: 7,
+                name: "Renamed playlist".into(),
+            },
+        );
+        let mut state = ShellState::default();
+        for (route, selected, expected_route, expected_selected) in [
+            (Route::Songs, Some(0), Route::Songs, Some(1)),
+            (Route::Album(0), Some(0), Route::Album(1), Some(0)),
+            (Route::Artist(0), Some(0), Route::Artist(1), Some(0)),
+            (Route::Collection(2), Some(1), Route::Collection(3), Some(2)),
+        ] {
+            state.apply(Intent::Navigate(route));
+            state.selected = selected;
+            mem_sys::local_reset();
+            state.refresh(&before, &after);
+            assert_eq!(mem_sys::local_alloc_count(), 0);
+            assert_eq!(state.route, expected_route);
+            assert_eq!(state.selected, expected_selected);
+        }
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView {
+            initialized: true,
+            ..PlayerView::default()
+        };
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..FrameIn::default()
+        };
+        let mut intent = None;
+        state.apply(Intent::Navigate(Route::Songs));
+        state.selected = Some(0);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &before, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Before")
+        );
+        state.refresh(&before, &after);
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &after, &state, &mut intent)
+        })
+        .unwrap();
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "After")
+        );
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Inserted")
+        );
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Before")
+        );
+        state.apply(Intent::Navigate(Route::Album(0)));
+        state.selected = Some(0);
+        state.refresh(&before, &Catalog::new(Vec::new()));
+        assert_eq!(state.route, Route::Albums);
+        assert_eq!(state.selected, None);
+        state.apply(Intent::Navigate(Route::Collection(2)));
+        state.selected = Some(1);
+        state.refresh(&before, &Catalog::new(Vec::new()));
+        assert_eq!(state.route, Route::Songs);
+        assert_eq!(state.selected, None);
+    }
+
+    #[test]
+    fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
+        use catalog::{Catalog, Route};
+        use lw_core::{Song, context::PlaybackContext};
+        let songs = || {
+            (0..100)
+                .map(|id| Song {
+                    id: Some(id),
+                    title: format!("Track {id:03}"),
+                    artist: "B".into(),
+                    album: "Z".into(),
+                    ..Song::default()
+                })
+                .collect::<Vec<_>>()
+        };
+        let mut before = Catalog::new(songs());
+        before.add_collection(
+            "Old name",
+            (0..100).collect(),
+            PlaybackContext::Playlist {
+                id: 7,
+                name: "Old name".into(),
+            },
+        );
+        let mut inserted = songs();
+        inserted.insert(
+            0,
+            Song {
+                id: Some(100),
+                title: "Inserted".into(),
+                artist: "A".into(),
+                album: "A".into(),
+                ..Song::default()
+            },
+        );
+        let mut after = Catalog::new(inserted);
+        after.add_collection(
+            "Other list",
+            vec![0],
+            PlaybackContext::Playlist {
+                id: 8,
+                name: "Other list".into(),
+            },
+        );
+        after.add_collection(
+            "Renamed",
+            (1..101).collect(),
+            PlaybackContext::Playlist {
+                id: 7,
+                name: "Renamed".into(),
+            },
+        );
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView::default();
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            ..FrameIn::default()
+        };
+        let mut intent = None;
+        let mut state = ShellState::default();
+        let row_y = |ui: &Ui| {
+            ui.a11y_nodes()
+                .iter()
+                .find(|node| {
+                    node.is_role(pxui::ui::Role::ListItem) && ui.a11y_name_of(node) == "Track 010"
+                })
+                .unwrap()
+                .rect
+                .y
+        };
+        for (old, new) in [
+            (Route::Album(0), Route::Album(1)),
+            (Route::Collection(2), Route::Collection(3)),
+        ] {
+            assert_eq!(
+                before.collection(old).unwrap().key,
+                after.collection(new).unwrap().key
+            );
+            state.apply(Intent::Navigate(old));
+            for _ in 0..2 {
+                ui.frame(&frame, &mut |ui| {
+                    shell(ui, &player, &before, &state, &mut intent)
+                })
+                .unwrap();
+            }
+            let initial = row_y(&ui);
+            let list = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| node.is_role(pxui::ui::Role::List) && node.rect.x > 200.0)
+                .unwrap()
+                .id;
+            ui.inject_a11y(&[pxui::A11yAction {
+                id: list,
+                action_code: 8,
+                payload: 76.0,
+                ..Default::default()
+            }]);
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &before, &state, &mut intent)
+            })
+            .unwrap();
+            let scrolled = row_y(&ui);
+            assert_eq!(initial - scrolled, 76.0);
+            state.refresh(&before, &after);
+            assert_eq!(state.route, new);
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &after, &state, &mut intent)
+            })
+            .unwrap();
+            assert_eq!(row_y(&ui), scrolled);
         }
     }
 

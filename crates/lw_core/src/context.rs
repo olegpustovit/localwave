@@ -1,5 +1,5 @@
 //! Queue origin and display title, matching the shipping Swift PlaybackContext cases.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub enum PlaybackContext {
     #[default]
     Library,

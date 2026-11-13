@@ -2,6 +2,7 @@
 use lw_core::context::PlaybackContext;
 use lw_core::{FileState, Song};
 use std::collections::BTreeMap;
+use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::Range;
 use std::sync::Arc;
 
@@ -36,6 +37,7 @@ struct StoredRow {
 }
 
 pub struct Collection {
+    pub key: u64,
     pub title: String,
     pub subtitle: String,
     pub count: String,
@@ -211,7 +213,13 @@ impl Catalog {
         rows: Vec<usize>,
         context: PlaybackContext,
     ) -> Collection {
+        let mut key = DefaultHasher::new();
+        match &context {
+            PlaybackContext::Playlist { id, .. } => (true, id).hash(&mut key),
+            context => (false, context).hash(&mut key),
+        }
         Collection {
+            key: key.finish(),
             title: title.into(),
             subtitle: subtitle.into(),
             count: rows.len().to_string(),
