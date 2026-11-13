@@ -126,9 +126,7 @@ fn run() -> Result<(), String> {
     let mut revision = u64::MAX;
     let (mut frames, mut draws) = (0, 0);
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
-    let mut build_samples = [0u128; MEASURED_FRAMES];
-    let mut cpu_samples = [0u64; MEASURED_FRAMES];
-    let mut phase_samples = [[0u64; MEASURED_FRAMES]; 7];
+    let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
     let mut shell_state = lw_ui::ShellState::default();
@@ -320,17 +318,29 @@ fn run() -> Result<(), String> {
             if performance && frames > WARMUP_FRAMES {
                 warm_allocations = warm_allocations.max(mem_sys::local_alloc_count());
                 warm_build_us = warm_build_us.max(build_us);
-                build_samples[frames - WARMUP_FRAMES - 1] = build_us;
-                cpu_samples[frames - WARMUP_FRAMES - 1] = cpu_us;
-                if trace_frames {
-                    for (samples, value) in phase_samples.iter_mut().zip(ui.phase_times()) {
-                        samples[frames - WARMUP_FRAMES - 1] = value.as_micros() as u64;
-                    }
-                }
+                timings[frames - WARMUP_FRAMES - 1] = smoke::FrameTiming {
+                    wall: build_us,
+                    cpu: cpu_us,
+                    phases: if trace_frames {
+                        ui.phase_times().map(|time| time.as_micros() as u64)
+                    } else {
+                        [0; 7]
+                    },
+                };
             }
         }
         if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
             graphics.close()?;
+            if trace_frames {
+                let mut out = std::io::stdout().lock();
+                for (index, sample) in timings.iter().enumerate() {
+                    sample
+                        .write_outlier(WARMUP_FRAMES + index + 1, &mut out)
+                        .map_err(|error| error.to_string())?;
+                }
+            }
+            let mut build_samples = timings.map(|sample| sample.wall);
+            let mut cpu_samples = timings.map(|sample| sample.cpu);
             build_samples.sort_unstable();
             cpu_samples.sort_unstable();
             println!(
@@ -347,6 +357,8 @@ fn run() -> Result<(), String> {
                 cpu_samples[99]
             );
             if trace_frames {
+                let mut phase_samples: [[u64; MEASURED_FRAMES]; 7] =
+                    std::array::from_fn(|phase| timings.map(|sample| sample.phases[phase]));
                 for samples in &mut phase_samples {
                     samples.sort_unstable();
                 }
@@ -363,7 +375,7 @@ fn run() -> Result<(), String> {
             }
             if draws != WARMUP_FRAMES + MEASURED_FRAMES
                 || warm_allocations != 0
-                || warm_build_us >= 1000
+                || warm_build_us >= smoke::FRAME_BUILD_LIMIT_US
             {
                 return Err("Warm frame performance budget exceeded".into());
             }

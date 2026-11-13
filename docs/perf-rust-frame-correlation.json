@@ -1,0 +1,255 @@
+{
+  "recorded_app_commit": "36d86db",
+  "host": "Apple M1, Darwin 27.0.0",
+  "instrument": "System Trace, attach to isolated signed app after SIGSTOP, then SIGCONT on recorder ready",
+  "arguments": [
+    "--performance-check",
+    "--trace-frames"
+  ],
+  "target_exit": 1,
+  "recorder_exit": 0,
+  "trace": "/var/folders/8q/7xmv0zpd5359pbvz2xj72zv00000gn/T/localwave-latency-capture-8ztv73m9/Run.trace",
+  "export": "/tmp/localwave-rust-latency-capture-data.xml",
+  "export_sha256": "f207f1648a9771c91920df360b679d23d518ecc574c67365dfb77e00c4525e29",
+  "total_frames": 182,
+  "warm_frames": 100,
+  "maximum_warm_rust_allocations": 0,
+  "maximum_wall_us": 1939,
+  "maximum_cpu_us": 381,
+  "phase_median_wall_us": {
+    "begin": 15,
+    "build": 82,
+    "intrinsic": 8,
+    "arrange": 28,
+    "paint": 124,
+    "a11y": 0,
+    "finish": 6
+  },
+  "worker_before": {
+    "begin_frame": 83,
+    "end_frame": 182,
+    "start_ns": 3696119416,
+    "end_ns": 5346227541,
+    "library_runnable_by_main": 99
+  },
+  "method": "Pair UI build begin/end IDs. Use only rows whose FIRST thread column is the target main thread. Overlap thread-state duration intervals with each signpost interval; do not infer duration from context-switch adjacency or count waking-thread columns as owners. Signpost intervals include clock/signpost overhead outside measured builds.",
+  "limits": "Instrumented sample only; profiler preemption is present. This does not explain every uninstrumented failure, qualify native allocation, or replace the unchanged 1000 us wall gate.",
+  "outliers": [
+    {
+      "frame": 84,
+      "start_ns": 3713358416,
+      "end_ns": 3715308583,
+      "interval_us": 1950.167,
+      "wall_us": 1939,
+      "cpu_us": 381,
+      "qos": 33,
+      "states_us": {
+        "Running": 383.001,
+        "Interrupted": 5.4159999999999995,
+        "Preempted": 1561.75
+      },
+      "syscalls": [
+        {
+          "name": "thread_selfusage",
+          "overlap_us": 1.084,
+          "duration_us": 1.084,
+          "oncore_us": 1.084
+        },
+        {
+          "name": "thread_selfusage",
+          "overlap_us": 0.75,
+          "duration_us": 0.75,
+          "oncore_us": 0.75
+        }
+      ],
+      "vm": [],
+      "preemptions": [
+        {
+          "start_ns": 3713376708,
+          "duration_us": 475.75,
+          "cause": "forced off CPU 1 (E Core) by VM_compressor (0x664) (kernel, pid: 0) with a priority of Kernel - 91"
+        },
+        {
+          "start_ns": 3713921250,
+          "duration_us": 61.625,
+          "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+        },
+        {
+          "start_ns": 3714048750,
+          "duration_us": 439.708,
+          "cause": "forced off CPU 1 (E Core) by VM_compressor (0x664) (kernel, pid: 0) with a priority of Kernel - 91"
+        },
+        {
+          "start_ns": 3714534291,
+          "duration_us": 584.667,
+          "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+        }
+      ]
+    },
+    {
+      "frame": 99,
+      "start_ns": 3962772916,
+      "end_ns": 3964179750,
+      "interval_us": 1406.834,
+      "wall_us": 1397,
+      "cpu_us": 341,
+      "qos": 33,
+      "states_us": {
+        "Running": 341.12399999999997,
+        "Interrupted": 6.7509999999999994,
+        "Preempted": 1058.959
+      },
+      "syscalls": [
+        {
+          "name": "thread_selfusage",
+          "overlap_us": 0.834,
+          "duration_us": 0.834,
+          "oncore_us": 0.834
+        },
+        {
+          "name": "thread_selfusage",
+          "overlap_us": 0.834,
+          "duration_us": 0.834,
+          "oncore_us": 0.834
+        }
+      ],
+      "vm": [],
+      "preemptions": [
+        {
+          "start_ns": 3962793416,
+          "duration_us": 515.959,
+          "cause": "forced off CPU 2 (E Core) by com.apple.dt.instruments.dtsecu (0x56ae554) (com.apple.dt.instruments.dtsecu, pid: 16981) with a priority of User Interactive - 46"
+        },
+        {
+          "start_ns": 3963469666,
+          "duration_us": 62.042,
+          "cause": "forced off CPU 1 (E Core) by com.apple.windowserver.root_queue (0x56ae715) (WindowServer, pid: 260) with a priority of Above UI - 79"
+        },
+        {
+          "start_ns": 3963540000,
+          "duration_us": 433.333,
+          "cause": "forced off CPU 2 (E Core) by VM_compressor (0x664) (kernel, pid: 0) with a priority of Kernel - 91"
+        },
+        {
+          "start_ns": 3964080250,
+          "duration_us": 22.75,
+          "cause": "forced off CPU 1 (E Core) by VM_compressor (0x664) (kernel, pid: 0) with a priority of Kernel - 91"
+        },
+        {
+          "start_ns": 3964135375,
+          "duration_us": 24.875,
+          "cause": "forced off CPU 1 (E Core) by VM_compressor (0x664) (kernel, pid: 0) with a priority of Kernel - 91"
+        }
+      ]
+    }
+  ],
+  "historical_correction": {
+    "trace": "/tmp/localwave-rust-frame-metrics.trace",
+    "export": "/tmp/localwave-rust-latency-earlier-thread-states.xml",
+    "export_sha256": "2f66f8a3fce9be94601b9d0ed9e8ffb5f516dcbda893359aadd71c26d6a31bdc",
+    "supersedes": "The earlier context-switch adjacency analysis classified the gaps as Running. Direct thread-state duration records show preemption.",
+    "frames": [
+      {
+        "frame": 137,
+        "interval_us": 1875.0,
+        "states_us": {
+          "Running": 419.457,
+          "Interrupted": 3.459,
+          "Preempted": 1452.084
+        },
+        "preemptions": [
+          {
+            "overlap_us": 18.708,
+            "cause": "forced off CPU 1 (E Core) by AppleCLPC (0x11e) (kernel, pid: 0) with a priority of Kernel - 95"
+          },
+          {
+            "overlap_us": 344.792,
+            "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+          },
+          {
+            "overlap_us": 20.709,
+            "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+          },
+          {
+            "overlap_us": 357.375,
+            "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+          },
+          {
+            "overlap_us": 99.5,
+            "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+          },
+          {
+            "overlap_us": 611.0,
+            "cause": "forced off CPU 3 (E Core) by audio IO: iOSSimulatorAudioDevice-25079-56 (0x54a981e) (coreaudiod, pid: 444) with a priority of Real Time - 97"
+          }
+        ],
+        "wall_us": 1785,
+        "cpu_us": 354,
+        "qos": 33
+      },
+      {
+        "frame": 138,
+        "interval_us": 1265.292,
+        "states_us": {
+          "Running": 317.04200000000003,
+          "Interrupted": 3.7079999999999997,
+          "Preempted": 944.542
+        },
+        "preemptions": [
+          {
+            "overlap_us": 875.875,
+            "cause": "forced off CPU 0 (E Core) by VM_compressor (0x663) (kernel, pid: 0) with a priority of Kernel - 91"
+          },
+          {
+            "overlap_us": 68.667,
+            "cause": "forced off CPU 2 (E Core) by mds (0x997) (mds, pid: 217) with a priority of Above UI - 50"
+          }
+        ],
+        "wall_us": 1253,
+        "cpu_us": 312,
+        "qos": 33
+      }
+    ]
+  },
+  "after_change": {
+    "unit_tests": "1000 unchanged native updates return no notification request and allocate no warm Rust storage; real native/controller cases pass.",
+    "ordinary_signed_run": {
+      "wall_us_max": 2932,
+      "wall_us_p50_p95_p99": [
+        320,
+        2140,
+        2760
+      ],
+      "cpu_us_p50_p95_p99_max": [
+        311,
+        374,
+        394,
+        410
+      ],
+      "warm_rust_allocations": 0,
+      "frames": 182,
+      "exit": 1
+    },
+    "diagnostic_without_profiler": {
+      "wall_us_max": 863,
+      "wall_us_p50_p95_p99": [
+        285,
+        533,
+        860
+      ],
+      "cpu_us_p50_p95_p99_max": [
+        277,
+        334,
+        367,
+        425
+      ],
+      "warm_rust_allocations": 0,
+      "frames": 182,
+      "exit": 0
+    },
+    "after_trace": {
+      "status": "No valid samples: recorder never reported ready, isolated target and owned recorder were stopped. No measured after-change wake-count claim.",
+      "status_file": "/var/folders/8q/7xmv0zpd5359pbvz2xj72zv00000gn/T/localwave-latency-after-3fqqtj05/status.json"
+    }
+  }
+}

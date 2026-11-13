@@ -206,6 +206,30 @@ struct Inbox {
     stop_requested: bool,
     stopped: bool,
 }
+impl Inbox {
+    fn update_native(
+        &mut self,
+        batch: &[Option<Event>],
+        snapshot: Snapshot,
+        fault: Option<io::Error>,
+    ) -> io::Result<bool> {
+        if self.events.len() + batch.len() > 128 {
+            return Err(io::Error::other(
+                "Playback event delivery exceeded its bounded queue",
+            ));
+        }
+        let changed = !batch.is_empty() || self.native != snapshot || fault.is_some();
+        self.events.extend(batch.iter().flatten().copied());
+        if self.native != snapshot {
+            self.native = snapshot;
+            self.dirty = true;
+        }
+        if fault.is_some() {
+            self.fault = fault;
+        }
+        Ok(changed)
+    }
+}
 struct Shared {
     inbox: Mutex<Inbox>,
     changed: Condvar,
@@ -421,29 +445,21 @@ impl Controller {
             }
         }
         let snapshot = self.native.snapshot();
-        let output = {
+        let (output, mut worker_changed) = {
             let mut inbox = self.shared.inbox.lock().unwrap();
-            if inbox.events.len() + count > 128 {
-                self.native.pause();
-                return Err(io::Error::other(
-                    "Playback event delivery exceeded its bounded queue",
-                ));
-            }
-            inbox
-                .events
-                .extend(batch[..count].iter().flatten().copied());
-            if inbox.native != snapshot {
-                inbox.native = snapshot;
-                inbox.dirty = true;
-            }
-            if fault.is_some() {
-                inbox.fault = fault;
-            }
-            if apply_output {
+            let worker_changed = match inbox.update_native(&batch[..count], snapshot, fault) {
+                Ok(changed) => changed,
+                Err(error) => {
+                    self.native.pause();
+                    return Err(error);
+                }
+            };
+            let output = if apply_output {
                 inbox.output.take()
             } else {
                 None
-            }
+            };
+            (output, worker_changed)
         };
         if let Some(output) = output {
             let result = if output.preparation != self.preparation {
@@ -463,8 +479,11 @@ impl Controller {
             inbox.native = snapshot;
             inbox.dirty = true;
             inbox.ack = Some(Ack { result, snapshot });
+            worker_changed = true;
         }
-        self.shared.changed.notify_one();
+        if worker_changed {
+            self.shared.changed.notify_one();
+        }
         let catalog_changed =
             apply_output && self.shared.update_catalog(&mut self.catalog, changed);
         let inbox = self.shared.inbox.lock().unwrap();
@@ -1387,19 +1406,18 @@ impl Worker {
 }
 
 #[cfg(test)]
-mod catalog_tests {
+mod tests {
     use super::*;
     use lw_ui::catalog::Catalog;
     extern "C" fn wake() {}
-    #[test]
-    fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
-        let shared = Arc::new(Shared {
+    fn shared() -> Arc<Shared> {
+        Arc::new(Shared {
             inbox: Mutex::new(Inbox {
                 catalog: None,
                 retired_catalog: None,
                 commands: VecDeque::new(),
                 priority: None,
-                events: VecDeque::new(),
+                events: VecDeque::with_capacity(128),
                 native: Snapshot::default(),
                 dirty: false,
                 ack: None,
@@ -1415,11 +1433,59 @@ mod catalog_tests {
             revision: AtomicU64::new(0),
             preparation: AtomicU64::new(0),
             wake,
-        });
+        })
+    }
+    #[test]
+    fn unchanged_native_polls_need_no_worker_notification_or_warm_allocation() {
+        let shared = shared();
+        let mut inbox = shared.inbox.lock().unwrap();
+        mem_sys::local_reset();
+        for _ in 0..1000 {
+            assert!(!inbox.update_native(&[], Snapshot::default(), None).unwrap());
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+        assert!(!inbox.dirty);
+        let next = Snapshot {
+            volume: 0.5,
+            ..Default::default()
+        };
+        assert!(inbox.update_native(&[], next, None).unwrap());
+        assert!(inbox.dirty);
+        inbox.dirty = false;
+        assert!(!inbox.update_native(&[], next, None).unwrap());
+        assert!(
+            inbox.update_native(&[None], next, None).unwrap(),
+            "a delivered batch must wake the worker"
+        );
+        assert!(
+            inbox
+                .update_native(&[], next, Some(io::ErrorKind::Other.into()))
+                .unwrap()
+        );
+        assert!(inbox.fault.is_some());
+        inbox.fault = None;
+        assert!(
+            inbox
+                .update_native(
+                    &[None; 129],
+                    Snapshot::default(),
+                    Some(io::ErrorKind::Other.into())
+                )
+                .is_err()
+        );
+        assert_eq!(
+            inbox.native, next,
+            "overflow must refuse the whole delivery"
+        );
+        assert!(inbox.fault.is_none());
+    }
+    #[test]
+    fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
+        let shared = shared();
         let mut current = Arc::new(Catalog::default());
         let old = Arc::downgrade(&current);
         shared.inbox.lock().unwrap().catalog = Some(Arc::new(Catalog::new(Vec::new())));
-        // Controller::poll has already notified the worker before adopting a catalog.
+        // Warm the condition variable before measuring exchanges.
         shared.changed.notify_one();
         mem_sys::local_reset();
         assert!(shared.update_catalog(&mut current, &mut |previous, next| {
