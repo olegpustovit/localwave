@@ -114,6 +114,7 @@ impl Command {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Status {
     pub settings: Settings,
+    pub waveform: Option<lw_core::waveform::Peaks>,
     pub revision: u64,
     pub initialized: bool,
     pub processed_command: u64,
@@ -139,6 +140,7 @@ impl Default for Status {
     fn default() -> Self {
         Self {
             settings: Settings::default(),
+            waveform: None,
             revision: 0,
             context: Arc::new(PlaybackContext::Library),
             initialized: false,
@@ -253,11 +255,31 @@ struct Shared {
     inbox: Mutex<Inbox>,
     changed: Condvar,
     cancelled: AtomicBool,
+    waveform_cancelled: AtomicBool,
     preparation: AtomicU64,
     wake: extern "C" fn(),
 }
 
 impl Shared {
+    fn begin_waveform(&self, preparation: u64, token: u64) -> bool {
+        let inbox = self.inbox.lock().unwrap();
+        if inbox.closed
+            || inbox.stop_requested
+            || !inbox.commands.is_empty()
+            || inbox.priority.is_some()
+            || inbox.browse.is_some()
+            || !inbox.events.is_empty()
+            || inbox.ack.is_some()
+            || inbox.fault.is_some()
+            || inbox.output.is_some()
+            || inbox.native.token != token
+            || self.preparation.load(Ordering::SeqCst) != preparation
+        {
+            return false;
+        }
+        self.waveform_cancelled.store(false, Ordering::SeqCst);
+        true
+    }
     fn update_catalog(
         &self,
         current: &mut Arc<lw_ui::catalog::Catalog>,
@@ -321,6 +343,7 @@ impl Controller {
             }),
             changed: Condvar::new(),
             cancelled: AtomicBool::new(false),
+            waveform_cancelled: AtomicBool::new(false),
             preparation: AtomicU64::new(0),
             wake,
         });
@@ -396,6 +419,7 @@ impl Controller {
             } else {
                 inbox.commands.push_back(envelope);
             }
+            self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
             self.revision = revision;
             if fences_preparation {
                 self.preparation = preparation;
@@ -422,6 +446,7 @@ impl Controller {
                 return Err(io::ErrorKind::BrokenPipe.into());
             }
             inbox.browse = Some((revision, request));
+            self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
             self.revision = revision;
         }
         self.shared.changed.notify_one();
@@ -482,6 +507,9 @@ impl Controller {
         let snapshot = self.native.snapshot();
         let (output, mut worker_changed) = {
             let mut inbox = self.shared.inbox.lock().unwrap();
+            if inbox.native.token != snapshot.token || count != 0 || fault.is_some() {
+                self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
+            }
             let worker_changed = match inbox.update_native(&batch[..count], snapshot, fault) {
                 Ok(changed) => changed,
                 Err(error) => {
@@ -598,6 +626,7 @@ impl Drop for Controller {
     fn drop(&mut self) {
         self.native.stop();
         self.shared.cancelled.store(true, Ordering::SeqCst);
+        self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
         {
             let mut inbox = self.shared.inbox.lock().unwrap();
             inbox.closed = true;
@@ -635,6 +664,8 @@ struct Worker {
     advance: Option<(u64, u64)>,
     undo: Option<Vec<Entry>>,
     metadata_id: Option<i64>,
+    waveform_key: Option<(i64, u64)>,
+    waveform: Option<lw_core::waveform::Peaks>,
     title: Arc<str>,
     artist: Arc<str>,
     album: Arc<str>,
@@ -702,6 +733,8 @@ impl Worker {
                 advance: None,
                 undo: None,
                 metadata_id: None,
+                waveform_key: None,
+                waveform: None,
                 title: empty.clone(),
                 artist: empty.clone(),
                 album: empty.clone(),
@@ -869,6 +902,8 @@ impl Worker {
                     }
                 }
                 self.publish();
+                self.load_waveform();
+                self.publish();
             }
             let mut inbox = self.shared.inbox.lock().unwrap();
             while !inbox.closed
@@ -884,6 +919,29 @@ impl Worker {
                 inbox = self.shared.changed.wait(inbox).unwrap();
             }
         }
+    }
+    fn load_waveform(&mut self) {
+        let Some(song) = self.session.queue().current().map(|entry| entry.song_id) else {
+            return;
+        };
+        let key = (song, self.native.token);
+        if self.waveform_key == Some(key) || !self.shared.begin_waveform(self.preparation, key.1) {
+            return;
+        }
+        let result = self
+            .library
+            .waveform_peaks(song, now(), &self.shared.waveform_cancelled);
+        if self.shared.waveform_cancelled.load(Ordering::SeqCst) {
+            return;
+        }
+        self.waveform_key = Some(key);
+        self.waveform = match result {
+            Ok(peaks) => peaks,
+            Err(error) => {
+                eprintln!("LocalWave waveform: {error}");
+                None
+            }
+        };
     }
     fn send(&mut self, operation: Operation, pending: Pending) {
         self.pending = Some(pending);
@@ -1490,6 +1548,8 @@ impl Worker {
         let current = self.session.queue().current();
         let id = current.map(|entry| entry.song_id);
         if id != self.metadata_id {
+            self.waveform_key = None;
+            self.waveform = None;
             self.metadata_id = id;
             match id
                 .map(|id| self.library.repository.get_song(id))
@@ -1513,6 +1573,7 @@ impl Worker {
         let transport = self.session.transport();
         let status = Status {
             settings: self.settings,
+            waveform: self.waveform,
             context: self.context.clone(),
             revision: self.status.revision,
             initialized: true,
@@ -1585,10 +1646,56 @@ mod tests {
             }),
             changed: Condvar::new(),
             cancelled: AtomicBool::new(false),
+            waveform_cancelled: AtomicBool::new(false),
             preparation: AtomicU64::new(0),
             wake,
         })
     }
+    #[test]
+    fn waveform_start_yields_to_controls_and_never_clears_playback_cancellation() {
+        let shared = shared();
+        shared.cancelled.store(true, Ordering::SeqCst);
+        shared.waveform_cancelled.store(true, Ordering::SeqCst);
+        assert!(shared.begin_waveform(0, 0));
+        assert!(!shared.waveform_cancelled.load(Ordering::SeqCst));
+        assert!(shared.cancelled.load(Ordering::SeqCst));
+        shared.waveform_cancelled.store(true, Ordering::SeqCst);
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            revision: 1,
+            preparation: 0,
+            command: Command::Seek(5.0),
+        });
+        assert!(!shared.begin_waveform(0, 0));
+        assert!(shared.waveform_cancelled.load(Ordering::SeqCst));
+        shared.inbox.lock().unwrap().commands.clear();
+        assert!(!shared.begin_waveform(1, 0));
+        assert!(!shared.begin_waveform(0, 1));
+        shared.inbox.lock().unwrap().browse = Some((
+            2,
+            Request {
+                scope: lw_ui::browse::Scope::Find,
+                query: lw_ui::browse::Query::default(),
+                sort: lw_ui::browse::Sort::Original,
+                ascending: true,
+            },
+        ));
+        assert!(!shared.begin_waveform(0, 0));
+        shared.inbox.lock().unwrap().browse = None;
+        let status = Status {
+            waveform: Some([0.5; 512]),
+            ..Status::default()
+        };
+        mem_sys::local_reset();
+        for _ in 0..1000 {
+            assert!(shared.begin_waveform(0, 0));
+            assert_eq!(
+                std::hint::black_box(status.clone()).waveform,
+                status.waveform
+            );
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
+
     #[test]
     fn unchanged_native_polls_need_no_worker_notification_or_warm_allocation() {
         let shared = shared();

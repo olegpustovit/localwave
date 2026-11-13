@@ -59,8 +59,8 @@ The Rust window supports resizing and native zoom/full-screen controls, with con
 transparent title bar. The Queue button opens the full occurrence-based queue editor; Save as
 playlist saves its current order with duplicate songs included once. Album, Now panel and queue
 artwork load from the existing library on a separate worker, with bounded thumbnail/texture caches.
-Image identity, GPU wrapper reuse and completed-frame release live in pxui itself (ABI 1.13).
-Tracks without readable local cover files keep their placeholder.
+Image identity, GPU wrapper reuse and completed-frame release live in pxui itself. ABI 1.14 adds fractional fills for thin waveform bars.
+Tracks without readable local cover files keep their placeholder. The transport displays cached/native-decoded waveform peaks; drag to preview and release to seek, or use Left/Right for five seconds and Home/End for the track bounds.
 Quit an already running Rust app before opening a rebuilt bundle so macOS launches the new binary.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
@@ -74,10 +74,10 @@ open target/bundle/LocalWave.app
 make install                # install to /Applications (APPDIR overrides)
 cargo t -p lw_core          # Rust storage and model checks
 cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
-make performance            # signed Songs + Find + Queue + drag + queue sheet + artwork: allocation/time/idle gates
+make performance            # signed Songs + Find + Queue + drag + queue sheet + artwork + waveform: allocation/time/idle gates
 ```
 
-Warm library/app builds have measured 0.14/0.04 seconds, and the latest 120 bounded app checks 11.05 seconds including compilation (11.04 seconds summed cases). The regular 10,000-song UI workload has zero warm Rust allocations. The artwork worker delivers bounded batches without waiting for a frame between covers; three scrolling gallery runs now have zero requests/allocations after warm-up. The strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
+Warm library/app builds have measured 0.14/0.04 seconds, and the latest 123 bounded app checks 15.08 seconds including compilation (12.76 seconds summed cases). The latest seven signed 10,000-song workloads, including held waveform scrubbing, record zero warm Rust allocations. The artwork worker delivers bounded batches without waiting for a frame between covers; three scrolling gallery runs now have zero requests/allocations after warm-up. The strict 1 ms maximum still has recorded misses. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
 
 ## Development
 

@@ -479,6 +479,154 @@ mod button_tests {
     use pxui::{Event, FrameIn, Platform, Str, ThemeSource};
     use std::cell::Cell;
     #[test]
+    fn waveform_bars_preview_drag_seek_on_release_and_keys_without_warm_allocations() {
+        use pxui::{Event, FrameIn, Platform};
+        mem_sys::set_peer(pxui::library_counter);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut peaks = [0.0; 512];
+        peaks[256..].fill(1.0);
+        let player = PlayerView {
+            waveform: Some(&peaks),
+            position: 60.0,
+            duration: 240.0,
+            initialized: true,
+            ..Default::default()
+        };
+        fn frame(
+            ui: &mut Ui,
+            player: &PlayerView<'_>,
+            time: f64,
+            events: &[Event],
+            intent: &mut Option<Intent>,
+        ) {
+            ui.frame(
+                &FrameIn {
+                    width: 1440.0,
+                    height: 71.0,
+                    time,
+                    events: events.as_ptr(),
+                    event_count: events.len(),
+                    ..Default::default()
+                },
+                &mut |ui| {
+                    let p = palette(ui);
+                    transport(ui, player, p, intent);
+                },
+            )
+            .unwrap();
+        }
+        for tick in 0..12 {
+            frame(&mut ui, &player, tick as f64, &[], &mut None);
+        }
+        let rect = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Playback position")
+            .unwrap()
+            .rect;
+        let width = rect.w / 800.0;
+        let bars: Vec<_> = ui
+            .layers()
+            .flat_map(|layer| layer.instances.iter())
+            .filter(|instance| {
+                (instance.rect[2] - instance.rect[0] - width).abs() < 0.001
+                    && instance.rect[0] >= rect.x
+                    && instance.rect[0] < rect.x + rect.w
+            })
+            .map(|instance| instance.rect)
+            .collect();
+        assert_eq!(
+            bars.len(),
+            200,
+            "scrubber={rect:?}; translucent={:?}; first={:?}",
+            ui.layers()
+                .flat_map(|l| l.instances.iter())
+                .filter(|i| i.color[3] == 107)
+                .take(4)
+                .map(|i| i.rect)
+                .collect::<Vec<_>>(),
+            ui.layers()
+                .flat_map(|l| l.instances.iter())
+                .take(8)
+                .map(|i| i.rect)
+                .collect::<Vec<_>>()
+        );
+        assert!(
+            bars[..100]
+                .iter()
+                .all(|bar| (bar[3] - bar[1] - 2.0).abs() < 0.001)
+        );
+        assert!(
+            bars[100..]
+                .iter()
+                .all(|bar| (bar[3] - bar[1] - 36.0).abs() < 0.001)
+        );
+        for round in 0..24 {
+            let pointer = |kind, fraction: f64| Event {
+                kind,
+                x: rect.x as f64 + rect.w as f64 * fraction,
+                y: rect.y as f64 + 20.0,
+                ..Default::default()
+            };
+            let inputs = [
+                pointer(input::wire::POINTER_PRESSED, 0.25),
+                pointer(input::wire::POINTER_MOVED, 1.2),
+                pointer(input::wire::POINTER_RELEASED, 0.75),
+                Event {
+                    kind: input::wire::KEY_PRESSED,
+                    code: input::Key::ArrowRight.code(),
+                    ..Default::default()
+                },
+                Event {
+                    kind: input::wire::KEY_RELEASED,
+                    code: input::Key::ArrowRight.code(),
+                    ..Default::default()
+                },
+            ];
+            mem_sys::local_reset();
+            for (step, event) in inputs.iter().enumerate() {
+                let mut intent = None;
+                frame(
+                    &mut ui,
+                    &player,
+                    20.0 + (round * 5 + step) as f64 * 0.01,
+                    std::slice::from_ref(event),
+                    &mut intent,
+                );
+                assert_eq!(
+                    intent,
+                    match step {
+                        2 => Some(Intent::SeekFraction(0.75)),
+                        3 => Some(Intent::SeekFraction(65.0 / 240.0)),
+                        _ => None,
+                    }
+                );
+                if step == 1 {
+                    assert!(
+                        ui.layers()
+                            .flat_map(|layer| layer.instances.iter())
+                            .any(|instance| {
+                                (instance.rect[2] - instance.rect[0] - rect.w / 400.0).abs() < 0.001
+                                    && (instance.rect[3] - instance.rect[1] - 40.0).abs() < 0.001
+                                    && (instance.rect[0] - (rect.x + rect.w - rect.w / 800.0)).abs()
+                                        < 0.001
+                            }),
+                        "held drag previews at the clamped end before release"
+                    );
+                }
+            }
+            if round >= 2 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm waveform input/build/draw across the ABI"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn row_number_labels_cover_zero_and_the_largest_unsigned_value_on_the_stack() {
         mem_sys::local_reset();
         for (value, expected) in [
@@ -2304,11 +2452,12 @@ fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
         let scrubber = ui.node(
             "scrubber",
             Node {
-                flags: if duration > 0.0 {
-                    CLICKABLE | TAB_STOP
-                } else {
-                    0
-                },
+                flags: CLIP
+                    | if duration > 0.0 {
+                        CLICKABLE | FOCUSABLE | FOCUS_MARK
+                    } else {
+                        0
+                    },
                 w: Size::Grow,
                 h: Size::Px(40.0),
                 role: if duration > 0.0 {
@@ -2321,33 +2470,82 @@ fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Opti
         );
         ui.a11y_name(&scrubber, "Playback position");
         ui.a11y_number(&scrubber, position, 0.0, duration, 5.0);
-        let fraction = if duration > 0.0 {
+        let signal = ui.signal_state(&scrubber);
+        let rect = ui.rect(&scrubber);
+        let mut fraction = if duration > 0.0 {
             (position / duration) as f32
         } else {
             0.0
         };
+        if duration > 0.0 && rect.w > 0.0 {
+            if signal.held || signal.released {
+                let x = if signal.released {
+                    signal.release_point.0
+                } else {
+                    signal.pointer.0
+                };
+                fraction = ((x - rect.x) / rect.w).clamp(0.0, 1.0);
+            }
+            if signal.released && signal.button == Some(0) {
+                *intent = Some(Intent::SeekFraction(fraction as f64));
+            }
+            if let Some(value) = signal.a11y_value.filter(|value| value.is_finite()) {
+                *intent = Some(Intent::SeekFraction((value / duration).clamp(0.0, 1.0)));
+            }
+            if ui.focused(&scrubber) {
+                let seconds = if ui.key_pressed(input::Key::ArrowLeft) {
+                    Some(position - 5.0)
+                } else if ui.key_pressed(input::Key::ArrowRight) {
+                    Some(position + 5.0)
+                } else if ui.key_pressed(input::Key::Home) {
+                    Some(0.0)
+                } else if ui.key_pressed(input::Key::End) {
+                    Some(duration)
+                } else {
+                    None
+                };
+                if let Some(seconds) = seconds {
+                    *intent = Some(Intent::SeekFraction((seconds / duration).clamp(0.0, 1.0)));
+                }
+            }
+        }
+        let peaks = player.waveform.copied();
         ui.draw(&scrubber, move |paint, rect| {
-            paint.fill(rect.x, rect.y + rect.h / 2.0 - 1.0, rect.w, 2.0, p.line);
-            paint.fill(
-                rect.x,
-                rect.y + rect.h / 2.0 - 1.0,
-                rect.w * fraction,
-                2.0,
-                p.ink,
+            const BARS: usize = 200;
+            let baseline = (rect.h - 4.0).max(0.0);
+            let step = rect.w / BARS as f32;
+            if let Some(peaks) = &peaks {
+                for index in 0..BARS {
+                    let lower = index * peaks.len() / BARS;
+                    let upper = ((index + 1) * peaks.len() / BARS).max(lower + 1);
+                    let peak = peaks[lower..upper]
+                        .iter()
+                        .copied()
+                        .fold(0.0, f32::max)
+                        .clamp(0.0, 1.0);
+                    let height = (peak * baseline).max(2.0);
+                    paint.fill_fractional(
+                        rect.x + index as f32 * step,
+                        rect.y + baseline - height,
+                        step / 4.0,
+                        height,
+                        Rgba {
+                            a: (p.ink.a as f32 * 0.42).round() as u8,
+                            ..p.ink
+                        },
+                    );
+                }
+            }
+            paint.fill(rect.x, rect.y + baseline + 1.0, rect.w, 1.0, p.line);
+            paint.fill_fractional(rect.x, rect.y + baseline, rect.w * fraction, 3.0, p.ink);
+            paint.fill_fractional(
+                rect.x + rect.w * fraction - step / 4.0,
+                rect.y,
+                step / 2.0,
+                rect.h,
+                p.signal,
             );
         });
-        let signal = ui.signal_state(&scrubber);
-        let rect = ui.rect(&scrubber);
-        if duration > 0.0 && (signal.clicked || signal.dragging) && rect.w > 0.0 {
-            *intent = Some(Intent::SeekFraction(
-                ((signal.pointer.0 - rect.x) / rect.w).clamp(0.0, 1.0) as f64,
-            ));
-        }
-        if let Some(value) = signal.a11y_value
-            && duration > 0.0
-        {
-            *intent = Some(Intent::SeekFraction((value / duration).clamp(0.0, 1.0)));
-        }
         small_clock(ui, "remaining", remaining, true, 50.0, p.secondary);
         if icon_button(
             ui,

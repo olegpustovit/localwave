@@ -70,7 +70,20 @@ impl Graphics {
         self.artwork.configure(width, height, density)
     }
 
-    pub fn draw(&mut self, window: &mut Window, ui: &Ui) -> Result<bool, String> {
+    pub fn draw(
+        &mut self,
+        window: &mut Window,
+        ui: &Ui,
+        trace: Option<&mut [u64; 4]>,
+    ) -> Result<bool, String> {
+        let count = || {
+            if trace.is_some() {
+                mem_sys::local_alloc_count()
+            } else {
+                0
+            }
+        };
+        let before = count();
         let extent = window.extent();
         let size = (extent.drawable.0 as u32, extent.drawable.1 as u32);
         if size.0 == 0 || size.1 == 0 {
@@ -90,6 +103,7 @@ impl Graphics {
         {
             return Ok(false);
         }
+        let acquired = count();
         let renderer = self.renderer.as_mut().expect("Live graphics renderer");
         let commands = self.frames.commands();
         renderer
@@ -103,6 +117,7 @@ impl Graphics {
                 self.frames.completed(),
             )
             .map_err(|code| format!("Renderer prepare failed ({code})"))?;
+        let prepared = count();
         let color = ui.theme().tokens.panel;
         let encoder = self.frames.pass([color.r, color.g, color.b])?;
         renderer
@@ -116,9 +131,19 @@ impl Graphics {
                 ..Pass::default()
             })
             .map_err(|code| format!("Renderer draw failed ({code})"))?;
+        let drawn = count();
         self.frames.submit()?;
         self.artwork.submitted(self.frames.serial());
         self.retire_artwork(self.frames.completed())?;
+        let submitted = count();
+        if let Some(trace) = trace {
+            *trace = [
+                acquired - before,
+                prepared - acquired,
+                drawn - prepared,
+                submitted - drawn,
+            ];
+        }
         Ok(true)
     }
 

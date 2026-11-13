@@ -57,6 +57,7 @@ pub enum Intent {
 #[derive(Default)]
 pub struct PlayerView<'a> {
     pub artwork: Option<&'a artwork::Images>,
+    pub waveform: Option<&'a lw_core::waveform::Peaks>,
     pub revision: u64,
     pub title: &'a str,
     pub context: &'a str,
@@ -496,6 +497,7 @@ mod tests {
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
         let mut player = PlayerView {
+            waveform: Some(&[0.5; 512]),
             initialized: true,
             duration: 20_000.0,
             ..Default::default()
@@ -1576,6 +1578,7 @@ mod tests {
             })
             .unwrap();
             let mut player = PlayerView {
+                waveform: Some(&[0.5; 512]),
                 revision: 1,
                 title: "Example track",
                 context: "Library",

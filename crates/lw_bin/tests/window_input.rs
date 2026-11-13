@@ -88,6 +88,7 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
         );
         let player = lw_ui::PlayerView {
             artwork: Some(&graphics.artwork.images),
+            waveform: Some(&[0.5; 512]),
             revision: frame,
             current_id: Some(7),
             initialized: true,
@@ -105,7 +106,7 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
             &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut None),
         )
         .unwrap();
-        assert!(graphics.draw(&mut window, &ui).unwrap());
+        assert!(graphics.draw(&mut window, &ui, None).unwrap());
         assert!(
             ui.layers()
                 .map(|layer| layer
@@ -169,7 +170,7 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
             image_quads, 0,
             "cleared artwork must not leave image instances"
         );
-        assert!(graphics.draw(&mut window, &ui).unwrap());
+        assert!(graphics.draw(&mut window, &ui, None).unwrap());
     }
     assert!(ogpu_core::backend::texture_destroyed(&original));
     drop(worker);
@@ -254,6 +255,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     let catalog = lw_ui::catalog::Catalog::new(Vec::new());
     let state = lw_ui::ShellState::default();
     let mut player = lw_ui::PlayerView {
+        waveform: Some(&[0.5; 512]),
         revision: 0,
         title: "Input check",
         context: "Library",

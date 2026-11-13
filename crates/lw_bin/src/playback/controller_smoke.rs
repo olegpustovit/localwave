@@ -205,6 +205,40 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     {
         return Err(error("Worker catalog snapshot was not delivered"));
     }
+    until(&mut player, deadline, &mut |player| {
+        player.status().waveform.is_some()
+    })?;
+    if !player
+        .status()
+        .waveform
+        .unwrap()
+        .iter()
+        .all(|peak| peak.is_finite() && (0.0..=1.0).contains(peak))
+        || !base.join("Caches/LocalWave/waveforms.sqlite").is_file()
+        || player.native_snapshot().token != 0
+    {
+        return Err(error(
+            "Paused restoration did not deliver and cache its waveform safely",
+        ));
+    }
+    let cache = base.join("Caches/LocalWave/waveforms.sqlite");
+    std::thread::spawn(move || -> io::Result<()> {
+        let cache = lw_core::waveform::Repository::open(cache.to_str().unwrap())
+            .map_err(io::Error::other)?;
+        let cached = cache
+            .get(2)
+            .map_err(io::Error::other)?
+            .ok_or_else(|| error("Waveform row was not persisted"))?;
+        cache
+            .put(2, &cached.signature, &[0.25; 512])
+            .map_err(io::Error::other)
+    })
+    .join()
+    .map_err(|_| error("Waveform cache fixture panicked"))??;
+    player.command(Command::RefreshCatalog)?;
+    until(&mut player, deadline, &mut |player| {
+        player.status().waveform == Some([0.25; 512])
+    })?;
     let queue = player
         .catalog()
         .queue
@@ -627,6 +661,18 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             && player.status().position == player.status().duration
             && player.native_snapshot().token == 0
             && player.native_snapshot().rate == 0.0
+    })?;
+    until(&mut ended, deadline, &mut |player| {
+        player.status().waveform.is_some()
+    })?;
+    ended.command(Command::Configure {
+        songs: Arc::from([]),
+        start: 0,
+        autoplay: false,
+        context: None,
+    })?;
+    until(&mut ended, deadline, &mut |player| {
+        player.status().current.is_none() && player.status().waveform.is_none()
     })?;
     drop(ended);
     if prefs.history().get(good).plays != 6 {

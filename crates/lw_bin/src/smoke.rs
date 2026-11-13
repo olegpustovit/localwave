@@ -46,6 +46,48 @@ pub fn queue_drag_events(frame: usize, top_inset: f64, events: &mut Vec<input::E
     }
 }
 
+/// Exercise a held waveform preview/release, then resume the 10,000-song wheel workload.
+pub fn waveform_events(frame: usize, events: &mut Vec<input::Event>) {
+    use input::{Event, MouseButton};
+    match frame % 20 {
+        0 => {
+            events.push(Event::PointerMoved((650.0, 836.0)));
+            events.push(Event::PointerPressed(
+                MouseButton::LeftButton,
+                (650.0, 836.0),
+            ));
+        }
+        phase @ 1..=8 => events.push(Event::PointerMoved((650.0 + phase as f64 * 20.0, 836.0))),
+        9 => events.push(Event::PointerReleased(
+            MouseButton::LeftButton,
+            (810.0, 836.0),
+        )),
+        _ => {
+            events.push(Event::PointerMoved((650.0, 400.0)));
+            events.push(Event::Scrolled((
+                0.0,
+                if frame % 40 < 20 { -1.0 } else { 1.0 },
+            )));
+        }
+    }
+}
+
+/// A valid persisted waveform with no audio copy exercises the same cache delivery as eviction.
+pub fn seed_waveform(caches: &std::path::Path) -> std::io::Result<()> {
+    let directory = caches.join("LocalWave");
+    std::fs::create_dir_all(&directory)?;
+    let database = directory.join("waveforms.sqlite");
+    let peaks = std::array::from_fn(|index| (index % 64) as f32 / 63.0);
+    lw_core::waveform::Repository::open(
+        database
+            .to_str()
+            .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?,
+    )
+    .map_err(std::io::Error::other)?
+    .put(1, "qualification-cached-waveform", &peaks)
+    .map_err(std::io::Error::other)
+}
+
 /// Populate only the isolated qualification database, after its normal migration.
 pub fn seed_catalog(path: &std::path::Path) -> std::io::Result<()> {
     let path = path
@@ -128,6 +170,45 @@ impl Smoke {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn waveform_trace_holds_previews_releases_and_scrolls_without_allocating() {
+        use input::{Event, MouseButton};
+        let mut events = Vec::with_capacity(2);
+        for frame in 0..120 {
+            events.clear();
+            mem_sys::local_reset();
+            super::waveform_events(frame, &mut events);
+            assert_eq!(mem_sys::local_alloc_count(), 0);
+            match frame % 20 {
+                0 => assert_eq!(
+                    events,
+                    [
+                        Event::PointerMoved((650.0, 836.0)),
+                        Event::PointerPressed(MouseButton::LeftButton, (650.0, 836.0))
+                    ]
+                ),
+                phase @ 1..=8 => assert_eq!(
+                    events,
+                    [Event::PointerMoved((650.0 + phase as f64 * 20.0, 836.0))]
+                ),
+                9 => assert_eq!(
+                    events,
+                    [Event::PointerReleased(
+                        MouseButton::LeftButton,
+                        (810.0, 836.0)
+                    )]
+                ),
+                _ => assert_eq!(
+                    events,
+                    [
+                        Event::PointerMoved((650.0, 400.0)),
+                        Event::Scrolled((0.0, if frame % 40 < 20 { -1.0 } else { 1.0 }))
+                    ]
+                ),
+            }
+        }
+    }
+
     #[test]
     fn outliers_keep_frame_cpu_and_phases_together_at_the_exact_gate_boundary() {
         let mut output = Vec::new();

@@ -31,6 +31,10 @@ fn run() -> Result<(), String> {
     let performance = std::env::args().any(|arg| arg == "--performance-check");
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
+    let performance_waveform = std::env::args().any(|arg| arg == "--performance-waveform");
+    if performance_waveform && !performance {
+        return Err("--performance-waveform requires --performance-check".into());
+    }
     let performance_artwork = std::env::args().any(|arg| arg == "--performance-artwork");
     if performance_artwork && !performance {
         return Err("--performance-artwork requires --performance-check".into());
@@ -119,14 +123,17 @@ fn run() -> Result<(), String> {
                     if performance_artwork {
                         smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
                     }
-                    if performance_queue {
-                        library.save_player_state(&lw_core::preferences::PlayerState {
-                            song_ids: (1..=10_000).collect(),
-                            current_index: 0,
-                            volume: Some(0.0),
-                            context_data: None,
-                        })?;
-                    }
+                    smoke::seed_waveform(&base.join("Caches"))?;
+                    library.save_player_state(&lw_core::preferences::PlayerState {
+                        song_ids: if performance_queue {
+                            (1..=10_000).collect()
+                        } else {
+                            vec![1]
+                        },
+                        current_index: 0,
+                        volume: Some(0.0),
+                        context_data: None,
+                    })?;
                 }
                 Ok(library)
             },
@@ -152,7 +159,9 @@ fn run() -> Result<(), String> {
                     return Err(player.status().message.to_string());
                 }
                 // Queue and status travel through separate bounded handoffs.
-                if !performance_queue || player.catalog().queue.is_some() {
+                if (!performance_queue || player.catalog().queue.is_some())
+                    && (!performance || player.status().waveform.is_some())
+                {
                     break;
                 }
             }
@@ -183,10 +192,12 @@ fn run() -> Result<(), String> {
     let mut repaint = None;
     let mut revision = u64::MAX;
     let (mut frames, mut draws) = (0, 0);
+    let mut waveform_seeks = 0;
+    let mut min_waveform_bars = usize::MAX;
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
     let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
-    let mut artwork_trace =
-        [(0usize, [0usize; 8], 0u64, 0u64, 0u64); WARMUP_FRAMES + MEASURED_FRAMES];
+    let mut frame_trace =
+        [(0usize, [0usize; 8], 0u64, 0u64, 0u64, [0u64; 4], 0u64); WARMUP_FRAMES + MEASURED_FRAMES];
     let (mut min_artwork_quads, mut warm_artwork_requests) = (usize::MAX, 0usize);
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
@@ -266,7 +277,9 @@ fn run() -> Result<(), String> {
             artwork.ready_images(),
         )?;
         if performance && frames >= 2 {
-            if performance_queue_drag {
+            if performance_waveform {
+                smoke::waveform_events(frames - 2, &mut events);
+            } else if performance_queue_drag {
                 smoke::queue_drag_events(frames - 2, window_chrome.top_inset, &mut events);
             } else {
                 events.push(HostEvent::PointerMoved(
@@ -334,11 +347,16 @@ fn run() -> Result<(), String> {
                 extent.logical.1 as f32,
                 window.scale() as f32,
             )?;
+            let mut gpu_trace = [0u64; 4];
             let mut intent = None;
             let status = player.status();
+            if performance && status.waveform.is_none() {
+                return Err("Waveform disappeared during performance qualification".into());
+            }
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
                 artwork: Some(&graphics.artwork.images),
+                waveform: status.waveform.as_ref(),
                 revision: if performance {
                     frames as u64
                 } else {
@@ -399,6 +417,26 @@ fn run() -> Result<(), String> {
             artwork
                 .request(image_requests)
                 .map_err(|error| error.to_string())?;
+            if performance_waveform && frames >= 2 {
+                let phase = (frames - 2) % 20;
+                if ui.captured() != (phase < 9) {
+                    return Err("Waveform qualification lost held pointer capture".into());
+                }
+                match (phase, intent) {
+                    (9, Some(lw_ui::Intent::SeekFraction(value)))
+                        if value.is_finite() && (0.0..=1.0).contains(&value) =>
+                    {
+                        waveform_seeks += 1
+                    }
+                    (9, _) => return Err("Waveform release did not commit a seek".into()),
+                    (_, None) => {}
+                    _ => {
+                        return Err(
+                            "Waveform preview or scrolling produced an unexpected action".into(),
+                        );
+                    }
+                }
+            }
             if performance_queue_drag && frames >= 2 {
                 let carrying = ui.carrying_ref();
                 let expected = (1..20).contains(&((frames - 2) % 40));
@@ -418,6 +456,11 @@ fn run() -> Result<(), String> {
                     return Err("Cancelled queue carry produced an application action".into());
                 }
             }
+            let before_output = if trace_frames {
+                mem_sys::local_alloc_count()
+            } else {
+                0
+            };
             let platform = &ui.output().platform;
             if platform.has_background != 0 {
                 let color = platform.background;
@@ -427,33 +470,20 @@ fn run() -> Result<(), String> {
                     f64::from(color.b) / 255.0,
                 ))?;
             }
+            let output_allocations = if trace_frames {
+                mem_sys::local_alloc_count() - before_output
+            } else {
+                0
+            };
             frames += 1;
             repaint = ui.repaint_at();
             if performance || ui.draw_revision() != revision {
-                if graphics.draw(&mut window, &ui)? {
+                if graphics.draw(&mut window, &ui, trace_frames.then_some(&mut gpu_trace))? {
                     draws += 1;
                     revision = ui.draw_revision();
                 } else {
                     repaint = Some(now + 1.0 / 60.0);
                 }
-            }
-            if trace_frames && performance_artwork {
-                let keys = image_requests;
-                let mut ids = [0usize; 8];
-                for (out, key) in ids.iter_mut().zip(keys.keys()) {
-                    *out = key.id;
-                }
-                artwork_trace[frames - 1] = (
-                    if artwork_updated {
-                        artwork.ready().map_or(0, |ready| ready.key.id)
-                    } else {
-                        0
-                    },
-                    ids,
-                    allocations_before,
-                    allocations_after - allocations_before,
-                    mem_sys::local_alloc_count() - allocations_after,
-                );
             }
             if let Some(intent) = intent {
                 if matches!(
@@ -524,9 +554,14 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::ClearQueue => Command::ClearUpcoming,
                         lw_ui::Intent::UndoQueue => Command::UndoClear,
                         lw_ui::Intent::SaveQueue(name) => Command::SaveQueue(name),
-                        lw_ui::Intent::SeekFraction(fraction) => {
-                            Command::Seek(fraction * player.status().duration)
-                        }
+                        lw_ui::Intent::SeekFraction(fraction) => Command::Seek(
+                            fraction
+                                * if performance {
+                                    240.0
+                                } else {
+                                    player.status().duration
+                                },
+                        ),
                         lw_ui::Intent::Navigate(_)
                         | lw_ui::Intent::SelectRow(_)
                         | lw_ui::Intent::Search(_)
@@ -565,6 +600,26 @@ fn run() -> Result<(), String> {
                 error_revision += 1;
                 repaint = Some(now);
             }
+            if trace_frames && performance {
+                let keys = image_requests;
+                let mut ids = [0usize; 8];
+                for (out, key) in ids.iter_mut().zip(keys.keys()) {
+                    *out = key.id;
+                }
+                frame_trace[frames - 1] = (
+                    if artwork_updated {
+                        artwork.ready().map_or(0, |ready| ready.key.id)
+                    } else {
+                        0
+                    },
+                    ids,
+                    allocations_before,
+                    allocations_after - allocations_before,
+                    mem_sys::local_alloc_count() - allocations_after,
+                    gpu_trace,
+                    output_allocations,
+                );
+            }
             if performance_artwork && frames > WARMUP_FRAMES {
                 let image_quads = ui
                     .layers()
@@ -580,6 +635,14 @@ fn run() -> Result<(), String> {
                 warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
             }
             if performance && frames > WARMUP_FRAMES {
+                let bars = ui
+                    .layers()
+                    .flat_map(|layer| layer.instances.iter())
+                    .filter(|instance| {
+                        instance.kind == pxui::draw::kind::RECT && instance.color[3] == 107
+                    })
+                    .count();
+                min_waveform_bars = min_waveform_bars.min(bars);
                 warm_allocations = warm_allocations.max(mem_sys::local_alloc_count());
                 warm_build_us = warm_build_us.max(build_us);
                 timings[frames - WARMUP_FRAMES - 1] = smoke::FrameTiming {
@@ -596,11 +659,20 @@ fn run() -> Result<(), String> {
         if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
             let artwork_bytes = graphics.artwork.resident_bytes();
             graphics.close()?;
-            if trace_frames && performance_artwork {
-                for (frame, (ready, keys, host, build, draw)) in artwork_trace.iter().enumerate() {
-                    if *ready != 0 || *host + *build + *draw != 0 || keys[0] != 0 {
+            if trace_frames {
+                for (frame, (ready, keys, host, build, draw, gpu, output)) in
+                    frame_trace.iter().enumerate()
+                {
+                    if performance_artwork
+                        && (*ready != 0 || *host + *build + *draw != 0 || keys[0] != 0)
+                    {
                         println!(
                             "LocalWave image diagnostic: frame={} ready={ready} keys={keys:?} allocs_host_build_draw={host}/{build}/{draw}",
+                            frame + 1
+                        );
+                    } else if *host + *build + *draw != 0 {
+                        println!(
+                            "LocalWave allocation diagnostic: frame={} allocs_host_build_after={host}/{build}/{draw} gpu_begin_prepare_draw_submit={gpu:?} output_getter={output}",
                             frame + 1
                         );
                     }
@@ -620,7 +692,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_artwork {
+                if performance_waveform {
+                    "waveform-scrub-and-scroll"
+                } else if performance_artwork {
                     "albums-artwork"
                 } else if performance_queue_sheet {
                     "full-queue-playlist-editor"
@@ -634,6 +708,12 @@ fn run() -> Result<(), String> {
                     "songs-original"
                 }
             );
+            println!(
+                "LocalWave waveform: peaks=512 min_bars={min_waveform_bars} scrub_commits={waveform_seeks}"
+            );
+            if performance_waveform && (waveform_seeks != 9 || min_waveform_bars < 200) {
+                return Err("Waveform qualification did not exercise all nine scrub cycles".into());
+            }
             println!(
                 "LocalWave build timing: wall_us_p50={} wall_us_p95={} wall_us_p99={} cpu_us_p50={} cpu_us_p95={} cpu_us_p99={} cpu_us_max={}",
                 build_samples[49],
