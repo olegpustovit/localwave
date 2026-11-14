@@ -38,6 +38,7 @@ pub enum Intent {
     SongMenu(usize, i64, u64, (f32, f32)),
     CloseSongMenu,
     TogglePanel,
+    TogglePlayer,
     Shuffle,
     ShuffleAll,
     SortAlbums(browse::AlbumSort),

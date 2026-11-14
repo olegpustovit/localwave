@@ -16,6 +16,7 @@ pub enum Route {
     Artists,
     Find,
     Files,
+    Lists,
     Album(usize),
     Artist(usize),
     Collection(usize),
@@ -461,7 +462,7 @@ impl Library {
             Route::Album(index) => self.albums.get(index),
             Route::Artist(index) => self.artists.get(index),
             Route::Collection(index) => self.collections.get(index),
-            Route::Albums | Route::Artists | Route::Find | Route::Files => None,
+            Route::Albums | Route::Artists | Route::Find | Route::Files | Route::Lists => None,
         }
     }
 }
@@ -726,7 +727,7 @@ impl Catalog {
     pub fn scope(&self, route: Route) -> Option<crate::browse::Scope> {
         if route == Route::Find {
             Some(crate::browse::Scope::Find)
-        } else if matches!(route, Route::Albums | Route::Artists) {
+        } else if matches!(route, Route::Albums | Route::Artists | Route::Lists) {
             Some(crate::browse::Scope::Overview)
         } else {
             self.library

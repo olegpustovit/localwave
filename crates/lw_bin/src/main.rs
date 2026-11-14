@@ -154,7 +154,7 @@ fn open(window: &mut Window) -> Result<App, String> {
     #[cfg(target_os = "macos")]
     let chrome = {
         window.set_resizable(true)?;
-        let chrome = pxui_host::Chrome::open(window.token()?, (640.0, 480.0))
+        let chrome = pxui_host::Chrome::open(window.token()?, (320.0, 480.0))
             .map_err(|error| error.to_string())?;
         window.resize(1440, 872)?;
         chrome
@@ -976,6 +976,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     intent,
                     lw_ui::Intent::Navigate(_)
                         | lw_ui::Intent::TogglePanel
+                        | lw_ui::Intent::TogglePlayer
                         | lw_ui::Intent::CloseQueue
                 ) {
                     graphics.images().cancel_requests();
@@ -1152,6 +1153,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                         | lw_ui::Intent::Sort(_)
                         | lw_ui::Intent::SortAlbums(_)
                         | lw_ui::Intent::TogglePanel
+                        | lw_ui::Intent::TogglePlayer
                         | lw_ui::Intent::ShowQueue
                         | lw_ui::Intent::CloseQueue
                         | lw_ui::Intent::NamePlaylist

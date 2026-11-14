@@ -77,14 +77,15 @@ header still need porting; full visual parity is unfinished.
 
 The Rust shell uses the framework's `pxui_host` for window/GPU integration, presentation and image
 texture lifetime. LocalWave supplies decoded covers and source/layout policy; it contains no
-production Metal or texture management code. LocalWave's app loop currently targets macOS;
-pxui's framework host also builds experimentally for iOS. LocalWave's shared native services and
+production Metal or texture management code. The shared app callback runs on macOS and
+experimentally on iOS, with lifecycle and appearance monitoring owned by pxui. LocalWave's shared native services and
 controller library now compile for iOS device/simulator, with an isolated simulator artwork/
 bookmark/callback check. The controller now connects worker-side audio-session activation,
 interruptions, route loss and media-service reset; actual device/background behavior remains
 unqualified. The full Rust executable now builds for iOS device/simulator and passes an isolated
-simulator launch/draw/idle/shutdown check. Adaptive phone layout, native gestures, document grants
-and signing/install integration are unfinished. There is no working `make ios-run` yet.
+simulator launch/draw/idle/shutdown check. Below 620 points the UI switches to phone navigation,
+virtual lists, a mini-player and an expanded player; macOS can resize down to 320 points. Native
+gestures, document grants and signing/install integration remain unfinished. There is no working `make ios-run` yet.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 
@@ -100,7 +101,7 @@ cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
 make performance            # twelve signed workloads: allocation/time/idle gates
 ```
 
-The current checkpoint passes 185 bounded app checks in 11.07 seconds. Songs and Artists use worker-prepared SwiftUI desktop columns, adaptive headings, wrapped numeric cells and measured virtual rows, and shared labels use explicit pxui line boxes with checked CoreText baselines at 1×/2×. Albums has the measured Artist/Year/Size toolbar, correct gallery spacing and functional Shuffle all. Album orders and header summaries are prepared on the worker. Intrinsic text widths and wrapped player bylines match measured native SwiftUI components; artist/album links open their library contexts. Albums and Artists scroll their page headings with the rows; Artists pins its column heading, and overlay scroll layout preserves the content width. Page entrances, changing matrix digits, playing bars and file-state pops animate through retained views and respect reduced motion. Find now displays worker-prepared matching song/album/folder counts; its offline-action service is implemented, with the remaining Find toolbar binding still pending. Full screenshot parity and the remaining reference layouts are unfinished.
+The adaptive checkpoint passes 192 bounded app checks; timings and native qualification are recorded in [the port log](docs/rust-port.md). Songs and Artists use worker-prepared SwiftUI desktop columns, adaptive headings, wrapped numeric cells and measured virtual rows, and shared labels use explicit pxui line boxes with checked CoreText baselines at 1×/2×. Albums has the measured Artist/Year/Size toolbar, correct gallery spacing and functional Shuffle all. Album orders and header summaries are prepared on the worker. Intrinsic text widths and wrapped player bylines match measured native SwiftUI components; artist/album links open their library contexts. Albums and Artists scroll their page headings with the rows; Artists pins its column heading, and overlay scroll layout preserves the content width. Page entrances, changing matrix digits, playing bars and file-state pops animate through retained views and respect reduced motion. Find now displays worker-prepared matching song/album/folder counts; its offline-action service is implemented, with the remaining Find toolbar binding still pending. Full screenshot parity and the remaining reference layouts are unfinished.
 
 All twelve signed 10,000-song workloads record zero warm Rust allocations, including the 10,000-artist table and 10,000-path Files directory. Playing and paused song bars are covered while scrolling. The artwork gallery also has zero warm requests. The strict 1 ms wall maximum still fails; zero allocations refers to warm Rust UI frames, and native/process memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run `git submodule update --init --recursive` after pulling. See [Rust port qualification](docs/rust-port.md) for measured results and remaining work.
 

@@ -214,7 +214,11 @@ fn button(ui: &mut Ui, key: &str, label: &str, width: f32, enabled: bool, p: Pal
             flags: if enabled { CLICKABLE | FOCUSABLE } else { 0 },
             role: Role::Button,
             w: Size::Px(width),
-            h: Size::Px(36.0),
+            h: Size::Px(if ui.view_size().0 < compact::BREAKPOINT {
+                44.0
+            } else {
+                36.0
+            }),
             look: Look {
                 fill: p.panel,
                 text: if enabled { p.ink } else { p.secondary },
@@ -252,14 +256,16 @@ pub(super) fn view(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    let compact = ui.view_size().0 < compact::BREAKPOINT;
+    let inset = if compact { 16.0 } else { 28.0 };
     let root = ui.node(
         "files-page",
         Node {
             w: Size::Grow,
             h: Size::Grow,
             padding: Edges {
-                l: 28.0,
-                r: 28.0,
+                l: inset,
+                r: inset,
                 t: 28.0,
                 b: 12.0,
             },
@@ -274,11 +280,13 @@ pub(super) fn view(
         let heading = container(ui, "files-heading", Axis::Row, Size::Grow, Size::Px(44.0), p.paper);
         ui.within(&heading, &mut |ui| {
             text(ui, "title", files.directory.as_ref().map_or("Folders", |directory| directory.title.as_str()), 32, p.ink, (Size::Grow, 44.0), false);
-            if let Some(directory) = &files.directory { options(ui, Target { user: directory.location.user, source: directory.location.source, root: directory.source_root }, p, intent); }
+            if !compact && let Some(directory) = &files.directory { options(ui, Target { user: directory.location.user, source: directory.location.source, root: directory.source_root }, p, intent); }
             if action(ui, "add-folder", "Add folder", 110.0, files.account.is_some() && !files.busy, p) { *intent = Some(Intent::ChooseFolder); }
         });
         text(ui, "files-detail", files.directory.as_ref().map_or(files.source_count.as_str(), |directory| directory.detail.as_str()), 13, p.secondary, (Size::Grow, 26.0), true);
-        let tools = container(ui, "files-tools", Axis::Row, Size::Grow, Size::Px(40.0), p.paper);
+        let tools = ui.node("files-tools", Node { axis: Axis::Row, wrap: compact,
+            w: Size::Grow, h: if compact { Size::Fit } else { Size::Px(40.0) },
+            ..Node::DEFAULT });
         ui.within(&tools, &mut |ui| {
             if action(ui, "add-audio", "Add audio files", 118.0, files.account.is_some() && !files.busy, p) { *intent = Some(Intent::ChooseAudio); }
             if let Some(directory) = &files.directory {
@@ -288,10 +296,11 @@ pub(super) fn view(
                 }
                 if action(ui, "rescan", "Rescan source", 110.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Rescan(location))); }
                 if action(ui, "import", "Import folder", 108.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Import(location))); }
+                if compact { options(ui, Target { user: location.user, source: location.source, root: directory.source_root }, p, intent); }
             } else if action(ui, "refresh", "Refresh folders", 130.0, true, p) { *intent = Some(Intent::Files(Request::Roots)); }
         });
         if files.busy {
-            let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(40.0), p.panel);
+            let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(if compact { 44.0 } else { 40.0 }), p.panel);
             ui.within(&progress, &mut |ui| {
                 let label = text(ui, "progress-label", &files.progress, 13, p.ink, (Size::Grow, 32.0), true);
                 ui.set_role(&label, Role::Progress, 0);
@@ -299,7 +308,7 @@ pub(super) fn view(
             });
         }
         if !files.message.is_empty() {
-            settings::paragraph(ui, "files-message", &files.message, width - 56.0, 13.0, p.secondary);
+            settings::paragraph(ui, "files-message", &files.message, width - inset * 2.0, 13.0, p.secondary);
         }
         rule(ui, "files-divider", false, p);
         if files.account.is_none() {
@@ -317,7 +326,7 @@ pub(super) fn view(
             let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
             let list = ui.node_keyed(key, Node { w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
             ui.within(&list, &mut |ui| {
-                ui.grid_list("directory-entries", directory.entries.len(), (width - 56.0).max(1.0), 44.0, &mut |ui, index| {
+                ui.grid_list("directory-entries", directory.entries.len(), (width - inset * 2.0).max(1.0), 44.0, &mut |ui, index| {
                     let entry = &directory.entries[index];
                     let row = ui.node_keyed(int_key(Ui::key_of(0, "files-entry"), entry.id), Node { axis: Axis::Row, w: Size::Grow, h: Size::Px(44.0), align: Align::Center, flags: if entry.directory { CLICKABLE | FOCUSABLE } else { 0 }, role: if entry.directory { Role::Button } else { Role::Row }, ..Node::DEFAULT });
                     ui.a11y_name(&row, &entry.name);
@@ -335,10 +344,10 @@ pub(super) fn view(
         } else {
             if files.sources.is_empty() && files.account.is_some() {
                 text(ui, "empty-heading", "Point it at a folder.", 28, p.ink, (Size::Grow, 48.0), false);
-                settings::paragraph(ui, "empty-description", "Your files stay where they are. Nothing is uploaded. Choose an original music folder to index and import its audio files.", width - 56.0, 14.0, p.secondary);
+                settings::paragraph(ui, "empty-description", "Your files stay where they are. Nothing is uploaded. Choose an original music folder to index and import its audio files.", width - inset * 2.0, 14.0, p.secondary);
                 return;
             }
-            ui.grid_list("source-folders", files.sources.len(), (width - 56.0).max(1.0), 88.0, &mut |ui, index| {
+            ui.grid_list("source-folders", files.sources.len(), (width - inset * 2.0).max(1.0), 88.0, &mut |ui, index| {
                 let folder = &files.sources[index];
                 let row = ui.node_keyed(int_key(Ui::key_of(0, "files-source"), folder.id), Node { axis: Axis::Row, w: Size::Grow, h: Size::Px(88.0), flags: CLICKABLE | FOCUSABLE, role: Role::Button, padding: Edges::all(8.0), look: Look { fill: if folder.current { p.selected } else { p.paper }, ..Look::NONE }, ..Node::DEFAULT });
                 ui.a11y_name(&row, &folder.name);

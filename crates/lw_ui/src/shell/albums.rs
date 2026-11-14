@@ -163,24 +163,31 @@ pub(super) fn gallery(
     let entry = crate::motion::Page::new(ui, state.entry_revision);
     let groups = &catalog.albums;
     let order = &catalog.album_orders[state.album_sort as usize];
-    let available = (width - 64.0).max(1.0);
-    let columns = ((available + 20.0) / 170.0).floor().max(1.0) as usize;
-    let cell = (available - (columns - 1) as f32 * 20.0) / columns as f32;
+    let compact = ui.view_size().0 < compact::BREAKPOINT;
+    let inset = if compact { 16.0 } else { 32.0 };
+    let gap = if compact { 16.0 } else { 20.0 };
+    let available = (width - inset * 2.0).max(1.0);
+    let columns = ((available + gap) / if compact { 156.0 } else { 170.0 })
+        .floor()
+        .max(1.0) as usize;
+    let cell = (available - (columns - 1) as f32 * gap) / columns as f32;
     let card_height = cell + 43.7;
     ui.section_list(
         "groups",
         &SectionList {
             count: groups.len().div_ceil(columns),
             row_height: card_height + 28.0,
-            leading_height: 172.6,
+            leading_height: if compact { 16.0 } else { 172.6 },
             header_height: 0.0,
             trailing_height: 12.0,
             overlay_scrollbar: true,
         },
         &mut |ui, part| match part {
             SectionPart::Leading => {
-                header_view(ui, catalog, state, width, p, intent);
-                spacer(ui, "gallery-top-gap", 22.0);
+                if !compact {
+                    header_view(ui, catalog, state, width, p, intent);
+                    spacer(ui, "gallery-top-gap", 22.0);
+                }
             }
             SectionPart::Header => {}
             SectionPart::Row(line) => {
@@ -190,8 +197,8 @@ pub(super) fn gallery(
                         w: Size::Grow,
                         h: Size::Grow,
                         padding: Edges {
-                            l: 32.0,
-                            r: 32.0,
+                            l: inset,
+                            r: inset,
                             ..Edges::ZERO
                         },
                         ..Node::DEFAULT
@@ -202,7 +209,7 @@ pub(super) fn gallery(
                         "group-row",
                         Node {
                             axis: Axis::Row,
-                            gap: 20.0,
+                            gap,
                             w: Size::Grow,
                             h: Size::Grow,
                             ..Node::DEFAULT

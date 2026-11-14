@@ -440,3 +440,13 @@ so background music controls cannot fill SDL's event queue. Preserve the nested-
 wake regression: a source consumed while busy must be re-posted after the control callback.
 The callback's resources must drop before its Fixture, and Finish closes GPU resources before
 UI/window teardown. macOS keeps its signed 1440x872, 182/82/100 qualification unchanged.
+
+
+The app chooses compact composition by available width below 620 points on both platforms;
+macOS's native minimum is 320x480. Keep route, selection, playback and desktop panel preference
+through resize; compact expanded-player presentation has separate state. UI layout, hit targets,
+virtual lists, styling and animations use public pxui APIs; application navigation policy stays
+in lw_ui. Native safe-area insets apply to both compositions. Keep Files tools wrapping on phones,
+prepared worker labels, shared seek/volume behavior and the 10,000-song resize/scroll allocation
+regressions. These checks do not qualify native touch arbitration, keyboard avoidance or phone
+screenshot parity. Preserve the original signed 1440x872 performance workloads and timing limits.

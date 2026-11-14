@@ -820,8 +820,8 @@ fn native_window_resizes_enables_zoom_and_measures_titlebar_clearance() {
     let mut window =
         pxui_sdl::Window::open_with("LocalWave chrome check", 800, 600, false, true, true).unwrap();
     window.set_resizable(true).unwrap();
-    let chrome = pxui_host::Chrome::open(window.token().unwrap(), (640.0, 480.0)).unwrap();
-    for (width, height) in [(800, 600), (1000, 720), (640, 480)] {
+    let chrome = pxui_host::Chrome::open(window.token().unwrap(), (320.0, 480.0)).unwrap();
+    for (width, height) in [(800, 600), (1000, 720), (640, 480), (390, 844), (320, 480)] {
         window.resize(width, height).unwrap();
         let state = chrome.snapshot().unwrap();
         assert_eq!(
