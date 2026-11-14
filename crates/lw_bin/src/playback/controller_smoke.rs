@@ -466,7 +466,8 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     }
     let failed = player.command(Command::RefreshCatalog)?;
     until(&mut player, deadline, &mut |player| {
-        player.status().processed_command >= failed && !player.status().message.is_empty()
+        player.status().processed_command >= failed
+            && player.status().message.as_ref() == "Could not refresh the library. Try again."
     })?;
     if player.catalog().len() != 2
         || player.status().fault.is_some()

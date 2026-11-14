@@ -8,7 +8,82 @@ remain requirements. Existing latency measurements and benchmark assertions are 
 the recorded wall-time failures are not passes. iOS starts with the plan's static SDL3
 device/simulator spike inside pxui, followed by Metal, touch and lifecycle integration.
 
-### First iOS host checkpoint
+### iOS Metal gallery checkpoint
+
+PXUI checkpoint: **`110c34d`** on `rust-port`.
+
+The existing pxui renderer and framework host now build for **aarch64-apple-ios** and
+**aarch64-apple-ios-sim**. SDL windows, Metal device/queue/frame presentation, image lifetimes,
+shader pipelines and texture transfers remain in pxui. LocalWave's UI/services have not been
+switched to an iOS executable. ABI stays **1.23**; no C signature/layout or allocation assertion
+was weakened. The strict wall-time target remains deferred as requested.
+
+The build chooses each target's SDK and Clang availability runtime, thins Apple's universal
+runtime archive to the target architecture before Rust bundles it, and treats unguarded newer
+iOS APIs as errors. Desktop-only managed storage/properties stay on macOS; simulator-unavailable
+Metal 4 functions return typed errors. Native iOS memory metrics use public `task_vm_info` with
+revision/count checks; instruction counts remain unavailable rather than using macOS `libproc`.
+
+Runtime bring-up exposed two real backend requirements. Pipeline creation required Metal 4;
+the portable backend now uses the standard Metal pipeline API when compiler creation reports
+Unsupported, preserving function/device/profile checks and binding reflection. Other failures
+propagate, and direct native Metal 4 compiler calls retain their existing semantics. The simulator
+also exposes private GPU textures, which could not use the old CPU write path. Private copy
+transfers now reuse a queue and **at most 4 MiB staging per native Device wrapper**, chunking larger
+images with aligned pitches. They wait for completion before scratch reuse. Shared storage keeps
+the direct path. These synchronous private copies still need high-frequency/device pacing and
+native allocation measurement; this is not a zero-native-allocation claim.
+
+The final iPhone 16e / iOS 18.6 simulator run draws the actual kit gallery through
+`pxui_host::Graphics`: **182 frames, 82 warm-up / 100 measured, zero warm Rust allocations** across
+event pumping, UI construction and drawing. GPU completion and layer invalidation pass.
+Dimensions are **390×844 points / 1170×2532 pixels, scale 3**. Reported process footprint/peak are
+**23,759,272 / 28,527,016 bytes** for this probe; they do not qualify real iPhone memory usage.
+The final stderr is empty after creating the Metal view while hidden and hiding the window before
+view teardown. Earlier UIKit transition diagnostics remain in their original logs.
+
+Evidence: `/tmp/localwave-ios-metal-gallery-publish-final-result.{log,stderr}` and inspected screenshot
+`/tmp/localwave-ios-metal-gallery-publish-final.png`. The desktop gallery visibly clips on the phone and
+draws behind system bars: narrow layout/safe areas remain unfinished. The probe does not route
+interactive input into the gallery and is not a display-link/background lifecycle implementation.
+Both final bundles link successfully with platform **7 / 2**, iOS **18.0**, default stack **0** and
+static SDL/system frameworks only (`/tmp/localwave-ios-metal-mach-o-check.log`). Build logs:
+`/tmp/localwave-ios-metal-gallery-{simulator,device}-publish-build.log`. Device execution still
+needs developer provisioning and hardware qualification.
+
+- **150 SDK/native/renderer/host cases pass in 24.492 s wall / 15.203 s summed**, zero skips,
+  `/tmp/localwave-ios-metal-sdk-publish-check.log`. The shared reflection-copy helper now correctly
+  returns failure after reporting invalid metadata/allocation errors instead of converting error
+  status 1 to boolean success. New standard-pipeline coverage checks
+  exact 2×2 pixels, binding reflection, invalid functions, flags and lifetime refusal. The private
+  transfer case crosses the 4 MiB chunk boundary, checks padded rows, short-source/stale/parent
+  rejection and repeated transfers with zero warm Rust allocations. Its final focused run is
+  **4.802 s wall / 0.120 s case**, `/tmp/localwave-ios-private-transfer-regression-publish.log`.
+- **78 static-wrapper/host cases pass in 18.204 s / 4.411 s summed**, zero skips,
+  `/tmp/localwave-ios-metal-static-wrapper-regressions.log`. **186 app cases pass in 16.796 s /
+  15.010 s summed**, zero skips, `/tmp/localwave-ios-metal-app-regressions-final.log`.
+- The first app run exits **101**: the controller fixture could accept a preceding playlist-save
+  notice as refresh completion before restoring its test schema. It now waits for the exact refresh
+  error, with unchanged deadlines/assertions; the focused case passes in **3.186 s**, and in
+  **1.890 s** in the final full matrix. The original failure remains in
+  `/tmp/localwave-ios-metal-app-regressions.log`.
+- The dependency gate now recognizes `pxui_host` as the native backend owner rather than requiring
+  an unused app backend dependency. A focused gate regression rejects duplicate app/host selection
+  and dev/optional/missing/wrong-platform host backends (**2.991 s wall**, zero skips).
+  Dependency, tier, header, ABI snapshot/export and whitespace gates pass. Shape checking retains
+  its nine existing findings; no exception was added. Scoped iOS-spike Clippy passes with Rust
+  warnings denied (`/tmp/localwave-ios-metal-spike-clippy-final.log`); dependencies are not linted
+  by that scoped run. Earlier native compile/link/runtime failures
+  remain in the original `ios-metal` logs, including Metal 4 startup, private CPU upload and the
+  rejected universal archive. The initial transfer fixture's invalid row pitch is corrected to a
+  valid padded pitch without changing production validation.
+
+Next: touch routing, safe areas/keyboard, display-link/background lifecycle and gallery feel on
+devices; then the narrow LocalWave UI and iOS Apple-service bridges. Dynamic framework/XCFramework
+packaging, real-device performance/native memory and the previous clean/warm build budgets remain
+unqualified. The shipping Swift iOS app remains available.
+
+### Earlier SDL startup checkpoint
 
 PXUI now builds checksum-verified static SDL3 **3.4.18** for both **aarch64-apple-ios** and
 **aarch64-apple-ios-sim**, with the iOS **18.0** floor, verified device/simulator archive platforms
@@ -48,8 +123,9 @@ pxui/packaging/ios-spike.sh iphoneos "$PWD/target"
 
 The simulator bundle is `target/aarch64-apple-ios-sim/debug/PXUIHostSpike.app` (bundle id
 `dev.pxui.host-spike`). The device bundle needs developer provisioning before installation.
-This spike has no UI renderer and makes no iOS allocation or latency claim. Next are Metal and
-gallery rendering, touch, safe areas/keyboard, display-link/background lifecycle and device gates.
+This earlier checkpoint had no UI renderer and made no iOS allocation or latency claim. The Metal
+gallery evidence above supersedes its rendering status; touch, safe areas/keyboard,
+display-link/background lifecycle and device gates remain open.
 The existing Swift iOS application remains the shipping app.
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
@@ -1394,7 +1470,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release; ABI 1.14 adds fractional fills and output partition capacity reuse. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Finder drops support mixed audio/folders, a passive overlay, cancellable import and ordered playback. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist drag/drop, live external drop grant qualification, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
-| P6: pxui iOS | Static arm64 SDL device/simulator builds and Rust SDL/UIKit startup/layer-lifetime spike; iPhone 16e simulator passes. | Metal/gallery/host/touch port, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every physical-device feel/performance gate. |
+| P6: pxui iOS | Static arm64 SDL/device/simulator builds; shared Metal renderer/host; standard Metal pipelines, private GPU transfers, public memory metrics and gallery/layer-lifetime probe. iPhone 16e simulator draws 182 frames with zero Rust allocations in 100 warm measured frames. | Interactive touch/host integration, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every physical-device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
 
 Accessibility names are set as views are created. Native macOS/iOS accessibility bridges are explicitly deferred by the supplied plan; the Rust scaffold does not provide VoiceOver parity. The shipping Swift app must remain available during migration.
