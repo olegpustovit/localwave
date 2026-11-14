@@ -305,3 +305,23 @@ controller worker. Alternate both control kinds when pending; preserve reset/sto
 priority. Deferred, failed or cancelled preparation must allow ordinary controls to progress too.
 Keep the deterministic acknowledgement-driven starvation regression and the real native smoke;
 never hide a preparation starvation failure with a longer timeout.
+
+SwiftUI motion uses retained-view table transforms from pxui ABI 1.16, never per-frame reshaping
+or rebuilding for entrance ticks. Same-time opacity/offset keyframes compose as one pose. Navigation
+starts page and bounded first-row entrances; ordinary query/catalog/player updates must not restart
+them. Respect reduced motion and stop repaint requests after settlement. Keep the library/panel clip
+regions at their viewport boundaries. The matrix clock uses Swift's exact glyphs, padded minutes,
+one-column colon, 43-point height and 0.78-unit fractional dots. Only changed digits fade, in two
+steps over 140 ms with 16 ms row stagger. Share seven fading rows across digits so carries do not
+increase animation capacity. Preserve minute/hour/carry, idle and warm allocation regressions.
+Album cards use the Swift 150-point adaptive minimum, 20-point column gap, square artwork and
+28-point row gap. Prepare captions (including year) on the library worker. Fractional point positions
+need subpixel comparisons; do not weaken the strict signed-app wall/per-frame allocation gates.
+
+Viewport request changes do not cancel selected artwork prefetch. On the existing worker, merge
+new visible keys first and unfinished selected keys into spare slots of the same eight-key packet;
+retain the eight-result / 8 MiB decoded bound. Publish completed same-epoch work even if its view
+has briefly left the prefetch margin. Explicit cancel is sticky until the worker consumes it and
+still clears selected work; catalog epochs reject old results. Preserve the deterministic paused-
+after-first-thumbnail regression and three signed scrolling runs, with the original frame-82
+warm-up, zero warm requests/allocations and all strict wall failures retained.

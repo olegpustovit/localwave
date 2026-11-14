@@ -127,24 +127,21 @@ impl FrameTiming {
 }
 
 /// Repeat one pointer carry across 30 rows and cancel before returning to its source page.
-pub fn queue_drag_events(frame: usize, top_inset: f64, events: &mut Vec<input::Event>) {
+pub fn queue_drag_events(frame: usize, grip: (f64, f64), events: &mut Vec<input::Event>) {
     use input::{Event, Key, MouseButton};
     match frame % 40 {
         0 => {
-            events.push(Event::PointerMoved((1151.0, 558.0 + top_inset)));
-            events.push(Event::PointerPressed(
-                MouseButton::LeftButton,
-                (1151.0, 558.0 + top_inset),
-            ));
+            events.push(Event::PointerMoved(grip));
+            events.push(Event::PointerPressed(MouseButton::LeftButton, grip));
         }
-        1 => events.push(Event::PointerMoved((1151.0, 646.0 + top_inset))),
+        1 => events.push(Event::PointerMoved((grip.0, grip.1 + 88.0))),
         2 => events.push(Event::Scrolled((0.0, -30.0))),
         20 => events.push(Event::KeyPressed(Key::Escape)),
         21 => {
             events.push(Event::KeyReleased(Key::Escape));
             events.push(Event::PointerReleased(
                 MouseButton::LeftButton,
-                (1151.0, 646.0 + top_inset),
+                (grip.0, grip.1 + 88.0),
             ));
         }
         22 => events.push(Event::Scrolled((0.0, 30.0))),
@@ -257,10 +254,10 @@ pub fn seed_artwork(
         .map_err(std::io::Error::other)
 }
 
-/// Observe a full idle interval after the first draw, independent of startup duration.
+/// Observe a full idle interval after startup motion, with the same five-second total bound.
 pub struct Smoke {
     timeout: f64,
-    first_draw: Option<f64>,
+    quiet_from: Option<f64>,
     baseline: Option<(f64, usize, usize)>,
 }
 
@@ -268,18 +265,28 @@ impl Smoke {
     pub fn new(now: f64) -> Self {
         Self {
             timeout: now + 5.0,
-            first_draw: None,
+            quiet_from: None,
             baseline: None,
         }
     }
-    pub fn observe(&mut self, now: f64, frames: usize, draws: usize) -> Result<bool, &'static str> {
+    pub fn observe(
+        &mut self,
+        now: f64,
+        frames: usize,
+        draws: usize,
+        pending_frame: bool,
+    ) -> Result<bool, &'static str> {
         if now >= self.timeout {
             return Err("Smoke test did not finish its idle observation before timeout");
         }
         if draws == 0 {
             return Ok(false);
         }
-        let first = *self.first_draw.get_or_insert(now);
+        if self.baseline.is_none() && pending_frame {
+            self.quiet_from = Some(now);
+            return Ok(false);
+        }
+        let first = *self.quiet_from.get_or_insert(now);
         if self.baseline.is_none() && now >= first + 0.25 {
             self.baseline = Some((now, frames, draws));
         }
@@ -296,7 +303,7 @@ impl Smoke {
     pub fn deadline(&self) -> f64 {
         self.baseline
             .map(|(started, _, _)| started + 0.5)
-            .or_else(|| self.first_draw.map(|started| started + 0.25))
+            .or_else(|| self.quiet_from.map(|started| started + 0.25))
             .unwrap_or(self.timeout)
             .min(self.timeout)
     }
@@ -381,20 +388,39 @@ mod tests {
     #[test]
     fn startup_delay_never_consumes_idle_observation() {
         let mut smoke = Smoke::new(0.0);
-        assert!(!smoke.observe(2.0, 1, 1).unwrap());
+        assert!(!smoke.observe(2.0, 1, 1, false).unwrap());
         assert_eq!(smoke.deadline(), 2.25);
-        assert!(!smoke.observe(2.3, 1, 1).unwrap());
-        assert!(!smoke.observe(2.79, 1, 1).unwrap());
-        assert!(smoke.observe(2.8, 1, 1).unwrap());
+        assert!(!smoke.observe(2.3, 1, 1, false).unwrap());
+        assert!(!smoke.observe(2.79, 1, 1, false).unwrap());
+        assert!(smoke.observe(2.8, 1, 1, false).unwrap());
         assert!(smoke.idle_ms(2.8) >= 500.0);
         let mut changed = Smoke::new(0.0);
-        assert!(!changed.observe(0.0, 1, 1).unwrap());
-        assert!(!changed.observe(0.25, 1, 1).unwrap());
-        assert!(changed.observe(0.75, 2, 2).is_err());
+        assert!(!changed.observe(0.0, 1, 1, false).unwrap());
+        assert!(!changed.observe(0.25, 1, 1, false).unwrap());
+        assert!(changed.observe(0.75, 2, 2, false).is_err());
         let mut empty = Smoke::new(0.0);
-        assert!(!empty.observe(4.99, 0, 0).unwrap());
-        assert!(empty.observe(5.0, 0, 0).is_err());
+        assert!(!empty.observe(4.99, 0, 0, false).unwrap());
+        assert!(empty.observe(5.0, 0, 0, false).is_err());
     }
+    #[test]
+    fn startup_motion_must_finish_before_idle_and_keeps_the_original_timeout() {
+        let mut smoke = Smoke::new(0.0);
+        for frame in 1..=10 {
+            assert!(
+                !smoke
+                    .observe(frame as f64 * 0.05, frame, frame, true)
+                    .unwrap()
+            );
+        }
+        assert!(!smoke.observe(0.75, 10, 10, false).unwrap());
+        assert!(!smoke.observe(1.24, 10, 10, false).unwrap());
+        assert!(smoke.observe(1.25, 10, 10, false).unwrap());
+        assert_eq!(smoke.idle_ms(1.25), 500.0);
+        let mut endless = Smoke::new(0.0);
+        assert!(!endless.observe(4.99, 100, 100, true).unwrap());
+        assert!(endless.observe(5.0, 101, 101, true).is_err());
+    }
+
     #[test]
     fn queue_drag_trace_repeats_exactly_and_reuses_its_event_buffer() {
         use input::{Event, Key, MouseButton};
@@ -403,7 +429,7 @@ mod tests {
             events.clear();
             mem_sys::local_reset();
             let top_inset = (frame / 40) as f64 * 14.0;
-            super::queue_drag_events(frame, top_inset, &mut events);
+            super::queue_drag_events(frame, (1151.0, 558.0 + top_inset), &mut events);
             assert_eq!(mem_sys::local_alloc_count(), 0);
             let expected: &[Event] = match frame % 40 {
                 0 => &[

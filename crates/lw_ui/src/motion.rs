@@ -44,6 +44,104 @@ pub const fn steps(count: u32, duration: f32) -> Curve {
     Curve::Steps { count, duration }
 }
 
+/// Animate retained contents once per navigation, without rebuilding them on motion ticks.
+pub(crate) fn enter(
+    ui: &mut pxui::Ui,
+    view: &pxui::PxuiBox,
+    generation: u64,
+    offset: (f32, f32),
+    duration: f32,
+    delay: f32,
+) {
+    use pxui::kit::{AnimationTarget as Target, Keyframe};
+    if ui.state(view, i64::MIN) == generation as i64 {
+        return;
+    }
+    ui.set_state(view, generation as i64);
+    if ui.tokens().reduced_motion {
+        return;
+    }
+    let curve = out(duration);
+    ui.animate_keys(
+        view,
+        &[
+            Keyframe {
+                time: 0.0,
+                target: Target::Opacity(0.0),
+                curve,
+            },
+            Keyframe {
+                time: 0.0,
+                target: Target::Offset(offset.0, offset.1),
+                curve,
+            },
+            Keyframe {
+                time: delay,
+                target: Target::Opacity(0.0),
+                curve,
+            },
+            Keyframe {
+                time: delay + duration,
+                target: Target::Opacity(1.0),
+                curve,
+            },
+            Keyframe {
+                time: delay + duration,
+                target: Target::Offset(0.0, 0.0),
+                curve,
+            },
+        ],
+    );
+}
+
+pub(crate) struct Page {
+    generation: u64,
+    entering: bool,
+}
+impl Page {
+    pub fn new(ui: &mut pxui::Ui, generation: u64) -> Self {
+        use pxui::ui::{Node, Size};
+        let marker = ui.node(
+            "entry-generation",
+            Node {
+                w: Size::Px(0.0),
+                h: Size::Px(0.0),
+                ..Node::DEFAULT
+            },
+        );
+        let clock = ui.node(
+            "entry-start",
+            Node {
+                w: Size::Px(0.0),
+                h: Size::Px(0.0),
+                ..Node::DEFAULT
+            },
+        );
+        let now = ui.now();
+        if ui.state(&marker, i64::MIN) != generation as i64 {
+            ui.set_state(&marker, generation as i64);
+            ui.set_state(&clock, now.to_bits() as i64);
+        }
+        let start = f64::from_bits(ui.state(&clock, now.to_bits() as i64) as u64);
+        Self {
+            generation,
+            entering: now - start < (SLOW + 15.0 * STAGGER) as f64,
+        }
+    }
+    pub fn row(&self, ui: &mut pxui::Ui, view: &pxui::PxuiBox, index: usize) {
+        if self.entering && index < 16 {
+            enter(
+                ui,
+                view,
+                self.generation,
+                (0.0, 10.0),
+                BASE,
+                index as f32 * STAGGER,
+            );
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

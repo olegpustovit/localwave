@@ -59,7 +59,7 @@ The Rust window supports resizing and native zoom/full-screen controls, with con
 transparent title bar. The Queue button opens the full occurrence-based queue editor; Save as
 playlist saves its current order with duplicate songs included once. Album, Now panel and queue
 artwork load from the existing library on a separate worker, with bounded thumbnail/texture caches.
-Image identity, GPU wrapper reuse and completed-frame release live in pxui itself. ABI 1.15 includes raw held-key queries; fractional waveform fills remain available.
+Image identity, GPU wrapper reuse and completed-frame release live in pxui itself. ABI 1.16 adds a shared frame clock and correct retained-view entrance transforms; held-key queries and fractional waveform fills remain available.
 Tracks without readable local cover files keep their placeholder. The transport displays cached/native-decoded waveform peaks; drag to preview and release to seek, or use Left/Right for five seconds and Home/End for the track bounds.
 The Rust app now publishes track metadata and worker-decoded covers to macOS Now Playing, with play/pause, toggle, stop, next/previous and position commands routed through the same controller. Physical media-key and Control Center qualification remains open. Playback failures now update saved file state while preserving newer cache/import records; unreadable files retain their paths and are skipped with a notice.
 Open Settings from the sidebar or with ⌘, to change download-ahead, simulated offline mode, cache limit and appearance. Right-click the cache choices for 2/32 GB, or appearance for signal colors and reduced motion. About & Privacy opens from Settings.

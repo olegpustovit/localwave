@@ -175,9 +175,13 @@ impl Library {
                     .cmp(&tracks[*b])
                     .then_with(|| out.row(*a).title.cmp(out.row(*b).title))
             });
+            let caption = rows
+                .first()
+                .and_then(|index| out.rows[*index].release_year)
+                .map_or_else(|| artist.clone(), |year| format!("{artist} · {year}"));
             out.albums.push(out.make_collection(
                 &name,
-                &artist,
+                &caption,
                 rows,
                 PlaybackContext::Album {
                     name: name.clone(),

@@ -116,6 +116,9 @@ fn run() -> Result<(), String> {
         lw_apple_sys::environment::Environment::open(wake).map_err(|error| error.to_string())?;
     let mut preferences = environment.snapshot();
     let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+    if performance_queue_drag {
+        ui.set_a11y(true);
+    }
     ui.enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
     let mut themes = lw_bin::appearance::Themes::new(&ui)?;
@@ -494,7 +497,20 @@ fn run() -> Result<(), String> {
             } else if performance_waveform {
                 smoke::waveform_events(frames - 2, &mut events);
             } else if performance_queue_drag {
-                smoke::queue_drag_events(frames - 2, window_chrome.top_inset, &mut events);
+                let grip = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| {
+                        ui.a11y_name_of(node) == "Reorder queued track"
+                            && node.states & pxui::a11y::state::VISIBLE != 0
+                    })
+                    .ok_or("Queue drag fixture has no visible reorder target")?
+                    .rect;
+                smoke::queue_drag_events(
+                    frames - 2,
+                    (f64::from(grip.x + 10.0), f64::from(grip.y + 10.0)),
+                    &mut events,
+                );
             } else {
                 events.push(HostEvent::PointerMoved(
                     if performance_queue_sheet || performance_artwork {
@@ -690,10 +706,12 @@ fn run() -> Result<(), String> {
                                 p.kind != "localwave.queue-occurrence:2" || p.value != "Track 00002"
                             })))
                 {
-                    return Err(
-                        "Queue carry did not survive the cross-page scroll or cancel correctly"
-                            .into(),
-                    );
+                    return Err(format!(
+                        "Queue carry did not survive the cross-page scroll or cancel correctly: frame={frames} phase={} expected={expected} captured={} kind={:?}",
+                        (frames - 2) % 40,
+                        ui.captured(),
+                        carrying.map(|p| p.kind)
+                    ));
                 }
                 if intent.is_some() {
                     return Err("Cancelled queue carry produced an application action".into());
@@ -1179,7 +1197,7 @@ fn run() -> Result<(), String> {
             return Ok(());
         }
         let observed_at = if smoke { window.time() } else { now };
-        if smoke && smoke_check.observe(observed_at, frames, draws)? {
+        if smoke && smoke_check.observe(observed_at, frames, draws, repaint.is_some())? {
             println!(
                 "LocalWave smoke: frames={frames} draws={draws} size={}x{} idle_ms={:.1}",
                 extent.logical.0,

@@ -22,6 +22,7 @@ pub struct ShellState {
     query_too_long: bool,
     query_revision: u64,
     revision: u64,
+    entry_revision: u64,
     settings_visible: bool,
     privacy_visible: bool,
     settings_menu: Option<(crate::SettingsMenu, (f32, f32))>,
@@ -45,6 +46,7 @@ impl Default for ShellState {
             query_too_long: false,
             query_revision: 0,
             revision: 0,
+            entry_revision: 1,
             settings_visible: false,
             privacy_visible: false,
             settings_menu: None,
@@ -153,6 +155,16 @@ impl ShellState {
     }
 
     pub fn apply(&mut self, intent: Intent) -> bool {
+        if matches!(
+            intent,
+            Intent::Navigate(_)
+                | Intent::ShowSettings
+                | Intent::CloseSettings
+                | Intent::ShowPrivacy
+                | Intent::ClosePrivacy
+        ) {
+            self.entry_revision = self.entry_revision.wrapping_add(1);
+        }
         match intent {
             Intent::Navigate(route) => {
                 self.source_menu = None;
@@ -549,6 +561,68 @@ mod button_tests {
     use pxui::{Event, FrameIn, Platform, Str, ThemeSource};
     use std::cell::Cell;
     #[test]
+    fn matrix_digits_match_swift_geometry_stagger_changed_rows_and_stop_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let ink = Rgba {
+            r: 12,
+            g: 13,
+            b: 14,
+            a: 255,
+        };
+        let mut time = 0.0;
+        for cycle in 0..4 {
+            mem_sys::local_reset();
+            for seconds in [0, 1, 59, 60, 3599, 3600, 59999, 60000] {
+                time += 1.0;
+                for offset in [0.0, 0.069, 0.07, 0.139, 0.14, 0.235, 0.236, 0.3] {
+                    ui.frame(
+                        &FrameIn {
+                            width: 400.0,
+                            height: 80.0,
+                            time: time + offset,
+                            ..Default::default()
+                        },
+                        &mut |ui| matrix_clock(ui, seconds, ink),
+                    )
+                    .unwrap();
+                    let clock = ui
+                        .a11y_nodes()
+                        .iter()
+                        .find(|n| ui.a11y_name_of(n) == "Elapsed time")
+                        .unwrap();
+                    assert!((clock.rect.h - 43.0).abs() < 0.001);
+                    if seconds < 6000 {
+                        assert!((clock.rect.w - 152.22).abs() < 0.001);
+                    }
+                    for dot in ui
+                        .layers()
+                        .flat_map(|l| l.instances.iter())
+                        .filter(|i| i.color == [12, 13, 14, 255])
+                    {
+                        assert!((dot.rect[2] - dot.rect[0] - 43.0 / 7.0 * 0.78).abs() < 0.001);
+                        assert!((dot.rect[3] - dot.rect[1] - 43.0 / 7.0 * 0.78).abs() < 0.001);
+                    }
+                    if offset >= 0.236 {
+                        assert!(
+                            ui.repaint_at().is_none(),
+                            "completed matrix must remain idle"
+                        );
+                    }
+                }
+            }
+            if cycle > 0 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "all digit carries, including minute/hour boundaries"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn waveform_bars_preview_drag_seek_on_release_and_keys_without_warm_allocations() {
         use pxui::{Event, FrameIn, Platform};
         mem_sys::set_peer(pxui::library_counter);
@@ -911,7 +985,7 @@ pub fn shell(
                 },
             )
                 .hash(&mut library_revision);
-            ui.view(
+            let page = ui.view(
                 "library",
                 library_revision.finish(),
                 Size::Grow,
@@ -948,6 +1022,23 @@ pub fn shell(
                     });
                 },
             );
+            ui.view_clip(
+                &page,
+                Some(Rect {
+                    x: sidebar_width + 1.0,
+                    y: state.top_inset,
+                    w: content_width,
+                    h: (height - state.top_inset - 72.0).max(0.0),
+                }),
+            );
+            crate::motion::enter(
+                ui,
+                &page,
+                state.entry_revision,
+                (if width < 900.0 { 32.0 } else { 0.0 }, 0.0),
+                crate::motion::BASE,
+                0.0,
+            );
             if panel {
                 rule(ui, "panel-divider", true, p);
                 let mut panel_revision = DefaultHasher::new();
@@ -958,13 +1049,23 @@ pub fn shell(
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
                 )
                     .hash(&mut panel_revision);
-                ui.view(
+                let panel = ui.view(
                     "now-panel",
                     panel_revision.finish(),
                     Size::Px(319.0),
                     Size::Grow,
                     &mut |ui| now_panel(ui, player, catalog, p, intent),
                 );
+                ui.view_clip(
+                    &panel,
+                    Some(Rect {
+                        x: width - 319.0,
+                        y: state.top_inset,
+                        w: 319.0,
+                        h: (height - state.top_inset - 72.0).max(0.0),
+                    }),
+                );
+                crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
             }
         });
         rule(ui, "transport-divider", false, p);
@@ -1261,15 +1362,25 @@ fn content(
             w: Size::Grow,
             h: Size::Grow,
             padding: Edges {
-                l: 28.0,
-                r: 28.0,
+                l: 32.0,
+                r: 32.0,
                 t: 28.0,
-                b: 12.0,
+                b: 0.0,
             },
             ..Node::DEFAULT
         },
     );
     ui.within(&root, &mut |ui| {
+        let entry = crate::motion::Page::new(ui, state.entry_revision);
+        let mut row_revision = DefaultHasher::new();
+        (
+            state.revision,
+            player.current_id,
+            player.artwork.map_or(0, crate::artwork::Images::revision),
+            std::sync::Arc::as_ptr(&catalog.library) as usize,
+        )
+            .hash(&mut row_revision);
+        let row_revision = row_revision.finish();
         let collection = state.collection(catalog);
         let title = match state.route {
             Route::Albums => "Albums",
@@ -1282,11 +1393,25 @@ fn content(
             "heading-row",
             Axis::Row,
             Size::Grow,
-            Size::Px(44.0),
+            Size::Px(34.0),
             p.paper,
         );
         ui.within(&heading, &mut |ui| {
-            text(ui, "heading", title, 34, p.ink, (Size::Grow, 44.0), false);
+            let heading = text(ui, "heading", title, 34, p.ink, (Size::Grow, 34.0), false);
+            ui.text_spans(
+                &heading,
+                title,
+                &pxui::TextStyle {
+                    size_points: 34.0,
+                    line_height: 34.0,
+                    weight: 500,
+                    tracking: -0.85,
+                    max_lines: 1,
+                    ..Default::default()
+                },
+                &[],
+            )
+            .unwrap();
             if icon_button(
                 ui,
                 "refresh",
@@ -1334,8 +1459,9 @@ fn content(
                     });
                 },
             );
-            find_tokens(ui, state, (width - 56.0).max(1.0), p, intent);
+            find_tokens(ui, state, (width - 64.0).max(1.0), p, intent);
         }
+        spacer(ui, "heading-subtitle-gap", 6.0);
         text(
             ui,
             "subtitle",
@@ -1345,14 +1471,19 @@ fn content(
                 "Search titles, artists, albums or add a filter"
             } else if state.route == Route::Find && collection.is_none() {
                 "Searching…"
+            } else if state.route == Route::Songs {
+                "Click a header to sort. Double-click or Return plays."
+            } else if state.route == Route::Artists {
+                "Sorted ignoring “The”"
             } else {
                 collection.map_or("Browse your library", |group| group.subtitle.as_str())
             },
             14,
             p.secondary,
-            (Size::Grow, 34.0),
+            (Size::Grow, 19.6),
             false,
         );
+        spacer(ui, "heading-bottom-gap", 18.0);
         rule(ui, "heading-divider", false, p);
         if matches!(state.route, Route::Albums | Route::Artists) {
             let albums = state.route == Route::Albums;
@@ -1361,84 +1492,130 @@ fn content(
             } else {
                 &catalog.artists
             };
-            let cell = if albums {
-                180.0
+            let available = (width - 64.0).max(1.0);
+            let columns = if albums {
+                ((available + 20.0) / 170.0).floor().max(1.0) as usize
             } else {
-                (width - 56.0).max(1.0)
+                1
             };
+            let cell = (available - (columns - 1) as f32 * 20.0) / columns as f32;
+            let card_height = if albums { cell + 43.7 } else { 54.0 };
+            if albums {
+                spacer(ui, "gallery-top-gap", 22.0);
+            }
             ui.grid_list(
                 "groups",
-                groups.len(),
-                cell,
-                if albums { 216.0 } else { 54.0 },
-                &mut |ui, index| {
-                    let group = &groups[index];
-                    let node = ui.node(
-                        "group",
+                groups.len().div_ceil(columns),
+                available,
+                card_height + if albums { 28.0 } else { 0.0 },
+                &mut |ui, line| {
+                    let row = ui.node(
+                        "group-row",
                         Node {
-                            flags: CLICKABLE | TAB_STOP,
+                            axis: Axis::Row,
+                            gap: 20.0,
                             w: Size::Grow,
                             h: Size::Grow,
-                            role: Role::Button,
-                            padding: Edges::all(10.0),
                             ..Node::DEFAULT
                         },
                     );
-                    ui.a11y_name(&node, &group.title);
-                    let signal = ui.signal_state(&node);
-                    ui.set_look(
-                        &node,
-                        Look {
-                            fill: if signal.hovered { p.panel } else { p.paper },
-                            ..Look::NONE
-                        },
-                        State::default(),
-                    );
-                    ui.within(&node, &mut |ui| {
-                        if albums {
-                            let art = container(
-                                ui,
-                                "artwork",
-                                Axis::Stack,
-                                Size::Grow,
-                                Size::Px(146.0),
-                                p.panel,
+                    ui.within(&row, &mut |ui| {
+                        for index in line * columns..((line + 1) * columns).min(groups.len()) {
+                            let holder = ui.node_keyed(
+                                int_key(row.box_key, index as i64),
+                                Node {
+                                    w: Size::Px(cell),
+                                    h: Size::Px(card_height),
+                                    ..Node::DEFAULT
+                                },
                             );
-                            paint_artwork(
-                                ui,
-                                &art,
-                                group.artwork_row.map(|index| catalog.row(index)),
-                                (cell - 20.0).max(146.0),
-                                player.artwork,
-                            );
-                            ui.a11y_name(&art, "Album artwork");
+                            ui.within(&holder, &mut |ui| {
+                                let group = &groups[index];
+                                let visual = ui.view(
+                                    "group-visual",
+                                    row_revision,
+                                    Size::Grow,
+                                    Size::Grow,
+                                    &mut |ui| {
+                                        let node = ui.node(
+                                            "group",
+                                            Node {
+                                                flags: CLICKABLE | TAB_STOP,
+                                                w: Size::Grow,
+                                                h: Size::Grow,
+                                                role: Role::Button,
+                                                padding: Edges::ZERO,
+                                                ..Node::DEFAULT
+                                            },
+                                        );
+                                        ui.a11y_name(&node, &group.title);
+                                        let signal = ui.signal_state(&node);
+                                        ui.set_look(
+                                            &node,
+                                            Look {
+                                                fill: if signal.hovered {
+                                                    p.panel
+                                                } else {
+                                                    p.paper
+                                                },
+                                                ..Look::NONE
+                                            },
+                                            State::default(),
+                                        );
+                                        ui.within(&node, &mut |ui| {
+                                            if albums {
+                                                let art = container(
+                                                    ui,
+                                                    "artwork",
+                                                    Axis::Stack,
+                                                    Size::Grow,
+                                                    Size::Px(cell),
+                                                    p.panel,
+                                                );
+                                                paint_artwork(
+                                                    ui,
+                                                    &art,
+                                                    group
+                                                        .artwork_row
+                                                        .map(|index| catalog.row(index)),
+                                                    cell,
+                                                    player.artwork,
+                                                );
+                                                ui.a11y_name(&art, "Album artwork");
+                                                spacer(ui, "artwork-label-gap", 8.0);
+                                            }
+                                            text(
+                                                ui,
+                                                "name",
+                                                &group.title,
+                                                14,
+                                                p.ink,
+                                                (Size::Grow, if albums { 17.5 } else { 23.0 }),
+                                                false,
+                                            );
+                                            text(
+                                                ui,
+                                                "artist",
+                                                &group.subtitle,
+                                                13,
+                                                p.secondary,
+                                                (Size::Grow, 18.2),
+                                                false,
+                                            );
+                                        });
+                                        if signal.clicked {
+                                            *intent = Some(Intent::Navigate(if albums {
+                                                Route::Album(index)
+                                            } else {
+                                                Route::Artist(index)
+                                            }));
+                                        }
+                                    },
+                                );
+                                entry.row(ui, &visual, index);
+                            });
                         }
-                        text(
-                            ui,
-                            "name",
-                            &group.title,
-                            14,
-                            p.ink,
-                            (Size::Grow, 23.0),
-                            false,
-                        );
-                        text(
-                            ui,
-                            "artist",
-                            &group.subtitle,
-                            12,
-                            p.secondary,
-                            (Size::Grow, 18.0),
-                            false,
-                        );
                     });
-                    if signal.clicked {
-                        *intent = Some(Intent::Navigate(if albums {
-                            Route::Album(index)
-                        } else {
-                            Route::Artist(index)
-                        }));
-                    }
                 },
             );
         } else if let Some(collection) = collection {
@@ -1564,7 +1741,7 @@ fn content(
                 },
             );
             ui.within(&results, &mut |ui| {
-                let row_width = (width - 56.0).max(1.0);
+                let row_width = (width - 64.0).max(1.0);
                 ui.grid_list(
                     "songs",
                     collection.rows.len(),
@@ -1572,94 +1749,103 @@ fn content(
                     38.0,
                     &mut |ui, index| {
                         let row = catalog.row(collection.rows[index]);
-                        let node = ui.node(
-                            "song",
-                            Node {
-                                flags: CLICKABLE | TAB_STOP,
-                                axis: Axis::Row,
-                                align: Align::Center,
-                                w: Size::Grow,
-                                h: Size::Px(38.0),
-                                role: Role::ListItem,
-                                ..Node::DEFAULT
+                        let visual = ui.view(
+                            "song-visual",
+                            row_revision,
+                            Size::Grow,
+                            Size::Grow,
+                            &mut |ui| {
+                                let node = ui.node(
+                                    "song",
+                                    Node {
+                                        flags: CLICKABLE | TAB_STOP,
+                                        axis: Axis::Row,
+                                        align: Align::Center,
+                                        w: Size::Grow,
+                                        h: Size::Px(38.0),
+                                        role: Role::ListItem,
+                                        ..Node::DEFAULT
+                                    },
+                                );
+                                let signal = ui.signal_state(&node);
+                                ui.a11y_name(&node, row.title);
+                                ui.set_look(
+                                    &node,
+                                    Look {
+                                        fill: if state.selected == Some(index) {
+                                            p.selected
+                                        } else if signal.hovered {
+                                            p.panel
+                                        } else {
+                                            p.paper
+                                        },
+                                        ..Look::NONE
+                                    },
+                                    State::default(),
+                                );
+                                ui.within(&node, &mut |ui| {
+                                    let number = ClockLabel::integer((index + 1) as u64);
+                                    text(
+                                        ui,
+                                        "number",
+                                        std::str::from_utf8(number.bytes()).unwrap(),
+                                        12,
+                                        p.secondary,
+                                        (Size::Px(44.0), 20.0),
+                                        true,
+                                    );
+                                    text(
+                                        ui,
+                                        "title",
+                                        row.title,
+                                        14,
+                                        if player.current_id == Some(row.id) {
+                                            p.signal
+                                        } else {
+                                            p.ink
+                                        },
+                                        (Size::Grow, 20.0),
+                                        false,
+                                    );
+                                    text(
+                                        ui,
+                                        "artist",
+                                        row.artist,
+                                        14,
+                                        p.secondary,
+                                        (Size::Pct(0.24), 20.0),
+                                        false,
+                                    );
+                                    text(
+                                        ui,
+                                        "album",
+                                        row.album,
+                                        14,
+                                        p.secondary,
+                                        (Size::Pct(0.26), 20.0),
+                                        false,
+                                    );
+                                    text(
+                                        ui,
+                                        "duration",
+                                        row.duration,
+                                        12,
+                                        p.secondary,
+                                        (Size::Px(48.0), 20.0),
+                                        true,
+                                    );
+                                });
+                                if signal.clicked {
+                                    *intent = Some(Intent::SelectRow(index));
+                                }
+                                if signal.double_clicked
+                                    || (signal.clicked && ui.key_pressed(input::Key::Enter))
+                                {
+                                    *intent = Some(Intent::PlayRow(index));
+                                }
                             },
                         );
-                        let signal = ui.signal_state(&node);
-                        ui.a11y_name(&node, row.title);
-                        ui.set_look(
-                            &node,
-                            Look {
-                                fill: if state.selected == Some(index) {
-                                    p.selected
-                                } else if signal.hovered {
-                                    p.panel
-                                } else {
-                                    p.paper
-                                },
-                                ..Look::NONE
-                            },
-                            State::default(),
-                        );
-                        ui.within(&node, &mut |ui| {
-                            let number = ClockLabel::integer((index + 1) as u64);
-                            text(
-                                ui,
-                                "number",
-                                std::str::from_utf8(number.bytes()).unwrap(),
-                                12,
-                                p.secondary,
-                                (Size::Px(44.0), 20.0),
-                                true,
-                            );
-                            text(
-                                ui,
-                                "title",
-                                row.title,
-                                14,
-                                if player.current_id == Some(row.id) {
-                                    p.signal
-                                } else {
-                                    p.ink
-                                },
-                                (Size::Grow, 20.0),
-                                false,
-                            );
-                            text(
-                                ui,
-                                "artist",
-                                row.artist,
-                                14,
-                                p.secondary,
-                                (Size::Pct(0.24), 20.0),
-                                false,
-                            );
-                            text(
-                                ui,
-                                "album",
-                                row.album,
-                                14,
-                                p.secondary,
-                                (Size::Pct(0.26), 20.0),
-                                false,
-                            );
-                            text(
-                                ui,
-                                "duration",
-                                row.duration,
-                                12,
-                                p.secondary,
-                                (Size::Px(48.0), 20.0),
-                                true,
-                            );
-                        });
-                        if signal.clicked {
-                            *intent = Some(Intent::SelectRow(index));
-                        }
-                        if signal.double_clicked
-                            || (signal.clicked && ui.key_pressed(input::Key::Enter))
-                        {
-                            *intent = Some(Intent::PlayRow(index));
-                        }
+                        entry.row(ui, &visual, index);
                     },
                 );
             });
@@ -1773,12 +1959,26 @@ fn now_panel(
         Node {
             w: Size::Grow,
             h: Size::Grow,
-            padding: Edges::all(20.0),
+            padding: Edges {
+                l: 20.0,
+                r: 20.0,
+                t: 8.0,
+                b: 0.0,
+            },
             ..Node::DEFAULT
         },
     );
     ui.within(&root, &mut |ui| {
-        let head = container(ui, "header", Axis::Row, Size::Grow, Size::Px(36.0), p.paper);
+        let head = ui.node(
+            "header",
+            Node {
+                axis: Axis::Row,
+                align: Align::Center,
+                w: Size::Px(289.0),
+                h: Size::Px(36.0),
+                ..Node::DEFAULT
+            },
+        );
         ui.within(&head, &mut |ui| {
             text(
                 ui,
@@ -1786,7 +1986,7 @@ fn now_panel(
                 "Now playing",
                 13,
                 p.secondary,
-                (Size::Grow, 28.0),
+                (Size::Grow, 18.2),
                 false,
             );
             if icon_button(
@@ -1794,20 +1994,20 @@ fn now_panel(
                 "hide-panel",
                 "Minimise to small player",
                 Icon::Panel,
-                (28.0, 28.0),
+                (36.0, 36.0),
                 false,
                 p,
             ) {
                 *intent = Some(Intent::TogglePanel);
             }
         });
-        spacer(ui, "artwork-top-gap", 12.0);
+        spacer(ui, "artwork-top-gap", 4.0);
         let art = container(
             ui,
             "artwork",
             Axis::Stack,
-            Size::Px(184.0),
-            Size::Px(184.0),
+            Size::Px(200.0),
+            Size::Px(200.0),
             p.panel,
         );
         paint_artwork(
@@ -1817,60 +2017,131 @@ fn now_panel(
                 .current_id
                 .and_then(|id| catalog.row_index(id))
                 .map(|index| catalog.row(index)),
-            184.0,
+            200.0,
             player.artwork,
         );
         ui.a11y_name(&art, "Current track artwork");
         spacer(ui, "artwork-bottom-gap", 14.0);
-        text(
-            ui,
-            "current-track",
-            if !player.initialized {
-                "Loading library"
-            } else if player.title.is_empty() {
-                "Nothing playing"
-            } else {
-                player.title
-            },
-            19,
-            p.ink,
-            (Size::Grow, 28.0),
-            false,
-        );
-        text(
-            ui,
-            "artist",
+        let mut information_revision = DefaultHasher::new();
+        (
+            player.initialized,
+            player.current_id,
+            player.title,
             player.artist,
-            14,
-            p.secondary,
-            (Size::Grow, 22.0),
-            false,
-        );
-        text(
-            ui,
-            "album",
             player.album,
-            14,
-            p.secondary,
-            (Size::Grow, 22.0),
-            false,
+        )
+            .hash(&mut information_revision);
+        let information = ui.view(
+            "track-information",
+            information_revision.finish(),
+            Size::Grow,
+            Size::Fit,
+            &mut |ui| {
+                let title = ui.node(
+                    "current-track",
+                    Node {
+                        w: Size::Grow,
+                        h: Size::Fit,
+                        min_h: 22.8,
+                        role: Role::Label,
+                        ..Node::DEFAULT
+                    },
+                );
+                let value = if !player.initialized {
+                    "Loading library"
+                } else if player.title.is_empty() {
+                    "Nothing playing"
+                } else {
+                    player.title
+                };
+                ui.text_spans(
+                    &title,
+                    value,
+                    &pxui::TextStyle {
+                        size_points: 19.0,
+                        weight: 500,
+                        tracking: -0.285,
+                        line_height: 22.8,
+                        wrap: 1,
+                        ..Default::default()
+                    },
+                    &[],
+                )
+                .unwrap();
+                let byline = ui.node(
+                    "byline",
+                    Node {
+                        axis: Axis::Row,
+                        wrap: true,
+                        gap: 3.5,
+                        w: Size::Grow,
+                        h: Size::Fit,
+                        min_h: 21.6,
+                        padding: Edges {
+                            t: 2.0,
+                            ..Edges::ZERO
+                        },
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.within(&byline, &mut |ui| {
+                    for (key, value) in [
+                        ("artist", player.artist),
+                        ("separator", "—"),
+                        ("album", player.album),
+                    ] {
+                        text(ui, key, value, 14, p.secondary, (Size::Fit, 19.6), false);
+                    }
+                });
+            },
+        );
+        crate::motion::enter(
+            ui,
+            &information,
+            1,
+            (0.0, 10.0),
+            crate::motion::BASE,
+            crate::motion::QUICK + 0.045,
         );
         spacer(ui, "title-clock-gap", 14.0);
-        let clock = container(
-            ui,
-            "clock",
-            Axis::Column,
+        let clock_group = ui.view(
+            "playback-clock",
+            player.revision,
             Size::Grow,
-            Size::Px(51.0),
-            p.paper,
+            Size::Px(43.0),
+            &mut |ui| {
+                let clock = ui.node(
+                    "clock",
+                    Node {
+                        axis: Axis::Row,
+                        align: Align::End,
+                        w: Size::Grow,
+                        h: Size::Px(43.0),
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.within(&clock, &mut |ui| {
+                    matrix_clock(ui, player.position.max(0.0) as u64, p.ink);
+                    ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
+                    small_clock(
+                        ui,
+                        "panel-remaining",
+                        (player.duration - player.position).max(0.0) as u64,
+                        true,
+                        50.0,
+                        p.secondary,
+                    );
+                });
+            },
         );
-        ui.a11y_name(&clock, "Elapsed time");
-        let seconds = player.position.max(0.0) as u64;
-        ui.set_role(&clock, Role::Label, 0);
-        ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0);
-        ui.draw(&clock, move |paint, rect| {
-            matrix_clock(paint, rect, seconds, p.ink)
-        });
+        crate::motion::enter(
+            ui,
+            &clock_group,
+            1,
+            (0.0, 10.0),
+            crate::motion::BASE,
+            crate::motion::QUICK + 2.0 * 0.045,
+        );
         spacer(ui, "clock-bottom-gap", 14.0);
         rule(ui, "context-divider", false, p);
         spacer(ui, "context-top-gap", 13.0);
@@ -2523,42 +2794,154 @@ fn small_clock(ui: &mut Ui, key: &str, seconds: u64, remaining: bool, width: f32
         }
     });
 }
-fn matrix_clock(paint: &mut Paint<'_>, rect: Rect, seconds: u64, color: Rgba) {
+fn matrix_clock(ui: &mut Ui, seconds: u64, color: Rgba) {
+    use pxui::kit::{AnimationTarget, Keyframe};
     const DIGITS: [[u8; 7]; 10] = [
-        [14, 17, 19, 21, 25, 17, 14],
+        [14, 17, 17, 17, 17, 17, 14],
         [4, 12, 4, 4, 4, 4, 14],
         [14, 17, 1, 2, 4, 8, 31],
-        [30, 1, 1, 14, 1, 1, 30],
+        [31, 2, 4, 2, 1, 17, 14],
         [2, 6, 10, 18, 31, 2, 2],
-        [31, 16, 16, 30, 1, 1, 30],
-        [14, 16, 16, 30, 17, 17, 14],
+        [31, 16, 30, 1, 1, 17, 14],
+        [6, 8, 16, 30, 17, 17, 14],
         [31, 1, 2, 4, 8, 8, 8],
         [14, 17, 17, 14, 17, 17, 14],
-        [14, 17, 17, 15, 1, 1, 14],
+        [14, 17, 17, 15, 1, 2, 12],
     ];
-    let label = ClockLabel::new(seconds, false);
-    let unit = (43.0f32 / 7.0).min(rect.w / (label.bytes().len() as f32 * 6.0));
-    for (digit, byte) in label.bytes().iter().copied().enumerate() {
-        let rows = if byte == b':' {
-            [0, 0, 4, 0, 4, 0, 0]
-        } else {
-            DIGITS[(byte - b'0') as usize]
-        };
-        for (y, row) in rows.iter().enumerate() {
-            for x in 0..5 {
-                if row & (1 << (4 - x)) != 0 {
-                    paint.fill(
-                        rect.x + (digit * 6 + x) as f32 * unit,
-                        rect.y + y as f32 * unit,
-                        (unit - 1.0).max(0.5),
-                        (unit - 1.0).max(0.5),
-                        color,
-                    );
-                }
-            }
+    const ROW_KEYS: [&str; 7] = [
+        "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
+    ];
+    fn label(seconds: u64) -> ClockLabel {
+        let mut label = ClockLabel::new(seconds, false);
+        if label.bytes().len() < 5 {
+            label.start -= 1;
+            label.bytes[label.start] = b'0';
         }
+        label
     }
+    let shown = label(seconds);
+    let unit = 43.0 / 7.0;
+    let columns: usize = shown
+        .bytes()
+        .iter()
+        .map(|b| if *b == b':' { 2 } else { 6 })
+        .sum::<usize>()
+        - 1;
+    let clock = ui.node(
+        "matrix-clock",
+        Node {
+            w: Size::Px((columns as f32 - 0.22) * unit),
+            h: Size::Px(43.0),
+            role: Role::Label,
+            ..Node::DEFAULT
+        },
+    );
+    ui.a11y_name(&clock, "Elapsed time");
+    ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0);
+    let old = ui.state(&clock, seconds as i64) as u64;
+    ui.set_state(&clock, seconds as i64);
+    ui.within(&clock, &mut |ui| {
+        let previous = ui.node(
+            "previous",
+            Node {
+                w: Size::Px(0.0),
+                h: Size::Px(0.0),
+                ..Node::DEFAULT
+            },
+        );
+        if old != seconds {
+            ui.set_state(&previous, old as i64);
+        }
+        let before = label(ui.state(&previous, seconds as i64) as u64);
+        let mut revision = DefaultHasher::new();
+        (shown.bytes(), before.bytes()).hash(&mut revision);
+        let revision = revision.finish();
+        // Seven fading rows, shared by every changed digit, bound animation storage on carries.
+        for (row, key) in ROW_KEYS.into_iter().enumerate() {
+            ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {
+                let stack = ui.node(
+                    "row",
+                    Node {
+                        axis: Axis::Stack,
+                        w: Size::Grow,
+                        h: Size::Grow,
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.within(&stack, &mut |ui| {
+                    for changing in [false, true] {
+                        let visual = ui.view(
+                            if changing { "changed" } else { "stable" },
+                            revision,
+                            Size::Grow,
+                            Size::Grow,
+                            &mut |ui| {
+                                let cells = ui.node(
+                                    "cells",
+                                    Node {
+                                        w: Size::Grow,
+                                        h: Size::Grow,
+                                        ..Node::DEFAULT
+                                    },
+                                );
+                                ui.draw(&cells, move |paint, rect| {
+                                    let mut x = rect.x;
+                                    for (index, byte) in shown.bytes().iter().copied().enumerate() {
+                                        let count = if byte == b':' { 1 } else { 5 };
+                                        if (before.bytes().get(index) != Some(&byte)) == changing {
+                                            let bits = if byte == b':' {
+                                                [0, 0, 1, 0, 1, 0, 0][row]
+                                            } else {
+                                                DIGITS[(byte - b'0') as usize][row]
+                                            };
+                                            for column in 0..count {
+                                                if bits & (1 << (count - 1 - column)) != 0 {
+                                                    paint.fill_fractional(
+                                                        x + column as f32 * unit,
+                                                        rect.y,
+                                                        unit * 0.78,
+                                                        unit * 0.78,
+                                                        color,
+                                                    );
+                                                }
+                                            }
+                                        }
+                                        x += (count + 1) as f32 * unit;
+                                    }
+                                });
+                            },
+                        );
+                        if changing && old != seconds && !ui.tokens().reduced_motion {
+                            let delay = row as f32 * 0.016;
+                            let curve = crate::motion::steps(2, crate::motion::QUICK);
+                            ui.animate_keys(
+                                &visual,
+                                &[
+                                    Keyframe {
+                                        time: 0.0,
+                                        target: AnimationTarget::Opacity(0.0),
+                                        curve,
+                                    },
+                                    Keyframe {
+                                        time: delay,
+                                        target: AnimationTarget::Opacity(0.0),
+                                        curve,
+                                    },
+                                    Keyframe {
+                                        time: delay + crate::motion::QUICK,
+                                        target: AnimationTarget::Opacity(1.0),
+                                        curve,
+                                    },
+                                ],
+                            );
+                        }
+                    }
+                });
+            });
+        }
+    });
 }
+
 fn transport(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Option<Intent>) {
     let root = ui.node(
         "transport-content",

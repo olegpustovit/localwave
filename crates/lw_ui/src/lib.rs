@@ -110,6 +110,72 @@ mod tests {
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
 
     #[test]
+    fn desktop_album_cards_and_player_artwork_use_swift_point_dimensions() {
+        let catalog = catalog::Catalog::new(
+            (0..24)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Song {id}"),
+                    album: format!("Album {id:02}"),
+                    artist: "Artist".into(),
+                    release_year: Some(2021),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        assert_eq!(catalog.albums[0].subtitle, "Artist · 2021");
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(catalog::Route::Albums));
+        let player = PlayerView {
+            initialized: true,
+            current_id: Some(0),
+            ..Default::default()
+        };
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        for width in [1440.0, 1280.0, 1024.0] {
+            for _ in 0..3 {
+                ui.frame(
+                    &FrameIn {
+                        width,
+                        height: 872.0,
+                        reduced_motion: 1,
+                        ..Default::default()
+                    },
+                    &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                )
+                .unwrap();
+            }
+            let available = width - 232.0 - 320.0 - 64.0;
+            let columns = ((available + 20.0) / 170.0).floor().max(1.0);
+            let side = (available - (columns - 1.0) * 20.0) / columns;
+            let mut cards = ui
+                .a11y_nodes()
+                .iter()
+                .filter(|n| ui.a11y_name_of(n) == "Album artwork");
+            let first = cards.next().unwrap().rect;
+            let second = cards.next().unwrap().rect;
+            assert!((first.x - 264.0).abs() < 0.001, "32-point content inset");
+            assert!(
+                (first.w - side).abs() < 0.001 && (first.h - side).abs() < 0.001,
+                "adaptive square {first:?}"
+            );
+            assert!(
+                (second.x - first.x - side - 20.0).abs() < 0.001,
+                "20-point column gap"
+            );
+            let player = ui
+                .a11y_nodes()
+                .iter()
+                .find(|n| ui.a11y_name_of(n) == "Current track artwork")
+                .unwrap()
+                .rect;
+            assert!((player.x - (width - 319.0 + 20.0)).abs() < 0.001);
+            assert!((player.y - 48.0).abs() < 0.001 && player.w == 200.0 && player.h == 200.0);
+        }
+    }
+
+    #[test]
     fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
@@ -596,7 +662,9 @@ mod tests {
             ..Default::default()
         };
         let mut intent = None;
-        for _ in 0..3 {
+        // Capture drag targets after the entrance settles on the injected clock.
+        for time in [0.0, 0.5, 1.0] {
+            frame.time = time;
             ui.frame(&frame, &mut |ui| {
                 shell(ui, &player, &catalog, &state, &mut intent)
             })
@@ -1588,7 +1656,7 @@ mod tests {
             })
             .unwrap();
             let scrolled = row_y(&ui);
-            assert_eq!(initial - scrolled, 76.0);
+            assert!((initial - scrolled - 76.0).abs() < 0.001);
             state.refresh(&before, &after);
             assert_eq!(state.route, new);
             ui.frame(&frame, &mut |ui| {
@@ -2003,7 +2071,7 @@ mod tests {
         }]);
         build(&mut ui, &state, &frame, &mut intent);
         let row = find(&ui, "Track 010");
-        assert_eq!(before.y - row.rect.y, 38.0);
+        assert!((before.y - row.rect.y - 38.0).abs() < 0.001);
         ui.inject_a11y(&[pxui::A11yAction {
             id: row.id,
             action_code: 1,
@@ -2034,7 +2102,7 @@ mod tests {
         assert_eq!(find(&ui, "Track 010").rect.w - before.w, 320.0);
         state.apply(Intent::Navigate(catalog::Route::Collection(0)));
         build(&mut ui, &state, &frame, &mut intent);
-        assert_eq!(find(&ui, "Track 001").rect.y, before.y - 10.0 * 38.0);
+        assert!((find(&ui, "Track 001").rect.y - (before.y - 10.0 * 38.0)).abs() < 0.001);
         assert!(
             !ui.a11y_nodes()
                 .iter()

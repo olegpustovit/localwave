@@ -702,7 +702,9 @@ mod tests {
         state.apply(Intent::CloseSettingsMenu);
         state.apply(Intent::ShowPrivacy);
         frame.width = 640.0;
-        for _ in 0..3 {
+        let start = frame.time;
+        for offset in [0.0, 0.5, 1.0] {
+            frame.time = start + offset;
             build(&mut ui, &state, &player, &frame);
         }
         let paragraph = ui

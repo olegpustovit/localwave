@@ -2,6 +2,123 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## SwiftUI motion and first layout checkpoint
+
+This begins the requested SwiftUI visual/motion correction. **Full pixel parity is not qualified.**
+The actual source references are `ThemeProvider.swift` (`LWAppear`, `MatrixText`),
+`MainTabView.swift`, `WaveLibraryViews.swift` and `WavePlayerViews.swift`.
+
+pxui **ABI 1.16** exposes the existing host frame clock. Offset/opacity animations on retained
+views previously affected the root node's own paint rather than its cached contents; now they
+compose in the view table with nested hit/accessibility geometry. Equal-time keyframes merge
+channels before interpolation, allowing a fade and movement to share their curve. Cached instances
+remain unchanged. Completing keyframes reserves its return pool during cold creation. Reopening
+nested view kinds reuses their warmed node/hit/name storage rather than assigning unlike buffers
+by LIFO. This fixes allocations exposed by resize and transient-view animation checks.
+
+LocalWave now starts page entrances on navigation, staggers the first library rows by 18 ms with
+a 10-point rise, and applies the player panel's 32-point entrance and delayed information/clock
+entrances. Ordinary catalog/player updates retain their navigation generation. Animations respect
+reduced motion, use the original curves and stop requesting frames after settlement. The library
+and panel are clipped to their viewports.
+
+The elapsed matrix now matches Swift's glyph bitmaps, one-column colon, zero-padded minutes,
+43-point height, exact intrinsic width and 0.78-unit fractional dots. Unchanged characters remain
+lit; changed characters reveal in two steps over 140 ms, staggered by 16 ms per row. Seven shared
+fading rows bound animation storage even when several digits carry simultaneously. No clock
+formatting, heap strings or font reshaping is introduced on those animation ticks.
+
+The first layout corrections use the 32-point library header inset, 34-point medium heading with
+-0.85 tracking, reference subtitle sizing, adaptive square album cards (150-point minimum,
+20-point column gap, 28-point row gap), and 14/13-point card labels. Album captions include the
+year, prepared once on the worker. The player artwork is 200×200 at its reference origin, with
+corrected information/byline and clock placement. Geometry checks cover three desktop widths.
+
+### Evidence
+
+- Deterministic pre-fix retained entrance fails at its initial child position:
+  `/tmp/localwave-motion-engine-red.log`. Core and public static/dynamic cases now check motion,
+  opacity, geometry, unchanged instances, no rebuilds, warm allocations and eventual idle.
+- **295 engine/ABI checks pass in 15.295 s wall / 12.409 s summed**, zero skips:
+  `/tmp/localwave-motion-engine-final.log`. The static wrapper's **55 checks pass in 5.536 s**:
+  `/tmp/localwave-motion-engine-static-final.log`. Dependency, header, export and append-only ABI
+  snapshot gates pass. Child published first, then the parent pin is checked against its remote.
+- **159 app checks pass in 11.058 s wall / 14.681 s summed**, zero skips:
+  `/tmp/localwave-motion-prefetch-final-tests.log`. Clock coverage includes minute/hour and multi-digit
+  carries, 43-point glyph geometry, final idle and unchanged zero-allocation assertions.
+- App Clippy passes all four packages/all targets with native interop and warnings denied in
+  **2.51 s**: `/tmp/localwave-motion-prefetch-clippy.log`. Child-wide Clippy is blocked by pre-existing
+  warnings in `cfmt`, `native_layer_token_sys`, and `font_sys`; the failed log is retained as
+  `/tmp/localwave-motion-engine-clippy.log`.
+- Existing gesture/idle geometry checks use injected clock settlement within their original
+  number of setup frames. Fractional point differences are compared within 0.001 point; strict
+  performance thresholds and their warm-up remain unchanged. Earlier failing logs remain under
+  `/tmp/localwave-motion-ui-*.log`.
+
+### Artwork prefetch discovered during signed qualification
+
+A quiet signed gallery run exposed **12 warm allocations / two warm requests**; another trace
+kept four requests returning every scroll cycle without completing. Logs remain
+`/tmp/localwave-motion-performance-final-quiet.log` and
+`/tmp/localwave-motion-gallery-late-trace.log`. The larger adaptive cards exposed a real worker
+policy bug: an empty/replaced visible packet discarded already-selected prefetch and rejected
+its completed decode. Brief visibility could cancel the same covers on every cycle.
+
+The existing application artwork worker now prioritizes new visible keys and retains unfinished
+selected keys in spare slots of the same eight-key packet. Completed same-epoch decodes are
+published even after a brief viewport change. Explicit cancellation remains separate and sticky
+until consumed; epoch changes discard old work. The eight-result / 8 MiB decoded bound is
+unchanged, with no additional threads or unbounded queue. A deterministic callback pauses after
+the first thumbnail, replaces visibility with an empty packet, then requires all eight selected
+results before any poll. It fails before the fix (**1.025 s case**) and passes after it; existing
+cancel/restart and batch-retirement cases also pass. Logs:
+`/tmp/localwave-motion-prefetch-red.log`, `/tmp/localwave-motion-prefetch-fixed.log`.
+
+Three signed scrolling gallery runs now all have **zero warm allocations and zero warm requests**,
+19 image quads and 5,386,240 texture bytes. Last uploads occur at frames **64 / 23 / 24**, before
+the unchanged frame-82 boundary. Logs: `/tmp/localwave-motion-prefetch-gallery-{1,2,3}.log`.
+Every run still fails the strict wall maximum (**1,739 / 2,297 / 2,538 µs**).
+
+The signed idle check now waits for startup motion to finish before its existing 250 ms quiet
+settling and full 500 ms no-build/no-draw observation. Its five-second total timeout is unchanged;
+injected-clock tests still reject extra idle frames and endless animation. The queue-drag workload
+uses visible accessibility handles so moving/new layout geometry cannot invalidate fixed click
+coordinates. It retains the same occurrence/capture/cross-page-scroll/cancel assertions, 182 total
+frames, frame-82 warm-up, 100 measured frames and both Rust allocator counters.
+
+### Final signed checkpoint
+
+`/tmp/localwave-motion-prefetch-performance-final.log` records the final warm lib/app builds in
+**0.67 / 0.06 s**. The signed sandbox bundle passes minimum OS, default executable stack, bundled
+dylib ID/rpath and launch checks. Startup animates for 32 actual draws, then the full idle check
+observes **510.0 ms** with no builds/draws. All **ten workloads have zero warm Rust allocations**;
+gallery also has zero warm requests. The strict **1,000 µs wall maximum fails in every workload**
+and `make performance` correctly returns nonzero. No warm-up or performance limit was relaxed.
+
+| Workload | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- |
+| songs-original | 3358 / 597 / 1720 / 2087 | 713 / 557 / 672 / 712 |
+| find-filters-title-descending | 3125 / 611 / 1757 / 2431 | 799 / 569 / 682 / 779 |
+| queue-occurrences | 2534 / 620 / 1642 / 2363 | 925 / 571 / 676 / 791 |
+| queue-carry-scroll-cancel | 2587 / 492 / 2134 / 2574 | 1995 / 471 / 789 / 1833 |
+| full-queue-playlist-editor | 2518 / 708 / 2163 / 2468 | 1047 / 592 / 866 / 956 |
+| albums-artwork | 2976 / 609 / 1976 / 2582 | 996 / 546 / 897 / 953 |
+| waveform-scrub-and-scroll | 1987 / 550 / 1667 / 1978 | 677 / 379 / 629 / 662 |
+| settings-menus-appearance | 2370 / 321 / 1335 / 2058 | 516 / 271 / 464 / 502 |
+| files-indexed-directory | 3050 / 346 / 1415 / 2387 | 427 / 308 / 385 / 408 |
+| external-drop-hover-and-cancel | 3140 / 296 / 1079 / 2931 | 379 / 272 / 345 / 378 |
+
+Earlier smoke/startup and stale-coordinate failures remain in `/tmp/localwave-motion-performance.log`,
+`/tmp/localwave-motion-performance-idle-fixed.log` and `/tmp/localwave-motion-performance-final.log`.
+The intermediate ten-workload run `/tmp/localwave-motion-performance-qualified.log` overlapped the
+app test matrix and is retained as contended evidence; the final run above had no simultaneous test
+runner. None of these logs establishes strict wall latency or native/process allocation freedom.
+
+Still required: matched native SwiftUI/Rust captures and motion samples, desktop table column
+metrics, complete album/artist/list detail layouts, compact navigation/layout, all overlays,
+waveform/queue motion and hardware/native-memory qualification. The original live GUI, database
+and preferences remain untouched. The strict 1,000 µs wall gate remains open.
+
 ## Finder drop checkpoint
 
 Finder drops now accept mixed original folders and supported audio anywhere in the window. The

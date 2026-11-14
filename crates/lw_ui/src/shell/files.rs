@@ -759,7 +759,11 @@ mod tests {
         );
         state.apply(Intent::Navigate(Route::Songs));
         assert!(!state.files_visible());
-        for _ in 0..3 {
+        for step in 0..3 {
+            // Reach idle after navigation using the injected clock, without real waits.
+            if step == 1 {
+                time += 1.0;
+            }
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
         let unchanged = ui.draw_revision();
@@ -774,8 +778,8 @@ mod tests {
         files.progress.clear();
         files.revision += 1;
         state.apply(Intent::Navigate(Route::Files));
-        for _ in 0..3 {
-            time += 1.0 / 60.0;
+        for step in 0..3 {
+            time += if step == 1 { 1.0 } else { 1.0 / 60.0 };
             ui.frame(
                 &FrameIn {
                     width: 640.0,
