@@ -114,10 +114,27 @@ display suggestions are bounded to six songs and three each of albums, artists a
 Palette query changes preserve the underlying page Arc; ordinary refresh still recomputes it.
 An actual native playback start refreshes both unplayed results and Most played without another
 browse request. The visible palette and its action routing are **not connected yet**.
-Before connecting its 20-point input, qualify the shared custom text-field body: focused
-caret hit testing and edit painting currently pass the default font size despite a body's explicit
-editor size. The shared font-size correction is pending; this ownership checkpoint adds no
-application-side editing workaround.
+The shared custom text-field font-size correction is published as SDK checkpoint `3cf7a7f`.
+Focused caret hit testing uses the previous displayed editor's size, while glyphs, selection and
+IME use the newly built editor's size. Default zero-size fields retain their existing rendering.
+No application-side editing workaround is needed for the palette's 20-point input.
+
+The regression first reproduced a caret at 87 instead of 132 points, retained in
+`/tmp/localwave-custom-field-font-red-runtime.log`. Dynamic and static checks now pass explicit,
+relative and default sizes at 1x/2x, exact focused/unfocused glyph positions and atlas samples,
+Unicode selection/composition, same-frame size changes and zero warm Rust allocations. Logs:
+`/tmp/localwave-custom-field-font-dynamic-final.log` (5.565 s / one case) and
+`/tmp/localwave-custom-field-font-static.log` (4.778 s / two cases). The existing default-field
+native Metal 1x/2x pixel regression passes in 13.536 s, one case,
+`/tmp/localwave-custom-field-font-native-default.log`; custom-size coverage compares glyph quads,
+not an independent native pixel oracle. Font family/weight/tracking parity remains unqualified.
+
+The full SDK matrix runs 321 checks in 19.900 s, zero skips, with one failure: the unchanged
+layout-scaling threshold (141 to 233 ns per node). Its isolated rerun also fails (142 to 222 ns).
+Both failures remain in `/tmp/localwave-custom-field-sdk-matrix.log` and
+`/tmp/localwave-custom-field-layout-scaling-isolated.log`; no thresholds were relaxed.
+Core Clippy passes with warnings denied (2.93 s), and the dependency gate and diff whitespace
+check pass. This checkpoint does not resolve the signed app's recorded 1 ms frame failures.
 
 Song matching retains localized standard containment and BM25 order for palette playback;
 ordinary Find retains its library order. Command/album/artist matching uses the Swift palette's
