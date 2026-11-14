@@ -34,6 +34,7 @@ const READY_BYTE_LIMIT: usize = 8 * 1024 * 1024;
 
 struct Mailbox {
     request: Option<Request>,
+    cancelled: bool,
     results: VecDeque<Arc<ArtworkReady>>,
     retired: Batch,
     final_results: Batch,
@@ -56,6 +57,7 @@ impl ArtworkWorker {
         let shared = Arc::new(Shared {
             mailbox: Mutex::new(Mailbox {
                 request: None,
+                cancelled: false,
                 results: VecDeque::with_capacity(REQUEST_CAPACITY),
                 retired: [const { None }; REQUEST_CAPACITY],
                 final_results: [const { None }; REQUEST_CAPACITY],
@@ -74,66 +76,74 @@ impl ArtworkWorker {
                 let mut pending = Request::default();
                 let (mut next, mut revision) = (0, 0u64);
                 loop {
-                    let (key, retired, retry) =
-                        {
-                            let mut inbox = owner.mailbox.lock().unwrap();
-                            loop {
-                                if inbox.closed {
-                                    let remaining = (
-                                        std::mem::take(&mut inbox.results),
-                                        std::mem::replace(
-                                            &mut inbox.retired,
-                                            [const { None }; REQUEST_CAPACITY],
-                                        ),
-                                        std::mem::replace(
-                                            &mut inbox.final_results,
-                                            [const { None }; REQUEST_CAPACITY],
-                                        ),
-                                    );
-                                    drop(inbox);
-                                    drop(remaining);
-                                    return;
-                                }
-                                if let Some(request) = inbox.request.take() {
-                                    pending = request;
-                                    next = 0;
-                                }
-                                if inbox.retired.iter().any(Option::is_some) {
-                                    let retired = std::mem::replace(
+                    let (key, retired, retry) = {
+                        let mut inbox = owner.mailbox.lock().unwrap();
+                        loop {
+                            if inbox.closed {
+                                let remaining = (
+                                    std::mem::take(&mut inbox.results),
+                                    std::mem::replace(
                                         &mut inbox.retired,
                                         [const { None }; REQUEST_CAPACITY],
-                                    );
-                                    break (None, retired, !inbox.results.is_empty());
-                                }
-                                if let Some(key) = pending.keys().get(next).copied() {
-                                    if inbox.results.iter().any(|ready| {
-                                        ready.epoch == pending.epoch() && ready.key == key
-                                    }) {
-                                        next += 1;
-                                        continue;
-                                    }
-                                    let bytes: usize = inbox
-                                        .results
-                                        .iter()
-                                        .filter_map(|ready| ready.thumbnail.as_ref())
-                                        .map(|image| image.pixels.len())
-                                        .sum();
-                                    let required =
-                                        key.max_pixels as usize * key.max_pixels as usize * 4;
-                                    if inbox.results.len() < REQUEST_CAPACITY
-                                        && bytes + required <= READY_BYTE_LIMIT
-                                    {
-                                        next += 1;
-                                        break (
-                                            Some((key, pending.epoch())),
-                                            [const { None }; REQUEST_CAPACITY],
-                                            false,
-                                        );
-                                    }
-                                }
-                                inbox = owner.changed.wait(inbox).unwrap();
+                                    ),
+                                    std::mem::replace(
+                                        &mut inbox.final_results,
+                                        [const { None }; REQUEST_CAPACITY],
+                                    ),
+                                );
+                                drop(inbox);
+                                drop(remaining);
+                                return;
                             }
-                        };
+                            if let Some(mut request) = inbox.request.take() {
+                                if !inbox.cancelled && request.epoch() == pending.epoch() {
+                                    // New visible covers take priority; finish selected prefetch in spare slots.
+                                    for key in &pending.keys()[next..] {
+                                        request.insert(key.id, key.path.as_str(), key.max_pixels);
+                                    }
+                                }
+                                inbox.cancelled = false;
+                                pending = request;
+                                next = 0;
+                            }
+                            if inbox.retired.iter().any(Option::is_some) {
+                                let retired = std::mem::replace(
+                                    &mut inbox.retired,
+                                    [const { None }; REQUEST_CAPACITY],
+                                );
+                                break (None, retired, !inbox.results.is_empty());
+                            }
+                            if let Some(key) = pending.keys().get(next).copied() {
+                                if inbox
+                                    .results
+                                    .iter()
+                                    .any(|ready| ready.epoch == pending.epoch() && ready.key == key)
+                                {
+                                    next += 1;
+                                    continue;
+                                }
+                                let bytes: usize = inbox
+                                    .results
+                                    .iter()
+                                    .filter_map(|ready| ready.thumbnail.as_ref())
+                                    .map(|image| image.pixels.len())
+                                    .sum();
+                                let required =
+                                    key.max_pixels as usize * key.max_pixels as usize * 4;
+                                if inbox.results.len() < REQUEST_CAPACITY
+                                    && bytes + required <= READY_BYTE_LIMIT
+                                {
+                                    next += 1;
+                                    break (
+                                        Some((key, pending.epoch())),
+                                        [const { None }; REQUEST_CAPACITY],
+                                        false,
+                                    );
+                                }
+                            }
+                            inbox = owner.changed.wait(inbox).unwrap();
+                        }
+                    };
                     drop(retired);
                     if retry {
                         (owner.wake)();
@@ -161,12 +171,11 @@ impl ArtworkWorker {
                     });
                     let mut inbox = owner.mailbox.lock().unwrap();
                     if inbox.closed
-                        || inbox.request.as_ref().is_some_and(|request| {
-                            request.epoch() != epoch
-                                || !request.keys().iter().any(|item| {
-                                    item.id == key.id && item.max_pixels >= key.max_pixels
-                                })
-                        })
+                        || inbox.cancelled
+                        || inbox
+                            .request
+                            .as_ref()
+                            .is_some_and(|request| request.epoch() != epoch)
                     {
                         drop(inbox);
                         drop(ready);
@@ -185,15 +194,15 @@ impl ArtworkWorker {
         })
     }
     pub fn request(&mut self, request: Request) -> io::Result<()> {
-        self.send(request)
+        self.send(request, false)
     }
     pub fn cancel(&mut self) -> io::Result<()> {
         let mut empty = self.sent;
         empty.clear();
-        self.send(empty)
+        self.send(empty, true)
     }
-    fn send(&mut self, request: Request) -> io::Result<()> {
-        if self.sent == request {
+    fn send(&mut self, request: Request, cancel: bool) -> io::Result<()> {
+        if self.sent == request && !cancel {
             return Ok(());
         }
         let mut inbox = self.shared.mailbox.lock().unwrap();
@@ -201,6 +210,7 @@ impl ArtworkWorker {
             return Err(io::ErrorKind::BrokenPipe.into());
         }
         inbox.request = Some(request);
+        inbox.cancelled |= cancel;
         self.sent = request;
         drop(inbox);
         self.shared.changed.notify_one();
@@ -245,6 +255,60 @@ impl Drop for ArtworkWorker {
 mod tests {
     use super::*;
     use lw_apple_sys::preferences::{AppPaths, Preferences};
+
+    #[test]
+    fn selected_prefetch_batch_finishes_when_the_visible_packet_becomes_empty() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static FIRST: AtomicBool = AtomicBool::new(false);
+        static RELEASE: AtomicBool = AtomicBool::new(false);
+        extern "C" fn wake() {
+            if !FIRST.swap(true, Ordering::AcqRel) {
+                while !RELEASE.load(Ordering::Acquire) {
+                    std::thread::yield_now();
+                }
+            }
+        }
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../Tests/LocalWaveDataTests/Fixtures/artwork-rgba.png");
+        let mut worker =
+            ArtworkWorker::open(Some(fixture.parent().unwrap().to_owned()), wake).unwrap();
+        struct Release;
+        impl Drop for Release {
+            fn drop(&mut self) {
+                RELEASE.store(true, Ordering::Release);
+            }
+        }
+        let _release = Release;
+        let mut request = Request::default();
+        for id in 1..=REQUEST_CAPACITY {
+            assert!(request.insert(id, fixture.to_str().unwrap(), 160));
+        }
+        worker.request(request).unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        while !FIRST.load(Ordering::Acquire) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "first thumbnail stalled"
+            );
+            std::thread::yield_now();
+        }
+        assert_eq!(worker.shared.mailbox.lock().unwrap().results.len(), 1);
+        let mut empty = request;
+        empty.clear();
+        worker.request(empty).unwrap();
+        RELEASE.store(true, Ordering::Release);
+        while worker.shared.mailbox.lock().unwrap().results.len() != REQUEST_CAPACITY {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "viewport change discarded an already-selected prefetch batch"
+            );
+            std::thread::yield_now();
+        }
+        mem_sys::local_reset();
+        assert!(worker.poll());
+        assert_eq!(worker.ready_images().count(), REQUEST_CAPACITY);
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
 
     #[test]
     fn image_worker_coalesces_requests_retires_results_and_keeps_unchanged_polls_quiet() {
