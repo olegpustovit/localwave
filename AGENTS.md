@@ -427,4 +427,6 @@ acknowledgement from worker processing: only processing releases the activation
 fence, and an older notice cannot release a newer pause. Explicit Play may retry without an end
 notification; do not leave a permanent interruption flag blocking it. Native activation fixtures
 are injected operations and synthetic notifications, not a physical-device/background-audio pass.
-The future iOS app loop must process control wakes even when Metal drawing is inactive.
+The future iOS app loop must service controller/session work on pxui_sdl::ios::Signal::Control
+even when Metal drawing is inactive. The framework owns the inactive wake/deadline timer;
+do not add app polling, a second display link or a UI build on this signal.

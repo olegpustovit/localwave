@@ -16,6 +16,34 @@ library now build for iOS. Audio-session activation/notifications are connected 
 the GUI entry point, appearance/window integration and background app-loop qualification remain unfinished. No install ETA is established. A development certificate is present
 locally; device discovery currently shows no physical iPhone/iPad.
 
+### iOS inactive control callbacks
+
+pxui's scoped UIKit loop now delivers `Signal::Control` for worker wakes and explicit deadlines
+while the app is inactive. Its display link stays paused, `NextFrame` defers drawing until
+foreground, and `WaitUntil` uses the existing dispatch timer. Generic scheduling remains in
+pxui; the future LocalWave callback must service controller/session work on this signal without
+building the UI or submitting Metal work. This does not grant execution time to a suspended app.
+
+The same-process iOS 18.6 simulator probe backgrounds at **frame 90**, receives a worker wake
+and then a **100 ms** deadline with the frame count unchanged and **zero warm Rust allocations**,
+then resumes under the same PID and completes **182 frames / 82 warm-up / 100 measured**.
+Its stderr is empty. The native keyboard show/background/resume/hide regression also passes,
+finishing the same frame/allocation gate and idle worker wake. Logs:
+`/tmp/localwave-ios-background-controls{,-stderr,-keyboard,-keyboard-stderr}.log`.
+
+**31 framework checks pass in 8.968 s wall / 4.688 s case sum**, zero skips and unchanged runner
+limits (`/tmp/localwave-ios-background-controls-sdk-tests.log`). Simulator/device gallery builds
+pass in **5.44/5.15 s**, retaining arm64, iOS **18.0**, device/simulator platforms and SDK **27.1**.
+The wrapper/host scoped Clippy and dependency checks pass. Broader SDK Clippy fails on existing
+unrelated warnings in `sdl3_sys/build.rs`, `native_layer_token_sys` and `input`; those failures
+remain in `/tmp/localwave-ios-background-controls-{host,ios}-clippy*.log` and are not called passes.
+This native diagnostic does not qualify actual background music, suspension recovery, native
+heap behavior or a physical device. The full Rust app entry point and installer remain unfinished.
+After the framework change, **55 LocalWave controller/native checks pass in 9.508 s wall /
+10.093 s case sum**, zero skips (`/tmp/localwave-ios-background-controls-app-tests.log`).
+Scoped host/iOS wrapper lint runs finish in **4.13/5.35 s**. The SDK checkpoint is `c740b4c`;
+audio-session integration is LocalWave `727f79b`. Both are published on `rust-port`.
+
 ### iOS audio session and controller integration
 
 `lw_apple_sys::session` now owns serialized worker-side category/activation and a fixed **32-event**
