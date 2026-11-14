@@ -53,8 +53,35 @@ original-file safeguards. Unpinning preserves the managed copy until normal cach
 The desktop command palette, scrolling query/results hero and Play all/Keep offline toolbar binding
 remain unfinished. This checkpoint implements their service/data requirements; it does not claim
 Find layout parity or add an inert toolbar. iCloud/provider copy behavior still needs device
-qualification. Signed twelve-workload qualification is pending for this checkpoint; the unchanged
-strict **1,000 µs wall maximum** remains failed.
+qualification.
+
+### Signed twelve-workload result
+
+`/tmp/localwave-find-offline-performance.log` records **zero warm Rust UI allocations in all 12
+workloads**, retaining **182/82/100 total/warm/measured frames** and both app/libpxui counters.
+All **12 strict 1,000 µs wall maxima still fail**. Library/app release builds take **0.55 / 21.98 s**
+(the native bridge header changed). The signed bundle verifies the macOS 15 minimum, default stack,
+bundled dylib identity and portable rpath, and reaches **509.7 ms idle** after startup draws.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 3409 / 777 / 2764 / 3252 | 1127 / 685 / 916 / 1026 |
+| find-filters-title-descending | 3771 / 760 / 2292 / 3055 | 942 / 698 / 826 / 904 |
+| queue-occurrences | 3085 / 653 / 2163 / 2713 | 876 / 612 / 749 / 767 |
+| queue-carry-scroll-cancel | 3386 / 538 / 2065 / 2556 | 2262 / 507 / 934 / 2155 |
+| full-queue-playlist-editor | 3098 / 797 / 1989 / 2602 | 1009 / 654 / 946 / 981 |
+| albums-artwork | 2624 / 728 / 1906 / 2504 | 1539 / 605 / 1185 / 1284 |
+| waveform-scrub-and-scroll | 4314 / 537 / 1738 / 2528 | 938 / 405 / 846 / 913 |
+| settings-menus-appearance | 2155 / 339 / 1338 / 1893 | 563 / 292 / 484 / 537 |
+| files-indexed-directory | 1917 / 344 / 1294 / 1771 | 439 / 314 / 379 / 418 |
+| external-drop-hover-and-cancel | 2012 / 294 / 719 / 1912 | 372 / 278 / 325 / 351 |
+| artists-measured-columns | 3772 / 754 / 2090 / 3563 | 1070 / 639 / 897 / 1036 |
+| songs-playing-indicator | 2797 / 923 / 2374 / 2770 | 1159 / 849 / 1014 / 1147 |
+
+Gallery evidence remains **19 image quads / 4,800,512 texture bytes / zero warm requests**. Artists
+retains **23–31 rows**, first artist **1–13**. Playing indicators cover **58 playing / 34 paused
+frames**, with **34 changing frames**. This qualifies neither native/process allocations nor a
+live iCloud copy while playing. Full platform and UI parity qualification remains unfinished.
 
 ## SwiftUI song-table geometry and playing indicators
 
