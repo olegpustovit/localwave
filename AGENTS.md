@@ -358,9 +358,21 @@ checks. Reference shuffle paths use bounded analytic curves in the existing pipe
 less than 0.04-pixel cubic approximation deviation at 16/20 points and 1x/2x.
 
 
-Albums and Artists use pxui ABI 1.20 section_list: page headings scroll with the content,
+Albums uses pxui ABI 1.20 section_list; Songs and Artists use ABI 1.21 section_list_measured: page headings scroll with the content,
 Artists column headings pin, and overlay thumbs reserve no content gutter. Retain the page
 heading separately from changing playback/artwork revisions. Gallery and table rows keep their
 existing identities/entrances, overscan and worker-prepared data. Preserve the full-width gallery
-rule, 172.6/105.6-point lead-ins, 37.3-point artist heading, fractional row stride, and warm
-accessible scrolling checks. Song/detail/Find scroll and layout parity remain unfinished.
+rule, 172.6/105.6-point lead-ins, 37.3-point normal heading, fractional row stride, and warm
+accessible scrolling checks. Numeric cells and headings can wrap; use measured rows and baseline
+alignment rather than forced truncation or fixed 38-point rows. Detail/Find headers and full
+screenshot parity remain unfinished.
+
+Prepare song column preferences, natural numeric widths, pins, action labels and per-song occurrence
+keys on the library worker through prepare_tables. Frames select prepared maxima in bounded work;
+never scan a collection or construct a text engine on the UI thread. Mixed formats compare original
+case but render lowercase. Songs use stable occurrence scopes across sorting, and duplicate queue
+entries keep distinct visual state. Playing bars preserve cached glyphs and request frames only
+while visible/playing; reduced motion and pause settle. File-state pops use the shared 240 ms spring
+without initial animation. Preserve native 1x/2x wrapped baselines, responsive thresholds, popup
+staleness guards and warm allocation checks. Performance adds active indicators as a twelfth
+workload; retain every original workload, both counters and the strict 1,000 us wall maximum.

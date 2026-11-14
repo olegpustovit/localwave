@@ -508,7 +508,7 @@ mod tests {
     ) -> Option<Intent> {
         static CATALOG: std::sync::LazyLock<crate::catalog::Catalog> =
             std::sync::LazyLock::new(|| {
-                crate::catalog::Catalog::new(vec![lw_core::Song {
+                crate::tests::prepared(vec![lw_core::Song {
                     id: Some(7),
                     title: "Selected song".into(),
                     ..Default::default()

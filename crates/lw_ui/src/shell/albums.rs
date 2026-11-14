@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn album_heading_and_toolbar_scroll_with_virtual_cards_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = Catalog::new(
+        let catalog = crate::tests::prepared(
             (0..10_000)
                 .map(|id| lw_core::Song {
                     id: Some(id),
@@ -438,7 +438,7 @@ mod tests {
     #[test]
     fn album_toolbar_positions_sorts_routes_and_reuses_warm_frames() {
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = Catalog::new(vec![
+        let catalog = crate::tests::prepared(vec![
             lw_core::Song {
                 id: Some(1),
                 artist: "Alice".into(),

@@ -524,7 +524,6 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
     use lw_ui::{
         artwork::{Key, Request},
         browse::Query,
-        catalog::Catalog,
     };
     use std::sync::Arc;
     assert_eq!(
@@ -547,7 +546,7 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
         duration: 30.0,
         ..Default::default()
     };
-    let catalog = Catalog::new(vec![Song {
+    let catalog = prepared_catalog(vec![Song {
         id: Some(7),
         title: status.title.to_string(),
         cover_art_path: Some("cover.png".into()),
@@ -671,7 +670,7 @@ fn worker_artwork_uploads_exact_pixels_renders_warm_and_retires_after_gpu_comple
         wake,
     )
     .unwrap();
-    let catalog = lw_ui::catalog::Catalog::new(vec![lw_core::Song {
+    let catalog = prepared_catalog(vec![lw_core::Song {
         id: Some(7),
         title: "Covered song".into(),
         album: "Covered album".into(),
@@ -892,7 +891,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     let mut incoming = Vec::with_capacity(256);
     let mut wire = Vec::with_capacity(256);
     let mut scratch = Vec::new();
-    let catalog = lw_ui::catalog::Catalog::new(Vec::new());
+    let catalog = prepared_catalog(Vec::new());
     let state = lw_ui::ShellState::default();
     let mut player = lw_ui::PlayerView {
         waveform: Some(&[0.5; 512]),
@@ -1001,4 +1000,10 @@ fn main() {
             real_numeric_input_and_ui_build_allocate_nothing_when_warm,
         ),
     ]);
+}
+
+fn prepared_catalog(songs: Vec<lw_core::Song>) -> lw_ui::catalog::Catalog {
+    let mut catalog = lw_ui::catalog::Catalog::new(songs);
+    catalog.prepare_tables().unwrap();
+    catalog
 }

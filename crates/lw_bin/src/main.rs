@@ -34,6 +34,24 @@ fn run() -> Result<(), String> {
     let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
     let performance_files = std::env::args().any(|arg| arg == "--performance-files");
     let performance_artists = std::env::args().any(|arg| arg == "--performance-artists");
+    let performance_song_indicators =
+        std::env::args().any(|arg| arg == "--performance-song-indicators");
+    if performance_song_indicators
+        && (!performance
+            || std::env::args().any(|arg| {
+                arg.starts_with("--performance-")
+                    && !matches!(
+                        arg.as_str(),
+                        "--performance-check" | "--performance-song-indicators"
+                    )
+            }))
+    {
+        return Err(
+            "--performance-song-indicators requires --performance-check and its own workload"
+                .into(),
+        );
+    }
+
     if performance_artists
         && (!performance
             || std::env::args().any(|arg| {
@@ -131,7 +149,7 @@ fn run() -> Result<(), String> {
         lw_apple_sys::environment::Environment::open(wake).map_err(|error| error.to_string())?;
     let mut preferences = environment.snapshot();
     let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
-    if performance_queue_drag || performance_artists {
+    if performance_queue_drag || performance_artists || performance_song_indicators {
         ui.set_a11y(true);
     }
     ui.enable_system_fonts()
@@ -286,6 +304,25 @@ fn run() -> Result<(), String> {
     {
         return Err("Queue performance fixture must contain 9,999 upcoming occurrences".into());
     }
+    let indicator_song = if performance_song_indicators {
+        Some(
+            player
+                .catalog()
+                .row(
+                    *player
+                        .catalog()
+                        .all
+                        .as_ref()
+                        .unwrap()
+                        .rows
+                        .get(15)
+                        .ok_or("Song indicator fixture needs sixteen rows")?,
+                )
+                .id,
+        )
+    } else {
+        None
+    };
     let mut extent = window.extent();
     let mut events: Vec<HostEvent> = Vec::with_capacity(256);
     let mut wire = Vec::with_capacity(256);
@@ -299,6 +336,10 @@ fn run() -> Result<(), String> {
     let (mut min_artist_rows, mut max_artist_rows) = (usize::MAX, 0usize);
     let (mut first_artist_min, mut first_artist_max) = (usize::MAX, 0usize);
     let mut min_waveform_bars = usize::MAX;
+    let (mut indicator_playing, mut indicator_paused, mut indicator_changes) =
+        (0usize, 0usize, 0usize);
+    let mut indicator_previous = None::<[u32; 3]>;
+
     let mut drop_overlay_frames = 0usize;
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
     let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
@@ -637,9 +678,17 @@ fn run() -> Result<(), String> {
                 title: &status.title,
                 context: status.context.title(),
                 message: command_error.unwrap_or(&status.message),
-                playing: status.wants_playback,
+                playing: if performance_song_indicators {
+                    frames % 40 < 20
+                } else {
+                    status.wants_playback
+                },
                 initialized: status.initialized,
-                current_id: status.current.map(|entry| entry.song_id),
+                current_id: if performance_song_indicators {
+                    indicator_song
+                } else {
+                    status.current.map(|entry| entry.song_id)
+                },
                 artist: &status.artist,
                 album: &status.album,
                 position: if performance {
@@ -660,7 +709,8 @@ fn run() -> Result<(), String> {
                     time: now,
                     appearance: preferences.appearance,
                     reduced_motion: u32::from(
-                        preferences.reduced_motion != 0 || status.settings.reduce_motion,
+                        !performance_song_indicators
+                            && (preferences.reduced_motion != 0 || status.settings.reduce_motion),
                     ),
                     events: wire.as_ptr(),
                     event_count: wire.len(),
@@ -900,6 +950,7 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::Next => Command::Next,
                         lw_ui::Intent::Previous => Command::Previous,
                         lw_ui::Intent::PlayRow(index) => {
+                            shell_state.apply(lw_ui::Intent::CloseSongMenu);
                             let Some(collection) = shell_state
                                 .collection(player.catalog())
                                 .filter(|collection| index < collection.ids.len())
@@ -912,6 +963,10 @@ fn run() -> Result<(), String> {
                                 autoplay: true,
                                 context: Some(collection.context.clone()),
                             }
+                        }
+                        lw_ui::Intent::AppendSong(id) => {
+                            shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                            Command::Append(id)
                         }
                         lw_ui::Intent::ShuffleAll => {
                             let Some(collection) = player
@@ -962,6 +1017,8 @@ fn run() -> Result<(), String> {
                                 },
                         ),
                         lw_ui::Intent::Navigate(_)
+                        | lw_ui::Intent::SongMenu(_, _, _, _)
+                        | lw_ui::Intent::CloseSongMenu
                         | lw_ui::Intent::SelectRow(_)
                         | lw_ui::Intent::Search(_)
                         | lw_ui::Intent::SearchTooLong
@@ -1052,6 +1109,55 @@ fn run() -> Result<(), String> {
                     .sum();
                 min_artwork_quads = min_artwork_quads.min(image_quads);
                 warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
+            }
+            if performance_song_indicators && frames > WARMUP_FRAMES {
+                let visible = ui.a11y_nodes().iter().any(|node| {
+                    node.is_role(pxui::ui::Role::Image)
+                        && matches!(ui.a11y_name_of(node), "Playing" | "Paused")
+                        && node.states & pxui::a11y::state::VISIBLE != 0
+                        && node.rect.y >= 37.3
+                        && node.rect.y + node.rect.h <= 800.0
+                });
+                if visible {
+                    let accent = ui.theme().tokens.accent;
+                    let mut heights = [0u32; 3];
+                    let mut found = 0;
+                    for quad in
+                        ui.layers()
+                            .flat_map(|layer| layer.instances.iter())
+                            .filter(|quad| {
+                                quad.kind == pxui::draw::kind::RECT
+                                    && quad.color == [accent.r, accent.g, accent.b, accent.a]
+                                    && (quad.rect[0] - 264.0).abs() < 9.0
+                                    && (quad.rect[2] - quad.rect[0] - 2.0).abs() < 0.001
+                                    && (4.39..11.01).contains(&(quad.rect[3] - quad.rect[1]))
+                            })
+                    {
+                        if found >= 3 {
+                            return Err("Song indicator workload drew extra bars".into());
+                        }
+                        heights[found] = (quad.rect[3] - quad.rect[1]).to_bits();
+                        found += 1;
+                    }
+                    if found != 3 {
+                        return Err("Song indicator workload lost its three drawn bars".into());
+                    }
+                    if (frames - 1) % 40 < 20 {
+                        indicator_playing += 1;
+                        indicator_changes += usize::from(
+                            indicator_previous.is_some_and(|previous| previous != heights),
+                        );
+                        indicator_previous = Some(heights);
+                    } else {
+                        indicator_paused += 1;
+                        if heights
+                            .iter()
+                            .any(|height| (f32::from_bits(*height) - 4.4).abs() > 0.001)
+                        {
+                            return Err("Paused song indicator still animates".into());
+                        }
+                    }
+                }
             }
             if performance_artists && frames > WARMUP_FRAMES {
                 let mut rows = 0;
@@ -1166,7 +1272,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_artists {
+                if performance_song_indicators {
+                    "songs-playing-indicator"
+                } else if performance_artists {
                     "artists-measured-columns"
                 } else if performance_drop {
                     "external-drop-hover-and-cancel"
@@ -1193,6 +1301,17 @@ fn run() -> Result<(), String> {
             println!(
                 "LocalWave waveform: peaks=512 min_bars={min_waveform_bars} scrub_commits={waveform_seeks}"
             );
+            if performance_song_indicators {
+                println!(
+                    "LocalWave song indicator: visible_playing_frames={indicator_playing} visible_paused_frames={indicator_paused} changed_frames={indicator_changes}"
+                );
+                if indicator_playing < 20 || indicator_paused < 20 || indicator_changes < 10 {
+                    return Err(
+                        "Song indicator workload missed playback, pause or changing native draws"
+                            .into(),
+                    );
+                }
+            }
             if performance_settings {
                 println!(
                     "LocalWave settings: changes={settings_changes} themes={settings_themes:#04x}"

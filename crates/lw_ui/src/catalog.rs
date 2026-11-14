@@ -1,6 +1,8 @@
 //! Owned once by the library worker; frame construction only borrows these labels and orders.
 use lw_core::context::PlaybackContext;
-use lw_core::{FileState, Song};
+use lw_core::{FileAvailability, FileState, Song};
+mod song_table;
+pub use song_table::{Column as SongColumn, SongTable};
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::ops::{Deref, Range};
@@ -27,6 +29,12 @@ pub struct Row<'a> {
     pub album: &'a str,
     pub album_artist: &'a str,
     pub format: &'a str,
+    pub format_key: &'a str,
+    pub track_number: Option<i64>,
+    pub track_label: &'a str,
+    pub availability: Option<FileAvailability>,
+    pub pinned: bool,
+    pub actions_label: &'a str,
     pub duration: &'a str,
     pub seconds: Option<f64>,
     pub release_year: Option<i64>,
@@ -40,8 +48,11 @@ pub struct Row<'a> {
 #[derive(Clone)]
 struct StoredRow {
     id: i64,
-    labels: [Range<usize>; 6],
+    labels: [Range<usize>; 9],
     favorite: bool,
+    track_number: Option<i64>,
+    availability: Option<FileAvailability>,
+    pinned: bool,
     state: FileState,
     seconds: Option<f64>,
     release_year: Option<i64>,
@@ -56,19 +67,23 @@ pub struct Collection {
     pub subtitle: String,
     pub count: String,
     pub rows: Vec<usize>,
+    pub row_keys: Vec<i64>,
     pub ids: Arc<[i64]>,
     pub context: Arc<PlaybackContext>,
     /// A representative row with artwork, prepared once with the collection.
     pub artwork_row: Option<usize>,
+    pub song_table: Option<Arc<SongTable>>,
 }
 
 pub struct ArtistRow {
     pub albums: String,
     pub minutes: String,
+    pub widths: [f32; 2],
 }
 pub struct ArtistTable {
     pub rows: Vec<ArtistRow>,
     pub preferred: [f32; 4],
+    pub headings: [f32; 4],
 }
 
 #[derive(Clone, Default)]
@@ -87,6 +102,7 @@ pub struct Library {
     pub album_count: String,
     pub artist_count: String,
     pub artist_table: Option<Arc<ArtistTable>>,
+    song_metrics: Option<Arc<song_table::Metrics>>,
     pub song_count: String,
 }
 
@@ -148,9 +164,16 @@ impl Library {
             let seconds_value = song
                 .duration
                 .filter(|value| value.is_finite() && *value >= 0.0);
-            let seconds = seconds_value.map(|value| value as u64);
+            let seconds = seconds_value
+                .filter(|value| *value < i64::MAX as f64)
+                .map(|value| value as u64);
             let has_format = song.file_extension.is_some();
-            let format = song.file_extension.unwrap_or_default().to_ascii_uppercase();
+            let format_key = song.file_extension.unwrap_or_default();
+            let format = format_key.to_lowercase();
+            let track = song
+                .track_number
+                .map_or_else(String::new, |number| number.to_string());
+            let actions_label = format!("Actions for {}", song.title);
             let duration = seconds.map_or_else(
                 || "—".into(),
                 |seconds| format!("{}:{:02}", seconds / 60, seconds % 60),
@@ -162,6 +185,9 @@ impl Library {
                 &format,
                 &duration,
                 &song.album_artist,
+                &format_key,
+                &track,
+                &actions_label,
             ]
             .map(|text| {
                 let start = out.labels.len();
@@ -188,6 +214,9 @@ impl Library {
                 id,
                 labels,
                 favorite: song.is_favorite != 0,
+                track_number: song.track_number,
+                availability: song.source_availability,
+                pinned: false,
                 state: song.file_state,
                 seconds: seconds_value,
                 release_year: song.release_year,
@@ -311,9 +340,37 @@ impl Library {
     pub fn is_empty(&self) -> bool {
         self.rows.is_empty()
     }
+    pub(crate) fn song_body_width(
+        &self,
+        index: usize,
+        column: SongColumn,
+        number: usize,
+        numbered: bool,
+    ) -> f32 {
+        self.song_metrics
+            .as_ref()
+            .expect("prepared song table")
+            .body_width(index, column, number, numbered)
+    }
+    pub(crate) fn song_heading_width(&self, column: SongColumn, ascending: Option<bool>) -> f32 {
+        self.song_metrics
+            .as_ref()
+            .expect("prepared song table")
+            .heading_width(column, ascending)
+    }
     pub fn row(&self, index: usize) -> Row<'_> {
         let row = &self.rows[index];
-        let [title, artist, album, format, duration, album_artist] = row
+        let [
+            title,
+            artist,
+            album,
+            format,
+            duration,
+            album_artist,
+            format_key,
+            track_label,
+            actions_label,
+        ] = row
             .labels
             .each_ref()
             .map(|range| &self.labels[range.clone()]);
@@ -324,6 +381,12 @@ impl Library {
             album,
             album_artist,
             format,
+            format_key,
+            track_number: row.track_number,
+            track_label,
+            actions_label,
+            availability: row.availability,
+            pinned: row.pinned,
             duration,
             favorite: row.favorite,
             state: row.state,
@@ -353,8 +416,20 @@ impl Library {
             PlaybackContext::Playlist { id, .. } => (true, id).hash(&mut key),
             context => (false, context).hash(&mut key),
         }
+        let mut occurrences = HashMap::new();
+        let row_keys = rows
+            .iter()
+            .map(|index| {
+                let id = self.rows[*index].id;
+                let occurrence = occurrences.entry(id).or_insert(0i64);
+                let key = pxui::ui::int_key(id, *occurrence);
+                *occurrence += 1;
+                key
+            })
+            .collect();
         Collection {
             key: key.finish(),
+            row_keys,
             title: title.into(),
             subtitle: subtitle.into(),
             count: rows.len().to_string(),
@@ -363,6 +438,10 @@ impl Library {
                 .iter()
                 .copied()
                 .find(|index| self.rows[*index].cover_art != 0),
+            song_table: self
+                .song_metrics
+                .as_ref()
+                .map(|metrics| Arc::new(SongTable::prepare(self, &rows, metrics))),
             rows,
             context: Arc::new(context),
         }
@@ -387,6 +466,7 @@ pub struct Catalog {
     pub source_identity: Option<i64>,
     pub queue: Option<Arc<crate::queue::Snapshot>>,
 }
+#[derive(Clone)]
 pub struct View {
     pub request: crate::browse::Request,
     pub collection: Collection,
@@ -407,8 +487,29 @@ impl Catalog {
             queue: None,
         }
     }
-    /// Called on the catalog worker: frame construction only scales four prepared widths.
-    pub fn prepare_artist_table(&mut self) -> Result<(), String> {
+    /// A consistent preferences snapshot, applied before preparing table projections.
+    pub fn prepare_pins(&mut self, pinned: &mut dyn FnMut(i64) -> bool) {
+        let library = Arc::make_mut(&mut self.library);
+        for row in &mut library.rows {
+            row.pinned = pinned(row.id);
+        }
+        library.song_metrics = None;
+        library.artist_table = None;
+        for collection in library
+            .all
+            .iter_mut()
+            .chain(library.albums.iter_mut())
+            .chain(library.artists.iter_mut())
+            .chain(library.collections.iter_mut())
+        {
+            collection.song_table = None;
+        }
+        if let Some(view) = &mut self.view {
+            Arc::make_mut(view).collection.song_table = None;
+        }
+    }
+    /// Called on the catalog worker: frames only select and scale prepared table measurements.
+    pub fn prepare_tables(&mut self) -> Result<(), String> {
         let mut text = pxui::Text::new(&[crate::FONT, crate::MONO])
             .ok_or_else(|| "Unable to create library text metrics".to_owned())?;
         text.enable_system_fonts()
@@ -416,6 +517,11 @@ impl Catalog {
         let mut width = |value: &str, mono: bool, size: f32, weight: u16| {
             let style = pxui::TextStyle {
                 font: u16::from(mono),
+                features: if !mono && size == 13.0 {
+                    pxui::TextStyle::FEATURE_TABULAR_NUMBERS
+                } else {
+                    0
+                },
                 size_points: size,
                 weight,
                 ..Default::default()
@@ -436,6 +542,16 @@ impl Catalog {
                     16.0
                 };
         }
+        let headings = std::array::from_fn(|index| {
+            preferred[index]
+                - if index == 0 {
+                    40.0
+                } else if index == 3 {
+                    28.0
+                } else {
+                    16.0
+                }
+        });
         let mut rows = Vec::with_capacity(self.artists.len());
         for artist in &self.artists {
             let mut seen = std::collections::HashSet::new();
@@ -470,12 +586,48 @@ impl Catalog {
                     .min(240.0),
             );
             preferred[1] = preferred[1].max((width(&albums, false, 14.0, 400)? + 16.0).min(240.0));
-            preferred[2] = preferred[2].max(width(&artist.count, true, 12.0, 400)? + 16.0);
-            preferred[3] = preferred[3].max(width(&minutes, true, 12.0, 400)? + 28.0);
-            rows.push(ArtistRow { albums, minutes });
+            let widths = [
+                width(&artist.count, true, 12.0, 400)?,
+                width(&minutes, true, 12.0, 400)?,
+            ];
+            preferred[2] = preferred[2].max(widths[0] + 16.0);
+            preferred[3] = preferred[3].max(widths[1] + 28.0);
+            rows.push(ArtistRow {
+                albums,
+                minutes,
+                widths,
+            });
         }
-        Arc::make_mut(&mut self.library).artist_table =
-            Some(Arc::new(ArtistTable { rows, preferred }));
+        let songs = Arc::new(song_table::Metrics::prepare(self, &mut width)?);
+        let tables = self
+            .all
+            .iter()
+            .chain(self.albums.iter())
+            .chain(self.artists.iter())
+            .chain(self.collections.iter())
+            .map(|collection| Arc::new(SongTable::prepare(self, &collection.rows, &songs)))
+            .collect::<Vec<_>>();
+        let library = Arc::make_mut(&mut self.library);
+        library.artist_table = Some(Arc::new(ArtistTable {
+            rows,
+            preferred,
+            headings,
+        }));
+        library.song_metrics = Some(songs.clone());
+        for (collection, table) in library
+            .all
+            .iter_mut()
+            .chain(library.albums.iter_mut())
+            .chain(library.artists.iter_mut())
+            .chain(library.collections.iter_mut())
+            .zip(tables)
+        {
+            collection.song_table = Some(table);
+        }
+        if let Some(view) = &mut self.view {
+            let table = Arc::new(SongTable::prepare(library, &view.collection.rows, &songs));
+            Arc::make_mut(view).collection.song_table = Some(table);
+        }
         Ok(())
     }
 
@@ -692,7 +844,7 @@ mod tests {
             },
         ]);
         let unchanged = catalog.library.clone();
-        catalog.prepare_artist_table().unwrap();
+        catalog.prepare_tables().unwrap();
         assert!(unchanged.artist_table.is_none());
         let table = catalog.artist_table.as_ref().unwrap();
         assert_eq!(table.rows.len(), catalog.artists.len());
@@ -833,5 +985,31 @@ mod tests {
             );
         }
         assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
+    #[test]
+    fn song_visual_keys_follow_identity_and_distinguish_repeated_occurrences() {
+        let catalog = Catalog::new(vec![
+            Song {
+                id: Some(1),
+                title: "First".into(),
+                ..Default::default()
+            },
+            Song {
+                id: Some(2),
+                title: "Second".into(),
+                ..Default::default()
+            },
+        ]);
+        let original = catalog.all.as_ref().unwrap();
+        let reordered = catalog.library.make_collection(
+            "Reordered",
+            "",
+            vec![1, 0, 0],
+            PlaybackContext::Library,
+        );
+        assert_eq!(reordered.row_keys[0], original.row_keys[1]);
+        assert_eq!(reordered.row_keys[1], original.row_keys[0]);
+        assert_ne!(reordered.row_keys[1], reordered.row_keys[2]);
+        assert!(reordered.row_keys.iter().all(|key| !matches!(*key, 0 | 1)));
     }
 }

@@ -67,6 +67,7 @@ fn sort(catalog: &Catalog, rows: &mut [usize], column: Sort, ascending: bool) ->
                 Sort::Title => row.title,
                 Sort::Artist => row.artist,
                 Sort::Album => row.album,
+                Sort::Format => row.format,
                 _ => unreachable!(),
             };
             keys.push((index, Key::new(value)?));
@@ -136,7 +137,9 @@ impl LibraryWorker {
             })
             .map_err(io::Error::other)?;
         if catalog.artist_table.is_none() {
-            catalog.prepare_artist_table().map_err(io::Error::other)?;
+            let pins = self.preferences.import_snapshot();
+            catalog.prepare_pins(&mut |id| pins.pinned(id));
+            catalog.prepare_tables().map_err(io::Error::other)?;
         }
         if let (Some(find), Some(candidates)) = (find, candidates) {
             rows = Some(find.finish(self, &catalog, candidates));

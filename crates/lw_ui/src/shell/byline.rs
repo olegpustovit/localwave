@@ -152,7 +152,7 @@ mod tests {
     #[test]
     fn byline_wraps_like_swift_and_routes_links_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = Catalog::new(vec![lw_core::Song {
+        let catalog = crate::tests::prepared(vec![lw_core::Song {
             id: Some(1),
             title: "Track".into(),
             artist: "The National".into(),

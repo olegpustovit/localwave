@@ -9,6 +9,7 @@ mod artists;
 mod byline;
 mod files;
 mod settings;
+mod songs;
 
 pub struct ShellState {
     pub route: Route,
@@ -31,6 +32,7 @@ pub struct ShellState {
     privacy_visible: bool,
     settings_menu: Option<(crate::SettingsMenu, (f32, f32))>,
     source_menu: Option<(crate::files::Target, (f32, f32))>,
+    song_menu: Option<(usize, i64, u64, (f32, f32))>,
     remove_source: Option<crate::files::Target>,
 }
 impl Default for ShellState {
@@ -56,6 +58,7 @@ impl Default for ShellState {
             privacy_visible: false,
             settings_menu: None,
             source_menu: None,
+            song_menu: None,
             remove_source: None,
         }
     }
@@ -104,6 +107,7 @@ impl ShellState {
         if std::sync::Arc::ptr_eq(&previous.library, &next.library) && same_view {
             return;
         }
+        self.song_menu = None;
         let old = self.collection(previous);
         let selected = old.and_then(|group| {
             self.selected
@@ -170,7 +174,25 @@ impl ShellState {
         ) {
             self.entry_revision = self.entry_revision.wrapping_add(1);
         }
+        if matches!(
+            intent,
+            Intent::Navigate(_)
+                | Intent::ShowSettings
+                | Intent::ShowQueue
+                | Intent::Search(_)
+                | Intent::Sort(_)
+        ) {
+            self.song_menu = None;
+        }
         match intent {
+            Intent::SongMenu(index, id, key, at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.song_menu = Some((index, id, key, at));
+                    self.settings_menu = None;
+                    self.source_menu = None;
+                }
+            }
+            Intent::CloseSongMenu => self.song_menu = None,
             Intent::Navigate(route) => {
                 self.source_menu = None;
                 self.remove_source = None;
@@ -235,12 +257,14 @@ impl ShellState {
             }
             Intent::ClosePrivacy => self.privacy_visible = false,
             Intent::SettingsMenu(menu, at) => {
+                self.song_menu = None;
                 if at.0.is_finite() && at.1.is_finite() {
                     self.settings_menu = Some((menu, at));
                 }
             }
             Intent::CloseSettingsMenu => self.settings_menu = None,
             Intent::SourceMenu(target, at) => {
+                self.song_menu = None;
                 if at.0.is_finite() && at.1.is_finite() {
                     self.source_menu = Some((target, at));
                     self.settings_menu = None;
@@ -271,6 +295,7 @@ struct Palette {
     selected: Rgba,
     ink: Rgba,
     secondary: Rgba,
+    tertiary: Rgba,
     line: Rgba,
     key: Rgba,
     signal: Rgba,
@@ -293,6 +318,7 @@ fn palette(ui: &Ui) -> Palette {
             selected: rgb(0x2A2A2A),
             ink: rgb(0xEDEDED),
             secondary: rgb(0x9B9B9B),
+            tertiary: rgb(0x5A5A5A),
             line: rgb(0x262626),
             key: rgb(0x1F1F1F),
             signal: ui.theme().tokens.accent,
@@ -305,6 +331,7 @@ fn palette(ui: &Ui) -> Palette {
             selected: rgb(0xD3D3D3),
             ink: rgb(0x111111),
             secondary: rgb(0x585858),
+            tertiary: rgb(0xA0A0A0),
             line: rgb(0xDADADA),
             key: rgb(0xFBFBFB),
             signal: ui.theme().tokens.accent,
@@ -969,6 +996,9 @@ pub fn shell(
     if let Some((target, at)) = state.source_menu {
         files::popup(ui, player, target, at, p, intent);
     }
+    if let Some((index, id, key, at)) = state.song_menu {
+        songs::popup(ui, catalog, state, (index, id, key), at, p, intent);
+    }
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, p, intent);
     }
@@ -1006,7 +1036,7 @@ pub fn shell(
             let mut library_revision = DefaultHasher::new();
             (
                 revision,
-                player.current_id,
+                (player.current_id, player.playing),
                 player.artwork.map_or(0, crate::artwork::Images::revision),
                 player.settings,
                 player.cache_usage.as_ptr() as usize,
@@ -1155,6 +1185,7 @@ pub fn shell(
     if intent.is_none()
         && !state.queue_visible
         && !state.settings_visible
+        && state.song_menu.is_none()
         && ui.key_pressed(input::Key::Enter)
         && !ui.text_input_focused()
         && let Some(index) = state.selected
@@ -1385,6 +1416,56 @@ fn sidebar(
     });
 }
 
+// SwiftUI wraps table labels, then fits their line box to physical pixels.
+fn heading_size(ui: &mut Ui, value: &str, available: f32, natural: f32) -> (f32, f32) {
+    table_text_size(
+        ui,
+        value,
+        available,
+        natural,
+        &pxui::TextStyle {
+            size_points: 12.0,
+            line_height: 16.8,
+            weight: 500,
+            wrap: pxui::TextStyle::WRAP_WORD_SPACES,
+            ..Default::default()
+        },
+    )
+}
+fn table_text_size(
+    ui: &mut Ui,
+    value: &str,
+    available: f32,
+    natural: f32,
+    style: &pxui::TextStyle,
+) -> (f32, f32) {
+    let (width, lines) = if natural > available {
+        let mut key = DefaultHasher::new();
+        (
+            "table-wrap",
+            value,
+            available.to_bits(),
+            style.font,
+            style.size_points.to_bits(),
+            style.weight,
+            style.features,
+        )
+            .hash(&mut key);
+        let metrics = ui
+            .text_service()
+            .measure(key.finish(), value, style, available.max(0.01))
+            .unwrap();
+        (metrics.width, metrics.lines)
+    } else {
+        (natural, 1)
+    };
+    let density = ui.density() as f32;
+    (
+        (width * density).ceil() / density,
+        style.line_height * lines.max(1) as f32,
+    )
+}
+
 fn header(
     ui: &mut Ui,
     catalog: &Catalog,
@@ -1537,7 +1618,7 @@ fn header(
                 },
             );
             spacer(ui, "album-header-bottom", 1.0);
-        } else if state.route != Route::Artists {
+        } else if state.route == Route::Find {
             rule(ui, "heading-divider", false, p);
         }
     });
@@ -1587,274 +1668,10 @@ fn content(
             ..Node::DEFAULT
         },
     );
-    ui.within(&root, &mut |ui| {
-        if state.route == Route::Albums {
-            albums::gallery(ui, catalog, state, player, width, p, intent);
-            return;
-        }
-        if state.route == Route::Artists {
-            artists::table(ui, catalog, state, player, width, p, intent);
-            return;
-        }
-        header(ui, catalog, state, width, p, intent);
-        let body = ui.node(
-            "content-body",
-            Node {
-                w: Size::Grow,
-                h: Size::Grow,
-                padding: Edges {
-                    l: 32.0,
-                    r: 32.0,
-                    ..Edges::ZERO
-                },
-                ..Node::DEFAULT
-            },
-        );
-        ui.within(&body, &mut |ui| {
-            let mut row_revision = DefaultHasher::new();
-            (
-                state.revision,
-                player.current_id,
-                player.artwork.map_or(0, crate::artwork::Images::revision),
-                std::sync::Arc::as_ptr(&catalog.library) as usize,
-            )
-                .hash(&mut row_revision);
-            let row_revision = row_revision.finish();
-            let collection = state.collection(catalog);
-            if let Some(collection) = collection {
-                let entry = crate::motion::Page::new(ui, state.entry_revision);
-                let header = container(
-                    ui,
-                    "columns",
-                    Axis::Row,
-                    Size::Grow,
-                    Size::Px(32.0),
-                    p.paper,
-                );
-                ui.within(&header, &mut |ui| {
-                    let applied = catalog
-                        .view
-                        .as_ref()
-                        .filter(|view| Some(view.request.scope) == catalog.scope(state.route))
-                        .map(|view| (view.request.sort, view.request.ascending));
-                    for (key, column, value, up, down, name, size) in [
-                        (
-                            "number",
-                            Sort::Original,
-                            "#",
-                            "#",
-                            "#",
-                            "Sort by original order",
-                            Size::Px(44.0),
-                        ),
-                        (
-                            "title",
-                            Sort::Title,
-                            "Title",
-                            "Title ↑",
-                            "Title ↓",
-                            "Sort by Title",
-                            Size::Grow,
-                        ),
-                        (
-                            "artist",
-                            Sort::Artist,
-                            "Artist",
-                            "Artist ↑",
-                            "Artist ↓",
-                            "Sort by Artist",
-                            Size::Pct(0.24),
-                        ),
-                        (
-                            "album",
-                            Sort::Album,
-                            "Album",
-                            "Album ↑",
-                            "Album ↓",
-                            "Sort by Album",
-                            Size::Pct(0.26),
-                        ),
-                        (
-                            "time",
-                            Sort::Duration,
-                            "Time",
-                            "Time ↑",
-                            "Time ↓",
-                            "Sort by Time",
-                            Size::Px(48.0),
-                        ),
-                    ] {
-                        let shown = match applied.filter(|(sort, _)| *sort == column) {
-                            Some((_, true)) => up,
-                            Some(_) => down,
-                            None => value,
-                        };
-                        let heading = ui.node(
-                            key,
-                            Node {
-                                flags: CLICKABLE | TAB_STOP | FIT_TEXT,
-                                w: size,
-                                h: Size::Px(28.0),
-                                role: Role::Button,
-                                look: Look {
-                                    text: p.secondary,
-                                    font: Font {
-                                        size: 12,
-                                        ..Font::BODY
-                                    },
-                                    ..Look::NONE
-                                },
-                                ..Node::DEFAULT
-                            },
-                        );
-                        ui.text(&heading, shown);
-                        let action = match applied.filter(|(sort, _)| *sort == column) {
-                            None => name,
-                            Some((sort, ascending)) => match (sort, ascending) {
-                                (Sort::Title, true) => "Sort by Title, ascending",
-                                (Sort::Title, false) => "Sort by Title, descending",
-                                (Sort::Artist, true) => "Sort by Artist, ascending",
-                                (Sort::Artist, false) => "Sort by Artist, descending",
-                                (Sort::Album, true) => "Sort by Album, ascending",
-                                (Sort::Album, false) => "Sort by Album, descending",
-                                (Sort::Duration, true) => "Sort by Time, ascending",
-                                (Sort::Duration, false) => "Sort by Time, descending",
-                                _ => name,
-                            },
-                        };
-                        ui.a11y_name(&heading, action);
-                        if ui.signal_state(&heading).clicked {
-                            *intent = Some(Intent::Sort(column));
-                        }
-                    }
-                });
-                rule(ui, "columns-divider", false, p);
-                let results = ui.node_keyed(
-                    int_key(
-                        root.box_key,
-                        if state.route == Route::Find {
-                            state.query_revision as i64
-                        } else {
-                            0
-                        },
-                    ),
-                    Node {
-                        w: Size::Grow,
-                        h: Size::Grow,
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&results, &mut |ui| {
-                    let row_width = (width - 64.0).max(1.0);
-                    ui.grid_list(
-                        "songs",
-                        collection.rows.len(),
-                        row_width,
-                        38.0,
-                        &mut |ui, index| {
-                            let row = catalog.row(collection.rows[index]);
-                            let visual = ui.view(
-                                "song-visual",
-                                row_revision,
-                                Size::Grow,
-                                Size::Grow,
-                                &mut |ui| {
-                                    let node = ui.node(
-                                        "song",
-                                        Node {
-                                            flags: CLICKABLE | TAB_STOP,
-                                            axis: Axis::Row,
-                                            align: Align::Center,
-                                            w: Size::Grow,
-                                            h: Size::Px(38.0),
-                                            role: Role::ListItem,
-                                            ..Node::DEFAULT
-                                        },
-                                    );
-                                    let signal = ui.signal_state(&node);
-                                    ui.a11y_name(&node, row.title);
-                                    ui.set_look(
-                                        &node,
-                                        Look {
-                                            fill: if state.selected == Some(index) {
-                                                p.selected
-                                            } else if signal.hovered {
-                                                p.panel
-                                            } else {
-                                                p.paper
-                                            },
-                                            ..Look::NONE
-                                        },
-                                        State::default(),
-                                    );
-                                    ui.within(&node, &mut |ui| {
-                                        let number = ClockLabel::integer((index + 1) as u64);
-                                        text(
-                                            ui,
-                                            "number",
-                                            std::str::from_utf8(number.bytes()).unwrap(),
-                                            12,
-                                            p.secondary,
-                                            (Size::Px(44.0), 20.0),
-                                            true,
-                                        );
-                                        text(
-                                            ui,
-                                            "title",
-                                            row.title,
-                                            14,
-                                            if player.current_id == Some(row.id) {
-                                                p.signal
-                                            } else {
-                                                p.ink
-                                            },
-                                            (Size::Grow, 20.0),
-                                            false,
-                                        );
-                                        text(
-                                            ui,
-                                            "artist",
-                                            row.artist,
-                                            14,
-                                            p.secondary,
-                                            (Size::Pct(0.24), 20.0),
-                                            false,
-                                        );
-                                        text(
-                                            ui,
-                                            "album",
-                                            row.album,
-                                            14,
-                                            p.secondary,
-                                            (Size::Pct(0.26), 20.0),
-                                            false,
-                                        );
-                                        text(
-                                            ui,
-                                            "duration",
-                                            row.duration,
-                                            12,
-                                            p.secondary,
-                                            (Size::Px(48.0), 20.0),
-                                            true,
-                                        );
-                                    });
-                                    if signal.clicked {
-                                        *intent = Some(Intent::SelectRow(index));
-                                    }
-                                    if signal.double_clicked
-                                        || (signal.clicked && ui.key_pressed(input::Key::Enter))
-                                    {
-                                        *intent = Some(Intent::PlayRow(index));
-                                    }
-                                },
-                            );
-                            entry.row(ui, &visual, index);
-                        },
-                    );
-                });
-            }
-        });
+    ui.within(&root, &mut |ui| match state.route {
+        Route::Albums => albums::gallery(ui, catalog, state, player, width, p, intent),
+        Route::Artists => artists::table(ui, catalog, state, player, width, p, intent),
+        _ => songs::table(ui, catalog, state, player, width, p, intent),
     });
 }
 

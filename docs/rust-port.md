@@ -2,6 +2,74 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## SwiftUI song-table geometry and playing indicators
+
+Songs now uses the native desktop column measurements prepared on the library worker. Number,
+title, artist, album, mixed formats/states, duration and action columns follow the reference width
+thresholds and fractional proportions. Current titles use medium weight; body track numbers use
+13-point Host Grotesk with tabular digits, while the column preference uses the reference's
+13-point Geist Mono. Formats display lowercase. Column headings sort through the existing worker;
+row actions route Play and Add to queue through the controller.
+
+Native AppKit/SwiftUI measurements include the shipping `desktopCells`, `WaveSongTableHeading`
+and `LWCSSLineBox` code at 1×/2× density. At 400/520-point song-table widths the Time heading wraps,
+raising the heading from **37.3 to 54.1 points**. Body durations also wrap; the first text baseline
+moves upward rather than truncating the number. Artists wraps numeric fields too: the 400-point
+fixture has a **39.8-point row** with a two-line duration. Both tables now use one scrolling lead-in,
+a pinned opaque adaptive heading, measured virtual rows and full-width one-point collapsed rules.
+Source captures: `/tmp/localwave-native-song-table-shipping-heading.log` and
+`/tmp/localwave-native-artists-wrapping.log`; earlier manual fixtures that incorrectly applied
+`lineLimit(1)` to every body cell are superseded.
+
+The current row's three playing bars follow SwiftUI's **900 ms easeInOut** curve with one-third
+phase offsets, preserve cached text, and stop requesting frames when paused, clipped or motion is
+reduced. File-state changes scale from 0.3 to 1 using the existing 240 ms spring samples, with no
+initial pop. Worker-prepared song/occurrence keys preserve identity across reordering and distinguish
+repeated queue entries. Availability uses the prepared metadata/pin snapshot; live source observation
+and blocked-provider presentation remain unfinished.
+
+pxui **ABI 1.21**, published as `72df0df`, adds `Ui::section_list_measured` and its matching C export,
+descriptor and static/dynamic wrapper. It reuses measured-list storage and binary search, with
+same-frame height settling. Storage is two floats per row plus one prefix entry; frame work visits
+only the visible range and overscan, except rebuilding cached prefix sums after measured heights
+change. The callback provides each part's logical content Y for correct clipping/timer decisions.
+The preceding `c4eebd8` fixes blank rows after a resting virtual collection shrinks. A further shared
+fix invalidates ancestor accessibility spans when a nested view transforms or patches content;
+otherwise a cached parent could copy stale child bounds. Cached glyph instances and content builds
+remain unchanged during scale animation.
+
+### Checks and current limits
+
+- App checks: **181 pass**, **19.578 s wall / 15.956 s summed**, zero skips,
+  `/tmp/localwave-measured-table-app-publish.log`. The earlier serial matrix also passes in
+  **10.057 s** (`/tmp/localwave-measured-table-app-final-serial.log`). Native columns/baselines, wrapped numeric
+  cells, menu routing/stale identity, active playing bars, state-pop samples, reduced motion,
+  virtual scrolling and warm Rust allocations are covered. The preceding run's dynamic library
+  link was removed by a concurrent ABI export gate; gates and test runners were rerun sequentially.
+- SDK: **339 of 340 pass** in `/tmp/localwave-measured-section-sdk-final.log`, **17.532 s wall**;
+  the unchanged 1.5× `layout_scaling` timing assertion fails at **142→224 ns/node**. Its isolated
+  repeat passes **138→175 ns/node**, **1.569 s wall**, with the original assertion:
+  `/tmp/localwave-measured-section-layout-repeat.log`. The earlier complete 340-case matrix passed
+  in **21.148 s**, before the nested accessibility correction. Preserve both timing outcomes.
+- Static wrapper: **65 pass**, **7.940 s wall / 2.159 s summed**, zero skips:
+  `/tmp/localwave-measured-section-static-final.log`. Nested scale accessibility reproduces red
+  then passes without extra content builds or warm allocations in
+  `/tmp/localwave-nested-state-scale-{red,fixed}.log`.
+- Native Metal 1×/2× fixed and measured sections pass opaque heading/rightmost-pixel, **one draw**
+  and warm build/draw allocation checks: **5.241 s wall / 0.176 s case**, zero skips,
+  `/tmp/localwave-measured-section-native-pixels.log`. Dependencies, C header, dynamic exports,
+  type layouts and append-only snapshot gates pass; logs use
+  `/tmp/localwave-measured-section-final-*.log`.
+- All app packages/all targets pass Clippy with native interop enabled and warnings denied in
+  **2.55 s**, `/tmp/localwave-measured-table-clippy-final.log`. Formatting and whitespace pass.
+
+A twelfth signed workload exercises playing/paused indicators while scrolling the original
+10,000-song fixture, retaining **182/82/100 total/warm/measured frames** and both Rust allocation
+counters. Its signed results are pending at this checkpoint. It changes only the UI snapshot;
+this is not qualification of real audio playback. The existing strict **1,000 µs wall maximum**
+remains failed; native/process allocations are unqualified. Full screenshot parity, Find/detail
+headers, remaining reference views/actions and iOS are unfinished.
+
 ## SwiftUI scrolling sections and retained geometry checkpoint
 
 Albums and Artists now use one scroll region for the page heading and rows. The Albums title,

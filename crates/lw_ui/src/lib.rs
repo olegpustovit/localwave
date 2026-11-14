@@ -32,6 +32,9 @@ pub enum Intent {
     Navigate(catalog::Route),
     SelectRow(usize),
     PlayRow(usize),
+    AppendSong(i64),
+    SongMenu(usize, i64, u64, (f32, f32)),
+    CloseSongMenu,
     TogglePanel,
     Shuffle,
     ShuffleAll,
@@ -111,6 +114,11 @@ pub struct PlayerView<'a> {
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+    pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
+        let mut catalog = catalog::Catalog::new(songs);
+        catalog.prepare_tables().unwrap();
+        catalog
+    }
 
     #[test]
     fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allocations() {
@@ -121,6 +129,7 @@ mod tests {
             (0, 34.0, 34.0, 29.0),
             (0, 19.0, 22.8, 17.0),
             (0, 14.0, 19.6, 14.0),
+            (0, 13.0, 18.2, 13.0),
             (0, 12.0, 16.8, 12.0),
             (1, 12.0, 16.8, 12.0),
         ];
@@ -234,7 +243,7 @@ mod tests {
 
     #[test]
     fn desktop_album_cards_and_player_artwork_use_swift_point_dimensions() {
-        let catalog = catalog::Catalog::new(
+        let catalog = prepared(
             (0..24)
                 .map(|id| lw_core::Song {
                     id: Some(id),
@@ -375,7 +384,7 @@ mod tests {
     fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
-        let catalog = catalog::Catalog::new(Vec::new());
+        let catalog = prepared(Vec::new());
         let state = ShellState::default();
         for (revision, (position, duration)) in [
             (23.0, 0.0),
@@ -417,11 +426,10 @@ mod tests {
     #[test]
     fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_warm_allocations()
     {
-        use catalog::Catalog;
         use lw_core::{context::PlaybackContext, queue::Entry};
         use std::sync::Arc;
         mem_sys::set_peer(pxui::library_counter);
-        let mut catalog = Catalog::new(vec![lw_core::Song {
+        let mut catalog = prepared(vec![lw_core::Song {
             id: Some(7),
             title: "Repeated queue song".into(),
             artist: "Artist".into(),
@@ -709,7 +717,7 @@ mod tests {
     fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
-        let catalog = catalog::Catalog::new(Vec::new());
+        let catalog = prepared(Vec::new());
         let mut state = ShellState::default();
         let player = PlayerView::default();
         for inset in [28.0, f32::NAN, -1.0, 0.0, 44.0] {
@@ -765,11 +773,10 @@ mod tests {
 
     #[test]
     fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_drag() {
-        use catalog::Catalog;
         use lw_core::{context::PlaybackContext, queue::Entry};
         use std::sync::Arc;
         mem_sys::set_peer(pxui::library_counter);
-        let mut catalog = Catalog::new(vec![lw_core::Song {
+        let mut catalog = prepared(vec![lw_core::Song {
             id: Some(7),
             title: "Duplicate queued song".into(),
             artist: "Artist".into(),
@@ -1050,9 +1057,9 @@ mod tests {
     #[test]
     fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_queries() {
         use browse::Query;
-        use catalog::{Catalog, Route};
+        use catalog::Route;
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = Catalog::new(Vec::new());
+        let catalog = prepared(Vec::new());
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Find));
         state.apply(Intent::Search(Query::new("CAFÉ").unwrap()));
@@ -1226,9 +1233,9 @@ mod tests {
     #[test]
     fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         use browse::{Query, Scope, Sort};
-        use catalog::{Catalog, Route};
+        use catalog::Route;
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = Catalog::new(
+        let catalog = prepared(
             (0..10000)
                 .map(|id| lw_core::Song {
                     id: Some(id),
@@ -1429,8 +1436,8 @@ mod tests {
     #[test]
     fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows() {
         use browse::Sort;
-        use catalog::{Catalog, Route};
-        let catalog = Catalog::new(
+        use catalog::Route;
+        let catalog = prepared(
             (0..30)
                 .map(|id| lw_core::Song {
                     id: Some(id),
@@ -1525,7 +1532,7 @@ mod tests {
 
     #[test]
     fn transport_buttons_return_intents_and_update_retained_labels() {
-        let catalog = catalog::Catalog::new(Vec::new());
+        let catalog = prepared(Vec::new());
         let state = ShellState::default();
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
@@ -1581,7 +1588,7 @@ mod tests {
 
     #[test]
     fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
-        use catalog::{Catalog, Route};
+        use catalog::Route;
         use lw_core::{Song, context::PlaybackContext};
         let song = |id, title: &str, artist: &str, album: &str| Song {
             id: Some(id),
@@ -1590,7 +1597,7 @@ mod tests {
             album: album.into(),
             ..Song::default()
         };
-        let mut before = Catalog::new(vec![song(1, "Before", "B", "Z")]);
+        let mut before = prepared(vec![song(1, "Before", "B", "Z")]);
         before.add_collection(
             "Old playlist name",
             vec![0, 0],
@@ -1599,7 +1606,7 @@ mod tests {
                 name: "Old playlist name".into(),
             },
         );
-        let mut after = Catalog::new(vec![
+        let mut after = prepared(vec![
             song(2, "Inserted", "A", "A"),
             song(1, "After", "B", "Z"),
         ]);
@@ -1679,19 +1686,19 @@ mod tests {
         );
         state.apply(Intent::Navigate(Route::Album(0)));
         state.selected = Some(0);
-        state.refresh(&before, &Catalog::new(Vec::new()));
+        state.refresh(&before, &prepared(Vec::new()));
         assert_eq!(state.route, Route::Albums);
         assert_eq!(state.selected, None);
         state.apply(Intent::Navigate(Route::Collection(2)));
         state.selected = Some(1);
-        state.refresh(&before, &Catalog::new(Vec::new()));
+        state.refresh(&before, &prepared(Vec::new()));
         assert_eq!(state.route, Route::Songs);
         assert_eq!(state.selected, None);
     }
 
     #[test]
     fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
-        use catalog::{Catalog, Route};
+        use catalog::Route;
         use lw_core::{Song, context::PlaybackContext};
         let songs = || {
             (0..100)
@@ -1704,7 +1711,7 @@ mod tests {
                 })
                 .collect::<Vec<_>>()
         };
-        let mut before = Catalog::new(songs());
+        let mut before = prepared(songs());
         before.add_collection(
             "Old name",
             (0..100).collect(),
@@ -1724,7 +1731,7 @@ mod tests {
                 ..Song::default()
             },
         );
-        let mut after = Catalog::new(inserted);
+        let mut after = prepared(inserted);
         after.add_collection(
             "Other list",
             vec![0],
@@ -1809,7 +1816,7 @@ mod tests {
     fn accessible_seek_volume_and_panel_controls_return_intents() {
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
-        let catalog = catalog::Catalog::new(Vec::new());
+        let catalog = prepared(Vec::new());
         let state = ShellState::default();
         let mut player = PlayerView {
             duration: 240.0,
@@ -1858,7 +1865,7 @@ mod tests {
     #[test]
     fn shell_themes_and_warm_build_allocate_nothing() {
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = catalog::Catalog::new(Vec::new());
+        let catalog = prepared(Vec::new());
         let state = ShellState::default();
         let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
@@ -1956,7 +1963,7 @@ mod tests {
     #[test]
     fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
         mem_sys::set_peer(pxui::library_counter);
-        let catalog = catalog::Catalog::new(
+        let catalog = prepared(
             (0..10_000)
                 .map(|id| lw_core::Song {
                     id: Some(id),
@@ -2085,7 +2092,7 @@ mod tests {
     #[test]
     fn ten_thousand_sidebar_collections_only_build_visible_rows() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut catalog = catalog::Catalog::new(Vec::new());
+        let mut catalog = prepared(Vec::new());
         for id in 0..10_000 {
             let name = format!("Playlist {id:05}");
             catalog.add_collection(
@@ -2158,7 +2165,7 @@ mod tests {
 
     #[test]
     fn song_rows_follow_scroll_selection_navigation_and_resize() {
-        let catalog = catalog::Catalog::new(
+        let catalog = prepared(
             (0..100)
                 .map(|id| lw_core::Song {
                     id: Some(id),

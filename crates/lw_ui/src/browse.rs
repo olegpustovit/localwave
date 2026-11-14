@@ -79,6 +79,7 @@ pub enum Sort {
     Title,
     Artist,
     Album,
+    Format,
     Duration,
 }
 
