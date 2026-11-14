@@ -12,9 +12,85 @@ The next user-facing iOS milestone is the **full Rust LocalWave app**, not a gal
 There is currently **no working `make ios-run`**. Its planned scope is physical iPhone/iPad
 selection, Xcode automatic signing, build, install and launch. The app entry point and native
 services still need app-level iOS integration. Shared native services and the application controller
-library now build for iOS, while the GUI entry point, appearance/window integration and audio-session
-lifecycle remain unfinished. No install ETA is established. A development certificate is present
+library now build for iOS. Audio-session activation/notifications are connected to the controller;
+the GUI entry point, appearance/window integration and background app-loop qualification remain unfinished. No install ETA is established. A development certificate is present
 locally; device discovery currently shows no physical iPhone/iPad.
+
+### iOS audio session and controller integration
+
+`lw_apple_sys::session` now owns serialized worker-side category/activation and a fixed **32-event**
+notification queue. The iOS controller observes interruption began/ended, old output unavailable
+and media-service reset. Parsing preserves the system's should-resume recommendation; unknown
+notification values/new-route events are ignored. The queue's **16-byte C packet** is checked on
+both sides. Peeks preserve events under command backpressure; sequence acknowledgements cannot
+remove a replacement overflow event. Rust notices retain their owner without allocating, and
+an acknowledgement from another session is ignored. Concurrent producers are synchronized.
+Delivery acknowledgement alone does not release activation: the serialized model worker marks
+the notice processed after applying its pause intent. Older processing acknowledgements cannot
+release a newer pause. Explicit Play can then retry even without an interruption-end notification,
+which [Apple does not guarantee](https://developer.apple.com/library/archive/documentation/Audio/Conceptual/AudioSessionProgrammingGuide/HandlingAudioInterruptions/HandlingAudioInterruptions.html).
+
+Native callbacks update cached facts and signal the existing host wake. Blocking category and
+setActive calls run on the existing library worker; constructing the observer does not fetch
+AVAudioSession.sharedInstance. Only unchanged successful activation is cached. Epoch checks
+prevent an interruption/reset/overflow during either blocking call from restoring stale cache
+state. Reset clears category/active state and asks the controller to rebuild the native queue
+without automatically resuming. A full notification queue fails closed and preserves one fault
+until acknowledged; it never silently drops a pause and later resumes from a lone end event.
+
+The main-thread adapter handles at most **32** notifications per poll. Pause events immediately
+pause the native player and cancel preparation/background work; blocked delivery also withholds
+new native operations. Accepted events follow the existing bounded command/fence/acknowledgement
+path. The worker reuses the existing pure Session/Transport rules and activates the OS session
+before publishing a play intent. Manual pause/stop and route loss cancel interruption resume.
+Repeated interruption-began events now preserve prior resume intent; an explicit pause still
+clears it. No new worker, UI layout/style, GPU ownership or benchmark-budget change is included.
+
+Qualification evidence under `/tmp/localwave-audio-session-*`:
+
+- **189 full application checks pass**, **27.338 s wall / 15.664 s case sum**; after reset handling,
+  **31.224 / 15.803 s**, zero skips. Existing isolated contention retries and the original
+  **5 s case / 60 s run** limits remain unchanged. `app-tests.log`, `final-app-tests.log`.
+  The final missing-end/processing-fence revision passes **190 checks, 33.715 s wall / 15.668 s
+  case sum**, zero skips (`processing-app-tests.log`). It covers explicit Play without an end,
+  completion cancelling resume, delivery acknowledgement withholding activation and an older
+  processed notice failing to release a newer pause.
+- The production main-thread controller smoke adds interruption auto-resume, explicit pause and
+  route-loss cases, checking the installed token is preserved. Its focused run passes in
+  **2.810 s case time** (**23.045 s including compilation**); the full run's case takes **2.012 s**.
+  No deadline was extended. `controller-test.log`.
+- Native queue/activation checks cover concurrent producers, cache reuse, blocking until a pause
+  is processed, configure/activate failures, stale cache writes during interruption/reset and
+  overflow during activation. Peeks, cancellation/overflow tokens and cross-session ownership
+  retain **zero warm Rust allocations** across 100 cycles. The final ownership check passes
+  in **2.940 s wall / 0.036 s case time**; `owner-tests.log`. The earlier focused race check is
+  **12.929 / 0.035 s**, and the four focused domain/controller/native checks pass in
+  **20.225 / 0.125 s**. `races-tests.log`, `final-focused.log`.
+- The first native unit check incorrectly assumed libtest used the process main thread. That
+  assertion failed and was moved to the initial-thread native diagnostic; its failure remains
+  in `native-tests.log`. The corrected check passes in **2.009 / 0.021 s**.
+- The iOS simulator diagnostic passes native notification parsing, main-thread activation
+  rejection, injected blocking-operation outcomes/races, exact artwork and temporary local
+  bookmark checks. `final-native-runtime.log`. Its activation callbacks are deterministic test
+  doubles; this does **not** qualify actual system activation, a call, headphones, Control
+  Center, background playback, native heap behavior or a physical device. Synthetic system
+  notifications stay inside this isolated process and no user library/defaults are opened.
+  The final diagnostic explicitly invokes the native notification fixture and passes with the
+  processing fence (`processing-native-runtime.log`), after a **7.65 s** build. Its printed
+  notification marker is now backed by that call rather than merely compiling the fixture.
+- Production controller-library builds pass for arm64 simulator/device (**12.04/11.97 s**),
+  `final-{sim,device}-build.log`. Host native/controller library Clippy passes; existing Metal
+  availability/linker warnings remain (`clippy.log`). The shared native packet/ownership/race
+  Final production simulator/device builds pass in **11.37/13.45 s**
+  (`processing-{sim,device}-build.log`). The complete GUI executable is still macOS-only.
+  Final host/iOS Clippy passes in **12.01/8.87 s** (`processing-{host,ios}-clippy.log`),
+  and dependency, submodule publication and whitespace checks pass.
+
+Next: the actual iOS app loop must process control/session wakes while drawing is inactive;
+then integrate generic system appearance, native touch gestures, phone screens and document
+picker grants. `make ios-run` remains unfinished until the full Rust app is installable. The
+strict signed **1 ms wall** matrix remains deferred, and the normal macOS GUI **PID 69331** stays
+running. The full port and P6/P7 device gates remain open.
 
 ### Shared LocalWave services on iOS
 

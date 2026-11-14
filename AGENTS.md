@@ -415,3 +415,16 @@ restore the app build script that forced clang_rt.osx into iOS. The native-servi
 a manual simulator/device-runtime diagnostic with isolated temporary files and private media
 fixtures, not an installable app or proof of provider grants/background audio. Preserve existing
 macOS behavior and leave the shipping Swift app until all platform gates pass.
+
+
+The iOS controller observes lw_apple_sys::session and delivers up to 32 bounded notifications per
+poll. Blocking category/setActive calls stay on the library worker; callbacks only cache facts
+and wake. Preserve epoch fences during configure/activate, cache invalidation on media reset,
+sequence/owner-checked acknowledgement, overflow fail-closed behavior, immediate main-thread
+pause under command backpressure and zero warm Rust allocation checks. Manual pause/stop/route
+loss must cancel interruption resume; repeated begins preserve intent. Separate delivery
+acknowledgement from worker processing: only processing releases the activation
+fence, and an older notice cannot release a newer pause. Explicit Play may retry without an end
+notification; do not leave a permanent interruption flag blocking it. Native activation fixtures
+are injected operations and synthetic notifications, not a physical-device/background-audio pass.
+The future iOS app loop must process control wakes even when Metal drawing is inactive.

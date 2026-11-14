@@ -4,6 +4,7 @@ use std::{io, path::Path};
 
 fn worker() -> io::Result<()> {
     lw_apple_sys::require_worker_thread()?;
+    assert_eq!(lw_apple_sys::session::verify_activation(), 0);
     let directory =
         std::env::temp_dir().join(format!("localwave-native-services-{}", std::process::id()));
     std::fs::create_dir(&directory)?;
@@ -28,6 +29,13 @@ fn worker() -> io::Result<()> {
 
 fn main() -> io::Result<()> {
     assert!(lw_apple_sys::require_worker_thread().is_err());
+    extern "C" fn wake() {}
+    assert!(
+        lw_apple_sys::session::Session::open(wake)?
+            .activate()
+            .is_err()
+    );
+    assert_eq!(lw_apple_sys::session::verify_notifications(), 0);
     assert_eq!(
         media::verify_callbacks(),
         0,
@@ -37,7 +45,7 @@ fn main() -> io::Result<()> {
         .join()
         .expect("native service worker panicked")?;
     println!(
-        "LOCALWAVE_NATIVE_SERVICES_OK platform={} media_callbacks=ok artwork_pixels=ok bookmark_roundtrip=ok",
+        "LOCALWAVE_NATIVE_SERVICES_OK platform={} media_callbacks=ok artwork_pixels=ok bookmark_roundtrip=ok audio_session_activation=ok audio_notifications=ok",
         std::env::consts::OS
     );
     Ok(())

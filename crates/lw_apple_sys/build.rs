@@ -12,6 +12,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/context.m");
     println!("cargo:rerun-if-changed=src/waveform.m");
     println!("cargo:rerun-if-changed=src/player.m");
+    println!("cargo:rerun-if-changed=src/session.m");
     println!("cargo:rerun-if-changed=src/media.m");
     println!("cargo:rerun-if-changed=src/history.m");
     println!("cargo:rerun-if-changed=src/environment.m");
@@ -35,6 +36,7 @@ fn main() {
             .file("src/context.m")
             .file("src/waveform.m")
             .file("src/player.m")
+            .file("src/session.m")
             .file("src/media.m")
             .file("src/history.m")
             .flag("-fobjc-arc")

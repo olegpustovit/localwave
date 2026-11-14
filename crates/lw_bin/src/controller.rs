@@ -1,6 +1,7 @@
 //! Bounded main-thread/native and worker/model bridge. No database or file work runs in `poll`.
 use crate::library::{LibraryWorker, database_error};
 use lw_apple_sys::player::{Event, Kind, Player, Prepared, Snapshot};
+use lw_apple_sys::session::Event as AudioEvent;
 use lw_core::context::PlaybackContext;
 use lw_core::playback::{Fault, Phase, Reading};
 use lw_core::player::{Action, Session, Ticket};
@@ -33,6 +34,7 @@ pub enum Command {
         autoplay: bool,
     },
     Play,
+    AudioSession(AudioEvent),
     Toggle,
     Pause,
     Stop,
@@ -125,6 +127,12 @@ impl Command {
                 | Self::ShuffleAll { .. }
                 | Self::Select { .. }
                 | Self::Pause
+                | Self::AudioSession(
+                    AudioEvent::Began
+                        | AudioEvent::OutputUnavailable
+                        | AudioEvent::Overflow
+                        | AudioEvent::Reset
+                )
                 | Self::Toggle
                 | Self::Stop
                 | Self::Next
@@ -234,6 +242,7 @@ struct Ack {
     snapshot: Snapshot,
 }
 struct Envelope {
+    audio_notice: Option<lw_apple_sys::session::Notification>,
     revision: u64,
     preparation: u64,
     command: Command,
@@ -280,6 +289,8 @@ impl Inbox {
     }
 }
 struct Shared {
+    #[cfg(target_os = "ios")]
+    audio_session: lw_apple_sys::session::Session,
     inbox: Mutex<Inbox>,
     changed: Condvar,
     cancelled: AtomicBool,
@@ -353,6 +364,8 @@ impl Controller {
         native.set_wake(Some(wake));
         let status = Status::default();
         let shared = Arc::new(Shared {
+            #[cfg(target_os = "ios")]
+            audio_session: lw_apple_sys::session::Session::open(wake)?,
             inbox: Mutex::new(Inbox {
                 catalog: None,
                 retired_catalog: None,
@@ -421,6 +434,13 @@ impl Controller {
         self.native.snapshot()
     }
     pub fn command(&mut self, command: Command) -> io::Result<u64> {
+        self.command_with_notice(command, None)
+    }
+    fn command_with_notice(
+        &mut self,
+        command: Command,
+        audio_notice: Option<lw_apple_sys::session::Notification>,
+    ) -> io::Result<u64> {
         command.validate()?;
         self.poll_inner(false, &mut |_, _| {})?;
         let revision = self
@@ -453,6 +473,7 @@ impl Controller {
                 return Err(io::ErrorKind::WouldBlock.into());
             }
             let mut envelope = Envelope {
+                audio_notice,
                 revision,
                 preparation,
                 command,
@@ -512,13 +533,40 @@ impl Controller {
         changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
     ) -> io::Result<bool> {
         let revision = self.status.revision;
-        let updated = self.poll_inner(true, changed)?;
+        #[cfg(target_os = "ios")]
+        let blocked = self.deliver_audio_session()?;
+        #[cfg(not(target_os = "ios"))]
+        let blocked = false;
+        let updated = self.poll_inner(!blocked, changed)?;
         if let Some(mut media) = self.media.take() {
             let result = media.deliver(self).and_then(|_| media.sync(&self.status));
             self.media = Some(media);
             result?;
         }
         Ok(updated || revision != self.status.revision)
+    }
+    #[cfg(target_os = "ios")]
+    fn deliver_audio_session(&mut self) -> io::Result<bool> {
+        let session = self.shared.audio_session.clone();
+        for _ in 0..32 {
+            let Some(notification) = session.peek()? else {
+                return Ok(false);
+            };
+            if notification.event.pauses() {
+                self.native.pause();
+                self.shared.cancelled.store(true, Ordering::SeqCst);
+                self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
+            }
+            match self.command_with_notice(
+                Command::AudioSession(notification.event),
+                Some(notification.clone()),
+            ) {
+                Ok(_) => session.acknowledge(notification),
+                Err(error) if error.kind() == io::ErrorKind::WouldBlock => return Ok(true),
+                Err(error) => return Err(error),
+            }
+        }
+        Ok(session.peek()?.is_some())
     }
     fn poll_inner(
         &mut self,
@@ -1266,10 +1314,14 @@ impl Worker {
         }
         self.revision = self.revision.max(envelope.revision);
         self.preparation = self.preparation.max(envelope.preparation);
-        if matches!(
-            envelope.command,
-            Command::Next | Command::Previous | Command::Pause | Command::Stop
-        ) && let Some(ticket) = self.pending_selection()
+        let session_pause =
+            matches!(&envelope.command, Command::AudioSession(event) if event.pauses());
+        if (session_pause
+            || matches!(
+                envelope.command,
+                Command::Next | Command::Previous | Command::Pause | Command::Stop
+            ))
+            && let Some(ticket) = self.pending_selection()
         {
             self.commit_selection(ticket);
         }
@@ -1325,6 +1377,29 @@ impl Worker {
             Command::Toggle => {
                 unreachable!("Toggle resolves before committing a pending selection")
             }
+            Command::AudioSession(event) => match event {
+                AudioEvent::Began => {
+                    self.session.interruption_began();
+                    Action::None
+                }
+                AudioEvent::Ended { resume } => self.session.interruption_ended(resume),
+                AudioEvent::OutputUnavailable => {
+                    self.session.output_unavailable();
+                    Action::None
+                }
+                AudioEvent::Reset => {
+                    self.session_error(io::Error::other(
+                        "The audio service restarted. Play to try again.",
+                    ));
+                    Action::None
+                }
+                AudioEvent::Overflow => {
+                    self.session_error(io::Error::other(
+                        "Audio-session notifications overflowed; playback was paused",
+                    ));
+                    Action::None
+                }
+            },
             Command::Pause => {
                 self.session.pause();
                 Action::None
@@ -1492,6 +1567,9 @@ impl Worker {
             self.saved.current_index = self.session.queue().current_index().unwrap_or(0) as i64;
             self.library.save_player_state(&self.saved)?;
         }
+        if let Some(notice) = envelope.audio_notice {
+            notice.mark_processed();
+        }
         Ok(())
     }
     fn retire(&mut self) -> io::Result<()> {
@@ -1630,6 +1708,17 @@ impl Worker {
             }
             let intent = self.session.transport().wants_playback();
             if intent != self.intent {
+                #[cfg(target_os = "ios")]
+                if intent {
+                    match self.shared.audio_session.activate() {
+                        Ok(true) => {}
+                        Ok(false) => return Ok(false),
+                        Err(error) => {
+                            self.session_error(error);
+                            return Ok(true);
+                        }
+                    }
+                }
                 self.send(Operation::Intent(intent), Pending::Intent(intent));
                 return Ok(true);
             }
@@ -1851,6 +1940,23 @@ mod tests {
     use lw_ui::catalog::Catalog;
     extern "C" fn wake() {}
     #[test]
+    fn audio_session_events_fence_preparation_and_only_pause_for_interruptions_or_faults() {
+        use lw_apple_sys::session::Event;
+        for event in [
+            Event::Began,
+            Event::OutputUnavailable,
+            Event::Overflow,
+            Event::Reset,
+            Event::Ended { resume: false },
+            Event::Ended { resume: true },
+        ] {
+            let command = Command::AudioSession(event);
+            assert!(command.validate().is_ok());
+            assert!(command.fences_preparation());
+            assert_eq!(command.interrupts(), event.pauses());
+        }
+    }
+    #[test]
     fn fresh_shuffle_commands_validate_and_interrupt_the_previous_selection() {
         let command = Command::ShuffleAll {
             songs: Arc::from([1, 1, 2]),
@@ -1914,6 +2020,8 @@ mod tests {
     }
     fn shared() -> Arc<Shared> {
         Arc::new(Shared {
+            #[cfg(target_os = "ios")]
+            audio_session: lw_apple_sys::session::Session::open(wake).unwrap(),
             inbox: Mutex::new(Inbox {
                 catalog: None,
                 retired_catalog: None,
@@ -2005,6 +2113,7 @@ mod tests {
         }
         let _close = Close(shared.clone(), Some(thread));
         shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
             revision: 1,
             preparation: 1,
             command: Command::Configure {
@@ -2077,6 +2186,7 @@ mod tests {
             .enumerate()
             {
                 inbox.commands.push_back(Envelope {
+                    audio_notice: None,
                     revision: 2 + step * 3 + index as u64,
                     preparation: 1,
                     command,
@@ -2107,6 +2217,7 @@ mod tests {
         assert!(shared.cancelled.load(Ordering::SeqCst));
         shared.waveform_cancelled.store(true, Ordering::SeqCst);
         shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
             revision: 1,
             preparation: 0,
             command: Command::Seek(5.0),
@@ -2364,6 +2475,7 @@ mod tests {
             assert!(command.validate().is_ok());
             assert!(!command.interrupts() && !command.fences_preparation());
             shared.inbox.lock().unwrap().commands.push_back(Envelope {
+                audio_notice: None,
                 revision,
                 preparation: 0,
                 command,

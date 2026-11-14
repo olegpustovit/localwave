@@ -80,8 +80,9 @@ texture lifetime. LocalWave supplies decoded covers and source/layout policy; it
 production Metal or texture management code. LocalWave's app loop currently targets macOS;
 pxui's framework host also builds experimentally for iOS. LocalWave's shared native services and
 controller library now compile for iOS device/simulator, with an isolated simulator artwork/
-bookmark/callback check. The full Rust iOS app, audio-session lifecycle and `make ios-run` are
-still unfinished; there is no installable Rust iOS LocalWave build yet.
+bookmark/callback check. The controller now connects worker-side audio-session activation,
+interruptions, route loss and media-service reset; actual device/background behavior remains
+unqualified. The full Rust iOS app loop and `make ios-run` are still unfinished; there is no installable Rust iOS LocalWave build yet.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 

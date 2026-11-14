@@ -517,6 +517,42 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     if player.status().current_index != Some(1) || player.status().message.is_empty() {
         return Err(error("A missing song did not skip with a notice"));
     }
+    // Session resume must preserve the installed item and respect an explicit pause/route loss.
+    for policy in 0..3 {
+        use lw_apple_sys::session::Event;
+        let token = player.native_snapshot().token;
+        let began = player.command(Command::AudioSession(Event::Began))?;
+        until(&mut player, deadline, &mut |player| {
+            player.status().processed_command >= began
+                && player.status().phase == Phase::Paused
+                && !player.native_snapshot().playing()
+        })?;
+        if policy == 1 {
+            player.command(Command::Pause)?;
+        }
+        if policy == 2 {
+            player.command(Command::AudioSession(Event::OutputUnavailable))?;
+        }
+        let ended = player.command(Command::AudioSession(Event::Ended { resume: true }))?;
+        until(&mut player, deadline, &mut |player| {
+            player.status().processed_command >= ended
+                && player.status().phase
+                    == if policy == 0 {
+                        Phase::Playing
+                    } else {
+                        Phase::Paused
+                    }
+        })?;
+        if player.native_snapshot().token != token {
+            return Err(error("Audio-session resume replaced an installed item"));
+        }
+        if policy != 0 {
+            player.command(Command::Play)?;
+            until(&mut player, deadline, &mut |player| {
+                player.status().phase == Phase::Playing
+            })?;
+        }
+    }
     let initial = player.native_snapshot();
     player.command(Command::Pause)?;
     until(&mut player, deadline, &mut |player| {

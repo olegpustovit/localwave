@@ -179,6 +179,7 @@ impl Transport {
         self.position = self.duration;
         self.phase = Phase::Ended;
         self.wants_playback = false;
+        self.resume_after_interruption = false;
         self.preparing = false;
         true
     }
@@ -197,7 +198,8 @@ impl Transport {
         true
     }
     pub fn interruption_began(&mut self) {
-        let resume = self.wants_playback || self.phase == Phase::Playing;
+        let resume =
+            self.resume_after_interruption || self.wants_playback || self.phase == Phase::Playing;
         self.pause();
         self.resume_after_interruption = resume;
     }
@@ -255,6 +257,35 @@ mod tests {
         assert!(!state.adopt(replacement, 3));
         assert!(!state.fail(replacement, 0, Fault::Session));
     }
+    #[test]
+    fn explicit_play_can_retry_without_an_interruption_end_and_completion_cancels_resume() {
+        let mut state = Transport::default();
+        let generation = state.begin(true);
+        state.adopt(generation, 1);
+        state.interruption_began();
+        assert_eq!(state.play(), Play::Continue);
+        assert!(state.wants_playback());
+        assert_eq!(state.interruption_ended(false), None);
+        state.interruption_began();
+        assert!(state.finish(generation, 1, 2.0));
+        assert_eq!(state.interruption_ended(true), None);
+        assert!(!state.wants_playback());
+    }
+
+    #[test]
+    fn repeated_interruption_begins_keep_resume_intent_until_an_explicit_pause() {
+        let mut state = Transport::default();
+        let generation = state.begin(true);
+        assert!(state.adopt(generation, 1));
+        state.interruption_began();
+        state.interruption_began();
+        assert_eq!(state.interruption_ended(true), Some(Play::Continue));
+        state.interruption_began();
+        state.pause();
+        state.interruption_began();
+        assert_eq!(state.interruption_ended(true), None);
+    }
+
     #[test]
     fn interruption_resume_respects_manual_pause_stop_route_loss_and_session_failures() {
         for action in 0..5 {

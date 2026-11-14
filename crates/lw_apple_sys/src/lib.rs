@@ -44,6 +44,9 @@ pub mod context;
 pub mod waveform;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
+pub mod session;
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod player;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
