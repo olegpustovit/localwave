@@ -594,6 +594,15 @@ fn source_reconnect_and_guarded_removal_migrate_legacy_rows_atomically_and_rejec
     let original = source(&repo, 1, "/original");
     let foreign = source(&repo, 2, "/foreign");
     let id = original.id.unwrap();
+    repo.upsert_source_paths(&[SourcePath {
+        source_id: id,
+        path_id: 17,
+        parent_path_id: Some(original.path_id),
+        name: "legacy.flac".into(),
+        relative_path: "Album/legacy.flac".into(),
+        ..Default::default()
+    }])
+    .unwrap();
     let mut legacy = song(&mut repo, 1, None);
     legacy.path_hash = 17;
     let legacy = repo.upsert_song(&legacy, 101.0).unwrap();
@@ -641,6 +650,11 @@ fn source_reconnect_and_guarded_removal_migrate_legacy_rows_atomically_and_rejec
         .unwrap();
     assert_eq!(saved.id, original.id);
     assert_eq!(saved.created_at, original.created_at);
+    assert_eq!(
+        repo.source_paths(id, Some(saved.path_id)).unwrap().len(),
+        1,
+        "the previous complete index must remain browsable before a rescan commits"
+    );
     let migrated = repo.get_song(legacy.id.unwrap()).unwrap().unwrap();
     assert_eq!(migrated.source_id, Some(id));
     assert_eq!(migrated.relative_path.as_deref(), Some("Album/legacy.flac"));

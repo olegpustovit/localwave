@@ -175,7 +175,7 @@ fn native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once()
     let mut events = Vec::with_capacity(32);
     assert!(window.pump(&mut events));
     let chosen = sdl3_sys::test_util::dialog_reserve();
-    let mut pending = Some((i64::from(chosen), 42));
+    let mut pending = Some((i64::from(chosen), events::FolderPurpose::Add(42)));
     assert!(sdl3_sys::test_util::dialog_finish(
         chosen,
         Some(&["/Music/名前"])
@@ -185,12 +185,38 @@ fn native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once()
     assert!(window.pump(&mut events));
     assert_eq!(
         events::folder_selection(&mut pending, &mut events),
-        Some(Ok(Some((42, "/Music/名前".into()))))
+        Some(Ok(Some((
+            events::FolderPurpose::Add(42),
+            "/Music/名前".into()
+        ))))
     );
     assert!(events::folder_selection(&mut pending, &mut events).is_none());
+    let reconnect = sdl3_sys::test_util::dialog_reserve();
+    let target = lw_ui::files::Target {
+        user: 42,
+        source: 7,
+        root: 99,
+    };
+    pending = Some((
+        i64::from(reconnect),
+        events::FolderPurpose::Reconnect(target),
+    ));
+    assert!(sdl3_sys::test_util::dialog_finish(
+        reconnect,
+        Some(&["/Music/Reconnected"])
+    ));
+    events.clear();
+    assert!(window.pump(&mut events));
+    assert_eq!(
+        events::folder_selection(&mut pending, &mut events),
+        Some(Ok(Some((
+            events::FolderPurpose::Reconnect(target),
+            "/Music/Reconnected".into()
+        ))))
+    );
     for failed in [false, true] {
         let id = sdl3_sys::test_util::dialog_reserve();
-        pending = Some((i64::from(id), 43));
+        pending = Some((i64::from(id), events::FolderPurpose::Add(43)));
         assert!(if failed {
             sdl3_sys::test_util::dialog_fail(id)
         } else {

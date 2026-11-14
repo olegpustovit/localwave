@@ -25,6 +25,8 @@ pub struct ShellState {
     settings_visible: bool,
     privacy_visible: bool,
     settings_menu: Option<(crate::SettingsMenu, (f32, f32))>,
+    source_menu: Option<(crate::files::Target, (f32, f32))>,
+    remove_source: Option<crate::files::Target>,
 }
 impl Default for ShellState {
     fn default() -> Self {
@@ -46,6 +48,8 @@ impl Default for ShellState {
             settings_visible: false,
             privacy_visible: false,
             settings_menu: None,
+            source_menu: None,
+            remove_source: None,
         }
     }
 }
@@ -151,6 +155,8 @@ impl ShellState {
     pub fn apply(&mut self, intent: Intent) -> bool {
         match intent {
             Intent::Navigate(route) => {
+                self.source_menu = None;
+                self.remove_source = None;
                 self.settings_visible = false;
                 self.privacy_visible = false;
                 self.settings_menu = None;
@@ -162,6 +168,8 @@ impl ShellState {
             Intent::SelectRow(index) => self.selected = Some(index),
             Intent::TogglePanel => self.panel_visible = !self.panel_visible,
             Intent::ShowQueue => {
+                self.source_menu = None;
+                self.remove_source = None;
                 self.queue_visible = true;
                 self.settings_menu = None;
             }
@@ -191,6 +199,8 @@ impl ShellState {
                 self.sort = sort;
             }
             Intent::ShowSettings => {
+                self.source_menu = None;
+                self.remove_source = None;
                 self.settings_visible = true;
                 self.privacy_visible = false;
                 self.queue_visible = false;
@@ -212,6 +222,18 @@ impl ShellState {
                 }
             }
             Intent::CloseSettingsMenu => self.settings_menu = None,
+            Intent::SourceMenu(target, at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.source_menu = Some((target, at));
+                    self.settings_menu = None;
+                }
+            }
+            Intent::CloseSourceMenu => self.source_menu = None,
+            Intent::ConfirmRemoveSource(target) => {
+                self.remove_source = Some(target);
+                self.source_menu = None;
+            }
+            Intent::CloseRemoveSource => self.remove_source = None,
             Intent::Setting(_) => {
                 self.settings_menu = None;
                 self.revision = self.revision.wrapping_add(1);
@@ -234,6 +256,7 @@ struct Palette {
     line: Rgba,
     key: Rgba,
     signal: Rgba,
+    danger: Rgba,
 }
 const fn rgb(hex: u32) -> Rgba {
     Rgba {
@@ -255,6 +278,7 @@ fn palette(ui: &Ui) -> Palette {
             line: rgb(0x262626),
             key: rgb(0x1F1F1F),
             signal: ui.theme().tokens.accent,
+            danger: rgb(0xF26A6A),
         }
     } else {
         Palette {
@@ -266,6 +290,7 @@ fn palette(ui: &Ui) -> Palette {
             line: rgb(0xDADADA),
             key: rgb(0xFBFBFB),
             signal: ui.theme().tokens.accent,
+            danger: rgb(0xC01818),
         }
     }
 }
@@ -828,6 +853,12 @@ pub fn shell(
     }
     if let Some((menu, at)) = state.settings_menu {
         settings::popup(ui, player, menu, at, p, intent);
+    }
+    if let Some((target, at)) = state.source_menu {
+        files::popup(ui, player, target, at, p, intent);
+    }
+    if let Some(target) = state.remove_source {
+        files::confirm_remove(ui, player, target, p, intent);
     }
     let (width, height) = ui.view_size();
     let panel = !state.settings_visible

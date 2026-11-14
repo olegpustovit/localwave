@@ -70,6 +70,11 @@ pub enum Intent {
     Support,
     Files(files::Request),
     ChooseFolder,
+    SourceMenu(files::Target, (f32, f32)),
+    CloseSourceMenu,
+    ReconnectSource(files::Target),
+    ConfirmRemoveSource(files::Target),
+    CloseRemoveSource,
 }
 
 #[derive(Default)]

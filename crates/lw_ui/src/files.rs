@@ -22,6 +22,7 @@ pub enum Request {
     Rescan(Location),
     Import(Location),
     ImportPath { user: i64, source: i64, path: i64 },
+    Remove(Target),
     Cancel,
 }
 

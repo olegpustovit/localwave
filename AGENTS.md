@@ -256,3 +256,12 @@ the root update or deletion. Revalidate the account/root captured by an action; 
 also checks owner, root, bookmark, error and update stamp. Never delete original or cache files
 when removing a source. Current native items retain their cached-file lease and metadata from the
 leased Song after the library row disappears; release cache protection only after native retirement.
+
+Folder options are available on source cards and directory headers, with right-click support on
+cards. Capture account/source/root in the menu, confirmation and reconnect picker purpose; reject
+stale confirmations both in the UI and worker. Reconnect reuses the existing native folder dialog
+with its own typed purpose, exact request ID and one-shot completion. Removal requires the explicit
+dialog action. Mutations share the bounded Files slot; cancel work before reconnect/remove.
+When a root changes, reparent its indexed top-level rows in the same transaction so the previous
+complete index stays browsable until rescan commits. Preserve the real moved-folder/legacy/Favorite/
+membership/foreign-source checks, warm options/dialog allocation case and native cache-lease test.

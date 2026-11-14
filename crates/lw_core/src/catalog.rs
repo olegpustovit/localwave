@@ -363,6 +363,9 @@ impl LibraryRepository {
             let current = require_source_version(db, expected)?;
             migrate_locations(db, id, &hashes)?;
             let moved = current.dir_path != resolved.dir_path || current.path_id != resolved.path_id;
+            if moved {
+                db.execute("UPDATE source_paths SET parentPathId=? WHERE sourceId=? AND parentPathId=?", &[Integer(resolved.path_id), Integer(id), Integer(current.path_id)])?;
+            }
             let stamp = if moved || current.updated_at != resolved.updated_at { Some(now.max(current.updated_at.unwrap_or(current.created_at) + 0.001)) } else { current.updated_at };
             db.execute("UPDATE sources SET dirPath=?,pathId=?,bookmark=?,syncError=?,updatedAt=strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch') WHERE id=?", &[Text(&resolved.dir_path), Integer(resolved.path_id), Blob(bookmark), resolved.sync_error.as_deref().map_or(Null, Text), stamp.map_or(Null, Real), Integer(id)])?;
             required(source(db, id)?)

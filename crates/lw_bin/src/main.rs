@@ -393,10 +393,14 @@ fn run() -> Result<(), String> {
         if let Some(selection) = events::folder_selection(&mut folder_picker, &mut events) {
             command_error = match selection {
                 Ok(None) => None,
-                Ok(Some((user, path))) => files
-                    .add_folder(user, path)
-                    .err()
-                    .map(|_| "Could not add this folder. Try again."),
+                Ok(Some((purpose, path))) => match purpose {
+                    events::FolderPurpose::Add(user) => files.add_folder(user, path),
+                    events::FolderPurpose::Reconnect(target) => {
+                        files.reconnect_folder(target, path)
+                    }
+                }
+                .err()
+                .map(|_| "Could not update this folder. Try again."),
                 Err(message) => Some(message),
             };
             error_revision += 1;
@@ -658,21 +662,37 @@ fn run() -> Result<(), String> {
             }
             if let Some(intent) = intent {
                 if let lw_ui::Intent::Files(request) = intent {
-                    command_error = files
-                        .request(request)
+                    let result = files.request(request);
+                    if result.is_ok() {
+                        shell_state.apply(lw_ui::Intent::CloseSourceMenu);
+                        if matches!(request, lw_ui::files::Request::Remove(_)) {
+                            shell_state.apply(lw_ui::Intent::CloseRemoveSource);
+                        }
+                    }
+                    command_error = result
                         .err()
                         .map(|_| "Folder work is busy or unavailable. Try again.");
                     error_revision += 1;
                     repaint = Some(now);
                     continue;
                 }
-                if intent == lw_ui::Intent::ChooseFolder {
+                if matches!(
+                    intent,
+                    lw_ui::Intent::ChooseFolder | lw_ui::Intent::ReconnectSource(_)
+                ) {
+                    let purpose = match intent {
+                        lw_ui::Intent::ReconnectSource(target) => {
+                            Some(events::FolderPurpose::Reconnect(target))
+                        }
+                        _ => files.snapshot().account.map(events::FolderPurpose::Add),
+                    };
+                    shell_state.apply(lw_ui::Intent::CloseSourceMenu);
                     if folder_picker.is_none()
-                        && let Some(user) = files.snapshot().account
+                        && let Some(purpose) = purpose
                     {
                         match window.show_dialog(&[], None, pxui_sdl::DialogKind::OpenFolder) {
                             Ok(id) => {
-                                folder_picker = Some((id, user));
+                                folder_picker = Some((id, purpose));
                                 command_error = None;
                             }
                             Err(_) => {
@@ -809,9 +829,15 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::PrivacyPolicy | lw_ui::Intent::Support => {
                             unreachable!("handled above")
                         }
-                        lw_ui::Intent::Files(_) | lw_ui::Intent::ChooseFolder => {
+                        lw_ui::Intent::Files(_)
+                        | lw_ui::Intent::ChooseFolder
+                        | lw_ui::Intent::ReconnectSource(_) => {
                             unreachable!("handled above")
                         }
+                        lw_ui::Intent::SourceMenu(_, _)
+                        | lw_ui::Intent::CloseSourceMenu
+                        | lw_ui::Intent::ConfirmRemoveSource(_)
+                        | lw_ui::Intent::CloseRemoveSource => unreachable!("handled by ShellState"),
                     })
                 };
                 let result = if let Some(request) = browse {
