@@ -66,6 +66,11 @@ Open Settings from the sidebar or with ⌘, to change download-ahead, simulated 
 Open **Files → Add folder** to choose an original music folder. A separate worker indexes and recursively imports its audio, with progress and Cancel. **Add audio files** copies selected tracks into **Added Files**, opens that source and starts the selected tracks in picker order, deduplicated by song identity. Identical files reuse their original name; differing name collisions get a UUID prefix. These private copies play directly and are excluded from cache eviction. Browse indexed subfolders, import individual audio files or whole folders, and use **Rescan source** to refresh the entire source. **Folder options** (also on right-click) offers **Reconnect folder…** and confirmed **Remove source**. Reconnect keeps source/song IDs and Favorites; removal deletes the source's library records and playlist memberships while leaving files on disk. Cancel active source work before reconnecting or removing. Swift account identities and legacy folder rows are preserved; stale account/root actions are rejected. Drop folders and audio files from Finder anywhere in the window. The drop opens Files with progress and Cancel; audio joins Added Files, folders stay in place, and imported tracks play in selection order (selected files first, then naturally sorted folder tracks). Empty folders leave playback unchanged. Wait or cancel active source work before another drop. Automatic source observation remains unfinished. Actual sandbox picker/drop grants and live provider/account transitions still need qualification.
 Quit an already running Rust app before opening a rebuilt bundle so macOS launches the new binary.
 
+Find's **Play all** plays its full result set. **Keep offline** queues eligible results on the
+library worker; **Kept offline** releases their pins while preserving existing copies until normal
+cache eviction. The toolbar uses the SwiftUI button geometry and background animations. The
+command palette and scrolling search header still need porting; full visual parity is unfinished.
+
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 
 ```sh

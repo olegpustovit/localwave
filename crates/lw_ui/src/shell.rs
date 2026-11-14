@@ -8,6 +8,7 @@ mod albums;
 mod artists;
 mod byline;
 mod files;
+mod find;
 mod settings;
 mod songs;
 
@@ -524,12 +525,16 @@ fn icon_button(
                     let x = rect.x + (rect.w - 20.0) / 2.0;
                     let y = rect.y + (rect.h - 20.0) / 2.0;
                     match icon {
-                        Icon::Play => {
-                            for row in 0..16 {
-                                let w = (8.0 - (row as f32 - 7.5).abs()) * 1.5;
-                                paint.fill(x + 5.0, y + 2.0 + row as f32, w, 1.0, color);
-                            }
-                        }
+                        Icon::Play => crate::icons::play(
+                            paint,
+                            Rect {
+                                x,
+                                y,
+                                w: 20.0,
+                                h: 20.0,
+                            },
+                            color,
+                        ),
                         Icon::Pause => {
                             paint.fill(x + 4.0, y + 3.0, 4.0, 14.0, color);
                             paint.fill(x + 12.0, y + 3.0, 4.0, 14.0, color);
@@ -1625,7 +1630,7 @@ fn header(
             );
             spacer(ui, "album-header-bottom", 1.0);
         } else if state.route == Route::Find {
-            rule(ui, "heading-divider", false, p);
+            find::toolbar(ui, catalog, state, p, intent);
         }
     });
 }

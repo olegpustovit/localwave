@@ -3,6 +3,34 @@ use pxui::{
     geom::{Rect, Rgba},
 };
 
+pub(crate) fn play(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    paint.triangle(at((7.0, 4.6)), at((7.0, 19.4)), at((19.4, 12.0)), color);
+}
+pub(crate) fn offline(paint: &mut Paint<'_>, rect: Rect, kept: bool, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let mut line = |a: (f32, f32), b: (f32, f32)| {
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5)),
+            at(b),
+            1.6 * scale,
+            color,
+        )
+    };
+    if kept {
+        line((5.0, 12.5), (9.5, 17.0));
+        line((9.5, 17.0), (19.0, 7.5));
+    } else {
+        line((12.0, 4.0), (12.0, 15.0));
+        line((7.0, 10.0), (12.0, 15.0));
+        line((12.0, 15.0), (17.0, 10.0));
+        line((5.0, 20.0), (19.0, 20.0));
+    }
+}
+
 pub(crate) fn shuffle(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     // Same 24-unit paths and 1.6-unit round stroke as LW-shuf.imageset/shuf.svg.
     let scale = rect.w.min(rect.h) / 24.0;

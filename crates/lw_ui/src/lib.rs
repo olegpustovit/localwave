@@ -33,6 +33,7 @@ pub enum Intent {
     SelectRow(usize),
     PlayRow(usize),
     AppendSong(i64),
+    TogglePins,
     SongMenu(usize, i64, u64, (f32, f32)),
     CloseSongMenu,
     TogglePanel,

@@ -964,6 +964,28 @@ fn run() -> Result<(), String> {
                                 context: Some(collection.context.clone()),
                             }
                         }
+                        lw_ui::Intent::TogglePins => {
+                            let Some(group) = shell_state.collection(player.catalog()) else {
+                                continue;
+                            };
+                            let ids = if shell_state.route == lw_ui::catalog::Route::Find {
+                                let Some(summary) = player
+                                    .catalog()
+                                    .view
+                                    .as_ref()
+                                    .and_then(|view| view.find.as_ref())
+                                else {
+                                    continue;
+                                };
+                                &summary.eligible
+                            } else {
+                                &group.ids
+                            };
+                            if ids.is_empty() {
+                                continue;
+                            }
+                            Command::TogglePins(ids.clone())
+                        }
                         lw_ui::Intent::AppendSong(id) => {
                             shell_state.apply(lw_ui::Intent::CloseSongMenu);
                             Command::Append(id)

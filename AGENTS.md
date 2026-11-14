@@ -391,3 +391,13 @@ Background copies share the inbox-locked cancellation gate with waveforms, after
 Resume persisted work at startup and retry on explicit RefreshCatalog; failures must settle without
 a tight retry loop. Never start/pause playback for a pin action or delete original files on unpin.
 Preserve the native copy/resume, snapshot-generation, rollback and blocked-source regressions.
+
+Find's Play all/Keep offline toolbar uses SwiftUI's 30-point buttons, 8-point gap, 10-point side
+padding, 16/18-point SVG icons and 15-point bottom padding including its full-width one-point rule.
+Measure 13-point Host labels with distinct identities and ceil to physical pixels. These buttons
+animate only their retained hover/press backgrounds for 140 ms; do not apply the key style's scale
+effect. Borrow the prepared eligible IDs, clone their Arc into TogglePins, and leave copies and
+preferences on the worker. Disable stale-query/empty/blocked actions. ABI 1.22 exposes accessible
+text values and draws play as one analytic triangle; preserve native 1x/2x geometry, UTF-8 guards,
+glyph retention, idling and zero warm allocations. The legacy Find input remains until its command
+palette and scrolling query hero are implemented; the toolbar alone does not qualify Find parity.

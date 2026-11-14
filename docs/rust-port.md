@@ -2,6 +2,89 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## Find toolbar and shared vector checkpoint
+
+Find now binds **Play all** and **Keep offline / Kept offline** to the existing serialized playback
+and offline service. The UI borrows the worker-prepared result and eligibility payloads; the host
+clones the retained ID Arc into `Command::TogglePins`. Stale-query, empty-result and unavailable
+actions are disabled. Preferences, availability probes and copying remain on the library worker.
+
+The toolbar matches measured SwiftUI geometry at **1× and 2×**: 30-point buttons, 8-point gaps,
+10-point horizontal padding, 16-point play / 18-point offline icons, 13-point Host labels with
+18.2-point line boxes, and 15-point bottom padding containing a full-width one-point rule. At 1×,
+Play all is 84 points wide and Keep/Kept offline 115/112; at 2× these are 83.5 and 114.5/111.5.
+Hover and press animate retained backgrounds with the native 140 ms curve, preserving full-size
+text and glyph instances. These use `LWIconButtonStyle`, which has no key-style scale effect.
+Transitions stop changing when settled and idle after release/hover exit. Reduced motion jumps.
+The native geometry fixture log is `/tmp/localwave-native-find-tools-geometry.log`; this is a
+component geometry comparison, **not full-window screenshot parity**.
+
+pxui **ABI 1.22**, published as `d8e47ae4689df80435d339fa336782a24c25274f`, adds a shared analytic
+filled triangle in the existing shape span. Both Metal and Vulkan shaders use one 64-byte instance,
+with no tessellation, per-icon buffers or new draw pipeline. Both windings render identically;
+degenerate, nonfinite and overflowing geometry is rejected. The app uses the actual play SVG's
+vertices, replacing its old 16 horizontal strips everywhere. Download/check use the actual SVG
+paths and existing analytic round strokes. This does not claim identical antialiasing to CoreGraphics.
+
+The same minor exposes existing accessibility text-value storage through the C ABI and Rust
+wrapper. It validates UTF-8 and byte-selection boundaries before mutation, preserves numeric-value
+precedence and warm buffers, and quietly ignores stale Rust handles. Find exposes the native kept
+state value without adding duplicate accessible labels. No C structure layout changed.
+
+### Checks
+
+- **187 app checks pass**, **22.739 s wall / 17.026 s summed**, zero skips:
+  `/tmp/localwave-find-tools-app-matrix.log`. The two focused geometry/action/motion checks pass in
+  **4.434 s wall / 0.042 s summed**, `/tmp/localwave-find-tools-ui-focused-fixed.log`.
+- The first animation assertion incorrectly expected idling with a pointer held; pxui intentionally
+  requests frames during capture. The corrected check preserves the 140 ms deadline and verifies
+  unchanged draw revision after settlement, unchanged glyphs/geometry, release/exit idling and zero
+  warm allocations. The original failure remains in `/tmp/localwave-find-tools-ui-focused.log`.
+- **343 SDK checks pass**, **14.940 s wall / 14.635 s summed**, zero skips:
+  `/tmp/localwave-find-tools-sdk-matrix.log`. The runner repeated five cases alone under its existing
+  contention policy; the complete log retains these entries. The original 1.5× layout-scaling
+  assertion also passes; earlier failures remain recorded below.
+- **67 static-wrapper checks pass**, **5.284 s wall / 2.094 s summed**, zero skips:
+  `/tmp/localwave-find-tools-sdk-static.log`.
+- Native triangle pixels pass at 1×/2× against independent polygon/pixel-area clipping, including
+  both windings, translucency, one draw and zero warm Rust allocations: **5.893 s wall / 0.831 s
+  case**, `/tmp/localwave-triangle-native-pixels.log`. Geometry and accessibility validation logs:
+  `/tmp/localwave-triangle-wrapper-focused.log`, `/tmp/localwave-accessible-value-sdk-fixed.log`.
+- Dependency, ABI header/snapshot and export gates pass. App Clippy with all targets, native interop
+  and warnings denied passes in **3.12 s**, `/tmp/localwave-find-tools-clippy-fixed.log`; the earlier
+  eager-Option lint is retained in `/tmp/localwave-find-tools-clippy.log`.
+
+### Signed twelve-workload result
+
+`/tmp/localwave-find-tools-performance.log` retains **182/82/100 total/warm/measured frames**, all
+12 workloads and both app/libpxui allocation counters. **All 12 report zero warm Rust UI
+allocations. Eleven strict 1,000 µs wall maxima fail**; Songs passes this run at 718 µs, which does
+not resolve its earlier failures. `make performance` therefore exits with failure as required.
+Release library/app builds take **22.17 / 11.63 s** after renderer/ABI changes. The signed bundle
+verifies macOS 15, default executable stack, bundled dylib identity and portable rpath; smoke
+reaches **510.2 ms idle**. The existing normal GUI was preserved.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 718 / 303 / 359 / 515 | 639 / 303 / 338 / 429 |
+| find-filters-title-descending | 3365 / 950 / 2436 / 3181 | 995 / 704 / 861 / 886 |
+| queue-occurrences | 3904 / 723 / 2351 / 3207 | 930 / 630 / 798 / 907 |
+| queue-carry-scroll-cancel | 3232 / 566 / 2483 / 3059 | 2312 / 518 / 968 / 2279 |
+| full-queue-playlist-editor | 3565 / 809 / 2000 / 2651 | 1072 / 635 / 932 / 1046 |
+| albums-artwork | 3760 / 851 / 2153 / 3421 | 2083 / 758 / 1469 / 1939 |
+| waveform-scrub-and-scroll | 2875 / 554 / 1650 / 2176 | 926 / 410 / 870 / 917 |
+| settings-menus-appearance | 2297 / 337 / 1369 / 2165 | 525 / 294 / 477 / 517 |
+| files-indexed-directory | 2688 / 349 / 2017 / 2413 | 461 / 320 / 400 / 439 |
+| external-drop-hover-and-cancel | 2076 / 307 / 677 / 1975 | 381 / 288 / 352 / 370 |
+| artists-measured-columns | 2862 / 700 / 1804 / 2441 | 1007 / 615 / 852 / 976 |
+| songs-playing-indicator | 2943 / 935 / 2027 / 2911 | 1056 / 841 / 1028 / 1051 |
+
+Artwork retains **19 image quads / 4,800,512 bytes / zero warm requests**. Artists retains
+**23–31 rows**, first artist **1–13**. Indicators cover **58 playing / 34 paused frames**, with
+**37 changing frames**. Native/process allocations, provider copy while playing and full platform
+qualification remain open. The **command palette, scrolling Find query hero, detail headers and
+remaining layouts/animations are unfinished**; the legacy input remains usable until replaced.
+
 ## Find summaries and offline-action service checkpoint
 
 The library worker now prepares the Find result count, matching album count, owned folder count,
