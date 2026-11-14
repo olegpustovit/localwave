@@ -154,7 +154,7 @@ fn run() -> Result<(), String> {
     }
     ui.enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
-    let mut themes = lw_bin::appearance::Themes::new(&ui)?;
+    let mut themes = lw_bin::appearance::Themes::new(&mut ui)?;
     themes.apply(
         &mut ui,
         &lw_core::preferences::Settings::default(),
@@ -664,6 +664,7 @@ fn run() -> Result<(), String> {
             }
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
+                command_theme: themes.command_field(),
                 files: Some(files.snapshot()),
                 file_dragging: file_drop.hovered(),
                 settings: status.settings,
@@ -831,6 +832,19 @@ fn run() -> Result<(), String> {
                 }
             }
             if let Some(intent) = intent {
+                let intent = if let lw_ui::Intent::ActivateCommand(key) = intent {
+                    let Some(intent) = shell_state.activate_command(
+                        player.catalog(),
+                        key,
+                        player.status().wants_playback,
+                        ui.tokens().foreground.r > 128,
+                    ) else {
+                        continue;
+                    };
+                    intent
+                } else {
+                    intent
+                };
                 if let lw_ui::Intent::Files(request) = intent {
                     let result = files.request(request);
                     if result.is_ok() {
@@ -935,6 +949,9 @@ fn run() -> Result<(), String> {
                         intent,
                         lw_ui::Intent::Navigate(_)
                             | lw_ui::Intent::Search(_)
+                            | lw_ui::Intent::ShowCommands
+                            | lw_ui::Intent::CloseCommands
+                            | lw_ui::Intent::CommandQuery(_)
                             | lw_ui::Intent::Sort(_)
                     ) {
                         browse = shell_state.request(player.catalog());
@@ -965,6 +982,31 @@ fn run() -> Result<(), String> {
                                 autoplay: true,
                                 context: Some(collection.context.clone()),
                             }
+                        }
+                        lw_ui::Intent::PlayCommand(key) => {
+                            let Some(results) = shell_state.command_results(player.catalog())
+                            else {
+                                continue;
+                            };
+                            let Some(lw_ui::commands::Action::Play(index)) = results
+                                .items
+                                .iter()
+                                .find(|item| item.key == key)
+                                .map(|item| item.action)
+                            else {
+                                continue;
+                            };
+                            if index >= results.songs.len() {
+                                continue;
+                            }
+                            let command = Command::Configure {
+                                songs: results.songs.clone(),
+                                start: index,
+                                autoplay: true,
+                                context: Some(results.context.clone()),
+                            };
+                            shell_state.apply(lw_ui::Intent::CloseCommands);
+                            command
                         }
                         lw_ui::Intent::TogglePins => {
                             let Some(group) = shell_state.collection(player.catalog()) else {
@@ -1046,6 +1088,13 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::SelectRow(_)
                         | lw_ui::Intent::Search(_)
                         | lw_ui::Intent::SearchTooLong
+                        | lw_ui::Intent::ShowCommands
+                        | lw_ui::Intent::CloseCommands
+                        | lw_ui::Intent::CommandQuery(_)
+                        | lw_ui::Intent::CommandTooLong
+                        | lw_ui::Intent::CommandSelect(_)
+                        | lw_ui::Intent::ShowShortcuts
+                        | lw_ui::Intent::CloseShortcuts
                         | lw_ui::Intent::Sort(_)
                         | lw_ui::Intent::SortAlbums(_)
                         | lw_ui::Intent::TogglePanel
@@ -1066,6 +1115,7 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::PrivacyPolicy | lw_ui::Intent::Support => {
                             unreachable!("handled above")
                         }
+                        lw_ui::Intent::ActivateCommand(_) => unreachable!("resolved above"),
                         lw_ui::Intent::Files(_)
                         | lw_ui::Intent::ChooseFolder
                         | lw_ui::Intent::ChooseAudio

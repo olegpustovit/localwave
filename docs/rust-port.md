@@ -20,6 +20,93 @@ The generic Metal frame shim lives in `metal_sys`, generic AppKit chrome in `sdl
 retained image descriptors/requests in the public `pxui::images` module. The original hostless
 renderer API remains available for embedding. SwiftUI feature parity remains unfinished.
 
+## Command palette UI and keyboard input checkpoint
+
+The command palette is now connected to the worker's prepared results. **Command-K** opens it,
+including a Command release in the same event batch; **slash** opens it outside a text field.
+It has the reference 20-point/59-point input, grouped song/album/artist/folder/list/command rows,
+artwork, wrapping up/down selection, scrolling to selection, Return/click activation and keyboard
+help. Escape, outside clicks and focus loss dismiss it. Reopening restores field focus. The app
+registers its field body once and retains scoped themes for all appearance/accent combinations.
+Editing, event routing, layout and drawing remain in pxui's public API.
+
+The page's Find query and sort remain separate from the palette query. Query changes reset
+selection and hide obsolete actions until matching results arrive; editing and Return in one
+batch cannot activate the old query. Activation validates a current result key. Song playback
+passes the **complete ranked queue and retained context** to the existing controller. Other actions
+reuse existing navigation, source, playback and preference intents. Command-only catalog updates
+invalidate the palette even when the underlying page Arc remains identical.
+
+SDK **`c78d6d1`**, published on `rust-port`, adds **ABI 1.23** `key_pressed_with`. This raw,
+non-consuming query uses the modifier state at each press, preserves same-frame release ordering
+and clears held state on focus loss. It validates Shift/Ctrl/Alt/Meta and failed outputs stay
+unchanged. The implementation records four initial booleans, without copying event vectors.
+The palette's first keyboard allocation check exposed **three Rust allocations per arrow frame**:
+text fields copied their signal events and key/modifier vectors. The shared editor now reads scalar
+signals and temporarily borrows/restores the retained key stream; captured Shift queries also
+borrow storage. Original editing semantics and later key consumers are preserved.
+
+### Checks
+
+- **186 app checks pass in 21.779 s wall / 15.456 s summed**, zero skips:
+  `/tmp/localwave-command-ui-app-matrix.log`. The final focused run adds same-batch edit/submit
+  and focus-loss assertions: **two checks, 5.046 s wall / 0.257 s summed**,
+  `/tmp/localwave-command-ui-final.log`. Its real 10,000-song background, wrapping selection,
+  scroll visibility, Unicode edits, focus/dismissal and keyboard help retain zero warm Rust
+  allocations across app and dylib. The slowest focused case takes **0.234 s**.
+- **122 SDK/ABI/host checks pass in 13.224 s / 6.052 s summed**, zero skips,
+  `/tmp/localwave-command-chord-sdk-matrix.log`. **78 static-wrapper/host checks** pass in
+  **9.340 s / 3.867 s summed**, `/tmp/localwave-command-chord-static.log`.
+- Final dynamic/static text-field checks pass modified keyboard input, retained selection/IME,
+  default/relative/explicit sizes, zero warm allocations and later reads of the original key
+  stream. Two cases take **5.438 / 3.823 s wall**, respectively:
+  `/tmp/localwave-command-field-retained-keys-{dynamic,static}-final.log`.
+  The final dynamic modifier-order case passes in **0.726 s wall / 0.031 s case**,
+  `/tmp/localwave-command-chord-dynamic-final.log`.
+- The existing native default-field Metal 1x/2x pixel check passes in **14.234 s wall / 0.145 s
+  case**, `/tmp/localwave-command-chord-native-field.log`. Custom-size glyph geometry remains
+  covered by the wrapper regression; no new independent native palette pixel oracle is claimed.
+- App all-target Clippy and scoped core/ABI Clippy pass with warnings denied, in **2.32 / 2.57 s**,
+  `/tmp/localwave-command-ui-clippy-final.log`, `/tmp/localwave-command-chord-sdk-clippy.log`.
+  Dependency, tier, C-header, ABI snapshot/export and diff whitespace gates pass. Shape checking
+  still reports the same nine existing findings; no new exclusions or threshold changes.
+- First compile, shortcut-order and allocation failures remain in the `command-ui-regression`,
+  `command-ui-chord-regression`, `command-ui-alloc-trace` and `command-ui-borrowed-key-regression`
+  logs. The earlier full/isolated layout-scaling failures also remain unresolved above/below.
+
+### Signed bundle and strict performance
+
+`/tmp/localwave-command-ui-signed-performance.log` retains all **12 original workloads**, 10,000
+songs, **182/82/100 total/warm/measured frames** and both Rust counters. All 12 retain **zero warm
+Rust allocations**; all 12 fail the unchanged **1,000 µs wall maximum**, and `make performance`
+exits with failure. The palette's warm navigation check is separate from these signed workloads.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 5800 / 538 / 3054 / 3499 | 985 / 491 / 895 / 961 |
+| find-filters-title-descending | 3999 / 814 / 3071 / 3894 | 1072 / 735 / 933 / 995 |
+| queue-occurrences | 7257 / 686 / 3397 / 6641 | 989 / 552 / 802 / 910 |
+| queue-carry-scroll-cancel | 5433 / 635 / 3231 / 4130 | 2396 / 506 / 907 / 2383 |
+| full-queue-playlist-editor | 4364 / 844 / 3655 / 4333 | 1275 / 693 / 1076 / 1155 |
+| albums-artwork | 4391 / 707 / 3467 / 4099 | 1451 / 616 / 1233 / 1369 |
+| waveform-scrub-and-scroll | 5743 / 651 / 3303 / 4611 | 1272 / 448 / 1015 / 1168 |
+| settings-menus-appearance | 11566 / 376 / 1783 / 4173 | 570 / 309 / 526 / 546 |
+| files-indexed-directory | 6489 / 359 / 1939 / 4634 | 665 / 340 / 415 / 464 |
+| external-drop-hover-and-cancel | 4047 / 293 / 2406 / 3283 | 499 / 281 / 415 / 481 |
+| artists-measured-columns | 5210 / 737 / 3290 / 4542 | 1157 / 634 / 1051 / 1140 |
+| songs-playing-indicator | 5930 / 1054 / 3817 / 5232 | 1507 / 928 / 1220 / 1286 |
+
+Release library/app builds take **21.65 / 13.65 s**. Signed bundle checks pass for macOS 15,
+default executable stack, bundled dylib ID and portable rpath; smoke reaches **504.9 ms idle**.
+Artwork retains 19 quads / 4,800,512 texture bytes / zero warm requests. The normal GUI PID 69331
+is preserved. These counters do not qualify native/process allocations or cold/text-change paths.
+
+Still open: the native mixed file/folder picker (Add music currently opens Files' existing separate
+choices), query highlights, the remaining global keyboard bindings listed in the reference help,
+full visual/native interaction parity, strict frame latency, native memory and platform/provider
+device qualification. iOS has not started. This is a functional palette checkpoint, not completion
+of the full port.
+
 ## Framework host ownership checkpoint
 
 SDK checkpoint **`a75122eb556e137c51e8c924dba6ad282aacba6e`** is published on `rust-port`.
@@ -113,7 +200,8 @@ album/artist suggestions and command/list actions. Results retain the full ranke
 display suggestions are bounded to six songs and three each of albums, artists and folders.
 Palette query changes preserve the underlying page Arc; ordinary refresh still recomputes it.
 An actual native playback start refreshes both unplayed results and Most played without another
-browse request. The visible palette and its action routing are **not connected yet**.
+browse request. At this data-service checkpoint the visible palette was not connected; the UI
+checkpoint above records its subsequent integration.
 The shared custom text-field font-size correction is published as SDK checkpoint `3cf7a7f`.
 Focused caret hit testing uses the previous displayed editor's size, while glyphs, selection and
 IME use the newly built editor's size. Default zero-size fields retain their existing rendering.

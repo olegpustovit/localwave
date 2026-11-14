@@ -47,6 +47,15 @@ pub enum Intent {
     RefreshLibrary,
     Search(browse::Query),
     SearchTooLong,
+    ShowCommands,
+    CloseCommands,
+    CommandQuery(browse::Query),
+    CommandTooLong,
+    CommandSelect(usize),
+    ActivateCommand(u64),
+    PlayCommand(u64),
+    ShowShortcuts,
+    CloseShortcuts,
     Sort(browse::Sort),
     PlayQueue(u64),
     RemoveQueue(u64),
@@ -88,6 +97,7 @@ pub enum Intent {
 
 #[derive(Default)]
 pub struct PlayerView<'a> {
+    pub command_theme: Option<&'a pxui::Theme>,
     pub files: Option<&'a files::Snapshot>,
     pub file_dragging: bool,
     pub settings: lw_core::preferences::Settings,

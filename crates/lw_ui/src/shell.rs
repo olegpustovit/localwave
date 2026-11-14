@@ -7,6 +7,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 mod albums;
 mod artists;
 mod byline;
+pub(crate) mod commands;
 mod files;
 mod find;
 mod settings;
@@ -35,6 +36,11 @@ pub struct ShellState {
     source_menu: Option<(crate::files::Target, (f32, f32))>,
     song_menu: Option<(usize, i64, u64, (f32, f32))>,
     remove_source: Option<crate::files::Target>,
+    commands_visible: bool,
+    command_query: Query,
+    command_selected: usize,
+    command_too_long: bool,
+    shortcuts_visible: bool,
 }
 impl Default for ShellState {
     fn default() -> Self {
@@ -61,6 +67,11 @@ impl Default for ShellState {
             source_menu: None,
             song_menu: None,
             remove_source: None,
+            commands_visible: false,
+            command_query: Query::default(),
+            command_selected: 0,
+            command_too_long: false,
+            shortcuts_visible: false,
         }
     }
 }
@@ -89,8 +100,10 @@ impl ShellState {
     }
     pub fn request(&self, catalog: &Catalog) -> Option<Request> {
         Some(Request {
-            commands: None,
-            scope: catalog.scope(self.route)?,
+            commands: self.commands_visible.then_some(self.command_query),
+            scope: catalog
+                .scope(self.route)
+                .or_else(|| self.commands_visible.then_some(Scope::Overview))?,
             query: if self.route == Route::Find {
                 self.query
             } else {
@@ -101,6 +114,18 @@ impl ShellState {
         })
     }
     pub fn refresh(&mut self, previous: &Catalog, next: &Catalog) {
+        let same_commands = match (&previous.commands, &next.commands) {
+            (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
+            (None, None) => true,
+            _ => false,
+        };
+        if !same_commands {
+            self.command_selected = self.command_selected.min(
+                self.command_results(next)
+                    .map_or(0, |r| r.items.len().saturating_sub(1)),
+            );
+            self.revision = self.revision.wrapping_add(1);
+        }
         let same_view = match (&previous.view, &next.view) {
             (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
             (None, None) => true,
@@ -187,6 +212,36 @@ impl ShellState {
             self.song_menu = None;
         }
         match intent {
+            Intent::ShowCommands => {
+                self.commands_visible = true;
+                self.command_query = Query::default();
+                self.command_selected = 0;
+                self.command_too_long = false;
+                self.shortcuts_visible = false;
+                self.queue_visible = false;
+                self.settings_menu = None;
+                self.source_menu = None;
+                self.song_menu = None;
+                self.remove_source = None;
+            }
+            Intent::CloseCommands => self.commands_visible = false,
+            Intent::CommandQuery(query) => {
+                self.command_query = query;
+                self.command_selected = 0;
+                self.command_too_long = false;
+            }
+            Intent::CommandTooLong => self.command_too_long = true,
+            Intent::CommandSelect(index) => self.command_selected = index,
+            Intent::ShowShortcuts => {
+                self.commands_visible = false;
+                self.shortcuts_visible = true;
+                self.queue_visible = false;
+                self.settings_menu = None;
+                self.source_menu = None;
+                self.song_menu = None;
+                self.remove_source = None;
+            }
+            Intent::CloseShortcuts => self.shortcuts_visible = false,
             Intent::SongMenu(index, id, key, at) => {
                 if at.0.is_finite() && at.1.is_finite() {
                     self.song_menu = Some((index, id, key, at));
@@ -196,6 +251,8 @@ impl ShellState {
             }
             Intent::CloseSongMenu => self.song_menu = None,
             Intent::Navigate(route) => {
+                self.commands_visible = false;
+                self.shortcuts_visible = false;
                 self.source_menu = None;
                 self.remove_source = None;
                 self.settings_visible = false;
@@ -993,6 +1050,11 @@ pub fn shell(
         ui.cancel_carry();
     }
     let p = palette(ui);
+    if state.commands_visible {
+        commands::palette_view(ui, player, catalog, state, p, intent);
+    } else if state.shortcuts_visible {
+        commands::shortcuts(ui, p, intent);
+    }
     if state.queue_visible {
         queue_sheet(ui, player, catalog, state, p, intent);
     }
@@ -1189,6 +1251,8 @@ pub fn shell(
         });
     }
     if intent.is_none()
+        && !state.commands_visible
+        && !state.shortcuts_visible
         && !state.queue_visible
         && !state.settings_visible
         && state.song_menu.is_none()
@@ -1201,11 +1265,26 @@ pub fn shell(
     {
         *intent = Some(Intent::PlayRow(index));
     }
-    let settings_shortcut = ui.key_pressed(',') && ui.key_down(input::Key::Meta.code());
-    if settings_shortcut {
+    let settings_shortcut = ui.key_pressed_with(',' as u32, input::Key::Meta.code());
+    if !state.commands_visible && !state.shortcuts_visible && settings_shortcut {
         *intent = Some(Intent::ShowSettings);
     }
-    if state.settings_visible && !state.queue_visible && ui.key_pressed(input::Key::Escape.code()) {
+    if !state.commands_visible && !state.shortcuts_visible && !state.queue_visible {
+        if ui.key_pressed_with('k' as u32, input::Key::Meta.code())
+            || ui.key_pressed_with('K' as u32, input::Key::Meta.code())
+            || (!ui.text_input_focused() && ui.key_pressed('/'))
+        {
+            *intent = Some(Intent::ShowCommands);
+        } else if !ui.text_input_focused() && ui.key_pressed('?') {
+            *intent = Some(Intent::ShowShortcuts);
+        }
+    }
+    if !state.commands_visible
+        && !state.shortcuts_visible
+        && state.settings_visible
+        && !state.queue_visible
+        && ui.key_pressed(input::Key::Escape.code())
+    {
         *intent = Some(if state.settings_menu.is_some() {
             Intent::CloseSettingsMenu
         } else if state.privacy_visible {

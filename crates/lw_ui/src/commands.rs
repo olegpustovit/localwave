@@ -4,6 +4,12 @@ use lw_core::context::PlaybackContext;
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::Arc;
 
+/// Register once, outside frames; select this body only in the palette's retained theme.
+pub fn register(ui: &mut pxui::Ui) -> Result<(), String> {
+    ui.register_text_field_body("localwave-command", crate::shell::commands::field_body)?;
+    Ok(())
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Command {
     PlayPause,

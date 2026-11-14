@@ -4,16 +4,23 @@ use lw_core::preferences::{Appearance, Settings, Signal};
 use pxui::{FrameIn, Theme, Ui};
 
 pub struct Themes {
-    themes: [[Theme; 4]; 2],
+    themes: [[(Theme, Theme); 4]; 2],
     selected: Option<(bool, Signal)>,
 }
 impl Themes {
-    pub fn new(ui: &Ui) -> Result<Self, String> {
-        let parsed = |source, accent| -> Result<Theme, String> {
-            let mut theme = Theme::default();
-            theme.apply(ui, source)?;
-            theme.set("tokens.accent", accent)?;
-            Ok(theme)
+    pub fn new(ui: &mut Ui) -> Result<Self, String> {
+        lw_ui::commands::register(ui)?;
+        let parsed = |source, accent| -> Result<(Theme, Theme), String> {
+            let make = || -> Result<Theme, String> {
+                let mut theme = Theme::default();
+                theme.apply(ui, source)?;
+                theme.set("tokens.accent", accent)?;
+                Ok(theme)
+            };
+            let root = make()?;
+            let mut field = make()?;
+            field.apply(ui, "text_field.body = localwave-command")?;
+            Ok((root, field))
         };
         Ok(Self {
             themes: [
@@ -40,9 +47,13 @@ impl Themes {
             Appearance::Dark => true,
         };
         if self.selected != Some((dark, settings.signal)) {
-            ui.use_theme(&self.themes[usize::from(dark)][settings.signal as usize]);
+            ui.use_theme(&self.themes[usize::from(dark)][settings.signal as usize].0);
             self.selected = Some((dark, settings.signal));
         }
+    }
+    pub fn command_field(&self) -> Option<&Theme> {
+        self.selected
+            .map(|(dark, signal)| &self.themes[usize::from(dark)][signal as usize].1)
     }
 }
 
@@ -53,7 +64,7 @@ mod tests {
     fn cached_themes_follow_system_and_explicit_preferences_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let mut ui = Ui::new().unwrap();
-        let mut themes = Themes::new(&ui).unwrap();
+        let mut themes = Themes::new(&mut ui).unwrap();
         let cases = [
             (Appearance::System, 0, false),
             (Appearance::System, 1, false),
