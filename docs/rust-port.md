@@ -20,6 +20,97 @@ The generic Metal frame shim lives in `metal_sys`, generic AppKit chrome in `sdl
 retained image descriptors/requests in the public `pxui::images` module. The original hostless
 renderer API remains available for embedding. SwiftUI feature parity remains unfinished.
 
+## Layout work reduction checkpoint
+
+SDK **`c77573be2cdea85ef7522bee661cd2c8b06afdbc`** is published on `rust-port`.
+The shared layout engine now skips child placement for nodes with no children and no scroll
+flags. Their parent has already assigned their bounds. Empty scrolling grids still run their
+scroll calculations and clamp both offsets. Flow, grid, stack and grow-allocation loops copy
+only the fields they use instead of copying each complete **600-byte Node**, including its visual
+and motion payload. An unused per-build-node `f32` gutter array is removed. ABI remains **1.23**.
+
+### Evidence and checks
+
+- The original scaling failure reproduces at **141 / 152 / 224 ns per node of layout** for
+  554 / 2,054 / 8,054 nodes. Total rebuild costs are **423 / 507 / 654 ns per node**:
+  `/tmp/localwave-layout-scaling-baseline-2026.log`. The existing **1.5×** maximum growth ratio
+  fails and is unchanged.
+- A one-second `sample` capture attaches to the live case launched through `cargo t`, retaining
+  the five-second case limit. It shows `arrange` and memory movement among the sampled work:
+  `/tmp/localwave-layout-scaling-sample.txt`, `-sample-command.log`, `-sampled-run.log`.
+  Disassembly of the changed debug `arrange` has **one 600-byte-copy site instead of five**:
+  `/tmp/localwave-layout-arrange-{before,small-copies}-disassembly.txt`. This is compiler-output
+  evidence, not a count of native allocations or attribution for signed-app wall-time outliers.
+- The first leaf-only run passes at **127 / 134 / 173 ns layout per node**, but its subsequent
+  full and isolated runs still fail, at **128→200** and **126→193 ns per node**, respectively.
+  Those results remain in `layout-leaf-scaling-first`, `layout-leaf-matrix` and
+  `layout-leaf-scaling-no-gutter-isolated` logs; one passing run was not treated as resolution.
+- After removing the child-loop copies, **29 layout checks pass in 10.562 s wall / 2.827 s
+  summed**, zero skips: `/tmp/localwave-layout-small-copies-matrix.log`. Scaling is now
+  **102 / 106 / 127 ns per node**, and rebuild costs **380 / 412 / 504 ns per node**. The existing
+  stress workload retains zero warm Rust allocations and its glyph-walk assertions.
+- **323 SDK/ABI/native/host checks pass in 22.561 s wall / 14.794 s summed**, zero skips:
+  `/tmp/localwave-layout-small-copies-sdk-full.log`. In this second run the unchanged scaling
+  test passes at **102 / 105 / 128 ns layout per node** and **382 / 405 / 504 ns rebuild per node**.
+  The large-tree layout measurement is about **43% lower** than the original isolated baseline;
+  this does not measure a 43% improvement in application frame time.
+- **78 static-wrapper/host checks pass in 8.915 s wall / 4.041 s summed**, zero skips,
+  `/tmp/localwave-layout-small-copies-static.log`. **186 app checks pass in 16.260 s / 15.292 s
+  summed**, zero skips, `/tmp/localwave-layout-small-copies-app-matrix.log`.
+- The new small regression alternates an empty grid's vertical extent, checks both scroll bounds,
+  checks relative/absolute leaf geometry, adds/removes children and asserts zero warm allocations.
+  Its first allocation assertion counted 15 allocations from the test's eager formatting helper;
+  exact, lazily formatted rectangle assertions preserve the geometry checks and remove that test
+  instrumentation allocation. The focused check passes in **4.256 s / 0.024 s case**:
+  `/tmp/localwave-layout-leaf-transition-fixed.log`.
+- Core and app all-target Clippy pass with warnings denied in **1.97 / 2.61 s**. Dependency,
+  C-header, ABI snapshot/export and diff whitespace checks pass. Corresponding logs use the
+  `/tmp/localwave-layout-small-copies-` prefix. `cargo check` checks types/text/core in **2.86 s
+  wall**, `/tmp/localwave-layout-small-copies-check.log`; this does **not** qualify the sub-second
+  warm edit budget or a clean workspace build budget.
+
+### Signed application result
+
+`/tmp/localwave-layout-small-copies-signed-performance.log` retains all original **12 workloads**,
+10,000 songs, **182/82/100 total/warm/measured frames**, both Rust allocation counters and the
+unchanged **1,000 µs wall maximum**. All 12 retain **zero warm Rust allocations**, and all 12
+still fail that wall maximum; `make performance` exits with failure. The SDK scaling improvement
+has not resolved application latency, and these separate signed runs do not establish a stable
+whole-app speedup.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 4159 / 813 / 3593 / 3953 | 1184 / 779 / 993 / 1085 |
+| find-filters-title-descending | 6053 / 782 / 3203 / 4488 | 1044 / 713 / 888 / 1027 |
+| queue-occurrences | 4444 / 733 / 2699 / 4263 | 879 / 643 / 788 / 822 |
+| queue-carry-scroll-cancel | 5472 / 622 / 3864 / 4537 | 2433 / 534 / 957 / 2409 |
+| full-queue-playlist-editor | 4374 / 783 / 3023 / 3905 | 1063 / 650 / 886 / 947 |
+| albums-artwork | 3845 / 604 / 2487 / 3714 | 1247 / 584 / 959 / 1203 |
+| waveform-scrub-and-scroll | 3406 / 538 / 2819 / 3191 | 1114 / 386 / 955 / 1038 |
+| settings-menus-appearance | 2769 / 337 / 1803 / 2447 | 644 / 304 / 514 / 561 |
+| files-indexed-directory | 3800 / 365 / 2424 / 3622 | 498 / 326 / 414 / 483 |
+| external-drop-hover-and-cancel | 2818 / 314 / 1086 / 1938 | 383 / 298 / 354 / 379 |
+| artists-measured-columns | 5297 / 811 / 3635 / 4595 | 1148 / 708 / 978 / 1089 |
+| songs-playing-indicator | 5406 / 938 / 3921 / 5003 | 1261 / 859 / 1115 / 1194 |
+
+Release library/app rebuilds take **25.17 / 12.94 s**. Signed bundle checks pass for macOS 15,
+default executable stack, bundled dylib ID and portable rpath. Smoke records **506.3 ms idle**;
+artwork retains 19 quads / 4,800,512 bytes / zero warm requests. Normal GUI PID 69331 is preserved.
+Native/process memory, a clean build and the warm edit budget, real provider/device and iOS
+qualification remain open. The full port remains in progress.
+
+The tier gate passes; shape checking still reports the same nine existing generic/lifetime/macro
+findings, without exclusions (`layout-small-copies-tiers.log`, `-shape.log`). A separate signed
+queue-carry diagnostic, `/tmp/localwave-layout-small-copies-drag-phases.log`, retains the original
+workload and gate and still fails: wall max **4,754 µs**, CPU max **2,287 µs**, zero warm Rust
+allocations. Frame **145**, the repeating scroll-back event, records **1,946 µs wall / 1,912 µs
+CPU**, with phase wall durations **[21, 1590, 26, 36, 189, 34, 36] µs** (begin, build, intrinsic,
+arrange, paint, accessibility, finish). This narrows the next investigation to UI construction
+around row changes; it does not identify the responsible function. The earlier general layout
+sample includes buffer reuse among its hot work, so it is a candidate to profile in this actual
+application workload. Phase values are wall durations, not per-phase CPU attribution. No workload,
+warmup, measured-frame count or timing limit was changed.
+
 ## Command palette UI and keyboard input checkpoint
 
 The command palette is now connected to the worker's prepared results. **Command-K** opens it,
