@@ -67,7 +67,7 @@ pub(super) fn paragraph(
             ..Node::DEFAULT
         },
     );
-    ui.text_spans(&node, value, &style, &[]).unwrap();
+    ui.text_line_box(&node, value, &style, &[]).unwrap();
     node
 }
 fn row(
@@ -190,7 +190,7 @@ fn row(
                         ..Node::DEFAULT
                     },
                 );
-                ui.text_spans(&label, detail, &label_style, &[]).unwrap();
+                ui.text_line_box(&label, detail, &label_style, &[]).unwrap();
             }
         });
         if let Some((on, _)) = toggle {

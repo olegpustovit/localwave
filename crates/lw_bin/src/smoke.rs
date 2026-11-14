@@ -200,6 +200,15 @@ pub fn seed_catalog(path: &std::path::Path) -> std::io::Result<()> {
     db.execute_batch("BEGIN IMMEDIATE; WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<10000) INSERT INTO songs (songKey,artist,title,album,albumArtist,pathHash,createdAt,duration,fileExtension,isFavorite,releaseYear) SELECT n,'Artist '||(n%10),printf('Track %05d',n),'Album '||(n%100),'Artist '||(n%10),n,n,240,'m4a',n%2,2019 FROM seq; INSERT INTO songs_fts(songId,artist,title,album,albumArtist) SELECT id,artist,title,album,albumArtist FROM songs; COMMIT").map_err(std::io::Error::other)
 }
 
+/// A separate artist workload keeps the ten existing fixture distributions unchanged.
+pub fn seed_artists(path: &std::path::Path) -> std::io::Result<()> {
+    let path = path
+        .to_str()
+        .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?;
+    let db = lw_apple_sys::sqlite::Connection::open(path).map_err(std::io::Error::other)?;
+    db.execute_batch("BEGIN IMMEDIATE; UPDATE songs SET artist=printf('Artist %05d',id),albumArtist=printf('Artist %05d',id); DELETE FROM songs_fts; INSERT INTO songs_fts(songId,artist,title,album,albumArtist) SELECT id,artist,title,album,albumArtist FROM songs; COMMIT").map_err(std::io::Error::other)
+}
+
 /// Indexed metadata only: Files performance must never enumerate a user's real folders.
 pub fn seed_files(library: &mut lw_bin::library::LibraryWorker) -> std::io::Result<()> {
     let account = library.current_sources()?;

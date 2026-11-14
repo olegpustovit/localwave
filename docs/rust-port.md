@@ -2,6 +2,89 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## SwiftUI artist table and text layout checkpoint
+
+pxui **ABI 1.17** adds an explicit `Ui::text_line_box` mode. It applies the same primary-font
+rounded ascent/descent and floored half-leading as Swift's `LWCSSLineBox`, preserving legacy
+text placement for other consumers. Fit text now supplies intrinsic width/height in this mode;
+wrapped Grow text settles its final height in the same frame, and empty text retains one line.
+Shared labels, headings, Settings paragraphs and the player title use this API. Direct glyph
+comparisons at 1×/2× check the captured CoreText baselines for 34/19/14/12-point Host Grotesk and
+12-point Geist Mono. Nine named-face width references agree within 0.01 point.
+
+Artists now uses the desktop reference table: four font-measured proportional columns, 37.3-point
+header, 38-point rows, 28-point artwork, correct 32/8/20-point insets and a 140 ms hover. Distinct
+album summaries, rounded minutes and preferred widths are prepared once on the catalog worker
+after its SQLite read snapshot; catalog clones share the result. Rendering borrows only virtual
+rows. Existing entrance motion applies to the first rows. An isolated eleventh signed workload
+scrolls **10,000 prepared artists** without changing the other ten fixtures or their limits.
+
+The player byline reproduces `PlayerBylineFlow` with a fixed five-item stack array, measured
+15-point spaces/strut and padded 14-point links aligned to their first baseline. It wraps long
+names, trims whitespace at row starts and routes artist/album links to the matching context.
+Natural and constrained measurement keys include distinct width identities, preventing repeated
+reshaping. Measurement happens inside the retained metadata view, independent of clock ticks.
+The danger colour now matches the reference's constant #D21A1A in both appearances.
+
+Accessible scrolling exposed an unrelated generic allocation in pxui's action bridge. The
+bridge now validates the entire bounded batch before translating in stack chunks into its
+retained queue. Input order, numeric payloads and invalid-tail atomicity are preserved. The
+public static/dynamic regression injects 65 actions, exercising multiple chunks.
+
+### Checks
+
+- **326 pxui/text/core/ABI cases pass in 20.440 s wall / 14.235 s summed**, zero skips:
+  `/tmp/localwave-linebox-sdk-matrix.log`. Static line-box resize/validation/warm-allocation case
+  passes in **5.176 s wall / 0.044 s case**: `/tmp/localwave-linebox-static.log`.
+- Dependency, header, export and append-only ABI snapshot gates pass. pxui commits `94ddcb3`
+  (accessible input) and `692b06f` (line boxes) were pushed before the parent pin.
+- **165 app cases pass in 16.650 s wall / 13.835 s summed**, zero skips:
+  `/tmp/localwave-artists-linebox-app-matrix.log`. This includes artist virtualization, 140 ms
+  hover, accessible scrolling/navigation, CoreText glyph baselines and byline wrapping/links.
+- App Clippy passes all four packages/all targets with native interop and warnings denied in
+  **2.18 s**: `/tmp/localwave-artists-linebox-clippy.log`.
+- Release library/app build in **23.00 / 11.32 s**, including recompilation. The sandbox bundle
+  is rebuilt and signed: `/tmp/localwave-artists-linebox-bundle.log`. Normal GUI PID 69331 and
+  its library/defaults remain untouched.
+- Focused signed Artists renders **23–27 rows**, scrolls first row **1–17**, and records **zero
+  warm Rust allocations**. Its strict 1,000 µs wall maximum fails at **3,299 µs**:
+  `/tmp/localwave-artists-linebox-performance-focused.log`. Earlier failures are retained;
+  the byline's new width-identity regression first failed with 62 warm allocations, then passed
+  after fixing the keys. No guard, warm-up or budget was relaxed.
+
+These checks qualify the listed dimensions/behaviours, not whole-screen screenshot equality.
+Responsive compact navigation, remaining library/detail layouts, other reference flows, native
+memory and Mac/iOS/device distribution qualification remain unfinished. No Swift/device suite
+was repeated for these Rust-only changes. The full signed results follow below.
+
+### Signed eleven-workload results
+
+`/tmp/localwave-artists-linebox-performance-matrix.log` records the final full run. All eleven
+workloads retain **182 frames / 82 warm-up / 100 measured frames** and record **zero warm
+Rust allocations** across the app and libpxui counters. Artwork records **zero warm requests**.
+Artists renders **23–27 rows** and moves first visible artist **1–17**. Settings applies all
+45 actions/all eight themes; Files draws 14 of 10,000 indexed rows; drop draws its overlay on
+50 measured frames. The signed bundle checks pass portable rpath/dylib identity, sandbox,
+macOS 15 minimum and default executable stack. Startup draws 31 times, then remains idle for
+**501.3 ms**. Warm lib/app builds take **0.15 / 0.05 s**.
+
+Every unchanged **1,000 µs wall maximum fails**, so `make performance` correctly returns nonzero.
+These failures remain open and are not replaced by the CPU numbers or percentiles below.
+
+| Workload | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- |
+| songs-original | 3394 / 671 / 1870 / 2651 | 840 / 603 / 730 / 810 |
+| find-filters-title-descending | 2790 / 642 / 2202 / 2391 | 781 / 593 / 721 / 769 |
+| queue-occurrences | 2863 / 649 / 1937 / 2171 | 774 / 599 / 719 / 772 |
+| queue-carry-scroll-cancel | 2422 / 487 / 1884 / 2362 | 2078 / 466 / 753 / 2055 |
+| full-queue-playlist-editor | 2831 / 793 / 2112 / 2718 | 1051 / 633 / 907 / 991 |
+| albums-artwork | 2903 / 575 / 1781 / 2196 | 992 / 540 / 900 / 936 |
+| waveform-scrub-and-scroll | 2518 / 470 / 1328 / 2329 | 766 / 381 / 717 / 751 |
+| settings-menus-appearance | 2371 / 317 / 829 / 1654 | 569 / 279 / 464 / 555 |
+| files-indexed-directory | 2010 / 320 / 938 / 1390 | 397 / 306 / 353 / 382 |
+| external-drop-hover-and-cancel | 1391 / 281 / 1129 / 1362 | 370 / 268 / 323 / 331 |
+| artists-measured-columns | 2723 / 735 / 1924 / 2263 | 928 / 692 / 837 / 885 |
+
 ## SwiftUI motion and first layout checkpoint
 
 This begins the requested SwiftUI visual/motion correction. **Full pixel parity is not qualified.**

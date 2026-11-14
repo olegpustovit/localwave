@@ -77,10 +77,12 @@ open target/bundle/LocalWave.app
 make install                # install to /Applications (APPDIR overrides)
 cargo t -p lw_core          # Rust storage and model checks
 cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
-make performance            # nine signed workloads, including Files: allocation/time/idle gates
+make performance            # eleven signed workloads: allocation/time/idle gates
 ```
 
-Warm library/app builds have measured 0.14/0.04 seconds, and 148 bounded app checks pass in 11.29 seconds including compilation (13.44 seconds summed cases, with eleven contention retries). All nine signed 10,000-song workloads record zero warm Rust allocations, including a worker-prepared 10,000-path Files directory that renders 14 rows. The artwork worker delivers bounded batches without waiting for a frame between covers; three scrolling gallery runs have zero requests/allocations after warm-up. The strict 1 ms wall maximum still fails. Tested warm RGBA/BGRA blur draws and image layers through 128 boundaries also allocate zero Rust objects. Native memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run git submodule update --init --recursive after pulling. See [Rust port qualification](docs/rust-port.md) for the current gate status and limitations.
+The current checkpoint passes 165 bounded app checks in 16.65 seconds including compilation. Artists uses the measured four-column SwiftUI desktop layout, and shared labels use explicit pxui line boxes with checked CoreText baselines at 1×/2×. The player title and artist/album byline wrap; the byline links open their library contexts. Page entrances and changing matrix digits animate through retained views and respect reduced motion. Full screenshot parity and the remaining reference layouts are unfinished.
+
+All eleven signed 10,000-song workloads record zero warm Rust allocations, including the 10,000-artist table and 10,000-path Files directory. The artwork gallery also has zero warm requests. The strict 1 ms wall maximum still fails; zero allocations refers to warm Rust UI frames, and native/process memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run `git submodule update --init --recursive` after pulling. See [Rust port qualification](docs/rust-port.md) for measured results and remaining work.
 
 ## Development
 

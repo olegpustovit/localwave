@@ -62,6 +62,15 @@ pub struct Collection {
     pub artwork_row: Option<usize>,
 }
 
+pub struct ArtistRow {
+    pub albums: String,
+    pub minutes: String,
+}
+pub struct ArtistTable {
+    pub rows: Vec<ArtistRow>,
+    pub preferred: [f32; 4],
+}
+
 #[derive(Clone, Default)]
 pub struct Library {
     labels: String,
@@ -74,6 +83,7 @@ pub struct Library {
     pub collections: Vec<Collection>,
     pub album_count: String,
     pub artist_count: String,
+    pub artist_table: Option<Arc<ArtistTable>>,
     pub song_count: String,
 }
 
@@ -334,6 +344,78 @@ impl Catalog {
             queue: None,
         }
     }
+    /// Called on the catalog worker: frame construction only scales four prepared widths.
+    pub fn prepare_artist_table(&mut self) -> Result<(), String> {
+        let mut text = pxui::Text::new(&[crate::FONT, crate::MONO])
+            .ok_or_else(|| "Unable to create library text metrics".to_owned())?;
+        text.enable_system_fonts()
+            .map_err(|code| format!("Library font fallback failed ({code})"))?;
+        let mut width = |value: &str, mono: bool, size: f32, weight: u16| {
+            let style = pxui::TextStyle {
+                font: u16::from(mono),
+                size_points: size,
+                weight,
+                ..Default::default()
+            };
+            let mut key = DefaultHasher::new();
+            (value, mono, size.to_bits(), weight).hash(&mut key);
+            text.width(key.finish(), value, &style, 0.0)
+                .map_err(|code| format!("Library text measurement failed ({code})"))
+        };
+        let mut preferred = [0.0f32; 4];
+        for (index, title) in ["Name", "Albums", "Songs", "Time"].into_iter().enumerate() {
+            preferred[index] = width(title, false, 12.0, 500)?
+                + if index == 0 {
+                    40.0
+                } else if index == 3 {
+                    28.0
+                } else {
+                    16.0
+                };
+        }
+        let mut rows = Vec::with_capacity(self.artists.len());
+        for artist in &self.artists {
+            let mut seen = std::collections::HashSet::new();
+            let mut albums = String::new();
+            let mut seconds = 0.0;
+            for index in &artist.rows {
+                let row = self.row(*index);
+                if seen.insert(row.album) {
+                    if seen.len() > 1 {
+                        albums.push_str(", ");
+                    }
+                    albums.push_str(row.album);
+                }
+                seconds += row.seconds.unwrap_or(0.0);
+            }
+            let minutes = if seconds.is_finite() && seconds / 60.0 < i64::MAX as f64 {
+                format!("{:.0} min", (seconds / 60.0).round())
+            } else {
+                "—".to_owned()
+            };
+            preferred[0] = preferred[0].max(
+                (width(
+                    if artist.title.is_empty() {
+                        "Unknown artist"
+                    } else {
+                        &artist.title
+                    },
+                    false,
+                    14.0,
+                    400,
+                )? + 80.0)
+                    .min(240.0),
+            );
+            preferred[1] = preferred[1].max((width(&albums, false, 14.0, 400)? + 16.0).min(240.0));
+            preferred[2] = preferred[2].max(width(&artist.count, true, 12.0, 400)? + 16.0);
+            preferred[3] = preferred[3].max(width(&minutes, true, 12.0, 400)? + 28.0);
+            rows.push(ArtistRow { albums, minutes });
+        }
+        Arc::make_mut(&mut self.library).artist_table =
+            Some(Arc::new(ArtistTable { rows, preferred }));
+        Ok(())
+    }
+
     pub fn add_collection(&mut self, name: &str, rows: Vec<usize>, context: PlaybackContext) {
         Arc::make_mut(&mut self.library).add_collection(name, rows, context);
     }
@@ -404,6 +486,129 @@ impl Catalog {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn table_font_widths_match_coretext_reference_faces_and_weights() {
+        let mut text = pxui::Text::new(&[crate::FONT, crate::MONO]).unwrap();
+        // CTLineGetTypographicBounds with the bundled named faces, captured on macOS.
+        for (index, (label, font, size, weight, expected)) in [
+            ("Name", 0, 12.0, 500, 32.424),
+            ("Albums", 0, 12.0, 500, 40.98),
+            ("Songs", 0, 12.0, 500, 34.224),
+            ("Time", 0, 12.0, 500, 27.06),
+            ("Björk", 0, 14.0, 400, 32.074),
+            ("The National", 0, 14.0, 400, 80.192),
+            ("High Violet, Trouble Will Find Me", 0, 14.0, 400, 205.59),
+            ("0 min", 1, 12.0, 400, 35.99945),
+            ("92", 1, 12.0, 400, 14.39978),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let width = text
+                .width(
+                    index as u64,
+                    label,
+                    &pxui::TextStyle {
+                        font,
+                        size_points: size,
+                        weight,
+                        ..Default::default()
+                    },
+                    0.0,
+                )
+                .unwrap();
+            assert!(
+                (width - expected).abs() < 0.01,
+                "{label} / weight {weight}: pxui {width}, CoreText {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn artist_table_prepares_distinct_album_names_rounded_minutes_and_shared_metrics() {
+        let mut catalog = Catalog::new(vec![
+            Song {
+                id: Some(1),
+                artist: "The National".into(),
+                album: "High Violet".into(),
+                duration: Some(29.0),
+                ..Default::default()
+            },
+            Song {
+                id: Some(2),
+                artist: "The National".into(),
+                album: "High Violet".into(),
+                duration: Some(31.0),
+                ..Default::default()
+            },
+            Song {
+                id: Some(3),
+                artist: "The National".into(),
+                album: "Trouble Will Find Me".into(),
+                duration: Some(30.0),
+                ..Default::default()
+            },
+            Song {
+                id: Some(4),
+                artist: "Björk".into(),
+                album: "Vespertine".into(),
+                duration: None,
+                ..Default::default()
+            },
+            Song {
+                id: Some(5),
+                artist: "Blank album".into(),
+                album: "".into(),
+                duration: Some(f64::MAX),
+                ..Default::default()
+            },
+            Song {
+                id: Some(6),
+                artist: "Blank album".into(),
+                album: "Later".into(),
+                duration: Some(f64::MAX),
+                ..Default::default()
+            },
+        ]);
+        let unchanged = catalog.library.clone();
+        catalog.prepare_artist_table().unwrap();
+        assert!(unchanged.artist_table.is_none());
+        let table = catalog.artist_table.as_ref().unwrap();
+        assert_eq!(table.rows.len(), catalog.artists.len());
+        let national = catalog
+            .artists
+            .iter()
+            .position(|artist| artist.title == "The National")
+            .unwrap();
+        assert_eq!(
+            table.rows[national].albums,
+            "High Violet, Trouble Will Find Me"
+        );
+        assert_eq!(table.rows[national].minutes, "2 min");
+        let bjork = catalog
+            .artists
+            .iter()
+            .position(|artist| artist.title == "Björk")
+            .unwrap();
+        assert_eq!(table.rows[bjork].minutes, "0 min");
+        let blank = catalog
+            .artists
+            .iter()
+            .position(|artist| artist.title == "Blank album")
+            .unwrap();
+        assert_eq!(table.rows[blank].albums, ", Later");
+        assert_eq!(table.rows[blank].minutes, "—");
+        assert!(
+            table
+                .preferred
+                .iter()
+                .all(|width| width.is_finite() && *width > 0.0)
+        );
+        assert!(table.preferred[0] <= 240.0 && table.preferred[1] <= 240.0);
+        let clone = catalog.clone();
+        assert!(Arc::ptr_eq(clone.artist_table.as_ref().unwrap(), table));
+    }
+
     #[test]
     fn cover_paths_share_storage_and_collections_keep_a_representative_row() {
         let catalog = super::Catalog::new(vec![

@@ -119,6 +119,9 @@ impl LibraryWorker {
                 Ok((catalog, rows, candidates))
             })
             .map_err(io::Error::other)?;
+        if catalog.artist_table.is_none() {
+            catalog.prepare_artist_table().map_err(io::Error::other)?;
+        }
         if let (Some(find), Some(candidates)) = (find, candidates) {
             rows = Some(find.finish(self, &catalog, candidates));
         }

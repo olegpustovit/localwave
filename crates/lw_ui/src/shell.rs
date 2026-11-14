@@ -4,6 +4,8 @@ use crate::{Intent, PlayerView};
 use pxui::ui::*;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+mod artists;
+mod byline;
 mod files;
 mod settings;
 
@@ -290,7 +292,7 @@ fn palette(ui: &Ui) -> Palette {
             line: rgb(0x262626),
             key: rgb(0x1F1F1F),
             signal: ui.theme().tokens.accent,
-            danger: rgb(0xF26A6A),
+            danger: rgb(0xD21A1A),
         }
     } else {
         Palette {
@@ -302,7 +304,7 @@ fn palette(ui: &Ui) -> Palette {
             line: rgb(0xDADADA),
             key: rgb(0xFBFBFB),
             signal: ui.theme().tokens.accent,
-            danger: rgb(0xC01818),
+            danger: rgb(0xD21A1A),
         }
     }
 }
@@ -346,7 +348,20 @@ fn text(
             ..Node::DEFAULT
         },
     );
-    ui.text(&node, value);
+    ui.text_line_box(
+        &node,
+        value,
+        &pxui::TextStyle {
+            font: u16::from(mono),
+            size_points: size as f32,
+            line_height: size as f32 * 1.4,
+            max_lines: 1,
+            ellipsis: pxui::TextStyle::ELLIPSIS_END,
+            ..Default::default()
+        },
+        &[],
+    )
+    .unwrap();
     node
 }
 fn spacer(ui: &mut Ui, key: &str, height: f32) {
@@ -1371,7 +1386,6 @@ fn content(
         },
     );
     ui.within(&root, &mut |ui| {
-        let entry = crate::motion::Page::new(ui, state.entry_revision);
         let mut row_revision = DefaultHasher::new();
         (
             state.revision,
@@ -1398,7 +1412,7 @@ fn content(
         );
         ui.within(&heading, &mut |ui| {
             let heading = text(ui, "heading", title, 34, p.ink, (Size::Grow, 34.0), false);
-            ui.text_spans(
+            ui.text_line_box(
                 &heading,
                 title,
                 &pxui::TextStyle {
@@ -1484,30 +1498,24 @@ fn content(
             false,
         );
         spacer(ui, "heading-bottom-gap", 18.0);
-        rule(ui, "heading-divider", false, p);
-        if matches!(state.route, Route::Albums | Route::Artists) {
-            let albums = state.route == Route::Albums;
-            let groups = if albums {
-                &catalog.albums
-            } else {
-                &catalog.artists
-            };
+        if state.route != Route::Artists {
+            rule(ui, "heading-divider", false, p);
+        }
+        if state.route == Route::Artists {
+            artists::table(ui, catalog, state, player.artwork, width, p, intent);
+        } else if state.route == Route::Albums {
+            let entry = crate::motion::Page::new(ui, state.entry_revision);
+            let groups = &catalog.albums;
             let available = (width - 64.0).max(1.0);
-            let columns = if albums {
-                ((available + 20.0) / 170.0).floor().max(1.0) as usize
-            } else {
-                1
-            };
+            let columns = ((available + 20.0) / 170.0).floor().max(1.0) as usize;
             let cell = (available - (columns - 1) as f32 * 20.0) / columns as f32;
-            let card_height = if albums { cell + 43.7 } else { 54.0 };
-            if albums {
-                spacer(ui, "gallery-top-gap", 22.0);
-            }
+            let card_height = cell + 43.7;
+            spacer(ui, "gallery-top-gap", 22.0);
             ui.grid_list(
                 "groups",
                 groups.len().div_ceil(columns),
                 available,
-                card_height + if albums { 28.0 } else { 0.0 },
+                card_height + 28.0,
                 &mut |ui, line| {
                     let row = ui.node(
                         "group-row",
@@ -1563,34 +1571,31 @@ fn content(
                                             State::default(),
                                         );
                                         ui.within(&node, &mut |ui| {
-                                            if albums {
-                                                let art = container(
-                                                    ui,
-                                                    "artwork",
-                                                    Axis::Stack,
-                                                    Size::Grow,
-                                                    Size::Px(cell),
-                                                    p.panel,
-                                                );
-                                                paint_artwork(
-                                                    ui,
-                                                    &art,
-                                                    group
-                                                        .artwork_row
-                                                        .map(|index| catalog.row(index)),
-                                                    cell,
-                                                    player.artwork,
-                                                );
-                                                ui.a11y_name(&art, "Album artwork");
-                                                spacer(ui, "artwork-label-gap", 8.0);
-                                            }
+                                            let art = container(
+                                                ui,
+                                                "artwork",
+                                                Axis::Stack,
+                                                Size::Grow,
+                                                Size::Px(cell),
+                                                p.panel,
+                                            );
+                                            paint_artwork(
+                                                ui,
+                                                &art,
+                                                group.artwork_row.map(|index| catalog.row(index)),
+                                                cell,
+                                                player.artwork,
+                                            );
+                                            ui.a11y_name(&art, "Album artwork");
+                                            spacer(ui, "artwork-label-gap", 8.0);
+
                                             text(
                                                 ui,
                                                 "name",
                                                 &group.title,
                                                 14,
                                                 p.ink,
-                                                (Size::Grow, if albums { 17.5 } else { 23.0 }),
+                                                (Size::Grow, 17.5),
                                                 false,
                                             );
                                             text(
@@ -1604,11 +1609,7 @@ fn content(
                                             );
                                         });
                                         if signal.clicked {
-                                            *intent = Some(Intent::Navigate(if albums {
-                                                Route::Album(index)
-                                            } else {
-                                                Route::Artist(index)
-                                            }));
+                                            *intent = Some(Intent::Navigate(Route::Album(index)));
                                         }
                                     },
                                 );
@@ -1619,6 +1620,7 @@ fn content(
                 },
             );
         } else if let Some(collection) = collection {
+            let entry = crate::motion::Page::new(ui, state.entry_revision);
             let header = container(
                 ui,
                 "columns",
@@ -2054,7 +2056,7 @@ fn now_panel(
                 } else {
                     player.title
                 };
-                ui.text_spans(
+                ui.text_line_box(
                     &title,
                     value,
                     &pxui::TextStyle {
@@ -2068,31 +2070,9 @@ fn now_panel(
                     &[],
                 )
                 .unwrap();
-                let byline = ui.node(
-                    "byline",
-                    Node {
-                        axis: Axis::Row,
-                        wrap: true,
-                        gap: 3.5,
-                        w: Size::Grow,
-                        h: Size::Fit,
-                        min_h: 21.6,
-                        padding: Edges {
-                            t: 2.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&byline, &mut |ui| {
-                    for (key, value) in [
-                        ("artist", player.artist),
-                        ("separator", "—"),
-                        ("album", player.album),
-                    ] {
-                        text(ui, key, value, 14, p.secondary, (Size::Fit, 19.6), false);
-                    }
-                });
+                if player.current_id.is_some() {
+                    byline::draw(ui, player, catalog, 279.0, p, intent);
+                }
             },
         );
         crate::motion::enter(

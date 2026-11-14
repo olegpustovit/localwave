@@ -325,3 +325,18 @@ has briefly left the prefetch margin. Explicit cancel is sticky until the worker
 still clears selected work; catalog epochs reject old results. Preserve the deterministic paused-
 after-first-thumbnail regression and three signed scrolling runs, with the original frame-82
 warm-up, zero warm requests/allocations and all strict wall failures retained.
+
+
+Artists uses the SwiftUI desktop table: 37.3-point header, 38-point rows, 28-point artwork,
+12-point artwork/text gap, 32/8/20-point column insets and 140 ms hover. Prepare distinct album
+summaries, rounded minutes and bundled-font preferred column widths on the catalog worker after
+leaving its SQLite snapshot; share the result across catalog clones. Scale four widths and borrow
+visible rows on the UI thread. Preserve the 10,000-artist signed workload in addition to all ten
+existing workloads, with the same 182/82/100 frames, both allocation counters and strict wall gate.
+
+Shared UI labels use pxui ABI 1.17 explicit line boxes. Preserve the actual bundled CoreText
+width/baseline references and 1x/2x glyph-position checks. The player title wraps intrinsically;
+its byline follows Swift's 15-point strut and baseline-aligned 14-point padded links, trims leading
+wrapped whitespace and measures only in its retained metadata view. Natural and constrained
+measurement identities must differ by width; reusing one identity causes repeated shaping.
+Preserve accessible artist/album routing, empty-line height and warm resize allocation checks.

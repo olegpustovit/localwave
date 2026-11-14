@@ -33,6 +33,21 @@ fn run() -> Result<(), String> {
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
     let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
     let performance_files = std::env::args().any(|arg| arg == "--performance-files");
+    let performance_artists = std::env::args().any(|arg| arg == "--performance-artists");
+    if performance_artists
+        && (!performance
+            || std::env::args().any(|arg| {
+                arg.starts_with("--performance-")
+                    && !matches!(
+                        arg.as_str(),
+                        "--performance-check" | "--performance-artists"
+                    )
+            }))
+    {
+        return Err(
+            "--performance-artists requires --performance-check and its own workload".into(),
+        );
+    }
     let performance_drop = std::env::args().any(|arg| arg == "--performance-drop");
     if performance_drop
         && (!performance
@@ -116,7 +131,7 @@ fn run() -> Result<(), String> {
         lw_apple_sys::environment::Environment::open(wake).map_err(|error| error.to_string())?;
     let mut preferences = environment.snapshot();
     let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
-    if performance_queue_drag {
+    if performance_queue_drag || performance_artists {
         ui.set_a11y(true);
     }
     ui.enable_system_fonts()
@@ -177,6 +192,9 @@ fn run() -> Result<(), String> {
                         })?;
                     }
                     smoke::seed_catalog(&base.join("library.sqlite"))?;
+                    if performance_artists {
+                        smoke::seed_artists(&base.join("library.sqlite"))?;
+                    }
                     if performance_artwork {
                         smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
                     }
@@ -278,6 +296,8 @@ fn run() -> Result<(), String> {
     let (mut frames, mut draws) = (0, 0);
     let mut waveform_seeks = 0;
     let (mut settings_changes, mut settings_themes) = (0, 0u8);
+    let (mut min_artist_rows, mut max_artist_rows) = (usize::MAX, 0usize);
+    let (mut first_artist_min, mut first_artist_max) = (usize::MAX, 0usize);
     let mut min_waveform_bars = usize::MAX;
     let mut drop_overlay_frames = 0usize;
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
@@ -338,6 +358,18 @@ fn run() -> Result<(), String> {
     }
     if performance_artwork {
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
+    }
+    if performance_artists {
+        if player.catalog().artists.len() != 10_000
+            || player
+                .catalog()
+                .artist_table
+                .as_ref()
+                .is_none_or(|table| table.rows.len() != 10_000)
+        {
+            return Err("Artist performance fixture must contain 10,000 prepared artists".into());
+        }
+        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Artists));
     }
     if performance_find {
         use lw_ui::{
@@ -1006,6 +1038,28 @@ fn run() -> Result<(), String> {
                 min_artwork_quads = min_artwork_quads.min(image_quads);
                 warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
             }
+            if performance_artists && frames > WARMUP_FRAMES {
+                let mut rows = 0;
+                for node in ui
+                    .a11y_nodes()
+                    .iter()
+                    .filter(|node| node.is_role(pxui::ui::Role::Button) && node.rect.x >= 232.0)
+                {
+                    if let Some(index) = ui
+                        .a11y_name_of(node)
+                        .strip_prefix("Artist ")
+                        .and_then(|label| label.parse::<usize>().ok())
+                    {
+                        if rows == 0 {
+                            first_artist_min = first_artist_min.min(index);
+                            first_artist_max = first_artist_max.max(index);
+                        }
+                        rows += 1;
+                    }
+                }
+                min_artist_rows = min_artist_rows.min(rows);
+                max_artist_rows = max_artist_rows.max(rows);
+            }
             if performance_files && frames > WARMUP_FRAMES {
                 let rows = ui
                     .layers()
@@ -1097,7 +1151,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_drop {
+                if performance_artists {
+                    "artists-measured-columns"
+                } else if performance_drop {
                     "external-drop-hover-and-cancel"
                 } else if performance_settings {
                     "settings-menus-appearance"
@@ -1128,6 +1184,17 @@ fn run() -> Result<(), String> {
                 );
                 if settings_changes != 45 || settings_themes != 255 {
                     return Err("Settings workload missed an action or theme".into());
+                }
+            }
+            if performance_artists {
+                println!(
+                    "LocalWave artists: prepared_rows=10000 min_rows={min_artist_rows} max_rows={max_artist_rows} first_min={first_artist_min} first_max={first_artist_max}"
+                );
+                if min_artist_rows < 12
+                    || max_artist_rows > 40
+                    || first_artist_min >= first_artist_max
+                {
+                    return Err("Artist workload did not scroll its measured virtual table".into());
                 }
             }
             if performance_files {

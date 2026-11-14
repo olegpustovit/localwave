@@ -110,6 +110,126 @@ mod tests {
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
 
     #[test]
+    fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        let mut text = pxui::Text::new(&[FONT, MONO]).unwrap();
+        let samples = [
+            (0, 34.0, 34.0, 29.0),
+            (0, 19.0, 22.8, 17.0),
+            (0, 14.0, 19.6, 14.0),
+            (0, 12.0, 16.8, 12.0),
+            (1, 12.0, 16.8, 12.0),
+        ];
+        let metrics = samples.map(|(font, size, line, _)| {
+            text.measure(
+                font as u64 + size as u64,
+                "Ag01",
+                &pxui::TextStyle {
+                    font,
+                    size_points: size,
+                    line_height: line,
+                    ..Default::default()
+                },
+                0.0,
+            )
+            .unwrap()
+        });
+        for round in 0..5 {
+            mem_sys::local_reset();
+            for scale in [1.0, 2.0] {
+                for (index, ((font, size, line, baseline), metrics)) in
+                    samples.into_iter().zip(metrics).enumerate()
+                {
+                    let style = pxui::TextStyle {
+                        font,
+                        size_points: size,
+                        line_height: line,
+                        ..Default::default()
+                    };
+                    ui.frame(
+                        &FrameIn {
+                            width: 400.0,
+                            height: 100.0,
+                            scale,
+                            time: round as f64,
+                            ..Default::default()
+                        },
+                        &mut |ui| {
+                            let a = ui.node(
+                                "line-box",
+                                pxui::ui::Node {
+                                    role: pxui::ui::Role::Label,
+                                    w: pxui::ui::Size::Px(200.0),
+                                    h: pxui::ui::Size::Px(line),
+                                    at: Some((20.0, 20.0)).into(),
+                                    look: pxui::ui::Look {
+                                        text: pxui::geom::Rgba {
+                                            r: 231,
+                                            g: 0,
+                                            b: 0,
+                                            a: 255,
+                                        },
+                                        ..pxui::ui::Look::NONE
+                                    },
+                                    ..pxui::ui::Node::DEFAULT
+                                },
+                            );
+                            ui.text_line_box(&a, "Ag01", &style, &[]).unwrap();
+                            let b = ui.node(
+                                "reference",
+                                pxui::ui::Node {
+                                    w: pxui::ui::Size::Px(200.0),
+                                    h: pxui::ui::Size::Px(line),
+                                    at: Some((20.0, 20.0)).into(),
+                                    ..pxui::ui::Node::DEFAULT
+                                },
+                            );
+                            ui.draw(&b, move |paint, rect| {
+                                paint
+                                    .text_spans(
+                                        (rect.x, rect.y + baseline - metrics.baseline),
+                                        &style,
+                                        200.0,
+                                        Some(pxui::geom::Rgba {
+                                            r: 0,
+                                            g: 0,
+                                            b: 231,
+                                            a: 255,
+                                        }),
+                                        "Ag01",
+                                        &[],
+                                    )
+                                    .unwrap();
+                            });
+                        },
+                    )
+                    .unwrap();
+                    let actual = ui.layers().flat_map(|l| l.instances.iter()).filter(|i| {
+                        i.kind == pxui::draw::kind::MASK && i.color == [231, 0, 0, 255]
+                    });
+                    let reference = ui.layers().flat_map(|l| l.instances.iter()).filter(|i| {
+                        i.kind == pxui::draw::kind::MASK && i.color == [0, 0, 231, 255]
+                    });
+                    let mut matched = 0;
+                    for (a, b) in actual.zip(reference) {
+                        matched += 1;
+                        assert_eq!(a.rect, b.rect, "CoreText line box {index}, scale {scale}");
+                    }
+                    assert_eq!(matched, 4);
+                }
+            }
+            if round >= 3 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "baseline placement must reuse shaping and glyphs"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn desktop_album_cards_and_player_artwork_use_swift_point_dimensions() {
         let catalog = catalog::Catalog::new(
             (0..24)
