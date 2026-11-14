@@ -2,6 +2,123 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## SwiftUI album toolbar and native component sizing checkpoint
+
+Albums now has the reference's Artist/Year/Size toolbar and functional Shuffle all, placing the
+first gallery row at **y=172.6** before titlebar insets. Controls are **30 points high**, with
+**8-point gaps**, **52/47/44/100-point widths**, and a **1.5-point fractional selection border**.
+The header's bottom line is inset as in SwiftUI, followed by its one-point clearance. Album
+names use the 14-point medium face. Plain album cards no longer acquire an extra hover fill or
+Refresh button that is absent from the reference.
+
+All three album orders are prepared with the catalog on the worker; rendering borrows indices.
+Artist strips exact leading `The ` as Swift does, Year uses the first ordered track's release
+year, and Size preserves Swift's existing Added/latest-created ordering despite its label.
+Changing sort retains album identity, survives navigation and does not restart page entrances.
+The header's formatted size and active-account source count are prepared on the worker. Source
+count uses a scoped SQL COUNT rather than loading folder paths/bookmarks. Account identity joins
+SQLite version in the catalog reuse key, so source labels cannot reuse the previous account's
+projection.
+
+Shuffle all sends the retained library song Arc through the controller mailbox. The worker
+copies and shuffles it, including its first item and repeated occurrences, then uses the existing
+Configure/lease/playback/persistence path. Ordinary Shuffle remains the current queue mode.
+Empty selection is rejected. The native integration uses muted real audio and checks persisted
+queue order, context, first selection, volume and unchanged catalog input.
+
+### Native comparison and shared pxui fixes
+
+A separate AppKit/SwiftUI process measured the album header and LazyVGrid at content widths
+**888/728/472**, using the actual `LWCSSLineBox.swift`, bundled fonts and matching view structure.
+The actual private `PlayerBylineFlow` definition was also measured at **100/279/400**. These are
+component comparisons, not a capture of the complete shipping application. Temporary harnesses
+are `/tmp/localwave-measure-album-grid.swift` and `/tmp/localwave-measure-byline.swift`; results
+are `/tmp/localwave-native-album-grid-geometry.log` and `/tmp/localwave-native-byline-geometry.log`.
+
+Native Text intrinsic widths ceil to physical pixels; raw CoreText widths do not. Artist's toolbar width
+first failed at **51.915** versus native **52**. Shared fit labels now apply that native rounding
+using cached measurements and pxui's integer rendering density (ABI 1.19). A second native
+capture with displayScale=2 gives Year **46.5** rather than **47** and The National **80.5** rather
+than **81**; both 1×/2× variants are checked, including warm density changes. References are
+`/tmp/localwave-native-album-grid-scale2-geometry.log` and
+`/tmp/localwave-native-byline-scale2-geometry.log`. The byline comparison also failed at a **74-point** wrapped album
+versus native **78**: cosmic-text omits the line-breaking separator's advance from its fitting
+width. pxui **ABI 1.18** adds opt-in `WRAP_WORD_SPACES` sizing. It reuses cached runs and scratch
+storage to include blank advances between visible soft wraps. Glyph positions, ordinary wrapping
+and hidden paragraphs are unchanged. The native byline geometry now passes all three widths.
+The earlier failing logs remain `/tmp/localwave-album-toolbar-native-width-red.log` and
+`/tmp/localwave-byline-native-geometry-test.log`.
+
+pxui also exposes analytic quadratic and bounded four-piece cubic painting through its existing
+instance writer and shader pipeline. The actual shuffle SVG geometry replaces the old crossed
+lines in both toolbar and transport. It uses **20 retained analytic instances**, no tessellation
+buffer or added draw pipeline. Sampled cubic deviation stays below **0.04 physical pixel** at
+16/20 points and 1×/2×; large arbitrary cubic paths still need adaptive splitting.
+
+### Checks
+
+- **328 engine/text/ABI checks pass**, **33.665 s wall / 13.915 s summed**, zero skips:
+  `/tmp/localwave-album-layout-sdk-matrix.log`. The static wrapper passes **59 checks** in
+  **6.003 s wall / 2.047 s summed**: `/tmp/localwave-album-layout-sdk-static.log`.
+- Native renderer scene/golden passes with **zero per-channel differences**, **5.077 s wall /
+  0.224 s case**: `/tmp/localwave-album-layout-native-curves.log`. No fixture was refreshed.
+- Dependencies, ABI header, exports and append-only snapshot gates pass. The optional whole-SDK
+  shape gate still reports existing generic/macro/lifetime violations outside the changed
+  code: `/tmp/localwave-album-layout-gate-shape.log`. pxui `6d6a148` was pushed before its parent pin.
+- **171 app checks pass**, **24.835 s wall / 16.238 s summed**, zero skips:
+  `/tmp/localwave-album-layout-app-matrix.log`. This includes exact native toolbar/byline bounds,
+  three desktop gallery widths/row stride, warm sorting/vector allocations and the native queue
+  check. The focused native Shuffle all check takes **0.616 s** after compilation:
+  `/tmp/localwave-album-shuffle-native-test.log`.
+
+- The density follow-up passes public dynamic/static query, cached-view and warm-allocation
+  checks: **12.603 / 4.445 s wall**, **0.032 / 0.032 s case**. Logs:
+  `/tmp/localwave-density-sdk-test.log` and `/tmp/localwave-density-sdk-static.log`.
+  The focused finite-width bound check passes in **7.054 s wall / 0.030 s case**:
+  `/tmp/localwave-curves-width-bound-test.log`; analytic widths exceeding the instance's f16 range
+  are refused before emission.
+- After the 2× correction, all **43 UI cases pass in 6.677 s wall / 1.538 s summed**:
+  `/tmp/localwave-album-layout-density-ui-matrix.log`. Toolbar and byline checks alternate 1×/2×,
+  asserting the actual native bounds, navigation and zero warm allocations.
+- Final app Clippy passes with native interop/all targets/warnings denied in **1.79 s**:
+  `/tmp/localwave-album-layout-density-clippy.log`. Dependency/header/export/append-only ABI gates
+  pass for ABI 1.19. Published pxui follow-ups are `d52b687` and `87c30bc`.
+
+The full port remains unfinished. The library header's scrolling/pinning behaviour, remaining
+song/detail/compact layouts, whole-screen captures, native memory, strict wall latency and
+Mac/iOS/device/distribution qualification remain open. No Swift or device suite was repeated.
+The normal GUI PID 69331 and its library/defaults are preserved.
+
+App Clippy passes all four packages/all targets with native interop and warnings denied in
+**3.21 s**: `/tmp/localwave-album-layout-clippy.log`.
+
+### Final signed performance
+
+`/tmp/localwave-album-layout-performance-final.log` records the ABI 1.19 bundle built in
+**22.99 / 11.84 s** for library/app, including the density changes. Portable dylib ID/rpath,
+macOS 15 minimum, sandbox, default executable stack and signature checks pass. Startup draws
+**32** times, then the existing idle check observes **508.2 ms** without builds/draws.
+All **eleven unchanged workloads** retain 182/82/100 total/warm/measured frames and record
+**zero warm Rust allocations** across app and libpxui. The artwork gallery retains 19 image
+quads and **zero warm requests**. Artists still renders 23–27 of 10,000 rows and scrolls first
+artist 1–17. Every strict **1,000 µs wall maximum fails**, and `make performance` returns
+nonzero. No limit, workload or warm-up was weakened. The earlier pre-density run is retained
+as `/tmp/localwave-album-layout-performance-matrix.log`; the rerun followed actual source changes.
+
+| Workload | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- |
+| songs-original | 4635 / 637 / 1453 / 2784 | 777 / 595 / 686 / 766 |
+| find-filters-title-descending | 2508 / 664 / 2006 / 2117 | 742 / 590 / 699 / 735 |
+| queue-occurrences | 2205 / 646 / 1690 / 2128 | 795 / 601 / 717 / 763 |
+| queue-carry-scroll-cancel | 4502 / 492 / 2163 / 3056 | 2062 / 463 / 755 / 2003 |
+| full-queue-playlist-editor | 3725 / 775 / 2211 / 3439 | 1004 / 668 / 950 / 990 |
+| albums-artwork | 2643 / 660 / 1863 / 2218 | 1136 / 597 / 922 / 1001 |
+| waveform-scrub-and-scroll | 2571 / 470 / 1658 / 2119 | 748 / 407 / 679 / 745 |
+| settings-menus-appearance | 2107 / 298 / 745 / 1600 | 598 / 276 / 464 / 577 |
+| files-indexed-directory | 1503 / 338 / 938 / 1303 | 407 / 314 / 383 / 406 |
+| external-drop-hover-and-cancel | 2893 / 302 / 1010 / 1986 | 391 / 275 / 345 / 370 |
+| artists-measured-columns | 3381 / 834 / 2473 / 2932 | 982 / 724 / 901 / 955 |
+
 ## SwiftUI artist table and text layout checkpoint
 
 pxui **ABI 1.17** adds an explicit `Ui::text_line_box` mode. It applies the same primary-font

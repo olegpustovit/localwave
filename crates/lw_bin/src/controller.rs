@@ -24,6 +24,10 @@ pub enum Command {
         autoplay: bool,
         context: Option<Arc<PlaybackContext>>,
     },
+    ShuffleAll {
+        songs: Arc<[i64]>,
+        seed: u64,
+    },
     Select {
         occurrence: u64,
         autoplay: bool,
@@ -79,6 +83,7 @@ impl Command {
                         .as_ref()
                         .is_some_and(|context| context.text_len() > (64 * 1024 * 1024 - 1024) / 6)
             }
+            Self::ShuffleAll { songs, .. } => songs.is_empty() || songs.len() > 1_000_000,
             Self::Volume(volume) => !volume.is_finite() || !(0.0..=1.0).contains(volume),
             Self::Seek(seconds) => !seconds.is_finite(),
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
@@ -114,6 +119,7 @@ impl Command {
         matches!(
             self,
             Self::Configure { .. }
+                | Self::ShuffleAll { .. }
                 | Self::Select { .. }
                 | Self::Pause
                 | Self::Toggle
@@ -1199,6 +1205,16 @@ impl Worker {
         true
     }
     fn command(&mut self, mut envelope: Envelope) -> io::Result<()> {
+        if let Command::ShuffleAll { songs, seed } = &envelope.command {
+            let mut songs = songs.clone();
+            lw_core::queue::shuffle_songs(Arc::make_mut(&mut songs), *seed);
+            envelope.command = Command::Configure {
+                songs,
+                start: 0,
+                autoplay: true,
+                context: None,
+            };
+        }
         if matches!(envelope.command, Command::Toggle) {
             envelope.command = if self.session.transport().wants_playback() {
                 Command::Pause
@@ -1255,6 +1271,7 @@ impl Worker {
                         self.session.select(entry.id, autoplay)
                     })
             }
+            Command::ShuffleAll { .. } => unreachable!("translated to Configure on the worker"),
             Command::Select {
                 occurrence,
                 autoplay,
@@ -1774,6 +1791,24 @@ mod tests {
     use super::*;
     use lw_ui::catalog::Catalog;
     extern "C" fn wake() {}
+    #[test]
+    fn fresh_shuffle_commands_validate_and_interrupt_the_previous_selection() {
+        let command = Command::ShuffleAll {
+            songs: Arc::from([1, 1, 2]),
+            seed: 42,
+        };
+        assert!(command.validate().is_ok());
+        assert!(command.fences_preparation());
+        assert!(command.interrupts());
+        assert!(
+            Command::ShuffleAll {
+                songs: Arc::from([]),
+                seed: 0
+            }
+            .validate()
+            .is_err()
+        );
+    }
     #[test]
     fn settings_requests_validate_limits_and_only_file_policy_changes_fence_preparation() {
         for change in [

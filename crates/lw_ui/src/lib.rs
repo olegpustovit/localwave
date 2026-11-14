@@ -3,6 +3,7 @@ pub mod artwork;
 pub mod browse;
 pub mod catalog;
 pub mod files;
+mod icons;
 pub mod motion;
 pub mod queue;
 mod shell;
@@ -33,6 +34,8 @@ pub enum Intent {
     PlayRow(usize),
     TogglePanel,
     Shuffle,
+    ShuffleAll,
+    SortAlbums(browse::AlbumSort),
     Repeat,
     SeekFraction(f64),
     Volume(f32),
@@ -283,6 +286,21 @@ mod tests {
             assert!(
                 (second.x - first.x - side - 20.0).abs() < 0.001,
                 "20-point column gap"
+            );
+            assert!(
+                (first.y - 172.6).abs() < 0.001,
+                "native SwiftUI album header/tool origin"
+            );
+            let next_row = ui
+                .a11y_nodes()
+                .iter()
+                .filter(|n| ui.a11y_name_of(n) == "Album artwork")
+                .nth(columns as usize)
+                .unwrap()
+                .rect;
+            assert!(
+                (next_row.y - first.y - side - 43.7 - 28.0).abs() < 0.001,
+                "native SwiftUI fractional row stride"
             );
             let player = ui
                 .a11y_nodes()

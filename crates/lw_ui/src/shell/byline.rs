@@ -43,9 +43,10 @@ pub(super) fn draw(
     let styles = std::array::from_fn::<_, 5, _>(|index| pxui::TextStyle {
         size_points: if matches!(index, 1 | 3) { 15.0 } else { 14.0 },
         line_height: if matches!(index, 1 | 3) { 21.0 } else { 19.6 },
-        wrap: pxui::TextStyle::WRAP_WORD,
+        wrap: pxui::TextStyle::WRAP_WORD_SPACES,
         ..Default::default()
     });
+    let density = ui.density() as f32;
     let sizes = std::array::from_fn(|index| {
         let key = Ui::key_of(index as i64 + 0xb711e, values[index]) as u64;
         let service = &mut ui.text_service();
@@ -63,7 +64,7 @@ pub(super) fn draw(
         };
         let padding = if matches!(index, 0 | 4) { 2.0 } else { 0.0 };
         (
-            metrics.width.min(width),
+            ((metrics.width * density).ceil() / density).min(width),
             styles[index].line_height * metrics.lines.max(1) as f32 + padding,
         )
     });
@@ -120,16 +121,16 @@ mod tests {
     #[test]
     fn flow_matches_swift_baselines_and_trims_wrapped_spaces() {
         let sizes = [
-            (80.192, 21.6),
-            (3.75, 21.0),
-            (14.0, 19.6),
-            (3.75, 21.0),
-            (205.59, 21.6),
+            (81.0, 21.6),
+            (5.0, 21.0),
+            (12.0, 19.6),
+            (5.0, 21.0),
+            (206.0, 21.6),
         ];
         let (rects, height) = positions(400.0, sizes);
         assert_eq!(height, 22.0);
         assert_eq!(rects.map(|r| r.y), [0.0, 1.0, 2.0, 1.0, 0.0]);
-        assert!((rects[4].x - 101.692).abs() < 0.001);
+        assert!((rects[4].x - 103.0).abs() < 0.001);
         let (rects, height) = positions(279.0, sizes);
         assert_eq!(height, 44.0);
         assert_eq!((rects[4].x, rects[4].y), (0.0, 22.0));
@@ -185,34 +186,59 @@ mod tests {
         };
         let artist = find(&ui, player.artist);
         let album = find(&ui, player.album);
-        assert!((artist.rect.w - 80.192).abs() < 0.01);
+        let dash = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "—")
+            .unwrap();
+        assert_eq!((dash.rect.x, dash.rect.y, dash.rect.w), (86.0, 2.0, 12.0));
+        assert_eq!(artist.rect.w, 81.0);
         assert_eq!(
             (artist.rect.x, artist.rect.y, album.rect.x, album.rect.y),
             (0.0, 0.0, 0.0, 22.0)
         );
         for cycle in 0..8 {
             mem_sys::local_reset();
-            for width in [100.0, 279.0, 400.0] {
-                for (value, route) in [
-                    (player.artist, Route::Artist(0)),
-                    (player.album, Route::Album(0)),
-                ] {
-                    let id = find(&ui, value).id;
-                    ui.inject_a11y(&[pxui::A11yAction {
-                        id,
-                        action_code: 1,
-                        ..Default::default()
-                    }]);
-                    frame.time += 0.1;
-                    intent = None;
-                    ui.frame(&frame, &mut |ui| {
-                        draw(ui, &player, &catalog, width, palette(ui), &mut intent)
-                    })
-                    .unwrap();
-                    assert_eq!(intent, Some(Intent::Navigate(route)));
-                    let artist = find(&ui, player.artist);
-                    let album = find(&ui, player.album);
-                    assert!(artist.rect.w <= width && album.rect.w <= width);
+            for scale in [1.0, 2.0] {
+                frame.scale = scale;
+                for width in [100.0, 279.0, 400.0] {
+                    for (value, route) in [
+                        (player.artist, Route::Artist(0)),
+                        (player.album, Route::Album(0)),
+                    ] {
+                        let id = find(&ui, value).id;
+                        ui.inject_a11y(&[pxui::A11yAction {
+                            id,
+                            action_code: 1,
+                            ..Default::default()
+                        }]);
+                        frame.time += 0.1;
+                        intent = None;
+                        ui.frame(&frame, &mut |ui| {
+                            draw(ui, &player, &catalog, width, palette(ui), &mut intent)
+                        })
+                        .unwrap();
+                        assert_eq!(intent, Some(Intent::Navigate(route)));
+                        let artist = find(&ui, player.artist);
+                        let album = find(&ui, player.album);
+                        assert_eq!(artist.rect.w, if scale == 1.0 { 81.0 } else { 80.5 });
+                        assert!(artist.rect.w <= width && album.rect.w <= width);
+                        let (x, y, w, h) = if width == 100.0 {
+                            (0.0, 22.0, 78.0, 60.8)
+                        } else if width == 279.0 {
+                            (0.0, 22.0, 206.0, 21.6)
+                        } else {
+                            (if scale == 1.0 { 103.0 } else { 102.5 }, 0.0, 206.0, 21.6)
+                        };
+                        assert!(
+                            (album.rect.x - x).abs() < 0.001
+                                && (album.rect.y - y).abs() < 0.001
+                                && (album.rect.w - w).abs() < 0.001
+                                && (album.rect.h - h).abs() < 0.001,
+                            "native PlayerBylineFlow at {width}: {:?}",
+                            album.rect
+                        );
+                    }
                 }
             }
             if cycle >= 3 {

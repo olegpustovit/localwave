@@ -6,9 +6,19 @@ use lw_ui::catalog::Catalog;
 use std::cmp::Ordering;
 use std::io;
 
-fn load(repository: &LibraryRepository, count: usize) -> lw_apple_sys::sqlite::Result<Catalog> {
+fn load(
+    repository: &LibraryRepository,
+    count: usize,
+    identity: i64,
+) -> lw_apple_sys::sqlite::Result<Catalog> {
     let songs = repository.search_songs("", count, 0)?;
     let mut catalog = Catalog::new(songs);
+    let source_count = repository
+        .user(identity)?
+        .map(|user| repository.source_count(user.id))
+        .transpose()?
+        .unwrap_or(0);
+    std::sync::Arc::make_mut(&mut catalog.library).set_source_count(source_count);
     for list in repository.playlists()? {
         let rows = repository
             .playlist_songs(list.id)?
@@ -92,18 +102,24 @@ impl LibraryWorker {
             .filter(|request| request.scope == Scope::Find)
             .map(|request| super::find::Find::new(self, request.query.as_str()))
             .transpose()?;
+        let identity = lw_apple_sys::cloud::current_identity()?
+            .as_deref()
+            .map_or(-1, lw_core::hash_string);
         let (mut catalog, mut rows, candidates) = self
             .repository
             .read_snapshot(|repository| {
                 // Establish the SQLite read snapshot before stamping or reusing library data.
                 let count = repository.song_count("")?;
                 let version = repository.data_version()?;
-                let mut catalog =
-                    match current.filter(|catalog| catalog.source_version == Some(version)) {
-                        Some(catalog) => catalog.clone(),
-                        None => load(repository, count)?,
-                    };
+                let mut catalog = match current.filter(|catalog| {
+                    catalog.source_version == Some(version)
+                        && catalog.source_identity == Some(identity)
+                }) {
+                    Some(catalog) => catalog.clone(),
+                    None => load(repository, count, identity)?,
+                };
                 catalog.source_version = Some(version);
+                catalog.source_identity = Some(identity);
                 catalog.view = None;
                 let mut candidates = None;
                 let rows = match request.map(|request| request.scope) {
@@ -210,6 +226,14 @@ mod tests {
             )
             .unwrap();
         let catalog = worker.catalog().unwrap();
+        let mut stale_identity = catalog.clone();
+        stale_identity.source_identity = Some(i64::MAX);
+        let refreshed_identity = worker.catalog_view(Some(&stale_identity), None).unwrap();
+        assert!(
+            !Arc::ptr_eq(&catalog.library, &refreshed_identity.library),
+            "source ownership participates in catalog reuse"
+        );
+        assert_eq!(refreshed_identity.source_identity, catalog.source_identity);
         let scope = Scope::Collection(catalog.all.as_ref().unwrap().key);
         let original = catalog.collection(Route::Songs).unwrap().ids.clone();
         for (sort, ascending, expected) in [

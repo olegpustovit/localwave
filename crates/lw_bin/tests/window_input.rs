@@ -14,6 +14,159 @@ fn cloud_identity_reads_reject_the_initial_thread() {
     assert!(lw_apple_sys::cloud::current_identity().is_err());
 }
 
+fn shuffle_all_preserves_catalog_payload_and_configures_a_real_native_queue() {
+    // Installing native audio items requires the initial-thread integration host; the source is muted.
+    use lw_apple_sys::preferences::{AppPaths, Preferences};
+    use lw_bin::{
+        controller::{Command, Controller},
+        library::LibraryWorker,
+    };
+    use std::{
+        sync::{Arc, mpsc},
+        time::{Duration, Instant},
+    };
+    let base = std::env::temp_dir().join(format!("lw-shuffle-all-{}", std::process::id()));
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let path = base.join("Documents/Added Files/track.m4a");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    std::fs::write(
+        &path,
+        include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged-m4a.m4a"),
+    )
+    .unwrap();
+    let worker_base = base.clone();
+    let suite = format!("localwave.shuffle-all.{}", std::process::id());
+    let worker_suite = suite.clone();
+    let (send, receive) = mpsc::sync_channel(1);
+    extern "C" fn wake() {}
+    let mut controller = Controller::open(
+        move || {
+            let mut library = LibraryWorker::open(
+                &worker_base.join("library.sqlite"),
+                Preferences::open(Some(&worker_suite))?,
+                AppPaths {
+                    documents: worker_base.join("Documents"),
+                    caches: worker_base.join("Caches"),
+                    temporary: worker_base.join("tmp"),
+                    test_database: None,
+                },
+            )?;
+            let user = library.current_sources()?.user;
+            for path_id in 1..=2 {
+                library
+                    .repository
+                    .create_source(&lw_core::Source {
+                        user_id: user.id,
+                        dir_path: format!("/empty source {path_id}"),
+                        path_id,
+                        ..Default::default()
+                    })
+                    .map_err(std::io::Error::other)?;
+            }
+            let mut ids = Vec::new();
+            for id in 1..=4 {
+                let song = library
+                    .repository
+                    .upsert_song(
+                        &lw_core::Song {
+                            song_key: id,
+                            path_hash: id,
+                            title: format!("Shuffle {id}"),
+                            artist: "Artist".into(),
+                            local_file_path: Some("Added Files/track.m4a".into()),
+                            file_state: lw_core::FileState::Copied,
+                            ..Default::default()
+                        },
+                        1.0,
+                    )
+                    .map_err(std::io::Error::other)?;
+                ids.push(song.id.unwrap());
+            }
+            send.send(ids).map_err(std::io::Error::other)?;
+            Ok(library)
+        },
+        wake,
+    )
+    .unwrap();
+    let ids = receive.recv_timeout(Duration::from_secs(1)).unwrap();
+    let original: Arc<[i64]> = Arc::from([ids[0], ids[0], ids[1], ids[2], ids[3]]);
+    let before = original.to_vec();
+    let mut expected = before.clone();
+    lw_core::queue::shuffle_songs(&mut expected, 42);
+    controller.command(Command::Volume(0.0)).unwrap();
+    let revision = controller
+        .command(Command::ShuffleAll {
+            songs: original.clone(),
+            seed: 42,
+        })
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    loop {
+        controller.run_loop(Duration::from_millis(1));
+        controller.poll().unwrap();
+        if controller.status().processed_command >= revision
+            && controller.native_snapshot().token != 0
+            && controller.catalog().queue.as_ref().is_some_and(|queue| {
+                queue
+                    .entries
+                    .iter()
+                    .map(|entry| entry.song_id)
+                    .eq(expected.iter().copied())
+            })
+        {
+            break;
+        }
+        assert!(Instant::now() < deadline, "{:?}", controller.status());
+    }
+    assert_eq!(original.as_ref(), before);
+    assert!(controller.status().fault.is_none());
+    assert!(controller.status().wants_playback);
+    assert!(
+        !controller.status().shuffled,
+        "fresh shuffled input keeps Swift's Configure semantics"
+    );
+    assert_eq!(controller.status().current_index, Some(0));
+    assert_eq!(controller.native_snapshot().volume, 0.0);
+    assert_eq!(
+        controller.catalog().library_subtitle,
+        "4 songs across 2 sources · 0.0 MB",
+        "empty registered sources count too"
+    );
+    assert_eq!(
+        *controller.catalog().queue.as_ref().unwrap().context,
+        lw_core::context::PlaybackContext::Library
+    );
+    drop(controller);
+    std::thread::spawn(move || {
+        let library = LibraryWorker::open(
+            &base.join("library.sqlite"),
+            Preferences::open(Some(&suite)).unwrap(),
+            AppPaths {
+                documents: base.join("Documents"),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+        )
+        .unwrap();
+        let saved = library.load_player_state().unwrap();
+        assert_eq!(saved.song_ids, expected);
+        assert_eq!(saved.current_index, 0);
+        assert_eq!(
+            library.playback_context(saved.context_data.as_deref()),
+            lw_core::context::PlaybackContext::Library
+        );
+    })
+    .join()
+    .unwrap();
+}
+
 fn removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_retirement() {
     // Native paused-item installation and AppKit callbacks require the initial-thread integration host.
     use lw_apple_sys::preferences::{AppPaths, Preferences};
@@ -807,6 +960,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
 
 fn main() {
     harness::run(&[
+        (
+            "shuffle_all_preserves_catalog_payload_and_configures_a_real_native_queue",
+            shuffle_all_preserves_catalog_payload_and_configures_a_real_native_queue,
+        ),
         (
             "removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_retirement",
             removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_retirement,

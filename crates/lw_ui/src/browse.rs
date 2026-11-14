@@ -82,6 +82,15 @@ pub enum Sort {
     Duration,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(usize)]
+pub enum AlbumSort {
+    #[default]
+    Artist,
+    Year,
+    Added,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Request {
     pub scope: Scope,

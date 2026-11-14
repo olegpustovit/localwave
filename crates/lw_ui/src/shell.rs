@@ -4,6 +4,7 @@ use crate::{Intent, PlayerView};
 use pxui::ui::*;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
+mod albums;
 mod artists;
 mod byline;
 mod files;
@@ -16,6 +17,7 @@ pub struct ShellState {
     pub query: Query,
     pub sort: Sort,
     pub ascending: bool,
+    pub album_sort: crate::browse::AlbumSort,
     queue_visible: bool,
     playlist_editing: bool,
     playlist_name: Query,
@@ -40,6 +42,7 @@ impl Default for ShellState {
             query: Query::default(),
             sort: Sort::Original,
             ascending: true,
+            album_sort: crate::browse::AlbumSort::Artist,
             queue_visible: false,
             playlist_editing: false,
             playlist_name: Query::default(),
@@ -179,6 +182,7 @@ impl ShellState {
                 self.sort = Sort::Original;
                 self.ascending = true;
             }
+            Intent::SortAlbums(sort) => self.album_sort = sort,
             Intent::SelectRow(index) => self.selected = Some(index),
             Intent::TogglePanel => self.panel_visible = !self.panel_visible,
             Intent::ShowQueue => {
@@ -329,11 +333,35 @@ fn text(
     dimensions: (Size, f32),
     mono: bool,
 ) -> Handle {
+    let style = pxui::TextStyle {
+        font: u16::from(mono),
+        size_points: size as f32,
+        line_height: size as f32 * 1.4,
+        max_lines: 1,
+        ellipsis: pxui::TextStyle::ELLIPSIS_END,
+        ..Default::default()
+    };
+    let width = if matches!(dimensions.0, Size::Fit) {
+        let mut key = DefaultHasher::new();
+        (value, mono, size).hash(&mut key);
+        // SwiftUI rounds intrinsic Text widths to physical pixels; CoreText widths stay fractional.
+        let density = ui.density() as f32;
+        Size::Px(
+            (ui.text_service()
+                .width(key.finish(), value, &style, 0.0)
+                .unwrap()
+                * density)
+                .ceil()
+                / density,
+        )
+    } else {
+        dimensions.0
+    };
     let node = ui.node(
         key,
         Node {
             flags: FIT_TEXT,
-            w: dimensions.0,
+            w: width,
             h: Size::Px(dimensions.1),
             role: Role::Label,
             look: Look {
@@ -348,20 +376,7 @@ fn text(
             ..Node::DEFAULT
         },
     );
-    ui.text_line_box(
-        &node,
-        value,
-        &pxui::TextStyle {
-            font: u16::from(mono),
-            size_points: size as f32,
-            line_height: size as f32 * 1.4,
-            max_lines: 1,
-            ellipsis: pxui::TextStyle::ELLIPSIS_END,
-            ..Default::default()
-        },
-        &[],
-    )
-    .unwrap();
+    ui.text_line_box(&node, value, &style, &[]).unwrap();
     node
 }
 fn spacer(ui: &mut Ui, key: &str, height: f32) {
@@ -524,8 +539,16 @@ fn icon_button(
                             paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), color);
                         }
                         Icon::Shuffle => {
-                            paint.line((x + 2.0, y + 4.0), (x + 17.0, y + 16.0), color);
-                            paint.line((x + 2.0, y + 16.0), (x + 17.0, y + 4.0), color);
+                            crate::icons::shuffle(
+                                paint,
+                                Rect {
+                                    x,
+                                    y,
+                                    w: 20.0,
+                                    h: 20.0,
+                                },
+                                color,
+                            );
                         }
                         Icon::Repeat => {
                             paint.line((x + 3.0, y + 5.0), (x + 17.0, y + 5.0), color);
@@ -1426,15 +1449,17 @@ fn content(
                 &[],
             )
             .unwrap();
-            if icon_button(
-                ui,
-                "refresh",
-                "Refresh library",
-                Icon::Refresh,
-                (36.0, 36.0),
-                false,
-                p,
-            ) {
+            if state.route != Route::Albums
+                && icon_button(
+                    ui,
+                    "refresh",
+                    "Refresh library",
+                    Icon::Refresh,
+                    (36.0, 36.0),
+                    false,
+                    p,
+                )
+            {
                 *intent = Some(Intent::RefreshLibrary);
             }
         });
@@ -1489,6 +1514,8 @@ fn content(
                 "Click a header to sort. Double-click or Return plays."
             } else if state.route == Route::Artists {
                 "Sorted ignoring “The”"
+            } else if state.route == Route::Albums {
+                &catalog.library_subtitle
             } else {
                 collection.map_or("Browse your library", |group| group.subtitle.as_str())
             },
@@ -1498,14 +1525,21 @@ fn content(
             false,
         );
         spacer(ui, "heading-bottom-gap", 18.0);
+        if state.route == Route::Albums {
+            albums::toolbar(ui, catalog, state, p, intent);
+        }
         if state.route != Route::Artists {
             rule(ui, "heading-divider", false, p);
+            if state.route == Route::Albums {
+                spacer(ui, "album-header-bottom", 1.0);
+            }
         }
         if state.route == Route::Artists {
             artists::table(ui, catalog, state, player.artwork, width, p, intent);
         } else if state.route == Route::Albums {
             let entry = crate::motion::Page::new(ui, state.entry_revision);
             let groups = &catalog.albums;
+            let order = &catalog.album_orders[state.album_sort as usize];
             let available = (width - 64.0).max(1.0);
             let columns = ((available + 20.0) / 170.0).floor().max(1.0) as usize;
             let cell = (available - (columns - 1) as f32 * 20.0) / columns as f32;
@@ -1528,7 +1562,13 @@ fn content(
                         },
                     );
                     ui.within(&row, &mut |ui| {
-                        for index in line * columns..((line + 1) * columns).min(groups.len()) {
+                        for (column, index) in order
+                            .iter()
+                            .copied()
+                            .skip(line * columns)
+                            .take(columns)
+                            .enumerate()
+                        {
                             let holder = ui.node_keyed(
                                 int_key(row.box_key, index as i64),
                                 Node {
@@ -1561,11 +1601,7 @@ fn content(
                                         ui.set_look(
                                             &node,
                                             Look {
-                                                fill: if signal.hovered {
-                                                    p.panel
-                                                } else {
-                                                    p.paper
-                                                },
+                                                fill: p.paper,
                                                 ..Look::NONE
                                             },
                                             State::default(),
@@ -1589,7 +1625,7 @@ fn content(
                                             ui.a11y_name(&art, "Album artwork");
                                             spacer(ui, "artwork-label-gap", 8.0);
 
-                                            text(
+                                            let name = text(
                                                 ui,
                                                 "name",
                                                 &group.title,
@@ -1598,6 +1634,20 @@ fn content(
                                                 (Size::Grow, 17.5),
                                                 false,
                                             );
+                                            ui.text_line_box(
+                                                &name,
+                                                &group.title,
+                                                &pxui::TextStyle {
+                                                    size_points: 14.0,
+                                                    line_height: 17.5,
+                                                    weight: 500,
+                                                    max_lines: 1,
+                                                    ellipsis: pxui::TextStyle::ELLIPSIS_END,
+                                                    ..Default::default()
+                                                },
+                                                &[],
+                                            )
+                                            .unwrap();
                                             text(
                                                 ui,
                                                 "artist",
@@ -1613,7 +1663,7 @@ fn content(
                                         }
                                     },
                                 );
-                                entry.row(ui, &visual, index);
+                                entry.row(ui, &visual, line * columns + column);
                             });
                         }
                     });

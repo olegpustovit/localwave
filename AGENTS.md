@@ -340,3 +340,19 @@ its byline follows Swift's 15-point strut and baseline-aligned 14-point padded l
 wrapped whitespace and measures only in its retained metadata view. Natural and constrained
 measurement identities must differ by width; reusing one identity causes repeated shaping.
 Preserve accessible artist/album routing, empty-line height and warm resize allocation checks.
+
+
+Albums has SwiftUI's 30-point Artist/Year/Size toolbar, 8-point gaps, fractional 1.5-point
+selection border, 14-point bottom padding and one-point header clearance. The desktop first
+artwork starts at y=172.6 with no window inset; preserve actual native SwiftUI control widths
+52/47/44/100 and the fractional grid row stride across desktop widths. Prepare all three album
+orders and size/source labels on the worker; Year uses the first ordered track, Size follows
+Swift's Added ordering, and Artist strips only exact "The ". Sorting retains album identity and
+navigation generations. Intrinsic SwiftUI Text widths ceil to physical pixels using Ui::density (ABI 1.19); explicit CoreText column
+widths remain fractional. The byline uses pxui ABI 1.18 WRAP_WORD_SPACES to retain the logical
+advance of omitted separators in fitting widths; preserve the native 100/279/400-point references.
+Shuffle all hands the library Arc to the controller and shuffles its copy there, including the
+first item and duplicate occurrences, through the existing Configure/lease/persistence path.
+Keep ordinary Shuffle semantics separate. Preserve muted native queue/persistence and warm UI
+checks. Reference shuffle paths use bounded analytic curves in the existing pipeline, with
+less than 0.04-pixel cubic approximation deviation at 16/20 points and 1x/2x.

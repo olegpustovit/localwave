@@ -79,6 +79,9 @@ pub struct Library {
     by_id: HashMap<i64, usize>,
     pub all: Option<Collection>,
     pub albums: Vec<Collection>,
+    pub album_orders: [Vec<usize>; 3],
+    pub size_label: String,
+    pub library_subtitle: String,
     pub artists: Vec<Collection>,
     pub collections: Vec<Collection>,
     pub album_count: String,
@@ -91,7 +94,19 @@ impl Library {
     pub fn new(songs: Vec<Song>) -> Self {
         let mut albums = BTreeMap::<(String, String), Vec<usize>>::new();
         let mut artists = BTreeMap::<String, Vec<usize>>::new();
+        let megabytes = songs
+            .iter()
+            .filter(|song| song.id.is_some())
+            .map(|song| i128::from(song.file_size.unwrap_or(0).max(0)))
+            .sum::<i128>() as f64
+            / 1_048_576.0;
+        let size_label = if megabytes >= 1024.0 {
+            format!("{:.1} GB", megabytes / 1024.0)
+        } else {
+            format!("{megabytes:.1} MB")
+        };
         let mut out = Self {
+            size_label,
             labels: String::with_capacity(
                 songs
                     .iter()
@@ -109,10 +124,17 @@ impl Library {
         };
         out.rows.reserve_exact(songs.len());
         let mut tracks = Vec::with_capacity(songs.len());
+        let mut added = Vec::with_capacity(songs.len());
+        let mut album_added = Vec::new();
         let mut covers = HashMap::new();
         for mut song in songs {
             let Some(id) = song.id else { continue };
             let index = out.rows.len();
+            added.push(if song.created_at.is_finite() {
+                song.created_at
+            } else {
+                f64::NEG_INFINITY
+            });
             let artist = if song.album_artist.is_empty() {
                 &song.artist
             } else {
@@ -185,6 +207,12 @@ impl Library {
                     .cmp(&tracks[*b])
                     .then_with(|| out.row(*a).title.cmp(out.row(*b).title))
             });
+            album_added.push(
+                rows.iter()
+                    .map(|index| added[*index])
+                    .max_by(f64::total_cmp)
+                    .unwrap_or(f64::NEG_INFINITY),
+            );
             let caption = rows
                 .first()
                 .and_then(|index| out.rows[*index].release_year)
@@ -199,6 +227,31 @@ impl Library {
                 },
             ));
         }
+        out.album_orders = std::array::from_fn(|_| (0..out.albums.len()).collect());
+        let artist_keys: Vec<_> = out
+            .albums
+            .iter()
+            .map(|album| match album.context.as_ref() {
+                PlaybackContext::Album { artist, .. } => {
+                    artist.strip_prefix("The ").unwrap_or(artist)
+                }
+                _ => unreachable!("album context"),
+            })
+            .collect();
+        out.album_orders[0].sort_by(|a, b| {
+            (artist_keys[*a], out.albums[*a].title.as_str())
+                .cmp(&(artist_keys[*b], out.albums[*b].title.as_str()))
+        });
+        out.album_orders[1].sort_by_key(|index| {
+            std::cmp::Reverse(
+                out.albums[*index]
+                    .rows
+                    .first()
+                    .and_then(|index| out.rows[*index].release_year)
+                    .unwrap_or(0),
+            )
+        });
+        out.album_orders[2].sort_by(|a, b| album_added[*b].total_cmp(&album_added[*a]));
         for (name, rows) in artists {
             out.artists.push(out.make_collection(
                 &name,
@@ -218,6 +271,7 @@ impl Library {
                 .collect::<String>()
         });
         out.song_count = out.rows.len().to_string();
+        out.set_source_count(0);
         out.album_count = out.albums.len().to_string();
         out.artist_count = out.artists.len().to_string();
         out.all = Some(out.make_collection(
@@ -243,6 +297,13 @@ impl Library {
             PlaybackContext::Automatic("Recently added".into()),
         );
         out
+    }
+    /// Worker-prepared labels include empty sources as in the Swift library model.
+    pub fn set_source_count(&mut self, count: usize) {
+        self.library_subtitle = format!(
+            "{} songs across {count} sources · {}",
+            self.song_count, self.size_label
+        );
     }
     pub fn len(&self) -> usize {
         self.rows.len()
@@ -323,6 +384,7 @@ pub struct Catalog {
     pub library: Arc<Library>,
     pub view: Option<Arc<View>>,
     pub source_version: Option<i64>,
+    pub source_identity: Option<i64>,
     pub queue: Option<Arc<crate::queue::Snapshot>>,
 }
 pub struct View {
@@ -341,6 +403,7 @@ impl Catalog {
             library: Arc::new(Library::new(songs)),
             view: None,
             source_version: None,
+            source_identity: None,
             queue: None,
         }
     }
@@ -486,6 +549,64 @@ impl Catalog {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn album_orders_match_swift_artist_first_track_year_and_latest_added() {
+        let mut library = super::Library::new(vec![
+            Song {
+                id: Some(1),
+                artist: "Alice".into(),
+                album: "B".into(),
+                release_year: Some(2019),
+                track_number: Some(1),
+                created_at: 100.0,
+                file_size: Some(1_073_741_824),
+                ..Default::default()
+            },
+            Song {
+                id: Some(2),
+                artist: "The Bee".into(),
+                album: "A".into(),
+                release_year: Some(2022),
+                created_at: 200.0,
+                ..Default::default()
+            },
+            Song {
+                id: Some(3),
+                artist: "Cedar".into(),
+                album: "C".into(),
+                created_at: 300.0,
+                file_size: Some(-1),
+                ..Default::default()
+            },
+            Song {
+                id: Some(4),
+                artist: "Alice".into(),
+                album: "B".into(),
+                release_year: Some(2030),
+                track_number: Some(2),
+                created_at: 400.0,
+                ..Default::default()
+            },
+        ]);
+        let names = |order: usize| {
+            library.album_orders[order]
+                .iter()
+                .map(|index| library.albums[*index].title.as_str())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(names(0), ["B", "A", "C"]);
+        assert_eq!(names(1), ["A", "B", "C"]);
+        assert_eq!(names(2), ["B", "C", "A"]);
+        library.set_source_count(3);
+        assert_eq!(library.size_label, "1.0 GB");
+        assert_eq!(
+            library.library_subtitle,
+            "4 songs across 3 sources · 1.0 GB"
+        );
+        let empty = super::Library::new(Vec::new());
+        assert_eq!(empty.library_subtitle, "0 songs across 0 sources · 0.0 MB");
+        assert!(empty.album_orders.iter().all(Vec::is_empty));
+    }
     #[test]
     fn table_font_widths_match_coretext_reference_faces_and_weights() {
         let mut text = pxui::Text::new(&[crate::FONT, crate::MONO]).unwrap();

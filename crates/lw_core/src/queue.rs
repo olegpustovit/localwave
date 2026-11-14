@@ -215,6 +215,13 @@ impl Queue {
     }
 }
 
+/// Shuffle a fresh playback selection, including its first song; called on the controller worker.
+pub fn shuffle_songs(songs: &mut [i64], mut seed: u64) {
+    for index in (1..songs.len()).rev() {
+        songs.swap(index, random_below(&mut seed, index as u64 + 1) as usize);
+    }
+}
+
 fn random_below(seed: &mut u64, bound: u64) -> u64 {
     let threshold = bound.wrapping_neg() % bound;
     loop {
@@ -232,6 +239,30 @@ fn random_below(seed: &mut u64, bound: u64) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fresh_selection_shuffle_includes_first_song_preserves_duplicates_and_is_seeded() {
+        let original = [1, 1, 2, 3, 4, 5, 6, 7];
+        let mut changed_first = false;
+        for seed in 0..64 {
+            let mut a = original;
+            let mut b = original;
+            shuffle_songs(&mut a, seed);
+            shuffle_songs(&mut b, seed);
+            assert_eq!(a, b);
+            changed_first |= a[0] != original[0];
+            a.sort_unstable();
+            assert_eq!(a, original);
+        }
+        assert!(
+            changed_first,
+            "fresh shuffle must not preserve the first song"
+        );
+        shuffle_songs(&mut [], 0);
+        let mut one = [9];
+        shuffle_songs(&mut one, u64::MAX);
+        assert_eq!(one, [9]);
+    }
 
     #[test]
     fn ten_thousand_song_advance_and_prequeue_allocate_nothing() {

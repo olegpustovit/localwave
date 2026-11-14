@@ -913,6 +913,20 @@ fn run() -> Result<(), String> {
                                 context: Some(collection.context.clone()),
                             }
                         }
+                        lw_ui::Intent::ShuffleAll => {
+                            let Some(collection) = player
+                                .catalog()
+                                .all
+                                .as_ref()
+                                .filter(|collection| !collection.ids.is_empty())
+                            else {
+                                continue;
+                            };
+                            Command::ShuffleAll {
+                                songs: collection.ids.clone(),
+                                seed: now.to_bits(),
+                            }
+                        }
                         lw_ui::Intent::Shuffle => Command::Shuffle {
                             enabled: !player.status().shuffled,
                             seed: now.to_bits(),
@@ -952,6 +966,7 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::Search(_)
                         | lw_ui::Intent::SearchTooLong
                         | lw_ui::Intent::Sort(_)
+                        | lw_ui::Intent::SortAlbums(_)
                         | lw_ui::Intent::TogglePanel
                         | lw_ui::Intent::ShowQueue
                         | lw_ui::Intent::CloseQueue

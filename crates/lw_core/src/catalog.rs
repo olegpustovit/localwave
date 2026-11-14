@@ -212,6 +212,19 @@ impl LibraryRepository {
         })
     }
 
+    pub fn source_count(&self, user_id: i64) -> Result<usize> {
+        let mut count = 0;
+        self.db.query(
+            "SELECT COUNT(*) FROM sources WHERE userId=?",
+            &[Integer(user_id)],
+            &mut |row| {
+                count = required(row.integer(0)?)? as usize;
+                Ok(())
+            },
+        )?;
+        Ok(count)
+    }
+
     pub fn sources(&self, user_id: i64) -> Result<Vec<Source>> {
         let mut sources = Vec::new();
         self.db.query(

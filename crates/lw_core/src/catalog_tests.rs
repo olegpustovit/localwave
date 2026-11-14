@@ -445,7 +445,10 @@ fn folder_registration_reuses_owners_rows_and_rolls_back_bookmark_and_selection_
     assert_eq!(renewed.bookmark, Some(vec![4]));
     assert_eq!(renewed.source_type.as_deref(), Some("iCloud"));
     assert_eq!(repo.sources(user.id).unwrap().len(), 2);
+    assert_eq!(repo.source_count(user.id).unwrap(), 2);
     assert!(!repo.source(second.id.unwrap()).unwrap().unwrap().is_current);
+    assert_eq!(repo.source_count(other.id).unwrap(), 1);
+    assert_eq!(repo.source_count(i64::MAX).unwrap(), 0);
     assert_eq!(repo.source(foreign.id.unwrap()).unwrap(), Some(foreign));
     repo.db.execute_batch("CREATE TEMP TRIGGER refuse_source_selection BEFORE UPDATE OF isCurrent ON sources BEGIN SELECT RAISE(FAIL,'injected selection failure'); END").unwrap();
     assert!(
@@ -457,6 +460,7 @@ fn folder_registration_reuses_owners_rows_and_rolls_back_bookmark_and_selection_
             .is_err()
     );
     assert_eq!(repo.sources(user.id).unwrap().len(), 2);
+    assert_eq!(repo.source_count(user.id).unwrap(), 2);
     assert_eq!(repo.source(first.id.unwrap()).unwrap().unwrap(), renewed);
     assert_eq!(
         repo.source(second.id.unwrap()).unwrap().unwrap().bookmark,
@@ -540,6 +544,7 @@ fn users_source_ownership_bookmark_compare_and_swap_and_reconnect() {
     assert_eq!(connected.sync_error, None);
     assert_eq!(connected.bookmark, Some(vec![9]));
     assert_eq!(repo.sources(user.id).unwrap().len(), 2);
+    assert_eq!(repo.source_count(user.id).unwrap(), 2);
     repo.delete_source(id).unwrap();
     assert!(!repo.update_source_bookmark(id, &[0], Some(&[9])).unwrap());
     assert!(
