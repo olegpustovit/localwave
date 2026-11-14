@@ -1,6 +1,6 @@
 //! Folder enumeration/import has its own connection and worker, leaving playback preparation free.
 use crate::library::LibraryWorker;
-use lw_apple_sys::{collation::Key, preferences::file_path};
+use lw_apple_sys::{bookmarks::FileSelection, collation::Key, preferences::file_path};
 use lw_ui::files::{Directory, Entry, Folder, Location, Request, Snapshot, Target};
 use std::{
     io,
@@ -16,16 +16,17 @@ use std::{
 enum Job {
     Add {
         user: i64,
-        path: PathBuf,
+        path: FileSelection,
     },
     Selection {
         user: Option<i64>,
         paths: Vec<PathBuf>,
         dropped: bool,
+        grants: Option<Vec<FileSelection>>,
     },
     Reconnect {
         target: Target,
-        path: PathBuf,
+        path: FileSelection,
     },
     Remove(Target),
     Rescan(Location),
@@ -113,13 +114,48 @@ impl FilesWorker {
         if !path.is_absolute() {
             return Err(io::ErrorKind::InvalidInput.into());
         }
-        self.job(Job::Add { user, path })
+        self.add_folder_selected(user, path.into())
     }
     pub fn reconnect_folder(&self, target: Target, path: PathBuf) -> io::Result<()> {
         if !path.is_absolute() {
             return Err(io::ErrorKind::InvalidInput.into());
         }
+        self.reconnect_folder_selected(target, path.into())
+    }
+    pub fn add_folder_selected(&self, user: i64, path: FileSelection) -> io::Result<()> {
+        if !path.path().is_absolute() {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        self.job(Job::Add { user, path })
+    }
+    pub fn reconnect_folder_selected(&self, target: Target, path: FileSelection) -> io::Result<()> {
+        if !path.path().is_absolute() {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
         self.job(Job::Reconnect { target, path })
+    }
+    pub fn add_audio_granted(
+        &self,
+        user: i64,
+        paths: Vec<PathBuf>,
+        grants: Vec<FileSelection>,
+    ) -> io::Result<()> {
+        if paths.is_empty()
+            || paths.len() > 4096
+            || paths.len() != grants.len()
+            || paths
+                .iter()
+                .zip(&grants)
+                .any(|(path, file)| !path.is_absolute() || path != file.path())
+        {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        self.job(Job::Selection {
+            user: Some(user),
+            paths,
+            dropped: false,
+            grants: Some(grants),
+        })
     }
     pub fn add_audio(&self, user: i64, paths: Vec<PathBuf>) -> io::Result<()> {
         self.selection(Some(user), paths, false)
@@ -138,6 +174,7 @@ impl FilesWorker {
             user,
             paths,
             dropped,
+            grants: None,
         })
     }
     fn job(&self, job: Job) -> io::Result<()> {
@@ -441,6 +478,7 @@ fn execute(
             user,
             paths,
             dropped,
+            grants,
         } => {
             let user = match user {
                 Some(user) => user,
@@ -452,24 +490,35 @@ fn execute(
             } else {
                 LibraryWorker::add_audio
             };
-            let selection = import(
-                library,
-                user,
-                &paths,
-                now(),
-                &shared.cancelled,
-                &mut |stage, completed, total| {
-                    if completed <= 1 || last.elapsed().as_millis() >= 100 {
-                        snapshot.progress = if total == 0 {
-                            format!("{stage}: {completed} items")
-                        } else {
-                            format!("{stage}: {completed} of {total} files")
-                        };
-                        publish(shared, snapshot);
-                        last = Instant::now();
-                    }
-                },
-            )?;
+            let mut progress = |stage: &str, completed: usize, total: usize| {
+                if completed <= 1 || last.elapsed().as_millis() >= 100 {
+                    snapshot.progress = if total == 0 {
+                        format!("{stage}: {completed} items")
+                    } else {
+                        format!("{stage}: {completed} of {total} files")
+                    };
+                    publish(shared, snapshot);
+                    last = Instant::now();
+                }
+            };
+            let selection = if let Some(grants) = grants {
+                library.add_audio_granted(
+                    user,
+                    (&paths, &grants),
+                    now(),
+                    &shared.cancelled,
+                    &mut progress,
+                )?
+            } else {
+                import(
+                    library,
+                    user,
+                    &paths,
+                    now(),
+                    &shared.cancelled,
+                    &mut progress,
+                )?
+            };
             let location = Location {
                 user,
                 source: selection
@@ -494,7 +543,8 @@ fn execute(
             return Ok(format!("{count} selected tracks added."));
         }
         Job::Reconnect { target, path } => {
-            let source = library.reconnect_folder(target, &path, now(), &shared.cancelled)?;
+            let source =
+                library.reconnect_selected_folder(target, &path, now(), &shared.cancelled)?;
             let location = Location {
                 user: target.user,
                 source: target.source,
@@ -505,7 +555,7 @@ fn execute(
             (location, true, None)
         }
         Job::Add { user, path } => {
-            let source = library.register_folder(user, &path, now(), &shared.cancelled)?;
+            let source = library.register_selected_folder(user, &path, now(), &shared.cancelled)?;
             let location = Location {
                 user,
                 source: source
@@ -777,11 +827,15 @@ mod tests {
         worker.request(Request::Roots).unwrap();
         until(&mut worker, |snapshot| snapshot.account.is_some());
         let user = worker.snapshot().account.unwrap();
-        worker.add_folder(user, music.clone()).unwrap();
+        let (selection, identity) = sdl3_sys::test_util::file_selection(&music).unwrap();
+        worker.add_folder_selected(user, selection).unwrap();
         until(&mut worker, |snapshot| {
             snapshot.catalog_revision == 1 && !snapshot.busy
         });
         assert_eq!(worker.snapshot().sources.len(), 1);
+        let (seen, calls, starts, stops) = sdl3_sys::test_util::file_selection_status();
+        assert_eq!((seen, calls), (identity, 1));
+        assert_eq!(starts, stops);
         assert!(
             worker.snapshot().message.starts_with("1 imported"),
             "{}",
@@ -899,12 +953,16 @@ mod tests {
         };
         let moved = base.join("Reconnected music 名前");
         std::fs::rename(&music, &moved).unwrap();
-        worker.reconnect_folder(target, moved.clone()).unwrap();
+        let (selection, identity) = sdl3_sys::test_util::file_selection(&moved).unwrap();
+        worker.reconnect_folder_selected(target, selection).unwrap();
         until(&mut worker, |snapshot| {
             snapshot.catalog_revision == 4 && !snapshot.busy
         });
         assert_eq!(worker.snapshot().sources.len(), 1);
         assert_eq!(worker.snapshot().sources[0].id, target.source);
+        let (seen, calls, starts, stops) = sdl3_sys::test_util::file_selection_status();
+        assert_eq!((seen, calls), (identity, 2));
+        assert_eq!(starts, stops);
         assert_ne!(worker.snapshot().sources[0].root, target.root);
         assert_eq!(
             worker.snapshot().directory.as_ref().unwrap().entries.len(),
@@ -966,15 +1024,30 @@ mod tests {
             repository.get_song(other_song.id.unwrap()).unwrap(),
             Some(other_song)
         );
+        let paths = vec![moved.join("02.flac"), moved.join("Album/01.flac")];
+        let grants: Vec<_> = paths
+            .iter()
+            .map(|path| sdl3_sys::test_util::file_selection(path).unwrap())
+            .collect();
+        let identity = grants[1].1;
+        assert!(
+            worker
+                .add_audio_granted(user, paths.clone(), vec![grants[0].0.clone()])
+                .is_err()
+        );
         worker
-            .add_audio(
+            .add_audio_granted(
                 user,
-                vec![moved.join("02.flac"), moved.join("Album/01.flac")],
+                paths,
+                grants.into_iter().map(|(file, _)| file).collect(),
             )
             .unwrap();
         until(&mut worker, |snapshot| {
             snapshot.catalog_revision == 8 && !snapshot.busy
         });
+        let (seen, calls, starts, stops) = sdl3_sys::test_util::file_selection_status();
+        assert_eq!((seen, calls), (identity, 4));
+        assert_eq!(starts, stops);
         assert!(
             worker.snapshot().message.contains("selected tracks added"),
             "{}",

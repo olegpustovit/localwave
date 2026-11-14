@@ -1,7 +1,7 @@
 //! Source ownership follows the same secure iCloud identity as the shipping Swift app.
 use super::{LibraryWorker, Root, check, db, hash, text};
 use lw_apple_sys::{
-    bookmarks::{self, Access},
+    bookmarks::{self, Access, FileSelection},
     preferences::file_path,
     scan::Scan,
 };
@@ -86,6 +86,24 @@ impl LibraryWorker {
         self.register_folder_for_user(&user, expected_user, folder, now, cancelled)
     }
 
+    pub fn register_selected_folder(
+        &mut self,
+        user: i64,
+        selection: &FileSelection,
+        now: f64,
+        cancelled: &AtomicBool,
+    ) -> io::Result<Source> {
+        let account = self.current_source_user(user)?;
+        self.register_folder_for_user_selected(
+            &account,
+            user,
+            selection.path(),
+            now,
+            cancelled,
+            Some(selection),
+        )
+    }
+
     fn source_target(&mut self, target: Target) -> io::Result<Source> {
         let source = self.owned_source(target.user, target.source)?;
         if source.path_id != target.root {
@@ -104,9 +122,28 @@ impl LibraryWorker {
         now: f64,
         cancelled: &AtomicBool,
     ) -> io::Result<Source> {
+        self.reconnect_folder_selected(target, folder, now, cancelled, None)
+    }
+    pub fn reconnect_selected_folder(
+        &mut self,
+        target: Target,
+        selection: &FileSelection,
+        now: f64,
+        cancelled: &AtomicBool,
+    ) -> io::Result<Source> {
+        self.reconnect_folder_selected(target, selection.path(), now, cancelled, Some(selection))
+    }
+    fn reconnect_folder_selected(
+        &mut self,
+        target: Target,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+        selection: Option<&FileSelection>,
+    ) -> io::Result<Source> {
         check(cancelled)?;
         let expected = self.source_target(target)?;
-        let (bookmark, access) = self.folder_access(folder, now, cancelled)?;
+        let (bookmark, access) = self.folder_access_selected(folder, now, cancelled, selection)?;
         let locations = self.source_locations(&expected, access.path())?;
         let mut resolved = expected.clone();
         resolved.dir_path = text(folder)?.to_owned();
@@ -185,6 +222,15 @@ impl LibraryWorker {
         now: f64,
         cancelled: &AtomicBool,
     ) -> io::Result<(Vec<u8>, Access)> {
+        self.folder_access_selected(folder, now, cancelled, None)
+    }
+    fn folder_access_selected(
+        &self,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+        selection: Option<&FileSelection>,
+    ) -> io::Result<(Vec<u8>, Access)> {
         check(cancelled)?;
         if !now.is_finite() || !folder.is_absolute() {
             return Err(io::Error::new(
@@ -192,7 +238,14 @@ impl LibraryWorker {
                 "Expected an absolute folder and finite date",
             ));
         }
-        let bookmark = bookmarks::create(folder)?;
+        let bookmark = match selection
+            .map(FileSelection::bookmark)
+            .transpose()?
+            .flatten()
+        {
+            Some(bookmark) => bookmark,
+            None => bookmarks::create(folder)?,
+        };
         if bookmark.len() > 64 * 1024 * 1024 {
             return Err(io::Error::other("Bookmark exceeds its memory limit"));
         }
@@ -210,8 +263,19 @@ impl LibraryWorker {
         now: f64,
         cancelled: &AtomicBool,
     ) -> io::Result<Source> {
+        self.register_folder_for_user_selected(user, expected_user, folder, now, cancelled, None)
+    }
+    fn register_folder_for_user_selected(
+        &mut self,
+        user: &User,
+        expected_user: i64,
+        folder: &Path,
+        now: f64,
+        cancelled: &AtomicBool,
+        selection: Option<&FileSelection>,
+    ) -> io::Result<Source> {
         require_user(user, expected_user)?;
-        let (bookmark, access) = self.folder_access(folder, now, cancelled)?;
+        let (bookmark, access) = self.folder_access_selected(folder, now, cancelled, selection)?;
         let url = lw_apple_sys::normalized_file_url(text(folder)?)?;
         let key = hash_string(&url);
         // Keep a legacy file-URL spelling so reselecting the same Swift folder reuses its row.
@@ -324,9 +388,20 @@ mod tests {
             })
             .unwrap();
         let cancel = AtomicBool::new(false);
+        let (selection, identity) = sdl3_sys::test_util::file_selection(&original).unwrap();
         let registered = worker
-            .register_folder_for_user(&user, user.id, &original, 2.0, &cancel)
+            .register_folder_for_user_selected(
+                &user,
+                user.id,
+                &original,
+                2.0,
+                &cancel,
+                Some(&selection),
+            )
             .unwrap();
+        let (seen, calls, starts, stops) = sdl3_sys::test_util::file_selection_status();
+        assert_eq!((seen, calls), (identity, 1));
+        assert_eq!(starts, stops);
         assert_eq!(registered.id, legacy.id);
         assert_eq!(registered.dir_path, url);
         assert!(registered.is_current);

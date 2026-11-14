@@ -85,7 +85,8 @@ interruptions, route loss and media-service reset; actual device/background beha
 unqualified. The full Rust executable now builds for iOS device/simulator and passes an isolated
 simulator launch/draw/idle/shutdown check. Below 620 points the UI switches to phone navigation,
 virtual lists, a mini-player and an expanded player; macOS can resize down to 320 points. Native
-gestures and document grants remain unfinished. The full-app signing/install command is implemented;
+gestures remain unfinished. Native iOS document pickers now transfer their original URL capabilities
+to the import worker; real provider grants still need qualification. The full-app signing/install command is implemented;
 its simulator path is qualified, while the physical USB path still needs a connected iPhone/iPad.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
@@ -109,8 +110,8 @@ All twelve signed 10,000-song workloads record zero warm Rust allocations, inclu
 ## Rust iOS development
 
 The full Rust app installs as **LocalWave Dev**, using a separate bundle ID and library so the
-shipping Swift app stays available. This is experimental: native file pickers, touch behavior,
-keyboard adaptation and phone visual parity are still being ported.
+shipping Swift app stays available. This is experimental: native file picking is connected, while
+real provider permissions, touch behavior, keyboard adaptation and phone visual parity remain to qualify.
 
 ```sh
 make ios-run                            # paired USB iPhone/iPad: build, sign, install, launch

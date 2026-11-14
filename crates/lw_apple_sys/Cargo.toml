@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[dependencies]
+file_access_sys = { path = "../../pxui/crates/open/file_access_sys" }
+
 [features]
 interop-test = []
 

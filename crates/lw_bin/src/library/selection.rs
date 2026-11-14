@@ -2,7 +2,7 @@
 use super::{LibraryWorker, check, db, text};
 use lw_apple_sys::{
     audio,
-    bookmarks::{self, Access},
+    bookmarks::{self, Access, FileSelection},
 };
 use lw_core::{FileState, Source, context::PlaybackContext};
 use std::{
@@ -27,7 +27,7 @@ impl LibraryWorker {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(&str, usize, usize),
     ) -> io::Result<MusicSelection> {
-        self.add_music(user, selected, false, now, cancelled, progress)
+        self.add_music(user, (selected, None), false, now, cancelled, progress)
     }
 
     pub fn add_dropped(
@@ -38,18 +38,46 @@ impl LibraryWorker {
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(&str, usize, usize),
     ) -> io::Result<MusicSelection> {
-        self.add_music(user, selected, true, now, cancelled, progress)
+        self.add_music(user, (selected, None), true, now, cancelled, progress)
+    }
+
+    pub fn add_audio_granted(
+        &mut self,
+        user: i64,
+        selected: (&[PathBuf], &[FileSelection]),
+        now: f64,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(&str, usize, usize),
+    ) -> io::Result<MusicSelection> {
+        self.add_music(
+            user,
+            (selected.0, Some(selected.1)),
+            false,
+            now,
+            cancelled,
+            progress,
+        )
     }
 
     fn add_music(
         &mut self,
         user: i64,
-        selected: &[PathBuf],
+        selected: (&[PathBuf], Option<&[FileSelection]>),
         dropped: bool,
         now: f64,
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(&str, usize, usize),
     ) -> io::Result<MusicSelection> {
+        let (selected, grants) = selected;
+        if grants.is_some_and(|files| {
+            files.len() != selected.len()
+                || files
+                    .iter()
+                    .zip(selected)
+                    .any(|(file, path)| file.path() != path)
+        }) {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
         check(cancelled)?;
         self.current_source_user(user)?;
         if selected.is_empty() || selected.len() > 1_000_000 || !now.is_finite() {
@@ -58,18 +86,30 @@ impl LibraryWorker {
         // Validate the entire selection before creating any private files.
         let (mut folders, mut audio) = (Vec::new(), Vec::new());
         let mut bytes = 0usize;
-        for path in selected {
+        let mut bookmark_bytes = 0usize;
+        for (index, path) in selected.iter().enumerate() {
             check(cancelled)?;
             bytes = bytes.saturating_add(text(path)?.len());
             if !path.is_absolute() || bytes > 64 * 1024 * 1024 {
                 return Err(io::ErrorKind::InvalidInput.into());
             }
-            let info = std::fs::metadata(path)?;
+            let bookmark = grants
+                .map(|files| files[index].bookmark())
+                .transpose()?
+                .flatten();
+            bookmark_bytes = bookmark_bytes.saturating_add(bookmark.as_ref().map_or(0, Vec::len));
+            if bookmark_bytes > 64 * 1024 * 1024 {
+                return Err(io::Error::other(
+                    "Selection bookmarks exceed their memory limit",
+                ));
+            }
+            let access = bookmark.as_deref().map(Access::resolve).transpose()?;
+            let info = std::fs::metadata(access.as_ref().map_or(path.as_path(), Access::path))?;
             if dropped && info.is_dir() {
                 drop(self.folder_access(path, now, cancelled)?);
                 folders.push(path.as_path());
             } else if info.is_file() && lw_core::models::supports_audio(text(path)?) {
-                audio.push(path);
+                audio.push((path, bookmark));
             } else {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
@@ -90,14 +130,20 @@ impl LibraryWorker {
                 Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
                 _ => {}
             }
-            for (index, path) in audio.iter().enumerate() {
+            for (index, (path, provided)) in audio.iter().enumerate() {
                 check(cancelled)?;
                 progress("Copying", index, audio.len());
-                let bookmark = bookmarks::create(path)?;
+                let created;
+                let bookmark = if let Some(bookmark) = provided {
+                    bookmark
+                } else {
+                    created = bookmarks::create(path)?;
+                    &created
+                };
                 if bookmark.len() > 64 * 1024 * 1024 {
                     return Err(io::Error::other("Bookmark exceeds its memory limit"));
                 }
-                let access = Access::resolve(&bookmark)?;
+                let access = Access::resolve(bookmark)?;
                 let file = lw_apple_sys::copy::copy_named(
                     access.path(),
                     &directory,
@@ -294,11 +340,47 @@ mod tests {
         let cancelled = AtomicBool::new(false);
         let mut phases = Vec::new();
         let selected = [m4a.clone(), flac.clone(), m4a.clone()];
+        let grants: Vec<_> = selected
+            .iter()
+            .map(|path| sdl3_sys::test_util::file_selection(path).unwrap())
+            .collect();
+        let files: Vec<_> = grants.iter().map(|(file, _)| file.clone()).collect();
+        for invalid in [
+            &files[..2],
+            &[files[1].clone(), files[0].clone(), files[2].clone()][..],
+        ] {
+            assert_eq!(
+                library
+                    .add_audio_granted(
+                        user,
+                        (&selected, invalid),
+                        100.0,
+                        &cancelled,
+                        &mut |_, _, _| panic!("Invalid grants reached import")
+                    )
+                    .err()
+                    .unwrap()
+                    .kind(),
+                io::ErrorKind::InvalidInput
+            );
+        }
+        assert!(!base.join("Documents/Added Files").exists());
+        assert_eq!(sdl3_sys::test_util::file_selection_status().1, 0);
         let result = library
-            .add_audio(user, &selected, 100.0, &cancelled, &mut |phase, _, _| {
-                phases.push(phase.to_owned());
-            })
+            .add_audio_granted(
+                user,
+                (&selected, &files),
+                100.0,
+                &cancelled,
+                &mut |phase, _, _| {
+                    phases.push(phase.to_owned());
+                },
+            )
             .unwrap();
+        let (identity, calls, starts, stops) = sdl3_sys::test_util::file_selection_status();
+        assert_eq!(identity, grants[2].1);
+        assert_eq!(calls, 3);
+        assert_eq!(starts, stops);
         assert_eq!(result.songs.len(), 2);
         assert_eq!(
             *result.context,

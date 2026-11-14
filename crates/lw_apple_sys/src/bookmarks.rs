@@ -1,4 +1,5 @@
 //! Foundation owns bookmark encoding and the lifetime of each security-scoped grant.
+pub use file_access_sys::FileSelection;
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::marker::PhantomData;
 use std::path::{Path, PathBuf};

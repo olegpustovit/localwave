@@ -14,9 +14,70 @@ iPhone/iPad and requests automatic development signing, install and launch. Expl
 USB signing/install remains unqualified** because discovery still finds no phone/tablet. The
 full Rust GUI builds for device/simulator and passes isolated portrait startup/draw/idle/shutdown.
 Audio-session activation/notifications and cached system appearance are connected. Compact layout
-is implemented below 620 points. Native gestures, keyboard behavior, document grants, visual
+is implemented below 620 points. Native document pickers transfer original URL capabilities to the
+file worker. Native gestures, keyboard behavior, real provider grants, visual
 parity and real background playback remain unfinished or unqualified. No full-app/device readiness
 ETA is established. The shipping Swift app remains available.
+
+### Native iOS file picking and original document capabilities
+
+Published pxui **71c7243** owns UIKit file/multiple-file/folder pickers, their filters/presentation,
+cancellation and retained URL lifetimes. It opens in place, retains the original NSURL objects
+and transfers them through the private native event bridge into generic `file_access_sys::FileSelection`.
+Portable `input::Event::FileDialog` remains paths-only. `Window::take_dialog_selection(id)` consumes
+the matching original capabilities once before the next pump; ignored results and window teardown
+release them. Closing a window cancels its picker and reclaims its native dialog slots. iOS
+path-only SaveFile returns an explicit unsupported error; source-URL export/share remains open.
+
+LocalWave takes those capabilities on the UI thread and moves them into its existing FilesWorker.
+Bookmark creation uses the exact original object on the worker, refuses the initial thread and
+balances each security scope it starts. Folder add/reconnect retain the existing account/root and
+Swift identity checks. Audio import validates count/path correspondence before creating private
+files, resolves the provided bookmarks for metadata/coordinated copy, and retains the existing
+collision, cancellation, indexing and playback behavior. Ordinary macOS/path/drop callers keep
+their existing path-based bookmark fallback. Limits remain eight native outcomes, 4,096 paths and
+1 MiB copied path payload per outcome; each bookmark and aggregate audio bookmark storage are
+bounded to 64 MiB. Chosen/cold dialog payloads allocate; warm frames retain their zero-allocation gate.
+
+Qualification:
+
+- **192 app checks pass, 15.459 s wall / 12.383 s case sum**, zero skips. Existing fixtures now
+  exercise original-URL folder registration, FilesWorker add/reconnect and audio import, plus
+  mismatched/count-invalid grants before any copy. Native identity markers verify the original
+  objects reach bookmark creation. `/tmp/localwave-picker-app-final-tests.log`.
+- **37 framework checks pass, 9.464 / 3.421 s**, zero skips. Original-URL lifetime across the
+  callback autorelease pool, worker bookmarking, initial-thread refusal, one-time consumption,
+  wrong IDs, next-pump expiry, dead-window refusal and unchanged warm input/render allocation
+  checks pass. Both runners retain **5 s case / 60 s run**. `/tmp/localwave-picker-sdk-final-tests.log`.
+- The optional native UIKit probe presents actual document pickers on iPhone 16e / iOS 18.6,
+  then drives their delegates with local URL fixtures. Chosen/cancelled/invalid/duplicate callbacks,
+  original-object worker bookmark, result expiry and eight-slot teardown pass. It then finishes
+  the unchanged **182/82/100**, **zero warm Rust allocations**, idle deadline and worker wake.
+  `/tmp/localwave-picker-ios-native-dismissal.log`. This does not simulate external provider grants
+  or prove manual Files-provider selection. Sample native footprint/peak: **27,200,080 / 31,705,680**
+  bytes; no claim of zero native allocations. The first immediate-reopen probe failed while UIKit
+  was dismissing; its evidence remains in `-native-console.log`. The corrected probe waits for
+  actual dismissal before presenting the next picker.
+- Both full-app production iOS builds pass: simulator **5.87 s**, device **12.03 s** Cargo build
+  time after edits, with package/signature/platform/UUID verification. Logs:
+  `/tmp/localwave-picker-full-app-{simulator,device}-build.log`. The device product remains unsigned.
+  The actual simulator package is installed and passes the isolated full-app smoke: **16 frames /
+  16 draws, 515.2 ms idle**, PID **99521** exits and its fixture is removed.
+  `/tmp/localwave-picker-full-app-smoke.log`.
+- Scoped app all-target Clippy passes (**1.51 s**) and the new file-access crate passes strict
+  all-target Clippy. Broader SDK Clippy is blocked by two existing build-script lints at
+  `sdl3_sys/build.rs:39,187`; no suppression was added. Dependency/tier gates pass; shape retains
+  the same **nine existing findings**. `/tmp/localwave-picker-{app-final-clippy,file-access-clippy,
+  sdk-clippy-baseline,deps,tiers,shape}.log`.
+- A freshly built release desktop diagnostic passes the original songs workload at **10,000 songs,
+  182/82/100, zero warm Rust allocations**, maximum **649 µs**, wall p50/p95/p99 **281/312/321 µs**.
+  `/tmp/localwave-picker-host-release-performance.log`. This unsigned single-workload run does
+  not resolve earlier strict timing failures or replace the twelve signed workloads; 1 ms remains
+  deferred. Normal Mac GUI PID **69331** remains running with its existing library/defaults.
+
+Next: framework touch gesture arbitration and keyboard behavior, source-URL export/share,
+populated phone visual parity and physical provider/playback/install qualification. Full P4/P5/P6/P7
+scope remains open; shipping Swift is retained.
 
 ### Full-app iOS development packaging and install command
 

@@ -13,6 +13,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "file_access_sys"
+version = "0.1.0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "find-msvc-tools"
 version = "0.1.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -27,6 +34,7 @@ name = "lw_apple_sys"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "file_access_sys",
  "mem_sys",
 ]
 
@@ -146,6 +154,7 @@ name = "sdl3_sys"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "file_access_sys",
  "native_layer_token_sys",
 ]
 

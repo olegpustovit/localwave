@@ -241,6 +241,13 @@ validates its bookmark and generated-path exclusions before atomically saving th
 selection; preserve the selected path's Swift identity when bookmark resolution changes /var aliases.
 Use the existing asynchronous SDL folder picker, match its exact request ID once and retain the
 account captured when it opened. SDL completion must wake the idle host for every outcome.
+For chosen dialogs, take Window::take_dialog_selection(id) once before the next pump and move its
+FileSelections to FilesWorker. Original iOS NSURL capabilities and worker bookmark creation belong
+to pxui/file_access_sys; LocalWave owns source/account validation, persistence and copy/import policy.
+Never reconstruct an iOS provider grant from the portable event's path. Match all paths/counts before
+submitting work; invalid grants must create no private files. Preserve original-object checks through
+folder add/reconnect and audio copy. UIKit delegate/local-URL simulator checks do not qualify actual
+Files providers, cloud permissions or hardware.
 Rescan from a nested directory indexes/imports the whole source. Cancelled scans keep the previous
 index; completed per-file imports remain. Completion/cancellation invalidates the controller catalog.
 The ninth signed workload uses 10,000 indexed fixture paths and verifies actual virtualized draws;
