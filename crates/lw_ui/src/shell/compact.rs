@@ -1053,6 +1053,58 @@ mod tests {
             }
         }
         assert!(saw_later_row, "phone list must scroll to later songs");
+        for tick in 0..182 {
+            let time = 2000.0 + tick as f64 / 60.0;
+            let point = if tick % 5 == 1 || tick % 5 == 2 {
+                if tick % 10 < 5 { 320.0 } else { 480.0 }
+            } else {
+                400.0
+            };
+            let touch = pxui::Touch {
+                device: u64::MAX,
+                finger: 7,
+                x: 200.0,
+                y: point,
+                time,
+                pressure: 1.0,
+                phase: match tick % 5 {
+                    0 | 3 => 0,
+                    1 => 1,
+                    2 => 2,
+                    _ => 3,
+                },
+            };
+            let event = pxui::Event {
+                kind: pxui::Event::TOUCH,
+                text: pxui::Str {
+                    ptr: (&touch as *const pxui::Touch).cast(),
+                    len: core::mem::size_of::<pxui::Touch>(),
+                },
+                ..Default::default()
+            };
+            let mut intent = None;
+            mem_sys::local_reset();
+            ui.frame(
+                &FrameIn {
+                    width: 390.0,
+                    height: 844.0,
+                    time,
+                    events: &event,
+                    event_count: 1,
+                    ..Default::default()
+                },
+                &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+            )
+            .unwrap();
+            assert_eq!(intent, None, "finger scroll/catch/cancel activated a song");
+            if tick >= 82 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "phone finger frame {tick} allocated"
+                );
+            }
+        }
     }
     #[test]
     fn compact_pages_fit_phone_controls_and_keep_warm_frames_allocation_free() {

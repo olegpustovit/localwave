@@ -15,9 +15,79 @@ USB signing/install remains unqualified** because discovery still finds no phone
 full Rust GUI builds for device/simulator and passes isolated portrait startup/draw/idle/shutdown.
 Audio-session activation/notifications and cached system appearance are connected. Compact layout
 is implemented below 620 points. Native document pickers transfer original URL capabilities to the
-file worker. Native gestures, keyboard behavior, real provider grants, visual
+file worker. Basic tap/drag/scroll arbitration is now in pxui; extended gestures,
+keyboard behavior, real provider grants, visual
 parity and real background playback remain unfinished or unqualified. No full-app/device readiness
 ETA is established. The shipping Swift app remains available.
+
+### Shared widget touch arbitration and scroll physics
+
+pxui **1b695a4** connects typed touches to the existing widget capture and elastic scroll engine.
+LocalWave adds no recognizer or physics implementation: its production UI still uses public pxui
+widgets/layout/input. The application checkpoint only extends the existing phone regression and
+pins the framework. No dependencies, profiles, ABI layouts or timing/allocation assertions changed.
+
+- A pending tap inside scroll content commits on release within **10 points**; axis choice locks
+  at **8 points**. Controls outside scroll containers retain immediate pointer press/drag/release.
+  A scroll adopts its ancestor key before virtual rows retire. The public-wrapper regression
+  scrolls **500 points** across row retirement without losing capture.
+- Finger release velocity comes from source samples and is retained per scroll target. Coasting
+  uses the plan's **0.998 per millisecond** decay, independent of frame rate, with a **5 pt/s** stop
+  threshold. Existing trackpad constants remain unchanged. The **0.55** rubber-band and spring
+  paths are reused; a stationary held stretch idles and cancellation releases it without a fling.
+- Catching a coast does not click a row. Focus/modal/stale-owner/multitouch/mouse takeover cancels
+  without release/commit. Popup dismissal reaches the existing kit path; it cannot tap through
+  the dismissed popup. Touch suppresses hover until actual mouse input returns. Internal synthetic
+  pointer actions are withheld from routed viewports, which receive original typed contacts and
+  cancellation. SDL mouse/touch emulation is disabled in the pxui window host to prevent duplicates.
+- Contact storage is fixed at **16**; overflow cancels widget recognition until focus resets.
+  This implements single-finger widgets. Pinch/long press, swipe presenters, interactive back,
+  pull-to-refresh and exact physical UIScrollView comparison remain open.
+
+Qualification:
+
+- The three new core cases fail against the prior implementation; before evidence is retained at
+  `/tmp/localwave-touch-core-before-tests.log`. They cover taps/slop, nested axes, direct controls,
+  popup/focus/owner/multitouch/mouse cancellation, 60/120 Hz analytic travel, catch suppression,
+  held/rubber release and zero warm allocations. A first wrapper assertion incorrectly allowed
+  fewer than 20 built rows; the section's existing **4-row overscan** permits 20 including its
+  fractional viewport/extra row. The corrected bound is derived from those constants. Original
+  virtualization assertions remain unchanged. `/tmp/localwave-touch-wrapper-static-first-tests.log`.
+- **316 framework checks pass, 14.162 s wall / 13.663 s case sum**, zero skips: all core cases,
+  the static public wrapper, SDL/window and host checks. The dynamic wrapper's two touch checks
+  also pass (**3.751 / 0.062 s**), with real virtual rows, cached views, a 10,000-row extent and
+  both Rust allocation counters. `/tmp/localwave-touch-{sdk-final,wrapper-dynamic-final}-tests.log`.
+- **192 app checks pass, 8.697 / 12.987 s**, zero skips. The existing **10,000-song** phone check
+  now adds a third **182/82/100** typed-touch scroll/catch/cancel trace after its original resize
+  and wheel traces. Warm Rust allocations stay zero and song intents stay absent during scrolling.
+  `/tmp/localwave-touch-app-final-tests.log`. Both runners retain **5 s case / 60 s run** limits.
+- The final **iPhone 16e / iOS 18.6** framework probe runs **18 taps, 18 scrolls, 18 catches and
+  18 cancellations** through actual SDL transport, virtual widgets and Metal. It completes
+  **182/82/100 with zero warm Rust allocations**, then idles and wakes once from its worker.
+  `/tmp/localwave-touch-ios-qualified-runtime.log`, PID **11537** exits. Fingers are synthetic SDL
+  events; this is not manual/device gesture feel or screenshot parity. Native footprint/peak sample
+  **24,168,896 / 28,740,032 bytes**; native allocations are not claimed zero.
+- Full simulator and unsigned device production packages build/verify after edits (**16.11 / 12.14 s**
+  Cargo time). The actual installed simulator package passes **16 frames / 16 draws, 516.6 ms idle**,
+  PID **12535** exits. `/tmp/localwave-touch-full-app-{simulator-build,device-build,smoke}.log`.
+  A warm full simulator build/package/verification command measures **6.60 s wall**;
+  `/tmp/localwave-touch-full-app-warm-build.log`. A separate core check measures **1.28 s** on
+  this host, so the framework's sub-second edit/check target remains unproven;
+  `/tmp/localwave-touch-core-warm-check.log`. Profiles and the shared target are unchanged.
+- Core library Clippy passes (**2.62 s**) and scoped app all-target Clippy passes (**1.01 s**).
+  Dependency and tier gates pass; shape retains **nine existing findings**, without exclusions.
+  `/tmp/localwave-touch-{core-clippy,app-clippy,deps,tiers,shape}.log`.
+- Fresh release songs diagnostics retain **10,000 songs, 182/82/100 and zero warm Rust allocations**.
+  The deferred strict wall limit still fails: maximum **5,660 µs**, wall p50/p95/p99
+  **725/1,820/5,425 µs**, CPU **592/953/1,113 µs**, maximum **1,194 µs**. A repeat after other
+  build/run handles finished also fails: maximum **1,231 µs**, wall **818/1,010/1,125 µs**,
+  CPU **793/903/951 µs**, maximum **1,003 µs**. Both are retained in
+  `/tmp/localwave-touch-host-release-performance{,-isolated}.log`; neither is a signed twelve-workload
+  qualification. No timing rule was relaxed. Normal Mac GUI PID **69331** remains running.
+
+Next: keyboard adaptation and extended gesture/widget behavior, then populated phone goldens,
+source-URL export and physical install/provider/background playback qualification. P4/P5/P6/P7
+remain open and the shipping Swift app stays available.
 
 ### Native iOS file picking and original document capabilities
 

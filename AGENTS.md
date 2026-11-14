@@ -458,6 +458,13 @@ prepared worker labels, shared seek/volume behavior and the 10,000-song resize/s
 regressions. These checks do not qualify native touch arbitration, keyboard avoidance or phone
 screenshot parity. Preserve the original signed 1440x872 performance workloads and timing limits.
 
+Touch arbitration and physics belong entirely to pxui. LocalWave continues to submit typed input
+and read ordinary widget intents; do not add app-owned slop, finger capture, deceleration or mouse
+emulation. Preserve the phone 10,000-song 182/82/100 touch scroll/catch/cancel trace alongside the
+existing resize/wheel traces, with zero warm allocations and no accidental song activation.
+Synthetic simulator checks cover basic widget routing; long press, swipe actions, interactive back,
+keyboard adaptation and device feel remain open. Keep the shipping Swift app through those gates.
+
 
 The full Rust iOS packaging command is packaging/ios.py, exposed by make ios-build / make ios-run.
 iOS defaults to optimized debug; keep Rust/SDL in the shared target/ and Xcode derived products in

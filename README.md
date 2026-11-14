@@ -85,7 +85,8 @@ interruptions, route loss and media-service reset; actual device/background beha
 unqualified. The full Rust executable now builds for iOS device/simulator and passes an isolated
 simulator launch/draw/idle/shutdown check. Below 620 points the UI switches to phone navigation,
 virtual lists, a mini-player and an expanded player; macOS can resize down to 320 points. Native
-gestures remain unfinished. Native iOS document pickers now transfer their original URL capabilities
+tap/drag/scroll gestures use pxui's shared widget and scroll engine. Long press, swipe actions,
+interactive back and physical gesture feel remain unfinished or unqualified. Native iOS document pickers now transfer their original URL capabilities
 to the import worker; real provider grants still need qualification. The full-app signing/install command is implemented;
 its simulator path is qualified, while the physical USB path still needs a connected iPhone/iPad.
 
