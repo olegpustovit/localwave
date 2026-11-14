@@ -8,6 +8,59 @@ remain requirements. Existing latency measurements and benchmark assertions are 
 the recorded wall-time failures are not passes. iOS capabilities are being qualified in the
 pxui gallery before LocalWave's iOS UI/services adopt them.
 
+The next user-facing iOS milestone is the **full Rust LocalWave app**, not a gallery installer.
+There is currently **no working `make ios-run`**. Its planned scope is physical iPhone/iPad
+selection, Xcode automatic signing, build, install and launch. The app entry point and native
+services still need iOS integration (`lw_apple_sys` currently compiles native code for macOS
+only, including AppKit environment/window/media code). No install ETA is established. A development
+certificate is present locally; device discovery currently shows no physical iPhone/iPad.
+
+### iOS typed touch transport checkpoint
+
+PXUI checkpoint: **`d7d6927`**, ABI **1.25**, pushed on `rust-port`.
+
+ABI **1.25** adds numeric touch payloads through event kind **25**, retaining the frozen
+**48-byte Event / 128-byte FrameIn** layouts. `Touch` is 48 bytes and carries full 64-bit device
+and finger identities, all four phases, logical positions, pressure and source monotonic time.
+SDL normalized positions are converted once to window units and then logical points; positions
+outside the window remain valid. Only adjacent motion for the same device/finger coalesces.
+Host encoders own typed payload storage and publish pointers after growth. The ABI validates
+phases, finite values and pressure 0..=1 before input mutation/output in both frame entries;
+`event_text` never interprets numeric payload bytes as UTF-8. `Routed::touch` returns a copy.
+
+The routed-input query now fills retained buffers rather than cloning the complete input frame.
+Host growth/lifetime checks, a native four-phase SDL trace and static/dynamic public-wrapper
+**182/82/100** batches preserve identities and assert **zero warm Rust allocations**. These are
+transport checks; widget gesture arbitration still needs implementation and qualification. SDL's
+existing mouse emulation is unchanged at this checkpoint, so it is not a native gesture pass.
+
+Verification logs under `/tmp/localwave-touch-*`:
+
+- Input/types/ABI/host/translation: **74 checks**, **21.886 s wall / 4.997 s case sum**, no skips.
+- Core/native SDL: **216 checks**, **26.186 / 10.289 s**, no skips. The runner retried the existing
+  grow/shrink timing case alone after contention; its limit was unchanged.
+- Static wrapper/ABI/sys: **128 checks**, **7.497 / 3.718 s**, no skips.
+- Dynamic wrapper: **77 checks**, **8.655 / 2.389 s**, no skips; existing text cases retried alone
+  after contention. The typed touch batch itself passes with both allocator counters connected.
+- LocalWave: **186 checks**, **33.463 / 18.050 s**, no skips. Existing cases retried alone after
+  contention. No LocalWave visual code changed.
+- Both arm64 iOS gallery builds pass: simulator **13.44 s**, device **14.28 s**. Desktop gallery
+  caller checks in **2.63 s**. Dependency/tier/header/snapshot/export gates pass. Shape retains
+  **nine existing findings**: two existing source-pinned Raw borrow exceptions were updated for
+  its added typed borrow, with unchanged exception count/rules. Broad/scoped Clippy stops on
+  existing input/sys-build/SDL findings in unchanged code; it is not a clean lint result.
+
+The combined simulator run resumes the **same PID 31604** after pauses at frames **90 and 118**,
+checks safe areas, native keyboard did-show/did-hide, then finishes **182/82/100** with **zero warm
+Rust allocations**, one idle-deadline callback and the indefinitely idle worker wake. Stderr is
+empty. Footprint/peak: **30,542,464 / 35,179,136 bytes**. Evidence:
+`/tmp/touch-transport{,-stderr}.log` and `/tmp/localwave-touch-simulator-run.log`.
+
+Next: route real touch gestures in pxui, including tap cancellation/slop, axis ownership,
+coast interception and iOS deceleration; then keyboard motion/editing and LocalWave iOS services.
+Physical-device feel, native heap allocations and the deferred signed 1 ms wall matrix remain
+unqualified. The normal macOS GUI **PID 69331** remains running.
+
 ### iOS safe areas and keyboard geometry checkpoint
 
 PXUI checkpoint: **`9088369`**, ABI **1.24**, on `rust-port`.
@@ -1618,7 +1671,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release; ABI 1.14 adds fractional fills and output partition capacity reuse. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Finder drops support mixed audio/folders, a passive overlay, cancellable import and ordered playback. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist drag/drop, live external drop grant qualification, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
-| P6: pxui iOS | Static arm64 SDL/Metal device/simulator builds; pipelines/transfers; display-link idle/deadline/worker wake; same-process background/resume; safe-area bounds and keyboard show/hide geometry through ABI 1.24. Simulator gallery/keyboard probes retain 182/82/100 and zero warm Rust allocations. | Finger input/gestures, synchronized keyboard avoidance and editing/composition, responsive phone gallery, Dynamic Type, framework/XCFramework packaging, LocalWave iOS UI/services and every physical-device feel/performance gate. |
+| P6: pxui iOS | Static arm64 SDL/Metal device/simulator builds; pipelines/transfers; display-link idle/deadline/worker wake; same-process background/resume; safe-area bounds and keyboard show/hide geometry; ABI 1.25 typed finger transport with native/static/dynamic zero-warm-allocation checks. Simulator gallery/keyboard probes retain 182/82/100 and zero warm Rust allocations. | Native widget gesture routing/feel, synchronized keyboard avoidance and editing/composition, responsive phone gallery, Dynamic Type, framework/XCFramework packaging, LocalWave iOS UI/services and every physical-device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
 
 Accessibility names are set as views are created. Native macOS/iOS accessibility bridges are explicitly deferred by the supplied plan; the Rust scaffold does not provide VoiceOver parity. The shipping Swift app must remain available during migration.
