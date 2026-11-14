@@ -405,3 +405,13 @@ preferences on the worker. Disable stale-query/empty/blocked actions. ABI 1.22 e
 text values and draws play as one analytic triangle; preserve native 1x/2x geometry, UTF-8 guards,
 glyph retention, idling and zero warm allocations. The legacy Find input remains until its command
 palette and scrolling query hero are implemented; the toolbar alone does not qualify Find parity.
+
+
+Shared lw_apple_sys services and lw_bin controller/library/files/media compile for macOS and
+iOS. Keep target-specific bookmark options and AppKit/UIImage artwork paths in the native shim;
+Swift iOS bookmark creation uses implicit scope. Appearance/window and the GUI entry point still
+need iOS integration. Clang runtime selection belongs to pxui's metal_sys dependency; do not
+restore the app build script that forced clang_rt.osx into iOS. The native-services example is
+a manual simulator/device-runtime diagnostic with isolated temporary files and private media
+fixtures, not an installable app or proof of provider grants/background audio. Preserve existing
+macOS behavior and leave the shipping Swift app until all platform gates pass.

@@ -11,9 +11,63 @@ pxui gallery before LocalWave's iOS UI/services adopt them.
 The next user-facing iOS milestone is the **full Rust LocalWave app**, not a gallery installer.
 There is currently **no working `make ios-run`**. Its planned scope is physical iPhone/iPad
 selection, Xcode automatic signing, build, install and launch. The app entry point and native
-services still need iOS integration (`lw_apple_sys` currently compiles native code for macOS
-only, including AppKit environment/window/media code). No install ETA is established. A development
-certificate is present locally; device discovery currently shows no physical iPhone/iPad.
+services still need app-level iOS integration. Shared native services and the application controller
+library now build for iOS, while the GUI entry point, appearance/window integration and audio-session
+lifecycle remain unfinished. No install ETA is established. A development certificate is present
+locally; device discovery currently shows no physical iPhone/iPad.
+
+### Shared LocalWave services on iOS
+
+The shared library/file/import/cache/artwork/waveform/playback preparation/preferences services,
+queue controller and Now Playing adapter now compile for both arm64 iOS simulator and device.
+`lw_apple_sys` selects UIKit on iOS and AppKit on macOS; native compilation retains **-Werror**,
+the **iOS 18.0** floor and macOS 15.0 floor. Appearance/window integration stays macOS-only at
+this stage. No UI styling or layout code changed.
+
+Bookmark creation/resolution use the shipping Swift iOS app's implicit-scope options rather than
+macOS-only explicit-scope constants. Now Playing copies straight RGBA into an sRGB CGImage/UIImage
+on iOS, retaining the existing AppKit path. Its native callback fixture now checks exact pixel,
+alpha, bounds, metadata retention, invalid values and bounded remote commands on both platforms.
+The old app build script forced a fat **clang_rt.osx** archive into every target: the first iOS
+controller build failed with **Unsupported archive identifier**. Deleting that duplicate script
+lets the existing pxui Metal sys dependency own runtime/SDK/architecture selection. No new
+external dependency, compiler flag/profile exception or latency-budget change is included.
+
+The manual `native-services` example (`interop-test`, `test=false`) runs on the initial thread
+and creates only an exclusive temporary fixture directory on its worker. It opens no user
+library or standard preferences. On the booted iOS 18.6 simulator it passes **media callbacks,
+exact UIImage artwork pixels and a Unicode local bookmark round trip**, including malformed
+bookmark/path rejection. Evidence: `/tmp/localwave-ios-native-services-runtime.log`. Its media
+fixture uses private center/command doubles; this does not qualify actual Control Center,
+external-provider grants, Swift bookmark exchange, background audio or a physical device.
+The future iOS picker must retain its granted NSURL and create its bookmark from that URL; a
+reconstructed bare path is not evidence of a persistent provider grant.
+
+Initial shared native/core simulator build: **12.57 s**. The corrected full controller-library
+simulator build completes in **5.04 s**; device completes in **41.62 s** including dependency
+compilation. These are library builds, not a working app executable. The isolated native
+runtime diagnostic builds in **1.10 s**. Logs: `/tmp/localwave-ios-{services-sim-build,
+controller-sim-build,controller-sim-fixed-build,controller-device-build,
+native-services-probe-build,native-services-runtime}.log`.
+
+All **186 existing application checks pass**, **42.832 s wall / 20.782 s case sum**, no skips,
+with the original five-second case and sixty-second run limits. The run includes build/lock
+work and the runner's existing isolated retries after contention; no assertion was changed.
+Host native crate/all-target and iOS simulator library/example Clippy pass (existing duplicate-rpath
+linker warnings remain).
+`/tmp/localwave-ios-services-{app-tests,clippy,sim-clippy}.log`. Production controller libraries
+(without interop fixtures) build for simulator/device in **14.06/14.37 s**. The final iOS native
+diagnostic rebuilds in **6.69 s** and passes again; its Mach-O reports **IOSSIMULATOR / min 18.0 /
+SDK 27.1**. `/tmp/localwave-ios-services-production-{sim,device}-build.log` and
+`/tmp/localwave-ios-native-services-final-{build,runtime}.log`. The signed 1 ms wall matrix is deferred,
+and this native diagnostic makes no whole-process or iOS warm-UI allocation claim.
+The final macOS executable build passes in **11.69 s** after the last native-source change;
+the unchanged warm build passes in **0.22 s**. The existing SDK dependency gate, submodule-remote
+check and whitespace check pass. `/tmp/localwave-ios-services-macos-{final,warm}-build.log`.
+
+Next: integrate the actual iOS app loop and system preferences, audio-session/interruption/route
+handling, native touch behavior, phone UI, document grants/pickers and the requested `make ios-run`.
+The shipping Swift app and the normal macOS GUI **PID 69331** remain intact.
 
 ### iOS typed touch transport checkpoint
 
@@ -1672,7 +1726,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Finder drops support mixed audio/folders, a passive overlay, cancellable import and ordered playback. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist drag/drop, live external drop grant qualification, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | Static arm64 SDL/Metal device/simulator builds; pipelines/transfers; display-link idle/deadline/worker wake; same-process background/resume; safe-area bounds and keyboard show/hide geometry; ABI 1.25 typed finger transport with native/static/dynamic zero-warm-allocation checks. Simulator gallery/keyboard probes retain 182/82/100 and zero warm Rust allocations. | Native widget gesture routing/feel, synchronized keyboard avoidance and editing/composition, responsive phone gallery, Dynamic Type, framework/XCFramework packaging, LocalWave iOS UI/services and every physical-device feel/performance gate. |
-| P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
+| P7: iOS UI/ship | Shipping Swift iOS app retained; shared native services/controller libraries build for iOS device/simulator; isolated simulator native UIImage/bookmark/callback check passes. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
 
 Accessibility names are set as views are created. Native macOS/iOS accessibility bridges are explicitly deferred by the supplied plan; the Rust scaffold does not provide VoiceOver parity. The shipping Swift app must remain available during migration.
 

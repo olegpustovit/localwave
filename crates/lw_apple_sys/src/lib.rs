@@ -1,55 +1,55 @@
 //! Safe access to native platform services.
 pub mod sqlite;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod collation;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod timing;
 
 #[cfg(target_os = "macos")]
 pub mod environment;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod bookmarks;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod audio;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod scan;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod preferences;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod cloud;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod history;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod artwork;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod copy;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod profile;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod context;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod waveform;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod player;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod media;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn require_worker_thread() -> std::io::Result<()> {
     unsafe extern "C" {
         fn lw_is_main_thread() -> i32;
@@ -66,7 +66,7 @@ pub fn require_worker_thread() -> std::io::Result<()> {
 #[cfg(target_os = "macos")]
 pub mod window;
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn thread_cpu_time_ns() -> std::io::Result<u64> {
     unsafe extern "C" {
         fn lw_thread_cpu_ns() -> u64;
@@ -79,7 +79,7 @@ pub fn thread_cpu_time_ns() -> std::io::Result<u64> {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn ui_thread_priority() -> std::io::Result<()> {
     unsafe extern "C" {
         fn lw_ui_thread_priority() -> i32;
@@ -105,7 +105,7 @@ mod thread_tests {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn normalized_file_url(path: &str) -> std::io::Result<String> {
     use std::ffi::{CStr, CString, c_char};
     unsafe extern "C" {

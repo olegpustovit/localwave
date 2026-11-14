@@ -1,7 +1,17 @@
 #import <Foundation/Foundation.h>
+#import <TargetConditionals.h>
 #include <stdlib.h>
 #include <string.h>
 #include "platform.h"
+
+#if TARGET_OS_OSX
+static const NSURLBookmarkCreationOptions creationOptions = NSURLBookmarkCreationWithSecurityScope;
+static const NSURLBookmarkResolutionOptions resolutionOptions = NSURLBookmarkResolutionWithSecurityScope | NSURLBookmarkResolutionWithoutUI;
+#else
+// Match the shipping Swift app's implicit iOS security scope.
+static const NSURLBookmarkCreationOptions creationOptions = 0;
+static const NSURLBookmarkResolutionOptions resolutionOptions = NSURLBookmarkResolutionWithoutUI;
+#endif
 
 @interface LWBookmarkAccess : NSObject
 @property(nonatomic, strong) NSURL *url;
@@ -30,7 +40,7 @@ int lw_bookmark_create(const char *path, LWBytes *bookmark, char **error) {
         if (!text || !text.isAbsolutePath) return fail(error, @"Expected an absolute file path");
         NSURL *url = [NSURL fileURLWithPath:text];
         NSError *failure = nil;
-        NSData *data = [url bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&failure];
+        NSData *data = [url bookmarkDataWithOptions:creationOptions includingResourceValuesForKeys:nil relativeToURL:nil error:&failure];
         if (!data) return fail(error, failure.localizedDescription);
         return copy_data(data, bookmark, error);
     }
@@ -42,7 +52,7 @@ void *lw_bookmark_resolve(const unsigned char *bookmark, size_t len, LWBytes *re
         NSData *data = [NSData dataWithBytes:bookmark length:len];
         BOOL stale = NO;
         NSError *failure = nil;
-        NSURL *url = [NSURL URLByResolvingBookmarkData:data options:NSURLBookmarkResolutionWithSecurityScope | NSURLBookmarkResolutionWithoutUI relativeToURL:nil bookmarkDataIsStale:&stale error:&failure];
+        NSURL *url = [NSURL URLByResolvingBookmarkData:data options:resolutionOptions relativeToURL:nil bookmarkDataIsStale:&stale error:&failure];
         if (!url) { fail(error, failure.localizedDescription); return NULL; }
         if (!url.isFileURL || !url.path.isAbsolutePath) { fail(error, @"Bookmark does not resolve to an absolute file URL"); return NULL; }
         LWBookmarkAccess *access = [LWBookmarkAccess new];
@@ -53,7 +63,7 @@ void *lw_bookmark_resolve(const unsigned char *bookmark, size_t len, LWBytes *re
             return NULL;
         }
         if (stale) {
-            NSData *replacement = [url bookmarkDataWithOptions:NSURLBookmarkCreationWithSecurityScope includingResourceValuesForKeys:nil relativeToURL:nil error:&failure];
+            NSData *replacement = [url bookmarkDataWithOptions:creationOptions includingResourceValuesForKeys:nil relativeToURL:nil error:&failure];
             if (!replacement || !copy_data(replacement, renewed, error)) {
                 if (!replacement) fail(error, failure.localizedDescription);
                 return NULL;

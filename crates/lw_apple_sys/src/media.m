@@ -1,4 +1,9 @@
+#import <TargetConditionals.h>
+#if TARGET_OS_OSX
 #import <AppKit/AppKit.h>
+#else
+#import <UIKit/UIKit.h>
+#endif
 #import <MediaPlayer/MediaPlayer.h>
 #include <math.h>
 #include <string.h>
@@ -89,7 +94,10 @@
 @end
 
 void *lw_media_create(int publish, void (*wake)(void)) {
-    if (!NSThread.isMainThread || (publish && !NSApp)) return NULL;
+    if (!NSThread.isMainThread) return NULL;
+#if TARGET_OS_OSX
+    if (publish && !NSApp) return NULL;
+#endif
     @autoreleasepool {
         return (__bridge_retained void *)[[LWMedia alloc] initWithCenter:publish ? MPNowPlayingInfoCenter.defaultCenter : nil
             commands:publish ? MPRemoteCommandCenter.sharedCommandCenter : nil wake:wake];
@@ -149,6 +157,7 @@ int lw_media_artwork(void *raw, const unsigned char *pixels, size_t len, uint32_
         LWMedia *media = (__bridge LWMedia *)raw;
         if (!media->info) return 1;
         if (width && height) {
+#if TARGET_OS_OSX
             NSBitmapImageRep *bitmap = [[NSBitmapImageRep alloc] initWithBitmapDataPlanes:NULL pixelsWide:width pixelsHigh:height bitsPerSample:8 samplesPerPixel:4 hasAlpha:YES isPlanar:NO colorSpaceName:NSDeviceRGBColorSpace bitmapFormat:NSBitmapFormatAlphaNonpremultiplied bytesPerRow:width * 4 bitsPerPixel:32];
             if (!bitmap) return 0;
             memcpy(bitmap.bitmapData, pixels, len);
@@ -157,6 +166,21 @@ int lw_media_artwork(void *raw, const unsigned char *pixels, size_t len, uint32_
             NSImage *image = [[NSImage alloc] initWithSize:NSMakeSize(width, height)];
             [image addRepresentation:bitmap];
             media->info[MPMediaItemPropertyArtwork] = [[MPMediaItemArtwork alloc] initWithBoundsSize:image.size requestHandler:^NSImage *(CGSize size) { (void)size; return image; }];
+#else
+            NSData *data = [NSData dataWithBytes:pixels length:len];
+            if (!data) return 0;
+            CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
+            CGColorSpaceRef space = CGColorSpaceCreateWithName(kCGColorSpaceSRGB);
+            CGImageRef bitmap = provider && space ? CGImageCreate(width, height, 8, 32, width * 4, space,
+                kCGBitmapByteOrder32Big | kCGImageAlphaLast, provider, NULL, false, kCGRenderingIntentDefault) : NULL;
+            if (provider) CGDataProviderRelease(provider);
+            if (space) CGColorSpaceRelease(space);
+            if (!bitmap) return 0;
+            UIImage *image = [UIImage imageWithCGImage:bitmap scale:1 orientation:UIImageOrientationUp];
+            CGImageRelease(bitmap);
+            if (!image) return 0;
+            media->info[MPMediaItemPropertyArtwork] = [[MPMediaItemArtwork alloc] initWithBoundsSize:image.size requestHandler:^UIImage *(CGSize size) { (void)size; return image; }];
+#endif
         } else [media->info removeObjectForKey:MPMediaItemPropertyArtwork];
         media->state.artwork_width = width;
         media->state.artwork_height = height;
@@ -251,9 +275,20 @@ int lw_media_test_callbacks(void) {
         const unsigned char pixels[] = {255, 0, 0, 255, 0, 128, 255, 128};
         if (!lw_media_artwork(raw, pixels, sizeof(pixels), 2, 1)) return 13;
         MPMediaItemArtwork *artwork = center.nowPlayingInfo[MPMediaItemPropertyArtwork];
+#if TARGET_OS_OSX
         NSImage *image = [artwork imageWithSize:NSMakeSize(2, 1)];
         NSBitmapImageRep *bitmap = (NSBitmapImageRep *)image.representations.firstObject;
         if (!bitmap || memcmp(bitmap.bitmapData, pixels, sizeof(pixels)) || media->state.artwork_width != 2) return 14;
+#else
+        UIImage *image = [artwork imageWithSize:CGSizeMake(2, 1)];
+        CGImageRef bitmap = image.CGImage;
+        CFDataRef data = bitmap ? CGDataProviderCopyData(CGImageGetDataProvider(bitmap)) : NULL;
+        BOOL matches = bitmap && CGImageGetWidth(bitmap) == 2 && CGImageGetHeight(bitmap) == 1 &&
+            CGImageGetBytesPerRow(bitmap) == 8 && data && CFDataGetLength(data) == sizeof(pixels) &&
+            memcmp(CFDataGetBytePtr(data), pixels, sizeof(pixels)) == 0 && media->state.artwork_width == 2;
+        if (data) CFRelease(data);
+        if (!matches) return 14;
+#endif
         value.playback_state = 2;
         if (!lw_media_update(raw, &value) || center.playbackState != MPNowPlayingPlaybackStatePaused ||
             center.nowPlayingInfo[MPMediaItemPropertyArtwork] != artwork || [center.nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] doubleValue] != 0) return 15;

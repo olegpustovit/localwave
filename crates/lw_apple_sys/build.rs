@@ -16,7 +16,8 @@ fn main() {
     println!("cargo:rerun-if-changed=src/history.m");
     println!("cargo:rerun-if-changed=src/environment.m");
     println!("cargo:rerun-if-changed=src/window.m");
-    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("macos") {
+    let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if os == "macos" || os == "ios" {
         let mut native = cc::Build::new();
         if std::env::var_os("CARGO_FEATURE_INTEROP_TEST").is_some() {
             native.define("LW_INTEROP_TEST", None);
@@ -36,15 +37,28 @@ fn main() {
             .file("src/player.m")
             .file("src/media.m")
             .file("src/history.m")
-            .file("src/environment.m")
-            .file("src/window.m")
             .flag("-fobjc-arc")
-            .flag("-mmacosx-version-min=15.0")
             .warnings(true)
-            .flag("-Werror")
-            .compile("lw_apple");
+            .flag("-Werror");
+        if os == "macos" {
+            native
+                .file("src/environment.m")
+                .file("src/window.m")
+                .flag("-mmacosx-version-min=15.0");
+        } else {
+            let target = std::env::var("TARGET").unwrap_or_default();
+            native.flag(if target.ends_with("-sim") {
+                "-mios-simulator-version-min=18.0"
+            } else {
+                "-miphoneos-version-min=18.0"
+            });
+        }
+        native.compile("lw_apple");
         println!("cargo:rustc-link-lib=framework=Foundation");
-        println!("cargo:rustc-link-lib=framework=AppKit");
+        println!(
+            "cargo:rustc-link-lib=framework={}",
+            if os == "ios" { "UIKit" } else { "AppKit" }
+        );
         println!("cargo:rustc-link-lib=framework=AVFoundation");
         println!("cargo:rustc-link-lib=framework=MediaPlayer");
         println!("cargo:rustc-link-lib=framework=CoreMedia");

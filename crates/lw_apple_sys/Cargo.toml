@@ -15,3 +15,9 @@ cc = "1"
 
 [lints]
 workspace = true
+
+[[example]]
+name = "native-services"
+path = "examples/native_services.rs"
+required-features = ["interop-test"]
+test = false
