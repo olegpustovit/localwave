@@ -9,6 +9,85 @@ pub enum FolderPurpose {
 
 type AudioSelection = (i64, Vec<std::path::PathBuf>);
 
+#[derive(Debug, PartialEq, Eq)]
+pub struct DroppedFiles {
+    pub user: Option<i64>,
+    pub paths: Vec<std::path::PathBuf>,
+}
+
+#[derive(Default)]
+pub struct FileDrop {
+    active: bool,
+    hovered: bool,
+    user: Option<i64>,
+    paths: Vec<std::path::PathBuf>,
+    bytes: usize,
+    invalid: bool,
+}
+impl FileDrop {
+    pub fn hovered(&self) -> bool {
+        self.hovered
+    }
+
+    /// SDL completes a set after its file events, which may span more than one pump.
+    pub fn event(
+        &mut self,
+        event: &mut HostEvent,
+        user: Option<i64>,
+    ) -> Option<Result<DroppedFiles, &'static str>> {
+        if matches!(
+            event,
+            HostEvent::FileDragMoved(_) | HostEvent::FileDropped(_)
+        ) && !self.active
+        {
+            self.active = true;
+            self.user = user;
+        }
+        match event {
+            HostEvent::FileDragMoved(_) => self.hovered = true,
+            HostEvent::FileDropped(path) => {
+                self.bytes = self.bytes.saturating_add(path.len());
+                if self.invalid
+                    || self.paths.len() == 1_000_000
+                    || self.bytes > 64 * 1024 * 1024
+                    || path.contains('\0')
+                    || !std::path::Path::new(path).is_absolute()
+                {
+                    self.invalid = true;
+                } else {
+                    self.paths
+                        .push(std::path::PathBuf::from(std::mem::take(path)));
+                }
+            }
+            HostEvent::FileDragEnded => {
+                let outcome = if self.invalid {
+                    Some(Err(
+                        "Choose supported audio files or original music folders. The drop was invalid or too large.",
+                    ))
+                } else if self.paths.is_empty() {
+                    None
+                } else {
+                    Some(Ok(DroppedFiles {
+                        user: self.user,
+                        paths: std::mem::take(&mut self.paths),
+                    }))
+                };
+                self.active = false;
+                self.hovered = false;
+                self.user = None;
+                self.bytes = 0;
+                self.invalid = false;
+                self.paths.clear();
+                return outcome;
+            }
+            // Finder can change keyboard focus without cancelling its drop delivery.
+            HostEvent::FocusLost => self.hovered = false,
+            _ => {}
+        }
+        None
+    }
+}
+
 pub fn audio_selection(
     pending: &mut Option<(i64, i64)>,
     events: &mut [HostEvent],
@@ -117,6 +196,74 @@ pub fn encode(events: &[HostEvent], scratch: &mut Vec<String>, wire: &mut Vec<Ev
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn file_drops_accumulate_across_pumps_capture_owner_and_reject_whole_invalid_batches() {
+        let mut drop = FileDrop::default();
+        assert!(
+            drop.event(&mut HostEvent::FileDragMoved((10.0, 20.0)), Some(42))
+                .is_none()
+        );
+        assert!(drop.hovered());
+        assert!(
+            drop.event(
+                &mut HostEvent::FileDropped("/Music/名前.flac".into()),
+                Some(43)
+            )
+            .is_none()
+        );
+        assert!(drop.event(&mut HostEvent::FocusLost, Some(43)).is_none());
+        assert!(!drop.hovered());
+        assert!(
+            drop.event(
+                &mut HostEvent::FileDropped("/Music/Folder".into()),
+                Some(43)
+            )
+            .is_none()
+        );
+        assert_eq!(
+            drop.event(&mut HostEvent::FileDragEnded, Some(43)),
+            Some(Ok(DroppedFiles {
+                user: Some(42),
+                paths: vec!["/Music/名前.flac".into(), "/Music/Folder".into()],
+            }))
+        );
+        assert!(drop.event(&mut HostEvent::FileDragEnded, None).is_none());
+        for invalid in ["relative.flac", "/invalid\0file.m4a"] {
+            drop.event(&mut HostEvent::FileDropped("/valid.flac".into()), None);
+            drop.event(&mut HostEvent::FileDropped(invalid.into()), Some(99));
+            assert!(
+                drop.event(&mut HostEvent::FileDragEnded, Some(99))
+                    .unwrap()
+                    .is_err()
+            );
+            assert!(!drop.hovered());
+        }
+        drop.event(&mut HostEvent::FileDropped("/first.flac".into()), None);
+        assert_eq!(
+            drop.event(&mut HostEvent::FileDragEnded, Some(99))
+                .unwrap()
+                .unwrap()
+                .user,
+            None
+        );
+        mem_sys::local_reset();
+        for _ in 0..100 {
+            assert!(
+                drop.event(&mut HostEvent::FileDragMoved((12.0, 24.0)), Some(42))
+                    .is_none()
+            );
+            assert!(
+                drop.event(&mut HostEvent::FileDragEnded, Some(42))
+                    .is_none()
+            );
+            assert!(
+                drop.event(&mut HostEvent::PointerMoved((12.0, 24.0)), Some(42))
+                    .is_none()
+            );
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
 
     #[test]
     fn audio_dialogs_preserve_order_account_and_one_shot_validation() {

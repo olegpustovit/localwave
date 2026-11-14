@@ -870,7 +870,14 @@ pub fn shell(
     let content_width = (width - sidebar_width - 1.0 - if panel { 320.0 } else { 0.0 }).max(100.0);
     let root = container(ui, "shell", Axis::Column, Size::Grow, Size::Grow, p.paper);
     ui.set_role(&root, Role::Window, 0);
-    ui.a11y_name(&root, "LocalWave");
+    ui.a11y_name(
+        &root,
+        if player.file_dragging {
+            "LocalWave — Drop to play. Folders are indexed. Audio files join Added Files."
+        } else {
+            "LocalWave"
+        },
+    );
     ui.within(&root, &mut |ui| {
         spacer(ui, "titlebar-clearance", state.top_inset);
         let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, p.paper);
@@ -969,6 +976,43 @@ pub fn shell(
             &mut |ui| transport(ui, player, p, intent),
         );
     });
+    if player.file_dragging {
+        ui.draw_over(&root, move |paint, rect| {
+            let (x, y, w, h) = (
+                rect.x + 12.0,
+                rect.y + 12.0,
+                (rect.w - 24.0).max(0.0),
+                (rect.h - 24.0).max(0.0),
+            );
+            paint.fill(x, y, w, h, Rgba { a: 240, ..p.paper });
+            // Swift's drop border uses six-point dashes and gaps.
+            for vertical in [false, true] {
+                let length = if vertical { h } else { w };
+                for offset in (0..length.ceil() as usize).step_by(12) {
+                    let dash = 6.0f32.min(length - offset as f32);
+                    if vertical {
+                        paint.fill(x, y + offset as f32, 2.0, dash, p.ink);
+                        paint.fill(x + w - 2.0, y + offset as f32, 2.0, dash, p.ink);
+                    } else {
+                        paint.fill(x + offset as f32, y, dash, 2.0, p.ink);
+                        paint.fill(x + offset as f32, y + h - 2.0, dash, 2.0, p.ink);
+                    }
+                }
+            }
+            for (text, size, at, color) in [
+                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0, p.ink),
+                (
+                    "Folders are indexed. Audio files join Added Files.",
+                    14,
+                    rect.y + rect.h * 0.5 + 22.0,
+                    p.secondary,
+                ),
+            ] {
+                let width = paint.text_width(Some(size), text);
+                paint.text_s((rect.x + (rect.w - width) * 0.5, at), size, color, text);
+            }
+        });
+    }
     if intent.is_none()
         && !state.queue_visible
         && !state.settings_visible

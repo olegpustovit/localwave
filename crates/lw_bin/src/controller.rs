@@ -713,6 +713,8 @@ struct Worker {
     intent: bool,
     reset: bool,
     seek: Option<f64>,
+    yield_controls: bool,
+    volume_last: bool,
     advance: Option<(u64, u64)>,
     undo: Option<Vec<Entry>>,
     metadata_id: Option<i64>,
@@ -785,6 +787,8 @@ impl Worker {
                 intent: false,
                 reset: false,
                 seek: None,
+                yield_controls: false,
+                volume_last: false,
                 advance: None,
                 undo: None,
                 metadata_id: None,
@@ -1033,6 +1037,10 @@ impl Worker {
         };
     }
     fn send(&mut self, operation: Operation, pending: Pending) {
+        self.yield_controls = matches!(pending, Pending::Volume | Pending::Seek);
+        if matches!(pending, Pending::Volume | Pending::Seek) {
+            self.volume_last = matches!(pending, Pending::Volume);
+        }
         self.pending = Some(pending);
         let mut inbox = self.shared.inbox.lock().unwrap();
         debug_assert!(inbox.output.is_none());
@@ -1438,6 +1446,21 @@ impl Worker {
         }
         Ok(())
     }
+    fn controls(&mut self) -> bool {
+        let volume = self.saved.volume.unwrap_or(1.0);
+        if self.native.token != 0
+            && (self.volume_last || self.native.volume == volume)
+            && let Some(seconds) = self.seek.take()
+        {
+            self.send(Operation::Seek(seconds), Pending::Seek);
+            return true;
+        }
+        if self.native.volume != volume {
+            self.send(Operation::Volume(volume), Pending::Volume);
+            return true;
+        }
+        false
+    }
     fn drive(&mut self) -> io::Result<bool> {
         for deferred in &mut self.deferred {
             if deferred.is_some_and(|ticket| {
@@ -1449,11 +1472,6 @@ impl Worker {
         let transport = self.session.transport();
         if self.reset && transport.wants_playback() {
             self.send(Operation::Reset, Pending::Reset);
-            return Ok(true);
-        }
-        let volume = self.saved.volume.unwrap_or(1.0);
-        if self.native.volume != volume {
-            self.send(Operation::Volume(volume), Pending::Volume);
             return Ok(true);
         }
         if self.native.token == 0 && self.intent && !self.session.transport().wants_playback() {
@@ -1539,10 +1557,10 @@ impl Worker {
                 self.send(Operation::Intent(intent), Pending::Intent(intent));
                 return Ok(true);
             }
-            if let Some(seconds) = self.seek.take() {
-                self.send(Operation::Seek(seconds), Pending::Seek);
-                return Ok(true);
-            }
+        }
+        // Give a ready preparation a turn after a control, keeping both streams progressing.
+        if !self.yield_controls && self.controls() {
+            return Ok(true);
         }
         let mut request = None;
         for ticket in self.session.requests().into_iter().flatten() {
@@ -1556,8 +1574,9 @@ impl Worker {
             }
         }
         let Some(ticket) = request else {
-            return Ok(false);
+            return Ok(self.controls());
         };
+        self.yield_controls = false;
         if self.session.current_ticket() != Some(ticket)
             && !self
                 .library
@@ -1617,7 +1636,7 @@ impl Worker {
                 ) =>
             {
                 self.session.retry_request(ticket);
-                return Ok(false);
+                return Ok(self.controls());
             }
             Err(error) if database_error(&error) => self.session_error(error),
             Err(error) => {
@@ -1824,6 +1843,165 @@ mod tests {
             preparation: AtomicU64::new(0),
             wake,
         })
+    }
+    #[test]
+    fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_preparation() {
+        let base = std::env::temp_dir().join(format!("lw-control-fairness-{}", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(base.clone());
+        let shared = shared();
+        shared.preparation.store(1, Ordering::SeqCst);
+        shared.inbox.lock().unwrap().native.volume = 1.0;
+        let owner = shared.clone();
+        let worker_base = base.clone();
+        let thread = std::thread::spawn(move || {
+            Worker::run(
+                move || {
+                    let documents = worker_base.join("Documents");
+                    std::fs::create_dir_all(documents.join("Added Files"))?;
+                    std::fs::write(
+                        documents.join("Added Files/track.m4a"),
+                        include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged-m4a.m4a"),
+                    )?;
+                    let mut library = LibraryWorker::open(
+                        &worker_base.join("library.sqlite"),
+                        lw_apple_sys::preferences::Preferences::open(Some(&format!(
+                            "localwave.control-fairness.{}",
+                            std::process::id()
+                        )))?,
+                        lw_apple_sys::preferences::AppPaths {
+                            documents,
+                            caches: worker_base.join("Caches"),
+                            temporary: worker_base.join("tmp"),
+                            test_database: None,
+                        },
+                    )?;
+                    for key in 1..=3 {
+                        library
+                            .repository
+                            .upsert_song(
+                                &lw_core::Song {
+                                    song_key: key,
+                                    path_hash: key,
+                                    local_file_path: Some("Added Files/track.m4a".into()),
+                                    file_state: lw_core::FileState::Copied,
+                                    ..Default::default()
+                                },
+                                1.0,
+                            )
+                            .map_err(io::Error::other)?;
+                    }
+                    Ok(library)
+                },
+                owner,
+            )
+        });
+        struct Close(Arc<Shared>, Option<JoinHandle<()>>);
+        impl Drop for Close {
+            fn drop(&mut self) {
+                self.0.inbox.lock().unwrap().closed = true;
+                self.0.changed.notify_one();
+                self.1.take().unwrap().join().unwrap();
+            }
+        }
+        let _close = Close(shared.clone(), Some(thread));
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            revision: 1,
+            preparation: 1,
+            command: Command::Configure {
+                songs: Arc::from([1, 2, 3]),
+                start: 0,
+                autoplay: true,
+                context: None,
+            },
+        });
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        let (mut installs, mut seeks, mut volumes) = (0, 0, 0);
+        for step in 0..16 {
+            let output = loop {
+                if let Some(output) = shared.inbox.lock().unwrap().output.take() {
+                    break output;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "worker did not produce its next operation"
+                );
+                std::thread::yield_now();
+            };
+            let mut native = shared.inbox.lock().unwrap().native;
+            match output.operation {
+                Operation::Volume(value) => {
+                    native.volume = value;
+                    volumes += 1;
+                }
+                Operation::Seek(seconds) => {
+                    native.position = seconds;
+                    seeks += 1;
+                }
+                Operation::Install {
+                    ticket,
+                    item,
+                    replace,
+                } => {
+                    drop(item);
+                    if replace {
+                        native.queued = [0; 3];
+                        native.token = ticket.token;
+                        native.occurrence = ticket.entry.id;
+                    }
+                    *native.queued.iter_mut().find(|token| **token == 0).unwrap() = ticket.token;
+                    native.generation = ticket.generation;
+                    native.status = 1;
+                    installs += 1;
+                }
+                Operation::Intent(playing) => {
+                    native.time_control = if playing { 2 } else { 0 };
+                }
+                Operation::Reset | Operation::Stop => {
+                    native.token = 0;
+                    native.queued = [0; 3];
+                }
+                _ => panic!("unexpected operation in steady preparation"),
+            }
+            let mut inbox = shared.inbox.lock().unwrap();
+            inbox.native = native;
+            inbox.ack = Some(Ack {
+                result: Ok(true),
+                snapshot: native,
+            });
+            for (index, command) in [
+                Command::Volume(if native.volume == 0.25 { 0.75 } else { 0.25 }),
+                Command::Seek(0.0),
+                Command::RefreshCatalog,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                inbox.commands.push_back(Envelope {
+                    revision: 2 + step * 3 + index as u64,
+                    preparation: 1,
+                    command,
+                });
+            }
+            drop(inbox);
+            shared.changed.notify_one();
+            if installs == 3 && seeks >= 2 && volumes >= 2 {
+                break;
+            }
+        }
+        assert_eq!(
+            installs, 3,
+            "continuous controls starved current/upcoming preparation"
+        );
+        assert!(
+            seeks >= 2 && volumes >= 2,
+            "control delivery must also keep progressing"
+        );
     }
     #[test]
     fn waveform_start_yields_to_controls_and_never_clears_playback_cancellation() {

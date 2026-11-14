@@ -58,6 +58,7 @@ pub struct Selection {
     pub revision: u64,
     pub songs: Arc<[i64]>,
     pub context: Arc<lw_core::context::PlaybackContext>,
+    pub dropped: bool,
 }
 
 #[derive(Clone, Default)]

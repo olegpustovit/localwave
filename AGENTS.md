@@ -240,8 +240,8 @@ account captured when it opened. SDL completion must wake the idle host for ever
 Rescan from a nested directory indexes/imports the whole source. Cancelled scans keep the previous
 index; completed per-file imports remain. Completion/cancellation invalidates the controller catalog.
 The ninth signed workload uses 10,000 indexed fixture paths and verifies actual virtualized draws;
-preserve the existing eight workloads and unchanged allocation/wall-time/warm-up gates. External
-drops, automatic observation and real sandbox/provider/device qualification remain unfinished;
+preserve the existing eight workloads and unchanged allocation/wall-time/warm-up gates. Automatic
+observation and real sandbox/provider/device qualification remain unfinished;
 do not present these as completed by the picker workflows.
 
 Wrapped paragraph measurement keys include their text, as recurring busy/ready cache summaries
@@ -278,3 +278,30 @@ The retained selection crosses the existing snapshot retirement path; retry cont
 until accepted and clear it on account changes. No picker or import filesystem work belongs in a
 frame. file_path must preserve /var and /private/var spellings while normalizing dot components;
 rewriting one breaks registered source-root identity against its indexed children's parent keys.
+
+Finder drops accumulate through SDL FileDragEnded, even when file events span host pumps. Capture
+the known account on first hover/file; if Files has never opened, resolve the current identity on
+its lazy worker rather than guessing an account. Keyboard focus loss only dismisses the visual
+hover because Finder may still deliver its files. Submit one bounded mutation per complete set;
+reject invalid/oversized batches as a whole and report busy delivery visibly. Preserve empty/cancel
+cycles with zero warm Rust allocations. Native SDL delivery checks own their copied Unicode paths.
+
+Mixed selections validate every path and folder exclusion before copying; copy selected audio
+first, import selected folders and then Added Files, and build playback in Swift order: audio
+selection order, then localized natural relative-path order per selected folder, deduplicated by
+song key. indexed_source_songs joins the current index in one minimal SQL projection per source;
+do not hydrate full Song rows or issue one queue-building lookup per folder track. Empty-folder
+success navigates Files without clearing playback. Imports expose progress/Cancel on Files.
+
+The passive external-drop overlay draws through the existing root canvas with accessible
+instructions. It must not shift layout, capture internal queue drags or force idle redraws.
+make performance retains the nine existing workloads and adds --performance-drop: 182 frames,
+82 warm-up, 100 measured, 50 actual measured overlay quads and no import jobs. Keep both allocator
+counters and the strict 1,000-microsecond wall maximum unchanged. Synthetic hover/cancel checks do
+not qualify real Finder sandbox grants, provider downloads, native memory or platform devices.
+
+Continuous volume/seek delivery must alternate with ready current/upcoming preparation on the
+controller worker. Alternate both control kinds when pending; preserve reset/stop/queue fencing
+priority. Deferred, failed or cancelled preparation must allow ordinary controls to progress too.
+Keep the deterministic acknowledgement-driven starvation regression and the real native smoke;
+never hide a preparation starvation failure with a longer timeout.

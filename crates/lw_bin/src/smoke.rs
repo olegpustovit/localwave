@@ -1,5 +1,17 @@
 pub const FRAME_BUILD_LIMIT_US: u128 = 1_000;
 
+/// Real external hover/completion routing without filesystem mutations in the fixture.
+pub fn drop_events(frame: usize, events: &mut Vec<input::Event>) {
+    match frame % 20 {
+        0..=9 => events.push(input::Event::FileDragMoved((
+            640.0 + (frame % 10) as f64,
+            400.0,
+        ))),
+        10 => events.push(input::Event::FileDragEnded),
+        _ => {}
+    }
+}
+
 /// Exercise real Settings hit targets, all eight themes and both advanced menus in two cycles.
 pub fn settings_events(
     frame: usize,

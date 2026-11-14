@@ -81,6 +81,7 @@ pub enum Intent {
 #[derive(Default)]
 pub struct PlayerView<'a> {
     pub files: Option<&'a files::Snapshot>,
+    pub file_dragging: bool,
     pub settings: lw_core::preferences::Settings,
     pub cache_usage: &'a str,
     pub settings_message: &'a str,
@@ -107,6 +108,64 @@ pub struct PlayerView<'a> {
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+
+    #[test]
+    fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let catalog = catalog::Catalog::default();
+        let state = ShellState::default();
+        let mut time = 0.0;
+        for round in 0..6 {
+            mem_sys::local_reset();
+            for width in [640.0, 1440.0] {
+                for dragging in [false, true, true, false] {
+                    time += 1.0 / 60.0;
+                    ui.frame(
+                        &FrameIn {
+                            width,
+                            height: 872.0,
+                            time,
+                            ..Default::default()
+                        },
+                        &mut |ui| {
+                            shell(
+                                ui,
+                                &PlayerView {
+                                    file_dragging: dragging,
+                                    ..Default::default()
+                                },
+                                &catalog,
+                                &state,
+                                &mut None,
+                            );
+                        },
+                    )
+                    .unwrap();
+                    let root = ui
+                        .a11y_nodes()
+                        .iter()
+                        .find(|node| node.is_role(pxui::a11y::Role::Window))
+                        .unwrap();
+                    assert_eq!(ui.a11y_name_of(root).contains("Drop to play"), dragging);
+                    for x in [12.0, 24.0] {
+                        let dash =
+                            ui.layers()
+                                .flat_map(|layer| layer.instances.iter())
+                                .any(|instance| {
+                                    instance.kind == pxui::draw::kind::RECT
+                                        && instance.rect == [x, 12.0, x + 6.0, 14.0]
+                                });
+                        assert_eq!(dash, dragging, "six-point dash and gap at {x}");
+                    }
+                }
+            }
+            if round >= 3 {
+                assert_eq!(mem_sys::local_alloc_count(), 0);
+            }
+        }
+    }
 
     #[test]
     fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {

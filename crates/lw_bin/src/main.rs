@@ -33,6 +33,16 @@ fn run() -> Result<(), String> {
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
     let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
     let performance_files = std::env::args().any(|arg| arg == "--performance-files");
+    let performance_drop = std::env::args().any(|arg| arg == "--performance-drop");
+    if performance_drop
+        && (!performance
+            || std::env::args().any(|arg| {
+                arg.starts_with("--performance-")
+                    && !matches!(arg.as_str(), "--performance-check" | "--performance-drop")
+            }))
+    {
+        return Err("--performance-drop requires --performance-check and its own workload".into());
+    }
     if performance_files
         && (!performance
             || std::env::args().any(|arg| {
@@ -266,6 +276,7 @@ fn run() -> Result<(), String> {
     let mut waveform_seeks = 0;
     let (mut settings_changes, mut settings_themes) = (0, 0u8);
     let mut min_waveform_bars = usize::MAX;
+    let mut drop_overlay_frames = 0usize;
     let (mut warm_allocations, mut warm_build_us) = (0, 0);
     let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
     let mut frame_trace =
@@ -379,6 +390,7 @@ fn run() -> Result<(), String> {
     let mut error_revision = 0;
     let mut folder_picker = None;
     let mut audio_picker = None;
+    let mut file_drop = events::FileDrop::default();
     let mut files_catalog_revision = 0;
     let mut files_selection_revision = 0;
     loop {
@@ -391,6 +403,28 @@ fn run() -> Result<(), String> {
         }
         if let Some(error) = window.take_failure() {
             return Err(error);
+        }
+        if performance_drop && frames >= 2 {
+            smoke::drop_events(frames - 2, &mut events);
+        }
+        for event in &mut events {
+            if let Some(drop) = file_drop.event(event, files.snapshot().account) {
+                command_error = match drop {
+                    Err(message) => Some(message),
+                    Ok(drop) => match files.drop_files(drop.user, drop.paths) {
+                        Ok(()) => {
+                            shell_state.apply(lw_ui::Intent::CloseQueue);
+                            shell_state
+                                .apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+                            None
+                        }
+                        Err(_) => Some(
+                            "Folder work is busy or unavailable. Wait or cancel it, then drop the files again.",
+                        ),
+                    },
+                };
+                error_revision += 1;
+            }
         }
         if let Some(selection) = events::folder_selection(&mut folder_picker, &mut events) {
             command_error = match selection {
@@ -431,16 +465,21 @@ fn run() -> Result<(), String> {
         }
         if let Some(selection) = &files.snapshot().selection
             && selection.revision != files_selection_revision
-            && player
-                .command(Command::Configure {
-                    songs: selection.songs.clone(),
-                    start: 0,
-                    autoplay: true,
-                    context: Some(selection.context.clone()),
-                })
-                .is_ok()
+            && (selection.songs.is_empty()
+                || player
+                    .command(Command::Configure {
+                        songs: selection.songs.clone(),
+                        start: 0,
+                        autoplay: true,
+                        context: Some(selection.context.clone()),
+                    })
+                    .is_ok())
         {
             files_selection_revision = selection.revision;
+            if selection.dropped {
+                shell_state.apply(lw_ui::Intent::CloseQueue);
+                shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+            }
         }
         let artwork_changed = artwork.poll();
         let artwork_updated = graphics.sync_artwork(
@@ -448,7 +487,7 @@ fn run() -> Result<(), String> {
             artwork.ready_images(),
         )?;
         let mut expected_settings_intent = None;
-        if performance && frames >= 2 {
+        if performance && frames >= 2 && !performance_drop {
             if performance_settings {
                 expected_settings_intent =
                     smoke::settings_events(frames - 2, window_chrome.top_inset, &mut events);
@@ -535,6 +574,7 @@ fn run() -> Result<(), String> {
             themes.apply(&mut ui, &status.settings, preferences);
             let view = lw_ui::PlayerView {
                 files: Some(files.snapshot()),
+                file_dragging: file_drop.hovered(),
                 settings: status.settings,
                 cache_usage: &status.cache_usage,
                 settings_message: &status.settings_message,
@@ -593,6 +633,9 @@ fn run() -> Result<(), String> {
                         status.settings.appearance == lw_core::preferences::Appearance::Dark,
                     ) * 4
                         + status.settings.signal as usize);
+            }
+            if performance_drop && intent.is_some() {
+                return Err("External drag hover activated an application action".into());
             }
             let mut image_requests = graphics.artwork.images.visible_requests(&ui);
             if let Some(media) = player.media_controls() {
@@ -958,6 +1001,26 @@ fn run() -> Result<(), String> {
                 min_files_rows = min_files_rows.min(rows);
                 max_files_rows = max_files_rows.max(rows);
             }
+            if performance_drop {
+                let overlays = ui
+                    .layers()
+                    .flat_map(|layer| layer.instances.iter())
+                    .filter(|instance| {
+                        instance.kind == pxui::draw::kind::RECT
+                            && instance.color[3] == 240
+                            && (instance.rect[0] - 12.0).abs() < 0.01
+                            && (instance.rect[1] - 12.0).abs() < 0.01
+                            && (instance.rect[2] - 1428.0).abs() < 0.01
+                            && (instance.rect[3] - 860.0).abs() < 0.01
+                    })
+                    .count();
+                if overlays != usize::from(file_drop.hovered()) {
+                    return Err("External drag workload lost its actual overlay quad".into());
+                }
+                if frames > WARMUP_FRAMES {
+                    drop_overlay_frames += usize::from(file_drop.hovered());
+                }
+            }
             if performance && frames > WARMUP_FRAMES {
                 let bars = ui
                     .layers()
@@ -1016,7 +1079,9 @@ fn run() -> Result<(), String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_settings {
+                if performance_drop {
+                    "external-drop-hover-and-cancel"
+                } else if performance_settings {
                     "settings-menus-appearance"
                 } else if performance_files {
                     "files-indexed-directory"
@@ -1053,6 +1118,16 @@ fn run() -> Result<(), String> {
                 );
                 if min_files_rows < 8 || max_files_rows > 40 {
                     return Err("Files workload did not draw its virtualized rows".into());
+                }
+            }
+            if performance_drop {
+                println!(
+                    "LocalWave external drop: measured_overlay_frames={drop_overlay_frames} mutation_jobs=0"
+                );
+                if drop_overlay_frames != 50 {
+                    return Err(
+                        "External drag workload missed an overlay/cancellation cycle".into(),
+                    );
                 }
             }
             if performance_waveform && (waveform_seeks != 9 || min_waveform_bars < 200) {

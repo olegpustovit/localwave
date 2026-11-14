@@ -14,13 +14,27 @@ use std::{
 };
 
 enum Job {
-    Add { user: i64, path: PathBuf },
-    Audio { user: i64, paths: Vec<PathBuf> },
-    Reconnect { target: Target, path: PathBuf },
+    Add {
+        user: i64,
+        path: PathBuf,
+    },
+    Selection {
+        user: Option<i64>,
+        paths: Vec<PathBuf>,
+        dropped: bool,
+    },
+    Reconnect {
+        target: Target,
+        path: PathBuf,
+    },
     Remove(Target),
     Rescan(Location),
     Import(Location),
-    ImportPath { user: i64, source: i64, path: i64 },
+    ImportPath {
+        user: i64,
+        source: i64,
+        path: i64,
+    },
 }
 struct Inbox {
     browse: Option<Request>,
@@ -108,13 +122,23 @@ impl FilesWorker {
         self.job(Job::Reconnect { target, path })
     }
     pub fn add_audio(&self, user: i64, paths: Vec<PathBuf>) -> io::Result<()> {
+        self.selection(Some(user), paths, false)
+    }
+    pub fn drop_files(&self, user: Option<i64>, paths: Vec<PathBuf>) -> io::Result<()> {
+        self.selection(user, paths, true)
+    }
+    fn selection(&self, user: Option<i64>, paths: Vec<PathBuf>, dropped: bool) -> io::Result<()> {
         if paths.is_empty()
             || paths.len() > 1_000_000
             || paths.iter().any(|path| !path.is_absolute())
         {
             return Err(io::ErrorKind::InvalidInput.into());
         }
-        self.job(Job::Audio { user, paths })
+        self.job(Job::Selection {
+            user,
+            paths,
+            dropped,
+        })
     }
     fn job(&self, job: Job) -> io::Result<()> {
         let mut inbox = self.shared.inbox.lock().unwrap();
@@ -413,9 +437,23 @@ fn execute(
             snapshot.directory = None;
             return Ok("Folder removed from the library. Files were not deleted.".into());
         }
-        Job::Audio { user, paths } => {
+        Job::Selection {
+            user,
+            paths,
+            dropped,
+        } => {
+            let user = match user {
+                Some(user) => user,
+                None => library.current_sources()?.user.id,
+            };
             let mut last = Instant::now();
-            let selection = library.add_audio(
+            let import = if dropped {
+                LibraryWorker::add_dropped
+            } else {
+                LibraryWorker::add_audio
+            };
+            let selection = import(
+                library,
                 user,
                 &paths,
                 now(),
@@ -441,12 +479,17 @@ fn execute(
                 parent: Some(selection.source.path_id),
             };
             refresh_sources(library, snapshot)?;
-            browse_directory(library, snapshot, location)?;
+            if dropped {
+                snapshot.directory = None;
+            } else {
+                browse_directory(library, snapshot, location)?;
+            }
             let count = selection.songs.len();
             snapshot.selection = Some(lw_ui::files::Selection {
                 revision: snapshot.catalog_revision.wrapping_add(1),
                 songs: selection.songs,
                 context: selection.context,
+                dropped,
             });
             return Ok(format!("{count} selected tracks added."));
         }
@@ -570,6 +613,52 @@ mod tests {
             );
             std::thread::yield_now();
         }
+    }
+
+    #[test]
+    fn a_first_drop_opens_the_lazy_worker_and_empty_folders_do_not_request_playback() {
+        let base = std::env::temp_dir().join(format!("lw-first-drop-{}", std::process::id()));
+        let _cleanup = Cleanup(base.clone());
+        let folder = base.join("Empty music");
+        std::fs::create_dir_all(&folder).unwrap();
+        let worker_base = base.clone();
+        let mut worker = FilesWorker::open(
+            move || {
+                LibraryWorker::open(
+                    &worker_base.join("library.sqlite"),
+                    Preferences::open(Some(&format!(
+                        "localwave.first-drop.{}",
+                        std::process::id()
+                    )))?,
+                    AppPaths {
+                        documents: worker_base.join("Documents"),
+                        caches: worker_base.join("Caches"),
+                        temporary: worker_base.join("tmp"),
+                        test_database: None,
+                    },
+                )
+            },
+            wake,
+        )
+        .unwrap();
+        assert!(worker.snapshot().account.is_none());
+        worker.drop_files(None, vec![folder]).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision == 1 && !snapshot.busy
+        });
+        assert!(worker.snapshot().account.is_some());
+        assert_eq!(worker.snapshot().sources.len(), 1);
+        assert!(worker.snapshot().directory.is_none());
+        let selection = worker.snapshot().selection.as_ref().unwrap();
+        assert!(selection.dropped);
+        assert!(selection.songs.is_empty());
+        assert_eq!(selection.context.title(), "Dropped music");
+        assert!(
+            worker
+                .snapshot()
+                .message
+                .contains("0 selected tracks added")
+        );
     }
 
     #[test]
@@ -911,5 +1000,24 @@ mod tests {
         );
         assert_eq!(imported.file_state, lw_core::FileState::Copied);
         assert!(moved.join("02.flac").is_file());
+        worker.drop_files(None, vec![moved.clone()]).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision == 9 && !snapshot.busy
+        });
+        assert!(worker.snapshot().directory.is_none());
+        let dropped = worker.snapshot().selection.as_ref().unwrap();
+        assert!(dropped.dropped);
+        assert!(!dropped.songs.is_empty());
+        assert_eq!(dropped.context.title(), "Dropped music");
+        let before = worker.snapshot().selection.as_ref().unwrap().revision;
+        worker.drop_files(Some(user + 1), vec![moved]).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision == 10 && !snapshot.busy
+        });
+        assert_eq!(
+            worker.snapshot().selection.as_ref().unwrap().revision,
+            before
+        );
+        assert!(!worker.snapshot().message.is_empty());
     }
 }

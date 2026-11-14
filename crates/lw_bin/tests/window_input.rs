@@ -250,6 +250,24 @@ fn native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once()
         }
         assert!(pending.is_none());
     }
+    assert!(sdl3_sys::test_util::push_event_trace());
+    events.clear();
+    let _ = window.pump(&mut events);
+    let mut drop = events::FileDrop::default();
+    let mut received = None;
+    for event in &mut events {
+        if let Some(outcome) = drop.event(event, Some(42)) {
+            received = Some(outcome.unwrap());
+        }
+    }
+    assert_eq!(
+        received,
+        Some(events::DroppedFiles {
+            user: Some(42),
+            paths: vec!["/tmp/žaba.png".into()]
+        })
+    );
+    assert!(!drop.hovered());
     window.destroy().unwrap();
 }
 
