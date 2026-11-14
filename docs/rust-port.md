@@ -20,6 +20,98 @@ The generic Metal frame shim lives in `metal_sys`, generic AppKit chrome in `sdl
 retained image descriptors/requests in the public `pxui::images` module. The original hostless
 renderer API remains available for embedding. SwiftUI feature parity remains unfinished.
 
+## Indexed empty-string reuse checkpoint
+
+SDK **`6815167`** is published on `rust-port`. Text, accessibility-name and accessibility-value
+buffer reuse now uses retained sorted `(capacity, slot)` indices. The first donor query for a
+field builds its index; subsequent queries use a binary capacity lookup. Clears, retirement,
+empty writes, nonempty writes and ownership transfers update active indices. Each engine frame
+invalidates the indices lazily. Existing identities retain their capacity fast path. The smallest
+suitable donor and slot-order ties match the previous full search; nonempty buffers remain owned
+by their original nodes. ABI remains **1.23**, with no application-specific workaround.
+
+### Profiling and correctness
+
+The initial application sample captures startup rather than warm UI and is not evidence for a
+hot-frame cause (`/tmp/localwave-buffer-reuse-drag-sample.txt`). A later capture samples the actual
+queue rows and drag-ghost path inside the old full-slot donor search:
+`/tmp/localwave-buffer-reuse-drag-late-sample.txt`. Its original run/command logs remain alongside
+it. This sparse capture confirms those calls occur in the workload; it does not assign all build
+time to that function.
+
+Each index holds at most one entry per slot, and its vector storage is reserved with slot capacity.
+Three pairs of machine words per reserved slot add approximately **48 bytes per slot on 64-bit**,
+before vector capacity slack, plus three vector headers. This is bounded retained metadata, not
+zero process memory. The regression checks entry count/capacity bounds. Binary lookup and compact
+sorted-vector updates replace repeated scans of large slot records; inserts/removals can still
+move index entries.
+
+The new differential regression checks **1,000 operations** against the original full search,
+including all three fields, live text, clears, UTF-8 values, buffer growth/transfers, new slots,
+frame changes, lazy construction, one build per field/frame and zero allocations in index work.
+New string-size allocations themselves are outside that isolated assertion; existing real-widget
+and application regressions still enforce their original warm allocation budgets.
+
+- **324 SDK/ABI/native/host checks pass in 24.914 s wall / 14.297 s summed**, zero skips,
+  `/tmp/localwave-indexed-string-sdk-full.log`. Existing native pixels, cached views, keyboard/IME,
+  accessibility and identity-churn checks remain intact. The unchanged scaling case passes at
+  **98 / 103 / 115 ns layout per node** and **368 / 390 / 451 ns rebuild per node**.
+- **78 static-wrapper/host checks pass in 11.427 s / 3.786 s summed**, zero skips,
+  `/tmp/localwave-indexed-string-static.log`. **186 app checks pass in 9.615 s / 14.047 s summed**,
+  zero skips, `/tmp/localwave-indexed-string-app-matrix.log`.
+- The final differential case passes in **2.524 s wall / 0.031 s case**, zero skips,
+  `/tmp/localwave-indexed-string-donors-publish.log`. The first filter matched zero cases because
+  core library unit tests are disabled. It is now explicitly registered in the `string_pool`
+  integration target, including the production index code. Moving its assertions out of library
+  sources satisfies the existing test-discovery gate without an exception.
+- Scoped core/new-target Clippy and app all-target Clippy pass with Rust warnings denied;
+  `/tmp/localwave-indexed-string-sdk-clippy-publish.log` (**0.29 s**) and
+  `/tmp/localwave-indexed-string-app-clippy.log` (**1.33 s**). The broader SDK all-target attempt
+  reaches **26 existing findings in unchanged fixture cases**, retained in
+  `/tmp/localwave-indexed-string-sdk-clippy.log`; the focused new-target lint issue is fixed.
+  Dependency, tier, C-header, ABI snapshot/export and diff whitespace checks pass. Shape checking
+  returns to its nine existing findings after moving the test; no policy was weakened.
+- The Core check takes **2.68 s wall / 2.58 s Cargo time**,
+  `/tmp/localwave-indexed-string-check.log`, exceeding the sub-second edit-check target.
+  Clean build qualification remains open. Compile/discovery/lint failures and initial shape
+  rejection remain in their original `indexed-string` logs.
+
+### Signed results
+
+`/tmp/localwave-indexed-string-signed-performance.log` preserves all **12 original workloads**,
+10,000 songs, **182/82/100 total/warm/measured frames**, both Rust counters and the unchanged
+**1,000 µs wall maximum**. All 12 retain **zero warm Rust allocations**. All 12 still fail the
+strict wall maximum, and `make performance` exits with failure.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 3794 / 865 / 3173 / 3531 | 1230 / 751 / 1023 / 1085 |
+| find-filters-title-descending | 4442 / 755 / 2928 / 4301 | 899 / 668 / 852 / 891 |
+| queue-occurrences | 4001 / 661 / 2694 / 3691 | 944 / 630 / 765 / 825 |
+| queue-carry-scroll-cancel | 4295 / 526 / 3072 / 3963 | 1157 / 501 / 764 / 1119 |
+| full-queue-playlist-editor | 4331 / 797 / 2598 / 4090 | 995 / 653 / 919 / 967 |
+| albums-artwork | 4401 / 712 / 2552 / 3279 | 1011 / 600 / 940 / 982 |
+| waveform-scrub-and-scroll | 4348 / 456 / 2453 / 3222 | 1099 / 366 / 861 / 951 |
+| settings-menus-appearance | 3072 / 299 / 1832 / 2992 | 646 / 268 / 497 / 579 |
+| files-indexed-directory | 3004 / 339 / 1842 / 2596 | 446 / 320 / 397 / 442 |
+| external-drop-hover-and-cancel | 3417 / 294 / 602 / 2481 | 398 / 284 / 326 / 347 |
+| artists-measured-columns | 4062 / 733 / 3360 / 3660 | 1055 / 669 / 952 / 1026 |
+| songs-playing-indicator | 4695 / 883 / 3142 / 4267 | 1385 / 816 / 1059 / 1149 |
+
+The queue-carry CPU maximum/p99 fall from the previous signed run's **2,433 / 2,409 µs** to
+**1,157 / 1,119 µs**. A separate diagnostic run retains zero warm allocations and records
+**1,195 µs CPU max / 1,111 µs p99**, compared with the earlier diagnostic's **2,287 / 1,912 µs**:
+`/tmp/localwave-indexed-string-drag-phases.log`. Frame 145 is below the 1 ms outlier threshold in
+this diagnostic, whereas the earlier run measured 1,946 µs wall / 1,912 µs CPU. The new diagnostic
+still fails at **4,909 µs wall max**. These separate runs support investigating reduced CPU work;
+they do not establish completed latency, a universal speedup or native allocation qualification.
+
+Release library/app rebuilds take **24.49 / 0.09 s**. Signed bundle checks pass for macOS 15,
+default executable stack, bundled dylib ID and portable rpath; smoke records **503.2 ms idle**.
+Artwork remains at 19 quads / 4,800,512 bytes / zero warm requests. Normal GUI PID 69331 is
+preserved. Strict latency, edit/clean build budgets, native/process memory, provider/device and
+iOS qualification remain open. The full port remains in progress.
+
 ## Layout work reduction checkpoint
 
 SDK **`c77573be2cdea85ef7522bee661cd2c8b06afdbc`** is published on `rust-port`.
