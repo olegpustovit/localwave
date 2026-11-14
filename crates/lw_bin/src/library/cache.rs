@@ -145,6 +145,61 @@ impl EvictionIO for Evict<'_> {
 }
 
 impl LibraryWorker {
+    /// Swift's bulk pin toggle: persist one preference update and queue uncopied songs together.
+    pub fn toggle_pins(&mut self, ids: &[i64]) -> io::Result<bool> {
+        if ids.is_empty() || ids.len() > 1_000_000 {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        let ids = ids
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        let songs = self.repository.get_songs(&ids).map_err(db)?;
+        if songs.len() != ids.len() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "Some selected songs were removed",
+            ));
+        }
+        let mut sources = HashMap::new();
+        for song in &songs {
+            if let Some(id) = song.source_id
+                && let std::collections::hash_map::Entry::Vacant(entry) = sources.entry(id)
+            {
+                entry.insert(self.repository.source(id).map_err(db)?);
+            }
+        }
+        let mut grants = HashMap::new();
+        let ids = songs
+            .iter()
+            .filter(|song| {
+                !song
+                    .source_id
+                    .and_then(|id| sources.get(&id))
+                    .and_then(|source| source.as_ref())
+                    .is_some_and(|source| source.sync_error.is_some())
+                    || super::find::availability(self, song, &sources, &mut grants)
+                        == lw_core::FileAvailability::OnDevice
+            })
+            .map(|song| song.id.unwrap())
+            .collect::<Vec<_>>();
+        if ids.is_empty() {
+            return Err(io::Error::other(
+                "Reconnect this music source before keeping its songs offline",
+            ));
+        }
+        let _guard = self.preferences.cache_guard();
+        let before = self.preferences.import_snapshot();
+        let pinned = !ids.iter().all(|id| before.pinned(*id));
+        if pinned {
+            self.repository.mark_songs_for_copy(&ids).map_err(db)?;
+        }
+        self.preferences.set_pins(&ids, pinned);
+        Ok(pinned)
+    }
+
     pub fn cached_byte_count(&self) -> io::Result<u64> {
         cache::total_bytes(&files(&music_root(&self.paths.documents)?)?)
     }

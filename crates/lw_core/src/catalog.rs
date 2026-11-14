@@ -575,6 +575,19 @@ impl LibraryRepository {
         })
     }
 
+    /// Count indexed directory matches without hydrating every source path or sorting ranks.
+    pub fn matching_user_directory_count(&self, user_id: i64, query: &str) -> Result<usize> {
+        if query.trim().is_empty() {
+            return Ok(0);
+        }
+        let query = prefix_query(query);
+        let mut count = 0usize;
+        self.db.query("SELECT count(*) FROM source_paths_fts f JOIN source_paths p ON p.sourceId=f.sourceId AND p.pathId=f.pathId JOIN sources s ON s.id=p.sourceId WHERE source_paths_fts MATCH ? AND s.userId=? AND p.isDirectory=1",&[Text(&query),Integer(user_id)],&mut |row| {
+            count=usize::try_from(required(row.integer(0)?)?).map_err(|_|Error::invalid("Invalid directory match count"))?;Ok(())
+        })?;
+        Ok(count)
+    }
+
     pub fn search_source_paths(
         &self,
         source_id: i64,

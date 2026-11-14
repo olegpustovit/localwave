@@ -376,3 +376,18 @@ while visible/playing; reduced motion and pause settle. File-state pops use the 
 without initial animation. Preserve native 1x/2x wrapped baselines, responsive thresholds, popup
 staleness guards and warm allocation checks. Performance adds active indicators as a twelfth
 workload; retain every original workload, both counters and the strict 1,000 us wall maximum.
+
+Find summaries are prepared on the library worker. Keep song membership, current-account folder
+counts and blocked-source metadata in one read snapshot; probe files afterward and reuse observed
+availability. Count all owned indexed directory matches in one SQL query, excluding files/foreign
+accounts. Album counts use native album/album-artist identity and localized text words. Frames
+borrow the summary and retained eligible IDs; never scan sources or format summaries in a frame.
+
+Bulk offline toggles use Command::TogglePins and LibraryWorker::toggle_pins. Validate the complete
+selection, deduplicate IDs, recheck blocked/local state, preserve copied rows, and roll back failed
+copy-request batches before changing preferences. Preferences::set_pins writes lwPinnedSongs and
+advances cache protection once for the whole selection, under the existing recursive cache guard.
+Background copies share the inbox-locked cancellation gate with waveforms, after playback work.
+Resume persisted work at startup and retry on explicit RefreshCatalog; failures must settle without
+a tight retry loop. Never start/pause playback for a pin action or delete original files on unpin.
+Preserve the native copy/resume, snapshot-generation, rollback and blocked-source regressions.

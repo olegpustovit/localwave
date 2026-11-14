@@ -141,14 +141,21 @@ impl LibraryWorker {
             catalog.prepare_pins(&mut |id| pins.pinned(id));
             catalog.prepare_tables().map_err(io::Error::other)?;
         }
-        if let (Some(find), Some(candidates)) = (find, candidates) {
-            rows = Some(find.finish(self, &catalog, candidates));
-        }
+        let summary = if let (Some(find), Some(candidates)) = (find, candidates) {
+            let found = find.finish(self, &catalog, candidates);
+            rows = Some(found.rows);
+            Some(found.summary)
+        } else {
+            None
+        };
         if let (Some(request), Some(rows)) = (request, rows.as_mut())
             && (request.scope == Scope::Find || request.sort != Sort::Original)
         {
             sort(&catalog, rows, request.sort, request.ascending)?;
             catalog.project(request, std::mem::take(rows));
+            if let Some(view) = catalog.view.as_mut() {
+                std::sync::Arc::make_mut(view).find = summary;
+            }
         }
         Ok(catalog)
     }

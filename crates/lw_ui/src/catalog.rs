@@ -32,6 +32,7 @@ pub struct Row<'a> {
     pub format_key: &'a str,
     pub track_number: Option<i64>,
     pub track_label: &'a str,
+    pub source_id: Option<i64>,
     pub availability: Option<FileAvailability>,
     pub pinned: bool,
     pub actions_label: &'a str,
@@ -51,6 +52,7 @@ struct StoredRow {
     labels: [Range<usize>; 9],
     favorite: bool,
     track_number: Option<i64>,
+    source_id: Option<i64>,
     availability: Option<FileAvailability>,
     pinned: bool,
     state: FileState,
@@ -215,6 +217,7 @@ impl Library {
                 labels,
                 favorite: song.is_favorite != 0,
                 track_number: song.track_number,
+                source_id: song.source_id,
                 availability: song.source_availability,
                 pinned: false,
                 state: song.file_state,
@@ -385,6 +388,7 @@ impl Library {
             track_number: row.track_number,
             track_label,
             actions_label,
+            source_id: row.source_id,
             availability: row.availability,
             pinned: row.pinned,
             duration,
@@ -467,9 +471,41 @@ pub struct Catalog {
     pub queue: Option<Arc<crate::queue::Snapshot>>,
 }
 #[derive(Clone)]
+pub struct FindSummary {
+    pub title: String,
+    pub summary: String,
+    pub eligible: Arc<[i64]>,
+    pub pinned: bool,
+}
+impl FindSummary {
+    pub fn new(
+        raw: &str,
+        count: usize,
+        albums: usize,
+        folders: usize,
+        eligible: Arc<[i64]>,
+        pinned: bool,
+    ) -> Self {
+        let mut summary = format!("{count} songs");
+        if albums > 0 {
+            summary.push_str(&format!(" · {albums} albums"));
+        }
+        if folders > 0 {
+            summary.push_str(&format!(" · {folders} folders"));
+        }
+        Self {
+            title: format!("“{raw}”"),
+            summary,
+            eligible,
+            pinned,
+        }
+    }
+}
+#[derive(Clone)]
 pub struct View {
     pub request: crate::browse::Request,
     pub collection: Collection,
+    pub find: Option<FindSummary>,
 }
 impl Deref for Catalog {
     type Target = Library;
@@ -692,9 +728,21 @@ impl Catalog {
                 )
             }
         };
+        let find = (request.scope == crate::browse::Scope::Find).then(|| {
+            FindSummary::new(
+                request.query.as_str(),
+                collection.rows.len(),
+                0,
+                0,
+                collection.ids.clone(),
+                !collection.rows.is_empty()
+                    && collection.rows.iter().all(|index| self.row(*index).pinned),
+            )
+        });
         self.view = Some(Arc::new(View {
             request,
             collection,
+            find,
         }));
     }
 }

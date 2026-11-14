@@ -3,22 +3,30 @@ use lw_apple_sys::{
     audio, bookmarks::Access, collation::Key, history::History, preferences::file_path,
 };
 use lw_core::{FileAvailability, LibraryRepository, Song, Source, query::SongQuery};
-use lw_ui::catalog::Catalog;
+use lw_ui::catalog::{Catalog, FindSummary};
 use std::collections::{HashMap, HashSet};
 use std::io;
 use std::path::Path;
+use std::sync::Arc;
 
 pub(super) struct Find {
     query: SongQuery,
     needles: HashMap<String, Key>,
     history: Option<History>,
     empty: bool,
+    raw: String,
 }
 #[derive(Default)]
 pub(super) struct Candidates {
     rows: Vec<usize>,
     files: HashMap<i64, Song>,
     sources: HashMap<i64, Option<Source>>,
+    blocked: HashSet<i64>,
+    folders: usize,
+}
+pub(super) struct Found {
+    pub rows: Vec<usize>,
+    pub summary: FindSummary,
 }
 impl Find {
     pub fn new(library: &LibraryWorker, raw: &str) -> io::Result<Self> {
@@ -35,6 +43,7 @@ impl Find {
             needles,
             history,
             empty: raw.trim().is_empty(),
+            raw: raw.to_owned(),
         })
     }
     /// Keep metadata/FTS membership and source identities in the same SQLite read snapshot.
@@ -46,6 +55,26 @@ impl Find {
         let mut out = Candidates::default();
         if self.empty {
             return Ok(out);
+        }
+        if let Some(user) = catalog
+            .source_identity
+            .map(|identity| repository.user(identity))
+            .transpose()?
+            .flatten()
+        {
+            if !self.query.has_filters() {
+                out.folders =
+                    repository.matching_user_directory_count(user.id, self.query.text())?;
+            }
+            for source in repository.sources(user.id)? {
+                let Some(id) = source.id else {
+                    continue;
+                };
+                if source.sync_error.is_some() {
+                    out.blocked.insert(id);
+                    out.sources.insert(id, Some(source.clone()));
+                }
+            }
         }
         let matching: Option<HashSet<_>> = if self.query.text().is_empty() {
             None
@@ -82,7 +111,12 @@ impl Find {
                 continue;
             }
             out.rows.push(index);
-            if self.query.needs_availability() || (self.query.needs_format() && !row.has_format) {
+            if self.query.needs_availability()
+                || (self.query.needs_format() && !row.has_format)
+                || row
+                    .source_id
+                    .is_some_and(|source| out.blocked.contains(&source))
+            {
                 files.push(row.id);
             }
         }
@@ -104,13 +138,16 @@ impl Find {
         library: &LibraryWorker,
         catalog: &Catalog,
         candidates: Candidates,
-    ) -> Vec<usize> {
+    ) -> Found {
         let Candidates {
             mut rows,
             files,
             sources,
+            blocked,
+            folders,
         } = candidates;
         let mut grants = HashMap::new();
+        let mut observed = HashMap::new();
         rows.retain(|index| {
             let row = catalog.row(*index);
             let Some(song) = files.get(&row.id) else {
@@ -124,14 +161,70 @@ impl Find {
                 return false;
             }
             !self.query.needs_availability()
-                || self.query.matches_availability(availability(
-                    library,
-                    song,
-                    &sources,
-                    &mut grants,
-                ))
+                || self.query.matches_availability(
+                    *observed
+                        .entry(row.id)
+                        .or_insert_with(|| availability(library, song, &sources, &mut grants)),
+                )
         });
-        rows
+        let identities = rows
+            .iter()
+            .map(|index| {
+                let row = catalog.row(*index);
+                (
+                    row.album,
+                    if row.album_artist.is_empty() {
+                        row.artist
+                    } else {
+                        row.album_artist
+                    },
+                )
+            })
+            .collect::<HashSet<_>>();
+        let albums = if self.query.text().is_empty() {
+            0
+        } else {
+            catalog
+                .albums
+                .iter()
+                .filter(|album| {
+                    let lw_core::context::PlaybackContext::Album { name, artist } =
+                        album.context.as_ref()
+                    else {
+                        return false;
+                    };
+                    if !identities.contains(&(name.as_str(), artist.as_str())) {
+                        return false;
+                    }
+                    let label = format!("{name} {artist}");
+                    self.query
+                        .text()
+                        .split_whitespace()
+                        .all(|word| self.needles[word].contained_in(&label))
+                })
+                .count()
+        };
+        let eligible: Arc<[i64]> = rows
+            .iter()
+            .filter_map(|index| {
+                let row = catalog.row(*index);
+                let allowed =
+                    !row.source_id
+                        .is_some_and(|source| blocked.contains(&source))
+                        || files.get(&row.id).is_some_and(|song| {
+                            *observed.entry(row.id).or_insert_with(|| {
+                                availability(library, song, &sources, &mut grants)
+                            }) == FileAvailability::OnDevice
+                        });
+                allowed.then_some(row.id)
+            })
+            .collect();
+        let pinned = !eligible.is_empty()
+            && eligible
+                .iter()
+                .all(|id| catalog.row(catalog.row_index(*id).unwrap()).pinned);
+        let summary = FindSummary::new(&self.raw, rows.len(), albums, folders, eligible, pinned);
+        Found { rows, summary }
     }
 }
 
@@ -170,7 +263,7 @@ fn source_grant(library: &LibraryWorker, source: &Source) -> Option<Access> {
             .and_then(|bookmark| Access::resolve(bookmark).ok()),
     }
 }
-fn availability(
+pub(super) fn availability(
     library: &LibraryWorker,
     song: &Song,
     sources: &HashMap<i64, Option<Source>>,
@@ -227,7 +320,6 @@ mod tests {
         browse::{Query, Request, Scope, Sort},
         catalog::Route,
     };
-    use std::sync::Arc;
 
     #[test]
     fn find_filters_use_shared_metadata_history_formats_and_real_resource_availability() {
@@ -454,5 +546,229 @@ mod tests {
             worker.repository.source(source).unwrap().unwrap().dir_path,
             root.to_str().unwrap()
         );
+    }
+    #[test]
+    fn find_summary_counts_matching_albums_and_owned_directories_and_excludes_blocked_offline_actions()
+     {
+        let base = std::env::temp_dir().join(format!("lw-find-summary-{}", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(base.clone());
+        std::fs::create_dir_all(&base).unwrap();
+        let mut worker = LibraryWorker::open(
+            &base.join("library.sqlite"),
+            Preferences::open(Some(&format!(
+                "com.olegpustovit.localwave.find-summary-{}",
+                std::process::id()
+            )))
+            .unwrap(),
+            AppPaths {
+                documents: base.join("Documents"),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+        )
+        .unwrap();
+        let identity = lw_apple_sys::cloud::current_identity()
+            .unwrap()
+            .as_deref()
+            .map_or(-1, lw_core::hash_string);
+        let user = worker.repository.get_or_create_user(identity).unwrap();
+        let other = worker
+            .repository
+            .get_or_create_user(identity.wrapping_add(1))
+            .unwrap();
+        let source = worker
+            .repository
+            .create_source(&Source {
+                dir_path: "/Music".into(),
+                path_id: 1,
+                user_id: user.id,
+                sync_error: Some("Reconnect".into()),
+                ..Default::default()
+            })
+            .unwrap()
+            .id
+            .unwrap();
+        let foreign = worker
+            .repository
+            .create_source(&Source {
+                dir_path: "/Other".into(),
+                path_id: 2,
+                user_id: other.id,
+                ..Default::default()
+            })
+            .unwrap()
+            .id
+            .unwrap();
+        worker
+            .repository
+            .upsert_source_paths(&[
+                lw_core::SourcePath {
+                    source_id: source,
+                    path_id: 11,
+                    name: "Café shows".into(),
+                    relative_path: "Café shows".into(),
+                    is_directory: true,
+                    ..Default::default()
+                },
+                lw_core::SourcePath {
+                    source_id: source,
+                    path_id: 12,
+                    name: "Café.flac".into(),
+                    relative_path: "Café.flac".into(),
+                    ..Default::default()
+                },
+                lw_core::SourcePath {
+                    source_id: foreign,
+                    path_id: 21,
+                    name: "Café other".into(),
+                    relative_path: "Café other".into(),
+                    is_directory: true,
+                    ..Default::default()
+                },
+            ])
+            .unwrap();
+        std::fs::create_dir_all(base.join("Documents/Music")).unwrap();
+        std::fs::write(base.join("Documents/Music/cached.flac"), [7, 8, 9]).unwrap();
+        let mut ids = Vec::new();
+        for (index, (album, source_id, availability)) in [
+            ("Café album", None, None),
+            ("Other", None, None),
+            ("Café album", Some(source), None),
+            ("Café album", Some(source), Some(FileAvailability::OnDevice)),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            ids.push(
+                worker
+                    .repository
+                    .upsert_song(
+                        &Song {
+                            song_key: index as i64 + 1,
+                            title: "Café track".into(),
+                            artist: "Artist".into(),
+                            album: album.into(),
+                            source_id,
+                            source_availability: availability,
+                            local_file_path: (index == 3).then(|| "Music/cached.flac".into()),
+                            file_extension: Some("flac".into()),
+                            ..Default::default()
+                        },
+                        1.0,
+                    )
+                    .unwrap()
+                    .id
+                    .unwrap(),
+            );
+        }
+        for (raw, expected) in [
+            ("cafe", "4 songs · 1 albums · 1 folders"),
+            ("cafe flac", "4 songs · 1 albums"),
+            ("flac", "4 songs"),
+            ("", "0 songs"),
+        ] {
+            let catalog = worker
+                .catalog_view(
+                    None,
+                    Some(Request {
+                        scope: Scope::Find,
+                        query: Query::new(raw).unwrap(),
+                        sort: Sort::Original,
+                        ascending: true,
+                    }),
+                )
+                .unwrap();
+            let summary = catalog.view.as_ref().unwrap().find.as_ref().unwrap();
+            assert_eq!(summary.title, format!("“{raw}”"));
+            assert_eq!(summary.summary, expected);
+            if !raw.is_empty() {
+                assert_eq!(summary.eligible.as_ref(), &[ids[0], ids[1], ids[3]]);
+            } else {
+                assert!(summary.eligible.is_empty());
+            }
+            assert!(!summary.pinned);
+            if raw == "cafe" {
+                let mut state = lw_ui::ShellState::default();
+                state.apply(lw_ui::Intent::Navigate(Route::Find));
+                state.apply(lw_ui::Intent::Search(Query::new(raw).unwrap()));
+                let mut ui =
+                    pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+                ui.set_a11y(true);
+                ui.frame(
+                    &pxui::FrameIn {
+                        width: 1440.0,
+                        height: 872.0,
+                        reduced_motion: 1,
+                        ..Default::default()
+                    },
+                    &mut |ui| {
+                        lw_ui::shell(
+                            ui,
+                            &lw_ui::PlayerView::default(),
+                            &catalog,
+                            &state,
+                            &mut None,
+                        )
+                    },
+                )
+                .unwrap();
+                assert!(
+                    ui.a11y_nodes()
+                        .iter()
+                        .any(|node| ui.a11y_name_of(node) == expected),
+                    "Find displays the worker's matching album/folder summary"
+                );
+            }
+        }
+        worker.preferences.set_pins(&[ids[0], ids[1], ids[3]], true);
+        let catalog = worker
+            .catalog_view(
+                None,
+                Some(Request {
+                    scope: Scope::Find,
+                    query: Query::new("cafe").unwrap(),
+                    sort: Sort::Original,
+                    ascending: true,
+                }),
+            )
+            .unwrap();
+        assert!(catalog.view.as_ref().unwrap().find.as_ref().unwrap().pinned);
+        assert!(
+            worker.toggle_pins(&[ids[2]]).is_err(),
+            "disconnected uncached songs cannot be pinned"
+        );
+        assert!(
+            !worker.toggle_pins(&ids[..3]).unwrap(),
+            "blocked songs do not change the bulk toggle target"
+        );
+        let pins = worker.preferences.import_snapshot();
+        assert!(
+            !pins.pinned(ids[0])
+                && !pins.pinned(ids[1])
+                && !pins.pinned(ids[2])
+                && pins.pinned(ids[3])
+        );
+        assert!(worker.toggle_pins(&[ids[0], 9000]).is_err());
+        assert!(
+            !worker.preferences.import_snapshot().pinned(ids[0]),
+            "invalid selections cannot partly change preferences"
+        );
+        assert_eq!(
+            worker
+                .repository
+                .get_song(ids[0])
+                .unwrap()
+                .unwrap()
+                .file_state,
+            FileState::BookmarkOnly
+        );
+        worker.preferences.set_pins(&ids, false);
     }
 }

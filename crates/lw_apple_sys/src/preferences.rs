@@ -43,7 +43,7 @@ unsafe extern "C" {
         modified: f64,
         size: i64,
     ) -> i32;
-    fn lw_preferences_set_pinned(raw: *mut c_void, song: i64, pinned: i32);
+    fn lw_preferences_set_pins(raw: *mut c_void, songs: *const i64, count: usize, pinned: i32);
     fn lw_preferences_set_cache_version(
         raw: *mut c_void,
         song: i64,
@@ -160,8 +160,14 @@ impl Preferences {
         }
     }
     pub fn set_pinned(&self, song_id: i64, pinned: bool) {
+        self.set_pins(&[song_id], pinned);
+    }
+    pub fn set_pins(&self, songs: &[i64], pinned: bool) {
+        if songs.is_empty() {
+            return;
+        }
         let _guard = self.cache_guard();
-        unsafe { lw_preferences_set_pinned(self.raw, song_id, pinned as i32) };
+        unsafe { lw_preferences_set_pins(self.raw, songs.as_ptr(), songs.len(), pinned as i32) };
     }
     pub fn set_cache_version(
         &self,
@@ -500,5 +506,40 @@ mod tests {
         assert!(generated.contains(&paths.caches.join("LocalWave/waveforms.sqlite-wal")));
         assert!(generated.contains(&paths.caches.join("LocalWave/waveforms.sqlite-shm")));
         assert!(!generated.contains(&paths.documents.join("Music")));
+    }
+    #[test]
+    fn bulk_pins_preserve_swift_keys_and_advance_protection_once_per_selection() {
+        let preferences = Preferences::open(Some(&format!(
+            "com.olegpustovit.localwave.bulk-pins-{}",
+            std::process::id()
+        )))
+        .unwrap();
+        let ids = (1..=1001).collect::<Vec<_>>();
+        preferences.set_pins(&ids, false);
+        let before = preferences.import_snapshot();
+        let protection = preferences.cache_protection();
+        preferences.set_pins(&ids, true);
+        assert!(!protection.is_current());
+        assert_eq!(
+            preferences.cache_protection().generation,
+            protection.generation.wrapping_add(1),
+            "one protection generation for the entire selection"
+        );
+        let pinned = preferences.import_snapshot();
+        assert!(
+            ids.iter()
+                .all(|id| pinned.pinned(*id) && !before.pinned(*id))
+        );
+        let protection = preferences.cache_protection();
+        preferences.set_pins(&[], false);
+        assert!(protection.is_current());
+        preferences.set_pins(&[1, 1, 1001], false);
+        let after = preferences.import_snapshot();
+        assert!(!after.pinned(1) && !after.pinned(1001) && after.pinned(2));
+        assert!(
+            pinned.pinned(1),
+            "retained snapshots keep the original pin generation"
+        );
+        preferences.set_pins(&ids, false);
     }
 }

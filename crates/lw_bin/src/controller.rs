@@ -66,6 +66,7 @@ pub enum Command {
     RefreshCatalog,
     Setting(SettingChange),
     ReadStorage,
+    TogglePins(Arc<[i64]>),
 }
 impl Command {
     fn validate(&self) -> io::Result<()> {
@@ -87,6 +88,7 @@ impl Command {
             Self::Volume(volume) => !volume.is_finite() || !(0.0..=1.0).contains(volume),
             Self::Seek(seconds) => !seconds.is_finite(),
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
+            Self::TogglePins(songs) => songs.is_empty() || songs.len() > 1_000_000,
             Self::SaveQueue(name) => name.as_str().trim().is_empty(),
             Self::Setting(change) => Settings::default().applying(*change).is_err(),
             _ => false,
@@ -106,6 +108,7 @@ impl Command {
                 | Self::RefreshCatalog
                 | Self::SaveQueue(_)
                 | Self::ReadStorage
+                | Self::TogglePins(_)
                 | Self::Setting(
                     SettingChange::Appearance(_)
                         | SettingChange::Signal(_)
@@ -286,7 +289,7 @@ struct Shared {
 }
 
 impl Shared {
-    fn begin_waveform(&self, preparation: u64, token: u64) -> bool {
+    fn begin_background(&self, preparation: u64, token: u64) -> bool {
         let inbox = self.inbox.lock().unwrap();
         if inbox.closed
             || inbox.stop_requested
@@ -706,6 +709,7 @@ struct Worker {
     cache_usage: Arc<str>,
     settings_message: Arc<str>,
     storage_pending: bool,
+    copies_pending: bool,
     context: Arc<PlaybackContext>,
     library: LibraryWorker,
     shared: Arc<Shared>,
@@ -766,6 +770,13 @@ impl Worker {
                 saved.current_index = index;
                 library.save_player_state(&saved)?;
             }
+            let copies_pending = catalog.all.as_ref().is_some_and(|all| {
+                all.rows.iter().any(|index| {
+                    let row = catalog.row(*index);
+                    row.state == lw_core::FileState::CopyPending
+                        || (row.state == lw_core::FileState::Failed && row.pinned)
+                })
+            });
             let empty: Arc<str> = Arc::from("");
             let native = shared.inbox.lock().unwrap().native;
             Ok(Self {
@@ -780,6 +791,7 @@ impl Worker {
                 cache_usage: empty.clone(),
                 settings_message: empty.clone(),
                 storage_pending: false,
+                copies_pending,
                 context,
                 library,
                 shared: shared.clone(),
@@ -971,6 +983,9 @@ impl Worker {
                 self.publish();
                 self.load_waveform();
                 self.publish();
+                if self.load_copies() {
+                    continue;
+                }
             }
             let mut inbox = self.shared.inbox.lock().unwrap();
             while !inbox.closed
@@ -1019,12 +1034,44 @@ impl Worker {
             }
         }
     }
+    fn load_copies(&mut self) -> bool {
+        if !self.copies_pending
+            || !self
+                .shared
+                .begin_background(self.preparation, self.native.token)
+        {
+            return false;
+        }
+        match self.library.process_copy_queue(
+            now(),
+            &self.shared.waveform_cancelled,
+            &mut |_, _| {},
+        ) {
+            Ok(summary) => {
+                self.copies_pending = false;
+                if !summary.failed.is_empty() {
+                    self.message = Arc::from(
+                        "Some songs could not be kept offline. Reconnect the source and try again.",
+                    );
+                }
+            }
+            Err(error) if error.kind() == io::ErrorKind::Interrupted => {}
+            Err(error) => {
+                eprintln!("LocalWave offline copies: {error}");
+                self.copies_pending = false;
+                self.message = Arc::from("Could not finish keeping songs offline. Try again.");
+            }
+        }
+        self.catalog_dirty = true;
+        true
+    }
     fn load_waveform(&mut self) {
         let Some(song) = self.session.queue().current().map(|entry| entry.song_id) else {
             return;
         };
         let key = (song, self.native.token);
-        if self.waveform_key == Some(key) || !self.shared.begin_waveform(self.preparation, key.1) {
+        if self.waveform_key == Some(key) || !self.shared.begin_background(self.preparation, key.1)
+        {
             return;
         }
         let result = self
@@ -1388,6 +1435,23 @@ impl Worker {
             }
             Command::RefreshCatalog => {
                 self.catalog_dirty = true;
+                self.copies_pending = true;
+                Action::None
+            }
+            Command::TogglePins(songs) => {
+                match self.library.toggle_pins(&songs) {
+                    Ok(pinned) => {
+                        self.copies_pending |= pinned;
+                        self.catalog_dirty = true;
+                        self.message = self.empty.clone();
+                    }
+                    Err(error) => {
+                        eprintln!("LocalWave keep offline: {error}");
+                        self.message = Arc::from(
+                            "Could not change kept songs. Refresh or reconnect the source and try again.",
+                        );
+                    }
+                }
                 Action::None
             }
             Command::ReadStorage => {
@@ -2043,7 +2107,7 @@ mod tests {
         let shared = shared();
         shared.cancelled.store(true, Ordering::SeqCst);
         shared.waveform_cancelled.store(true, Ordering::SeqCst);
-        assert!(shared.begin_waveform(0, 0));
+        assert!(shared.begin_background(0, 0));
         assert!(!shared.waveform_cancelled.load(Ordering::SeqCst));
         assert!(shared.cancelled.load(Ordering::SeqCst));
         shared.waveform_cancelled.store(true, Ordering::SeqCst);
@@ -2052,11 +2116,11 @@ mod tests {
             preparation: 0,
             command: Command::Seek(5.0),
         });
-        assert!(!shared.begin_waveform(0, 0));
+        assert!(!shared.begin_background(0, 0));
         assert!(shared.waveform_cancelled.load(Ordering::SeqCst));
         shared.inbox.lock().unwrap().commands.clear();
-        assert!(!shared.begin_waveform(1, 0));
-        assert!(!shared.begin_waveform(0, 1));
+        assert!(!shared.begin_background(1, 0));
+        assert!(!shared.begin_background(0, 1));
         shared.inbox.lock().unwrap().browse = Some((
             2,
             Request {
@@ -2066,7 +2130,7 @@ mod tests {
                 ascending: true,
             },
         ));
-        assert!(!shared.begin_waveform(0, 0));
+        assert!(!shared.begin_background(0, 0));
         shared.inbox.lock().unwrap().browse = None;
         let status = Status {
             waveform: Some([0.5; 512]),
@@ -2074,7 +2138,7 @@ mod tests {
         };
         mem_sys::local_reset();
         for _ in 0..1000 {
-            assert!(shared.begin_waveform(0, 0));
+            assert!(shared.begin_background(0, 0));
             assert_eq!(
                 std::hint::black_box(status.clone()).waveform,
                 status.waveform
@@ -2200,5 +2264,167 @@ mod tests {
             inbox.closed = true;
         }
         assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("closed mailbox")));
+    }
+    #[test]
+    fn offline_commands_copy_on_the_library_worker_preserve_playback_and_release_pins() {
+        use lw_core::{FileState, Song};
+        let base = std::env::temp_dir().join(format!("lw-offline-command-{}", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let _cleanup = Cleanup(base.clone());
+        let shared = shared();
+        shared.inbox.lock().unwrap().native.volume = 1.0;
+        let worker_base = base.clone();
+        let owner = shared.clone();
+        let thread = std::thread::spawn(move || {
+            Worker::run(
+                move || {
+                    std::fs::create_dir_all(&worker_base)?;
+                    let original = worker_base.join("original.flac");
+                    std::fs::write(&original, [7; 64])?;
+                    let mut library = LibraryWorker::open(
+                        &worker_base.join("library.sqlite"),
+                        lw_apple_sys::preferences::Preferences::open(Some(&format!(
+                            "localwave.offline-command.{}",
+                            std::process::id()
+                        )))?,
+                        lw_apple_sys::preferences::AppPaths {
+                            documents: worker_base.join("Documents"),
+                            caches: worker_base.join("Caches"),
+                            temporary: worker_base.join("tmp"),
+                            test_database: None,
+                        },
+                    )?;
+                    for id in 1..=3 {
+                        library
+                            .repository
+                            .upsert_song(
+                                &Song {
+                                    song_key: id,
+                                    title: format!("Track {id}"),
+                                    file_state: if id == 3 {
+                                        FileState::CopyPending
+                                    } else {
+                                        FileState::BookmarkOnly
+                                    },
+                                    bookmark: Some(lw_apple_sys::bookmarks::create(&original)?),
+                                    ..Default::default()
+                                },
+                                1.0,
+                            )
+                            .map_err(io::Error::other)?;
+                    }
+                    Ok(library)
+                },
+                owner,
+            )
+        });
+        struct Close(Arc<Shared>, Option<JoinHandle<()>>);
+        impl Drop for Close {
+            fn drop(&mut self) {
+                self.0.waveform_cancelled.store(true, Ordering::SeqCst);
+                self.0.cancelled.store(true, Ordering::SeqCst);
+                self.0.inbox.lock().unwrap().closed = true;
+                self.0.changed.notify_one();
+                self.1.take().unwrap().join().unwrap();
+            }
+        }
+        let _close = Close(shared.clone(), Some(thread));
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        loop {
+            let resumed = shared
+                .inbox
+                .lock()
+                .unwrap()
+                .catalog
+                .as_ref()
+                .is_some_and(|catalog| {
+                    catalog
+                        .row_index(3)
+                        .is_some_and(|index| catalog.row(index).state == FileState::Copied)
+                        && catalog.row_index(1).is_some_and(|index| {
+                            catalog.row(index).state == FileState::BookmarkOnly
+                        })
+                });
+            if resumed {
+                break;
+            }
+            assert!(
+                std::time::Instant::now() < deadline,
+                "persisted copy requests resume on startup"
+            );
+            std::thread::yield_now();
+        }
+        for (revision, ids, pinned) in [
+            (1, Arc::<[i64]>::from([1, 2, 1]), true),
+            (2, Arc::from([1, 2]), false),
+            (3, Arc::from([1, 9000]), false),
+        ] {
+            let command = Command::TogglePins(ids);
+            assert!(command.validate().is_ok());
+            assert!(!command.interrupts() && !command.fences_preparation());
+            shared.inbox.lock().unwrap().commands.push_back(Envelope {
+                revision,
+                preparation: 0,
+                command,
+            });
+            shared.waveform_cancelled.store(true, Ordering::SeqCst);
+            shared.changed.notify_one();
+            let deadline = std::time::Instant::now() + Duration::from_secs(1);
+            loop {
+                let done = {
+                    let inbox = shared.inbox.lock().unwrap();
+                    assert!(
+                        inbox.output.is_none(),
+                        "offline jobs cannot start or pause native playback"
+                    );
+                    if revision == 3 {
+                        inbox.status.processed_command >= revision
+                            && !inbox.status.message.is_empty()
+                    } else {
+                        inbox.catalog.as_ref().is_some_and(|catalog| {
+                            catalog.all.as_ref().is_some_and(|all| {
+                                all.rows.len() == 3
+                                    && all.rows.iter().all(|index| {
+                                        let row = catalog.row(*index);
+                                        row.state == FileState::Copied
+                                            && row.pinned == (pinned && row.id != 3)
+                                    })
+                            })
+                        })
+                    }
+                };
+                if done {
+                    break;
+                }
+                assert!(
+                    std::time::Instant::now() < deadline,
+                    "offline command {revision} did not finish"
+                );
+                std::thread::yield_now();
+            }
+        }
+        let inbox = shared.inbox.lock().unwrap();
+        assert_eq!(inbox.native.token, 0);
+        assert_eq!(inbox.status.queue_len, 0);
+        let catalog = inbox.catalog.as_ref().unwrap();
+        assert!(
+            catalog
+                .all
+                .as_ref()
+                .unwrap()
+                .rows
+                .iter()
+                .all(|index| !catalog.row(*index).pinned)
+        );
+        assert_eq!(std::fs::read(base.join("original.flac")).unwrap(), [7; 64]);
+        let files = std::fs::read_dir(base.join("Documents/Music"))
+            .unwrap()
+            .count();
+        assert_eq!(files, 1, "identical content shares a managed copy");
     }
 }

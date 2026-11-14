@@ -105,7 +105,7 @@ void lw_preferences_release(void *preferences);
 void *lw_preferences_import_snapshot(void *preferences);
 int lw_preferences_pinned(void *snapshot, int64_t song);
 int lw_preferences_cache_matches(void *snapshot, int64_t song, const char *cache_path, double modified, int64_t size);
-void lw_preferences_set_pinned(void *preferences, int64_t song, int pinned);
+void lw_preferences_set_pins(void *preferences, const int64_t *songs, size_t count, int pinned);
 void lw_preferences_set_cache_version(void *preferences, int64_t song, const char *cache_path, double modified, int64_t size);
 char *lw_app_path(unsigned int slot);
 char *lw_file_path(const char *value);

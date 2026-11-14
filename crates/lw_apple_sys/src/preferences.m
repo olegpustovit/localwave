@@ -143,12 +143,14 @@ int lw_preferences_cache_matches(void *raw, int64_t song, const char *cachePath,
     }
 }
 
-void lw_preferences_set_pinned(void *raw, int64_t song, int pinned) {
+void lw_preferences_set_pins(void *raw, const int64_t *ids, size_t count, int pinned) {
     @autoreleasepool {
         NSUserDefaults *defaults = (__bridge NSUserDefaults *)raw;
         NSMutableSet *songs = [NSMutableSet setWithArray:[defaults stringArrayForKey:@"lwPinnedSongs"] ?: @[]];
-        NSString *key = [NSString stringWithFormat:@"%lld", (long long)song];
-        if (pinned) [songs addObject:key]; else [songs removeObject:key];
+        for (size_t i = 0; i < count; ++i) {
+            NSString *key = [NSString stringWithFormat:@"%lld", (long long)ids[i]];
+            if (pinned) [songs addObject:key]; else [songs removeObject:key];
+        }
         [defaults setObject:songs.allObjects forKey:@"lwPinnedSongs"];
         atomic_fetch_add(&cacheGeneration, 1);
     }

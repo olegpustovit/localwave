@@ -1581,6 +1581,12 @@ fn header(
                 "Search titles, artists, albums or add a filter"
             } else if state.route == Route::Find && collection.is_none() {
                 "Searching…"
+            } else if state.route == Route::Find {
+                catalog
+                    .view
+                    .as_ref()
+                    .and_then(|view| view.find.as_ref())
+                    .map_or("Searching…", |summary| summary.summary.as_str())
             } else if state.route == Route::Songs {
                 "Click a header to sort. Double-click or Return plays."
             } else if state.route == Route::Artists {

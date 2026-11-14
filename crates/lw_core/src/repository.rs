@@ -329,6 +329,41 @@ impl LibraryRepository {
         Ok(owners)
     }
 
+    /// Validate the whole selection before queuing copies; missing rows roll back the batch.
+    pub fn mark_songs_for_copy(&mut self, ids: &[i64]) -> Result<()> {
+        let ids = ids
+            .iter()
+            .copied()
+            .collect::<std::collections::HashSet<_>>()
+            .into_iter()
+            .collect::<Vec<_>>();
+        self.db.transaction(|db| {
+            for chunk in ids.chunks(250) {
+                let placeholders = vec!["?"; chunk.len()].join(",");
+                let parameters = chunk.iter().copied().map(Integer).collect::<Vec<_>>();
+                let mut count = 0;
+                db.query(
+                    &format!("SELECT count(*) FROM songs WHERE id IN ({placeholders})"),
+                    &parameters,
+                    &mut |row| {
+                        count = required(row.integer(0)?)?;
+                        Ok(())
+                    },
+                )?;
+                if count as usize != chunk.len() {
+                    return Err(Error::invalid("Some selected songs were removed"));
+                }
+                db.execute(
+                    &format!(
+                        "UPDATE songs SET fileState=1 WHERE fileState!=2 AND id IN ({placeholders})"
+                    ),
+                    &parameters,
+                )?;
+            }
+            Ok(())
+        })
+    }
+
     pub fn mark_song_for_copy(&self, id: i64) -> Result<()> {
         self.db
             .execute("UPDATE songs SET fileState=1 WHERE id=?", &[Integer(id)])?;
@@ -1056,5 +1091,46 @@ mod tests {
                 )
                 .unwrap()
         );
+    }
+    #[test]
+    fn bulk_offline_requests_validate_all_ids_rollback_and_preserve_copied_rows() {
+        let mut repo = LibraryRepository::open(":memory:").unwrap();
+        repo.db.execute_batch("WITH RECURSIVE seq(n) AS (VALUES(1) UNION ALL SELECT n+1 FROM seq WHERE n<1001) INSERT INTO songs(id,songKey,artist,title,album,albumArtist,pathHash,createdAt,fileState) SELECT n,n,'Artist','Track '||n,'Album','Artist',n,n,CASE WHEN n=2 THEN 2 ELSE 0 END FROM seq").unwrap();
+        let mut ids = (1..=1001).collect::<Vec<_>>();
+        ids.extend([1, 2]);
+        let mut missing = ids.clone();
+        missing.push(9000);
+        assert!(repo.mark_songs_for_copy(&missing).is_err());
+        assert_eq!(
+            repo.get_song(1).unwrap().unwrap().file_state,
+            FileState::BookmarkOnly
+        );
+        repo.db.execute_batch("CREATE TRIGGER reject_copy BEFORE UPDATE OF fileState ON songs WHEN NEW.id=501 BEGIN SELECT RAISE(ABORT,'injected copy failure'); END").unwrap();
+        assert!(repo.mark_songs_for_copy(&ids).is_err());
+        assert!(
+            repo.get_songs(&ids)
+                .unwrap()
+                .iter()
+                .all(|song| song.file_state
+                    == if song.id == Some(2) {
+                        FileState::Copied
+                    } else {
+                        FileState::BookmarkOnly
+                    })
+        );
+        repo.db.execute_batch("DROP TRIGGER reject_copy").unwrap();
+        repo.mark_songs_for_copy(&ids).unwrap();
+        assert!(
+            repo.get_songs(&ids)
+                .unwrap()
+                .iter()
+                .all(|song| song.file_state
+                    == if song.id == Some(2) {
+                        FileState::Copied
+                    } else {
+                        FileState::CopyPending
+                    })
+        );
+        repo.mark_songs_for_copy(&[]).unwrap();
     }
 }

@@ -2,6 +2,60 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## Find summaries and offline-action service checkpoint
+
+The library worker now prepares the Find result count, matching album count, owned folder count,
+quoted query, eligible song IDs and aggregate kept state. The existing Find subtitle displays this
+prepared summary. Album membership follows the native album/album-artist identity and localized
+word matching. Folder counting uses **one FTS/indexed SQL query across the current user's sources**;
+it excludes audio files and other accounts, and filters suppress the folder count as in SwiftUI.
+Counts and source state come from the same SQLite read snapshot as the song membership. File
+availability probes run after the transaction and are reused between filtering and pin eligibility.
+A disconnected source's already local copies remain eligible.
+
+`Command::TogglePins` accepts the retained ID payload. The serialized library worker validates and
+deduplicates the selection, rechecks blocked sources and local availability, and performs Swift's
+all-kept toggle. A bulk repository transaction queues uncopied rows, preserves copied rows, and
+rolls back the entire batch on missing IDs or an update error. Preferences use **one native set
+update and one protection generation per selection**, retaining Swift's `lwPinnedSongs` key and
+immutable import/protection snapshots. The existing single-song setter uses the same bulk bridge.
+All preference and copy operations stay off the UI thread.
+
+Offline jobs run after playback preparation, storage/catalog publication and waveform work. They
+reuse the existing inbox-locked background cancellation gate, so controls, browsing, native token
+changes and critical events interrupt them. Persisted pending work and pinned failures resume on
+startup; an explicit catalog refresh also retries pending work. Failed jobs settle without a busy
+retry loop. Managed copies keep the existing content identity, cache protection, retirement and
+original-file safeguards. Unpinning preserves the managed copy until normal cache eviction.
+
+### Checks
+
+- **185 app checks pass**, **11.067 s wall / 15.367 s summed**, zero skips:
+  `/tmp/localwave-find-offline-publish-matrix.log`. This includes actual managed copies on the
+  controller worker, startup recovery, pin/release, duplicate IDs, removed-row refusal and no
+  native playback operation. The local copy case takes **0.082 s** in
+  `/tmp/localwave-offline-resume-controller.log`.
+- The 1,001-row bulk regression crosses SQL parameter batches, preserves copied state, and proves
+  rollback after both a missing ID and an injected update failure. Native pin tests retain older
+  snapshots and assert one protection-generation change for the entire selection. Focused logs:
+  `/tmp/localwave-bulk-pins-focused.log`, **10.144 s wall / 0.137 s summed**, zero skips.
+- Find checks cover accented matching, album membership, directory/file distinction, account
+  isolation, filter/empty queries, blocked sources, actual local cache availability, pin aggregation
+  and the rendered accessible summary. `/tmp/localwave-find-summary-fixed.log` records the earlier
+  focused pass; the final 185-case matrix includes the added UI and action assertions.
+- All app packages/all targets pass Clippy with native interop and warnings denied in **1.86 s**:
+  `/tmp/localwave-find-offline-publish-clippy.log`. Formatting and whitespace pass.
+- An earlier full run ended with **SIGKILL** in the malformed-artwork case:
+  `/tmp/localwave-find-offline-app-final.log`. The unchanged case passes its bounded isolated repeat
+  in **0.055 s**, `/tmp/localwave-find-offline-artwork-repeat.log`; both subsequent complete matrices
+  pass. The cause of that process kill is unproven; no deadline or assertion was relaxed.
+
+The desktop command palette, scrolling query/results hero and Play all/Keep offline toolbar binding
+remain unfinished. This checkpoint implements their service/data requirements; it does not claim
+Find layout parity or add an inert toolbar. iCloud/provider copy behavior still needs device
+qualification. Signed twelve-workload qualification is pending for this checkpoint; the unchanged
+strict **1,000 µs wall maximum** remains failed.
+
 ## SwiftUI song-table geometry and playing indicators
 
 Songs now uses the native desktop column measurements prepared on the library worker. Number,
