@@ -908,7 +908,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
         }
         incoming.clear();
         assert!(sdl3_sys::test_util::push_numeric_trace());
-        assert!(platform.pump(&mut window, &mut incoming));
+        assert!(platform.pump(&mut window, &mut incoming).unwrap());
         assert!(window.take_failure().is_none());
         if frame >= 20 {
             assert_eq!(mem_sys::local_alloc_count(), 0, "SDL pump allocated");

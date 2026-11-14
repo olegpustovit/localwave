@@ -5,8 +5,82 @@
 The user has deferred the strict **1 ms wall-time** target while iOS work proceeds.
 Zero warm Rust UI allocations, bounded retained memory and efficient event-driven rendering
 remain requirements. Existing latency measurements and benchmark assertions are preserved;
-the recorded wall-time failures are not passes. iOS starts with the plan's static SDL3
-device/simulator spike inside pxui, followed by Metal, touch and lifecycle integration.
+the recorded wall-time failures are not passes. iOS capabilities are being qualified in the
+pxui gallery before LocalWave's iOS UI/services adopt them.
+
+### iOS safe areas and keyboard geometry checkpoint
+
+PXUI checkpoint: **`9088369`**, ABI **1.24**, on `rust-port`.
+
+`FrameIn` now carries the framework-owned host environment: safe-area insets, keyboard start
+and target rectangles, frame-clock start time, native duration/curve and did-show/did-hide
+visibility. `Ui::environment()` works inside cached views; changed geometry invalidates those
+views, while unchanged geometry keeps their contents. Old **48/56-byte** C descriptors retain
+their exact layout and get a default environment. Forward-sized legacy descriptors ignore an
+incomplete new tail. The append-only snapshot adds the **72-byte Environment / 128-byte FrameIn**
+layouts and one getter. Finite geometry, nonnegative extents/duration, finite clock arithmetic
+and visibility 0/1 are checked before changing frame state/output. The snapshot input entry
+resets the environment to its default.
+
+The owning iOS SDL sys code observes UIKit keyboard notifications, filters the window's screen
+and converts its rectangles into SDL-view logical coordinates. The host maps the monotonic clock
+once, avoiding changing timestamps on every read, and preserves native curve **7**. Geometry
+changes become numeric `EnvironmentChanged` input. `Platform::pump` now returns errors and the
+latest environment; LocalWave feeds that public snapshot into its frame. Native IME-area clearing
+uses SDL's supported null-area operation so SDL cannot translate the whole Metal view. Invalid
+caret dimensions/cursor values still fail before starting input. No new external dependency,
+LocalWave visual edit, signed latency gate change or native zero-allocation claim is included.
+
+The gallery probe pads and checks its content bounds on every frame. iPhone 16e / iOS 18.6
+reports **[47,0,34,0]** insets and **[0,47,390,763]** content inside **390×844 points / 1170×2532
+pixels, scale 3**. Its final same-process lifecycle run pauses at **frame 90**, resumes PID
+**20546**, finishes **182 / 82 warm-up / 100 measured frames with zero warm Rust allocations**,
+then passes the single idle-deadline callback and indefinite-idle worker wake. Stderr is empty:
+`/tmp/localwave-ios-safe-area-lifecycle-publish{,-stderr}.log`. The inspected safe-area screenshot
+is `/tmp/localwave-ios-safe-area-fixed.png`; desktop gallery controls still clip horizontally.
+
+The native-keyboard mode focuses a real pxui text field and requires UIKit's **did-show / did-hide**,
+not just the animation target. The keyboard is **[0,508,390,336]**, hides to **[0,844,390,336]**,
+and reports **250 ms / curve 7**. The final combined run backgrounds after warm-up at **frame 124**,
+resumes the **same PID 21546**, and finishes the original **182/82/100** workload with **zero warm
+Rust allocations**, including the first resumed frame. It also passes idle/deadline/worker wake
+and layer invalidation, with empty stderr. Footprint/peak are **29,739,672 / 34,785,944 bytes** for
+that simulator probe. `/tmp/localwave-ios-keyboard-background-publish{,-stderr}.log` and inspected
+native-keyboard screenshot `/tmp/localwave-ios-keyboard-did-show.png` support this scope.
+
+This combined check caught a real five-event resume growth: visibility/focus plus the new
+geometry event exceeded four-slot buffers. The host encoder allocated **one** and the ABI/core
+copies **four** Rust objects. Retained buffers now reserve **eight** entries at startup, then grow
+only for larger peaks. `input::at_time` stays allocation-free; source batches are not preallocated
+per frame. The regression fails with four core allocations before the fix and passes across both
+ABI paths; the encoder has its own first-resume check. The 82-frame warm-up is unchanged.
+`/tmp/localwave-ios-five-event-{before,after}.log`. Temporary native tracing also showed that the
+keyboard could already be dismissed during resume: the probe incorrectly waited for a second
+dismissal notification. It now checks current state before waiting. Native wake handling required
+no change. The timeout/live inspection/injected-wake/trace evidence remains in the original
+`/tmp/localwave-ios-keyboard-background-*` logs; debugger-inflated footprint values are not used
+as qualification. The initial zero-height caret attempt was correctly rejected; the supported
+clear-area bridge preserves that validation.
+
+- **247 SDK/ABI/native/renderer/host checks pass in 33.352 s wall / 12.753 s summed**, zero skips,
+  `/tmp/localwave-ios-environment-sdk-publish-tests.log`. The run includes compile/lock time;
+  no per-case five-second or 60-second run limit changed. The initial new SDL test omitted its
+  internal counting-allocator dev dependency; its compile failure is preserved in
+  `/tmp/localwave-ios-environment-sdk-tests.log`.
+- **83 static-wrapper/host checks pass in 6.137 s / 4.431 s summed**, zero skips,
+  `/tmp/localwave-ios-environment-static-final-publish.log`. **186 app checks pass in 22.339 s /
+  16.880 s summed**, zero skips, `/tmp/localwave-ios-environment-app-publish-tests.log`.
+- Final iOS and app scoped Clippy, dependency/tier, ABI header/snapshot/export and whitespace
+  checks pass. Shape retains its **nine existing findings**, with no added exception. Device
+  and simulator bundles remain arm64, iOS **18.0**, platforms **2/7**, stack **0**, static SDL/system
+  dependencies only: `/tmp/localwave-ios-environment-mach-o.log` and
+  `/tmp/localwave-ios-environment-final-{device-build,simulator-publish}.log`.
+
+Next: finger identities/phases and gestures, synchronized keyboard avoidance motion and real
+editing/composition; Dynamic Type and XCFramework distribution; then the narrow LocalWave iOS
+UI/service bridges. Floating keyboards, external screens, physical devices, 120 Hz, native
+allocations and full iOS feel remain unqualified. The shipping Swift app and 12 signed macOS
+performance workloads are unchanged; the strict 1 ms wall target remains deferred.
 
 ### iOS idle worker wake checkpoint
 
@@ -1544,7 +1618,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release; ABI 1.14 adds fractional fills and output partition capacity reuse. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Finder drops support mixed audio/folders, a passive overlay, cancellable import and ordered playback. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist drag/drop, live external drop grant qualification, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
-| P6: pxui iOS | Static arm64 SDL/device/simulator builds; shared Metal renderer/host; standard Metal pipelines, private GPU transfers, public memory metrics and gallery/layer-lifetime probe. iPhone 16e simulator draws 182 frames with zero Rust allocations in 100 warm measured frames. | Interactive touch/host integration, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every physical-device feel/performance gate. |
+| P6: pxui iOS | Static arm64 SDL/Metal device/simulator builds; pipelines/transfers; display-link idle/deadline/worker wake; same-process background/resume; safe-area bounds and keyboard show/hide geometry through ABI 1.24. Simulator gallery/keyboard probes retain 182/82/100 and zero warm Rust allocations. | Finger input/gestures, synchronized keyboard avoidance and editing/composition, responsive phone gallery, Dynamic Type, framework/XCFramework packaging, LocalWave iOS UI/services and every physical-device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
 
 Accessibility names are set as views are created. Native macOS/iOS accessibility bridges are explicitly deferred by the supplied plan; the Rust scaffold does not provide VoiceOver parity. The shipping Swift app must remain available during migration.

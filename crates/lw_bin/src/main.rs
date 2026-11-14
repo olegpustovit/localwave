@@ -474,7 +474,7 @@ fn run() -> Result<(), String> {
             mem_sys::local_reset();
         }
         events.clear();
-        if !platform.pump(&mut window, &mut events) {
+        if !platform.pump(&mut window, &mut events)? {
             break;
         }
         if let Some(error) = window.take_failure() {
@@ -710,6 +710,7 @@ fn run() -> Result<(), String> {
                     height: extent.logical.1 as f32,
                     scale: window.scale() as f32,
                     time: now,
+                    environment: platform.environment(),
                     appearance: preferences.appearance,
                     reduced_motion: u32::from(
                         !performance_song_indicators
