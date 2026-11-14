@@ -179,7 +179,7 @@ impl LibraryWorker {
         Ok(locations)
     }
 
-    fn folder_access(
+    pub(super) fn folder_access(
         &self,
         folder: &Path,
         now: f64,

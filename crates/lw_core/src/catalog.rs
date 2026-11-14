@@ -392,6 +392,17 @@ impl LibraryRepository {
         Ok(paths)
     }
 
+    /// Saved song ID/key and current indexed relative path, without hydrating tags or bookmarks.
+    pub fn indexed_source_songs(&self, source_id: i64) -> Result<Vec<(i64, i64, String)>> {
+        let mut songs = Vec::new();
+        self.db.query("SELECT s.id,s.songKey,p.relativePath FROM source_paths p JOIN songs s ON s.sourceId=p.sourceId AND s.relativePath=p.relativePath WHERE p.sourceId=? AND p.isDirectory=0 ORDER BY p.id",
+            &[Integer(source_id)], &mut |row| {
+                songs.push((required(row.integer(0)?)?, required(row.integer(1)?)?, required(row.text(2)?)?.to_owned()));
+                Ok(())
+            })?;
+        Ok(songs)
+    }
+
     pub fn source_path(&self, source_id: i64, relative_path: &str) -> Result<Option<SourcePath>> {
         path(&self.db, source_id, relative_path)
     }

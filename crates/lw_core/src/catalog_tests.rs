@@ -1,6 +1,50 @@
 use super::*;
 
 #[test]
+fn indexed_source_song_projection_excludes_other_sources_directories_and_stale_paths() {
+    let mut repo = LibraryRepository::open(":memory:").unwrap();
+    let source = source(&repo, 1, "/Music");
+    let id = source.id.unwrap();
+    let mut expected = Vec::new();
+    for (key, path, indexed, directory) in [
+        (101, "2.flac", true, false),
+        (102, "10.flac", true, false),
+        (103, "missing.flac", false, false),
+        (104, "Folder", true, true),
+    ] {
+        let saved = repo
+            .upsert_song(
+                &Song {
+                    song_key: key,
+                    source_id: Some(id),
+                    relative_path: Some(path.into()),
+                    ..Default::default()
+                },
+                1.0,
+            )
+            .unwrap();
+        if indexed {
+            repo.upsert_source_paths(&[SourcePath {
+                source_id: id,
+                path_id: key,
+                name: path.into(),
+                relative_path: path.into(),
+                is_directory: directory,
+                ..Default::default()
+            }])
+            .unwrap();
+            if !directory {
+                expected.push((saved.id.unwrap(), key, path.to_owned()));
+            }
+        }
+    }
+    assert_eq!(repo.indexed_source_songs(id).unwrap(), expected);
+    assert!(repo.indexed_source_songs(id + 1).unwrap().is_empty());
+    repo.clear_source_paths(id).unwrap();
+    assert!(repo.indexed_source_songs(id).unwrap().is_empty());
+}
+
+#[test]
 fn resolved_source_access_migrates_legacy_locations_atomically_and_rejects_conflicts() {
     let mut repo = LibraryRepository::open(":memory:").unwrap();
     let original = source(&repo, 1, "/original");

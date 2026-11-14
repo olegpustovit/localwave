@@ -12,7 +12,7 @@ use std::{
     sync::{Arc, atomic::AtomicBool},
 };
 
-pub struct AudioSelection {
+pub struct MusicSelection {
     pub source: Source,
     pub songs: Arc<[i64]>,
     pub context: Arc<PlaybackContext>,
@@ -26,137 +26,221 @@ impl LibraryWorker {
         now: f64,
         cancelled: &AtomicBool,
         progress: &mut dyn FnMut(&str, usize, usize),
-    ) -> io::Result<AudioSelection> {
+    ) -> io::Result<MusicSelection> {
+        self.add_music(user, selected, false, now, cancelled, progress)
+    }
+
+    pub fn add_dropped(
+        &mut self,
+        user: i64,
+        selected: &[PathBuf],
+        now: f64,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(&str, usize, usize),
+    ) -> io::Result<MusicSelection> {
+        self.add_music(user, selected, true, now, cancelled, progress)
+    }
+
+    fn add_music(
+        &mut self,
+        user: i64,
+        selected: &[PathBuf],
+        dropped: bool,
+        now: f64,
+        cancelled: &AtomicBool,
+        progress: &mut dyn FnMut(&str, usize, usize),
+    ) -> io::Result<MusicSelection> {
         check(cancelled)?;
         self.current_source_user(user)?;
         if selected.is_empty() || selected.len() > 1_000_000 || !now.is_finite() {
             return Err(io::ErrorKind::InvalidInput.into());
         }
         // Validate the entire selection before creating any private files.
+        let (mut folders, mut audio) = (Vec::new(), Vec::new());
+        let mut bytes = 0usize;
         for path in selected {
             check(cancelled)?;
-            if !path.is_absolute()
-                || !lw_core::models::supports_audio(text(path)?)
-                || !path.is_file()
-            {
+            bytes = bytes.saturating_add(text(path)?.len());
+            if !path.is_absolute() || bytes > 64 * 1024 * 1024 {
+                return Err(io::ErrorKind::InvalidInput.into());
+            }
+            let info = std::fs::metadata(path)?;
+            if dropped && info.is_dir() {
+                drop(self.folder_access(path, now, cancelled)?);
+                folders.push(path.as_path());
+            } else if info.is_file() && lw_core::models::supports_audio(text(path)?) {
+                audio.push(path);
+            } else {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    "Choose supported audio files.",
+                    "Choose supported audio files or original music folders.",
                 ));
             }
         }
-        std::fs::create_dir_all(&self.paths.documents)?;
-        let directory = self.paths.documents.canonicalize()?.join("Added Files");
-        match directory.symlink_metadata() {
-            Ok(info) if !info.is_dir() || info.file_type().is_symlink() => {
-                return Err(io::Error::other("Added Files must be a real directory"));
+        let mut copied = Vec::with_capacity(audio.len());
+        let directory = if audio.is_empty() {
+            None
+        } else {
+            std::fs::create_dir_all(&self.paths.documents)?;
+            let directory = self.paths.documents.canonicalize()?.join("Added Files");
+            match directory.symlink_metadata() {
+                Ok(info) if !info.is_dir() || info.file_type().is_symlink() => {
+                    return Err(io::Error::other("Added Files must be a real directory"));
+                }
+                Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
+                _ => {}
             }
-            Err(error) if error.kind() != io::ErrorKind::NotFound => return Err(error),
-            _ => {}
-        }
-        let mut copied = Vec::with_capacity(selected.len());
-        for (index, path) in selected.iter().enumerate() {
-            check(cancelled)?;
-            progress("Copying", index, selected.len());
-            let bookmark = bookmarks::create(path)?;
-            if bookmark.len() > 64 * 1024 * 1024 {
-                return Err(io::Error::other("Bookmark exceeds its memory limit"));
+            for (index, path) in audio.iter().enumerate() {
+                check(cancelled)?;
+                progress("Copying", index, audio.len());
+                let bookmark = bookmarks::create(path)?;
+                if bookmark.len() > 64 * 1024 * 1024 {
+                    return Err(io::Error::other("Bookmark exceeds its memory limit"));
+                }
+                let access = Access::resolve(&bookmark)?;
+                let file = lw_apple_sys::copy::copy_named(
+                    access.path(),
+                    &directory,
+                    &self.preferences,
+                    cancelled,
+                )?;
+                copied.push(
+                    text(
+                        file.path
+                            .canonicalize()?
+                            .strip_prefix(&directory)
+                            .map_err(io::Error::other)?,
+                    )?
+                    .to_owned(),
+                );
             }
-            let access = Access::resolve(&bookmark)?;
-            let file = lw_apple_sys::copy::copy_named(
-                access.path(),
-                &directory,
-                &self.preferences,
-                cancelled,
-            )?;
-            copied.push(
-                text(
-                    file.path
-                        .canonicalize()?
-                        .strip_prefix(&directory)
-                        .map_err(io::Error::other)?,
-                )?
-                .to_owned(),
-            );
-        }
+            Some(directory)
+        };
         let now = now.max(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_err(io::Error::other)?
                 .as_secs_f64(),
         );
-        let source = self.register_folder(user, &directory, now, cancelled)?;
-        let id = source
-            .id
-            .ok_or_else(|| io::Error::other("Source is not saved"))?;
-        let mut indexed = 0;
-        let source = self.scan_source(id, now, cancelled, &mut |_| {
-            indexed += 1;
-            progress("Indexing", indexed, 0);
-        })?;
-        let paths = self
-            .repository
-            .source_paths(id, Some(source.path_id))
-            .map_err(db)?;
-        self.import_paths(&paths, now, cancelled, &mut |_, completed, total| {
-            progress("Importing", completed, total);
-        })?;
-        self.owned_source(user, id)?;
-        check(cancelled)?;
+        let mut sources = Vec::with_capacity(folders.len() + usize::from(directory.is_some()));
+        for folder in folders.iter().copied().chain(directory.as_deref()) {
+            let source = self.register_folder(user, folder, now, cancelled)?;
+            let id = source
+                .id
+                .ok_or_else(|| io::Error::other("Source is not saved"))?;
+            let mut indexed = 0;
+            let source = self.scan_source(id, now, cancelled, &mut |_| {
+                indexed += 1;
+                progress("Indexing", indexed, 0);
+            })?;
+            let paths = self
+                .repository
+                .source_paths(id, Some(source.path_id))
+                .map_err(db)?;
+            self.import_paths(&paths, now, cancelled, &mut |_, completed, total| {
+                progress("Importing", completed, total);
+            })?;
+            self.owned_source(user, id)?;
+            check(cancelled)?;
+            sources.push(source);
+        }
         let mut songs = Vec::with_capacity(copied.len());
         let mut keys = HashSet::with_capacity(copied.len());
-        for relative in copied {
-            check(cancelled)?;
-            let Some(song) = self
-                .repository
-                .song_at_source_path(id, &relative)
-                .map_err(db)?
-            else {
-                // Identical song keys share a row; its final imported source path wins.
-                continue;
-            };
-            let song_id = song
-                .id
-                .ok_or_else(|| io::Error::other("Song is not saved"))?;
-            let private = directory.join(&relative);
-            let info = audio::probe(&private, true)?;
-            let stored = PathBuf::from("Added Files").join(&relative);
-            let _guard = self.preferences.cache_guard();
-            if !self
-                .repository
-                .update_cached_file(
+        if let Some(directory) = &directory {
+            let id = sources
+                .last()
+                .and_then(|source| source.id)
+                .ok_or_else(|| io::Error::other("Source is not saved"))?;
+            for relative in copied {
+                check(cancelled)?;
+                let Some(song) = self
+                    .repository
+                    .song_at_source_path(id, &relative)
+                    .map_err(db)?
+                else {
+                    // Identical song keys share a row; its final imported source path wins.
+                    continue;
+                };
+                let song_id = song
+                    .id
+                    .ok_or_else(|| io::Error::other("Song is not saved"))?;
+                let private = directory.join(&relative);
+                let info = audio::probe(&private, true)?;
+                let stored = PathBuf::from("Added Files").join(&relative);
+                let _guard = self.preferences.cache_guard();
+                if !self
+                    .repository
+                    .update_cached_file(
+                        song_id,
+                        Some(text(&stored)?),
+                        FileState::Copied,
+                        song.file_state,
+                        song.local_file_path.as_deref(),
+                    )
+                    .map_err(db)?
+                {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Interrupted,
+                        "The added track changed. Try again.",
+                    ));
+                }
+                self.preferences.set_cache_version(
                     song_id,
-                    Some(text(&stored)?),
-                    FileState::Copied,
-                    song.file_state,
-                    song.local_file_path.as_deref(),
-                )
-                .map_err(db)?
-            {
-                return Err(io::Error::new(
-                    io::ErrorKind::Interrupted,
-                    "The added track changed. Try again.",
-                ));
-            }
-            self.preferences.set_cache_version(
-                song_id,
-                Some(&private),
-                info.modified,
-                info.size,
-            )?;
-            if keys.insert(song.song_key) {
-                songs.push(song_id);
+                    Some(&private),
+                    info.modified,
+                    info.size,
+                )?;
+                if keys.insert(song.song_key) {
+                    songs.push(song_id);
+                }
             }
         }
-        if songs.is_empty() {
+        for source in sources.iter().take(folders.len()) {
+            check(cancelled)?;
+            let id = source
+                .id
+                .ok_or_else(|| io::Error::other("Source is not saved"))?;
+            self.owned_source(user, id)?;
+            let mut entries = Vec::new();
+            for (id, key, path) in self.repository.indexed_source_songs(id).map_err(db)? {
+                if lw_core::models::supports_audio(&path) {
+                    entries.push((id, key, lw_apple_sys::collation::Key::new(&path)?));
+                }
+            }
+            entries.sort_unstable_by(|a, b| a.2.compare(&b.2).then(a.0.cmp(&b.0)));
+            for (id, key, _) in entries {
+                check(cancelled)?;
+                if keys.insert(key) {
+                    if songs.len() == 1_000_000 {
+                        return Err(io::Error::new(
+                            io::ErrorKind::InvalidInput,
+                            "The dropped selection exceeds the queue limit.",
+                        ));
+                    }
+                    songs.push(id);
+                }
+            }
+        }
+        self.current_source_user(user)?;
+        check(cancelled)?;
+        if songs.is_empty() && !dropped {
             return Err(io::Error::other(
                 "The selected audio files could not be imported.",
             ));
         }
-        Ok(AudioSelection {
-            source,
+        Ok(MusicSelection {
+            source: sources
+                .pop()
+                .ok_or_else(|| io::Error::other("No music source was imported"))?,
             songs: songs.into(),
-            context: Arc::new(PlaybackContext::Selection("Selected files".into())),
+            context: Arc::new(PlaybackContext::Selection(
+                if dropped {
+                    "Dropped music"
+                } else {
+                    "Selected files"
+                }
+                .into(),
+            )),
         })
     }
 }
@@ -335,6 +419,137 @@ mod tests {
                 .unwrap()
                 .count(),
             2
+        );
+        cancelled.store(false, Ordering::Relaxed);
+        let folder_a = base.join("Folder A");
+        let folder_b = base.join("Folder B");
+        fs::create_dir_all(folder_a.join("Album 2")).unwrap();
+        fs::create_dir_all(folder_a.join("Album 10")).unwrap();
+        fs::create_dir_all(&folder_b).unwrap();
+        fn track(path: &std::path::Path, title: &[u8; 12]) {
+            let mut bytes =
+                include_bytes!("../../../../Tests/LocalWaveDataTests/Fixtures/tagged.flac")
+                    .to_vec();
+            let at = bytes
+                .windows(12)
+                .position(|text| text == b"FLAC Fixture")
+                .unwrap();
+            bytes[at..at + 12].copy_from_slice(title);
+            fs::write(path, bytes).unwrap();
+        }
+        track(&folder_a.join("Album 2/2.flac"), b"Track two___");
+        track(&folder_a.join("Album 10/10.flac"), b"Track ten___");
+        track(&folder_b.join("3.flac"), b"Track end___");
+        let dropped = library
+            .add_dropped(
+                user,
+                &[
+                    folder_a.clone(),
+                    base.join("Moved original/日本語.m4a"),
+                    folder_b.clone(),
+                    base.join("Moved original/Album.FLAC"),
+                ],
+                200.0,
+                &cancelled,
+                &mut |_, _, _| {},
+            )
+            .unwrap();
+        let titles = library
+            .repository
+            .get_songs(&dropped.songs)
+            .unwrap()
+            .into_iter()
+            .map(|song| song.title)
+            .collect::<Vec<_>>();
+        assert_eq!(
+            &titles[2..],
+            &["Track two___", "Track ten___", "Track end___"]
+        );
+        assert_eq!(dropped.songs.len(), 5);
+        assert_eq!(
+            *dropped.context,
+            PlaybackContext::Selection("Dropped music".into())
+        );
+        assert_eq!(dropped.songs[0], result.songs[0]);
+        assert_eq!(dropped.songs[1], result.songs[1]);
+        let empty = base.join("Empty folder");
+        fs::create_dir(&empty).unwrap();
+        assert!(
+            library
+                .add_dropped(user, &[empty], 201.0, &cancelled, &mut |_, _, _| {})
+                .unwrap()
+                .songs
+                .is_empty()
+        );
+        let source_id = library
+            .current_sources()
+            .unwrap()
+            .sources
+            .iter()
+            .find(|source| source.dir_path.ends_with("Folder A"))
+            .unwrap()
+            .id
+            .unwrap();
+        let before = library.repository.source_paths(source_id, None).unwrap();
+        track(&folder_a.join("fresh.flac"), b"Track new___");
+        let error = library
+            .add_dropped(
+                user,
+                std::slice::from_ref(&folder_a),
+                202.0,
+                &cancelled,
+                &mut |stage, _, _| {
+                    if stage == "Indexing" {
+                        cancelled.store(true, Ordering::Relaxed);
+                    }
+                },
+            )
+            .err()
+            .unwrap();
+        assert_eq!(error.kind(), io::ErrorKind::Interrupted);
+        assert_eq!(
+            library.repository.source_paths(source_id, None).unwrap(),
+            before
+        );
+        cancelled.store(false, Ordering::Relaxed);
+        let unregistered = base.join("Not registered");
+        fs::create_dir(&unregistered).unwrap();
+        let fresh = base.join("Fresh.flac");
+        track(&fresh, b"Track new___");
+        let invalid = base.join("unsupported.txt");
+        fs::write(&invalid, b"not music").unwrap();
+        assert!(
+            library
+                .add_dropped(
+                    user,
+                    &[unregistered.clone(), fresh.clone(), invalid],
+                    203.0,
+                    &cancelled,
+                    &mut |_, _, _| {}
+                )
+                .is_err()
+        );
+        assert!(
+            !library
+                .current_sources()
+                .unwrap()
+                .sources
+                .iter()
+                .any(|source| source.dir_path == unregistered.to_str().unwrap())
+        );
+        assert!(!base.join("Documents/Added Files/Fresh.flac").exists());
+        let generated = base.join("Documents/CoverArt");
+        fs::create_dir_all(&generated).unwrap();
+        assert!(
+            library
+                .add_dropped(
+                    user,
+                    &[fresh, generated],
+                    204.0,
+                    &cancelled,
+                    &mut |_, _, _| {}
+                )
+                .is_err()
         );
     }
 }
