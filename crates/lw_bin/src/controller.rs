@@ -901,12 +901,7 @@ impl Worker {
                 .flatten()
                 .filter(|event| event.kind == Kind::Started)
             {
-                if self.library.record_playback_start(event.token(), now())?
-                    && self.browse.is_some_and(|request| {
-                        request.scope == lw_ui::browse::Scope::Find
-                            && request.query.has_token("unplayed")
-                    })
-                {
+                if self.library.record_playback_start(event.token(), now())? {
                     self.browse_dirty = true;
                 }
             }
@@ -2124,6 +2119,7 @@ mod tests {
         shared.inbox.lock().unwrap().browse = Some((
             2,
             Request {
+                commands: None,
                 scope: lw_ui::browse::Scope::Find,
                 query: lw_ui::browse::Query::default(),
                 sort: lw_ui::browse::Sort::Original,

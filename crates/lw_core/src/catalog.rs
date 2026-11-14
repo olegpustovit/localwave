@@ -604,6 +604,26 @@ impl LibraryRepository {
         self.db.query("SELECT pathId,bm25(source_paths_fts) FROM source_paths_fts WHERE source_paths_fts MATCH ? AND sourceId=? ORDER BY bm25(source_paths_fts) LIMIT ?", &[Text(&query), Integer(source_id), Integer(limit)], &mut |row| { found.push((required(row.integer(0)?)?, required(row.real(1)?)?)); Ok(()) })?;
         Ok(found)
     }
+
+    /// Bounded directory suggestions in native source order, then FTS rank within each source.
+    pub fn search_user_directories(
+        &self,
+        user_id: i64,
+        query: &str,
+        limit: usize,
+    ) -> Result<Vec<(i64, i64, String, String)>> {
+        if query.trim().is_empty() || limit == 0 {
+            return Ok(Vec::new());
+        }
+        let query = prefix_query(query);
+        let limit =
+            i64::try_from(limit).map_err(|_| Error::invalid("Search limit is too large"))?;
+        let mut rows = Vec::new();
+        self.db.query("SELECT p.sourceId,p.pathId,p.name,s.dirPath FROM source_paths_fts f JOIN source_paths p ON p.sourceId=f.sourceId AND p.pathId=f.pathId JOIN sources s ON s.id=p.sourceId WHERE source_paths_fts MATCH ? AND s.userId=? AND p.isDirectory=1 ORDER BY s.id,bm25(source_paths_fts) LIMIT ?", &[Text(&query), Integer(user_id), Integer(limit)], &mut |row| {
+            rows.push((required(row.integer(0)?)?, required(row.integer(1)?)?, required(row.text(2)?)?.to_owned(), required(row.text(3)?)?.to_owned())); Ok(())
+        })?;
+        Ok(rows)
+    }
 }
 
 fn store_paths(db: &Connection, paths: &[SourcePath]) -> Result<()> {

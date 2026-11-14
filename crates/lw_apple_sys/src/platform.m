@@ -25,6 +25,13 @@ int32_t lw_collation_contains(void *needle, const unsigned char *bytes, size_t l
         return value && [value localizedStandardContainsString:(__bridge NSString *)needle];
     }
 }
+int32_t lw_collation_contains_case_insensitive(void *needle, const unsigned char *bytes, size_t len) {
+    if (!needle || (!bytes && len)) return 0;
+    @autoreleasepool {
+        NSString *value = [[NSString alloc] initWithBytes:bytes ?: (const unsigned char *)"" length:len encoding:NSUTF8StringEncoding];
+        return value && [value localizedCaseInsensitiveContainsString:(__bridge NSString *)needle];
+    }
+}
 
 char *lw_normalized_file_url(const char *path) {
     @autoreleasepool {

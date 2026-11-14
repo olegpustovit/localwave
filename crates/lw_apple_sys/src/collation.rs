@@ -11,6 +11,11 @@ unsafe extern "C" {
     fn lw_collation_compare(left: *mut c_void, right: *mut c_void) -> i32;
     fn lw_collation_release(key: *mut c_void);
     fn lw_collation_contains(needle: *mut c_void, bytes: *const u8, len: usize) -> i32;
+    fn lw_collation_contains_case_insensitive(
+        needle: *mut c_void,
+        bytes: *const u8,
+        len: usize,
+    ) -> i32;
 }
 
 pub struct Key {
@@ -33,6 +38,13 @@ impl Key {
     pub fn contained_in(&self, value: &str) -> bool {
         unsafe { lw_collation_contains(self.raw.as_ptr(), value.as_ptr(), value.len()) != 0 }
     }
+    /// Foundation's localized case-insensitive search preserves diacritic distinctions.
+    pub fn contained_in_case_insensitive(&self, value: &str) -> bool {
+        unsafe {
+            lw_collation_contains_case_insensitive(self.raw.as_ptr(), value.as_ptr(), value.len())
+                != 0
+        }
+    }
 }
 impl Drop for Key {
     fn drop(&mut self) {
@@ -54,11 +66,17 @@ mod tests {
         assert!(cafe.contained_in("CAFÉ del Mar"));
         assert!(cafe.contained_in("Cafe\u{301}"));
         assert!(!cafe.contained_in("Tea"));
+        assert!(!cafe.contained_in_case_insensitive("CAFÉ"));
+        let accented = Key::new("café").unwrap();
+        assert!(accented.contained_in_case_insensitive("CAFÉ"));
+        assert!(accented.contained_in_case_insensitive("Cafe\u{301}"));
         mem_sys::local_reset();
         for _ in 0..100 {
             assert_eq!(two.compare(&ten), Ordering::Less);
             assert_eq!(ten.compare(&two), Ordering::Greater);
             assert!(cafe.contained_in("CAFÉ del Mar"));
+            assert!(!cafe.contained_in_case_insensitive("CAFÉ"));
+            assert!(accented.contained_in_case_insensitive("Cafe\u{301}"));
         }
         assert_eq!(mem_sys::local_alloc_count(), 0);
     }

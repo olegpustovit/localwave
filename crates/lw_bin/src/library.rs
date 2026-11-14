@@ -11,6 +11,7 @@ mod artwork;
 pub use artwork::{ArtworkReady, ArtworkWorker};
 mod cache;
 mod catalog;
+mod commands;
 mod files;
 mod find;
 mod playback;

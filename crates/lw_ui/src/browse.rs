@@ -94,6 +94,7 @@ pub enum AlbumSort {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Request {
+    pub commands: Option<Query>,
     pub scope: Scope,
     pub query: Query,
     pub sort: Sort,

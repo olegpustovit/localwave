@@ -69,7 +69,9 @@ Quit an already running Rust app before opening a rebuilt bundle so macOS launch
 Find's **Play all** plays its full result set. **Keep offline** queues eligible results on the
 library worker; **Kept offline** releases their pins while preserving existing copies until normal
 cache eviction. The toolbar uses the SwiftUI button geometry and background animations. The
-command palette and scrolling search header still need porting; full visual parity is unfinished.
+command palette's worker-side suggestions and ranked playback payloads are prepared, including
+owned folders and the top-24 Most played collection. The visible palette and scrolling search
+header still need porting; full visual parity is unfinished.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 

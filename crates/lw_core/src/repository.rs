@@ -66,6 +66,22 @@ impl LibraryRepository {
         Ok(ids)
     }
 
+    /// Palette queues retain FTS rank, removing duplicate legacy FTS rows and missing songs.
+    pub fn ranked_song_ids(&self, query: &str) -> Result<Vec<i64>> {
+        if query.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+        let query = prefix_query(query);
+        let mut ids = Vec::new();
+        let mut seen = std::collections::HashSet::new();
+        self.db.query("SELECT s.id FROM songs s JOIN songs_fts f ON s.id=f.songId WHERE songs_fts MATCH ? ORDER BY bm25(songs_fts)", &[Text(&query)], &mut |row| {
+            let id = required(row.integer(0)?)?;
+            if seen.insert(id) { ids.push(id); }
+            Ok(())
+        })?;
+        Ok(ids)
+    }
+
     /// Borrow a consistent catalog across song, playlist and membership queries.
     pub fn read_snapshot<T>(&self, read: impl FnOnce(&Self) -> Result<T>) -> Result<T> {
         self.db.read_transaction(|| read(self))
@@ -758,6 +774,9 @@ mod tests {
         let id = song.id.unwrap();
         repo.db.execute("INSERT INTO songs_fts(rowid,songId,title) VALUES (700,?,'Blue sky'),(701,900,'Blue sky')",&[Integer(id)]).unwrap();
         assert_eq!(repo.matching_song_ids("Blu").unwrap(), [id]);
+        assert_eq!(repo.ranked_song_ids("Blu").unwrap(), [id]);
+        assert!(repo.ranked_song_ids("  ").unwrap().is_empty());
+        assert!(repo.ranked_song_ids("missing").unwrap().is_empty());
         assert!(repo.matching_song_ids("  ").unwrap().is_empty());
         assert!(repo.matching_song_ids("missing").unwrap().is_empty());
         assert_eq!(

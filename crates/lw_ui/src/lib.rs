@@ -2,6 +2,7 @@
 pub mod artwork;
 pub mod browse;
 pub mod catalog;
+pub mod commands;
 pub mod files;
 mod icons;
 pub mod motion;
@@ -1632,7 +1633,7 @@ mod tests {
             (Route::Songs, Some(0), Route::Songs, Some(1)),
             (Route::Album(0), Some(0), Route::Album(1), Some(0)),
             (Route::Artist(0), Some(0), Route::Artist(1), Some(0)),
-            (Route::Collection(2), Some(1), Route::Collection(3), Some(2)),
+            (Route::Collection(3), Some(1), Route::Collection(4), Some(2)),
         ] {
             state.apply(Intent::Navigate(route));
             state.selected = selected;
@@ -1690,7 +1691,7 @@ mod tests {
         state.refresh(&before, &prepared(Vec::new()));
         assert_eq!(state.route, Route::Albums);
         assert_eq!(state.selected, None);
-        state.apply(Intent::Navigate(Route::Collection(2)));
+        state.apply(Intent::Navigate(Route::Collection(3)));
         state.selected = Some(1);
         state.refresh(&before, &prepared(Vec::new()));
         assert_eq!(state.route, Route::Songs);
@@ -1771,7 +1772,7 @@ mod tests {
         };
         for (old, new) in [
             (Route::Album(0), Route::Album(1)),
-            (Route::Collection(2), Route::Collection(3)),
+            (Route::Collection(3), Route::Collection(4)),
         ] {
             assert_eq!(
                 before.collection(old).unwrap().key,

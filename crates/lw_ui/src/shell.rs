@@ -89,6 +89,7 @@ impl ShellState {
     }
     pub fn request(&self, catalog: &Catalog) -> Option<Request> {
         Some(Request {
+            commands: None,
             scope: catalog.scope(self.route)?,
             query: if self.route == Route::Find {
                 self.query

@@ -52,6 +52,23 @@ impl Find {
         repository: &LibraryRepository,
         catalog: &Catalog,
     ) -> lw_apple_sys::sqlite::Result<Candidates> {
+        self.prepare_ordered(repository, catalog, false)
+    }
+
+    pub fn prepare_ranked(
+        &self,
+        repository: &LibraryRepository,
+        catalog: &Catalog,
+    ) -> lw_apple_sys::sqlite::Result<Candidates> {
+        self.prepare_ordered(repository, catalog, true)
+    }
+
+    fn prepare_ordered(
+        &self,
+        repository: &LibraryRepository,
+        catalog: &Catalog,
+        ranked: bool,
+    ) -> lw_apple_sys::sqlite::Result<Candidates> {
         let mut out = Candidates::default();
         if self.empty {
             return Ok(out);
@@ -62,7 +79,7 @@ impl Find {
             .transpose()?
             .flatten()
         {
-            if !self.query.has_filters() {
+            if !ranked && !self.query.has_filters() {
                 out.folders =
                     repository.matching_user_directory_count(user.id, self.query.text())?;
             }
@@ -76,20 +93,39 @@ impl Find {
                 }
             }
         }
-        let matching: Option<HashSet<_>> = if self.query.text().is_empty() {
+        let matching = if self.query.text().is_empty() {
+            None
+        } else if ranked {
+            Some(repository.ranked_song_ids(self.query.text())?)
+        } else {
+            Some(repository.matching_song_ids(self.query.text())?)
+        };
+        let order = if ranked {
+            matching.as_ref().map(|ids| {
+                ids.iter()
+                    .filter_map(|id| catalog.row_index(*id))
+                    .collect::<Vec<_>>()
+            })
+        } else {
+            None
+        };
+        let membership = if ranked {
             None
         } else {
-            Some(
-                repository
-                    .matching_song_ids(self.query.text())?
-                    .into_iter()
-                    .collect(),
-            )
+            matching.map(|ids| ids.into_iter().collect::<HashSet<_>>())
         };
         let mut files = Vec::new();
-        for index in catalog.all.as_ref().unwrap().rows.iter().copied() {
+        for index in order
+            .as_deref()
+            .unwrap_or(&catalog.all.as_ref().unwrap().rows)
+            .iter()
+            .copied()
+        {
             let row = catalog.row(index);
-            if matching.as_ref().is_some_and(|ids| !ids.contains(&row.id)) {
+            if membership
+                .as_ref()
+                .is_some_and(|ids| !ids.contains(&row.id))
+            {
                 continue;
             }
             let plays = self
@@ -493,6 +529,7 @@ mod tests {
                 .catalog_view(
                     Some(&catalog),
                     Some(Request {
+                        commands: None,
                         scope: Scope::Find,
                         query: Query::new(raw).unwrap(),
                         sort: Sort::Original,
@@ -678,6 +715,7 @@ mod tests {
                 .catalog_view(
                     None,
                     Some(Request {
+                        commands: None,
                         scope: Scope::Find,
                         query: Query::new(raw).unwrap(),
                         sort: Sort::Original,
@@ -732,6 +770,7 @@ mod tests {
             .catalog_view(
                 None,
                 Some(Request {
+                    commands: None,
                     scope: Scope::Find,
                     query: Query::new("cafe").unwrap(),
                     sort: Sort::Original,

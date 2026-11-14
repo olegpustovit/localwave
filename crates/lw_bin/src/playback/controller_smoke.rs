@@ -162,6 +162,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     player.command(Command::Volume(0.25))?;
     let mut browse_revision = 0;
     let request = lw_ui::browse::Request {
+        commands: None,
         scope: lw_ui::browse::Scope::Find,
         query: lw_ui::browse::Query::new("Controller").unwrap(),
         sort: lw_ui::browse::Sort::Title,
@@ -214,6 +215,37 @@ pub fn run(fixture: &Path) -> io::Result<()> {
             .is_none()
     {
         return Err(error("Worker catalog snapshot was not delivered"));
+    }
+    let background = player.catalog().view.clone().unwrap();
+    let query = lw_ui::browse::Query::new("Controller").unwrap();
+    player.browse(lw_ui::browse::Request {
+        commands: Some(query),
+        ..request
+    })?;
+    until(&mut player, deadline, &mut |player| {
+        player
+            .catalog()
+            .commands
+            .as_ref()
+            .is_some_and(|commands| commands.query == query)
+    })?;
+    if !std::sync::Arc::ptr_eq(&background, player.catalog().view.as_ref().unwrap())
+        || player.catalog().commands.as_ref().unwrap().songs.as_ref() != [good]
+        || player.status().wants_playback
+        || player.native_snapshot().token != 0
+    {
+        return Err(error(
+            "Palette delivery changed its background projection or started playback",
+        ));
+    }
+    player.browse(request)?;
+    until(&mut player, deadline, &mut |player| {
+        player.catalog().commands.is_none()
+    })?;
+    if !std::sync::Arc::ptr_eq(&background, player.catalog().view.as_ref().unwrap()) {
+        return Err(error(
+            "Closing the palette replaced its underlying Find result",
+        ));
     }
     until(&mut player, deadline, &mut |player| {
         player.status().waveform.is_some()
@@ -326,16 +358,23 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     }
     // A real start must remove the song from an active Unplayed result without another browse request.
     let unplayed = lw_ui::browse::Request {
+        commands: Some(lw_ui::browse::Query::new("Controller unplayed").unwrap()),
         query: lw_ui::browse::Query::new("Controller unplayed").unwrap(),
         ..request
     };
+    let page_unplayed = lw_ui::browse::Request {
+        commands: None,
+        ..unplayed
+    };
     player.browse(unplayed)?;
     until(&mut player, deadline, &mut |player| {
-        player
+        player.catalog().view.as_ref().is_some_and(|view| {
+            view.request == page_unplayed && view.collection.ids.as_ref() == [good]
+        }) && player
             .catalog()
-            .view
+            .commands
             .as_ref()
-            .is_some_and(|view| view.request == unplayed && view.collection.ids.as_ref() == [good])
+            .is_some_and(|commands| commands.songs.as_ref() == [good])
     })?;
     player.command(Command::Volume(0.0))?;
     player.command(Command::Play)?;
@@ -345,7 +384,12 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                 .catalog()
                 .view
                 .as_ref()
-                .is_some_and(|view| view.request == unplayed && view.collection.ids.is_empty())
+                .is_some_and(|view| view.request == page_unplayed && view.collection.ids.is_empty())
+            && player
+                .catalog()
+                .commands
+                .as_ref()
+                .is_some_and(|commands| commands.songs.is_empty())
     })?;
     player.command(Command::Stop)?;
     until(&mut player, deadline, &mut |player| {
@@ -357,6 +401,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
         ));
     }
     let overview = player.browse(lw_ui::browse::Request {
+        commands: None,
         scope: lw_ui::browse::Scope::Overview,
         query: lw_ui::browse::Query::default(),
         ..request

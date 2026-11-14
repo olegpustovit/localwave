@@ -326,7 +326,12 @@ impl Library {
         out.add_collection(
             "Recently added",
             (0..out.rows.len().min(24)).collect(),
-            PlaybackContext::Automatic("Recently added".into()),
+            PlaybackContext::Automatic("Recently Added".into()),
+        );
+        out.add_collection(
+            "Most played",
+            Vec::new(),
+            PlaybackContext::Automatic("Most Played".into()),
         );
         out
     }
@@ -466,6 +471,7 @@ impl Library {
 pub struct Catalog {
     pub library: Arc<Library>,
     pub view: Option<Arc<View>>,
+    pub commands: Option<Arc<crate::commands::Results>>,
     pub source_version: Option<i64>,
     pub source_identity: Option<i64>,
     pub queue: Option<Arc<crate::queue::Snapshot>>,
@@ -518,10 +524,46 @@ impl Catalog {
         Self {
             library: Arc::new(Library::new(songs)),
             view: None,
+            commands: None,
             source_version: None,
             source_identity: None,
             queue: None,
         }
+    }
+    /// Called with one native history snapshot on the catalog worker.
+    pub fn prepare_most_played(&mut self, plays: &mut dyn FnMut(i64) -> i64) {
+        let mut ranked = self
+            .all
+            .iter()
+            .flat_map(|all| &all.rows)
+            .filter_map(|index| {
+                let count = plays(self.row(*index).id);
+                (count > 0).then_some((*index, count))
+            })
+            .collect::<Vec<_>>();
+        let order = |a: &(usize, i64), b: &(usize, i64)| b.1.cmp(&a.1).then(a.0.cmp(&b.0));
+        if ranked.len() > 24 {
+            ranked.select_nth_unstable_by(24, order);
+            ranked.truncate(24);
+        }
+        ranked.sort_unstable_by(order);
+        let rows = ranked
+            .into_iter()
+            .take(24)
+            .map(|row| row.0)
+            .collect::<Vec<_>>();
+        let Some(index) = self.collections.iter().position(|group| matches!(&*group.context, PlaybackContext::Automatic(name) if name == "Most Played")) else { return; };
+        if self.collections[index].rows == rows {
+            return;
+        }
+        let group = self.library.make_collection(
+            "Most played",
+            "Collection",
+            rows,
+            PlaybackContext::Automatic("Most Played".into()),
+        );
+        Arc::make_mut(&mut self.library).collections[index] = group;
+        self.view = None;
     }
     /// A consistent preferences snapshot, applied before preparing table projections.
     pub fn prepare_pins(&mut self, pinned: &mut dyn FnMut(i64) -> bool) {

@@ -2,6 +2,87 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## UI ownership
+
+| Responsibility | Owner |
+| --- | --- |
+| Layout engine, widget/body registration, styling and animation machinery | pxui, accessed through its public wrapper |
+| Text shaping, glyph/image caches, draw batching, shaders and rendering pipelines | pxui |
+| Screen composition, application-specific bodies, theme/motion values and interaction state | LocalWave UI, using public pxui APIs |
+| Window/device setup, frame acquisition/submission/presentation and cover texture lifetime | LocalWave host, using the public GPU and pxui renderer APIs |
+| Search, persistence, history, source access and artwork decoding | LocalWave services/workers |
+
+The current `lw_ui` manifest has only the public pxui wrapper, public input and LocalWave core as
+runtime dependencies. Its layout and motion declarations call pxui; it has no private renderer or
+GPU backend imports. `lw_bin::gpu` calls public `Renderer::prepare`, `draw` and `forget_image`.
+The native frame shim in `lw_apple_sys::metal` still contains Metal acquisition and presentation
+calls. Consequently **all rendering machinery is in pxui, but not every Metal call**. This follows
+the reference plan's app-owned window/device/frame loop. SwiftUI feature parity remains unfinished.
+
+## Command data service checkpoint
+
+The worker now prepares command-palette results independently of the underlying Find or sorted
+page. One SQLite read snapshot supplies ranked song IDs, account-owned directory suggestions,
+album/artist suggestions and command/list actions. Results retain the full ranked queue while
+display suggestions are bounded to six songs and three each of albums, artists and folders.
+Palette query changes preserve the underlying page Arc; ordinary refresh still recomputes it.
+An actual native playback start refreshes both unplayed results and Most played without another
+browse request. The visible palette and its action routing are **not connected yet**.
+
+Song matching retains localized standard containment and BM25 order for palette playback;
+ordinary Find retains its library order. Command/album/artist matching uses the Swift palette's
+accent-preserving localized case-insensitive containment. The native comparison confirms that
+`cafe` matches `CAFÉ` for song search but not for palette artist matching. The new Most played
+collection keeps the top 24 positive history counts with stable library-order ties; selection
+partitions larger inputs before sorting only the retained rows. Saved automatic contexts use the
+native `Recently Added` and `Most Played` names.
+
+pxui `81dea36` corrects the accessibility-value ABI boundary: validated UTF-8 byte endpoints are
+converted to the engine's Unicode scalar offsets. Reversed selections, combining characters,
+non-BMP text and invalid-input atomicity retain zero warm Rust allocations. ABI 1.22 is unchanged.
+Two dynamic/ABI checks pass in **9.288 s wall / 0.050 s summed**; the static wrapper check passes
+in **5.185 s wall / 0.023 s case**. Dependency and ABI header/snapshot gates pass. The original
+failure is retained in `/tmp/localwave-accessible-character-offsets-red.log`.
+
+All **188 app checks pass**, **20.574 s wall / 16.083 s summed**, zero skips:
+`/tmp/localwave-commands-final-matrix.log`. This includes ranked queues, account isolation,
+accent matching, top-24 stable ties, independent page identity and production playback-start
+refresh. Clippy passes with all targets/native interop and Rust warnings denied in **3.25 s**:
+`/tmp/localwave-commands-final-clippy-fixed.log`. The initial command selected a nonexistent feature
+and stopped before compilation; its error remains in `/tmp/localwave-commands-final-clippy.log`.
+Earlier fixture-index and ranking failures remain in `/tmp/localwave-commands-data-matrix.log`
+and `/tmp/localwave-commands-data-focused.log`; adding the automatic collection required updating
+the existing playlist fixture indices, and the rank fixture now sets actual distinct creation dates.
+
+### Signed performance result
+
+`/tmp/localwave-commands-final-performance.log` retains the original 12 workloads, **182/82/100
+total/warm/measured frames**, 10,000 songs and both app/libpxui allocator counters. All 12 have
+**zero warm Rust UI allocations**, but **all 12 fail the unchanged strict 1,000 µs wall maximum**.
+`make performance` exits with failure. The earlier intermediate run is retained separately in
+`/tmp/localwave-commands-data-performance.log`; it does not qualify the final sources.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 3402 / 826 / 2279 / 2771 | 1167 / 760 / 950 / 1054 |
+| find-filters-title-descending | 3386 / 705 / 1990 / 3179 | 953 / 661 / 827 / 867 |
+| queue-occurrences | 4513 / 681 / 2535 / 3429 | 894 / 620 / 751 / 868 |
+| queue-carry-scroll-cancel | 5665 / 535 / 2311 / 3656 | 2497 / 503 / 933 / 2206 |
+| full-queue-playlist-editor | 3836 / 762 / 1693 / 2800 | 1007 / 635 / 874 / 934 |
+| albums-artwork | 2671 / 767 / 1804 / 2403 | 1918 / 611 / 1175 / 1271 |
+| waveform-scrub-and-scroll | 2404 / 535 / 1753 / 2260 | 928 / 434 / 822 / 908 |
+| settings-menus-appearance | 1562 / 303 / 806 / 1292 | 524 / 287 / 469 / 503 |
+| files-indexed-directory | 1781 / 315 / 814 / 1495 | 369 / 305 / 360 / 366 |
+| external-drop-hover-and-cancel | 1580 / 309 / 1253 / 1461 | 376 / 282 / 338 / 347 |
+| artists-measured-columns | 2985 / 905 / 1854 / 2023 | 1469 / 777 / 1354 / 1452 |
+| songs-playing-indicator | 3042 / 929 / 2301 / 2741 | 1208 / 849 / 1038 / 1130 |
+
+Release library/app builds take **23.81 / 22.54 s**. Signed bundle checks pass for macOS 15,
+default executable stack, bundled dylib identity and portable rpath; smoke reaches **506.5 ms
+idle**. Artwork retains 19 quads / 4,800,512 bytes / zero warm requests; artists retain 23–31 rows.
+The existing normal GUI remains running. Native/process allocations, cold work, full SwiftUI
+parity, platform/device qualification and the strict latency gate remain open.
+
 ## Find toolbar and shared vector checkpoint
 
 Find now binds **Play all** and **Keep offline / Kept offline** to the existing serialized playback

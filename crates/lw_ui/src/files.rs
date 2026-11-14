@@ -1,7 +1,7 @@
 //! Worker-prepared source and directory labels; frames only borrow these immutable snapshots.
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Location {
     pub user: i64,
     pub source: i64,

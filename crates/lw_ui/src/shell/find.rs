@@ -238,6 +238,7 @@ mod tests {
                 .collect(),
         );
         let request = Request {
+            commands: None,
             scope: Scope::Find,
             query: Query::new("track").unwrap(),
             sort: Sort::Original,

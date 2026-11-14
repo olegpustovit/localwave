@@ -1510,6 +1510,7 @@ mod tests {
         let mut changed = catalog.clone();
         changed.project(
             crate::browse::Request {
+                commands: None,
                 scope: Scope::Collection(key),
                 query: Query::default(),
                 sort: Sort::Title,

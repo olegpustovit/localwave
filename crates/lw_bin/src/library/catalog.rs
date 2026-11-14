@@ -99,6 +99,18 @@ impl LibraryWorker {
         current: Option<&Catalog>,
         request: Option<Request>,
     ) -> io::Result<Catalog> {
+        let command_query = request.and_then(|request| request.commands);
+        let command_query_changed = current
+            .and_then(|catalog| catalog.commands.as_ref().map(|commands| commands.query))
+            != command_query;
+        let commands = request
+            .and_then(|request| request.commands)
+            .map(|query| super::commands::Commands::new(self, query))
+            .transpose()?;
+        let request = request.map(|mut request| {
+            request.commands = None;
+            request
+        });
         let find = request
             .filter(|request| request.scope == Scope::Find)
             .map(|request| super::find::Find::new(self, request.query.as_str()))
@@ -106,7 +118,8 @@ impl LibraryWorker {
         let identity = lw_apple_sys::cloud::current_identity()?
             .as_deref()
             .map_or(-1, lw_core::hash_string);
-        let (mut catalog, mut rows, candidates) = self
+        let history = self.playback_history();
+        let (mut catalog, mut rows, candidates, command_candidates) = self
             .repository
             .read_snapshot(|repository| {
                 // Establish the SQLite read snapshot before stamping or reusing library data.
@@ -121,19 +134,36 @@ impl LibraryWorker {
                 };
                 catalog.source_version = Some(version);
                 catalog.source_identity = Some(identity);
-                catalog.view = None;
+                catalog.prepare_most_played(&mut |id| history.get(id).plays);
+                let keep_view = command_query_changed
+                    && request.is_some_and(|request| {
+                        catalog
+                            .view
+                            .as_ref()
+                            .is_some_and(|view| view.request == request)
+                    });
+                if !keep_view {
+                    catalog.view = None;
+                }
+                catalog.commands = None;
                 let mut candidates = None;
                 let rows = match request.map(|request| request.scope) {
+                    _ if keep_view => None,
                     Some(Scope::Find) => {
                         candidates = Some(find.as_ref().unwrap().prepare(repository, &catalog)?);
                         None
                     }
-                    Some(Scope::Collection(key)) => {
-                        catalog.base_collection(key).map(|group| group.rows.clone())
-                    }
+                    Some(Scope::Collection(key)) => catalog
+                        .base_collection(key)
+                        .filter(|_| request.unwrap().sort != Sort::Original)
+                        .map(|group| group.rows.clone()),
                     Some(Scope::Overview) | None => None,
                 };
-                Ok((catalog, rows, candidates))
+                let command_candidates = commands
+                    .as_ref()
+                    .map(|commands| commands.prepare(repository, &catalog))
+                    .transpose()?;
+                Ok((catalog, rows, candidates, command_candidates))
             })
             .map_err(io::Error::other)?;
         if catalog.artist_table.is_none() {
@@ -156,6 +186,11 @@ impl LibraryWorker {
             if let Some(view) = catalog.view.as_mut() {
                 std::sync::Arc::make_mut(view).find = summary;
             }
+        }
+        if let (Some(commands), Some(prepared)) = (commands, command_candidates) {
+            catalog.commands = Some(std::sync::Arc::new(
+                commands.finish(self, &catalog, prepared),
+            ));
         }
         Ok(catalog)
     }
@@ -269,6 +304,7 @@ mod tests {
             ),
         ] {
             let request = Request {
+                commands: None,
                 scope,
                 query: Query::default(),
                 sort,
@@ -280,6 +316,7 @@ mod tests {
             assert_eq!(catalog.collection(Route::Songs).unwrap().ids, original);
         }
         let find = Request {
+            commands: None,
             scope: Scope::Find,
             query: Query::new("track").unwrap(),
             sort: Sort::Original,

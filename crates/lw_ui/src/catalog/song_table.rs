@@ -359,6 +359,7 @@ mod tests {
         songs[1].source_availability = Some(FileAvailability::InCloud);
         let mut catalog = crate::tests::prepared(songs);
         let request = crate::browse::Request {
+            commands: None,
             scope: crate::browse::Scope::Find,
             query: crate::browse::Query::default(),
             sort: Sort::Original,
