@@ -260,9 +260,11 @@ pub(super) fn palette_view(
                 }
             }
             let mut field = |ui: &mut Ui| {
-                if let Some(value) =
-                    ui.text_field("Search and commands", state.command_query.as_str())
-                {
+                if let Some(value) = ui.text_field_with_options(
+                    "Search and commands",
+                    state.command_query.as_str(),
+                    pxui::TextInputOptions::SEARCH_FIELD,
+                ) {
                     *intent = Some(
                         Query::new(value).map_or(Intent::CommandTooLong, Intent::CommandQuery),
                     );
@@ -826,6 +828,10 @@ mod tests {
             );
         }
         assert!(ui.text_input_focused());
+        assert_eq!(
+            ui.text_input_options(),
+            pxui::TextInputOptions::SEARCH_FIELD
+        );
         let field = ui
             .a11y_nodes()
             .iter()

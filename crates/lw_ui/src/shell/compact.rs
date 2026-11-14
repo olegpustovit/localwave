@@ -1281,4 +1281,107 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn find_done_dismisses_input_without_playing_the_selected_song() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut catalog = catalog(20);
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(Route::Find));
+        state.apply(Intent::Search(Query::new("Track").unwrap()));
+        state.apply(Intent::SelectRow(0));
+        catalog.project(state.request(&catalog).unwrap(), (0..20).collect());
+        let player = PlayerView::default();
+        for width in [320.0, 390.0, 1000.0] {
+            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            frame(&mut ui, &catalog, &state, &player, width, 0.0);
+            frame(&mut ui, &catalog, &state, &player, width, 1.0);
+            let rect = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| node.is_role(Role::TextField))
+                .unwrap()
+                .rect;
+            for tick in 0..182 {
+                let step = tick % 3;
+                let mut events = [pxui::Event::default(); 2];
+                if step == 0 {
+                    events[0] = pxui::Event {
+                        kind: pxui::Event::POINTER_PRESSED,
+                        x: f64::from(rect.x + rect.w * 0.75),
+                        y: f64::from(rect.y + rect.h * 0.5),
+                        ..Default::default()
+                    };
+                    events[1] = pxui::Event {
+                        kind: pxui::Event::POINTER_RELEASED,
+                        ..events[0]
+                    };
+                } else {
+                    events[0] = pxui::Event {
+                        kind: pxui::Event::KEY_PRESSED,
+                        code: input::Key::Enter.code(),
+                        ..Default::default()
+                    };
+                    events[1] = pxui::Event {
+                        kind: pxui::Event::KEY_RELEASED,
+                        ..events[0]
+                    };
+                }
+                mem_sys::local_reset();
+                let mut intent = None;
+                ui.frame(
+                    &FrameIn {
+                        width,
+                        height: 844.0,
+                        time: 2.0 + tick as f64,
+                        events: events.as_ptr(),
+                        event_count: 2,
+                        environment: pxui::Environment {
+                            safe_area: [59.0, 0.0, 34.0, 0.0],
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                )
+                .unwrap();
+                assert_eq!(
+                    intent,
+                    if step == 2 {
+                        Some(Intent::PlayRow(0))
+                    } else {
+                        None
+                    },
+                    "width {width}, frame {tick}"
+                );
+                assert_eq!(
+                    ui.ime().is_some(),
+                    step == 0,
+                    "width {width}, frame {tick}, field={rect:?}, now={:?}",
+                    ui.a11y_nodes()
+                        .iter()
+                        .find(|node| node.is_role(Role::TextField))
+                        .unwrap()
+                        .rect
+                );
+                if step == 0 {
+                    assert_eq!(
+                        ui.text_input_options(),
+                        pxui::TextInputOptions {
+                            action: pxui::TextInputOptions::DONE,
+                            ..pxui::TextInputOptions::SEARCH_FIELD
+                        }
+                    );
+                }
+                if tick >= 82 {
+                    assert_eq!(
+                        mem_sys::local_alloc_count(),
+                        0,
+                        "Find focus/Done/shortcut frame {tick}"
+                    );
+                }
+            }
+        }
+    }
 }

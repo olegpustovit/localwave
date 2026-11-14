@@ -1053,6 +1053,7 @@ pub fn shell(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
+    let input_was_focused = ui.text_input_focused();
     if ui.key_pressed(input::Key::Escape.code()) {
         ui.cancel_carry();
     }
@@ -1126,6 +1127,7 @@ pub fn shell(
         && !state.settings_visible
         && state.song_menu.is_none()
         && ui.key_pressed(input::Key::Enter)
+        && !input_was_focused
         && !ui.text_input_focused()
         && let Some(index) = state.selected
         && state
@@ -1503,7 +1505,14 @@ fn header(
                             BoxOpts::default().w(Size::Grow).h(Size::Grow),
                         );
                         ui.within(&field, &mut |ui| {
-                            if let Some(value) = ui.text_field("Find songs", state.query.as_str()) {
+                            if let Some(value) = ui.text_field_with_options(
+                                "Find songs",
+                                state.query.as_str(),
+                                pxui::TextInputOptions {
+                                    action: pxui::TextInputOptions::DONE,
+                                    ..pxui::TextInputOptions::SEARCH_FIELD
+                                },
+                            ) {
                                 *intent = Some(
                                     Query::new(value).map_or(Intent::SearchTooLong, Intent::Search),
                                 );
@@ -2082,9 +2091,14 @@ fn queue_sheet(
                                 BoxOpts::default().w(Size::Grow).h(Size::Grow),
                             );
                             ui.within(&field, &mut |ui| {
-                                if let Some(value) =
-                                    ui.text_field("Playlist name", state.playlist_name.as_str())
-                                {
+                                if let Some(value) = ui.text_field_with_options(
+                                    "Playlist name",
+                                    state.playlist_name.as_str(),
+                                    pxui::TextInputOptions {
+                                        action: pxui::TextInputOptions::DONE,
+                                        ..Default::default()
+                                    },
+                                ) {
                                     *intent = Some(Query::new(value).map_or(
                                         Intent::PlaylistNameTooLong,
                                         Intent::EditPlaylistName,

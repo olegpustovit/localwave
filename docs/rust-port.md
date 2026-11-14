@@ -16,9 +16,63 @@ full Rust GUI builds for device/simulator and passes isolated portrait startup/d
 Audio-session activation/notifications and cached system appearance are connected. Compact layout
 is implemented below 620 points. Native document pickers transfer original URL capabilities to the
 file worker. Basic tap/drag/scroll arbitration and animated docked-keyboard content bounds are now
-in pxui; extended gestures, keyboard editing, real provider grants, visual
-parity and real background playback remain unfinished or unqualified. No full-app/device readiness
+in pxui; native text fixtures now cover marked text and Done. Extended gestures, real
+IME/dictation interaction, provider grants, visual parity and real background playback remain unfinished or unqualified. No full-app/device readiness
 ETA is established. The shipping Swift app remains available.
+
+### Native single-line text entry and keyboard traits
+
+pxui **fa339ef**, ABI **1.27**, adds public `TextInputOptions`, `Ui::text_field_with_options` and
+`Ui::text_input_options`, preserving existing descriptor layouts and default field behavior.
+Find disables autocorrection/capitalization and uses **Done**; playlist naming uses Done with
+its default writing traits; command search uses **Search**. Done dismisses focus/IME in the same
+build. LocalWave guards playback against focus at frame entry, so Done cannot also play a row.
+Raw key queries remain non-consuming. The regression covers **320/390/1000-point** layouts,
+repeated focus/Done/next-Return and zero warm allocations.
+
+SDL retains its hidden UIKit field for native input; pxui owns the integration and paints the
+visible editor through Metal. The framework observes marked-text changes only on SDL's owned
+field, without replacing its delegate or modifying unrelated UIKit fields. Copied native payloads
+live in a **64-event / 1 MiB** queue with generation/window validation, one-time ownership transfer,
+window cleanup and typed overflow failure. Native UTF-16 selection offsets become Unicode scalar
+offsets. Core preedit replaces the selected base range, draws its selection/underline, and places
+the caret within it. Selection spans stream without heap scratch or a four-span truncation. A
+same-frame commit plus Done paints the latest value immediately.
+
+Qualification:
+
+- **359 framework checks pass, 21.094 s wall / 20.724 s case sum**, zero skips; all **83 dynamic
+  wrapper checks pass, 9.951 / 2.497 s**. Static/dynamic tests cover options, invalid ABI calls,
+  marked Unicode selection, commit-plus-Done and retained warm storage.
+  `/tmp/localwave-native-text-{sdk-qualified,wrapper-dynamic}-tests.log`.
+- **194 app checks pass, 10.306 / 14.633 s**, zero skips, in the final run without concurrent builds.
+  The runner retried existing audio-probe and continuous-delivery cases alone after contention;
+  both passed. An earlier concurrent build/run also retried an artwork case. No timeouts or
+  allocation assertions were relaxed. The initial new Find fixture clicked outside its editor;
+  it was corrected to click the actual editor column. Earlier failure logs are retained.
+  `/tmp/localwave-native-text-app-isolated-tests.log`. Limits remain **5 s/case, 60 s/run**.
+- The final native **iPhone 16e / iOS 18.6** probe passes **10 fixtures**: native traits, foreign
+  field ownership, marked CJK/emoji and scalar selection, commit, multiword insertion, deletion,
+  cancellation, SDL's Return delegate and queue lifetime/limits. It preserves **182/82/100**, zero
+  warm Rust allocations, intermediate keyboard geometry, measured refocus, one idle callback and
+  worker wake. `/tmp/localwave-native-text-final-probe-runtime.log`, PID **37665** exits. Native
+  footprint/peak sample **29,919,968 / 35,441,376 bytes**; native allocations are not claimed zero.
+  This uses actual UITextInput methods with explicit change notifications, not interactive
+  candidate selection or microphone dictation. Changed owned text remains a separate allocation path.
+- Full production simulator/device builds and package verification pass: **21.58 / 20.73 s** Cargo
+  time under build contention. `/tmp/localwave-native-text-full-app-{simulator,device}-build.log`.
+  Device output remains unsigned. The installed full simulator app passes **16 frames / 16 draws,
+  516.5 ms idle**; `/tmp/localwave-native-text-full-app-smoke.log`, PID **36074** exits. Normal Mac
+  GUI PID **69331** remains running; its bundle and real app data are untouched.
+- ABI header/export/snapshot, dependency/tier gates and core/scoped app Clippy pass. Shape retains
+  the same **nine findings**, with no exclusions added. Broader SDK build-script lints remain
+  outside the scoped check. `/tmp/localwave-native-text-{abi-header,abi-exports,abi-snapshot,deps,tiers,shape,core-clippy,app-clippy}.log`.
+
+Physical iPhone/iPad discovery still finds no connected device; only the paired physical Watch is
+available. Physical install/signing, interactive editing/IME/dictation, floating-keyboard field
+avoidance, Dynamic Type, populated phone goldens, provider grants and background playback remain
+open. No new release timing qualification is claimed; strict **1 ms wall** remains deferred and
+earlier failures remain recorded. P4/P5/P6/P7 remain incomplete.
 
 ### Adaptive usable area and native keyboard motion
 

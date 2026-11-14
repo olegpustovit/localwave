@@ -89,8 +89,10 @@ tap/drag/scroll gestures use pxui's shared widget and scroll engine. Long press,
 interactive back and physical gesture feel remain unfinished or unqualified. pxui's shared
 `content_rect()` follows safe areas and animated docked-keyboard presentation geometry; the compact
 shell, command search and playlist naming use it. Repeated show/hide and refocus preserve zero warm
-Rust allocations in the simulator probe. IME editing and floating-keyboard field avoidance remain
-unqualified. Native iOS document pickers now transfer their original URL capabilities
+Rust allocations in the simulator probe. Find disables autocorrection/capitalization and uses Done
+to dismiss input; command search uses the Search key. Native UIKit fixtures now cover marked text,
+Unicode selection, commit/cancel, deletion and Done through pxui. Interactive IME candidates,
+microphone dictation and floating-keyboard field avoidance remain unqualified. Native iOS document pickers now transfer their original URL capabilities
 to the import worker; real provider grants still need qualification. The full-app signing/install command is implemented;
 its simulator path is qualified, while the physical USB path still needs a connected iPhone/iPad.
 
