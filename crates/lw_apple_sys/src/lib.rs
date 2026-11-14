@@ -1,3 +1,8 @@
+//! Shared services compile for macOS and iOS. Keep target-specific bookmark options (implicit scope
+//! on Swift iOS) and artwork paths inside the shim. Appearance/reduced-motion monitoring belongs to
+//! pxui_sdl. Clang runtime selection belongs to metal_sys; never force clang_rt.osx into iOS.
+//! Native-service diagnostics use isolated temporary files/private media fixtures.
+//!
 //! Safe access to native platform services.
 pub mod sqlite;
 

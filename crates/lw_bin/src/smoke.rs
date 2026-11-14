@@ -1,3 +1,9 @@
+//! Keep correlated frame/CPU/phase samples in fixed storage. Print outliers after measurement and
+//! before sorting percentile copies. Preserve failures alongside passing evidence and never
+//! substitute CPU/percentiles for existing wall assertions. Trace thread-state claims need frame-
+//! specific interval overlap: the first thread column is the owner; later columns may identify a
+//! waker/preemptor. Do not infer duration from adjacent context-switch records.
+//!
 pub const FRAME_BUILD_LIMIT_US: u128 = 1_000;
 
 /// Real external hover/completion routing without filesystem mutations in the fixture.

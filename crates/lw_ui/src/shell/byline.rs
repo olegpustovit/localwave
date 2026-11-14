@@ -1,3 +1,8 @@
+//! The title wraps intrinsically. The byline uses a 15-point strut and baseline-aligned padded
+//! 14-point links, trims leading wrapped whitespace and measures only inside its retained metadata
+//! view. Natural/constrained measurement identities differ by width. Preserve accessible
+//! artist/album routing, empty-line height and native 100/279/400-point fitting references.
+//!
 use super::*;
 
 // Swift's PlayerBylineFlow uses a 15pt strut and aligns padded 14pt links by baseline.

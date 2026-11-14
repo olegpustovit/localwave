@@ -1,3 +1,12 @@
+//! This module is only decoded-data/music policy. Graphics owns image uploads and GPU-safe
+//! retirement. Upload all results in order and reject already-seen revisions, including earlier
+//! entries in replayed batches. Catalog cover IDs give constant-time lookup; catalog/size/density
+//! changes advance epochs. Retained image views include cache revision. Negative results stay
+//! cached until refresh; remember requested quality even for small originals. Resolve retained
+//! candidates against final geometry with two image-heights of prefetch; only eight keys cross the
+//! worker mailbox. Use display-sized thumbnails. Never submit an extra frame just to report
+//! completion.
+//!
 //! Music-specific request sizing and decoded-result delivery through framework host APIs.
 pub use pxui_host::Graphics;
 

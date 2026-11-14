@@ -1,3 +1,9 @@
+//! Song FTS row IDs are worker-owned and may have arbitrary legacy values. Refresh the cached map
+//! on external data_version changes; invalidate song_fts on same-connection deletions and discard
+//! it after failed song/import transactions. Preserve bulk-read ordering and repeated queue
+//! occurrences without redundant model copies; avoid correlated per-song album scans and repeated
+//! UNINDEXED FTS identifier scans during batch import.
+//!
 use crate::{FileAvailability, FileState, Song};
 use Value::{Blob, Integer, Null, Real, Text};
 use lw_apple_sys::sqlite::{Connection, Error, Result, Row, Value};

@@ -1,3 +1,8 @@
+//! The desktop table uses a 37.3-point heading, estimated 38-point rows, 28-point artwork, 12-point
+//! artwork/text gap, 32/8/20-point column insets and 140 ms hover. Scale four worker-prepared
+//! preferred widths and borrow visible rows; wrapped numeric cells/headings use measured rows and
+//! baseline alignment.
+//!
 use super::*;
 
 fn label(ui: &mut Ui, key: &str, value: &str, rect: Rect, style: pxui::TextStyle, color: Rgba) {

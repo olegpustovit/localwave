@@ -1,3 +1,9 @@
+//! Materialization and eviction share the serialized LibraryWorker. Change pin/active/queued
+//! protection only through native Preferences setters under the recursive cache guard, so retained
+//! protection generations remain valid. Preserve Added Files, original files and protected paths
+//! during trimming. Reuse unchanged cache-summary Arcs; do not bypass this contract with direct
+//! defaults writes.
+//!
 use super::{LibraryWorker, check, db, text};
 use lw_apple_sys::bookmarks::Access;
 use lw_apple_sys::preferences::{CacheProtection, Preferences};

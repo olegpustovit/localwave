@@ -1,3 +1,10 @@
+//! Settings/About preserve route/sort/selection and exclude playback clock revisions from retention
+//! keys. Use eight pre-parsed themes; never parse in frames. Dismiss custom popup acceptance after
+//! Ui::popup returns. Command-comma uses scalar held-key state rather than allocating routed
+//! vectors. Wrapped paragraph keys include content, including alternating busy/cache summaries.
+//! Preserve overlapping menu presses and warm storage_busy alternation without extending warm-up.
+//! Expose only connected actions.
+//!
 use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};

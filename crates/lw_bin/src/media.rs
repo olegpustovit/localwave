@@ -1,3 +1,15 @@
+//! Only normal GUI hosts enable system media controls. Smoke/performance/controller fixtures must
+//! not register or replace a real media session. Native handlers enqueue at most 32 ordered
+//! commands and wake; full returns failure. Retain accepted heads until worker delivery succeeds,
+//! resolve Toggle on the worker before pending selection commits, and remove exact targets/reject
+//! late callbacks before player shutdown.
+//!
+//! Publish Now Playing during controller polling, outside drawing. Reuse metadata Arcs and system
+//! tick extrapolation with 250 ms drift correction; publish paused seeks, identity, metadata,
+//! duration and state changes. macOS needs playbackState plus dictionary rate. Read no files/tags
+//! here. Covers reuse the artwork worker RGBA batch with epoch/path/revision checks; retain only
+//! the native Now Playing image.
+//!
 //! MediaPlayer publication is outside drawing; ordinary clock ticks use the system's extrapolation.
 use crate::controller::{Command, Controller, Status};
 use crate::library::ArtworkReady;

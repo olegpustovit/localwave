@@ -1,3 +1,24 @@
+//! Prepare native items on this worker and transfer ownership before main-thread installation. Six
+//! preparation leases cover current/upcoming plus one replacement batch; apply backpressure beyond
+//! that. Release a token only after its native item is removed. Adopt a new active token or
+//! acknowledge native stop before releasing the active file. Deliver each physical item's actual
+//! Started event to record_playback_start before retiring its lease. Recency touches are best
+//! effort and apply only to regular managed Music files.
+//!
+//! Leases retain the prepared Song snapshot. Failure/recovery writes compare ID, key, path hash,
+//! dates, state, cached path, source/path/bookmark, size and availability in one guarded UPDATE;
+//! preserve metadata, paths, Favorites, membership and FTS. Match native failures by token,
+//! generation and occurrence, never by fetching the newest row. Update only the lease's state after
+//! a successful write so the same physical item can fail again after recovery.
+//!
+//! Cancellation, backpressure, invalid requests, offline simulation and typed SQLite errors are not
+//! file failures. Preserve cache-commit database errors through fallback selection: fault the
+//! session without traversing the queue. Rejected state writes preserve the original file error and
+//! cache-protection cleanup. Already-local Failed files recover on actual native Started; verified
+//! materialization retains Copied semantics. Coalesce changes through take_playback_file_changes.
+//! Compare prepared canonical path/import version against the row before leasing; replacements
+//! retry instead of opening old bytes for a new row.
+//!
 use super::{LibraryWorker, check, database_error, db};
 use lw_apple_sys::{audio, player::Prepared};
 use lw_core::Song;

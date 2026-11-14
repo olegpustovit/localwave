@@ -1,3 +1,11 @@
+//! Use retained table transforms, never reshape/rebuild just for entrance ticks. Same-time
+//! opacity/offset channels compose as one pose. Navigation starts page and bounded first-row
+//! entrances; query/catalog/player updates do not restart them. Respect reduced motion, stop
+//! repainting after settlement and retain viewport clips. Matrix glyphs use padded minutes, one-
+//! column colon, 43-point height and 0.78-unit dots; only changed digits fade in two steps over 140
+//! ms with 16 ms row stagger. Share seven fading rows across digits so carries do not grow
+//! capacity.
+//!
 //! Reference motion tokens. Curves and samples stay inline on animation paths.
 use pxui::theme::Curve;
 

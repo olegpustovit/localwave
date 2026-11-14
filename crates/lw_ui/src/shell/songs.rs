@@ -1,3 +1,17 @@
+//! prepare_tables on the library worker prepares column preferences, numeric widths, pins, action
+//! labels and per-song occurrence keys. Frames select maxima in bounded work, never scanning
+//! collections or constructing text engines. Formats compare original case and render lowercase.
+//! Stable occurrence scopes survive sorting; duplicate queue entries retain distinct visual state.
+//! Playing bars reuse glyphs and request frames only while visible/playing; pause/reduced motion
+//! settles. File-state pops use the 240 ms spring without initial animation. Preserve responsive
+//! thresholds, wrapped baselines and stale-popup guards.
+//!
+//! Page headings scroll with section content; Artists column headings pin and overlay thumbs
+//! reserve no gutter. Retain headings independently from playback/artwork revisions, preserving row
+//! identity, entrance motion and overscan. Keep full-width gallery rules, 172.6/105.6-point lead-
+//! ins and fractional row strides. Numeric headings/cells may wrap; use measured rows and baseline
+//! alignment.
+//!
 use super::*;
 use crate::catalog::{Collection, Row, SongColumn as Column};
 

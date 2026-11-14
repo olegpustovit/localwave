@@ -1,3 +1,18 @@
+//! Build/draw only on Signal::Frame. Resumed/LowMemory request a later frame; Paused/Control
+//! service controller/files status without SDL input consumption or image uploads. Background
+//! worker wakes use the framework run-loop source, never app polling or a second display link. A
+//! source consumed by a nested native run loop must be re-posted after the control callback. Drop
+//! callback resources before Fixture and close GPU resources on Finish before UI/window teardown.
+//! Set interactive QoS only on the initial UI thread, after spawning workers.
+//!
+//! Smoke/performance fixtures remain isolated from normal database/defaults and media sessions.
+//! Preserve all signed workloads and 182/82/100 frame counts at 1440x872, both Rust allocation
+//! counters and unchanged strict timing assertions. Advance PlayerView revision with position.
+//! Require 200 waveform bars/nine release-only seeks; queue carry traces warm twice, preserve
+//! payload/capture and cancel without intents or fixture mutation. Filtered Find uses Track m4a
+//! year:2019 unplayed and matches all 10,000 fixture rows. Files draws real virtual rows; Settings
+//! visits all eight themes through real actions; drop checks draw the overlay without importing.
+//!
 mod events;
 mod gpu;
 mod smoke;

@@ -1,3 +1,11 @@
+//! Use one persistent worker with coalesced eight-key requests and a preallocated eight-result
+//! queue bounded to 8 MiB decoded RGBA. Decode ahead without waiting for UI polls. Poll drains a
+//! fixed batch; replaced pixels retire on the worker outside its mutex. Viewport changes do not
+//! cancel selected prefetch: merge new visible keys first, then unfinished selected keys into spare
+//! packet slots. Publish same-epoch completions even after leaving the margin. Explicit cancel
+//! stays sticky until consumed and clears selected work; epochs reject obsolete results. Prioritize
+//! the pending current Now Playing cover so gallery traffic cannot starve it.
+//!
 use super::LibraryWorker;
 use lw_apple_sys::artwork::{self, Thumbnail};
 use lw_ui::artwork::{Key, REQUEST_CAPACITY, Request};

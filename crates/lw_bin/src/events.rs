@@ -1,3 +1,15 @@
+//! Native dialogs use exact one-shot request IDs and the account captured at opening. Take
+//! Window::take_dialog_selection before the next pump and transfer original FileSelections to
+//! FilesWorker. Match every path/count before submission; invalid grants create no private files.
+//! Never reconstruct iOS provider access from portable event paths. Bookmark/grant mechanics belong
+//! to pxui/file_access_sys; source/account validation and import policy belong here.
+//!
+//! Accumulate Finder files through FileDragEnded across pumps. Capture known account on first
+//! hover/file; if Files has never opened, its worker resolves identity instead of guessing. Focus
+//! loss dismisses hover only: Finder may still deliver files. Submit one bounded mutation per
+//! complete set, reject invalid/oversized batches wholly and report busy delivery visibly.
+//! Empty/cancel cycles retain their buffers.
+//!
 use input::Event as HostEvent;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

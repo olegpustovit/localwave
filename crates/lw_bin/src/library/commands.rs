@@ -1,3 +1,19 @@
+//! Full queue edits resolve occurrence IDs on the worker and preserve the current physical item
+//! when its index moves; Up next retains its upcoming-only boundary. Save queue creates the
+//! playlist and deduplicated first-occurrence membership in one transaction. Failure retains
+//! queue/playback/Clear/Undo. Save does not fence preparation; success refreshes the catalog.
+//! Playlist names use bounded UTF-8 packets and reject blank/oversized input visibly. Shuffle all
+//! clones the library queue on the controller worker, shuffling the first item and duplicate
+//! occurrences through Configure/lease/persistence; ordinary Shuffle retains its separate
+//! semantics.
+//!
+//! TogglePins validates the whole selection, deduplicates IDs, rechecks blocked/local state and
+//! preserves copied rows. Roll back failed copy-request batches before changing preferences.
+//! set_pins writes lwPinnedSongs and advances protection once for the whole selection under the
+//! recursive cache guard. Background copies share the waveform cancellation gate after playback
+//! work. Resume persisted work at startup; retry on explicit RefreshCatalog, never in a tight
+//! failure loop. Pin actions never start/pause playback; unpin never deletes originals.
+//!
 use super::{
     LibraryWorker,
     find::{Candidates, Find},

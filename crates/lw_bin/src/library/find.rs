@@ -1,3 +1,17 @@
+//! Only SongQuery.text goes to FTS; all free words also use native localized containment across
+//! title/artist/album/album artist. Preserve invalid year handling, conjunctive tokens and legacy
+//! format precedence: present extension, relative path, local path, bookmark; a present empty value
+//! stops fallback. Keep presence facts in the shared catalog; hydrate only survivors needing
+//! inference/availability.
+//!
+//! Read song/source facts, membership, current-account folder counts and blocked metadata in one
+//! snapshot. Count owned indexed matching directories in one SQL query, excluding files/foreign
+//! accounts. Probe resource metadata afterward, caching each source grant or failure once per
+//! request; never read audio or request downloads. Copied/stored availability does not prove
+//! current availability. Preserve containment and balanced grants. Album counts use native
+//! album/album-artist identity and localized text words. Frames borrow prepared summaries and
+//! eligible IDs.
+//!
 use super::{LibraryWorker, hash};
 use lw_apple_sys::{
     audio, bookmarks::Access, collation::Key, history::History, preferences::file_path,

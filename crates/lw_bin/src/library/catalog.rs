@@ -1,3 +1,16 @@
+//! Prepare the shared immutable label arena, ID index, orders, queue/context payloads, summaries
+//! and widths on this worker. Read songs/playlists in one snapshot, establishing it before
+//! data_version. Refresh same-connection edits explicitly; retain the last good catalog on failure
+//! and invalidate current metadata on success. Import/edit commits request refresh. Frames borrow
+//! catalogs and clone existing Arcs.
+//!
+//! Find membership is distinct, in original library order. String sorting uses native localized
+//! natural keys, song ID ascending ties and unknown durations last in either direction.
+//! Album/artist summaries, captions (including year), source labels and preferred bundled-font
+//! widths are worker-prepared after leaving the snapshot. Album Year uses its first ordered track;
+//! Size follows Added ordering; Artist strips only exact "The ". Sorting preserves album
+//! identity/navigation generations.
+//!
 use super::LibraryWorker;
 use lw_apple_sys::collation::Key;
 use lw_core::{LibraryRepository, context::PlaybackContext};

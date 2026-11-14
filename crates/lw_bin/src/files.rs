@@ -1,3 +1,28 @@
+//! Use a lazy separate LibraryWorker/SQLite connection so scans/imports cannot occupy playback
+//! preparation. Keep one coalesced browse request, one bounded mutation, explicit cancellation and
+//! worker-formatted progress. Immutable snapshots, retained selections and old rows retire on the
+//! worker. Retry controller delivery until accepted and clear selection on account change. Hidden
+//! progress must not force library frames; completed imports refresh the controller catalog.
+//!
+//! Rescan from a nested directory indexes/imports the whole source. Cancelled scans keep the
+//! previous complete index; completed per-file imports remain. Completion/cancellation invalidates
+//! the catalog. Capture account/source/root for options, confirmation and picker purposes.
+//! Reconnect/removal requires an idle mutation slot; removal needs explicit confirmation. Reject
+//! stale roots both in UI and worker.
+//!
+//! Validate every selected path/folder exclusion before copying anything. Hold each resolved grant
+//! only through coordinated bounded copy, cancellation and version checks. Preserve original
+//! filenames, identical-content reuse and exclusive UUID-prefixed collision promotion; never
+//! overwrite a different track or leave staging files. Named copies skip unused hashing.
+//! Register/index/import Added Files through source services and attach private copies as Copied
+//! under the cache guard to avoid duplication into managed Music.
+//!
+//! Mixed imports copy selected audio, import selected folders, then Added Files. Playback order is
+//! selected audio order followed by localized natural relative-path order per folder, deduplicated
+//! by song key. Preserve shared-song-key semantics, Favorites and membership. indexed_source_songs
+//! uses one minimal projection per source, without full-song hydration or per-track queue lookups.
+//! Empty-folder success navigates Files without clearing playback.
+//!
 //! Folder enumeration/import has its own connection and worker, leaving playback preparation free.
 use crate::library::LibraryWorker;
 use lw_apple_sys::{bookmarks::FileSelection, collation::Key, preferences::file_path};

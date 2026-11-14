@@ -1,3 +1,9 @@
+//! Select compact composition below 620 points, preserving route, selection, playback and desktop
+//! panel preference across resize. Expanded-player state is separate. Apply native safe areas and
+//! public keyboard usable bounds to both compositions. Files tools wrap on phones; labels remain
+//! worker-prepared. pxui owns touch slop/capture/physics/mouse arbitration, while LocalWave submits
+//! typed input and consumes intents. Never add app-owned recognizers to fix routing.
+//!
 use super::*;
 
 pub(super) const BREAKPOINT: f32 = 620.0;

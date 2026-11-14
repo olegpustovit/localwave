@@ -1,3 +1,38 @@
+//! The initial thread owns the native player; this bridge owns one operation/acknowledgement, 32
+//! ordinary commands, a reserved Pause/Stop slot and 128 critical events. Queue/model mutations,
+//! history snapshots and display strings belong on the worker. Keep current plus two upcoming
+//! native items and preserve buffered items on append. Worker errors wait for native stop
+//! acknowledgement before clearing leases.
+//!
+//! Preserve logical queue selection while native advance awaits acknowledgement. Coalesce
+//! volume/seek without cancelling preparation; queue changes fence operations/preparation. Browse
+//! has its own coalesced fixed-capacity slot, independent of playback capacity, and never fences
+//! preparation. Drive acknowledgements/preparation before sorting; revisions and preparation
+//! identities never decrease when a reserved control follows a newer ordinary control. Alternate
+//! continuous volume/seek with ready current/upcoming preparation and alternate both control kinds.
+//! Failed/deferred/cancelled preparation must still allow controls to progress; reset/stop/queue
+//! fencing retains priority.
+//!
+//! Catalog refresh coalesces without fencing preparation. Keep at most one incoming and one retired
+//! catalog. Repair route/selection before adoption, outside the inbox mutex; never consume catalogs
+//! during command delivery. Superseded/retired catalogs drop on the worker outside the mutex.
+//! Preserve retirement backpressure and wake a waiting replacement after draining. Unchanged native
+//! polls must not wake the worker; notify for delivered events, changed snapshots, faults,
+//! acknowledgements, commands, stop and retirement.
+//!
+//! Status carries 512 peaks inline. Clear stale peaks on selection/catalog identity changes and
+//! revalidate after materialization token changes. Background waveform/copy cancellation resets
+//! under the inbox lock, after playback work. Explicit refresh invalidates current metadata before
+//! replacement peaks.
+//!
+//! Audio-session delivery is bounded to 32 notices per poll. Blocking category/activation stays on
+//! the worker; callbacks cache facts and wake. Preserve configure/activate epochs, reset
+//! invalidation, owner/sequence acknowledgement and fail-closed overflow. Pause immediately on the
+//! main thread under command backpressure. Manual pause/stop/route loss cancels interruption
+//! resume; repeated begins retain intent. Only processing, not delivery acknowledgement, releases
+//! activation fences; an old notice cannot release a newer pause. Explicit Play may retry without
+//! an end notice.
+//!
 //! Bounded main-thread/native and worker/model bridge. No database or file work runs in `poll`.
 use crate::library::{LibraryWorker, database_error};
 use lw_apple_sys::player::{Event, Kind, Player, Prepared, Snapshot};

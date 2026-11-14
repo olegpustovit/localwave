@@ -1,3 +1,10 @@
+//! Cards use a 150-point adaptive minimum, 20-point column gap, square artwork and 28-point row
+//! gap. The toolbar uses 30-point Artist/Year/Size controls, 8-point gaps, a fractional 1.5-point
+//! selected border, 14-point bottom padding and one-point header clearance. Without a window inset
+//! first artwork begins at y=172.6; preserve native control widths 52/47/44/100 and fractional row
+//! stride. Explicit CoreText column widths remain fractional; intrinsic Text widths ceil to
+//! physical pixels.
+//!
 use super::*;
 use crate::browse::AlbumSort;
 

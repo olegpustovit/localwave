@@ -1,3 +1,7 @@
+//! Preserve Command-K/slash opening, wrapping selection, selected-row visibility, UTF-8 input,
+//! focus restoration and dismissal. Read scalar signals instead of owned key vectors. Raw key
+//! queries do not consume events; focus/modal ownership must be arbitrated by the caller.
+//!
 use super::*;
 use crate::commands::{Action, Command, Results};
 

@@ -1,3 +1,14 @@
+//! Frames borrow worker-prepared catalogs. Use explicit int_key identities (0 and 1 are reserved),
+//! scope navigation scroll by route and virtualize sidebar collections. App-authored accessibility
+//! semantics build a tree only for tests or a consuming bridge. Clock digits stay on cached glyphs;
+//! virtual slots retain accessibility string capacity.
+//!
+//! Icon buttons retain full semantic/hit bounds and scale only the cached visual child to 0.96,
+//! restarting animation only when held changes. Host reduced motion overrides theme flags. Wrapped
+//! measurement identities include content; natural/constrained identities also differ by width.
+//! Passive external-drop overlays paint in the root canvas with accessible instructions without
+//! shifting layout, capturing queue drags or forcing idle redraws.
+//!
 use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};

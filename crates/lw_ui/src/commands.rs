@@ -1,3 +1,12 @@
+//! Prepare palette suggestions and full ranked queue/context payloads on the worker in the same
+//! SQLite snapshot as the page. Keep palette/page requests separate; palette-only changes preserve
+//! page identity. Refresh on actual playback starts. Command/album/artist matching preserves
+//! accents; songs use localized standard containment. Most Played takes the top 24 positive history
+//! counts with stable library-order ties. Frames borrow results and activate only keys matching the
+//! current query; playback clones the whole ranked queue, not just visible suggestions. Register
+//! the application field body at startup and select it through a cached scoped theme; pxui owns
+//! editing.
+//!
 //! Prepared on the library worker; palette frames borrow labels, actions and the ranked queue.
 use crate::{browse::Query, catalog::Route, files::Location};
 use lw_core::context::PlaybackContext;

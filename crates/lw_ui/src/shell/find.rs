@@ -1,3 +1,14 @@
+//! Hide stale-query results, retain editor focus through worker replies and reset scrolling on
+//! query changes. Bounded UTF-8 query/chip edits preserve casing and reject overflow visibly
+//! without truncating or losing accepted text. Actual playback starts invalidate Unplayed; overview
+//! browse clears stale Find projections.
+//!
+//! The Play all/Keep offline toolbar uses 30-point buttons, 8-point gaps, 10-point side padding,
+//! 16/18-point icons and 15-point bottom padding including its full-width rule. Ceil 13-point Host
+//! label widths to physical pixels with distinct identities. Animate retained backgrounds for 140
+//! ms without key-style scale. Clone prepared eligible ID Arcs into TogglePins; disable
+//! stale/empty/blocked actions and leave copies/preferences on the worker.
+//!
 use super::*;
 
 #[derive(Clone, Copy)]

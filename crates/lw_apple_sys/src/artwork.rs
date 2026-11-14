@@ -1,3 +1,6 @@
+//! Reject source axes above 32,768 or more than 64 Mi source pixels before thumbnail creation. Keep
+//! AppKit/UIImage branches in this native shim and decoding off playback/UI threads.
+//!
 //! Atomic cover publication and bounded, orientation-aware worker thumbnails.
 use crate::bookmarks::failure;
 use std::ffi::{CStr, CString, c_char, c_void};

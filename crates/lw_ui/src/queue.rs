@@ -1,3 +1,7 @@
+//! Transfer carry capture to the stable list before virtual source rows disappear. Preserve exact
+//! duplicate occurrence targets, wheel/edge scrolling, cancellation and no activation on release.
+//! Accessibility IDs are stable only while live; refresh probes after virtualization.
+//!
 //! Immutable queue projection prepared on the worker and retired with its catalog.
 use lw_core::{context::PlaybackContext, queue::Entry};
 use std::sync::Arc;

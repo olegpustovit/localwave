@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
-"""Build the full Rust app; run signs, installs and launches it on a selected iOS device."""
+"""Build, sign, install and launch the full Rust executable, with no native UI launcher.
+
+Keep optimized debug Rust/SDL products in shared target/ and Xcode products in target/ios.
+Verify Cargo UUID, arm64, device/simulator platform, iOS 18 floor and system-only dylibs.
+Simulator signing is ad hoc; physical signing uses automatic provisioning and certificate OU,
+never a CN suffix. Support both devicectl schemas; choose only paired wired iPhone/iPad devices.
+Explicit IOS_DEVICE=simulator selects a booted iOS simulator; ambiguity requires an explicit ID.
+Keep unsigned and signed device products separate. Reuse icons/privacy resources, retain the
+shipping Swift app and refuse its bundle ID until migration gates allow replacement.
+"""
 import argparse
 import hashlib
 import json

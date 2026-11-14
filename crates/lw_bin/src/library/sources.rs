@@ -1,3 +1,15 @@
+//! Use Swift secure-keyed-archive/base64 iCloud identity and the shared masked FNV hash. Only
+//! absent identity maps to account -1; archive/read failures remain errors. Read identity on a
+//! worker. Scope listing/selection to the current user, revalidate expected account and reject
+//! foreign sources transactionally.
+//!
+//! Validate bookmarks/generated-path exclusions before atomic registration/selection. Preserve
+//! selected-path Swift identity if resolution changes /var aliases. Reconnect/removal migrate
+//! legacy hashes from registered/canonical/resolved spellings in the same transaction as root
+//! update/deletion. Revalidate captured account/root plus owner, bookmark, error and update stamp.
+//! Never delete originals/cache files on source removal. Root replacement reparents indexed top-
+//! level rows atomically so the prior complete index stays browsable until rescan commits.
+//!
 //! Source ownership follows the same secure iCloud identity as the shipping Swift app.
 use super::{LibraryWorker, Root, check, db, hash, text};
 use lw_apple_sys::{

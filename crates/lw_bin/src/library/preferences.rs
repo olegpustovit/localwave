@@ -1,3 +1,9 @@
+//! Queue/settings use Swift-compatible native keys; Foundation conversion of all seven
+//! PlaybackContext cases stays on this worker. Preserve saved context bytes until the context
+//! changes. Unknown/invalid saved cases display Library without overwriting the bytes. Apply typed
+//! settings deltas against the latest saved settings rather than accepting stale full snapshots
+//! from frames.
+//!
 use super::LibraryWorker;
 use lw_apple_sys::profile::SettingValues;
 use lw_core::context::PlaybackContext;

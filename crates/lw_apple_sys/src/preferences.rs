@@ -1,3 +1,7 @@
+//! Native Preferences setters and the recursive cache guard own protection generation changes.
+//! file_path preserves /var versus /private/var spelling while normalizing dot components, because
+//! source-root identity must match indexed-child parent keys.
+//!
 //! Native preference and sandbox locations; construct and use on the library worker.
 use std::ffi::{CStr, CString, c_char, c_void};
 use std::io;

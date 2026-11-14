@@ -1,3 +1,11 @@
+//! Waveforms use the separate database and 512-float JSON blobs. Decode only confirmed provider
+//! content through coordinated reads/version checks. Retain cached peaks after audio eviction and
+//! preserve content-hash signatures across LRU touches. Load after preparation/control work;
+//! controls, browse and critical native events cancel decoding. Reset cancellation only under the
+//! controller inbox mutex. Refresh publishes metadata invalidation before loading replacement
+//! peaks. Both current Caches/LocalWave/waveforms.sqlite and legacy paths, including WAL/SHM
+//! sidecars, remain excluded from source scans.
+//!
 use super::{LibraryWorker, check, db, text};
 use lw_apple_sys::{audio, bookmarks::Access, waveform};
 use lw_core::{FileState, Song};
