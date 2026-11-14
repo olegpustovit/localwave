@@ -15,7 +15,6 @@ fn main() {
     println!("cargo:rerun-if-changed=src/session.m");
     println!("cargo:rerun-if-changed=src/media.m");
     println!("cargo:rerun-if-changed=src/history.m");
-    println!("cargo:rerun-if-changed=src/environment.m");
     println!("cargo:rerun-if-changed=src/window.m");
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if os == "macos" || os == "ios" {
@@ -39,14 +38,12 @@ fn main() {
             .file("src/session.m")
             .file("src/media.m")
             .file("src/history.m")
+            .file("src/window.m")
             .flag("-fobjc-arc")
             .warnings(true)
             .flag("-Werror");
         if os == "macos" {
-            native
-                .file("src/environment.m")
-                .file("src/window.m")
-                .flag("-mmacosx-version-min=15.0");
+            native.flag("-mmacosx-version-min=15.0");
         } else {
             let target = std::env::var("TARGET").unwrap_or_default();
             native.flag(if target.ends_with("-sim") {

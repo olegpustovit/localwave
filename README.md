@@ -82,7 +82,9 @@ pxui's framework host also builds experimentally for iOS. LocalWave's shared nat
 controller library now compile for iOS device/simulator, with an isolated simulator artwork/
 bookmark/callback check. The controller now connects worker-side audio-session activation,
 interruptions, route loss and media-service reset; actual device/background behavior remains
-unqualified. The full Rust iOS app loop and `make ios-run` are still unfinished; there is no installable Rust iOS LocalWave build yet.
+unqualified. The full Rust executable now builds for iOS device/simulator and passes an isolated
+simulator launch/draw/idle/shutdown check. Adaptive phone layout, native gestures, document grants
+and signing/install integration are unfinished. There is no working `make ios-run` yet.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 

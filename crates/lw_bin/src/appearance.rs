@@ -1,7 +1,7 @@
 //! Parsed themes are retained; system changes select a value without parsing in the frame loop.
-use lw_apple_sys::environment::Snapshot;
 use lw_core::preferences::{Appearance, Settings, Signal};
 use pxui::{FrameIn, Theme, Ui};
+use pxui_sdl::PreferencesSnapshot as Snapshot;
 
 pub struct Themes {
     themes: [[(Theme, Theme); 4]; 2],

@@ -7,9 +7,6 @@ pub mod collation;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod timing;
 
-#[cfg(target_os = "macos")]
-pub mod environment;
-
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod bookmarks;
 
@@ -66,7 +63,7 @@ pub fn require_worker_thread() -> std::io::Result<()> {
     }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod window;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]

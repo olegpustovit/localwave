@@ -1,5 +1,5 @@
 //! Application services owned by the library worker, separate from the frame loop.
-#[cfg(target_os = "macos")]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod appearance;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod controller;

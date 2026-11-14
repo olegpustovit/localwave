@@ -8,7 +8,10 @@ use lw_bin::{
     library::LibraryWorker,
 };
 use pxui::{FrameIn, Platform, Ui};
-use pxui_sdl::Window;
+use pxui_sdl::{
+    Window,
+    app::{Callback, Schedule, Signal},
+};
 
 extern "C" fn wake() {
     pxui_sdl::wake();
@@ -23,12 +26,21 @@ impl Drop for Fixture {
     }
 }
 
-fn run() -> Result<(), String> {
+struct App {
+    callback: Box<Callback>,
+    // Workers captured by the callback must stop before their temporary files are removed.
+    _fixture: Fixture,
+}
+
+fn open(window: &mut Window) -> Result<App, String> {
     // Two layout frames, then two complete wheel cycles before the measured cycles.
     const WARMUP_FRAMES: usize = 82;
     const MEASURED_FRAMES: usize = 100;
     let smoke = std::env::args().any(|arg| arg == "--smoke-test");
     let performance = std::env::args().any(|arg| arg == "--performance-check");
+    if cfg!(target_os = "ios") && performance {
+        return Err("The signed 1440x872 performance matrix requires the macOS host".into());
+    }
     let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
     let performance_find = std::env::args().any(|arg| arg == "--performance-find");
     let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
@@ -139,16 +151,28 @@ fn run() -> Result<(), String> {
         return Err("--performance-queue requires --performance-check".into());
     }
     mem_sys::set_peer(pxui::library_counter);
-    let mut window = Window::open_with("LocalWave", 1440, 872, true, false, true)?;
-    window.set_resizable(true)?;
-    let chrome = pxui_host::Chrome::open(window.token()?, (640.0, 480.0))
-        .map_err(|error| error.to_string())?;
-    window.resize(1440, 872)?;
-    let mut window_chrome = chrome.snapshot().map_err(|error| error.to_string())?;
-    let environment =
-        lw_apple_sys::environment::Environment::open(wake).map_err(|error| error.to_string())?;
+    #[cfg(target_os = "macos")]
+    let chrome = {
+        window.set_resizable(true)?;
+        let chrome = pxui_host::Chrome::open(window.token()?, (640.0, 480.0))
+            .map_err(|error| error.to_string())?;
+        window.resize(1440, 872)?;
+        chrome
+    };
+    #[cfg(target_os = "macos")]
+    let mut top_inset = chrome
+        .snapshot()
+        .map_err(|error| error.to_string())?
+        .top_inset;
+    #[cfg(target_os = "ios")]
+    let top_inset = 0.0;
+    let environment = window.preferences(wake)?;
     let mut preferences = environment.snapshot();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+    let mut ui = Ui::create(
+        Platform::Apple,
+        Some(if cfg!(target_os = "ios") { 18 } else { 15 }),
+        &[lw_ui::FONT, lw_ui::MONO],
+    );
     if performance_queue_drag || performance_artists || performance_song_indicators {
         ui.set_a11y(true);
     }
@@ -163,7 +187,7 @@ fn run() -> Result<(), String> {
     if trace_frames {
         ui.set_timing(true);
     }
-    let mut graphics = gpu::Graphics::open(&mut window, &ui)?;
+    let graphics = gpu::Graphics::open(window, &ui)?;
     let temporary = if smoke || performance {
         Some(
             lw_apple_sys::preferences::AppPaths::load()
@@ -270,7 +294,7 @@ fn run() -> Result<(), String> {
     .map_err(|error| error.to_string())?;
     // Workers do not inherit the UI's interactive QoS.
     lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
-    if smoke || performance {
+    if cfg!(target_os = "macos") && (smoke || performance) {
         let deadline = window.time() + 5.0;
         loop {
             player.poll().map_err(|error| error.to_string())?;
@@ -469,63 +493,82 @@ fn run() -> Result<(), String> {
     let mut file_drop = events::FileDrop::default();
     let mut files_catalog_revision = 0;
     let mut files_selection_revision = 0;
-    loop {
+    let mut graphics_slot = Some(graphics);
+    let callback: Box<Callback> = Box::new(move |window, signal| {
+        if signal == Signal::Finish {
+            if let Some(graphics) = graphics_slot.take() {
+                graphics.close()?;
+            }
+            return Ok(Schedule::Exit);
+        }
+        let graphics = graphics_slot
+            .as_mut()
+            .ok_or("App graphics have already closed")?;
+        if matches!(signal, Signal::Resumed | Signal::LowMemory) {
+            first = true;
+            return Ok(Schedule::NextFrame);
+        }
         if performance {
             mem_sys::local_reset();
         }
-        events.clear();
-        if !platform.pump(&mut window, &mut events)? {
-            break;
-        }
-        if let Some(error) = window.take_failure() {
-            return Err(error);
-        }
-        if performance_drop && frames >= 2 {
-            smoke::drop_events(frames - 2, &mut events);
-        }
-        for event in &mut events {
-            if let Some(drop) = file_drop.event(event, files.snapshot().account) {
-                command_error = match drop {
-                    Err(message) => Some(message),
-                    Ok(drop) => match files.drop_files(drop.user, drop.paths) {
-                        Ok(()) => {
-                            shell_state.apply(lw_ui::Intent::CloseQueue);
-                            shell_state
-                                .apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
-                            None
+        if signal == Signal::Frame && graphics.can_draw() {
+            events.clear();
+            if !platform.pump(window, &mut events)? {
+                if performance || (smoke && !smoke_finished) {
+                    return Err("Window closed before qualification finished".into());
+                }
+                return Ok(Schedule::Exit);
+            }
+            if let Some(error) = window.take_failure() {
+                return Err(error);
+            }
+            if performance_drop && frames >= 2 {
+                smoke::drop_events(frames - 2, &mut events);
+            }
+            for event in &mut events {
+                if let Some(drop) = file_drop.event(event, files.snapshot().account) {
+                    command_error = match drop {
+                        Err(message) => Some(message),
+                        Ok(drop) => match files.drop_files(drop.user, drop.paths) {
+                            Ok(()) => {
+                                shell_state.apply(lw_ui::Intent::CloseQueue);
+                                shell_state
+                                    .apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+                                None
+                            }
+                            Err(_) => Some(
+                                "Folder work is busy or unavailable. Wait or cancel it, then drop the files again.",
+                            ),
+                        },
+                    };
+                    error_revision += 1;
+                }
+            }
+            if let Some(selection) = events::folder_selection(&mut folder_picker, &mut events) {
+                command_error = match selection {
+                    Ok(None) => None,
+                    Ok(Some((purpose, path))) => match purpose {
+                        events::FolderPurpose::Add(user) => files.add_folder(user, path),
+                        events::FolderPurpose::Reconnect(target) => {
+                            files.reconnect_folder(target, path)
                         }
-                        Err(_) => Some(
-                            "Folder work is busy or unavailable. Wait or cancel it, then drop the files again.",
-                        ),
-                    },
+                    }
+                    .err()
+                    .map(|_| "Could not update this folder. Try again."),
+                    Err(message) => Some(message),
                 };
                 error_revision += 1;
             }
-        }
-        if let Some(selection) = events::folder_selection(&mut folder_picker, &mut events) {
-            command_error = match selection {
-                Ok(None) => None,
-                Ok(Some((purpose, path))) => match purpose {
-                    events::FolderPurpose::Add(user) => files.add_folder(user, path),
-                    events::FolderPurpose::Reconnect(target) => {
-                        files.reconnect_folder(target, path)
-                    }
-                }
-                .err()
-                .map(|_| "Could not update this folder. Try again."),
-                Err(message) => Some(message),
-            };
-            error_revision += 1;
-        }
-        if let Some(selection) = events::audio_selection(&mut audio_picker, &mut events) {
-            command_error = match selection {
-                Ok(None) => None,
-                Ok(Some((user, paths))) => files.add_audio(user, paths).err().map(
-                    |_| "Could not add these audio files. Folder work is busy or unavailable.",
-                ),
-                Err(message) => Some(message),
-            };
-            error_revision += 1;
+            if let Some(selection) = events::audio_selection(&mut audio_picker, &mut events) {
+                command_error = match selection {
+                    Ok(None) => None,
+                    Ok(Some((user, paths))) => files.add_audio(user, paths).err().map(
+                        |_| "Could not add these audio files. Folder work is busy or unavailable.",
+                    ),
+                    Err(message) => Some(message),
+                };
+                error_revision += 1;
+            }
         }
         let next_preferences = environment.snapshot();
         let preferences_changed = next_preferences != preferences;
@@ -557,9 +600,13 @@ fn run() -> Result<(), String> {
                 shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
             }
         }
+        if signal == Signal::Control || signal == Signal::Paused || !graphics.can_draw() {
+            first = true;
+            return Ok(Schedule::WaitUntil(None));
+        }
         let artwork_changed = artwork.poll();
         let artwork_updated = gpu::sync_artwork(
-            &mut graphics,
+            graphics,
             std::sync::Arc::as_ptr(&player.catalog().library) as usize,
             artwork.ready_images(),
         )?;
@@ -567,7 +614,7 @@ fn run() -> Result<(), String> {
         if performance && frames >= 2 && !performance_drop {
             if performance_settings {
                 expected_settings_intent =
-                    smoke::settings_events(frames - 2, window_chrome.top_inset, &mut events);
+                    smoke::settings_events(frames - 2, top_inset, &mut events);
             } else if performance_waveform {
                 smoke::waveform_events(frames - 2, &mut events);
             } else if performance_queue_drag {
@@ -605,19 +652,24 @@ fn run() -> Result<(), String> {
         let now = window.time();
         let current = window.extent();
         if current.drawable.0 <= 0 || current.drawable.1 <= 0 {
-            window.wait(
+            return Ok(Schedule::WaitUntil(
                 player
                     .poll_interval()
                     .map(|wait| window.time() + wait.as_secs_f64()),
-            );
-            continue;
+            ));
         }
         let resized = current != extent;
         if resized {
             extent = current;
-            window_chrome = chrome.snapshot().map_err(|error| error.to_string())?;
+            #[cfg(target_os = "macos")]
+            {
+                top_inset = chrome
+                    .snapshot()
+                    .map_err(|error| error.to_string())?
+                    .top_inset;
+            }
         }
-        shell_state.set_window_inset(window_chrome.top_inset as f32);
+        shell_state.set_window_inset(top_inset as f32);
         if performance && extent.logical != (1440, 872) {
             return Err("Performance qualification requires a 1440x872 logical window".into());
         }
@@ -648,7 +700,7 @@ fn run() -> Result<(), String> {
             };
             let build_started = std::time::Instant::now();
             gpu::configure_artwork(
-                &mut graphics,
+                graphics,
                 extent.logical.0 as f32,
                 extent.logical.1 as f32,
                 window.scale() as f32,
@@ -808,7 +860,7 @@ fn run() -> Result<(), String> {
             } else {
                 0
             };
-            platform.apply(&mut window, &ui)?;
+            platform.apply(window, &ui)?;
             let output_allocations = if trace_frames {
                 mem_sys::local_alloc_count() - before_output
             } else {
@@ -817,9 +869,18 @@ fn run() -> Result<(), String> {
             frames += 1;
             repaint = ui.repaint_at();
             if performance || ui.draw_revision() != revision {
-                if graphics.draw(&mut window, &ui, trace_frames.then_some(&mut gpu_trace))? {
+                if graphics.draw(window, &ui, trace_frames.then_some(&mut gpu_trace))? {
                     draws += 1;
                     revision = ui.draw_revision();
+                    if smoke && draws == 1 {
+                        println!(
+                            "LocalWave first frame: size={}x{} appearance={} reduced_motion={}",
+                            extent.logical.0,
+                            extent.logical.1,
+                            preferences.appearance,
+                            preferences.reduced_motion
+                        );
+                    }
                 } else {
                     repaint = Some(now + 1.0 / 60.0);
                 }
@@ -832,7 +893,7 @@ fn run() -> Result<(), String> {
                         player.status().wants_playback,
                         ui.tokens().foreground.r > 128,
                     ) else {
-                        continue;
+                        return Ok(Schedule::NextFrame);
                     };
                     intent
                 } else {
@@ -851,7 +912,7 @@ fn run() -> Result<(), String> {
                         .map(|_| "Folder work is busy or unavailable. Try again.");
                     error_revision += 1;
                     repaint = Some(now);
-                    continue;
+                    return Ok(Schedule::NextFrame);
                 }
                 if matches!(
                     intent,
@@ -902,7 +963,7 @@ fn run() -> Result<(), String> {
                         error_revision += 1;
                         repaint = Some(now);
                     }
-                    continue;
+                    return Ok(Schedule::NextFrame);
                 }
                 if intent == lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files) {
                     command_error = files
@@ -935,7 +996,7 @@ fn run() -> Result<(), String> {
                         .map(|_| "Could not open this link.");
                     error_revision += 1;
                     repaint = Some(now);
-                    continue;
+                    return Ok(Schedule::NextFrame);
                 }
                 let command = if shell_state.apply(intent) {
                     if matches!(
@@ -967,7 +1028,7 @@ fn run() -> Result<(), String> {
                                 .collection(player.catalog())
                                 .filter(|collection| index < collection.ids.len())
                             else {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             };
                             Command::Configure {
                                 songs: collection.ids.clone(),
@@ -979,7 +1040,7 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::PlayCommand(key) => {
                             let Some(results) = shell_state.command_results(player.catalog())
                             else {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             };
                             let Some(lw_ui::commands::Action::Play(index)) = results
                                 .items
@@ -987,10 +1048,10 @@ fn run() -> Result<(), String> {
                                 .find(|item| item.key == key)
                                 .map(|item| item.action)
                             else {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             };
                             if index >= results.songs.len() {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             }
                             let command = Command::Configure {
                                 songs: results.songs.clone(),
@@ -1003,7 +1064,7 @@ fn run() -> Result<(), String> {
                         }
                         lw_ui::Intent::TogglePins => {
                             let Some(group) = shell_state.collection(player.catalog()) else {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             };
                             let ids = if shell_state.route == lw_ui::catalog::Route::Find {
                                 let Some(summary) = player
@@ -1012,14 +1073,14 @@ fn run() -> Result<(), String> {
                                     .as_ref()
                                     .and_then(|view| view.find.as_ref())
                                 else {
-                                    continue;
+                                    return Ok(Schedule::NextFrame);
                                 };
                                 &summary.eligible
                             } else {
                                 &group.ids
                             };
                             if ids.is_empty() {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             }
                             Command::TogglePins(ids.clone())
                         }
@@ -1034,7 +1095,7 @@ fn run() -> Result<(), String> {
                                 .as_ref()
                                 .filter(|collection| !collection.ids.is_empty())
                             else {
-                                continue;
+                                return Ok(Schedule::NextFrame);
                             };
                             Command::ShuffleAll {
                                 songs: collection.ids.clone(),
@@ -1104,7 +1165,9 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::ShowPrivacy
                         | lw_ui::Intent::ClosePrivacy
                         | lw_ui::Intent::SettingsMenu(_, _)
-                        | lw_ui::Intent::CloseSettingsMenu => unreachable!("handled by ShellState"),
+                        | lw_ui::Intent::CloseSettingsMenu => {
+                            unreachable!("handled by ShellState")
+                        }
                         lw_ui::Intent::PrivacyPolicy | lw_ui::Intent::Support => {
                             unreachable!("handled above")
                         }
@@ -1118,7 +1181,9 @@ fn run() -> Result<(), String> {
                         lw_ui::Intent::SourceMenu(_, _)
                         | lw_ui::Intent::CloseSourceMenu
                         | lw_ui::Intent::ConfirmRemoveSource(_)
-                        | lw_ui::Intent::CloseRemoveSource => unreachable!("handled by ShellState"),
+                        | lw_ui::Intent::CloseRemoveSource => {
+                            unreachable!("handled by ShellState")
+                        }
                     })
                 };
                 let result = if let Some(request) = browse {
@@ -1305,7 +1370,9 @@ fn run() -> Result<(), String> {
         }
         if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
             let artwork_bytes = graphics.resident_image_bytes();
-            graphics.close()?;
+            if let Some(graphics) = graphics_slot.take() {
+                graphics.close()?;
+            }
             if trace_frames {
                 for (frame, (ready, keys, host, build, draw, gpu, output)) in
                     frame_trace.iter().enumerate()
@@ -1462,10 +1529,19 @@ fn run() -> Result<(), String> {
             {
                 return Err("Warm frame performance budget exceeded".into());
             }
-            return Ok(());
+            return Ok(Schedule::Exit);
         }
         let observed_at = if smoke { window.time() } else { now };
-        if smoke && smoke_check.observe(observed_at, frames, draws, repaint.is_some())? {
+        if smoke && !player.status().initialized && observed_at >= smoke_check.deadline() {
+            return Err("Library initialization timed out during qualification".into());
+        }
+        if smoke && player.status().initialized && !player.status().message.is_empty() {
+            return Err(player.status().message.to_string());
+        }
+        if smoke
+            && player.status().initialized
+            && smoke_check.observe(observed_at, frames, draws, repaint.is_some())?
+        {
             println!(
                 "LocalWave smoke: frames={frames} draws={draws} size={}x{} idle_ms={:.1}",
                 extent.logical.0,
@@ -1473,10 +1549,10 @@ fn run() -> Result<(), String> {
                 smoke_check.idle_ms(observed_at)
             );
             smoke_finished = true;
-            break;
+            return Ok(Schedule::Exit);
         }
         if performance {
-            continue;
+            return Ok(Schedule::NextFrame);
         }
         let deadline = if smoke {
             let deadline = smoke_check.deadline();
@@ -1487,15 +1563,44 @@ fn run() -> Result<(), String> {
         let progress = player
             .poll_interval()
             .map(|wait| window.time() + wait.as_secs_f64());
-        window.wait(match (deadline, progress) {
+        Ok(Schedule::WaitUntil(match (deadline, progress) {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
-        });
-    }
-    if performance || (smoke && !smoke_finished) {
-        return Err("Window closed before qualification finished".into());
-    }
-    graphics.close()
+        }))
+    });
+    Ok(App {
+        callback,
+        _fixture: fixture,
+    })
+}
+
+fn run() -> Result<(), String> {
+    let mut app: Option<App> = None;
+    let (width, height) = if cfg!(target_os = "ios") {
+        (390, 778)
+    } else {
+        (1440, 872)
+    };
+    pxui_sdl::app::run(
+        "LocalWave",
+        width,
+        height,
+        Box::new(move |window, signal| {
+            if signal == Signal::Initialize {
+                app = Some(open(window)?);
+                return Ok(Schedule::NextFrame);
+            }
+            if signal == Signal::Finish {
+                if let Some(mut app) = app.take() {
+                    (app.callback)(window, signal)?;
+                }
+                return Ok(Schedule::Exit);
+            }
+            (app.as_mut()
+                .ok_or("LocalWave was not initialized")?
+                .callback)(window, signal)
+        }),
+    )
 }
 
 fn main() {

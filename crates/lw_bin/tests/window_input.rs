@@ -853,7 +853,7 @@ fn system_preferences_use_appkit_notifications_and_cached_warm_reads() {
     let mut window =
         pxui_sdl::Window::open_with("LocalWave preferences check", 320, 240, false, true, true)
             .unwrap();
-    let environment = lw_apple_sys::environment::Environment::open(wake).unwrap();
+    let environment = window.preferences(wake).unwrap();
     let cover = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../Tests/LocalWaveDataTests/Fixtures/artwork-rgba.png");
     assert!(
@@ -872,7 +872,7 @@ fn system_preferences_use_appkit_notifications_and_cached_warm_reads() {
         );
     }
     assert!(
-        lw_apple_sys::environment::verify_notifications(),
+        sdl3_sys::preferences::verify_notifications(),
         "appearance KVO, workspace notifications, duplicate suppression and observer teardown"
     );
     drop(environment);

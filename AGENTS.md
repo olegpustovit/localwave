@@ -92,7 +92,7 @@ Native font discovery (ABI 1.6) lives in font_sys, an open std-only crate. CoreT
 
 Glyph atlas pages (ABI 1.7) are bounded to two fixed pages per mask/colour kind. Second mirrors/textures allocate only on first use; preserve old handles/UVs and in-flight/retained shelf protection. Atlas codes 2/3 and GLYPH_PAGE_2 select second pages without a draw break. Prepare must upload each newly active full mirror on the app's command buffer before partial uploads/draws; reset initialization after upload failure. Preserve CPU/public/native page-growth, eviction and warm allocation regressions. Bundle checks require the embedded dylib ID @rpath/libpxui.1.dylib and the app's sole rpath @executable_path/../Frameworks.
 
-FrameIn ABI 1.8 appends appearance/reduced_motion after the frozen 48-byte prefix; keep the legacy allocation test, partial-tail refusal, larger-descriptor bounds and matching static/dynamic validation. Keep the old layout row frozen and record complete versions separately. Host reduced motion overrides scoped themes, snaps active keyframes and restores authored flags when disabled. Parsed root themes use use_theme between frames, preserving owner/callback guards. The main-thread Environment caches AppKit KVO/workspace notifications, wakes only on changed facts, and removes observers before the SDL window dies. Do not poll OS/defaults in frames; saved settings come through worker-owned controller status. Cache both parsed themes, update native background only on reported change, and preserve cached-read/theme/native-pixel/allocation regressions.
+FrameIn ABI 1.8 appends appearance/reduced_motion after the frozen 48-byte prefix; keep the legacy allocation test, partial-tail refusal, larger-descriptor bounds and matching static/dynamic validation. Keep the old layout row frozen and record complete versions separately. Host reduced motion overrides scoped themes, snaps active keyframes and restores authored flags when disabled. Parsed root themes use use_theme between frames, preserving owner/callback guards. Window::preferences in pxui_sdl caches AppKit appearance KVO/workspace notifications or UIKit trait/reduced-motion notifications, wakes only on changed facts, and removes observers before the SDL window dies. Do not poll OS/defaults in frames; saved settings come through worker-owned controller status. Cache both parsed themes, update native background only on reported change, and preserve cached-read/theme/native-pixel/allocation regressions.
 
 ABI 1.9 exposes retained view opacity/scale/clip and measured virtual lists. Opacity is per instance; clip coordinates are window points and NULL clears the clip. Scale accepts finite zero/negative values and resets earlier rotation/fixed-pivot transforms. Equal control values must preserve transform-table storage and retained instances. Measured lists require an active frame, count <= 1,000,000, a finite positive estimate and finite estimated total; row callbacks use only their current borrowed UI handle and may repeat while measurements settle. Preserve static/dynamic validation, callback recovery, hit geometry, native pixels, draw counts and warm allocation checks.
 
@@ -409,8 +409,9 @@ palette and scrolling query hero are implemented; the toolbar alone does not qua
 
 Shared lw_apple_sys services and lw_bin controller/library/files/media compile for macOS and
 iOS. Keep target-specific bookmark options and AppKit/UIImage artwork paths in the native shim;
-Swift iOS bookmark creation uses implicit scope. Appearance/window and the GUI entry point still
-need iOS integration. Clang runtime selection belongs to pxui's metal_sys dependency; do not
+Swift iOS bookmark creation uses implicit scope. The GUI entry point uses the shared pxui_sdl::app callback contract; appearance/reduced motion
+monitoring belongs to the framework, not lw_apple_sys. Adaptive phone screens and native pickers
+still need integration. Clang runtime selection belongs to pxui's metal_sys dependency; do not
 restore the app build script that forced clang_rt.osx into iOS. The native-services example is
 a manual simulator/device-runtime diagnostic with isolated temporary files and private media
 fixtures, not an installable app or proof of provider grants/background audio. Preserve existing
@@ -430,3 +431,12 @@ are injected operations and synthetic notifications, not a physical-device/backg
 The future iOS app loop must service controller/session work on pxui_sdl::ios::Signal::Control
 even when Metal drawing is inactive. The framework owns the inactive wake/deadline timer;
 do not add app polling, a second display link or a UI build on this signal.
+
+
+The shared app callback builds/draws only for Signal::Frame. Resumed/LowMemory request a later
+frame; Paused/Control service the serialized controller and files status without consuming SDL
+input or uploading images. iOS worker wakes signal the framework CFRunLoop source directly,
+so background music controls cannot fill SDL's event queue. Preserve the nested-native-run-loop
+wake regression: a source consumed while busy must be re-posted after the control callback.
+The callback's resources must drop before its Fixture, and Finish closes GPU resources before
+UI/window teardown. macOS keeps its signed 1440x872, 182/82/100 qualification unchanged.

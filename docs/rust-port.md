@@ -10,11 +10,77 @@ pxui gallery before LocalWave's iOS UI/services adopt them.
 
 The next user-facing iOS milestone is the **full Rust LocalWave app**, not a gallery installer.
 There is currently **no working `make ios-run`**. Its planned scope is physical iPhone/iPad
-selection, Xcode automatic signing, build, install and launch. The app entry point and native
-services still need app-level iOS integration. Shared native services and the application controller
-library now build for iOS. Audio-session activation/notifications are connected to the controller;
-the GUI entry point, appearance/window integration and background app-loop qualification remain unfinished. No install ETA is established. A development certificate is present
+selection, Xcode automatic signing, build, install and launch. The full Rust GUI executable now
+builds for device/simulator and passes an isolated portrait simulator startup/draw/idle/shutdown
+check. Audio-session activation/notifications and cached system appearance are connected. Adaptive
+phone layout, gestures, document grants, signing/install and real background playback remain
+unfinished or unqualified. No install ETA is established. A development certificate is present
 locally; device discovery currently shows no physical iPhone/iPad.
+
+The latest layout request is width-driven adaptation on desktop and iOS using
+[this design reference](https://artifacts.microapps.space/a/mh0ydns8mzyg): preserve navigation and
+playback while switching sidebar/transport/Now into phone navigation, mini-player and expanded
+player. Current code only hides the player below 900 points, shrinks the sidebar and reflows some
+content. It does not yet implement that compact shell, and macOS's 640-point minimum prevents
+phone-width resizing. The reference itself selects desktop/mobile previews separately; its desktop
+preview scales. These prototype presentation mechanics are not the requested runtime behavior.
+
+### Full Rust iOS entry point and framework system preferences
+
+The real LocalWave executable now uses `pxui_sdl::app::run` on both platforms. Desktop retains
+its event wait; iOS returns to UIKit after each callback and draws only for `Signal::Frame`.
+Resume/memory callbacks request a later frame. Paused/control callbacks poll controller/session
+and files state without consuming SDL UI input, rebuilding views or uploading textures. Workers
+stop before the diagnostic Fixture is deleted; Finish closes graphics before UI/window teardown.
+No phone styling/layout was changed by this checkpoint.
+
+Cached Apple system facts moved completely from `lw_apple_sys::environment` into pxui's
+`sdl3_sys`/`Window::preferences`: existing AppKit KVO/workspace behavior is retained, while UIKit
+uses trait registration and reduced-motion notifications. Reads only copy an **8-byte** snapshot.
+LocalWave keeps theme and saved-setting policy. The application-specific help links can request
+UIKit URL opening; completion is asynchronous and real-device opening remains unqualified.
+
+iOS worker wakes now signal the retained framework run-loop source directly, avoiding queued
+SDL user events while inactive. An actual nested-native-run-loop regression first reproduced a
+lost wake behind the busy guard. Re-posting dirty inactive work after the control callback fixes
+it without reentering Rust. The failing log remains
+`/tmp/localwave-ios-app-loop-reentrant-before{,-stderr,-runner}.log`.
+
+Qualification:
+
+- The **full LocalWave app**, under a separate diagnostic bundle ID and isolated library/defaults,
+  draws at **390×844** and idles **516.5 ms** without new frames. Its temporary fixture is removed,
+  the process exits and stderr is empty. `/tmp/localwave-full-rust-ios-portrait{,-stderr,-runner}.log`.
+  The inspected screenshot `/tmp/localwave-full-rust-ios-portrait.png` shows the existing desktop
+  layout, including phone clipping/safe-area gaps; it is not a P7 visual pass. Earlier landscape
+  smoke checks also pass (`/tmp/localwave-ios-app-loop-smoke.log`).
+- Final production executable builds pass for arm64 simulator/device in **4.39/9.21 s**, iOS
+  **18.0**. `/tmp/localwave-ios-app-loop-{final-sim,production-device}-build.log`.
+- Native UIKit light→dark→light updates wake an idle loop; cached reads allocate no Rust memory.
+  Background worker, nested-source wake and deadline all run at frame 90 without drawing or warm
+  Rust allocations; the same PID resumes and finishes **182/82/100**, all measured frames zero.
+  `/tmp/localwave-ios-app-loop-prefs-lifecycle{,-stderr,-runner}.log`. Reduced-motion values are
+  sampled; actual iOS setting changes and device behavior remain unqualified.
+- **189 app checks pass, 14.948 s wall / 11.955 s case sum**, zero skips; **33 framework checks
+  pass, 9.895 / 3.022 s**, zero skips. The removed app worker-thread refusal check moved into the
+  framework suite. A focused initialization/frame-error and invalid-deadline cleanup check passes
+  **2.170 / 0.523 s**. Limits remain **5 s case / 60 s run**. Logs:
+  `/tmp/localwave-ios-app-loop-{app-final,sdk-final,initial-deadline}-tests.log`.
+- Scoped app all-target Clippy passes (**8.06 s**), as do framework host/iOS Clippy, dependency
+  and tier checks. Shape checking still reports the same **nine existing findings**, with no
+  exclusions. `/tmp/localwave-ios-app-loop-{app-clippy,sdk-host-clippy,sdk-ios-clippy,deps,tiers,shape}.log`.
+  The final initialization-deadline change also builds in the simulator executable (**4.54 s**),
+  `/tmp/localwave-ios-app-loop-checkpoint-build.log`.
+- The desktop 10,000-song diagnostic retains **182 frames / 82 warm-up / 100 measured**, both
+  Rust counters and **zero warm allocations**. Strict wall time still fails: maximum **1,797 µs**,
+  p50/p95/p99 **1,053/1,428/1,720 µs**. This unsigned debug diagnostic is not the 12-workload signed
+  qualification. The failure is retained at `/tmp/localwave-ios-app-loop-host-performance.log`;
+  no benchmark assertion changed and the 1 ms target remains deferred.
+
+Next: the actual adaptive shell requested above, then native touch/pickers and the full-app
+sign/install command. This checkpoint does not qualify physical audio, provider grants, iCloud,
+native allocations or the remaining P4/P5/P6/P7 requirements. The normal Mac GUI PID 69331 remains
+running and the shipping Swift app remains in place.
 
 ### iOS inactive control callbacks
 
@@ -1830,7 +1896,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Finder drops support mixed audio/folders, a passive overlay, cancellable import and ordered playback. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist drag/drop, live external drop grant qualification, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | Static arm64 SDL/Metal device/simulator builds; pipelines/transfers; display-link idle/deadline/worker wake; same-process background/resume; safe-area bounds and keyboard show/hide geometry; ABI 1.25 typed finger transport with native/static/dynamic zero-warm-allocation checks. Simulator gallery/keyboard probes retain 182/82/100 and zero warm Rust allocations. | Native widget gesture routing/feel, synchronized keyboard avoidance and editing/composition, responsive phone gallery, Dynamic Type, framework/XCFramework packaging, LocalWave iOS UI/services and every physical-device feel/performance gate. |
-| P7: iOS UI/ship | Shipping Swift iOS app retained; shared native services/controller libraries build for iOS device/simulator; isolated simulator native UIImage/bookmark/callback check passes. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
+| P7: iOS UI/ship | Shipping Swift iOS app retained; full Rust executable builds for device/simulator and draws/idles/exits with isolated state at 390×844. Shared native services/controller and native UIImage/bookmark/callback checks pass. Cached native appearance and audio-session control are integrated. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
 
 Accessibility names are set as views are created. Native macOS/iOS accessibility bridges are explicitly deferred by the supplied plan; the Rust scaffold does not provide VoiceOver parity. The shipping Swift app must remain available during migration.
 
