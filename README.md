@@ -85,7 +85,8 @@ interruptions, route loss and media-service reset; actual device/background beha
 unqualified. The full Rust executable now builds for iOS device/simulator and passes an isolated
 simulator launch/draw/idle/shutdown check. Below 620 points the UI switches to phone navigation,
 virtual lists, a mini-player and an expanded player; macOS can resize down to 320 points. Native
-gestures, document grants and signing/install integration remain unfinished. There is no working `make ios-run` yet.
+gestures and document grants remain unfinished. The full-app signing/install command is implemented;
+its simulator path is qualified, while the physical USB path still needs a connected iPhone/iPad.
 
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 
@@ -104,6 +105,38 @@ make performance            # twelve signed workloads: allocation/time/idle gate
 The adaptive checkpoint passes 192 bounded app checks; timings and native qualification are recorded in [the port log](docs/rust-port.md). Songs and Artists use worker-prepared SwiftUI desktop columns, adaptive headings, wrapped numeric cells and measured virtual rows, and shared labels use explicit pxui line boxes with checked CoreText baselines at 1×/2×. Albums has the measured Artist/Year/Size toolbar, correct gallery spacing and functional Shuffle all. Album orders and header summaries are prepared on the worker. Intrinsic text widths and wrapped player bylines match measured native SwiftUI components; artist/album links open their library contexts. Albums and Artists scroll their page headings with the rows; Artists pins its column heading, and overlay scroll layout preserves the content width. Page entrances, changing matrix digits, playing bars and file-state pops animate through retained views and respect reduced motion. Find now displays worker-prepared matching song/album/folder counts; its offline-action service is implemented, with the remaining Find toolbar binding still pending. Full screenshot parity and the remaining reference layouts are unfinished.
 
 All twelve signed 10,000-song workloads record zero warm Rust allocations, including the 10,000-artist table and 10,000-path Files directory. Playing and paused song bars are covered while scrolling. The artwork gallery also has zero warm requests. The strict 1 ms wall maximum still fails; zero allocations refers to warm Rust UI frames, and native/process memory remains unqualified. The rust-port branch pins the matching published pxui commit; clone with submodules, or run `git submodule update --init --recursive` after pulling. See [Rust port qualification](docs/rust-port.md) for measured results and remaining work.
+
+## Rust iOS development
+
+The full Rust app installs as **LocalWave Dev**, using a separate bundle ID and library so the
+shipping Swift app stays available. This is experimental: native file pickers, touch behavior,
+keyboard adaptation and phone visual parity are still being ported.
+
+```sh
+make ios-run                            # paired USB iPhone/iPad: build, sign, install, launch
+make ios-run IOS_DEVICE=simulator       # explicitly use one booted iPhone/iPad simulator
+make ios-build                          # unsigned arm64 device app, without installing
+make ios-build IOS_SDK=iphonesimulator  # signed simulator app, without installing
+```
+
+Use a Mac with full Xcode selected, Rust/rustup, Python 3, CMake and pkg-config; simulator runs
+require Apple Silicon (the produced packages are arm64). Devices require iOS 18 or newer, Developer Mode and trust for this Mac.
+Add your Apple account in Xcode Settings → Accounts before the first device run. The command
+finds a development team from valid signing identities and lets
+[Xcode manage development signing and profiles](https://developer.apple.com/help/account/provisioning-profiles/create-a-development-provisioning-profile).
+Apple account setup, keychain unlocks and device trust still require the device/account owner.
+
+If several devices or teams are available, set `IOS_DEVICE=<UDID>` or `IOS_TEAM_ID=<team ID>`.
+`IOS_BUNDLE_ID` can select another development identifier; the shipping Swift identifier is
+refused. iOS targets default to the optimized debug profile; `make ios-build PROFILE=release` selects release.
+Rust/SDL caches stay in `target/`; Xcode packaging uses `target/ios`. Device builds without
+signing go into `target/ios/Build/Products/Debug-iphoneos-unsigned/LocalWave.app`.
+
+The command builds the actual `lw_bin` executable with static pxui/SDL, compiles the existing app
+icon/privacy resources and verifies executable UUID, architecture, platform, deployment floor,
+system-only dependencies and signatures before installation. The simulator build/install/launch
+path is verified; automatic provisioning, installation and launch on physical hardware remain
+unqualified because no iPhone/iPad is connected. An unsigned device build alone is not installable.
 
 ## Development
 

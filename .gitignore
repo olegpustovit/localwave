@@ -55,3 +55,6 @@ Package.resolved
 
 # Rust build products and bundled native dependencies
 target/
+
+# Python command checks
+__pycache__/

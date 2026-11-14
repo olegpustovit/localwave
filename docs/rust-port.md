@@ -8,13 +8,77 @@ remain requirements. Existing latency measurements and benchmark assertions are 
 the recorded wall-time failures are not passes. iOS capabilities are qualified in framework probes and integrated into the full LocalWave app.
 
 The next user-facing iOS milestone is the **full Rust LocalWave app**, not a gallery installer.
-There is currently **no working `make ios-run`**. Its planned scope is physical iPhone/iPad
-selection, Xcode automatic signing, build, install and launch. The full Rust GUI executable now
-builds for device/simulator and passes an isolated portrait simulator startup/draw/idle/shutdown
-check. Audio-session activation/notifications and cached system appearance are connected. The
-compact adaptive shell is implemented below 620 points. Native gestures, document grants,
-signing/install, visual parity and real background playback remain unfinished or unqualified. No install ETA is established. A development certificate is present
-locally; device discovery currently shows no physical iPhone/iPad.
+`make ios-run` now builds the full executable, packages it with Xcode, selects a paired USB
+iPhone/iPad and requests automatic development signing, install and launch. Explicit
+`IOS_DEVICE=simulator` uses a booted iPhone/iPad simulator; this path is qualified. **Physical
+USB signing/install remains unqualified** because discovery still finds no phone/tablet. The
+full Rust GUI builds for device/simulator and passes isolated portrait startup/draw/idle/shutdown.
+Audio-session activation/notifications and cached system appearance are connected. Compact layout
+is implemented below 620 points. Native gestures, keyboard behavior, document grants, visual
+parity and real background playback remain unfinished or unqualified. No full-app/device readiness
+ETA is established. The shipping Swift app remains available.
+
+### Full-app iOS development packaging and install command
+
+New `packaging/ios.py` backs **make ios-build / make ios-run**, with optimized debug as the iOS
+default and the existing shared `target/`. The small Xcode app target copies the actual Cargo
+`lw_bin --bin localwave --features pxui/static` executable, and reuses the app icon/privacy
+resources. There is no additional Swift/ObjC launcher or app-specific renderer. It requests audio
+background mode and the existing **18.0** deployment floor. `LocalWave Dev` uses
+`com.olegpustovit.localwave.rust`, a separate app/library; the shipping Swift bundle ID is refused.
+
+- Default run selection accepts one paired **wired iPhone/iPad**, never a Watch, network-only
+  device or simulator. Both the older devicectl dictionaries and newer properties schema are
+  supported. Explicit UDIDs disambiguate destinations; explicit simulator selection can boot an
+  available iOS simulator. The default USB path never silently installs in the simulator.
+- Team discovery matches **valid private-key identities** to public certificate fingerprints
+  and reads the team from **OU**, not the certificate common-name suffix. The actual local
+  development identity resolves to **7ZH3FYV964**; another expired certificate is ignored.
+  Explicit IOS_TEAM_ID or the packaging project's configured team supports Xcode-managed
+  certificate creation. Automatic signing uses allowProvisioningUpdates and
+  allowProvisioningDeviceRegistration. Xcode account setup, keychain unlock, device trust and
+  Developer Mode remain owner actions.
+- Before install, checks match the packaged executable UUID to Cargo's binary, require arm64,
+  the correct iOS/simulator platform and 18.0 floor, system-only dylib links, icon/privacy resources
+  and valid signatures. A signed device package must contain a provisioning profile. These checks
+  do not substitute for a successful physical-device install. Unsigned device products have a
+  separate **Debug-iphoneos-unsigned** output path so an older signed run cannot contaminate them.
+- **Ten offline command checks pass in 0.015 s**. They cover old/new discovery schemas,
+  Watch/WiFi/simulator exclusion, ambiguity, valid-identity OU parsing, configured/explicit team
+  selection, static full-app Cargo/Xcode command construction, bundle/UUID/platform/dylib/profile
+  rejection, shipping-ID refusal and argument forwarding/install-before-launch. They run in
+  `make check` and the Verify Rust job; the workflow change has not run remotely.
+  `/tmp/localwave-ios-command-qualification-tests.log`.
+
+Actual qualification uses **full LocalWave**, not the gallery:
+
+- `make ios-run IOS_DEVICE=simulator` builds, ad hoc signs, installs and launches the full app on
+  iPhone 16e / iOS 18.6. The first run PID **87531** was observed alive;
+  the inspected `/tmp/localwave-ios-command-running.png` shows the actual compact UI at **390×844**.
+  The final packaging run launches PID **88250**, then terminates only this development app for
+  the isolated smoke below.
+  `/tmp/localwave-ios-packaging-final-simulator-run.log`.
+- The same packaged executable then passes the isolated smoke: **16 frames / 16 draws**, **516.5 ms**
+  idle with no new frames, empty stderr, temporary fixture removed and process **88453** gone.
+  `/tmp/localwave-ios-command-smoke{,-stderr,-runner}.log` and inspected `-smoke.png`.
+- `make ios-build` produces and verifies an **unsigned arm64 iOS device app**. It is not installable
+  without signing. `/tmp/localwave-ios-packaging-final-device-build.log`.
+- Warm complete build/package/verification wall times are **4.10 s simulator / 1.94 s device**,
+  using existing Rust/SDL caches, not clean builds.
+  `/tmp/localwave-ios-command-{simulator,device}-warm-build.log`. Release command routing is checked;
+  the native release profile was not rebuilt in this checkpoint.
+- Actual default `make ios-run` fails before building/signing with the correct no-USB-phone message;
+  discovery still contains only a physical Watch plus simulators. No physical provisioning,
+  install/launch, playback, file-provider permissions or gesture feel is qualified by these mocks
+  or simulator runs. `/tmp/localwave-ios-no-usb-device.log`.
+
+The initial xcconfig conversion incorrectly quoted the supported-platforms list and failed to
+find an iOS simulator destination; the failed log remains
+`/tmp/localwave-ios-script-simulator-build.log`. The fixed shared xcconfig builds both platforms.
+macOS make targets still default to release. No Rust runtime or benchmark assertions changed;
+1 ms remains deferred, native memory remains unqualified, and normal Mac GUI PID **69331** stays
+running without touching its library/defaults. Next: native document-picker grants and touch/
+keyboard work, then physical installation and full phone qualification.
 
 ### Width-driven adaptive shell
 
@@ -77,7 +141,7 @@ or defaults changes. Manual app runs use a separate diagnostic bundle and isolat
 
 The reference itself selects desktop/mobile previews separately and scales its desktop preview;
 LocalWave's behavior is automatic reflow. Remaining phone parity, gesture/keyboard work, native
-pickers and the full-app sign/install command are still open. Shipping Swift remains available.
+pickers and physical sign/install qualification are still open. Shipping Swift remains available.
 
 ### Full Rust iOS entry point and framework system preferences
 
@@ -1950,7 +2014,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Finder drops support mixed audio/folders, a passive overlay, cancellable import and ordered playback. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist drag/drop, live external drop grant qualification, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | Static arm64 SDL/Metal device/simulator builds; pipelines/transfers; display-link idle/deadline/worker wake; same-process background/resume; safe-area bounds and keyboard show/hide geometry; ABI 1.25 typed finger transport with native/static/dynamic zero-warm-allocation checks. Simulator gallery/keyboard probes retain 182/82/100 and zero warm Rust allocations. | Native widget gesture routing/feel, synchronized keyboard avoidance and editing/composition, responsive phone gallery, Dynamic Type, framework/XCFramework packaging, LocalWave iOS UI/services and every physical-device feel/performance gate. |
-| P7: iOS UI/ship | Shipping Swift iOS app retained; full Rust executable builds for device/simulator and draws/idles/exits with isolated state at 390×844. Shared native services/controller and native UIImage/bookmark/callback checks pass. Cached native appearance and audio-session control are integrated. | Finish phone reference parity and native gestures/keyboard, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
+| P7: iOS UI/ship | Shipping Swift iOS app retained; full Rust executable builds for device/simulator and draws/idles/exits with isolated state at 390×844. Shared native services/controller and native UIImage/bookmark/callback checks pass. Cached native appearance and audio-session control are integrated. The full-app make ios-run and Xcode packaging exist; simulator install/launch and unsigned device bundle checks pass. | Qualify USB automatic signing/install on hardware; finish phone reference parity and native gestures/keyboard, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |
 
 Accessibility names are set as views are created. Native macOS/iOS accessibility bridges are explicitly deferred by the supplied plan; the Rust scaffold does not provide VoiceOver parity. The shipping Swift app must remain available during migration.
 

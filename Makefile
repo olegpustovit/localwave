@@ -3,7 +3,7 @@ APPDIR ?= /Applications
 CARGOFLAGS = $(if $(filter release,$(PROFILE)),--release)
 PRODUCTS = target/$(if $(filter release,$(PROFILE)),release,debug)
 
-.PHONY: lib build bundle install check performance
+.PHONY: lib build bundle install check performance ios-build ios-run
 
 target/sdl/lib/libSDL3.a:
 	packaging/build-sdl-macos.sh
@@ -25,6 +25,7 @@ install: bundle
 	ditto target/bundle/LocalWave.app '$(APPDIR)/LocalWave.app'
 
 check: target/sdl/lib/libSDL3.a
+	python3 packaging/test_ios.py
 	cargo t -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin
 	tools/check-pxui-remote.sh
 
@@ -45,3 +46,12 @@ performance: bundle
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artists || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-indicators || performance_result=1; \
 	  exit "$$performance_result"
+
+# iOS development builds use the shared target/ and keep the shipping Swift app installed.
+ios-build ios-run: PROFILE = debug
+
+ios-build:
+	python3 packaging/ios.py build --profile '$(PROFILE)'
+
+ios-run:
+	python3 packaging/ios.py run --profile '$(PROFILE)'

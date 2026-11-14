@@ -450,3 +450,20 @@ in lw_ui. Native safe-area insets apply to both compositions. Keep Files tools w
 prepared worker labels, shared seek/volume behavior and the 10,000-song resize/scroll allocation
 regressions. These checks do not qualify native touch arbitration, keyboard avoidance or phone
 screenshot parity. Preserve the original signed 1440x872 performance workloads and timing limits.
+
+
+The full Rust iOS packaging command is packaging/ios.py, exposed by make ios-build / make ios-run.
+iOS defaults to optimized debug; keep Rust/SDL in the shared target/ and Xcode derived products in
+target/ios. The small packaging/ios/LocalWave.xcodeproj copies the real Rust executable and reuses
+app icons/privacy resources; it contains no Swift/ObjC launcher or UI implementation. It must
+verify the Cargo executable UUID, arm64, iOS/simulator platform, 18.0 floor and system-only dylib
+links before install. Simulator packages are ad hoc signed; physical run uses Xcode automatic
+provisioning/device registration and a valid development team from certificate OU, never its CN
+suffix. Support both devicectl JSON schemas; auto-selection must choose a paired wired iPhone/iPad,
+not a Watch, network-only device or simulator. Explicit IOS_DEVICE=simulator selects a booted iOS
+simulator. Ambiguity requires an explicit ID. Keep unsigned device products separate from signed
+run products to prevent inherited signatures/profiles. LocalWave Dev uses a distinct bundle ID and
+library; refuse the shipping Swift bundle ID until the migration gates allow replacement. Retain
+packaging/test_ios.py's fast offline selection/signing/command/bundle checks in make check. Physical
+USB provisioning/install is unqualified until an actual phone/tablet passes; command mocks are not
+hardware evidence. Remaining native pickers/gestures/keyboard/visual gates still apply.

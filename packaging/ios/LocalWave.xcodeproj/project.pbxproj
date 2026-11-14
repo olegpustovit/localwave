@@ -1,0 +1,59 @@
+// !$*UTF8*$!
+{
+    archiveVersion = 1;
+    classes = {};
+    objectVersion = 56;
+    objects = {
+        A00000000000000000000001 = {
+            isa = PBXProject;
+            attributes = { LastUpgradeCheck = 2700; TargetAttributes = { A00000000000000000000002 = { ProvisioningStyle = Automatic; }; }; };
+            buildConfigurationList = A00000000000000000000010;
+            compatibilityVersion = "Xcode 14.0";
+            developmentRegion = en;
+            knownRegions = (en, Base);
+            mainGroup = A00000000000000000000003;
+            productRefGroup = A00000000000000000000004;
+            projectDirPath = "";
+            projectRoot = "";
+            targets = (A00000000000000000000002);
+        };
+        A00000000000000000000002 = {
+            isa = PBXNativeTarget;
+            buildConfigurationList = A00000000000000000000011;
+            buildPhases = (A00000000000000000000005, A00000000000000000000006);
+            buildRules = ();
+            dependencies = ();
+            name = LocalWave;
+            productName = LocalWave;
+            productReference = A00000000000000000000007;
+            productType = "com.apple.product-type.application";
+        };
+        A00000000000000000000003 = { isa = PBXGroup; children = (A00000000000000000000016, A00000000000000000000008, A00000000000000000000009, A00000000000000000000004); sourceTree = "<group>"; };
+        A00000000000000000000004 = { isa = PBXGroup; children = (A00000000000000000000007); name = Products; sourceTree = "<group>"; };
+        A00000000000000000000005 = {
+            isa = PBXShellScriptBuildPhase;
+            buildActionMask = 2147483647;
+            files = ();
+            inputPaths = ("$(LOCALWAVE_RUST_EXECUTABLE)");
+            outputPaths = ("$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)");
+            name = "Copy full Rust executable";
+            runOnlyForDeploymentPostprocessing = 0;
+            shellPath = /bin/sh;
+            shellScript = "set -eu\nmkdir -p \"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH\"\ncp \"$LOCALWAVE_RUST_EXECUTABLE\" \"$TARGET_BUILD_DIR/$EXECUTABLE_PATH\"\n";
+        };
+        A00000000000000000000006 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000A, A0000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
+        A00000000000000000000007 = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalWave.app; sourceTree = BUILT_PRODUCTS_DIR; };
+        A00000000000000000000008 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ../../localwave/Assets.xcassets; sourceTree = SOURCE_ROOT; };
+        A00000000000000000000009 = { isa = PBXFileReference; lastKnownFileType = text.xml; path = ../../localwave/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
+        A0000000000000000000000A = { isa = PBXBuildFile; fileRef = A00000000000000000000008; };
+        A0000000000000000000000B = { isa = PBXBuildFile; fileRef = A00000000000000000000009; };
+        A00000000000000000000010 = { isa = XCConfigurationList; buildConfigurations = (A00000000000000000000012, A00000000000000000000013); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+        A00000000000000000000011 = { isa = XCConfigurationList; buildConfigurations = (A00000000000000000000014, A00000000000000000000015); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
+        A00000000000000000000012 = { isa = XCBuildConfiguration; baseConfigurationReference = A00000000000000000000016; buildSettings = {}; name = Debug; };
+        A00000000000000000000013 = { isa = XCBuildConfiguration; baseConfigurationReference = A00000000000000000000016; buildSettings = {}; name = Release; };
+        A00000000000000000000016 = { isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = LocalWave.xcconfig; sourceTree = SOURCE_ROOT; };
+        A00000000000000000000014 = { isa = XCBuildConfiguration; buildSettings = {}; name = Debug; };
+        A00000000000000000000015 = { isa = XCBuildConfiguration; buildSettings = {}; name = Release; };
+    };
+    rootObject = A00000000000000000000001;
+}
