@@ -142,10 +142,298 @@ pub(super) fn toolbar(
     spacer(ui, "album-tools-bottom", 13.0);
 }
 
+pub(super) fn gallery(
+    ui: &mut Ui,
+    catalog: &Catalog,
+    state: &ShellState,
+    player: &PlayerView<'_>,
+    width: f32,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
+    let mut revision = DefaultHasher::new();
+    (
+        state.revision,
+        player.current_id,
+        player.artwork.map_or(0, crate::artwork::Images::revision),
+        std::sync::Arc::as_ptr(&catalog.library) as usize,
+    )
+        .hash(&mut revision);
+    let row_revision = revision.finish();
+    let entry = crate::motion::Page::new(ui, state.entry_revision);
+    let groups = &catalog.albums;
+    let order = &catalog.album_orders[state.album_sort as usize];
+    let available = (width - 64.0).max(1.0);
+    let columns = ((available + 20.0) / 170.0).floor().max(1.0) as usize;
+    let cell = (available - (columns - 1) as f32 * 20.0) / columns as f32;
+    let card_height = cell + 43.7;
+    ui.section_list(
+        "groups",
+        &SectionList {
+            count: groups.len().div_ceil(columns),
+            row_height: card_height + 28.0,
+            leading_height: 172.6,
+            header_height: 0.0,
+            trailing_height: 12.0,
+            overlay_scrollbar: true,
+        },
+        &mut |ui, part| match part {
+            SectionPart::Leading => {
+                header_view(ui, catalog, state, width, p, intent);
+                spacer(ui, "gallery-top-gap", 22.0);
+            }
+            SectionPart::Header => {}
+            SectionPart::Row(line) => {
+                let inset = ui.node(
+                    "gallery-inset",
+                    Node {
+                        w: Size::Grow,
+                        h: Size::Grow,
+                        padding: Edges {
+                            l: 32.0,
+                            r: 32.0,
+                            ..Edges::ZERO
+                        },
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.within(&inset, &mut |ui| {
+                    let row = ui.node(
+                        "group-row",
+                        Node {
+                            axis: Axis::Row,
+                            gap: 20.0,
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&row, &mut |ui| {
+                        for (column, index) in order
+                            .iter()
+                            .copied()
+                            .skip(line * columns)
+                            .take(columns)
+                            .enumerate()
+                        {
+                            let holder = ui.node_keyed(
+                                int_key(row.box_key, index as i64),
+                                Node {
+                                    w: Size::Px(cell),
+                                    h: Size::Px(card_height),
+                                    ..Node::DEFAULT
+                                },
+                            );
+                            ui.within(&holder, &mut |ui| {
+                                let group = &groups[index];
+                                let visual = ui.view(
+                                    "group-visual",
+                                    row_revision,
+                                    Size::Grow,
+                                    Size::Grow,
+                                    &mut |ui| {
+                                        let node = ui.node(
+                                            "group",
+                                            Node {
+                                                flags: CLICKABLE | TAB_STOP,
+                                                w: Size::Grow,
+                                                h: Size::Grow,
+                                                role: Role::Button,
+                                                padding: Edges::ZERO,
+                                                ..Node::DEFAULT
+                                            },
+                                        );
+                                        ui.a11y_name(&node, &group.title);
+                                        let signal = ui.signal_state(&node);
+                                        ui.set_look(
+                                            &node,
+                                            Look {
+                                                fill: p.paper,
+                                                ..Look::NONE
+                                            },
+                                            State::default(),
+                                        );
+                                        ui.within(&node, &mut |ui| {
+                                            let art = container(
+                                                ui,
+                                                "artwork",
+                                                Axis::Stack,
+                                                Size::Grow,
+                                                Size::Px(cell),
+                                                p.panel,
+                                            );
+                                            paint_artwork(
+                                                ui,
+                                                &art,
+                                                group.artwork_row.map(|index| catalog.row(index)),
+                                                cell,
+                                                player.artwork,
+                                            );
+                                            ui.a11y_name(&art, "Album artwork");
+                                            spacer(ui, "artwork-label-gap", 8.0);
+
+                                            let name = text(
+                                                ui,
+                                                "name",
+                                                &group.title,
+                                                14,
+                                                p.ink,
+                                                (Size::Grow, 17.5),
+                                                false,
+                                            );
+                                            ui.text_line_box(
+                                                &name,
+                                                &group.title,
+                                                &pxui::TextStyle {
+                                                    size_points: 14.0,
+                                                    line_height: 17.5,
+                                                    weight: 500,
+                                                    max_lines: 1,
+                                                    ellipsis: pxui::TextStyle::ELLIPSIS_END,
+                                                    ..Default::default()
+                                                },
+                                                &[],
+                                            )
+                                            .unwrap();
+                                            text(
+                                                ui,
+                                                "artist",
+                                                &group.subtitle,
+                                                13,
+                                                p.secondary,
+                                                (Size::Grow, 18.2),
+                                                false,
+                                            );
+                                        });
+                                        if signal.clicked {
+                                            *intent = Some(Intent::Navigate(Route::Album(index)));
+                                        }
+                                    },
+                                );
+                                entry.row(ui, &visual, line * columns + column);
+                            });
+                        }
+                    });
+                });
+            }
+        },
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use pxui::{FrameIn, Platform};
+
+    #[test]
+    fn album_heading_and_toolbar_scroll_with_virtual_cards_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = Catalog::new(
+            (0..10_000)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Track {id}"),
+                    artist: "Artist".into(),
+                    album: format!("Album {id:05}"),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(Route::Albums));
+        let player = PlayerView::default();
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            reduced_motion: 1,
+            ..Default::default()
+        };
+        for _ in 0..3 {
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, &catalog, &state, &mut None)
+            })
+            .unwrap();
+        }
+        let list = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(Role::List) && node.rect.x >= 232.0 && node.rect.w > 500.0)
+            .unwrap();
+        assert_eq!(
+            (list.rect.x, list.rect.y, list.rect.w, list.rect.h),
+            (232.0, 0.0, 888.0, 800.0)
+        );
+        let id = list.id;
+        for cycle in 0..10 {
+            mem_sys::local_reset();
+            for delta in [200.0, -200.0] {
+                ui.inject_a11y(&[pxui::A11yAction {
+                    id,
+                    action_code: 8,
+                    payload: delta,
+                    ..Default::default()
+                }]);
+                frame.time += 0.1;
+                ui.frame(&frame, &mut |ui| {
+                    shell(ui, &player, &catalog, &state, &mut None)
+                })
+                .unwrap();
+                let offset = if delta > 0.0 { 200.0 } else { 0.0 };
+                let title = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| {
+                        node.is_role(Role::Label)
+                            && ui.a11y_name_of(node) == "Albums"
+                            && node.rect.x >= 232.0
+                    })
+                    .unwrap();
+                assert!(
+                    (title.rect.y - 28.0 + offset).abs() < 0.001,
+                    "scrolling page title: {:?}",
+                    title.rect
+                );
+                let sort = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == "Year")
+                    .unwrap();
+                assert!(
+                    (sort.rect.y - 105.6 + offset).abs() < 0.001,
+                    "toolbar must scroll out: {:?}",
+                    sort.rect
+                );
+                let art = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| ui.a11y_name_of(node) == "Album artwork")
+                    .unwrap();
+                assert!(
+                    (art.rect.y - 172.6 + offset).abs() < 0.001,
+                    "cards share the same scroll offset: {:?}",
+                    art.rect
+                );
+                let drawn = ui
+                    .a11y_nodes()
+                    .iter()
+                    .filter(|node| ui.a11y_name_of(node) == "Album artwork")
+                    .count();
+                assert!(
+                    (8..40).contains(&drawn),
+                    "only visible cards plus overscan: {drawn}"
+                );
+            }
+            if cycle >= 3 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm 10,000-album page/header/card scrolling"
+                );
+            }
+        }
+    }
 
     #[test]
     fn album_toolbar_positions_sorts_routes_and_reuses_warm_frames() {

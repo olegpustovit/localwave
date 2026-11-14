@@ -356,3 +356,11 @@ first item and duplicate occurrences, through the existing Configure/lease/persi
 Keep ordinary Shuffle semantics separate. Preserve muted native queue/persistence and warm UI
 checks. Reference shuffle paths use bounded analytic curves in the existing pipeline, with
 less than 0.04-pixel cubic approximation deviation at 16/20 points and 1x/2x.
+
+
+Albums and Artists use pxui ABI 1.20 section_list: page headings scroll with the content,
+Artists column headings pin, and overlay thumbs reserve no content gutter. Retain the page
+heading separately from changing playback/artwork revisions. Gallery and table rows keep their
+existing identities/entrances, overscan and worker-prepared data. Preserve the full-width gallery
+rule, 172.6/105.6-point lead-ins, 37.3-point artist heading, fractional row stride, and warm
+accessible scrolling checks. Song/detail/Find scroll and layout parity remain unfinished.

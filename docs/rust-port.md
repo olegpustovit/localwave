@@ -2,6 +2,128 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## SwiftUI scrolling sections and retained geometry checkpoint
+
+Albums and Artists now use one scroll region for the page heading and rows. The Albums title,
+Artist/Year/Size toolbar and gallery scroll together. Artists keeps its page title in the scroll
+content while its **37.3-point** opaque column heading pins above the rows. Blank heading padding
+blocks row clicks underneath; wheel input still reaches the containing scroll region. Overlay
+scroll layout reserves no gutter, preserving the full content width and rightmost gallery column.
+
+The measured initial positions remain **172.6 points** for album artwork and **142.9 points** for
+the first artist row (105.6-point lead-in plus heading). Gallery spacing preserves fractional row
+strides. The album header rule now spans the full content width, matching the native reference.
+The Artists Refresh control, absent in SwiftUI, has been removed. A pending artist projection
+keeps the page title and original 32-point loading inset until the prepared table arrives.
+
+pxui **ABI 1.20** adds `Ui::section_list` / `pxui_ui_section_list`, reusing existing sticky,
+blocking and scroll layout. It builds only visible fixed-height rows plus bounded overscan,
+with separate lead-in, heading and trailing extents; there is no storage proportional to song
+count. C descriptor validation, sentinel callbacks and borrowed-handle guards match the public
+static/dynamic wrapper. Existing row identities, retained artwork and entrance motion remain.
+The page heading has its own retained view, independent of playback clock/artwork revisions.
+
+The app's new scroll assertions exposed stale geometry when an entire heading left the clip.
+pxui now updates culled retained-view geometry without adding offscreen draw runs, and composes
+its rectangle/accessibility queries. Accessibility visibility includes the composed clip; clip
+bounds participate in retained tree identity. Indexed and flat cached headings, including an
+explicit clip ancestor, pass accessible scroll-out/return with zero warm Rust allocations.
+The first attempted fix visited all unclipped children, exceeding the existing **1,024-instance**
+long-scroll storage bound. That implementation was replaced; the original bound now passes.
+Its failing evidence remains `/tmp/localwave-section-sdk-matrix.log`, followed by the focused
+passing `/tmp/localwave-section-budget-regression.log`.
+
+### Checks
+
+- **336 engine/text/ABI/type checks pass**, **17.048 s wall / 14.020 s summed**, zero skips:
+  `/tmp/localwave-section-sdk-visibility-final-matrix.log`. The full static wrapper passes
+  **62 checks**, **6.343 s wall / 1.963 s summed**:
+  `/tmp/localwave-section-sdk-static-matrix.log`.
+- Native Metal **1×/2×** pixels pass for scrolling cached lead-in, opaque pinned heading, rows
+  below it and the rightmost content pixel. The case asserts one draw and zero warm Rust UI
+  build/draw allocations: **4.457 s wall / 0.153 s case**, zero skips,
+  `/tmp/localwave-section-native-cached-pixels.log`. Fixture/prepare allocations are outside
+  this focused counter; the signed app matrix below retains both full warm UI counters.
+- Descriptor validation passes short/null/invalid flags, reserved bytes, text, count and geometry
+  before invoking builders or changing output. Callback scope restores correctly:
+  `/tmp/localwave-section-abi-validation.log`, **6.192 s wall / 0.031 s case**.
+  Type layout, dependencies, C header, dynamic exports and append-only snapshot gates pass.
+  Gate logs are `/tmp/localwave-section-gate-{snapshot-write,deps,header,exports,snapshot}.log`.
+- **172 app checks pass**, **16.726 s wall / 16.390 s summed**, zero skips:
+  `/tmp/localwave-section-app-matrix.log`. Artist and 10,000-album scroll checks assert exact
+  heading/toolbar/row positions, pinning, virtualization and zero warm allocations. The loading
+  transition uses the same `ShellState::refresh` adoption contract as the host; the first test
+  omitted that call and retained the old page, recorded in
+  `/tmp/localwave-section-app-final-matrix.log`. Corrected UI checks pass **44 cases** in
+  **5.887 s wall / 1.483 s summed**: `/tmp/localwave-section-app-ui-final.log`.
+- App Clippy passes all four packages/all targets/native interop with warnings denied in
+  **3.59 s**, `/tmp/localwave-section-app-clippy.log`. Formatting and whitespace checks pass.
+  pxui `5998153` was published before the parent pointer.
+
+### Rejected offscreen build-cache experiment
+
+The first signed section-list run is retained in `/tmp/localwave-section-performance-final.log`:
+all eleven workloads have zero warm Rust allocations and all eleven strict wall maxima fail.
+Its library/app builds take **25.84 / 13.01 s**, idle is **509.6 ms**, and the gallery has
+**19 image quads / 4,800,512 texture bytes / zero warm requests**. Artists draws **23–31 rows**
+while its first artist ranges from **1–13**.
+
+pxui `680c9d5` then tried keeping a clean build after its culled paint run was discarded. That
+avoids rebuilding fully offscreen headings, but a returning view has no valid paint and requests
+an additional whole-frame settling build. Although shared/static/native correctness checks and
+warm allocation checks passed, the signed workload became slower: Artists CPU p50/p95/p99/max
+changed from **581/889/991/997 µs** to **1125/1422/1491/1564 µs**. This comparison does not qualify
+an exact speed ratio or explain every wall outlier. The experiment is **reverted** by `afdbe68`;
+final engine runtime code matches `5998153`. A new assertion pins **one frame build** when an
+indexed cached heading returns. The existing flat-view/clipping/storage/allocation checks remain.
+
+The rejected run remains `/tmp/localwave-section-retained-build-performance.log`, with zero
+warm Rust allocations in all eleven workloads and every strict wall maximum failing. Its passing
+checks are retained as `/tmp/localwave-section-retained-build-{sdk-matrix,static,pixels}.log` and
+`/tmp/localwave-section-retained-build-app-{matrix,clippy}.log`; they do not establish speed.
+Final single-build qualification and the signed run are recorded below. The first implementation
+and rejected experiment are not presented as passing latency gates.
+
+The final pxui pin is `dce8d2d`, published before staging. Its new single-build assertion passes
+dynamically in **10.329 s wall / 0.027 s case**; both static section cases pass in **3.938 s wall /
+0.058 s summed**. Native 1×/2× pixels pass in **1.513 s wall / 0.137 s case**. Final app UI checks
+pass **44 cases in 1.077 s wall / 1.511 s summed**, zero skips. Logs:
+`/tmp/localwave-section-single-build-{sdk,static,pixels,ui}.log`. The final runtime code is the
+same as the 336-check/172-check matrices above; the follow-up adds regression coverage and
+backs out the rejected experiment. No latency or allocation assertion was weakened.
+
+### Final signed bundle
+
+`/tmp/localwave-section-one-pass-performance.log` records the final reverted-runtime bundle.
+Library/app release builds take **22.48 / 0.12 s**. Signature, macOS 15 minimum, default stack,
+bundled dylib identity and portable rpath checks pass. Startup draws **27** times and then stays
+idle for **509.0 ms** without builds or draws. The running normal GUI remains PID 69331.
+
+All **eleven unchanged workloads** retain **182 frames / 82 warm-up / 100 measured frames**, with
+**zero warm Rust allocations** across app and libpxui. Artwork retains **19 image quads** and
+**zero warm requests**. Artists renders **23–31 of 10,000 rows**, scrolling first artist **1–13**.
+Every strict **1,000 µs wall maximum fails**; `make performance` returns nonzero. CPU timings are
+reported separately and do not replace the wall gate. Native/process memory remains unqualified.
+
+| Workload | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- |
+| songs-original | 3871 / 625 / 2387 / 3296 | 846 / 592 / 755 / 834 |
+| find-filters-title-descending | 3114 / 614 / 1942 / 2715 | 876 / 580 / 698 / 730 |
+| queue-occurrences | 2345 / 635 / 1829 / 2090 | 788 / 598 / 714 / 770 |
+| queue-carry-scroll-cancel | 3874 / 533 / 2177 / 2372 | 2081 / 499 / 834 / 2039 |
+| full-queue-playlist-editor | 3416 / 748 / 2041 / 2643 | 957 / 609 / 870 / 957 |
+| albums-artwork | 2180 / 644 / 1839 / 2100 | 1293 / 578 / 1155 / 1227 |
+| waveform-scrub-and-scroll | 3341 / 459 / 1538 / 3298 | 751 / 417 / 669 / 731 |
+| settings-menus-appearance | 1804 / 357 / 1289 / 1638 | 538 / 284 / 463 / 512 |
+| files-indexed-directory | 1393 / 323 / 1108 / 1341 | 416 / 307 / 380 / 416 |
+| external-drop-hover-and-cancel | 1512 / 295 / 523 / 1494 | 363 / 274 / 331 / 356 |
+| artists-measured-columns | 2497 / 725 / 2257 / 2436 | 1000 / 645 / 917 / 982 |
+
+Full screenshot parity, Songs/Find/detail scrolling and sizing, remaining reference views,
+strict wall latency, native/process memory and Mac/iOS/device/distribution qualification remain
+unfinished. No Swift/device suite was repeated. The normal GUI PID 69331 and its library/defaults
+are preserved.
+
 ## SwiftUI album toolbar and native component sizing checkpoint
 
 Albums now has the reference's Artist/Year/Size toolbar and functional Shuffle all, placing the

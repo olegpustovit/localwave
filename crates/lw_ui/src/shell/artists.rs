@@ -22,98 +22,116 @@ pub(super) fn table(
     ui: &mut Ui,
     catalog: &Catalog,
     state: &ShellState,
-    images: Option<&crate::artwork::Images>,
+    player: &PlayerView<'_>,
     width: f32,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let Some(table) = &catalog.artist_table else {
-        text(
-            ui,
-            "artists-loading",
-            "Loading artists…",
-            14,
-            p.secondary,
-            (Size::Grow, 40.0),
-            false,
-        );
-        return;
-    };
-    let total = table.preferred.iter().sum::<f32>().max(1.0);
-    let columns = table.preferred.map(|preferred| preferred * width / total);
-    let root = ui.node(
-        "artist-table",
-        Node {
-            w: Size::Px(width),
-            h: Size::Grow,
-            margin: Edges {
-                l: -32.0,
-                r: -32.0,
-                ..Edges::ZERO
-            },
-            ..Node::DEFAULT
-        },
-    );
-    ui.within(&root, &mut |ui| {
-        let entry = crate::motion::Page::new(ui, state.entry_revision);
-        let head = ui.node(
-            "artist-columns",
+        header_view(ui, catalog, state, width, p, intent);
+        let inset = ui.node(
+            "artists-loading-inset",
             Node {
                 w: Size::Grow,
-                h: Size::Px(37.3),
+                h: Size::Fit,
+                padding: Edges {
+                    l: 32.0,
+                    r: 32.0,
+                    ..Edges::ZERO
+                },
                 ..Node::DEFAULT
             },
         );
-        ui.within(&head, &mut |ui| {
-            let mut x = 0.0;
-            for (index, title) in ["Name", "Albums", "Songs", "Time"].into_iter().enumerate() {
-                let left = if index == 0 { 32.0 } else { 8.0 };
-                let right = if index == 3 { 20.0 } else { 8.0 };
-                label(
-                    ui,
-                    title,
-                    title,
-                    Rect {
-                        x: x + left,
-                        y: 10.0,
-                        w: columns[index] - left - right,
-                        h: 16.8,
-                    },
-                    pxui::TextStyle {
-                        size_points: 12.0,
-                        line_height: 16.8,
-                        weight: 500,
-                        max_lines: 1,
-                        ellipsis: pxui::TextStyle::ELLIPSIS_END,
-                        align: if index == 3 {
-                            pxui::TextStyle::ALIGN_RIGHT
-                        } else {
-                            pxui::TextStyle::ALIGN_LEFT
+        ui.within(&inset, &mut |ui| {
+            text(
+                ui,
+                "artists-loading",
+                "Loading artists…",
+                14,
+                p.secondary,
+                (Size::Grow, 40.0),
+                false,
+            );
+        });
+        return;
+    };
+    let images = player.artwork;
+    let total = table.preferred.iter().sum::<f32>().max(1.0);
+    let columns = table.preferred.map(|preferred| preferred * width / total);
+    let entry = crate::motion::Page::new(ui, state.entry_revision);
+    let mut revision = DefaultHasher::new();
+    (
+        state.revision,
+        images.map_or(0, crate::artwork::Images::revision),
+        std::sync::Arc::as_ptr(&catalog.library) as usize,
+    )
+        .hash(&mut revision);
+    let revision = revision.finish();
+    ui.section_list(
+        "artists",
+        &SectionList {
+            count: catalog.artists.len(),
+            row_height: 38.0,
+            leading_height: 105.6,
+            header_height: 37.3,
+            trailing_height: 0.0,
+            overlay_scrollbar: true,
+        },
+        &mut |ui, part| match part {
+            SectionPart::Leading => header_view(ui, catalog, state, width, p, intent),
+            SectionPart::Header => {
+                let head = ui.node(
+                    "artist-columns",
+                    Node {
+                        w: Size::Grow,
+                        h: Size::Px(37.3),
+                        look: Look {
+                            fill: p.paper,
+                            ..Look::NONE
                         },
-                        ..Default::default()
+                        ..Node::DEFAULT
                     },
-                    p.secondary,
                 );
-                x += columns[index];
+                ui.within(&head, &mut |ui| {
+                    let mut x = 0.0;
+                    for (index, title) in
+                        ["Name", "Albums", "Songs", "Time"].into_iter().enumerate()
+                    {
+                        let left = if index == 0 { 32.0 } else { 8.0 };
+                        let right = if index == 3 { 20.0 } else { 8.0 };
+                        label(
+                            ui,
+                            title,
+                            title,
+                            Rect {
+                                x: x + left,
+                                y: 10.0,
+                                w: columns[index] - left - right,
+                                h: 16.8,
+                            },
+                            pxui::TextStyle {
+                                size_points: 12.0,
+                                line_height: 16.8,
+                                weight: 500,
+                                max_lines: 1,
+                                ellipsis: pxui::TextStyle::ELLIPSIS_END,
+                                align: if index == 3 {
+                                    pxui::TextStyle::ALIGN_RIGHT
+                                } else {
+                                    pxui::TextStyle::ALIGN_LEFT
+                                },
+                                ..Default::default()
+                            },
+                            p.secondary,
+                        );
+                        x += columns[index];
+                    }
+                });
+                ui.draw_over(&head, move |paint, rect| {
+                    paint.fill_fractional(rect.x, rect.y + rect.h - 0.5, rect.w, 0.5, p.line)
+                });
             }
-        });
-        ui.draw_over(&head, move |paint, rect| {
-            paint.fill_fractional(rect.x, rect.y + rect.h - 0.5, rect.w, 0.5, p.line)
-        });
-        let mut revision = DefaultHasher::new();
-        (
-            state.revision,
-            images.map_or(0, crate::artwork::Images::revision),
-            std::sync::Arc::as_ptr(&catalog.library) as usize,
-        )
-            .hash(&mut revision);
-        let revision = revision.finish();
-        ui.grid_list(
-            "artists",
-            catalog.artists.len(),
-            width.max(1.0),
-            38.0,
-            &mut |ui, index| {
+            SectionPart::Row(index) => {
                 let group = &catalog.artists[index];
                 let summary = &table.rows[index];
                 let name = if group.title.is_empty() {
@@ -254,9 +272,9 @@ pub(super) fn table(
                     },
                 );
                 entry.row(ui, &visual, index);
-            },
-        );
-    });
+            }
+        },
+    );
 }
 
 #[cfg(test)]
@@ -294,6 +312,21 @@ mod tests {
             reduced_motion: 1,
             ..Default::default()
         };
+        let pending = Catalog::new(Vec::new());
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, &pending, &state, &mut None)
+        })
+        .unwrap();
+        let loading = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Loading artists…")
+            .unwrap();
+        assert_eq!(loading.rect.x, 264.0);
+        assert!(ui.a11y_nodes().iter().any(|node| node.is_role(Role::Label)
+            && node.rect.x >= 232.0
+            && ui.a11y_name_of(node) == "Artists"));
+        state.refresh(&pending, &catalog);
         for _ in 0..3 {
             ui.frame(&frame, &mut |ui| {
                 shell(ui, &player, &catalog, &state, &mut None)
@@ -377,6 +410,35 @@ mod tests {
                 shell(ui, &player, &catalog, &state, &mut None)
             })
             .unwrap();
+            let heading = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| {
+                    node.is_role(Role::Label)
+                        && ui.a11y_name_of(node) == "Artists"
+                        && node.rect.x >= 232.0
+                })
+                .unwrap();
+            let column = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| {
+                    node.is_role(Role::Label)
+                        && ui.a11y_name_of(node) == "Name"
+                        && node.rect.x >= 232.0
+                })
+                .unwrap();
+            let offset = if cycle % 2 == 0 { 380.0 } else { 0.0 };
+            assert!(
+                (heading.rect.y - 28.0 + offset).abs() < 0.001,
+                "page heading scrolls with the section: {:?}",
+                heading.rect
+            );
+            assert!(
+                (column.rect.y - if offset > 0.0 { 10.0 } else { 115.6 }).abs() < 0.001,
+                "column heading pins independently: {:?}",
+                column.rect
+            );
             if cycle >= 6 {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm artist scrolling");
             }

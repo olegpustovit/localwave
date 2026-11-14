@@ -1385,20 +1385,20 @@ fn sidebar(
     });
 }
 
-fn content(
+fn header(
     ui: &mut Ui,
     catalog: &Catalog,
     state: &ShellState,
-    player: &PlayerView<'_>,
     width: f32,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    let collection = state.collection(catalog);
     let root = ui.node(
-        "content",
+        "library-header",
         Node {
             w: Size::Grow,
-            h: Size::Grow,
+            h: Size::Fit,
             padding: Edges {
                 l: 32.0,
                 r: 32.0,
@@ -1409,16 +1409,6 @@ fn content(
         },
     );
     ui.within(&root, &mut |ui| {
-        let mut row_revision = DefaultHasher::new();
-        (
-            state.revision,
-            player.current_id,
-            player.artwork.map_or(0, crate::artwork::Images::revision),
-            std::sync::Arc::as_ptr(&catalog.library) as usize,
-        )
-            .hash(&mut row_revision);
-        let row_revision = row_revision.finish();
-        let collection = state.collection(catalog);
         let title = match state.route {
             Route::Albums => "Albums",
             Route::Artists => "Artists",
@@ -1449,7 +1439,7 @@ fn content(
                 &[],
             )
             .unwrap();
-            if state.route != Route::Albums
+            if !matches!(state.route, Route::Albums | Route::Artists)
                 && icon_button(
                     ui,
                     "refresh",
@@ -1528,380 +1518,343 @@ fn content(
         if state.route == Route::Albums {
             albums::toolbar(ui, catalog, state, p, intent);
         }
-        if state.route != Route::Artists {
-            rule(ui, "heading-divider", false, p);
-            if state.route == Route::Albums {
-                spacer(ui, "album-header-bottom", 1.0);
-            }
-        }
-        if state.route == Route::Artists {
-            artists::table(ui, catalog, state, player.artwork, width, p, intent);
-        } else if state.route == Route::Albums {
-            let entry = crate::motion::Page::new(ui, state.entry_revision);
-            let groups = &catalog.albums;
-            let order = &catalog.album_orders[state.album_sort as usize];
-            let available = (width - 64.0).max(1.0);
-            let columns = ((available + 20.0) / 170.0).floor().max(1.0) as usize;
-            let cell = (available - (columns - 1) as f32 * 20.0) / columns as f32;
-            let card_height = cell + 43.7;
-            spacer(ui, "gallery-top-gap", 22.0);
-            ui.grid_list(
-                "groups",
-                groups.len().div_ceil(columns),
-                available,
-                card_height + 28.0,
-                &mut |ui, line| {
-                    let row = ui.node(
-                        "group-row",
-                        Node {
-                            axis: Axis::Row,
-                            gap: 20.0,
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
-                    ui.within(&row, &mut |ui| {
-                        for (column, index) in order
-                            .iter()
-                            .copied()
-                            .skip(line * columns)
-                            .take(columns)
-                            .enumerate()
-                        {
-                            let holder = ui.node_keyed(
-                                int_key(row.box_key, index as i64),
-                                Node {
-                                    w: Size::Px(cell),
-                                    h: Size::Px(card_height),
-                                    ..Node::DEFAULT
-                                },
-                            );
-                            ui.within(&holder, &mut |ui| {
-                                let group = &groups[index];
-                                let visual = ui.view(
-                                    "group-visual",
-                                    row_revision,
-                                    Size::Grow,
-                                    Size::Grow,
-                                    &mut |ui| {
-                                        let node = ui.node(
-                                            "group",
-                                            Node {
-                                                flags: CLICKABLE | TAB_STOP,
-                                                w: Size::Grow,
-                                                h: Size::Grow,
-                                                role: Role::Button,
-                                                padding: Edges::ZERO,
-                                                ..Node::DEFAULT
-                                            },
-                                        );
-                                        ui.a11y_name(&node, &group.title);
-                                        let signal = ui.signal_state(&node);
-                                        ui.set_look(
-                                            &node,
-                                            Look {
-                                                fill: p.paper,
-                                                ..Look::NONE
-                                            },
-                                            State::default(),
-                                        );
-                                        ui.within(&node, &mut |ui| {
-                                            let art = container(
-                                                ui,
-                                                "artwork",
-                                                Axis::Stack,
-                                                Size::Grow,
-                                                Size::Px(cell),
-                                                p.panel,
-                                            );
-                                            paint_artwork(
-                                                ui,
-                                                &art,
-                                                group.artwork_row.map(|index| catalog.row(index)),
-                                                cell,
-                                                player.artwork,
-                                            );
-                                            ui.a11y_name(&art, "Album artwork");
-                                            spacer(ui, "artwork-label-gap", 8.0);
-
-                                            let name = text(
-                                                ui,
-                                                "name",
-                                                &group.title,
-                                                14,
-                                                p.ink,
-                                                (Size::Grow, 17.5),
-                                                false,
-                                            );
-                                            ui.text_line_box(
-                                                &name,
-                                                &group.title,
-                                                &pxui::TextStyle {
-                                                    size_points: 14.0,
-                                                    line_height: 17.5,
-                                                    weight: 500,
-                                                    max_lines: 1,
-                                                    ellipsis: pxui::TextStyle::ELLIPSIS_END,
-                                                    ..Default::default()
-                                                },
-                                                &[],
-                                            )
-                                            .unwrap();
-                                            text(
-                                                ui,
-                                                "artist",
-                                                &group.subtitle,
-                                                13,
-                                                p.secondary,
-                                                (Size::Grow, 18.2),
-                                                false,
-                                            );
-                                        });
-                                        if signal.clicked {
-                                            *intent = Some(Intent::Navigate(Route::Album(index)));
-                                        }
-                                    },
-                                );
-                                entry.row(ui, &visual, line * columns + column);
-                            });
-                        }
-                    });
-                },
-            );
-        } else if let Some(collection) = collection {
-            let entry = crate::motion::Page::new(ui, state.entry_revision);
-            let header = container(
-                ui,
-                "columns",
-                Axis::Row,
-                Size::Grow,
-                Size::Px(32.0),
-                p.paper,
-            );
-            ui.within(&header, &mut |ui| {
-                let applied = catalog
-                    .view
-                    .as_ref()
-                    .filter(|view| Some(view.request.scope) == catalog.scope(state.route))
-                    .map(|view| (view.request.sort, view.request.ascending));
-                for (key, column, value, up, down, name, size) in [
-                    (
-                        "number",
-                        Sort::Original,
-                        "#",
-                        "#",
-                        "#",
-                        "Sort by original order",
-                        Size::Px(44.0),
-                    ),
-                    (
-                        "title",
-                        Sort::Title,
-                        "Title",
-                        "Title ↑",
-                        "Title ↓",
-                        "Sort by Title",
-                        Size::Grow,
-                    ),
-                    (
-                        "artist",
-                        Sort::Artist,
-                        "Artist",
-                        "Artist ↑",
-                        "Artist ↓",
-                        "Sort by Artist",
-                        Size::Pct(0.24),
-                    ),
-                    (
-                        "album",
-                        Sort::Album,
-                        "Album",
-                        "Album ↑",
-                        "Album ↓",
-                        "Sort by Album",
-                        Size::Pct(0.26),
-                    ),
-                    (
-                        "time",
-                        Sort::Duration,
-                        "Time",
-                        "Time ↑",
-                        "Time ↓",
-                        "Sort by Time",
-                        Size::Px(48.0),
-                    ),
-                ] {
-                    let shown = match applied.filter(|(sort, _)| *sort == column) {
-                        Some((_, true)) => up,
-                        Some(_) => down,
-                        None => value,
-                    };
-                    let heading = ui.node(
-                        key,
-                        Node {
-                            flags: CLICKABLE | TAB_STOP | FIT_TEXT,
-                            w: size,
-                            h: Size::Px(28.0),
-                            role: Role::Button,
-                            look: Look {
-                                text: p.secondary,
-                                font: Font {
-                                    size: 12,
-                                    ..Font::BODY
-                                },
-                                ..Look::NONE
-                            },
-                            ..Node::DEFAULT
-                        },
-                    );
-                    ui.text(&heading, shown);
-                    let action = match applied.filter(|(sort, _)| *sort == column) {
-                        None => name,
-                        Some((sort, ascending)) => match (sort, ascending) {
-                            (Sort::Title, true) => "Sort by Title, ascending",
-                            (Sort::Title, false) => "Sort by Title, descending",
-                            (Sort::Artist, true) => "Sort by Artist, ascending",
-                            (Sort::Artist, false) => "Sort by Artist, descending",
-                            (Sort::Album, true) => "Sort by Album, ascending",
-                            (Sort::Album, false) => "Sort by Album, descending",
-                            (Sort::Duration, true) => "Sort by Time, ascending",
-                            (Sort::Duration, false) => "Sort by Time, descending",
-                            _ => name,
-                        },
-                    };
-                    ui.a11y_name(&heading, action);
-                    if ui.signal_state(&heading).clicked {
-                        *intent = Some(Intent::Sort(column));
-                    }
-                }
-            });
-            rule(ui, "columns-divider", false, p);
-            let results = ui.node_keyed(
-                int_key(
-                    root.box_key,
-                    if state.route == Route::Find {
-                        state.query_revision as i64
-                    } else {
-                        0
-                    },
-                ),
+        if state.route == Route::Albums {
+            ui.node(
+                "heading-divider",
                 Node {
-                    w: Size::Grow,
-                    h: Size::Grow,
+                    w: Size::Px(width),
+                    h: Size::Px(1.0),
+                    margin: Edges {
+                        l: -32.0,
+                        r: -32.0,
+                        ..Edges::ZERO
+                    },
+                    look: Look {
+                        fill: p.line,
+                        ..Look::NONE
+                    },
                     ..Node::DEFAULT
                 },
             );
-            ui.within(&results, &mut |ui| {
-                let row_width = (width - 64.0).max(1.0);
-                ui.grid_list(
-                    "songs",
-                    collection.rows.len(),
-                    row_width,
-                    38.0,
-                    &mut |ui, index| {
-                        let row = catalog.row(collection.rows[index]);
-                        let visual = ui.view(
-                            "song-visual",
-                            row_revision,
+            spacer(ui, "album-header-bottom", 1.0);
+        } else if state.route != Route::Artists {
+            rule(ui, "heading-divider", false, p);
+        }
+    });
+}
+
+fn header_view(
+    ui: &mut Ui,
+    catalog: &Catalog,
+    state: &ShellState,
+    width: f32,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
+    let mut revision = DefaultHasher::new();
+    (
+        state.revision,
+        std::sync::Arc::as_ptr(&catalog.library) as usize,
+        catalog
+            .view
+            .as_ref()
+            .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
+    )
+        .hash(&mut revision);
+    ui.view(
+        "page-heading",
+        revision.finish(),
+        Size::Grow,
+        Size::Fit,
+        &mut |ui| header(ui, catalog, state, width, p, intent),
+    );
+}
+
+fn content(
+    ui: &mut Ui,
+    catalog: &Catalog,
+    state: &ShellState,
+    player: &PlayerView<'_>,
+    width: f32,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
+    let root = ui.node(
+        "content",
+        Node {
+            w: Size::Grow,
+            h: Size::Grow,
+            ..Node::DEFAULT
+        },
+    );
+    ui.within(&root, &mut |ui| {
+        if state.route == Route::Albums {
+            albums::gallery(ui, catalog, state, player, width, p, intent);
+            return;
+        }
+        if state.route == Route::Artists {
+            artists::table(ui, catalog, state, player, width, p, intent);
+            return;
+        }
+        header(ui, catalog, state, width, p, intent);
+        let body = ui.node(
+            "content-body",
+            Node {
+                w: Size::Grow,
+                h: Size::Grow,
+                padding: Edges {
+                    l: 32.0,
+                    r: 32.0,
+                    ..Edges::ZERO
+                },
+                ..Node::DEFAULT
+            },
+        );
+        ui.within(&body, &mut |ui| {
+            let mut row_revision = DefaultHasher::new();
+            (
+                state.revision,
+                player.current_id,
+                player.artwork.map_or(0, crate::artwork::Images::revision),
+                std::sync::Arc::as_ptr(&catalog.library) as usize,
+            )
+                .hash(&mut row_revision);
+            let row_revision = row_revision.finish();
+            let collection = state.collection(catalog);
+            if let Some(collection) = collection {
+                let entry = crate::motion::Page::new(ui, state.entry_revision);
+                let header = container(
+                    ui,
+                    "columns",
+                    Axis::Row,
+                    Size::Grow,
+                    Size::Px(32.0),
+                    p.paper,
+                );
+                ui.within(&header, &mut |ui| {
+                    let applied = catalog
+                        .view
+                        .as_ref()
+                        .filter(|view| Some(view.request.scope) == catalog.scope(state.route))
+                        .map(|view| (view.request.sort, view.request.ascending));
+                    for (key, column, value, up, down, name, size) in [
+                        (
+                            "number",
+                            Sort::Original,
+                            "#",
+                            "#",
+                            "#",
+                            "Sort by original order",
+                            Size::Px(44.0),
+                        ),
+                        (
+                            "title",
+                            Sort::Title,
+                            "Title",
+                            "Title ↑",
+                            "Title ↓",
+                            "Sort by Title",
                             Size::Grow,
-                            Size::Grow,
-                            &mut |ui| {
-                                let node = ui.node(
-                                    "song",
-                                    Node {
-                                        flags: CLICKABLE | TAB_STOP,
-                                        axis: Axis::Row,
-                                        align: Align::Center,
-                                        w: Size::Grow,
-                                        h: Size::Px(38.0),
-                                        role: Role::ListItem,
-                                        ..Node::DEFAULT
+                        ),
+                        (
+                            "artist",
+                            Sort::Artist,
+                            "Artist",
+                            "Artist ↑",
+                            "Artist ↓",
+                            "Sort by Artist",
+                            Size::Pct(0.24),
+                        ),
+                        (
+                            "album",
+                            Sort::Album,
+                            "Album",
+                            "Album ↑",
+                            "Album ↓",
+                            "Sort by Album",
+                            Size::Pct(0.26),
+                        ),
+                        (
+                            "time",
+                            Sort::Duration,
+                            "Time",
+                            "Time ↑",
+                            "Time ↓",
+                            "Sort by Time",
+                            Size::Px(48.0),
+                        ),
+                    ] {
+                        let shown = match applied.filter(|(sort, _)| *sort == column) {
+                            Some((_, true)) => up,
+                            Some(_) => down,
+                            None => value,
+                        };
+                        let heading = ui.node(
+                            key,
+                            Node {
+                                flags: CLICKABLE | TAB_STOP | FIT_TEXT,
+                                w: size,
+                                h: Size::Px(28.0),
+                                role: Role::Button,
+                                look: Look {
+                                    text: p.secondary,
+                                    font: Font {
+                                        size: 12,
+                                        ..Font::BODY
                                     },
-                                );
-                                let signal = ui.signal_state(&node);
-                                ui.a11y_name(&node, row.title);
-                                ui.set_look(
-                                    &node,
-                                    Look {
-                                        fill: if state.selected == Some(index) {
-                                            p.selected
-                                        } else if signal.hovered {
-                                            p.panel
-                                        } else {
-                                            p.paper
-                                        },
-                                        ..Look::NONE
-                                    },
-                                    State::default(),
-                                );
-                                ui.within(&node, &mut |ui| {
-                                    let number = ClockLabel::integer((index + 1) as u64);
-                                    text(
-                                        ui,
-                                        "number",
-                                        std::str::from_utf8(number.bytes()).unwrap(),
-                                        12,
-                                        p.secondary,
-                                        (Size::Px(44.0), 20.0),
-                                        true,
-                                    );
-                                    text(
-                                        ui,
-                                        "title",
-                                        row.title,
-                                        14,
-                                        if player.current_id == Some(row.id) {
-                                            p.signal
-                                        } else {
-                                            p.ink
-                                        },
-                                        (Size::Grow, 20.0),
-                                        false,
-                                    );
-                                    text(
-                                        ui,
-                                        "artist",
-                                        row.artist,
-                                        14,
-                                        p.secondary,
-                                        (Size::Pct(0.24), 20.0),
-                                        false,
-                                    );
-                                    text(
-                                        ui,
-                                        "album",
-                                        row.album,
-                                        14,
-                                        p.secondary,
-                                        (Size::Pct(0.26), 20.0),
-                                        false,
-                                    );
-                                    text(
-                                        ui,
-                                        "duration",
-                                        row.duration,
-                                        12,
-                                        p.secondary,
-                                        (Size::Px(48.0), 20.0),
-                                        true,
-                                    );
-                                });
-                                if signal.clicked {
-                                    *intent = Some(Intent::SelectRow(index));
-                                }
-                                if signal.double_clicked
-                                    || (signal.clicked && ui.key_pressed(input::Key::Enter))
-                                {
-                                    *intent = Some(Intent::PlayRow(index));
-                                }
+                                    ..Look::NONE
+                                },
+                                ..Node::DEFAULT
                             },
                         );
-                        entry.row(ui, &visual, index);
+                        ui.text(&heading, shown);
+                        let action = match applied.filter(|(sort, _)| *sort == column) {
+                            None => name,
+                            Some((sort, ascending)) => match (sort, ascending) {
+                                (Sort::Title, true) => "Sort by Title, ascending",
+                                (Sort::Title, false) => "Sort by Title, descending",
+                                (Sort::Artist, true) => "Sort by Artist, ascending",
+                                (Sort::Artist, false) => "Sort by Artist, descending",
+                                (Sort::Album, true) => "Sort by Album, ascending",
+                                (Sort::Album, false) => "Sort by Album, descending",
+                                (Sort::Duration, true) => "Sort by Time, ascending",
+                                (Sort::Duration, false) => "Sort by Time, descending",
+                                _ => name,
+                            },
+                        };
+                        ui.a11y_name(&heading, action);
+                        if ui.signal_state(&heading).clicked {
+                            *intent = Some(Intent::Sort(column));
+                        }
+                    }
+                });
+                rule(ui, "columns-divider", false, p);
+                let results = ui.node_keyed(
+                    int_key(
+                        root.box_key,
+                        if state.route == Route::Find {
+                            state.query_revision as i64
+                        } else {
+                            0
+                        },
+                    ),
+                    Node {
+                        w: Size::Grow,
+                        h: Size::Grow,
+                        ..Node::DEFAULT
                     },
                 );
-            });
-        }
+                ui.within(&results, &mut |ui| {
+                    let row_width = (width - 64.0).max(1.0);
+                    ui.grid_list(
+                        "songs",
+                        collection.rows.len(),
+                        row_width,
+                        38.0,
+                        &mut |ui, index| {
+                            let row = catalog.row(collection.rows[index]);
+                            let visual = ui.view(
+                                "song-visual",
+                                row_revision,
+                                Size::Grow,
+                                Size::Grow,
+                                &mut |ui| {
+                                    let node = ui.node(
+                                        "song",
+                                        Node {
+                                            flags: CLICKABLE | TAB_STOP,
+                                            axis: Axis::Row,
+                                            align: Align::Center,
+                                            w: Size::Grow,
+                                            h: Size::Px(38.0),
+                                            role: Role::ListItem,
+                                            ..Node::DEFAULT
+                                        },
+                                    );
+                                    let signal = ui.signal_state(&node);
+                                    ui.a11y_name(&node, row.title);
+                                    ui.set_look(
+                                        &node,
+                                        Look {
+                                            fill: if state.selected == Some(index) {
+                                                p.selected
+                                            } else if signal.hovered {
+                                                p.panel
+                                            } else {
+                                                p.paper
+                                            },
+                                            ..Look::NONE
+                                        },
+                                        State::default(),
+                                    );
+                                    ui.within(&node, &mut |ui| {
+                                        let number = ClockLabel::integer((index + 1) as u64);
+                                        text(
+                                            ui,
+                                            "number",
+                                            std::str::from_utf8(number.bytes()).unwrap(),
+                                            12,
+                                            p.secondary,
+                                            (Size::Px(44.0), 20.0),
+                                            true,
+                                        );
+                                        text(
+                                            ui,
+                                            "title",
+                                            row.title,
+                                            14,
+                                            if player.current_id == Some(row.id) {
+                                                p.signal
+                                            } else {
+                                                p.ink
+                                            },
+                                            (Size::Grow, 20.0),
+                                            false,
+                                        );
+                                        text(
+                                            ui,
+                                            "artist",
+                                            row.artist,
+                                            14,
+                                            p.secondary,
+                                            (Size::Pct(0.24), 20.0),
+                                            false,
+                                        );
+                                        text(
+                                            ui,
+                                            "album",
+                                            row.album,
+                                            14,
+                                            p.secondary,
+                                            (Size::Pct(0.26), 20.0),
+                                            false,
+                                        );
+                                        text(
+                                            ui,
+                                            "duration",
+                                            row.duration,
+                                            12,
+                                            p.secondary,
+                                            (Size::Px(48.0), 20.0),
+                                            true,
+                                        );
+                                    });
+                                    if signal.clicked {
+                                        *intent = Some(Intent::SelectRow(index));
+                                    }
+                                    if signal.double_clicked
+                                        || (signal.clicked && ui.key_pressed(input::Key::Enter))
+                                    {
+                                        *intent = Some(Intent::PlayRow(index));
+                                    }
+                                },
+                            );
+                            entry.row(ui, &visual, index);
+                        },
+                    );
+                });
+            }
+        });
     });
 }
 
