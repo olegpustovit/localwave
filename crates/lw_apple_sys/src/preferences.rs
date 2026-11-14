@@ -467,6 +467,14 @@ mod tests {
             file_path("/Music/Album One").unwrap(),
             PathBuf::from("/Music/Album One")
         );
+        for spelling in ["/var/tmp/Added Files", "/private/var/tmp/Added Files"] {
+            let parsed = file_path(spelling).unwrap();
+            assert_eq!(parsed, PathBuf::from(spelling));
+            assert_eq!(
+                crate::normalized_file_url(parsed.to_str().unwrap()).unwrap(),
+                crate::normalized_file_url(spelling).unwrap()
+            );
+        }
         for invalid in [
             "",
             "relative/path",

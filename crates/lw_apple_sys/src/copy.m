@@ -36,13 +36,14 @@ static ssize_t chunk(int fd, unsigned char *buffer, size_t capacity) {
     }
     return (ssize_t)total;
 }
-static BOOL identical(const char *left, const char *right) {
+static BOOL identical(const char *left, const char *right, int (*cancelled)(void *), void *user) {
     int a = open(left, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
     int b = open(right, O_RDONLY | O_CLOEXEC | O_NOFOLLOW | O_NONBLOCK);
     struct stat sa, sb;
     BOOL same = a >= 0 && b >= 0 && !fstat(a, &sa) && !fstat(b, &sb) && S_ISREG(sa.st_mode) && S_ISREG(sb.st_mode) && sa.st_size == sb.st_size;
     unsigned char first[64 * 1024], second[64 * 1024];
     while (same) {
+        if (cancelled(user)) { same = NO; break; }
         ssize_t size = chunk(a, first, sizeof(first)), other = chunk(b, second, sizeof(second));
         if (size < 0 || size != other || memcmp(first, second, (size_t)size)) { same = NO; break; }
         if (!size) break;
@@ -52,7 +53,7 @@ static BOOL identical(const char *left, const char *right) {
     return same;
 }
 
-static int copy_stream(const char *source, NSURL *readable, NSURL *directory, void *preferences, int (*cancelled)(void *), void *user, int (*progress)(void *, uint64_t), void *progressUser, LWCopyResult *result, char **error) {
+static int copy_stream(const char *source, NSURL *readable, NSURL *directory, BOOL preserveName, void *preferences, int (*cancelled)(void *), void *user, int (*progress)(void *, uint64_t), void *progressUser, LWCopyResult *result, char **error) {
     LWFileInfo before;
     if (!lw_file_probe(source, 0, &before, error)) return 0;
     int status = network_check(source, preferences, error);
@@ -72,7 +73,7 @@ static int copy_stream(const char *source, NSURL *readable, NSURL *directory, vo
         if (output < 0) return system_fail(error);
         BOOL checkedSimulation = NO;
         CC_SHA256_CTX hash;
-        CC_SHA256_Init(&hash);
+        if (!preserveName) CC_SHA256_Init(&hash);
         uint64_t total = 0;
         unsigned char buffer[256 * 1024];
         for (;;) {
@@ -91,7 +92,7 @@ static int copy_stream(const char *source, NSURL *readable, NSURL *directory, vo
                 if (written <= 0) { if (!written) errno = EIO; return system_fail(error); }
                 done += written;
             }
-            CC_SHA256_Update(&hash, buffer, (CC_LONG)count);
+            if (!preserveName) CC_SHA256_Update(&hash, buffer, (CC_LONG)count);
             total += (uint64_t)count;
             if (!progress(progressUser, total)) return fail(error, @"Offline copy progress callback failed");
         }
@@ -104,17 +105,28 @@ static int copy_stream(const char *source, NSURL *readable, NSURL *directory, vo
         int closing = output; output = -1;
         if (close(closing)) return system_fail(error);
         if (cancelled(user)) return interrupted(error);
-        unsigned char digest[32]; char hex[65];
-        CC_SHA256_Final(digest, &hash);
-        for (size_t i = 0; i < sizeof(digest); i++) { hex[i * 2] = "0123456789abcdef"[digest[i] >> 4]; hex[i * 2 + 1] = "0123456789abcdef"[digest[i] & 15]; }
-        hex[64] = 0;
-        NSString *extension = [NSString stringWithUTF8String:source].pathExtension.lowercaseString;
-        NSString *filename = extension.length ? [NSString stringWithFormat:@"%s.%@", hex, extension] : [NSString stringWithUTF8String:hex];
+        NSString *filename = [NSString stringWithUTF8String:source].lastPathComponent;
+        if (!preserveName) {
+            unsigned char digest[32]; char hex[65];
+            CC_SHA256_Final(digest, &hash);
+            for (size_t i = 0; i < sizeof(digest); i++) { hex[i * 2] = "0123456789abcdef"[digest[i] >> 4]; hex[i * 2 + 1] = "0123456789abcdef"[digest[i] & 15]; }
+            hex[64] = 0;
+            NSString *extension = filename.pathExtension.lowercaseString;
+            filename = extension.length ? [NSString stringWithFormat:@"%s.%@", hex, extension] : [NSString stringWithUTF8String:hex];
+        }
         NSURL *destination = [directory URLByAppendingPathComponent:filename];
         if (renamex_np(temporary.fileSystemRepresentation, destination.fileSystemRepresentation, RENAME_EXCL)) {
             if (errno != EEXIST) return system_fail(error);
-            if (!identical(temporary.fileSystemRepresentation, destination.fileSystemRepresentation)) return fail(error, @"The existing offline file does not match its content digest");
+            if (!identical(temporary.fileSystemRepresentation, destination.fileSystemRepresentation, cancelled, user)) {
+                if (cancelled(user)) return interrupted(error);
+                if (!preserveName) return fail(error, @"The existing offline file does not match its content digest");
+                filename = [NSString stringWithFormat:@"%@-%@", NSUUID.UUID.UUIDString, filename];
+                destination = [directory URLByAppendingPathComponent:filename];
+                if (cancelled(user)) return interrupted(error);
+                if (renamex_np(temporary.fileSystemRepresentation, destination.fileSystemRepresentation, RENAME_EXCL)) return system_fail(error);
+            }
         }
+        if (cancelled(user)) return interrupted(error);
         result->path = strdup(destination.URLByResolvingSymlinksInPath.path.UTF8String);
         if (!result->path) return fail(error, @"Could not encode offline file location");
         result->modified = version.modified;
@@ -127,7 +139,7 @@ static int copy_stream(const char *source, NSURL *readable, NSURL *directory, vo
     }
 }
 
-int lw_file_copy(const char *source, const char *destination, void *preferences, int (*cancelled)(void *), void *user, int (*progress)(void *, uint64_t), void *progressUser, LWCopyResult *result, char **error) {
+int lw_file_copy(const char *source, const char *destination, int preserveName, void *preferences, int (*cancelled)(void *), void *user, int (*progress)(void *, uint64_t), void *progressUser, LWCopyResult *result, char **error) {
     @autoreleasepool {
         if (NSThread.isMainThread) return fail(error, @"Offline copies must run on a worker thread");
         if (cancelled(user)) return interrupted(error);
@@ -140,7 +152,7 @@ int lw_file_copy(const char *source, const char *destination, void *preferences,
         __block int status = 0;
         NSError *coordinationError = nil;
         [NSFileCoordinator.new coordinateReadingItemAtURL:url options:0 error:&coordinationError byAccessor:^(NSURL *readable) {
-            status = copy_stream(source, readable, directory, preferences, cancelled, user, progress, progressUser, result, error);
+            status = copy_stream(source, readable, directory, preserveName != 0, preferences, cancelled, user, progress, progressUser, result, error);
         }];
         if (coordinationError) { free(result->path); result->path = NULL; if (error && *error) { free(*error); *error = NULL; } return fail(error, coordinationError.localizedDescription); }
         return status;

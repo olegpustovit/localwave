@@ -200,7 +200,8 @@ char *lw_file_path(const char *value) {
             if (!url.isFileURL || (url.host.length && ![url.host isEqualToString:@"localhost"]) || url.query || url.fragment) return NULL;
         }
         if ([url.absoluteString rangeOfString:@"%00" options:NSCaseInsensitiveSearch].location != NSNotFound) return NULL;
-        NSString *path = url.URLByStandardizingPath.path;
+        // Keep the registered spelling: URLByStandardizingPath can rewrite /private/var to /var.
+        NSString *path = url.standardizedURL.path;
         if (!path.isAbsolutePath || [path rangeOfString:[NSString stringWithCharacters:(unichar[]){0} length:1]].location != NSNotFound) return NULL;
         return strdup(path.UTF8String);
     }

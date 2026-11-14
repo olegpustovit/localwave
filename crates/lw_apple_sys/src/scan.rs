@@ -225,5 +225,20 @@ mod tests {
         let generated = Access::resolve(&crate::bookmarks::create(&excluded[0]).unwrap()).unwrap();
         assert!(Scan::open(&generated, registered, &excluded).is_err());
         assert!(Scan::open(&access, Path::new("relative"), &[]).is_err());
+        for registered in [root.clone(), root.canonicalize().unwrap()] {
+            let mut scan = Scan::open(&access, &registered, &excluded).unwrap();
+            while let Some(entry) = scan.next(&cancelled).unwrap() {
+                let identity = registered.join(&entry.relative_path);
+                assert_eq!(
+                    entry.normalized_url,
+                    crate::normalized_file_url(identity.to_str().unwrap()).unwrap()
+                );
+                assert_eq!(
+                    entry.normalized_parent,
+                    crate::normalized_file_url(identity.parent().unwrap().to_str().unwrap())
+                        .unwrap()
+                );
+            }
+        }
     }
 }

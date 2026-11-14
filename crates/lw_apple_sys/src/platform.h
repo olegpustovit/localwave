@@ -81,7 +81,7 @@ void lw_preferences_save_player(void *preferences, const int64_t *queue, size_t 
 void lw_preferences_save_player_index(void *preferences, int64_t index);
 void lw_preferences_save_player_volume(void *preferences, float volume);
 int lw_cloud_identity(char **encoded, char **error);
-int lw_file_copy(const char *source, const char *destination, void *preferences, int (*cancelled)(void *), void *user, int (*progress)(void *, uint64_t), void *progress_user, LWCopyResult *result, char **error);
+int lw_file_copy(const char *source, const char *destination, int preserve_name, void *preferences, int (*cancelled)(void *), void *user, int (*progress)(void *, uint64_t), void *progress_user, LWCopyResult *result, char **error);
 int lw_preferences_no_network(void *preferences);
 void lw_preferences_set_no_network(void *preferences, int disabled);
 void lw_cache_lock(void);

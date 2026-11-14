@@ -23,6 +23,7 @@ unsafe extern "C" {
     fn lw_file_copy(
         source: *const c_char,
         destination: *const c_char,
+        preserve_name: i32,
         preferences: *mut c_void,
         cancelled: extern "C" fn(*mut c_void) -> i32,
         user: *mut c_void,
@@ -51,6 +52,34 @@ pub fn copy(
 pub fn copy_with(
     source: &Path,
     destination: &Path,
+    preferences: &Preferences,
+    cancelled: &AtomicBool,
+    progress: &mut dyn FnMut(u64) -> io::Result<()>,
+) -> io::Result<CopiedFile> {
+    copy_impl(source, destination, false, preferences, cancelled, progress)
+}
+
+/// Preserve the source filename, reusing identical content or prefixing collisions with a UUID.
+pub fn copy_named(
+    source: &Path,
+    destination: &Path,
+    preferences: &Preferences,
+    cancelled: &AtomicBool,
+) -> io::Result<CopiedFile> {
+    copy_impl(
+        source,
+        destination,
+        true,
+        preferences,
+        cancelled,
+        &mut |_| Ok(()),
+    )
+}
+
+fn copy_impl(
+    source: &Path,
+    destination: &Path,
+    preserve_name: bool,
     preferences: &Preferences,
     cancelled: &AtomicBool,
     progress: &mut dyn FnMut(u64) -> io::Result<()>,
@@ -89,6 +118,7 @@ pub fn copy_with(
         lw_file_copy(
             source.as_ptr(),
             destination.as_ptr(),
+            preserve_name as i32,
             preferences.raw(),
             is_cancelled,
             ptr::from_ref(cancelled).cast_mut().cast(),
@@ -300,5 +330,63 @@ mod tests {
             .unwrap(),
             content
         );
+        let added = root.join("Added Files");
+        let named = copy_named(&source, &added, &preferences, &cancelled).unwrap();
+        assert_eq!(named.path.file_name(), source.file_name());
+        assert_eq!(fs::read(&named.path).unwrap(), fs::read(&source).unwrap());
+        assert_eq!(
+            copy_named(&source, &added, &preferences, &cancelled)
+                .unwrap()
+                .path,
+            named.path
+        );
+        assert_eq!(fs::read_dir(&added).unwrap().count(), 1);
+        fs::write(&named.path, b"another track").unwrap();
+        let collision = copy_named(&source, &added, &preferences, &cancelled).unwrap();
+        assert_ne!(collision.path, named.path);
+        assert!(
+            collision
+                .path
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .ends_with("-large.FLAC")
+        );
+        assert_eq!(fs::read(&named.path).unwrap(), b"another track");
+        assert_eq!(
+            fs::read(&collision.path).unwrap(),
+            fs::read(&source).unwrap()
+        );
+        fs::remove_file(&named.path).unwrap();
+        std::os::unix::fs::symlink(&source, &named.path).unwrap();
+        let no_follow = copy_named(&source, &added, &preferences, &cancelled).unwrap();
+        assert_ne!(no_follow.path, named.path);
+        assert!(!fs::symlink_metadata(&no_follow.path).unwrap().is_symlink());
+        assert!(fs::symlink_metadata(&named.path).unwrap().is_symlink());
+        let error = copy_impl(
+            &source,
+            &cancel_dir,
+            true,
+            &preferences,
+            &cancelled,
+            &mut |_| {
+                cancelled.store(true, Ordering::Relaxed);
+                Ok(())
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::Interrupted);
+        assert_eq!(fs::read_dir(&cancel_dir).unwrap().count(), 0);
+        cancelled.store(false, Ordering::Relaxed);
+        preferences.set_no_network(true);
+        assert_eq!(
+            copy_named(&provider, &untouched, &preferences, &cancelled)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::NotConnected
+        );
+        assert!(!untouched.exists());
+        preferences.set_no_network(false);
     }
 }
