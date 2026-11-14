@@ -8,6 +8,18 @@ remain requirements. Existing latency measurements and benchmark assertions are 
 the recorded wall-time failures are not passes. iOS starts with the plan's static SDL3
 device/simulator spike inside pxui, followed by Metal, touch and lifecycle integration.
 
+### iOS idle worker wake checkpoint
+
+PXUI checkpoint: **`145c7fc`**. The manual runtime probe now leaves the display link paused
+with **no repaint deadline** after the 182-frame gallery and its separate 250 ms timer check.
+A worker waits 150 ms, then calls the public SDL wake API. A callback before 100 ms fails the
+probe; success therefore cannot come from continuous display polling. The worker wakes the
+idle native loop, no additional GPU frame is drawn, and teardown succeeds. This is a manual
+UIKit capability probe, not a sleeping unit test or an application polling loop. The original
+**82 warm-up / 100 measured frames retain zero warm Rust allocations**. iPhone 16e / iOS 18.6
+stderr is empty: `/tmp/localwave-ios-idle-worker{,-stderr}.log`. Scoped spike Clippy and the
+dependency gate pass. Safe-area/keyboard geometry and finger input are next.
+
 ### iOS display pacing, lifecycle and framework input checkpoint
 
 PXUI checkpoint: **`eac85b6`** on `rust-port`.
