@@ -63,12 +63,36 @@ remain unchanged during scale animation.
 - All app packages/all targets pass Clippy with native interop enabled and warnings denied in
   **2.55 s**, `/tmp/localwave-measured-table-clippy-final.log`. Formatting and whitespace pass.
 
-A twelfth signed workload exercises playing/paused indicators while scrolling the original
-10,000-song fixture, retaining **182/82/100 total/warm/measured frames** and both Rust allocation
-counters. Its signed results are pending at this checkpoint. It changes only the UI snapshot;
-this is not qualification of real audio playback. The existing strict **1,000 µs wall maximum**
-remains failed; native/process allocations are unqualified. Full screenshot parity, Find/detail
-headers, remaining reference views/actions and iOS are unfinished.
+### Signed twelve-workload result
+
+`/tmp/localwave-measured-table-performance.log` records the full signed run. All **12 workloads**
+retain **182/82/100 total/warm/measured frames** and record **zero warm Rust UI allocations** across
+app and libpxui. All **12 strict wall maxima fail**; the limit remains **1,000 µs**. CPU results do
+not replace that limit. Library/app release builds take **24.38 / 11.99 s**. The bundle verifies
+macOS 15 minimums, default executable stack, bundled dylib ID, portable rpath and signatures;
+its smoke check reaches **508.4 ms idle** after drawing.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 4090 / 813 / 2196 / 3779 | 1040 / 732 / 875 / 938 |
+| find-filters-title-descending | 2975 / 830 / 2265 / 2936 | 985 / 708 / 852 / 934 |
+| queue-occurrences | 2961 / 638 / 2286 / 2951 | 856 / 545 / 732 / 807 |
+| queue-carry-scroll-cancel | 2753 / 570 / 2318 / 2688 | 2288 / 511 / 902 / 2181 |
+| full-queue-playlist-editor | 2755 / 797 / 2115 / 2552 | 969 / 640 / 884 / 942 |
+| albums-artwork | 2601 / 617 / 1861 / 2600 | 1343 / 592 / 1209 / 1266 |
+| waveform-scrub-and-scroll | 2836 / 516 / 1866 / 2734 | 994 / 411 / 892 / 977 |
+| settings-menus-appearance | 2017 / 326 / 912 / 1849 | 565 / 287 / 488 / 555 |
+| files-indexed-directory | 1841 / 326 / 1410 / 1607 | 435 / 309 / 379 / 420 |
+| external-drop-hover-and-cancel | 2176 / 305 / 1396 / 1846 | 387 / 284 / 340 / 376 |
+| artists-measured-columns | 2662 / 714 / 1894 / 2273 | 1093 / 637 / 896 / 981 |
+| songs-playing-indicator | 4453 / 965 / 2363 / 2732 | 1126 / 866 / 1064 / 1104 |
+
+The new playing-indicator workload validates **58 visible playing / 34 paused frames**, with
+**35 changing bar frames** and paused heights at 4.4 points. It changes only the UI snapshot;
+this does not qualify real audio playback. The gallery retains **19 image quads / 4,800,512 texture
+bytes / zero warm requests**. Artists retains **23–31 rows**, first artist **1–13**. Native/process
+allocations are unqualified. Full screenshot parity, Find/detail headers, remaining reference
+views/actions and iOS are unfinished.
 
 ## SwiftUI scrolling sections and retained geometry checkpoint
 
