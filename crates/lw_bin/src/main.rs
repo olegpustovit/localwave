@@ -141,8 +141,8 @@ fn run() -> Result<(), String> {
     mem_sys::set_peer(pxui::library_counter);
     let mut window = Window::open_with("LocalWave", 1440, 872, true, false, true)?;
     window.set_resizable(true)?;
-    let chrome =
-        lw_apple_sys::window::Chrome::open(window.token()?).map_err(|error| error.to_string())?;
+    let chrome = pxui_host::Chrome::open(window.token()?, (640.0, 480.0))
+        .map_err(|error| error.to_string())?;
     window.resize(1440, 872)?;
     let mut window_chrome = chrome.snapshot().map_err(|error| error.to_string())?;
     let environment =
@@ -558,7 +558,8 @@ fn run() -> Result<(), String> {
             }
         }
         let artwork_changed = artwork.poll();
-        let artwork_updated = graphics.sync_artwork(
+        let artwork_updated = gpu::sync_artwork(
+            &mut graphics,
             std::sync::Arc::as_ptr(&player.catalog().library) as usize,
             artwork.ready_images(),
         )?;
@@ -646,13 +647,14 @@ fn run() -> Result<(), String> {
                 0
             };
             let build_started = std::time::Instant::now();
-            graphics.configure_artwork(
+            gpu::configure_artwork(
+                &mut graphics,
                 extent.logical.0 as f32,
                 extent.logical.1 as f32,
                 window.scale() as f32,
             )?;
             player
-                .sync_media_artwork(graphics.artwork.images.epoch(), artwork.ready_images())
+                .sync_media_artwork(graphics.images().epoch(), artwork.ready_images())
                 .map_err(|error| error.to_string())?;
             let mut gpu_trace = [0u64; 4];
             let mut intent = None;
@@ -668,7 +670,7 @@ fn run() -> Result<(), String> {
                 cache_usage: &status.cache_usage,
                 settings_message: &status.settings_message,
                 storage_busy: status.storage_busy,
-                artwork: Some(&graphics.artwork.images),
+                artwork: Some(graphics.images()),
                 waveform: status.waveform.as_ref(),
                 revision: if performance {
                     frames as u64
@@ -735,7 +737,7 @@ fn run() -> Result<(), String> {
             if performance_drop && intent.is_some() {
                 return Err("External drag hover activated an application action".into());
             }
-            let mut image_requests = graphics.artwork.images.visible_requests(&ui);
+            let mut image_requests = graphics.images().visible_requests(&ui);
             if let Some(media) = player.media_controls() {
                 media.request_artwork(&mut image_requests);
             }
@@ -908,7 +910,7 @@ fn run() -> Result<(), String> {
                         | lw_ui::Intent::TogglePanel
                         | lw_ui::Intent::CloseQueue
                 ) {
-                    graphics.artwork.images.cancel_requests();
+                    graphics.images().cancel_requests();
                     artwork.cancel().map_err(|error| error.to_string())?;
                 }
                 let mut browse = None;
@@ -1259,7 +1261,7 @@ fn run() -> Result<(), String> {
             }
         }
         if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
-            let artwork_bytes = graphics.artwork.resident_bytes();
+            let artwork_bytes = graphics.resident_image_bytes();
             graphics.close()?;
             if trace_frames {
                 for (frame, (ready, keys, host, build, draw, gpu, output)) in

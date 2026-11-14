@@ -4,7 +4,6 @@ use crate::library::ArtworkReady;
 use lw_apple_sys::media::{Media as Native, Metadata};
 use lw_core::playback::Phase;
 use lw_ui::artwork::{Key, Request};
-use lw_ui::browse::Query;
 use lw_ui::catalog::Catalog;
 use std::io;
 use std::sync::Arc;
@@ -159,7 +158,7 @@ impl Media {
                     epoch,
                     Key {
                         id: row.cover_art_id,
-                        path: Query::new(row.cover_art_path?)?,
+                        path: lw_ui::artwork::Path::new(row.cover_art_path?)?,
                         max_pixels: 256,
                     },
                 ))

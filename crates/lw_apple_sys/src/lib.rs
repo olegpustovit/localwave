@@ -63,10 +63,7 @@ pub fn require_worker_thread() -> std::io::Result<()> {
     }
 }
 
-#[cfg(all(target_os = "macos", feature = "metal"))]
-pub mod metal;
-
-#[cfg(all(target_os = "macos", feature = "metal"))]
+#[cfg(target_os = "macos")]
 pub mod window;
 
 #[cfg(target_os = "macos")]

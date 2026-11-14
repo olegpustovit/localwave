@@ -6,11 +6,6 @@ license.workspace = true
 
 [features]
 interop-test = []
-metal = ["dep:ogpu_core", "dep:native_layer_token_sys"]
-
-[dependencies]
-ogpu_core = { path = "../../pxui/crates/open/ogpu_core", optional = true }
-native_layer_token_sys = { path = "../../pxui/crates/open/native_layer_token_sys", optional = true }
 
 [dev-dependencies]
 mem_sys = { path = "../../pxui/crates/open/mem_sys" }

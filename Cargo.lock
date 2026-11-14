@@ -28,8 +28,6 @@ version = "0.1.0"
 dependencies = [
  "cc",
  "mem_sys",
- "native_layer_token_sys",
- "ogpu_core",
 ]
 
 [[package]]
@@ -42,8 +40,8 @@ dependencies = [
  "lw_ui",
  "mem_sys",
  "ogpu_core",
- "ogpu_metal",
  "pxui",
+ "pxui_host",
  "pxui_sdl",
  "sdl3_sys",
 ]
@@ -78,6 +76,7 @@ name = "metal_sys"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "native_layer_token_sys",
  "ogpu_core",
 ]
 
@@ -106,6 +105,18 @@ name = "pxui"
 version = "0.1.0"
 dependencies = [
  "pxui_types",
+]
+
+[[package]]
+name = "pxui_host"
+version = "0.1.0"
+dependencies = [
+ "mem_sys",
+ "metal_sys",
+ "ogpu_core",
+ "ogpu_metal",
+ "pxui",
+ "pxui_sdl",
 ]
 
 [[package]]

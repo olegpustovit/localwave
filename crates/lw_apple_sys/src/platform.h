@@ -115,13 +115,7 @@ void *lw_artwork_thumbnail(const char *path, uint32_t max_pixels, uint32_t *widt
 int lw_artwork_pixels(void *image, unsigned char *pixels, size_t length);
 void lw_artwork_thumbnail_release(void *image);
 int lw_is_main_thread(void);
-typedef struct {
-    double top_inset;
-    double content_width, content_height;
-    uint32_t resizable, zoom_enabled, full_size_content, full_screen_primary;
-} LWWindowState;
-int lw_window_configure(void *layer);
-int lw_window_read(void *layer, LWWindowState *state);
+
 int lw_ui_thread_priority(void);
 void *lw_bookmark_url(void *access);
 void *lw_scan_open(void *root_url, const char *registered_root, const char *const *excluded, size_t excluded_count, char **error);
@@ -143,13 +137,5 @@ void lw_bookmark_release(void *access);
 uint64_t lw_thread_cpu_ns(void);
 uint64_t lw_frame_interval_begin(uint64_t frame);
 void lw_frame_interval_end(uint64_t interval, uint64_t wall, uint64_t cpu);
-void *lw_metal_create(void *layer, void *device, void *queue);
-int lw_metal_begin(void *host, uint32_t width, uint32_t height);
-uint64_t lw_metal_serial(void *host);
-uint64_t lw_metal_completed(void *host);
-void *lw_metal_commands(void *host);
-void *lw_metal_pass(void *host, double red, double green, double blue);
-int lw_metal_submit(void *host);
-int lw_metal_wait(void *host);
-void lw_metal_destroy(void *host);
+
 #endif

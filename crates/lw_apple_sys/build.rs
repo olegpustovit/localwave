@@ -1,7 +1,6 @@
 fn main() {
     println!("cargo:rerun-if-changed=src/platform.m");
     println!("cargo:rerun-if-changed=src/platform.h");
-    println!("cargo:rerun-if-changed=src/metal.m");
     println!("cargo:rerun-if-changed=src/bookmarks.m");
     println!("cargo:rerun-if-changed=src/audio.m");
     println!("cargo:rerun-if-changed=src/scan.m");
@@ -51,16 +50,5 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=CoreMedia");
         println!("cargo:rustc-link-lib=framework=ImageIO");
         println!("cargo:rustc-link-lib=framework=CoreGraphics");
-        if std::env::var_os("CARGO_FEATURE_METAL").is_some() {
-            cc::Build::new()
-                .file("src/metal.m")
-                .flag("-fobjc-arc")
-                .flag("-mmacosx-version-min=15.0")
-                .warnings(true)
-                .flag("-Werror")
-                .compile("lw_metal");
-            println!("cargo:rustc-link-lib=framework=Metal");
-            println!("cargo:rustc-link-lib=framework=QuartzCore");
-        }
     }
 }

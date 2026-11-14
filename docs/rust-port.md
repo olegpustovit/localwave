@@ -9,15 +9,101 @@ The port is **in progress**. The Rust app now opens the library worker, restores
 | Layout engine, widget/body registration, styling and animation machinery | pxui, accessed through its public wrapper |
 | Text shaping, glyph/image caches, draw batching, shaders and rendering pipelines | pxui |
 | Screen composition, application-specific bodies, theme/motion values and interaction state | LocalWave UI, using public pxui APIs |
-| Window/device setup, frame acquisition/submission/presentation and cover texture lifetime | LocalWave host, using the public GPU and pxui renderer APIs |
+| Window/device setup, frame acquisition/submission/presentation and cover texture lifetime | pxui framework host (`pxui_host`, `pxui_sdl`, native sys modules) |
 | Search, persistence, history, source access and artwork decoding | LocalWave services/workers |
 
 The current `lw_ui` manifest has only the public pxui wrapper, public input and LocalWave core as
 runtime dependencies. Its layout and motion declarations call pxui; it has no private renderer or
-GPU backend imports. `lw_bin::gpu` calls public `Renderer::prepare`, `draw` and `forget_image`.
-The native frame shim in `lw_apple_sys::metal` still contains Metal acquisition and presentation
-calls. Consequently **all rendering machinery is in pxui, but not every Metal call**. This follows
-the reference plan's app-owned window/device/frame loop. SwiftUI feature parity remains unfinished.
+GPU backend imports. LocalWave's production binary now depends on `pxui_host` for GPU setup,
+frames and image lifetime; its GPU backend dependency is test-only for native readback assertions.
+The generic Metal frame shim lives in `metal_sys`, generic AppKit chrome in `sdl3_sys`, and
+retained image descriptors/requests in the public `pxui::images` module. The original hostless
+renderer API remains available for embedding. SwiftUI feature parity remains unfinished.
+
+## Framework host ownership checkpoint
+
+SDK checkpoint **`a75122eb556e137c51e8c924dba6ad282aacba6e`** is published on `rust-port`.
+`pxui_host::Graphics` now owns device/queue construction, the renderer, three in-flight frames,
+drawable acquisition, resize preparation, submission/presentation, bounded image uploads and
+completion-based texture retirement. LocalWave's `gpu` adapter only computes its cover-grid source
+resolution and delivers borrowed worker-decoded RGBA packets. It no longer creates, uploads,
+submits, retires or destroys GPU resources. The service shim's Metal feature, GPU dependencies,
+frame Rust/Objective-C files and app artwork texture cache are removed.
+
+The public image module retains bounded UTF-8 source paths, visibility-aware coalesced requests,
+quality/missing-image caching, pending work across retained views and LRU metadata. Music source
+access and decode scheduling stay in LocalWave. Grid sizing stays an app policy; the framework
+accepts density and a maximum requested pixel size. Uploads reject invalid keys/dimensions and
+obsolete epochs; replayed delivery revisions cannot resurrect evicted covers. The host determines
+completed serials itself. Failed construction now releases already-created queues/devices.
+
+A `host` dependency tier composes **public and open** crates and cannot import private engines;
+public/private/open crates cannot depend on it. The existing renderer keeps its hostless ABI.
+The current convenience host is **macOS-only**; this does not qualify iOS or add a Windows/Linux
+convenience host. No external dependency or C ABI layout/version changes are introduced.
+
+### Checks
+
+- **184 app checks pass**, **13.094 s wall / 16.947 s summed**, zero skips:
+  `/tmp/localwave-framework-app-matrix-final.log`. Five image-cache cases moved unchanged in intent
+  from the app to the SDK, and one app-specific gallery-resolution check remains in the app.
+- **104 SDK/platform/gate checks pass**, **7.070 s wall / 5.497 s summed**, zero skips:
+  `/tmp/localwave-framework-sdk-matrix-final.log`. These include the moved image checks, bounded
+  UTF-8 paths and three independent framework host cases, with no LocalWave dependency.
+- **76 static-wrapper/host checks pass**, **4.968 s wall / 3.386 s summed**, zero skips:
+  `/tmp/localwave-framework-sdk-static-final.log`. Actual RGBA readback, replay/invalid/stale packet
+  handling, warm build/draw allocations, in-flight retirement, chrome geometry and failed host
+  construction are covered in both linkage modes.
+- App Clippy passes all targets/native interop with Rust warnings denied in **12.84 s**:
+  `/tmp/localwave-framework-app-clippy.log`. Scoped host Clippy passes with warnings denied in
+  **5.95 s**, `/tmp/localwave-framework-sdk-clippy-scoped.log`. The unscoped SDK attempt reaches
+  an existing redundant cast in unchanged `input/src/lib.rs:331`; it is retained in
+  `/tmp/localwave-framework-sdk-clippy.log`.
+- The first complete app run passes but reports a duplicate Objective-C frame class from linking
+  the native shim both statically and dynamically: `/tmp/localwave-framework-app-matrix.log`.
+  The native helper now uses a private ARC-managed Objective-C++ struct with no class registration.
+  The focused production artwork check passes after the fix in **11.442 s wall / 0.639 s case**,
+  `/tmp/localwave-framework-native-context-fixed.log`; final app/SDK runs contain no duplicate-class
+  warning. The first compile/field-rename errors remain in the `framework-ownership-check` logs.
+- The dependency gate initially rejects the convenience host's apparent Windows GPU reach.
+  Its UI/window/backend dependencies now explicitly target macOS, matching the implementation;
+  the original rejection remains in `/tmp/localwave-framework-deps.log`. Shape checking reports
+  nine pre-existing findings in unchanged files (Vulkan, ABI, arena, text and wrapper state),
+  `/tmp/localwave-framework-shape.log`; none are hidden or allowlisted by this change.
+- Dependency, tier, ABI header/snapshot and exported-symbol gates pass. Their logs are
+  `/tmp/localwave-framework-deps-final.log`, `/tmp/localwave-framework-tiers-checked.log` and
+  `/tmp/localwave-framework-abi-{header,snapshot,exports}.log`. ABI exports rebuild in **0.28 s**.
+
+### Signed performance result
+
+`/tmp/localwave-framework-host-performance.log` retains all original 12 workloads, 10,000 songs,
+**182/82/100 total/warm/measured frames** and both app/libpxui allocation counters. All 12 have
+**zero warm Rust UI allocations**. All 12 fail the unchanged strict **1,000 µs wall maximum**;
+`make performance` exits with failure. This move qualifies framework ownership and the measured
+warm allocation paths; it does not establish completed latency work or whole-process allocation
+freedom. Earlier failing results remain above/below and in their original logs.
+
+| Workload | Wall max / p50 / p95 / p99 µs | CPU max / p50 / p95 / p99 µs |
+| --- | --- | --- |
+| songs-original | 6494 / 867 / 3959 / 4517 | 1133 / 784 / 1060 / 1121 |
+| find-filters-title-descending | 4299 / 825 / 3619 / 4129 | 1103 / 732 / 975 / 1013 |
+| queue-occurrences | 4110 / 697 / 2251 / 4078 | 1041 / 653 / 843 / 1024 |
+| queue-carry-scroll-cancel | 5501 / 590 / 2464 / 3739 | 2500 / 553 / 954 / 2166 |
+| full-queue-playlist-editor | 4516 / 805 / 2544 / 3297 | 1085 / 660 / 951 / 999 |
+| albums-artwork | 4499 / 688 / 2977 / 4363 | 1549 / 604 / 1099 / 1412 |
+| waveform-scrub-and-scroll | 3065 / 519 / 2705 / 2937 | 1019 / 413 / 879 / 952 |
+| settings-menus-appearance | 3492 / 322 / 2133 / 3209 | 632 / 280 / 504 / 627 |
+| files-indexed-directory | 3293 / 326 / 1171 / 2386 | 413 / 314 / 379 / 405 |
+| external-drop-hover-and-cancel | 3372 / 307 / 2454 / 3335 | 401 / 284 / 365 / 381 |
+| artists-measured-columns | 4357 / 791 / 3054 / 3508 | 1044 / 706 / 954 / 1041 |
+| songs-playing-indicator | 5199 / 905 / 4100 / 4449 | 1318 / 855 / 1179 / 1252 |
+
+Release library/app builds take **24.33 / 22.66 s**. Signed bundle checks pass for macOS 15,
+default executable stack, bundled dylib identity and portable rpath. Smoke reaches **504.4 ms
+idle**. Artwork retains 19 quads / 4,800,512 bytes / zero warm requests, and artists retain 23–31
+rows with first artist 1–13. Signed runs contain no duplicate-class warning. The existing normal
+GUI is preserved. Native/process allocations, physical-device/iOS and full-screen/provider
+qualification remain open.
 
 ## Command data service checkpoint
 
@@ -28,6 +114,10 @@ display suggestions are bounded to six songs and three each of albums, artists a
 Palette query changes preserve the underlying page Arc; ordinary refresh still recomputes it.
 An actual native playback start refreshes both unplayed results and Most played without another
 browse request. The visible palette and its action routing are **not connected yet**.
+Before connecting its 20-point input, qualify the shared custom text-field body: focused
+caret hit testing and edit painting currently pass the default font size despite a body's explicit
+editor size. The shared font-size correction is pending; this ownership checkpoint adds no
+application-side editing workaround.
 
 Song matching retains localized standard containment and BM25 order for palette playback;
 ordinary Find retains its library order. Command/album/artist matching uses the Swift palette's

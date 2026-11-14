@@ -2,7 +2,6 @@
 #[cfg(target_os = "macos")]
 pub mod appearance;
 #[cfg(target_os = "macos")]
-pub mod artwork_gpu;
 #[cfg(target_os = "macos")]
 pub mod controller;
 #[cfg(target_os = "macos")]

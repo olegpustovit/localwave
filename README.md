@@ -73,6 +73,10 @@ command palette's worker-side suggestions and ranked playback payloads are prepa
 owned folders and the top-24 Most played collection. The visible palette and scrolling search
 header still need porting; full visual parity is unfinished.
 
+The Rust shell uses the framework's `pxui_host` for window/GPU integration, presentation and image
+texture lifetime. LocalWave supplies decoded covers and source/layout policy; it contains no
+production Metal or texture management code. The convenience host currently targets macOS.
+
 The Rust checkpoint is on **rust-port**. It requires macOS 15+, Xcode with the macOS 26 SDK, Rust (the pinned toolchain is selected by rustup), CMake and pkg-config. On another Mac:
 
 ```sh
