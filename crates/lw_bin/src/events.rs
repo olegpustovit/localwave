@@ -1,5 +1,4 @@
 use input::Event as HostEvent;
-use pxui::{Event, Str};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FolderPurpose {
@@ -147,50 +146,6 @@ pub fn folder_selection(
         }
     }
     None
-}
-
-pub fn encode(events: &[HostEvent], scratch: &mut Vec<String>, wire: &mut Vec<Event>) {
-    wire.clear();
-    if scratch.len() < events.len() {
-        scratch.resize_with(events.len(), String::new);
-    }
-    for (event, text) in events.iter().zip(scratch.iter_mut()) {
-        text.clear();
-        let raw = if let HostEvent::FileDialog {
-            id,
-            result: Ok(paths),
-        } = event
-        {
-            for (index, path) in paths.iter().enumerate() {
-                if index > 0 {
-                    text.push('\0');
-                }
-                text.push_str(path);
-            }
-            input::wire::Raw {
-                kind: input::wire::FILE_DIALOG,
-                code: 0,
-                x: 0.0,
-                y: 0.0,
-                value: *id as f64,
-                text: Some(text),
-            }
-        } else {
-            event.raw(text)
-        };
-        let text = raw.text.unwrap_or("");
-        wire.push(Event {
-            kind: raw.kind,
-            code: raw.code,
-            x: raw.x,
-            y: raw.y,
-            value: raw.value,
-            text: Str {
-                ptr: text.as_ptr(),
-                len: text.len(),
-            },
-        });
-    }
 }
 
 #[cfg(test)]
@@ -388,29 +343,28 @@ mod tests {
                 ]),
             },
         ];
-        let mut scratch = Vec::new();
-        let mut wire = Vec::new();
-        encode(&events, &mut scratch, &mut wire);
-        assert_eq!(scratch[2], "/Music/Björk.flac\0/Music/日本語.flac");
-        let capacity = scratch[2].capacity();
+        let mut encoded = pxui_host::Events::default();
+        encoded.encode(&events);
         mem_sys::local_reset();
         for count in [0, 1, 3, 2, 0, 3] {
-            encode(&events[..count], &mut scratch, &mut wire);
+            let wire = encoded.encode(&events[..count]);
             assert_eq!(wire.len(), count);
         }
         let allocations = mem_sys::local_alloc_count();
         assert_eq!(allocations, 0);
-        assert_eq!(scratch[2].capacity(), capacity);
+        let wire = encoded.as_slice();
         assert_eq!(wire[2].kind, input::wire::FILE_DIALOG);
         assert_eq!(wire[2].value, 7.0);
-        assert_eq!(wire[2].text.ptr, scratch[2].as_ptr());
-        assert_eq!(wire[2].text.len, scratch[2].len());
+        assert!(!wire[2].text.ptr.is_null());
+        assert_eq!(
+            wire[2].text.len,
+            "/Music/Björk.flac\0/Music/日本語.flac".len()
+        );
         let empty = [HostEvent::FileDialog {
             id: 8,
             result: Ok(Vec::new()),
         }];
-        encode(&empty, &mut scratch, &mut wire);
-        assert!(scratch[0].is_empty());
+        let wire = encoded.encode(&empty);
         assert_eq!(wire[0].text.len, 0);
     }
 }

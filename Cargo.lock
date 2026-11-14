@@ -111,6 +111,7 @@ dependencies = [
 name = "pxui_host"
 version = "0.1.0"
 dependencies = [
+ "input",
  "mem_sys",
  "metal_sys",
  "ogpu_core",

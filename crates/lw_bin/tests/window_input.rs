@@ -887,8 +887,8 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
     ui.set_a11y(true);
     let mut incoming = Vec::with_capacity(256);
-    let mut wire = Vec::with_capacity(256);
-    let mut scratch = Vec::new();
+    let mut encoded = pxui_host::Events::default();
+    let mut platform = pxui_host::Platform::default();
     let catalog = prepared_catalog(Vec::new());
     let state = lw_ui::ShellState::default();
     let mut player = lw_ui::PlayerView {
@@ -908,12 +908,12 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
         }
         incoming.clear();
         assert!(sdl3_sys::test_util::push_numeric_trace());
-        assert!(window.pump(&mut incoming));
+        assert!(platform.pump(&mut window, &mut incoming));
         assert!(window.take_failure().is_none());
         if frame >= 20 {
             assert_eq!(mem_sys::local_alloc_count(), 0, "SDL pump allocated");
         }
-        events::encode(&incoming, &mut scratch, &mut wire);
+        let wire = encoded.encode(&incoming);
         if frame >= 20 {
             assert_eq!(mem_sys::local_alloc_count(), 0, "event encoding allocated");
         }
@@ -945,6 +945,10 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
         .unwrap();
         if frame >= 20 {
             assert_eq!(mem_sys::local_alloc_count(), 0, "UI input/build allocated");
+        }
+        platform.apply(&mut window, &ui).unwrap();
+        if frame >= 20 {
+            assert_eq!(mem_sys::local_alloc_count(), 0, "platform output allocated");
         }
     }
     let allocations = mem_sys::local_alloc_count();

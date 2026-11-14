@@ -8,6 +8,68 @@ remain requirements. Existing latency measurements and benchmark assertions are 
 the recorded wall-time failures are not passes. iOS starts with the plan's static SDL3
 device/simulator spike inside pxui, followed by Metal, touch and lifecycle integration.
 
+### iOS display pacing, lifecycle and framework input checkpoint
+
+PXUI checkpoint: **`eac85b6`** on `rust-port`.
+
+The framework now owns the scoped UIKit loop, a screen-rate `CADisplayLink`, one reusable idle
+repaint timer and a coalesced run-loop source for SDL/worker wakeups. It runs in common modes,
+pauses when idle/inactive and disables SDL's nested UIKit pumping. SDL event watches post back
+to the main loop instead of calling Rust inside UIKit notification dispatch. The owned callback
+receives initialization, frame, pause/resume, memory and finish signals; captured resources drop
+before the framework destroys the window. Callback errors are reported; a panic aborts at the
+C boundary. iOS Metal independently rejects inactive draws/uploads, drains submitted frames on
+resign-active, releases acquired but unsubmitted resources and preserves GPU failures on resume.
+No Objective-C Metal frame class, public C ABI change or new dependency was introduced.
+
+`pxui_host::Events` now owns the reusable ABI event span and UTF-8 arena. Pointer publication
+happens after arena growth, so a later string cannot invalidate an earlier event. Dialog encoding
+reuses its scratch and cancellation round-trips as zero paths. `pxui_host::Platform` applies native
+IME, background, cursor and clipboard outputs once per UI frame and queues paste for the next
+batch. Unchanged IME geometry skips native updates. It reads the common output once per apply;
+owned clipboard/text changes remain separate allocation paths. LocalWave now uses these public
+framework APIs, removing its duplicate event encoder and background-only output handling.
+Its native numeric input/build/output regression retains zero warm Rust allocations.
+
+A real first-resume allocation was reproduced with a one-event startup and a four-event
+background/resume batch. The engine's initial retained snapshot cloned the exact short length.
+It now clones into empty reusable vectors, retaining normal amortized capacity. The regression
+fails with **one allocation** before the fix and passes with **zero** across static/dynamic APIs.
+Neither the 82-frame warm-up nor the zero-allocation assertion changed.
+
+Final iPhone 16e / iOS 18.6 qualification backgrounds the gallery at **frame 90**, confirms that
+an inactive draw skips with **zero Rust allocations**, then resumes the **same PID 3844**. It
+finishes **182 frames / 82 warm-up / 100 measured with zero warm Rust allocations**, including
+the first resumed frame. The 250 ms idle deadline produces **one callback**, with no extra draws.
+The final extent is **390×844 points / 1170×2532 pixels, scale 3**; footprint/peak are
+**23,759,272 / 28,953,024 bytes** for the simulator probe. Stderr is empty. Evidence:
+`/tmp/localwave-ios-lifecycle-publish{,-stderr}.log`. The original pause-notification ordering
+failure, first resumed allocation and phase diagnostics remain in
+`/tmp/localwave-ios-lifecycle-resume-{initial-failure,allocation-failure,diagnostic}*.log`.
+The small failing/passing regression is in `/tmp/localwave-ios-resume-capacity-{before,after}.log`.
+
+- **195 SDK/native/renderer/host checks pass in 21.474 s wall / 13.421 s summed**, zero skips,
+  `/tmp/localwave-ios-lifecycle-sdk-final.log`. **81 static-wrapper/host checks pass in 5.776 s /
+  4.071 s summed**, zero skips, `/tmp/localwave-ios-lifecycle-static-final.log`; its contention
+  retries remain recorded. The focused native IME case also checks dead-window refusal and
+  duplicate apply; event encoding covers Unicode/IME/dialog ownership and warm buffer reuse.
+- **186 app checks pass in 16.454 s wall / 16.094 s summed**, zero skips,
+  `/tmp/localwave-ios-lifecycle-app-publish-tests.log`. The earlier concurrent build/simulator
+  run hit the existing five-second native dialog/artwork limits and exited 124; the unchanged
+  limits and original log remain `/tmp/localwave-ios-lifecycle-app-regressions.log`. The quiet
+  run passes both cases, with no assertion or deadline relaxed.
+- Device/simulator arm64 bundles build for iOS **18.0**, platforms **2/7**, stack **0**, with
+  static SDL and system dependencies only. `/tmp/localwave-ios-lifecycle-publish-{sim,device}-build.log`,
+  `/tmp/localwave-ios-lifecycle-mach-o.log`. Scoped iOS host/spike and SDL Clippy, app Clippy,
+  dependency/tier, ABI header/snapshot/export and whitespace checks pass. Shape retains its
+  **nine pre-existing findings**; no gate exception was added. ABI remains **1.23**.
+
+Next: qualify worker wakeups while fully idle, finger identities/gestures, native keyboard and
+safe areas; then the narrow LocalWave UI and iOS service bridges. Interactive events now reach
+the gallery, but this is not complete touch/HIG, keyboard, physical-device, 120 Hz or native-memory
+qualification. The shipping Swift iOS app is unchanged. The 12 signed macOS workloads and strict
+1 ms assertions are preserved; their deferred wall-time matrix was not repeated for this stage.
+
 ### iOS Metal gallery checkpoint
 
 PXUI checkpoint: **`110c34d`** on `rust-port`.

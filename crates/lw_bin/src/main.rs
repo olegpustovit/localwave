@@ -325,8 +325,8 @@ fn run() -> Result<(), String> {
     };
     let mut extent = window.extent();
     let mut events: Vec<HostEvent> = Vec::with_capacity(256);
-    let mut wire = Vec::with_capacity(256);
-    let mut scratch = Vec::new();
+    let mut encoded = pxui_host::Events::default();
+    let mut platform = pxui_host::Platform::default();
     let mut first = true;
     let mut repaint = None;
     let mut revision = u64::MAX;
@@ -474,7 +474,7 @@ fn run() -> Result<(), String> {
             mem_sys::local_reset();
         }
         events.clear();
-        if !window.pump(&mut events) {
+        if !platform.pump(&mut window, &mut events) {
             break;
         }
         if let Some(error) = window.take_failure() {
@@ -633,7 +633,7 @@ fn run() -> Result<(), String> {
             || repaint.is_some_and(|time| now >= time)
         {
             first = false;
-            events::encode(&events, &mut scratch, &mut wire);
+            let wire = encoded.encode(&events);
             let interval =
                 trace_frames.then(|| lw_apple_sys::timing::FrameInterval::begin(frames as u64 + 1));
             let cpu_started = if performance {
@@ -807,15 +807,7 @@ fn run() -> Result<(), String> {
             } else {
                 0
             };
-            let platform = &ui.output().platform;
-            if platform.has_background != 0 {
-                let color = platform.background;
-                window.set_background((
-                    f64::from(color.r) / 255.0,
-                    f64::from(color.g) / 255.0,
-                    f64::from(color.b) / 255.0,
-                ))?;
-            }
+            platform.apply(&mut window, &ui)?;
             let output_allocations = if trace_frames {
                 mem_sys::local_alloc_count() - before_output
             } else {
