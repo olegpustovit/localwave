@@ -1976,7 +1976,8 @@ fn queue_sheet(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let (window_width, window_height) = ui.view_size();
+    let content = ui.content_rect();
+    let (window_width, window_height) = (content.w, content.h);
     let width = (window_width - 32.0).clamp(240.0, 680.0);
     let height = (window_height - 64.0).clamp(160.0, 620.0);
     let open = ui.modal(Some(width), "Playback queue", &mut |ui| {

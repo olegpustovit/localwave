@@ -103,7 +103,13 @@ pub(super) fn view(
     intent: &mut Option<Intent>,
 ) -> Handle {
     let (width, height) = ui.view_size();
-    let [top, right, bottom, left] = ui.environment().safe_area;
+    let content = ui.content_rect();
+    let (top, right, bottom, left) = (
+        content.y,
+        width - content.x - content.w,
+        height - content.y - content.h,
+        content.x,
+    );
     let width = (width - left - right).max(1.0);
     let root = ui.node(
         "compact-shell",
@@ -1207,5 +1213,72 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 390.0, 6000.0),
             Some(Intent::ShowQueue)
         );
+    }
+
+    #[test]
+    fn phone_text_fields_follow_keyboard_bounds_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = catalog(200);
+        let player = PlayerView::default();
+        for mode in 0..3 {
+            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            let mut state = ShellState::default();
+            if mode == 0 {
+                state.apply(Intent::Navigate(Route::Find));
+            }
+            if mode == 1 {
+                state.apply(Intent::ShowCommands);
+            }
+            if mode == 2 {
+                state.apply(Intent::ShowQueue);
+                state.apply(Intent::NamePlaylist);
+            }
+            for tick in 0..182 {
+                let width = if tick % 4 < 2 { 390.0 } else { 320.0 };
+                let bottom = [810.0, 700.0, 600.0, 508.0, 600.0, 700.0][tick % 6];
+                mem_sys::local_reset();
+                let mut intent = None;
+                ui.frame(
+                    &FrameIn {
+                        width,
+                        height: 844.0,
+                        time: tick as f64,
+                        environment: pxui::Environment {
+                            safe_area: [59.0, 0.0, 34.0, 0.0],
+                            ..Default::default()
+                        },
+                        keyboard: pxui::Keyboard {
+                            frame: [0.0, bottom, width, 844.0 - bottom],
+                            flags: pxui::Keyboard::VALID | pxui::Keyboard::ANIMATING,
+                        },
+                        ..Default::default()
+                    },
+                    &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                )
+                .unwrap();
+                assert_eq!(intent, None);
+                let field = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| node.is_role(Role::TextField))
+                    .expect("phone input");
+                let rect = field.rect;
+                assert!(
+                    rect.x >= 0.0
+                        && rect.x + rect.w <= width
+                        && rect.y >= 59.0
+                        && rect.y + rect.h <= bottom,
+                    "mode {mode}, width {width}, keyboard {bottom}: {rect:?}"
+                );
+                if tick >= 82 {
+                    assert_eq!(
+                        mem_sys::local_alloc_count(),
+                        0,
+                        "phone keyboard mode {mode}, frame {tick}"
+                    );
+                }
+            }
+        }
     }
 }

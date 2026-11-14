@@ -145,6 +145,10 @@ fn overlay(
 ) {
     let (width, height) = dimensions;
     let (vw, vh) = ui.view_size();
+    let content = ui.content_rect();
+    let top = (content.h * 0.12).min(96.0);
+    let width = width.min(content.w);
+    let height = height.min((content.h - top - 16.0).max(0.0));
     let open = ui.popup(
         None,
         None,
@@ -191,7 +195,7 @@ fn overlay(
                         flags: BLOCKING | CLIP,
                         axis: Axis::Column,
                         role: Role::Dialog,
-                        at: Some(((vw - width) * 0.5, (vh * 0.12).min(96.0))).into(),
+                        at: Some((content.x + (content.w - width) * 0.5, content.y + top)).into(),
                         w: Size::Px(width),
                         h: Size::Px(height),
                         look: Look {
@@ -223,7 +227,8 @@ pub(super) fn palette_view(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let (width, height) = ui.view_size();
+    let content = ui.content_rect();
+    let (width, height) = (content.w, content.h);
     let results = state.command_results(catalog);
     let items = results.map_or(&[][..], |results| results.items.as_slice());
     let groups = items

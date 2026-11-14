@@ -15,10 +15,67 @@ USB signing/install remains unqualified** because discovery still finds no phone
 full Rust GUI builds for device/simulator and passes isolated portrait startup/draw/idle/shutdown.
 Audio-session activation/notifications and cached system appearance are connected. Compact layout
 is implemented below 620 points. Native document pickers transfer original URL capabilities to the
-file worker. Basic tap/drag/scroll arbitration is now in pxui; extended gestures,
-keyboard behavior, real provider grants, visual
+file worker. Basic tap/drag/scroll arbitration and animated docked-keyboard content bounds are now
+in pxui; extended gestures, keyboard editing, real provider grants, visual
 parity and real background playback remain unfinished or unqualified. No full-app/device readiness
 ETA is established. The shipping Swift app remains available.
+
+### Adaptive usable area and native keyboard motion
+
+The responsive composition follows [redesign v4](https://artifacts.microapps.space/a/mh0ydns8mzyg):
+below **620 points** the same Rust shell selects phone navigation, virtual content, the bottom deck
+and expanded player. Desktop keeps its sidebar/content/Now/transport composition. This is a layout
+switch in the real app, not scaling a desktop canvas. Exact populated phone screenshot parity remains open.
+
+pxui **6a9e578**, ABI **1.26**, owns current keyboard geometry and safe usable bounds. Its iOS host constrains an
+inert view to UIKit's keyboard layout guide and samples the presentation layer, including native
+curve **7**. `FrameIn::keyboard`, `Ui::keyboard()` and `Ui::content_rect()` expose it through the
+public API; LocalWave's compact shell, command overlay and queue dimensions consume these bounds.
+Generic framework modals also center in usable content. A full-width bottom-occluding keyboard
+reduces content height; floating geometry is exposed without shrinking the whole window.
+
+The frozen **48/56/128-byte** frame prefixes and **72-byte Environment** are preserved. The new
+complete frame is **152 bytes**, with its **20-byte Keyboard** at offset **128**. Partial new tails
+are ignored; invalid values fail before mutation. Geometry invalidates retained views, and animation
+keeps scheduling frames until it settles.
+
+Native refocusing exposed three allocations, then one after the editor fix. The framework now
+retains editor value/identity across blur, moves shelf history instead of cloning it, and chooses
+adequate spare key-modifier capacity. Undo histories remain separate even when fields share a value;
+the existing undo byte cap remains enforced. Temporary allocator backtraces were removed after
+identifying numeric routing. Failures remain in `/tmp/localwave-keyboard-avoidance-native-first.log`
+and `/tmp/localwave-keyboard-refocus-allocation-trace.log`.
+
+Qualification:
+
+- **356 framework checks pass, 23.762 s wall / 15.921 s case sum**, zero skips. Static API, ABI,
+  core, host, SDL and types cover cache invalidation/repaint, incomplete descriptors, invalid-input
+  atomicity, refocus/history and zero warm allocations. All **81 dynamic-wrapper checks** also pass
+  (**5.127 / 2.473 s**). `/tmp/localwave-keyboard-{sdk-final,wrapper-dynamic}-tests.log`.
+- **193 app checks pass, 13.098 / 12.895 s**, zero skips. A new check exercises Find, command search
+  and playlist naming at **320/390 points**, six keyboard positions and the unchanged **182/82/100**
+  zero warm Rust allocation rule for each flow. `/tmp/localwave-keyboard-app-final-tests.log`.
+  Both runners keep **5 s/case and 60 s/run** limits.
+- Native **iPhone 16e / iOS 18.6** probe shows/hides twice, including refocus at frame **90** and hide
+  at **130**, with the focused field at the usable bottom. Its IME bounds remain within content
+  throughout real intermediate presentation geometry. **182/82/100, zero warm Rust allocations**,
+  one idle callback and worker wake all pass. `/tmp/localwave-keyboard-avoidance-qualified-runtime.log`,
+  PID **23258** exits. Native footprint/peak sample **29,428,376 / 34,474,648 bytes**; native
+  allocations are not claimed zero.
+- Production full simulator/device builds pass (**12.83 / 14.43 s** Cargo time), including package
+  verification. `/tmp/localwave-keyboard-full-app-{simulator,device}-build.log`. The device package
+  remains unsigned. The installed simulator package passes **15 frames / 15 draws, 516.8 ms idle**;
+  `/tmp/localwave-keyboard-full-app-smoke.log`, PID **24119** exits. Normal Mac GUI PID **69331**
+  stays running and its bundle/data are untouched.
+- ABI header/export/snapshot and dependency/tier gates pass. Shape retains **nine existing findings**,
+  with no added exclusions. `/tmp/localwave-keyboard-{abi-header,abi-exports,abi-snapshot,deps,tiers,shape}.log`.
+- Core library and scoped app all-target Clippy pass; broader SDK build-script lints previously
+  recorded remain outside this check. `/tmp/localwave-keyboard-{core,app}-clippy.log`.
+
+Physical installation/provider grants, manual touch editing and IME composition, floating-keyboard
+field avoidance, Dynamic Type, populated phone goldens and device/background playback remain open.
+No new release timing qualification is claimed; the strict **1 ms wall** target remains deferred,
+and earlier failures are preserved. P4/P5/P6/P7 remain incomplete.
 
 ### Shared widget touch arbitration and scroll physics
 

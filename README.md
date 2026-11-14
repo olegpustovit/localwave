@@ -86,7 +86,11 @@ unqualified. The full Rust executable now builds for iOS device/simulator and pa
 simulator launch/draw/idle/shutdown check. Below 620 points the UI switches to phone navigation,
 virtual lists, a mini-player and an expanded player; macOS can resize down to 320 points. Native
 tap/drag/scroll gestures use pxui's shared widget and scroll engine. Long press, swipe actions,
-interactive back and physical gesture feel remain unfinished or unqualified. Native iOS document pickers now transfer their original URL capabilities
+interactive back and physical gesture feel remain unfinished or unqualified. pxui's shared
+`content_rect()` follows safe areas and animated docked-keyboard presentation geometry; the compact
+shell, command search and playlist naming use it. Repeated show/hide and refocus preserve zero warm
+Rust allocations in the simulator probe. IME editing and floating-keyboard field avoidance remain
+unqualified. Native iOS document pickers now transfer their original URL capabilities
 to the import worker; real provider grants still need qualification. The full-app signing/install command is implemented;
 its simulator path is qualified, while the physical USB path still needs a connected iPhone/iPad.
 

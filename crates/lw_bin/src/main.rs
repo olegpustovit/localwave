@@ -777,6 +777,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     scale: window.scale() as f32,
                     time: now,
                     environment: platform.environment(),
+                    keyboard: platform.keyboard(),
                     appearance: preferences.appearance,
                     reduced_motion: u32::from(
                         !performance_song_indicators
