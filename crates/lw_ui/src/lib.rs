@@ -70,6 +70,7 @@ pub enum Intent {
     Support,
     Files(files::Request),
     ChooseFolder,
+    ChooseAudio,
     SourceMenu(files::Target, (f32, f32)),
     CloseSourceMenu,
     ReconnectSource(files::Target),

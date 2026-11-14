@@ -280,13 +280,14 @@ pub(super) fn view(
         text(ui, "files-detail", files.directory.as_ref().map_or(files.source_count.as_str(), |directory| directory.detail.as_str()), 13, p.secondary, (Size::Grow, 26.0), true);
         let tools = container(ui, "files-tools", Axis::Row, Size::Grow, Size::Px(40.0), p.paper);
         ui.within(&tools, &mut |ui| {
+            if action(ui, "add-audio", "Add audio files", 118.0, files.account.is_some() && !files.busy, p) { *intent = Some(Intent::ChooseAudio); }
             if let Some(directory) = &files.directory {
                 let location = directory.location;
-                if action(ui, "back", "Back", 76.0, true, p) {
+                if action(ui, "back", "Back", 64.0, true, p) {
                     *intent = Some(Intent::Files(directory.up.map_or(Request::Roots, |parent| Request::Browse(Location { parent: Some(parent), ..location }))));
                 }
-                if action(ui, "rescan", "Rescan source", 124.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Rescan(location))); }
-                if action(ui, "import", "Import folder", 116.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Import(location))); }
+                if action(ui, "rescan", "Rescan source", 110.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Rescan(location))); }
+                if action(ui, "import", "Import folder", 108.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Import(location))); }
             } else if action(ui, "refresh", "Refresh folders", 130.0, true, p) { *intent = Some(Intent::Files(Request::Roots)); }
         });
         if files.busy {
@@ -482,6 +483,17 @@ mod tests {
         assert_eq!(
             click(&mut ui, &files, &catalog, &state, &mut time, "Add folder"),
             Some(Intent::ChooseFolder)
+        );
+        assert_eq!(
+            click(
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "Add audio files"
+            ),
+            Some(Intent::ChooseAudio)
         );
         let target = Target {
             user: 42,
@@ -731,6 +743,17 @@ mod tests {
             None
         );
         assert_eq!(
+            click(
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "Add audio files"
+            ),
+            None
+        );
+        assert_eq!(
             click(&mut ui, &files, &catalog, &state, &mut time, "Back"),
             Some(Intent::Files(Request::Roots))
         );
@@ -747,5 +770,47 @@ mod tests {
             unchanged,
             "hidden Files progress must not redraw the library"
         );
+        files.busy = false;
+        files.progress.clear();
+        files.revision += 1;
+        state.apply(Intent::Navigate(Route::Files));
+        for _ in 0..3 {
+            time += 1.0 / 60.0;
+            ui.frame(
+                &FrameIn {
+                    width: 640.0,
+                    height: 480.0,
+                    time,
+                    ..Default::default()
+                },
+                &mut |ui| {
+                    shell(
+                        ui,
+                        &PlayerView {
+                            files: Some(&files),
+                            ..Default::default()
+                        },
+                        &catalog,
+                        &state,
+                        &mut None,
+                    );
+                },
+            )
+            .unwrap();
+        }
+        let mut right = 0.0;
+        for name in ["Add audio files", "Back", "Rescan source", "Import folder"] {
+            let rect = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| ui.a11y_name_of(node) == name)
+                .unwrap()
+                .rect;
+            assert!(
+                rect.x >= right && rect.x + rect.w <= 640.0 && rect.y + rect.h <= 480.0,
+                "{name}: {rect:?}"
+            );
+            right = rect.x + rect.w;
+        }
     }
 }

@@ -51,7 +51,7 @@ impl LibraryWorker {
         self.select_source_for_user(&user, expected_user, source_id)
     }
 
-    fn current_source_user(&mut self, expected_user: i64) -> io::Result<User> {
+    pub(super) fn current_source_user(&mut self, expected_user: i64) -> io::Result<User> {
         let encoded = lw_apple_sys::cloud::current_identity()?;
         let user = self.user_for_identity(encoded.as_deref())?;
         require_user(&user, expected_user)?;

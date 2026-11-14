@@ -2,6 +2,70 @@
 
 The port is **in progress**. The Rust app now opens the library worker, restores a paused queue and connects library browsing and transport controls to native playback. The complete reference UI and platform qualification remain unfinished. The Swift iOS and Mac app remains the shipping product. Do not remove its targets or switch release distribution before the platform gates below pass.
 
+## Audio selection checkpoint
+
+Files now exposes **Add audio files** through SDL's asynchronous multiple-file picker. Matching
+request IDs are consumed once, cancellation stays separate from errors, and the captured account
+is revalidated by the Files worker. The worker validates the entire selection before copying,
+then holds each resolved security scope through the existing coordinated bounded-memory stream.
+Original filenames and extension case are retained. Identical named content is reused; different
+content gets an exclusive UUID-prefixed destination. Symlinks are not followed when comparing
+existing destinations. Cancellation, callback failure and source-version changes remove staging
+files; completed private files and original audio are retained. Named copies skip unused hashing.
+
+The existing source registration, scan and import services populate **Added Files**. Selection
+results preserve picker order and deduplicate the repository's shared song identities. Those
+identities can share a final source path, matching Swift's compacted lookup behavior. Private
+paths are attached under the cache guard, so prepared playback opens Added Files directly rather
+than making another managed Music copy. Favorites and playlist membership survive re-selection.
+The worker publishes retained song/context payloads through its existing snapshot retirement;
+the host retries autoplay delivery until the bounded controller accepts it. Account changes clear
+pending selection payloads. Files navigates to the imported source; its toolbar still fits the
+minimum 640-point window.
+
+The real import check exposed a shared path-parser bug: `URLByStandardizingPath` rewrote
+`/private/var` to `/var` after registration, changing indexed parent keys relative to the saved
+root. The parser now uses `standardizedURL`, retaining that spelling while normalizing dot paths.
+Regression checks cover both path forms and their scan identities. Earlier failed import/compiler
+logs remain under `/tmp/localwave-audio-selection-*` and `/tmp/localwave-audio-picker-tests*`.
+
+### Evidence and limits
+
+- **150 checks pass in 19.626 s wall / 13.061 s summed**, zero skips. Fourteen cases were retried
+  alone after exceeding their recorded contention baseline. Slowest case: native controller
+  **2.554 s**, within the five-second case limit. The real selected-audio service takes **0.22 s**,
+  the complete Files actor check **0.33 s**, and the UI action/scroll/minimum-window check **0.02 s**.
+  Log: `/tmp/localwave-audio-picker-final-tests.log`. The earlier 150-case checkpoint passes in
+  **15.172 s**: `/tmp/localwave-audio-picker-checkpoint-tests.log`.
+- All four packages/all targets pass Clippy with interop enabled and warnings denied in
+  **2.13 s**. Formatting, whitespace and the published pxui pin checks pass.
+  Log: `/tmp/localwave-audio-picker-final-clippy.log`.
+- `make performance` rebuilds libpxui/app in **0.70 / 20.97 s**. The signed sandbox bundle passes
+  minimum OS, default executable stack, bundled dylib/rpath and launch checks. Smoke draws once,
+  then remains idle **508.8 ms**. Log: `/tmp/localwave-audio-picker-performance.log`.
+- All nine signed workloads retain **zero warm Rust allocations** with the unchanged 10,000-song,
+  182-frame / 82-warm / 100-measured setup. Every strict **1,000 µs wall maximum still fails**;
+  `make performance` correctly returns nonzero. CPU figures do not substitute for that gate.
+
+| Workload | Wall max/p50/p95/p99 µs | CPU max/p50/p95/p99 µs |
+| --- | --- | --- |
+| Songs | 3217 / 570 / 2196 / 3188 | 575 / 445 / 535 / 569 |
+| Find | 2572 / 438 / 1689 / 2423 | 575 / 408 / 511 / 543 |
+| Queue | 2454 / 487 / 1571 / 2016 | 567 / 447 / 531 / 554 |
+| Queue drag | 2052 / 355 / 1375 / 1889 | 1727 / 341 / 590 / 1716 |
+| Queue sheet | 3385 / 658 / 2027 / 2734 | 989 / 506 / 756 / 838 |
+| Gallery | 1558 / 477 / 956 / 1500 | 768 / 440 / 564 / 617 |
+| Waveform | 1981 / 397 / 1713 / 1970 | 549 / 386 / 488 / 524 |
+| Settings | 2316 / 302 / 1657 / 2262 | 549 / 278 / 483 / 509 |
+| Files | 2656 / 335 / 1836 / 2486 | 445 / 310 / 391 / 425 |
+
+Gallery retains 18 image quads, 3,756,032 texture bytes and zero warm requests. Waveform keeps
+200 bars and nine scrub commits; Settings makes 45 actions across eight themes; Files retains
+10,000 indexed paths and 14 drawn row surfaces. Cold selection/import/copy and native allocations
+are outside warm Rust qualification. Live signed picker grants, cloud providers, account changes,
+native memory and devices remain unqualified. External drops, observation and the full port remain
+unfinished. The existing normal GUI was preserved throughout this checkpoint.
+
 Source: [LocalWave Rust Port, version 2](https://artifacts.microapps.space/a/w474jy87pnxg), saved verbatim as [rust-port-reference.html](rust-port-reference.html). The reference file SHA-256 is `32178251cf3c64b313a073277eeda58c1b60a897df229aeeefba9aafff9c1301`. Baselines: LocalWave `af73743`; pxui `59d6f4540bc9eb7bffe981af0578cd286920f55c`.
 
 ## Build and checks
@@ -36,7 +100,7 @@ Rust 1.99.1 is pinned. Xcode, CMake, pkg-config and curl are required. Static SD
 | P1: core | Song model and raw states, masked UTF-8 FNV identity, Swift-compatible scalar lowercase, complete song hydration, additive song migrations, transactional song upsert and FTS updates, BM25 prefix search, Favorites, guarded cache updates, native FLAC comments/pictures, occurrence-based queue/reorder/shuffle/repeat/Clear/Undo and two-item prequeue selection. User/source/path/playlist repositories, transactional metadata/FTS removal, guarded bookmark/root replacement and source selection, SQLite.swift-compatible UTC text dates, indexed path rescans, album grouping without correlated rescans, and duplicate-preserving bulk reads without redundant Song copies. System SQLite through safe FFI. Indexed recursive import selection, transactional song/FTS/digest commits, pure import policy with progress/cancellation, cloud placeholders, verified-cache enrichment/invalidation, unchanged-file skipping and Unicode track-prefix cleanup. Thread-confined application scan/import service, generated-path exclusions, native bookmark/pin/cache-proof preferences, atomic scan publication and legacy-song relocation. LRU cache policy and a serialized application copy/eviction service with native coordinated copies and pin/playback protection. Native queue/volume/settings persistence, typed Swift-compatible playback contexts, duplicate-aware queue restoration, isolated UI-test suites and validated waveform JSON/SQLite storage. The application waveform service uses coordinated PCM extraction and Swift-compatible source signatures. | Remaining import/source command integration and source observation; port coverage from all 18 SwiftPM test files. Fixture exchange does not qualify a full user library. |
 | P2: Apple playback | Native Foundation URL normalization and security-scoped bookmark creation/resolution/renewal, balanced RAII access grants, core relative-path containment checks, worker-only availability probes and coordinated AVFoundation tag/measurement reads, streaming SHA-256, cancellation and post-read version checks exist. The core FLAC parser runs inside the same coordinated grant. Coordinated offline copies stream and hash with cancellation, version guards and network simulation checks. Native waveform extraction uses a fixed 64 KiB PCM buffer and checks source versions before/during/after the coordinated read. Worker-prepared AVPlayerItems feed a main-thread AVQueuePlayer with two upcoming items, incremental refill, bounded events and a headless local-file host. A pure Rust transport tracks playback intent, stale-load generations, completion and interruption intent. A queue session now adds preparation tickets, queue edits, repeat/shuffle, bounded occurrence-based failure traversal and prequeue reconciliation. Library preparation uses coordinated materialization and explicit cache leases through native retirement. Native one-shot start events feed a worker history service with Swift-compatible play counts/dates and safe managed-cache recency updates. The GUI now uses a bounded application controller for worker-owned queue operations, cancellation, native installation/retirement acknowledgements, history and queue/index/volume persistence. The GUI publishes Now Playing metadata/artwork and routes seven bounded MediaPlayer commands through that controller. Guarded preparation/native failure writes, actual-start recovery and worker catalog invalidation now preserve newer cache/import records. | Complete library/UI integration and native decoder/provider failure qualification, physical media-key/Control Center qualification, interruption handling, coordinated playback access, provider observation, pickers/share; sandboxed same-team upgrade and device bookmark qualification. |
 | P3: pxui fixes | Local Metal compatibility fixes, themes/fonts, thread-safe wake, retained input/text/draw storage and reserved-key guards. Fixes 1–2: inline sampled/stepped curves, fixed-capacity keyframes, anchored independent-axis view scaling, nested hit/accessibility geometry and static/dynamic allocator checks. Scale-only runs update the existing transform table without rewriting instances. Fix 3 exposes backdrop saturation and resize-time scratch preparation through the ABI and Metal/Vulkan shaders, with native Metal readbacks, reusable prepared passes, retained large-layer boundaries and zero warm Rust allocations in tested RGBA/BGRA blurred draws. Fix 5 adds validated OpenType tabular-number flags with independent cached proportional/tabular layouts and static/dynamic warm allocation checks. Fix 6 adds eight inline spans on text nodes/canvases, preserving accessibility labels, ligature coverage and warm allocation-free drawing. Fix 7 exposes head/middle ellipsis with cache, accessible-label, raster and native golden/allocation regressions. Fix 8 includes Apple native font discovery on missing clusters, file mapping, compatibility checks and two lazy fixed pages each for mask/colour glyphs, with stable handles/UVs and warm script/emoji pixel/allocation tests. Fix 9 adds versioned frame appearance/motion inputs, cached theme selection and Apple notification delivery with running-motion cancellation. Fix 10 exposes retained view opacity/scale/clip and measured virtual lists with static/dynamic and native pixel/allocation regressions. All current engine stages are published/pinned on rust-port. ABI 1.13 adds shared bounded image identities, retained GPU wrappers and completed-serial release; ABI 1.14 adds fractional fills and output partition capacity reuse. | Finish fix 3 platform qualification, qualify macOS 15 runtime, then fix 4 if measured necessary, finish fix 8 platform/font parity and remaining appearance/platform qualification; gallery LocalWave theme. Image atlas and group opacity require the plan's measurements before deciding whether needed. |
-| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import, audio-file picker and remaining Settings actions, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
+| P4: Mac UI | Worker-prepared sidebar collections, virtual 38-point song rows, album/artist navigation, selectable rows and double-click/Return playback, 319-point Now panel and 71-point transport with cached clocks, seek/volume, repeat/shuffle and panel controls. An immutable worker-published Up next panel supports occurrence-based play/remove, cross-page drag reordering and edge scrolling, Clear/Undo and shared cursor-only snapshots. Queue/context payloads are retained on the worker. Manual refresh reads a consistent catalog, preserves selection/navigation identity and retires replaced snapshots on the worker. Worker-backed token-filtered Find with wrapping chips and Title/Artist/Album/Time sorting share immutable labels. Full queue editing and Save as playlist, native resize/zoom/full-size transparent title bar, worker-loaded Album/Now/queue covers and cached/native-decoded transport waveform with release-only scrubbing are implemented. Settings/About and appearance/cache controls are connected. Files adds a native asynchronous folder picker, separate scan/import worker, account-scoped source/directory browsing, recursive import, rescan and cancellation, plus options, reconnect and confirmed source removal. Audio selections copy safely into Added Files, open that source and autoplay the retained selection without a second managed-cache copy. Warm repeated 10,000-song scroll frames and clocks allocate no Rust objects. After removing the one-result artwork bottleneck, three signed gallery runs also have zero warm allocations and pending requests. | Waveform reveal/stagger, Find album/artist/folder result sections, remaining columns, multiselection/edit/import and remaining Settings actions, other presenters, shortcuts, song/playlist and external drag/drop, automatic source observation, 1440×872 goldens and the strict 10,000-song timing gate. |
 | P5: ship Mac | Shipping Swift release pipeline retained. | Rust TestFlight/distribution pipeline, one release cycle without reported regressions, then remove Swift Mac target. |
 | P6: pxui iOS | No changes. | Static SDL device/simulator spike, Metal/host/touch port, safe areas/keyboard, display link/background lifecycle, Dynamic Type, framework/xcframework packaging and every device feel/performance gate. |
 | P7: iOS UI/ship | Shipping Swift iOS app retained. | Complete narrow UI, native pickers/share/route overlay, 390×778 goldens and physical-device playback/bookmark/cloud qualification; only then delete Xcode and Swift sources. |

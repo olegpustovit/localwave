@@ -191,6 +191,23 @@ fn native_folder_dialog_delivery_matches_owner_and_handles_cancel_failure_once()
         ))))
     );
     assert!(events::folder_selection(&mut pending, &mut events).is_none());
+    let audio = sdl3_sys::test_util::dialog_reserve();
+    let mut audio_pending = Some((i64::from(audio), 42));
+    assert!(sdl3_sys::test_util::dialog_finish(
+        audio,
+        Some(&["/Music/名前.flac", "/Music/Björk.m4a"])
+    ));
+    assert!(sdl3_sys::wait_event_timeout(0));
+    events.clear();
+    assert!(window.pump(&mut events));
+    assert_eq!(
+        events::audio_selection(&mut audio_pending, &mut events),
+        Some(Ok(Some((
+            42,
+            vec!["/Music/名前.flac".into(), "/Music/Björk.m4a".into()]
+        ))))
+    );
+    assert!(events::audio_selection(&mut audio_pending, &mut events).is_none());
     let reconnect = sdl3_sys::test_util::dialog_reserve();
     let target = lw_ui::files::Target {
         user: 42,

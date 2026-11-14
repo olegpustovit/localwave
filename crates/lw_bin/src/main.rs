@@ -378,7 +378,9 @@ fn run() -> Result<(), String> {
     }
     let mut error_revision = 0;
     let mut folder_picker = None;
+    let mut audio_picker = None;
     let mut files_catalog_revision = 0;
+    let mut files_selection_revision = 0;
     loop {
         if performance {
             mem_sys::local_reset();
@@ -405,6 +407,16 @@ fn run() -> Result<(), String> {
             };
             error_revision += 1;
         }
+        if let Some(selection) = events::audio_selection(&mut audio_picker, &mut events) {
+            command_error = match selection {
+                Ok(None) => None,
+                Ok(Some((user, paths))) => files.add_audio(user, paths).err().map(
+                    |_| "Could not add these audio files. Folder work is busy or unavailable.",
+                ),
+                Err(message) => Some(message),
+            };
+            error_revision += 1;
+        }
         let next_preferences = environment.snapshot();
         let preferences_changed = next_preferences != preferences;
         preferences = next_preferences;
@@ -416,6 +428,19 @@ fn run() -> Result<(), String> {
             && player.command(Command::RefreshCatalog).is_ok()
         {
             files_catalog_revision = files.snapshot().catalog_revision;
+        }
+        if let Some(selection) = &files.snapshot().selection
+            && selection.revision != files_selection_revision
+            && player
+                .command(Command::Configure {
+                    songs: selection.songs.clone(),
+                    start: 0,
+                    autoplay: true,
+                    context: Some(selection.context.clone()),
+                })
+                .is_ok()
+        {
+            files_selection_revision = selection.revision;
         }
         let artwork_changed = artwork.poll();
         let artwork_updated = graphics.sync_artwork(
@@ -678,8 +703,11 @@ fn run() -> Result<(), String> {
                 }
                 if matches!(
                     intent,
-                    lw_ui::Intent::ChooseFolder | lw_ui::Intent::ReconnectSource(_)
+                    lw_ui::Intent::ChooseFolder
+                        | lw_ui::Intent::ChooseAudio
+                        | lw_ui::Intent::ReconnectSource(_)
                 ) {
+                    let audio = intent == lw_ui::Intent::ChooseAudio;
                     let purpose = match intent {
                         lw_ui::Intent::ReconnectSource(target) => {
                             Some(events::FolderPurpose::Reconnect(target))
@@ -688,15 +716,35 @@ fn run() -> Result<(), String> {
                     };
                     shell_state.apply(lw_ui::Intent::CloseSourceMenu);
                     if folder_picker.is_none()
+                        && audio_picker.is_none()
                         && let Some(purpose) = purpose
                     {
-                        match window.show_dialog(&[], None, pxui_sdl::DialogKind::OpenFolder) {
+                        let filters = if audio {
+                            vec![pxui_sdl::DialogFilter {
+                                name: "Audio files".into(),
+                                pattern: "mp3;wav;m4a;flac;aac;aiff;aif".into(),
+                            }]
+                        } else {
+                            Vec::new()
+                        };
+                        let kind = if audio {
+                            pxui_sdl::DialogKind::OpenFiles
+                        } else {
+                            pxui_sdl::DialogKind::OpenFolder
+                        };
+                        match window.show_dialog(&filters, None, kind) {
                             Ok(id) => {
-                                folder_picker = Some((id, purpose));
+                                if audio {
+                                    if let events::FolderPurpose::Add(user) = purpose {
+                                        audio_picker = Some((id, user));
+                                    }
+                                } else {
+                                    folder_picker = Some((id, purpose));
+                                }
                                 command_error = None;
                             }
                             Err(_) => {
-                                command_error = Some("Could not open the folder picker.");
+                                command_error = Some("Could not open the music picker.");
                             }
                         }
                         error_revision += 1;
@@ -831,6 +879,7 @@ fn run() -> Result<(), String> {
                         }
                         lw_ui::Intent::Files(_)
                         | lw_ui::Intent::ChooseFolder
+                        | lw_ui::Intent::ChooseAudio
                         | lw_ui::Intent::ReconnectSource(_) => {
                             unreachable!("handled above")
                         }

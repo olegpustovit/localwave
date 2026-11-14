@@ -7,6 +7,42 @@ pub enum FolderPurpose {
     Reconnect(lw_ui::files::Target),
 }
 
+type AudioSelection = (i64, Vec<std::path::PathBuf>);
+
+pub fn audio_selection(
+    pending: &mut Option<(i64, i64)>,
+    events: &mut [HostEvent],
+) -> Option<Result<Option<AudioSelection>, &'static str>> {
+    let (picker, user) = (*pending)?;
+    for event in events {
+        if let HostEvent::FileDialog { id, result } = event
+            && *id == picker
+        {
+            *pending = None;
+            return Some(match result {
+                Ok(paths) if paths.is_empty() => Ok(None),
+                Ok(paths)
+                    if paths.len() <= 1_000_000
+                        && paths.iter().map(String::len).sum::<usize>() <= 64 * 1024 * 1024
+                        && paths
+                            .iter()
+                            .all(|path| std::path::Path::new(path).is_absolute()) =>
+                {
+                    Ok(Some((
+                        user,
+                        std::mem::take(paths)
+                            .into_iter()
+                            .map(std::path::PathBuf::from)
+                            .collect(),
+                    )))
+                }
+                _ => Err("Could not choose these audio files. Try again."),
+            });
+        }
+    }
+    None
+}
+
 pub fn folder_selection(
     pending: &mut Option<(i64, FolderPurpose)>,
     events: &mut [HostEvent],
@@ -81,6 +117,53 @@ pub fn encode(events: &[HostEvent], scratch: &mut Vec<String>, wire: &mut Vec<Ev
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn audio_dialogs_preserve_order_account_and_one_shot_validation() {
+        let mut pending = Some((17, 42));
+        let mut unrelated = [HostEvent::FileDialog {
+            id: 18,
+            result: Ok(vec!["/other.flac".into()]),
+        }];
+        assert!(audio_selection(&mut pending, &mut unrelated).is_none());
+        assert_eq!(pending, Some((17, 42)));
+        let mut chosen = [HostEvent::FileDialog {
+            id: 17,
+            result: Ok(vec!["/Music/名前.flac".into(), "/Music/Björk.m4a".into()]),
+        }];
+        assert_eq!(
+            audio_selection(&mut pending, &mut chosen),
+            Some(Ok(Some((
+                42,
+                vec!["/Music/名前.flac".into(), "/Music/Björk.m4a".into()]
+            ))))
+        );
+        assert!(audio_selection(&mut pending, &mut chosen).is_none());
+        for result in [
+            Ok(Vec::new()),
+            Err("failure".into()),
+            Ok(vec!["/valid.flac".into(), "relative.m4a".into()]),
+        ] {
+            pending = Some((19, 43));
+            let cancelled = result.as_ref().is_ok_and(Vec::is_empty);
+            let outcome = audio_selection(
+                &mut pending,
+                &mut [HostEvent::FileDialog { id: 19, result }],
+            )
+            .unwrap();
+            assert!(if cancelled {
+                outcome == Ok(None)
+            } else {
+                outcome.is_err()
+            });
+            assert!(pending.is_none());
+        }
+        mem_sys::local_reset();
+        for _ in 0..100 {
+            assert!(audio_selection(&mut pending, &mut unrelated).is_none());
+        }
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
 
     #[test]
     fn folder_dialogs_match_once_preserve_owner_and_distinguish_cancel_from_failure() {

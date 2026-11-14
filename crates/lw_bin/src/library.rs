@@ -15,6 +15,8 @@ mod files;
 mod find;
 mod playback;
 mod preferences;
+mod selection;
+pub use selection::AudioSelection;
 mod sources;
 pub use sources::SourceAccount;
 mod waveform;

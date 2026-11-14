@@ -53,6 +53,13 @@ pub struct Directory {
     pub entries: Vec<Entry>,
 }
 
+#[derive(Clone)]
+pub struct Selection {
+    pub revision: u64,
+    pub songs: Arc<[i64]>,
+    pub context: Arc<lw_core::context::PlaybackContext>,
+}
+
 #[derive(Clone, Default)]
 pub struct Snapshot {
     pub revision: u64,
@@ -64,4 +71,5 @@ pub struct Snapshot {
     pub progress: String,
     pub busy: bool,
     pub catalog_revision: u64,
+    pub selection: Option<Selection>,
 }

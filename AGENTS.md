@@ -240,9 +240,9 @@ account captured when it opened. SDL completion must wake the idle host for ever
 Rescan from a nested directory indexes/imports the whole source. Cancelled scans keep the previous
 index; completed per-file imports remain. Completion/cancellation invalidates the controller catalog.
 The ninth signed workload uses 10,000 indexed fixture paths and verifies actual virtualized draws;
-preserve the existing eight workloads and unchanged allocation/wall-time/warm-up gates. Audio-file
-selection, reconnect/removal, automatic observation and real sandbox/provider/device qualification
-remain unfinished; do not present these as completed by the folder workflow.
+preserve the existing eight workloads and unchanged allocation/wall-time/warm-up gates. External
+drops, automatic observation and real sandbox/provider/device qualification remain unfinished;
+do not present these as completed by the picker workflows.
 
 Wrapped paragraph measurement keys include their text, as recurring busy/ready cache summaries
 must retain separate layouts. Keep the Settings regression alternating storage_busy within its
@@ -265,3 +265,16 @@ dialog action. Mutations share the bounded Files slot; cancel work before reconn
 When a root changes, reparent its indexed top-level rows in the same transaction so the previous
 complete index stays browsable until rescan commits. Preserve the real moved-folder/legacy/Favorite/
 membership/foreign-source checks, warm options/dialog allocation case and native cache-lease test.
+
+Audio selections use SDL OpenFiles with exact one-shot request IDs and the account captured when
+opened. The Files worker validates the whole selection, holds each resolved grant only for its
+coordinated copy, and uses the same bounded stream/cancellation/version checks as offline copies.
+Keep original filenames, identical-content reuse and exclusive UUID-prefixed collision promotion;
+never overwrite a different track or leave staging files. Named copies skip unused SHA computation.
+Register/index/import Added Files through the existing source services. Attach selected private
+files as Copied under the cache guard so playback does not duplicate them into managed Music.
+Preserve the repository's shared-song-key behavior, selection order and Favorites/membership.
+The retained selection crosses the existing snapshot retirement path; retry controller delivery
+until accepted and clear it on account changes. No picker or import filesystem work belongs in a
+frame. file_path must preserve /var and /private/var spellings while normalizing dot components;
+rewriting one breaks registered source-root identity against its indexed children's parent keys.

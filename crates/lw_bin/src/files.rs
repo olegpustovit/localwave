@@ -15,6 +15,7 @@ use std::{
 
 enum Job {
     Add { user: i64, path: PathBuf },
+    Audio { user: i64, paths: Vec<PathBuf> },
     Reconnect { target: Target, path: PathBuf },
     Remove(Target),
     Rescan(Location),
@@ -105,6 +106,15 @@ impl FilesWorker {
             return Err(io::ErrorKind::InvalidInput.into());
         }
         self.job(Job::Reconnect { target, path })
+    }
+    pub fn add_audio(&self, user: i64, paths: Vec<PathBuf>) -> io::Result<()> {
+        if paths.is_empty()
+            || paths.len() > 1_000_000
+            || paths.iter().any(|path| !path.is_absolute())
+        {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        self.job(Job::Audio { user, paths })
     }
     fn job(&self, job: Job) -> io::Result<()> {
         let mut inbox = self.shared.inbox.lock().unwrap();
@@ -262,6 +272,7 @@ fn clear_account(snapshot: &mut Snapshot, error: io::Error) {
     snapshot.account = None;
     snapshot.sources = Arc::from([]);
     snapshot.directory = None;
+    snapshot.selection = None;
     snapshot.source_count.clear();
     snapshot.message = error.to_string();
 }
@@ -269,6 +280,7 @@ fn refresh_sources(library: &mut LibraryWorker, snapshot: &mut Snapshot) -> io::
     let account = library.current_sources()?;
     if snapshot.account != Some(account.user.id) {
         snapshot.directory = None;
+        snapshot.selection = None;
     }
     snapshot.account = Some(account.user.id);
     let sources = account
@@ -400,6 +412,43 @@ fn execute(
             library.remove_source(target, &shared.cancelled)?;
             snapshot.directory = None;
             return Ok("Folder removed from the library. Files were not deleted.".into());
+        }
+        Job::Audio { user, paths } => {
+            let mut last = Instant::now();
+            let selection = library.add_audio(
+                user,
+                &paths,
+                now(),
+                &shared.cancelled,
+                &mut |stage, completed, total| {
+                    if completed <= 1 || last.elapsed().as_millis() >= 100 {
+                        snapshot.progress = if total == 0 {
+                            format!("{stage}: {completed} items")
+                        } else {
+                            format!("{stage}: {completed} of {total} files")
+                        };
+                        publish(shared, snapshot);
+                        last = Instant::now();
+                    }
+                },
+            )?;
+            let location = Location {
+                user,
+                source: selection
+                    .source
+                    .id
+                    .ok_or_else(|| io::Error::other("Source is not saved"))?,
+                parent: Some(selection.source.path_id),
+            };
+            refresh_sources(library, snapshot)?;
+            browse_directory(library, snapshot, location)?;
+            let count = selection.songs.len();
+            snapshot.selection = Some(lw_ui::files::Selection {
+                revision: snapshot.catalog_revision.wrapping_add(1),
+                songs: selection.songs,
+                context: selection.context,
+            });
+            return Ok(format!("{count} selected tracks added."));
         }
         Job::Reconnect { target, path } => {
             let source = library.reconnect_folder(target, &path, now(), &shared.cancelled)?;
@@ -828,5 +877,39 @@ mod tests {
             repository.get_song(other_song.id.unwrap()).unwrap(),
             Some(other_song)
         );
+        worker
+            .add_audio(
+                user,
+                vec![moved.join("02.flac"), moved.join("Album/01.flac")],
+            )
+            .unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision == 8 && !snapshot.busy
+        });
+        assert!(
+            worker.snapshot().message.contains("selected tracks added"),
+            "{}",
+            worker.snapshot().message
+        );
+        assert_eq!(
+            worker.snapshot().directory.as_ref().unwrap().title,
+            "Added Files"
+        );
+        let selection = worker.snapshot().selection.as_ref().unwrap();
+        assert_eq!(selection.revision, 8);
+        assert_eq!(
+            selection.songs.len(),
+            1,
+            "matching song keys are deduplicated in selection order"
+        );
+        let imported = repository.get_song(selection.songs[0]).unwrap().unwrap();
+        let relative = imported.relative_path.as_deref().unwrap();
+        assert!(["02.flac", "01.flac"].contains(&relative));
+        assert_eq!(
+            imported.local_file_path.as_deref(),
+            Some(format!("Added Files/{relative}").as_str())
+        );
+        assert_eq!(imported.file_state, lw_core::FileState::Copied);
+        assert!(moved.join("02.flac").is_file());
     }
 }
