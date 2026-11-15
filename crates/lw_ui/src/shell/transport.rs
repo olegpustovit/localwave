@@ -1,3 +1,7 @@
+//! pxui owns scrub capture, mapping, ordered keys and adjustable accessibility. LocalWave sizes
+//! and paints the controls: seek previews its held cursor and sends release/digital commits;
+//! volume previews live through twelve cells with 1/12 steps. Keep waveform max-pooling, the
+//! 200 quarter-width bars and five-second seeking; no input logic belongs in these paint bodies.
 use super::*;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
@@ -334,69 +338,40 @@ pub(super) fn seek(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mu
     } else {
         0.0
     };
-    let scrubber = ui.node(
-        "scrubber",
-        Node {
-            flags: CLIP
-                | if duration > 0.0 {
-                    CLICKABLE | FOCUSABLE | FOCUS_MARK
-                } else {
-                    0
-                },
+    let upper = duration.min(f64::from(f32::MAX)) as f32;
+    let scrub = ui.scrub(
+        "Playback position",
+        position.min(f64::from(upper)) as f32,
+        0.0..=upper,
+        5.0,
+    );
+    let scrubber = scrub.node;
+    ui.set_node_layout(
+        &scrubber,
+        &Node {
             w: Size::Grow,
             h: Size::Px(if ui.view_size().0 < compact::BREAKPOINT {
                 44.0
             } else {
                 40.0
             }),
-            role: if duration > 0.0 {
-                Role::Slider
-            } else {
-                Role::Progress
-            },
             ..Node::DEFAULT
         },
     );
-    ui.a11y_name(&scrubber, "Playback position");
-    ui.a11y_number(&scrubber, position, 0.0, duration, 5.0);
-    let signal = ui.signal_state(&scrubber);
-    let rect = ui.rect(&scrubber);
-    let mut fraction = if duration > 0.0 {
+    let fraction = if let Some(preview) = scrub.preview {
+        preview / upper
+    } else if duration > 0.0 {
         (position / duration) as f32
     } else {
         0.0
     };
-    if duration > 0.0 && rect.w > 0.0 {
-        if signal.held || signal.released {
-            let x = if signal.released {
-                signal.release_point.0
-            } else {
-                signal.pointer.0
-            };
-            fraction = ((x - rect.x) / rect.w).clamp(0.0, 1.0);
-        }
-        if signal.released && signal.button == Some(0) {
-            *intent = Some(Intent::SeekFraction(fraction as f64));
-        }
-        if let Some(value) = signal.a11y_value.filter(|value| value.is_finite()) {
-            *intent = Some(Intent::SeekFraction((value / duration).clamp(0.0, 1.0)));
-        }
-        if ui.focused(&scrubber) {
-            let seconds = if ui.key_pressed(input::Key::ArrowLeft) {
-                Some(position - 5.0)
-            } else if ui.key_pressed(input::Key::ArrowRight) {
-                Some(position + 5.0)
-            } else if ui.key_pressed(input::Key::Home) {
-                Some(0.0)
-            } else if ui.key_pressed(input::Key::End) {
-                Some(duration)
-            } else {
-                None
-            };
-            if let Some(seconds) = seconds {
-                *intent = Some(Intent::SeekFraction((seconds / duration).clamp(0.0, 1.0)));
-            }
-        }
+    if let Some(seconds) = scrub.commit {
+        let fraction = if seconds == upper {
+            1.0
+        } else {
+            (f64::from(seconds) / duration).clamp(0.0, 1.0)
+        };
+        *intent = Some(Intent::SeekFraction(fraction));
     }
     let peaks = player.waveform.copied();
     ui.draw(&scrubber, move |paint, rect| {
@@ -444,42 +419,44 @@ pub(super) fn volume(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let volume = ui.node(
-        "volume",
-        Node {
-            flags: CLICKABLE | TAB_STOP,
+    let value = if player.volume.is_finite() {
+        player.volume.clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let scrub = ui.scrub("Volume", value, 0.0..=1.0, 1.0 / 12.0);
+    ui.set_node_layout(
+        &scrub.node,
+        &Node {
             w: width,
             h: Size::Px(if ui.view_size().0 < compact::BREAKPOINT {
                 44.0
             } else {
                 40.0
             }),
-            role: Role::Slider,
             ..Node::DEFAULT
         },
     );
-    ui.a11y_name(&volume, "Volume");
-    ui.a11y_number(&volume, player.volume as f64, 0.0, 1.0, 0.05);
-    let fraction = player.volume.clamp(0.0, 1.0);
-    ui.draw(&volume, move |paint, rect| {
-        paint.fill(rect.x, rect.y + 19.0, rect.w, 2.0, p.line);
-        paint.fill(rect.x, rect.y + 19.0, rect.w * fraction, 2.0, p.ink);
-        paint.fill(
-            rect.x + (rect.w - 2.0) * fraction,
-            rect.y + 14.0,
-            2.0,
-            12.0,
-            p.ink,
-        );
+    let fraction = scrub.preview.unwrap_or(value);
+    ui.draw(&scrub.node, move |paint, rect| {
+        let cell = ((rect.w - 22.0) / 12.0).max(0.0);
+        let on = (fraction * 12.0).round() as usize;
+        for index in 0..12 {
+            paint.fill_fractional(
+                rect.x + index as f32 * (cell + 2.0),
+                rect.y + (rect.h - 10.0) * 0.5,
+                cell,
+                10.0,
+                if index < on { p.ink } else { p.selected },
+            );
+        }
     });
-    let signal = ui.signal_state(&volume);
-    let rect = ui.rect(&volume);
-    if (signal.clicked || signal.dragging) && rect.w > 0.0 {
-        *intent = Some(Intent::Volume(
-            ((signal.pointer.0 - rect.x) / rect.w).clamp(0.0, 1.0),
-        ));
-    }
-    if let Some(value) = signal.a11y_value {
-        *intent = Some(Intent::Volume(value.clamp(0.0, 1.0) as f32));
+    let next = if scrub.held {
+        scrub.preview.filter(|next| *next != value)
+    } else {
+        scrub.commit
+    };
+    if let Some(next) = next {
+        *intent = Some(Intent::Volume(next));
     }
 }

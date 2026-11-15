@@ -25,8 +25,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | B2 | Framework text identity and pixel rounding | done | 5426f94 |
 | B2a | Keyless measurement and bounded layout cache | done | 7ad09dc |
 | B2b | Pixel Fit layout and public fast identities | done | 5426f94 |
-| B3 | Repeating retained keyframes and indicators | done | HEAD |
-| B4 | Framework scrub signal for seek/volume | todo | — |
+| B3 | Repeating retained keyframes and indicators | done | f7c573a |
+| B4 | Framework scrub signal for seek/volume | done | HEAD |
 | B5 | Framework virtual-list reveal | todo | — |
 | B6 | Framework completed file-drop events | todo | — |
 | B7 | Move profiling/lifetime checks; close boundary | todo | — |
@@ -53,28 +53,28 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-B3 `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
+B4 `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Bundle signature/dependency/default-stack
-checks and settled idle smoke pass (501.4 ms). Source: `/tmp/localwave-b3-performance-final.log`.
-11 strict 1,000 µs wall maxima fail; Files passes at 973 µs, so `make performance` returns nonzero.
-The full latency gate remains unmet; no causal speedup is claimed. Native/process allocations
-remain unqualified. The indicator validates 58 visible playing / 34 paused / 57 changing frames
-through transformed geometry. Previous failures and measurements remain in git history.
+checks and settled idle smoke pass (511.0 ms). Source: `/tmp/localwave-b4-performance-final.log`.
+12 strict 1,000 µs wall maxima fail, so `make performance` returns nonzero. The full latency
+gate remains unmet; no causal speedup is claimed. Native/process allocations remain unqualified.
+Waveform scrubbing retains 200 bars and exactly nine release commits; the indicator validates
+58 visible playing / 34 paused / 57 changing frames. Previous measurements remain in git history.
 
 | Workload | CPU p50/p99/max µs | Wall p50/p95/p99/max µs | Warm Rust allocations |
 | --- | --- | --- | --- |
-| songs-original | 708/887/937 | 749/1734/1984/3333 | 0 |
-| find-filters-title-descending | 664/1231/1325 | 767/1999/2935/7096 | 0 |
-| queue-occurrences | 582/765/831 | 603/971/2187/3005 | 0 |
-| queue-carry-scroll-cancel | 549/982/1399 | 576/1396/1844/2676 | 0 |
-| full-queue-playlist-editor | 610/956/1014 | 693/1568/2212/2262 | 0 |
-| albums-artwork | 606/1392/1510 | 674/1389/1754/1903 | 0 |
-| waveform-scrub-and-scroll | 296/810/813 | 363/1177/2457/2780 | 0 |
-| settings-menus-appearance | 244/573/712 | 267/1043/2504/2547 | 0 |
-| files-indexed-directory | 311/395/424 | 323/669/955/973 | 0 |
-| external-drop-hover-and-cancel | 275/365/377 | 284/592/1303/2422 | 0 |
-| artists-measured-columns | 662/910/914 | 752/1046/1681/1920 | 0 |
-| songs-playing-indicator | 844/1093/1253 | 881/1505/1770/2955 | 0 |
+| songs-original | 698/943/969 | 765/1534/2442/2481 | 0 |
+| find-filters-title-descending | 724/940/944 | 815/2404/3329/3900 | 0 |
+| queue-occurrences | 627/837/906 | 719/1394/1861/2419 | 0 |
+| queue-carry-scroll-cancel | 506/880/999 | 558/1417/2426/3352 | 0 |
+| full-queue-playlist-editor | 656/1332/1792 | 808/2119/3469/3534 | 0 |
+| albums-artwork | 565/1039/1302 | 615/1639/1794/1888 | 0 |
+| waveform-scrub-and-scroll | 355/923/941 | 521/2089/2667/3317 | 0 |
+| settings-menus-appearance | 325/548/565 | 369/1314/2561/2625 | 0 |
+| files-indexed-directory | 329/423/440 | 345/1503/2045/2111 | 0 |
+| external-drop-hover-and-cancel | 290/405/409 | 310/635/1274/1925 | 0 |
+| artists-measured-columns | 717/1031/1034 | 780/2902/3176/3288 | 0 |
+| songs-playing-indicator | 880/1235/1288 | 1058/3247/3642/3775 | 0 |
 
 ## Open qualification
 
@@ -88,7 +88,7 @@ through transformed geometry. Previous failures and measurements remain in git h
 
 ## Known gaps
 
-- Boundary B4–B7 and performance P1–P6 precede new feature work.
+- Boundary B5–B7 and performance P1–P6 precede new feature work.
   The full strict latency gate still fails; cold shaping and native memory need evidence.
   A text/core edit check took 1.60 s, exceeding pxui's 1 s warm-edit target.
   P3 still needs to remove stable metadata/state string hashing and position-driven rebuilds.

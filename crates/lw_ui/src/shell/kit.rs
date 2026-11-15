@@ -436,6 +436,147 @@ pub(super) mod button_tests {
     }
 
     #[test]
+    fn volume_cells_preview_and_adjust_by_reference_steps_without_warm_allocations() {
+        use pxui::{Event, FrameIn, Platform};
+        mem_sys::set_peer(pxui::library_counter);
+        let player = PlayerView {
+            volume: 0.5,
+            ..Default::default()
+        };
+        fn frame(
+            ui: &mut Ui,
+            player: &PlayerView<'_>,
+            scale: f32,
+            events: &[Event],
+            intent: &mut Option<Intent>,
+        ) {
+            ui.frame(
+                &FrameIn {
+                    width: 320.0,
+                    height: 44.0,
+                    scale,
+                    events: events.as_ptr(),
+                    event_count: events.len(),
+                    ..Default::default()
+                },
+                &mut |ui| {
+                    volume(ui, player, Size::Px(82.0), palette(ui), intent);
+                },
+            )
+            .unwrap();
+        }
+        for scale in [1.0, 2.0] {
+            let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            frame(&mut ui, &player, scale, &[], &mut None);
+            let p = palette(&ui);
+            let cells: Vec<_> = ui
+                .layers()
+                .flat_map(|layer| layer.instances.iter())
+                .filter(|quad| {
+                    (quad.rect[2] - quad.rect[0] - 5.0).abs() < 0.001
+                        && (quad.rect[3] - quad.rect[1] - 10.0).abs() < 0.001
+                })
+                .copied()
+                .collect();
+            assert_eq!(cells.len(), 12);
+            for (index, cell) in cells.iter().enumerate() {
+                assert_eq!(
+                    cell.rect,
+                    [index as f32 * 7.0, 17.0, index as f32 * 7.0 + 5.0, 27.0]
+                );
+                let color = if index < 6 { p.ink } else { p.selected };
+                assert_eq!(cell.color, [color.r, color.g, color.b, color.a]);
+            }
+            let id = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| ui.a11y_name_of(node) == "Volume")
+                .unwrap()
+                .id;
+            let pointer = |kind, x| Event {
+                kind,
+                x,
+                y: 22.0,
+                ..Default::default()
+            };
+            let key = |key: input::Key| Event {
+                kind: input::wire::KEY_PRESSED,
+                code: key.code(),
+                ..Default::default()
+            };
+            for round in 0..8 {
+                mem_sys::local_reset();
+                for (event, expected) in [
+                    (pointer(input::wire::POINTER_PRESSED, 20.5), 0.25),
+                    (pointer(input::wire::POINTER_MOVED, 61.5), 0.75),
+                    (pointer(input::wire::POINTER_RELEASED, 82.0), 1.0),
+                    (key(input::Key::ArrowRight), 0.5 + 1.0 / 12.0),
+                    (key(input::Key::ArrowLeft), 0.5 - 1.0 / 12.0),
+                    (key(input::Key::Home), 0.0),
+                    (key(input::Key::End), 1.0),
+                    (key(input::Key::PageUp), 1.0),
+                    (key(input::Key::PageDown), 0.0),
+                ] {
+                    let mut intent = None;
+                    frame(
+                        &mut ui,
+                        &player,
+                        scale,
+                        std::slice::from_ref(&event),
+                        &mut intent,
+                    );
+                    assert_eq!(intent, Some(Intent::Volume(expected)));
+                }
+                let mut intent = None;
+                frame(
+                    &mut ui,
+                    &player,
+                    scale,
+                    &[pointer(input::wire::POINTER_PRESSED, 20.5)],
+                    &mut intent,
+                );
+                let events = [
+                    pointer(input::wire::POINTER_RELEASED, 61.5),
+                    pointer(input::wire::POINTER_PRESSED, 20.5),
+                ];
+                intent = None;
+                frame(&mut ui, &player, scale, &events, &mut intent);
+                assert_eq!(
+                    intent,
+                    Some(Intent::Volume(0.25)),
+                    "live preview wins over an older release in the same batch"
+                );
+                intent = None;
+                frame(
+                    &mut ui,
+                    &player,
+                    scale,
+                    &[pointer(input::wire::POINTER_CANCELLED, 20.5)],
+                    &mut intent,
+                );
+                assert!(intent.is_none());
+                ui.inject_a11y(&[pxui::A11yAction {
+                    id,
+                    action_code: 4,
+                    payload: 0.25,
+                    ..Default::default()
+                }]);
+                let mut intent = None;
+                frame(&mut ui, &player, scale, &[], &mut intent);
+                assert_eq!(intent, Some(Intent::Volume(0.25)));
+                if round > 1 {
+                    assert_eq!(
+                        mem_sys::local_alloc_count(),
+                        0,
+                        "warm volume input and cells"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
     fn waveform_bars_preview_drag_seek_on_release_and_keys_without_warm_allocations() {
         use pxui::{Event, FrameIn, Platform};
         mem_sys::set_peer(pxui::library_counter);
