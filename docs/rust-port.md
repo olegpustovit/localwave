@@ -65,15 +65,15 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-F-gate `make performance` after sidebar, palette, Now and queue parity (exit 0): eighteen signed workloads, 10,000 songs, 1440×872, 182 frames /
+F-gate `make performance` with CoreText-matching text (pxui 4dff60c, after all parity work) (exit 0): eighteen signed workloads, 10,000 songs, 1440×872, 182 frames /
 82 warm-up / 100 measured, both Rust counters. All eighteen pass with zero warm Rust allocations and
-new layouts, and a passing frame-82 audit. Settled idle smoke passes (503.5 ms). The five new rows
+new layouts, and a passing frame-82 audit. Settled idle smoke passes (509.6 ms). The five new rows
 drive album-detail and artist-detail scoped-table scrolls (album with real artwork), list menu and
 New list dialog with bounded typing, metadata editor typing and a song carry over the table, a sidebar
 list and Up next that Esc cancels. Typing is applied as the Intents a text field emits, because
 TextInput events own Strings. Onboarding is not a workload: it needs an empty library, which
 contradicts the 10,000-song fixture contract.
-Source: `/tmp/localwave-fgate-merged-performance.log`.
+Source: `/tmp/localwave-d-text-performance.log` (load average 50-100 during the run).
 
 Gate (owner decision for this M1 Mac mini, 2026-11-15): build CPU p99 < 1,500 µs, frame CPU p99
 < 2,500 µs, frame work wall p99 < 8,000 µs (half a 60 Hz vsync), zero warm allocations. Work wall is
@@ -90,24 +90,24 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 
 | Workload | Build CPU | Build wall | Frame CPU | Work wall | Alloc max | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 279/501/651 | 284/406/612/789 | 553/806/967 | 485/709/999/1115 | 0 | pass |
-| find-filters-title-descending | 400/837/844 | 405/888/1002/1023 | 679/1398/1427 | 571/1372/1571/1778 | 0 | pass |
-| queue-occurrences | 291/984/1023 | 290/1195/2828/3332 | 523/1699/1937 | 447/2426/3799/5538 | 0 | pass |
-| queue-carry-scroll-cancel | 560/948/951 | 622/3442/4062/5457 | 1053/1555/1695 | 1173/4124/5684/6523 | 0 | pass |
-| full-queue-playlist-editor | 443/595/612 | 463/2414/3105/3950 | 913/1167/1176 | 880/2972/4216/4789 | 0 | pass |
-| albums-artwork | 239/350/377 | 238/318/350/377 | 533/698/728 | 457/559/591/619 | 0 | pass |
-| waveform-scrub-and-scroll | 443/880/965 | 532/1752/3042/4507 | 870/1306/1392 | 894/3019/4740/4756 | 0 | pass |
-| settings-menus-appearance | 342/610/645 | 391/2285/3074/3401 | 731/1025/1088 | 764/3058/3369/3799 | 0 | pass |
-| files-indexed-directory | 353/604/609 | 365/1291/2456/3192 | 826/1214/1318 | 760/3147/4249/6426 | 0 | pass |
-| external-drop-hover-and-cancel | 327/459/474 | 378/2390/3103/3183 | 763/1028/1030 | 805/2813/3426/5516 | 0 | pass |
-| artists-measured-columns | 266/925/952 | 265/2919/3798/4050 | 507/1404/1463 | 443/4019/4372/4974 | 0 | pass |
-| songs-playing-indicator | 305/885/888 | 307/1063/1335/8164 | 577/1347/1378 | 501/1573/4393/8768 | 0 | pass |
-| songs-long-scroll | 320/412/412 | 321/392/417/459 | 595/733/733 | 516/624/640/683 | 0 | pass |
-| album-detail-scoped-scroll | 217/618/622 | 216/565/1021/1029 | 463/1124/1133 | 399/1162/1590/3017 | 0 | pass |
-| artist-detail-scoped-scroll | 219/538/650 | 220/357/544/649 | 465/878/1014 | 396/586/890/1099 | 0 | pass |
-| list-dialogs-menu-and-name | 223/504/649 | 233/398/503/648 | 475/802/953 | 416/622/873/1212 | 0 | pass |
-| metadata-editor-typing | 315/441/457 | 315/397/440/456 | 514/708/721 | 463/560/647/651 | 0 | pass |
-| song-drag-carry-hover-cancel | 267/444/472 | 267/382/443/472 | 505/727/759 | 440/592/677/701 | 0 | pass |
+| songs-original | 676/1028/1088 | 750/2404/2976/3336 | 1144/1563/1695 | 1185/3240/5776/5875 | 0 | pass |
+| find-filters-title-descending | 646/938/987 | 682/2719/4235/4469 | 1098/1475/1528 | 1074/4168/7747/9363 | 0 | pass |
+| queue-occurrences | 750/1079/1081 | 828/3554/3889/4196 | 1226/1610/1621 | 1315/3896/4518/4745 | 0 | pass |
+| queue-carry-scroll-cancel | 582/1014/1134 | 627/2933/3531/4280 | 1063/1494/1716 | 1037/3693/4995/5682 | 0 | pass |
+| full-queue-playlist-editor | 443/673/675 | 473/3191/3615/3691 | 914/1189/1196 | 982/3901/4531/5843 | 0 | pass |
+| albums-artwork | 651/1120/1121 | 757/3278/3512/3932 | 1210/1720/1799 | 1613/4234/5274/5778 | 0 | pass |
+| waveform-scrub-and-scroll | 427/882/898 | 577/2549/3523/3626 | 904/1426/1468 | 1007/3339/4138/5109 | 0 | pass |
+| settings-menus-appearance | 329/580/610 | 358/2437/4017/4070 | 742/1035/1044 | 704/3423/4257/4420 | 0 | pass |
+| files-indexed-directory | 652/948/975 | 712/3541/3835/5865 | 1108/1450/1465 | 1162/4766/5944/6574 | 0 | pass |
+| external-drop-hover-and-cancel | 316/404/425 | 324/1428/3312/4304 | 749/894/901 | 687/3246/4555/5089 | 0 | pass |
+| artists-measured-columns | 622/982/990 | 679/2987/3866/7992 | 1067/1443/1507 | 1092/3601/4880/8256 | 0 | pass |
+| songs-playing-indicator | 746/1041/1060 | 859/3188/3551/3686 | 1199/1547/1550 | 1272/4042/4311/4350 | 0 | pass |
+| songs-long-scroll | 817/1228/1270 | 871/3151/4779/4959 | 1272/1755/1761 | 1298/4121/5330/5342 | 0 | pass |
+| album-detail-scoped-scroll | 517/617/653 | 530/1493/2278/2434 | 988/1104/1115 | 930/2375/2822/4011 | 0 | pass |
+| artist-detail-scoped-scroll | 578/824/879 | 643/2183/3564/4012 | 1098/1390/1436 | 1127/3360/5549/6015 | 0 | pass |
+| list-dialogs-menu-and-name | 499/1082/1312 | 815/2782/3248/4259 | 1061/1713/1832 | 1191/3277/5163/6053 | 0 | pass |
+| metadata-editor-typing | 868/1182/1229 | 924/3000/3666/3859 | 1336/1778/1788 | 1386/3934/6645/7229 | 0 | pass |
+| song-drag-carry-hover-cancel | 721/1308/1447 | 795/1855/3722/4038 | 1230/1937/2004 | 1337/3326/4337/4441 | 0 | pass |
 
 ### CPU profile
 
@@ -417,13 +417,17 @@ device/provider behavior remain open.
   needs the booted iOS 18 simulator and Screen Recording rights). Swift: DEBUG canvas hook at 1440×872; Rust:
   `--reference-screen` window via `screencapture` (pxui_host has no pixel readback); the window is 1440×(872+titlebar inset)
   and the inset is cropped, so both sides are the 1440×872 content area. The Rust seed mirrors LWReferenceFixture (play counts,
-  last played, pins, waveforms, non-audio files, queue/context, paused at 1:41 on a real silent file). 16 of 19 screens compare
-  (add: native picker; track: the anchored song-menu popup never paints in the capture; no pixel diff for them); mean abs diff
-  5.9-34.7, 5.3-34.0% of pixels over 24 (artists best; queue worst: Swift bottom sheet vs Rust modal). Genuine gaps: no Sources
-  sidebar/Search field/Offline meter, Now panel lacks the Format/Size/File/Plays block and the title is not drawn, Kept offline
-  and similar automatic lists missing, modal scrim popups (commands, shortcuts, settings) hide the page beneath them.
+  last played, pins, waveforms, non-audio files, queue/context, paused at 1:41 on a real silent file). 17 of 19 screens
+  compare (add: native picker; track: the anchored song-menu popup never paints in the capture). Latest (pxui 4dff60c,
+  after sidebar/palette/Now/queue/Files/onboarding parity): mean abs diff 2.25-23.17, 2.1-15.6% of pixels over 24
+  (onboarding 2.25, queue 2.59, find 6.24, artists 6.39, now 7.20, songs 8.52, commands 11.56, settings 14.73, folders
+  23.17). Remaining: Files card spacing/fixture paths, settings layout, artist page album grid, demo library; the rest is
+  spacing and per-glyph antialiasing (CoreText-matching raster, see D).
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.
-- D: VoiceOver bridges, group opacity and CoreText-exact antialiasing remain deferred;
-  decide accessibility release policy before S. Keep shipping Swift targets until their gates pass.
+- D: VoiceOver bridges and group opacity remain deferred. Antialiasing: pxui 4dff60c rasterises Apple text
+  CoreText-style (unhinted, ppem-quantised origins, rounded baseline, 0.006·ppem stem growth, shader light-text growth;
+  ABI 1.37); mean MAE vs CoreText 1×/2× Host Grotesk 1.86/0.99, Geist Mono 2.40/1.69 (pxui tools/glyph_ref.sh).
+  Geist Mono 20 pt stays ~4 (layout drift, open). pxui static abi_bench body/page ratios
+  already exceeded their limits before this change (open). Decide accessibility release policy before S. Keep shipping Swift targets until their gates pass.
