@@ -170,7 +170,7 @@ def split(source_path, manifest_path):
             end = block.rfind("}")
             body = block[begin:end]
             declaration = block[:begin - 1].rstrip() + ";" + block[end + 1:]
-            outputs[destination] = body
+            outputs[destination] = body.lstrip("\r\n")
             parent[id(item)] = declaration
         else:
             if any(name == module and kind not in ("fn", "const", "static", "impl")

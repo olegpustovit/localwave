@@ -95,6 +95,7 @@ class SplitTests(unittest.TestCase):
         tool.split(self.source, self.manifest)
         self.assertIn("#[cfg(test)]\nmod tests;", self.source.read_text())
         body = (self.root / "tests.rs").read_text()
+        self.assertFalse(body.startswith("\n"))
         self.assertIn("    use super::*;", body)
         self.assertIn("    fn check() {", body)
         self.assertNotIn("mod tests", body)
