@@ -177,6 +177,25 @@ impl App {
                         context: Some(collection.context.clone()),
                     }
                 }
+                lw_ui::Intent::PlaySelection => {
+                    let Some(collection) = shell_state.collection(player.catalog()) else {
+                        return Ok(Some(Schedule::NextFrame));
+                    };
+                    let songs: std::sync::Arc<[i64]> =
+                        shell_state.selected_song_ids(player.catalog()).collect();
+                    if songs.is_empty() {
+                        return Ok(Some(Schedule::NextFrame));
+                    }
+                    let command = Command::Configure {
+                        songs,
+                        start: 0,
+                        autoplay: true,
+                        context: Some(collection.context.clone()),
+                    };
+                    // Swift leaves selection mode after playing.
+                    shell_state.apply(lw_ui::Intent::Select(lw_ui::Selection::Clear));
+                    command
+                }
                 lw_ui::Intent::PlayCommand(key) => {
                     let Some(results) = shell_state.command_results(player.catalog()) else {
                         return Ok(Some(Schedule::NextFrame));

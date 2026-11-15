@@ -161,7 +161,8 @@ pub(super) fn confirm_delete(
                     100.0,
                     title.is_some(),
                     Palette { ink: p.danger, ..p },
-                ) {
+                ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code()))
+                {
                     *intent = Some(Intent::DeleteList(list));
                 }
             });
@@ -249,7 +250,9 @@ pub(super) fn name_dialog(
                 if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, p) {
                     *intent = Some(Intent::CancelPlaylistName);
                 }
-                if files::action(ui, "confirm-list-name", confirm, 100.0, valid, p) {
+                if files::action(ui, "confirm-list-name", confirm, 100.0, valid, p)
+                    || (valid && ui.key_pressed(input::Key::Enter.code()))
+                {
                     let name = state.playlist_name;
                     *intent = Some(match dialog {
                         ListDialog::New(song) => Intent::CreateList { name, song },

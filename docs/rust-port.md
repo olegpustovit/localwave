@@ -367,6 +367,9 @@ device/provider behavior remain open.
   NSSharingServicePicker anchored at the click): Rust Files has no per-file menu, so Swift's Files Share and
   iOS UIActivityViewController remain. Share copies run on the LibraryWorker background slot (blocking
   playback preparation for large files); temp copies are swept after a day, not on picker completion.
+- F1: Swift's Esc that cancels folder selection has no Rust counterpart (Rust Files has no selection mode).
+  Return does not confirm the metadata editor or the Rust-only delete-song dialog (Swift's editor has
+  no default action; its song delete has no dialog). Delete (Backspace) removes from a list route only.
 - macOS parity gate: complete 1440×872 reference goldens, Swift shortcut parity and new-screen workloads.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,

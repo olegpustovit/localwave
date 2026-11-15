@@ -2429,6 +2429,225 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
 }
 
 #[test]
+fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
+    use catalog::Route;
+    use lw_core::context::PlaybackContext;
+    let mut catalog = prepared(
+        (1..=3)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("Track {id}"),
+                album: "Album".into(),
+                ..Default::default()
+            })
+            .collect(),
+    );
+    catalog.add_collection(
+        "Mix",
+        vec![0, 1, 2],
+        PlaybackContext::Playlist {
+            id: 7,
+            name: "Mix".into(),
+        },
+    );
+    let mut files = files::Snapshot {
+        account: Some(1),
+        sources: vec![files::Folder {
+            id: 2,
+            root: 3,
+            name: "Music".into(),
+            path: "/Music".into(),
+            detail: String::new(),
+            current: true,
+        }]
+        .into(),
+        ..Default::default()
+    };
+    let location = files::Location {
+        user: 1,
+        source: 2,
+        parent: Some(9),
+    };
+    files.directory = Some(std::sync::Arc::new(files::Directory {
+        location,
+        source_root: 3,
+        up: Some(8),
+        title: "Folder".into(),
+        path: "/Music/Folder".into(),
+        detail: String::new(),
+        entries: Vec::new(),
+    }));
+    let player = PlayerView {
+        initialized: true,
+        files: Some(&files),
+        ..PlayerView::default()
+    };
+    let mut state = ShellState::default();
+    // Automatic collections (Favorites) come first.
+    let mix = Route::Collection(
+        catalog
+            .collections
+            .iter()
+            .position(|c| c.title == "Mix")
+            .unwrap(),
+    );
+    // The worker projects the opened list's rows into the catalog view.
+    state.apply(Intent::Navigate(mix));
+    catalog.project(state.request(&catalog).unwrap(), vec![0, 1, 2]);
+    state.apply(Intent::Navigate(Route::Songs));
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
+        intent
+    };
+    let ev = |kind: u32, code: u32| pxui::Event {
+        kind,
+        code,
+        ..Default::default()
+    };
+    // Taps `code` with the given modifiers held.
+    let mut press = |ui: &mut Ui, state: &ShellState, mods: &[input::Key], code: u32| {
+        for m in mods {
+            run(ui, state, &[ev(input::wire::KEY_PRESSED, m.code())]);
+        }
+        if code == 0 {
+            return run(ui, state, &[]);
+        }
+        let intent = run(ui, state, &[ev(input::wire::KEY_PRESSED, code)]);
+        run(ui, state, &[ev(input::wire::KEY_RELEASED, code)]);
+        for m in mods {
+            run(ui, state, &[ev(input::wire::KEY_RELEASED, m.code())]);
+        }
+        intent
+    };
+    use input::Key::{Backspace, Enter, Escape, Meta, Shift};
+    let (open, new_list) = ('[' as u32, 'n' as u32);
+    press(&mut ui, &state, &[], 0);
+    // ⌘[ from details goes to their index; plain Songs has nowhere to go.
+    assert_eq!(press(&mut ui, &state, &[Meta], open), None);
+    state.apply(Intent::Navigate(Route::Album(0)));
+    assert_eq!(
+        press(&mut ui, &state, &[Meta], open),
+        Some(Intent::Navigate(Route::Albums))
+    );
+    state.apply(Intent::Navigate(mix));
+    assert_eq!(
+        press(&mut ui, &state, &[Meta], open),
+        Some(Intent::Navigate(Route::Lists))
+    );
+    assert_eq!(press(&mut ui, &state, &[Meta, Shift], open), None);
+    // Nothing selected: ⇧⌘N, Delete and Return stay quiet.
+    for (mods, code) in [
+        (&[Meta, Shift][..], new_list),
+        (&[][..], Backspace.code()),
+        (&[][..], Enter.code()),
+    ] {
+        assert_eq!(press(&mut ui, &state, mods, code), None);
+    }
+    state.apply(Intent::Select(Selection::All(3)));
+    assert_eq!(
+        press(&mut ui, &state, &[Meta, Shift], new_list),
+        Some(Intent::NewList(Some(1)))
+    );
+    assert_eq!(
+        press(&mut ui, &state, &[], Backspace.code()),
+        Some(Intent::RemoveFromList { song: 1, list: 7 })
+    );
+    assert_eq!(
+        press(&mut ui, &state, &[], Enter.code()),
+        Some(Intent::PlaySelection)
+    );
+    state.apply(Intent::SelectRow(1));
+    assert_eq!(
+        press(&mut ui, &state, &[], Enter.code()),
+        Some(Intent::PlayRow(1))
+    );
+    // Delete removes only from a list route.
+    state.apply(Intent::Navigate(Route::Songs));
+    state.apply(Intent::SelectRow(1));
+    assert_eq!(press(&mut ui, &state, &[], Backspace.code()), None);
+    assert_eq!(
+        press(&mut ui, &state, &[Meta, Shift], new_list),
+        Some(Intent::NewList(Some(2)))
+    );
+    // Folders go up one level; settings go back from privacy, then settings.
+    state.apply(Intent::Navigate(Route::Files));
+    assert_eq!(
+        press(&mut ui, &state, &[Meta], open),
+        Some(Intent::Files(files::Request::Browse(files::Location {
+            parent: Some(8),
+            ..location
+        })))
+    );
+    state.apply(Intent::ShowSettings);
+    state.apply(Intent::ShowPrivacy);
+    assert_eq!(
+        press(&mut ui, &state, &[Meta], open),
+        Some(Intent::ClosePrivacy)
+    );
+    state.apply(Intent::ClosePrivacy);
+    assert_eq!(
+        press(&mut ui, &state, &[Meta], open),
+        Some(Intent::CloseSettings)
+    );
+    state.apply(Intent::CloseSettings);
+    // Return confirms the dialogs and Esc cancels; an invalid name stays open.
+    state.apply(Intent::NewList(None));
+    press(&mut ui, &state, &[], 0);
+    assert_eq!(press(&mut ui, &state, &[], Enter.code()), None);
+    assert_eq!(press(&mut ui, &state, &[Meta], open), None);
+    assert_eq!(
+        press(&mut ui, &state, &[], Escape.code()),
+        Some(Intent::CancelPlaylistName)
+    );
+    let name = browse::Query::new("Mix").unwrap();
+    state.apply(Intent::NewList(Some(1)));
+    state.apply(Intent::EditPlaylistName(name));
+    press(&mut ui, &state, &[], 0);
+    assert_eq!(
+        press(&mut ui, &state, &[], Enter.code()),
+        Some(Intent::CreateList {
+            name,
+            song: Some(1)
+        })
+    );
+    state.apply(Intent::CancelPlaylistName);
+    state.apply(Intent::ConfirmDeleteList(7));
+    press(&mut ui, &state, &[], 0);
+    assert_eq!(
+        press(&mut ui, &state, &[], Enter.code()),
+        Some(Intent::DeleteList(7))
+    );
+    state.apply(Intent::CloseDeleteList);
+    let target = files::Target {
+        user: 1,
+        source: 2,
+        root: 3,
+    };
+    state.apply(Intent::ConfirmRemoveSource(target));
+    press(&mut ui, &state, &[], 0);
+    assert_eq!(
+        press(&mut ui, &state, &[], Enter.code()),
+        Some(Intent::Files(files::Request::Remove(target)))
+    );
+}
+
+#[test]
 fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
     use pxui::ui::Role;
     let catalog = prepared(

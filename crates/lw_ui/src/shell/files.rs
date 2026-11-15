@@ -189,6 +189,7 @@ pub(super) fn confirm_remove(
                 if action(ui, "cancel-remove", "Cancel", 100.0, true, p) {
                     *intent = Some(Intent::CloseRemoveSource);
                 }
+                // Swift's default action: Return confirms.
                 if action(
                     ui,
                     "remove-confirm",
@@ -196,7 +197,8 @@ pub(super) fn confirm_remove(
                     100.0,
                     enabled,
                     Palette { ink: p.danger, ..p },
-                ) {
+                ) || (enabled && ui.key_pressed(input::Key::Enter.code()))
+                {
                     *intent = Some(Intent::Files(Request::Remove(target)));
                 }
             });
@@ -205,6 +207,14 @@ pub(super) fn confirm_remove(
     if !open && intent.is_none() {
         *intent = Some(Intent::CloseRemoveSource);
     }
+}
+
+/// Back (button and ⌘[): the parent folder, or the source list from a source root.
+pub(super) fn up(directory: &crate::files::Directory) -> Intent {
+    let location = directory.location;
+    Intent::Files(directory.up.map_or(Request::Roots, |parent| {
+        Request::Browse(Location { parent: Some(parent), ..location })
+    }))
 }
 
 fn button(ui: &mut Ui, key: &str, label: &str, width: f32, enabled: bool, p: Palette) -> Handle {
@@ -299,7 +309,7 @@ pub(super) fn view(
             if let Some(directory) = &files.directory {
                 let location = directory.location;
                 if action(ui, "back", "Back", 64.0, true, p) {
-                    *intent = Some(Intent::Files(directory.up.map_or(Request::Roots, |parent| Request::Browse(Location { parent: Some(parent), ..location }))));
+                    *intent = Some(up(directory));
                 }
                 if action(ui, "rescan", "Rescan source", 110.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Rescan(location))); }
                 if action(ui, "import", "Import folder", 108.0, !files.busy, p) { *intent = Some(Intent::Files(Request::Import(location))); }

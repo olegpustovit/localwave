@@ -630,6 +630,28 @@ fn global_shortcut(
     None
 }
 
+fn back_pressed(ui: &Ui) -> bool {
+    let (meta, others) = (
+        input::Key::Meta.code(),
+        [input::Key::Shift, input::Key::Alt, input::Key::Ctrl],
+    );
+    ui.key_pressed_with('[' as u32, meta) && !others.iter().any(|k| ui.key_down(k.code()))
+}
+
+/// ⌘[ Back: detail to its index, folder to its parent (source root to the source list).
+fn back_shortcut(ui: &Ui, player: &PlayerView<'_>, state: &ShellState) -> Option<Intent> {
+    if !back_pressed(ui) {
+        return None;
+    }
+    match state.route {
+        Route::Album(_) => Some(Intent::Navigate(Route::Albums)),
+        Route::Artist(_) => Some(Intent::Navigate(Route::Artists)),
+        Route::Collection(_) => Some(Intent::Navigate(Route::Lists)),
+        Route::Files => Some(files::up(player.files?.directory.as_ref()?)),
+        _ => None,
+    }
+}
+
 /// ⌘A, Esc and arrows over the song selection; raw scalar key queries only.
 fn selection_shortcut(
     ui: &Ui,
@@ -644,6 +666,30 @@ fn selection_shortcut(
     }
     if state.marked.is_empty() {
         return None;
+    }
+    let down = |k: input::Key| ui.key_down(k.code());
+    // ⇧⌘N: New List from Selection (the name dialog carries the selected songs).
+    if down(input::Key::Shift)
+        && !down(input::Key::Alt)
+        && !down(input::Key::Ctrl)
+        && (ui.key_pressed_with('n' as u32, meta) || ui.key_pressed_with('N' as u32, meta))
+    {
+        return state
+            .selected_song_ids(catalog)
+            .next()
+            .map(|song| Intent::NewList(Some(song)));
+    }
+    if ui.key_pressed(input::Key::Backspace.code())
+        && ![input::Key::Meta, input::Key::Shift, input::Key::Alt, input::Key::Ctrl]
+            .into_iter()
+            .any(down)
+        && let Some(lw_core::context::PlaybackContext::Playlist { id, .. }) =
+            state.collection(catalog).map(|c| &*c.context)
+    {
+        return state
+            .selected_song_ids(catalog)
+            .next()
+            .map(|song| Intent::RemoveFromList { song, list: *id });
     }
     // Esc that cancels a drag is spent on the drag.
     if !carrying && ui.key_pressed(input::Key::Escape.code()) {
@@ -777,15 +823,18 @@ pub fn shell(
         && state.delete_list.is_none()
         && state.metadata.is_none()
         && state.delete_song.is_none()
+        && state.remove_source.is_none()
         && ui.key_pressed(input::Key::Enter)
         && !input_was_focused
         && !ui.text_input_focused()
-        && let Some(index) = state.selected
-        && state
-            .collection(catalog)
-            .is_some_and(|collection| index < collection.rows.len())
+        && let Some(collection) = state.collection(catalog)
     {
-        *intent = Some(Intent::PlayRow(index));
+        // Swift plays the whole selection; one row keeps its playback position.
+        if state.marked.len() > 1 {
+            *intent = Some(Intent::PlaySelection);
+        } else if let Some(index) = state.selected.filter(|&i| i < collection.rows.len()) {
+            *intent = Some(Intent::PlayRow(index));
+        }
     }
     let settings_shortcut = ui.key_pressed_with(',' as u32, input::Key::Meta.code());
     if !state.commands_visible && !state.shortcuts_visible && settings_shortcut {
@@ -797,7 +846,6 @@ pub fn shell(
         && !state.commands_visible
         && !state.shortcuts_visible
         && !state.queue_visible
-        && !state.settings_visible
         && !state.playlist_editing
         && state.list_dialog.is_none()
         && state.list_menu.is_none()
@@ -808,8 +856,18 @@ pub fn shell(
         && state.source_menu.is_none()
         && state.remove_source.is_none()
     {
-        *intent = global_shortcut(ui, player, catalog, position)
-            .or_else(|| selection_shortcut(ui, catalog, state, carrying));
+        *intent = if state.settings_visible {
+            // Swift's settings page: ⌘[ goes back, to the settings list from privacy.
+            (state.settings_menu.is_none() && back_pressed(ui)).then_some(if state.privacy_visible {
+                Intent::ClosePrivacy
+            } else {
+                Intent::CloseSettings
+            })
+        } else {
+            global_shortcut(ui, player, catalog, position)
+                .or_else(|| selection_shortcut(ui, catalog, state, carrying))
+                .or_else(|| back_shortcut(ui, player, state))
+        };
     }
     if !state.commands_visible && !state.shortcuts_visible && !state.queue_visible {
         if ui.key_pressed_with('k' as u32, input::Key::Meta.code())

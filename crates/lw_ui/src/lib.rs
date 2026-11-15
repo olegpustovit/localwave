@@ -51,6 +51,8 @@ pub enum Intent {
     SelectRow(usize),
     Select(Selection),
     PlayRow(usize),
+    /// Return over a multi-row selection: play exactly the selected songs in displayed order.
+    PlaySelection,
     AppendSong(i64),
     SetFavorite {
         song: i64,
