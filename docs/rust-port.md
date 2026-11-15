@@ -49,10 +49,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P6j | Borrow fresh instances during retained placement | done | ca17adc + pxui 766f6ff |
 | P6k | Owner-approved M1 limits; gate frame work wall | done | d41fb42 + pxui 520db20 |
 | F1 | Global shortcuts from one command table | done | af4b2e8 |
-| F2 | Favorite commands, menu, key and heart | done | HEAD |
+| F2 | Favorite commands, menu, key and heart | done | 504bf9f |
 | F3 | Complete track menu and native reveal | todo | — |
 | F4 | Playlist CRUD, membership and reorder | todo | — |
-| F5 | Album/artist detail headers and actions | todo | — |
+| F5 | Album/artist detail headers and actions | done | HEAD |
 | F6 | Occurrence-based multi-selection | todo | — |
 | F7 | Drag songs to playlists and queue | todo | — |
 | F8 | Metadata editor and metadata-only deletion | todo | — |
@@ -341,7 +341,7 @@ device/provider behavior remain open.
 - F3: Play next, playlist submenu, album/artist routing, native reveal, per-song offline/retry,
   contextual removal and right-click track menus.
 - F4: create/rename/delete playlists, membership editing and drag reorder; preserve active playback.
-- F5: album/artist artwork headers, prepared summaries and Play/Shuffle actions.
+- F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F6–F7: multi-select, range/select-all behavior and song drops to playlists/queue.
 - F8: metadata editor, transactional song/FTS updates and deletion without removing original files.
 - F9: native source observation and worker-debounced automatic rescans.

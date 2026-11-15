@@ -104,6 +104,7 @@ fn shuffle_all_preserves_catalog_payload_and_configures_a_real_native_queue() {
         .command(Command::ShuffleAll {
             songs: original.clone(),
             seed: 42,
+            context: None,
         })
         .unwrap();
     let deadline = Instant::now() + Duration::from_secs(2);

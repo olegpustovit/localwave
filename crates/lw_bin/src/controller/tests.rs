@@ -51,6 +51,7 @@ fn fresh_shuffle_commands_validate_and_interrupt_the_previous_selection() {
     let command = Command::ShuffleAll {
         songs: Arc::from([1, 1, 2]),
         seed: 42,
+        context: None,
     };
     assert!(command.validate().is_ok());
     assert!(command.fences_preparation());
@@ -58,7 +59,8 @@ fn fresh_shuffle_commands_validate_and_interrupt_the_previous_selection() {
     assert!(
         Command::ShuffleAll {
             songs: Arc::from([]),
-            seed: 0
+            seed: 0,
+            context: None,
         }
         .validate()
         .is_err()

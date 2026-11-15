@@ -72,6 +72,8 @@ pub struct Collection {
     pub title: String,
     pub subtitle: String,
     pub count: String,
+    /// Swift's album/artist detail line, prepared with the collection; empty elsewhere.
+    pub summary: String,
     pub rows: Vec<usize>,
     pub row_keys: Vec<i64>,
     pub ids: Arc<[i64]>,
@@ -451,8 +453,45 @@ impl Library {
                 key
             })
             .collect();
+        let seconds = || {
+            rows.iter()
+                .filter_map(|index| self.rows[*index].seconds)
+                .sum::<f64>()
+        };
+        let summary = match &context {
+            PlaybackContext::Album { .. } => format!(
+                "{}{} songs · {} min",
+                rows.first()
+                    .and_then(|index| self.rows[*index].release_year)
+                    .map_or_else(String::new, |year| format!("{year} · ")),
+                rows.len(),
+                (seconds() / 60.0).round()
+            ),
+            PlaybackContext::Artist(_) => {
+                let albums: std::collections::HashSet<_> = rows
+                    .iter()
+                    .map(|index| {
+                        let row = self.row(*index);
+                        let artist = if row.album_artist.is_empty() {
+                            row.artist
+                        } else {
+                            row.album_artist
+                        };
+                        (artist, row.album)
+                    })
+                    .collect();
+                format!(
+                    "{} album{} · {} songs",
+                    albums.len(),
+                    if albums.len() == 1 { "" } else { "s" },
+                    rows.len()
+                )
+            }
+            _ => String::new(),
+        };
         Collection {
             key,
+            summary,
             row_keys,
             title: title.into(),
             subtitle: subtitle.into(),

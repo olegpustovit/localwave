@@ -243,6 +243,20 @@ impl App {
                     Command::ShuffleAll {
                         songs: collection.ids.clone(),
                         seed: now.to_bits(),
+                        context: None,
+                    }
+                }
+                lw_ui::Intent::ShuffleCollection => {
+                    let Some(collection) = shell_state
+                        .collection(player.catalog())
+                        .filter(|collection| !collection.ids.is_empty())
+                    else {
+                        return Ok(Some(Schedule::NextFrame));
+                    };
+                    Command::ShuffleAll {
+                        songs: collection.ids.clone(),
+                        seed: now.to_bits(),
+                        context: Some(collection.context.clone()),
                     }
                 }
                 lw_ui::Intent::Shuffle => Command::Shuffle {

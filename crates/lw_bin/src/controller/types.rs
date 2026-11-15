@@ -18,6 +18,7 @@ pub enum Command {
     ShuffleAll {
         songs: Arc<[i64]>,
         seed: u64,
+        context: Option<Arc<PlaybackContext>>,
     },
     Select {
         occurrence: u64,

@@ -46,6 +46,8 @@ pub enum Intent {
     TogglePlayer,
     Shuffle,
     ShuffleAll,
+    /// Shuffle the displayed album or artist, keeping its playback context.
+    ShuffleCollection,
     SortAlbums(browse::AlbumSort),
     Repeat,
     SeekFraction(f64),

@@ -321,6 +321,12 @@ pub(super) fn table(
         .filter(|view| Some(view.request.scope) == catalog.scope(state.route))
         .map(|view| (view.request.sort, view.request.ascending));
     let numbered = matches!(state.route, Route::Album(_));
+    let detail = matches!(state.route, Route::Album(_) | Route::Artist(_));
+    let leading = if detail {
+        super::detail::height(width, state.route)
+    } else {
+        105.6
+    };
     let widths = table.columns(
         catalog,
         width,
@@ -363,7 +369,7 @@ pub(super) fn table(
         ui.within(&results, &mut |ui| {
             let list_key = Ui::key_of(results.box_key, "songs");
             let mut viewport = Viewport {
-                leading: if find { 0.0 } else { 105.6 },
+                leading: if find { 0.0 } else { leading },
                 heading: heading_layout.height,
                 offset: 0.0,
                 height: 0.0,
@@ -381,12 +387,15 @@ pub(super) fn table(
                     } else {
                         38.0
                     },
-                    leading_height: if find { 0.0 } else { 105.6 },
+                    leading_height: if find { 0.0 } else { leading },
                     header_height: heading_layout.height,
                     trailing_height: 0.0,
                     overlay_scrollbar: true,
                 },
                 &mut |ui, part, content_y| match part {
+                    SectionPart::Leading if detail => {
+                        super::detail::header(ui, catalog, state, player, width, p, intent)
+                    }
                     SectionPart::Leading => header_view(ui, catalog, state, width, p, intent),
                     SectionPart::Header => {
                         let list = ui.box_of_key(list_key).unwrap();

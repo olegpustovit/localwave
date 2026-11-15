@@ -3,14 +3,19 @@ use super::*;
 
 impl Worker {
     pub(super) fn command(&mut self, mut envelope: Envelope) -> io::Result<()> {
-        if let Command::ShuffleAll { songs, seed } = &envelope.command {
+        if let Command::ShuffleAll {
+            songs,
+            seed,
+            context,
+        } = &envelope.command
+        {
             let mut songs = songs.clone();
             lw_core::queue::shuffle_songs(Arc::make_mut(&mut songs), *seed);
             envelope.command = Command::Configure {
                 songs,
                 start: 0,
                 autoplay: true,
-                context: None,
+                context: context.clone(),
             };
         }
         if matches!(envelope.command, Command::Toggle) {

@@ -21,6 +21,7 @@ mod artists;
 mod byline;
 pub(crate) mod commands;
 mod compact;
+mod detail;
 mod files;
 mod find;
 mod settings;
