@@ -16,6 +16,7 @@ fn main() {
     println!("cargo:rerun-if-changed=src/media.m");
     println!("cargo:rerun-if-changed=src/history.m");
     println!("cargo:rerun-if-changed=src/window.m");
+    println!("cargo:rerun-if-changed=src/presenter.m");
     let os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if os == "macos" || os == "ios" {
         let mut native = cc::Build::new();
@@ -39,6 +40,7 @@ fn main() {
             .file("src/media.m")
             .file("src/history.m")
             .file("src/window.m")
+            .file("src/presenter.m")
             .flag("-fobjc-arc")
             .warnings(true)
             .flag("-Werror");

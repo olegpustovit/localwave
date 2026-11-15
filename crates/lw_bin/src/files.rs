@@ -24,19 +24,57 @@
 //! Empty-folder success navigates Files without clearing playback.
 //!
 //! Folder enumeration/import has its own connection and worker, leaving playback preparation free.
+//!
+//! Source observation: the worker thread owns one `Presenter` per known source (created when a
+//! snapshot lists it, dropped before release when the source disappears, the account clears or the
+//! worker closes). Presenter callbacks only mark the source dirty in the inbox and wake the worker.
+//! The worker coalesces marks with a trailing `QUIET` debounce and then runs the ordinary rescan
+//! job once, never while a user job is pending. Presenters watch the registered path only; rescans
+//! still resolve the stored bookmark grant. Sources are observed from the first Files use (the
+//! worker is lazy).
 use crate::library::LibraryWorker;
-use lw_apple_sys::{bookmarks::FileSelection, collation::Key, preferences::file_path};
+use lw_apple_sys::{
+    bookmarks::FileSelection, collation::Key, preferences::file_path, presenter::Presenter,
+};
 use lw_ui::files::{Directory, Entry, Folder, Location, Request, Snapshot, Target};
 use std::{
+    collections::HashMap,
     io,
+    path::Path,
     path::PathBuf,
     sync::{
         Arc, Condvar, Mutex,
         atomic::{AtomicBool, Ordering},
     },
     thread::JoinHandle,
-    time::{Instant, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+const QUIET: Duration = Duration::from_secs(2);
+
+/// Trailing debounce per source; callers pass the clock so tests need no sleeps.
+#[derive(Default)]
+struct Debounce(Vec<(i64, Instant)>);
+impl Debounce {
+    fn mark(&mut self, source: i64, now: Instant, quiet: Duration) {
+        let due = now + quiet;
+        match self.0.iter_mut().find(|(id, _)| *id == source) {
+            Some(entry) => entry.1 = due,
+            None => self.0.push((source, due)),
+        }
+    }
+    fn next(&self, now: Instant) -> Option<Duration> {
+        let due = self.0.iter().map(|entry| entry.1).min()?;
+        Some(due.saturating_duration_since(now))
+    }
+    fn take_due(&mut self, now: Instant) -> Option<i64> {
+        let at = self.0.iter().position(|entry| entry.1 <= now)?;
+        Some(self.0.swap_remove(at).0)
+    }
+    fn forget(&mut self, source: i64) {
+        self.0.retain(|entry| entry.0 != source);
+    }
+}
 
 enum Job {
     Add {
@@ -66,6 +104,7 @@ struct Inbox {
     browse: Option<Request>,
     job: Option<Job>,
     busy: bool,
+    dirty: Vec<i64>,
     latest: Option<Arc<Snapshot>>,
     retired: Option<Arc<Snapshot>>,
     closed: bool,
@@ -74,6 +113,8 @@ struct Shared {
     inbox: Mutex<Inbox>,
     changed: Condvar,
     cancelled: AtomicBool,
+    /// None disables observation (tests with exact revision counts and heavy coordinated I/O).
+    quiet: Option<Duration>,
     wake: extern "C" fn(),
 }
 pub struct FilesWorker {
@@ -86,17 +127,26 @@ impl FilesWorker {
         factory: impl FnOnce() -> io::Result<LibraryWorker> + Send + 'static,
         wake: extern "C" fn(),
     ) -> io::Result<Self> {
+        Self::open_quiet(factory, wake, Some(QUIET))
+    }
+    fn open_quiet(
+        factory: impl FnOnce() -> io::Result<LibraryWorker> + Send + 'static,
+        wake: extern "C" fn(),
+        quiet: Option<Duration>,
+    ) -> io::Result<Self> {
         let shared = Arc::new(Shared {
             inbox: Mutex::new(Inbox {
                 browse: None,
                 job: None,
                 busy: false,
+                dirty: Vec::new(),
                 latest: None,
                 retired: None,
                 closed: false,
             }),
             changed: Condvar::new(),
             cancelled: AtomicBool::new(false),
+            quiet,
             wake,
         });
         let owner = shared.clone();
@@ -280,20 +330,45 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
             return;
         }
     };
+    let mut debounce = Debounce::default();
+    let mut observers: HashMap<i64, (String, Presenter)> = HashMap::new();
     loop {
         let (job, browse, retired) = {
             let mut inbox = shared.inbox.lock().unwrap();
-            while !inbox.closed
-                && inbox.browse.is_none()
-                && inbox.job.is_none()
-                && inbox.retired.is_none()
+            loop {
+                let now = Instant::now();
+                for source in inbox.dirty.drain(..) {
+                    debounce.mark(source, now, shared.quiet.unwrap_or_default());
+                }
+                if inbox.closed {
+                    return;
+                }
+                if inbox.browse.is_some() || inbox.job.is_some() || inbox.retired.is_some() {
+                    break;
+                }
+                match debounce.next(now) {
+                    Some(wait) if wait.is_zero() => break,
+                    Some(wait) => inbox = shared.changed.wait_timeout(inbox, wait).unwrap().0,
+                    None => inbox = shared.changed.wait(inbox).unwrap(),
+                }
+            }
+            let mut job = inbox.job.take();
+            if job.is_none()
+                && let Some(source) = debounce.take_due(Instant::now())
+                && let (Some(user), Some(folder)) = (
+                    snapshot.account,
+                    snapshot.sources.iter().find(|folder| folder.id == source),
+                )
             {
-                inbox = shared.changed.wait(inbox).unwrap();
+                shared.cancelled.store(false, Ordering::SeqCst);
+                inbox.busy = true;
+                job = Some(Job::Rescan(Location {
+                    user,
+                    source,
+                    parent: Some(folder.root),
+                }));
             }
-            if inbox.closed {
-                return;
-            }
-            (inbox.job.take(), inbox.browse.take(), inbox.retired.take())
+            (job, inbox.browse.take(), inbox.retired.take())
         };
         drop(retired);
         if let Some(job) = job {
@@ -323,6 +398,7 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
                 }
             }
             shared.inbox.lock().unwrap().busy = false;
+            sync_observers(&mut observers, &snapshot, &shared, &mut debounce);
             publish(&shared, &mut snapshot);
         }
         if let Some(request) = browse {
@@ -350,7 +426,45 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
                     snapshot.message = error.to_string();
                 }
             }
+            sync_observers(&mut observers, &snapshot, &shared, &mut debounce);
             publish(&shared, &mut snapshot);
+        }
+    }
+}
+/// Best effort: a source whose folder cannot be presented is simply not observed.
+fn sync_observers(
+    observers: &mut HashMap<i64, (String, Presenter)>,
+    snapshot: &Snapshot,
+    shared: &Arc<Shared>,
+    debounce: &mut Debounce,
+) {
+    if shared.quiet.is_none() {
+        return;
+    }
+    observers.retain(|id, (path, _)| {
+        let keep = snapshot
+            .sources
+            .iter()
+            .any(|folder| folder.id == *id && folder.path == *path);
+        if !keep {
+            debounce.forget(*id);
+        }
+        keep
+    });
+    for folder in snapshot.sources.iter() {
+        if observers.contains_key(&folder.id) {
+            continue;
+        }
+        let (owner, source) = (shared.clone(), folder.id);
+        let presenter = Presenter::new(Path::new(&folder.path), move || {
+            let mut inbox = owner.inbox.lock().unwrap();
+            if !inbox.dirty.contains(&source) {
+                inbox.dirty.push(source);
+            }
+            owner.changed.notify_one();
+        });
+        if let Ok(presenter) = presenter {
+            observers.insert(folder.id, (folder.path.clone(), presenter));
         }
     }
 }
@@ -691,6 +805,85 @@ mod tests {
     }
 
     #[test]
+    fn debounce_coalesces_marks_and_reports_deadlines_from_the_injected_clock() {
+        let start = Instant::now();
+        let quiet = Duration::from_secs(2);
+        let mut debounce = Debounce::default();
+        assert_eq!(debounce.next(start), None);
+        debounce.mark(1, start, quiet);
+        debounce.mark(1, start + Duration::from_secs(1), quiet);
+        debounce.mark(2, start + Duration::from_secs(1), quiet);
+        assert_eq!(debounce.next(start), Some(Duration::from_secs(3)));
+        assert_eq!(debounce.take_due(start + Duration::from_secs(2)), None);
+        assert_eq!(debounce.take_due(start + Duration::from_secs(3)), Some(1));
+        debounce.forget(2);
+        assert_eq!(debounce.take_due(start + Duration::from_secs(9)), None);
+        assert_eq!(debounce.next(start), None);
+    }
+
+    #[test]
+    fn dirty_sources_rescan_once_after_the_debounce() {
+        let base = std::env::temp_dir().join(format!("lw-files-dirty-{}", std::process::id()));
+        let _cleanup = Cleanup(base.clone());
+        let music = base.join("Music");
+        std::fs::create_dir_all(&music).unwrap();
+        let tagged = include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged.flac");
+        std::fs::write(music.join("01.flac"), tagged).unwrap();
+        let worker_base = base.clone();
+        let mut worker = FilesWorker::open_quiet(
+            move || {
+                LibraryWorker::open(
+                    &worker_base.join("library.sqlite"),
+                    Preferences::open(Some(&format!(
+                        "localwave.files-dirty.{}",
+                        std::process::id()
+                    )))?,
+                    AppPaths {
+                        documents: worker_base.join("Documents"),
+                        caches: worker_base.join("Caches"),
+                        temporary: worker_base.join("tmp"),
+                        test_database: None,
+                    },
+                )
+            },
+            wake,
+            Some(Duration::from_millis(30)),
+        )
+        .unwrap();
+        worker.request(Request::Roots).unwrap();
+        until(&mut worker, |snapshot| snapshot.account.is_some());
+        let user = worker.snapshot().account.unwrap();
+        let (selection, _) = sdl3_sys::test_util::file_selection(&music).unwrap();
+        worker.add_folder_selected(user, selection).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision == 1 && !snapshot.busy
+        });
+        let (source, root) = {
+            let folder = &worker.snapshot().sources[0];
+            (folder.id, folder.root)
+        };
+        std::fs::write(music.join("02.flac"), tagged).unwrap();
+        // Same inbox path as a presenter callback; repeated marks coalesce into one rescan.
+        for _ in 0..3 {
+            let mut inbox = worker.shared.inbox.lock().unwrap();
+            inbox.dirty.push(source);
+            worker.shared.changed.notify_one();
+        }
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision >= 2 && !snapshot.busy
+        });
+        assert_eq!(
+            worker.snapshot().directory.as_ref().unwrap().entries.len(),
+            2
+        );
+        let target = Target { user, source, root };
+        worker.request(Request::Remove(target)).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.sources.is_empty() && !snapshot.busy
+        });
+    }
+
+    #[test]
     fn a_first_drop_opens_the_lazy_worker_and_empty_folders_do_not_request_playback() {
         let base = std::env::temp_dir().join(format!("lw-first-drop-{}", std::process::id()));
         let _cleanup = Cleanup(base.clone());
@@ -830,7 +1023,7 @@ mod tests {
         .unwrap();
         std::fs::write(music.join("notes.txt"), "not audio").unwrap();
         let worker_base = base.clone();
-        let mut worker = FilesWorker::open(
+        let mut worker = FilesWorker::open_quiet(
             move || {
                 LibraryWorker::open(
                     &worker_base.join("library.sqlite"),
@@ -847,6 +1040,8 @@ mod tests {
                 )
             },
             wake,
+            // Exact revision counts and heavy coordinated I/O: observing the source adds latency.
+            None,
         )
         .unwrap();
         worker.request(Request::Roots).unwrap();

@@ -52,6 +52,9 @@ pub mod player;
 pub mod media;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
+pub mod presenter;
+
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn require_worker_thread() -> std::io::Result<()> {
     unsafe extern "C" {
         fn lw_is_main_thread() -> i32;
