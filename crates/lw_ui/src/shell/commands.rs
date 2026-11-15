@@ -129,19 +129,10 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
     }
 }
 
-fn row_top(items: &[crate::commands::Item], index: usize) -> f32 {
-    let headers = items[..=index]
-        .iter()
-        .enumerate()
-        .filter(|(i, item)| *i == 0 || items[*i - 1].group != item.group)
-        .count();
-    6.0 + index as f32 * 44.0 + headers as f32 * 30.8
-}
-
 fn overlay(
     ui: &mut Ui,
     label: &str,
-    dimensions: (f32, f32),
+    dimensions: (f32, Size),
     p: Palette,
     close: Intent,
     intent: &mut Option<Intent>,
@@ -152,7 +143,7 @@ fn overlay(
     let content = ui.content_rect();
     let top = (content.h * 0.12).min(96.0);
     let width = width.min(content.w);
-    let height = height.min((content.h - top - 16.0).max(0.0));
+    let max_height = (content.h - top - 16.0).max(0.0);
     let open = ui.popup(
         None,
         None,
@@ -201,7 +192,8 @@ fn overlay(
                         role: Role::Dialog,
                         at: Some((content.x + (content.w - width) * 0.5, content.y + top)).into(),
                         w: Size::Px(width),
-                        h: Size::Px(height),
+                        h: height,
+                        max_h: max_height,
                         look: Look {
                             fill: p.paper,
                             ..Look::NONE
@@ -235,18 +227,11 @@ pub(super) fn palette_view(
     let (width, height) = (content.w, content.h);
     let results = state.command_results(catalog);
     let items = results.map_or(&[][..], |results| results.items.as_slice());
-    let groups = items
-        .iter()
-        .enumerate()
-        .filter(|(i, item)| !items[..*i].iter().any(|old| old.group == item.group))
-        .count();
-    let result_height = (items.len() as f32 * 44.0 + groups as f32 * 30.8 + 12.0)
-        .clamp(60.0, 420.0)
-        .min((height - 176.0).max(60.0));
+    let result_limit = 420.0_f32.min((height - 176.0).max(60.0));
     overlay(
         ui,
         "Search and commands",
-        ((width - 32.0).clamp(0.0, 600.0), 60.0 + result_height),
+        ((width - 32.0).clamp(0.0, 600.0), Size::Fit),
         p,
         Intent::CloseCommands,
         intent,
@@ -286,86 +271,12 @@ pub(super) fn palette_view(
             {
                 *intent = Some(Intent::ActivateCommand(item.key));
             }
-            let list = ui.node(
+            let list = ui.list_measured(
                 "results",
-                Node {
-                    flags: SCROLL | CLIP,
-                    axis: Axis::Column,
-                    w: Size::Grow,
-                    h: Size::Px(result_height),
-                    scroll_step: 44.0,
-                    ..Node::DEFAULT
-                },
-            );
-            let prior_selection = ui.state(&list, -1);
-            if !items.is_empty() && prior_selection != selected as i64 {
-                let top = row_top(items, selected);
-                let offset = ui.scroll_offset(&list);
-                ui.set_scroll_offset(
-                    &list,
-                    if top < offset {
-                        top
-                    } else {
-                        offset.max(top + 44.0 - result_height)
-                    },
-                );
-                ui.set_state(&list, selected as i64);
-            }
-            ui.within(&list, &mut |ui| {
-                let content = ui.node(
-                    "content",
-                    Node {
-                        axis: Axis::Column,
-                        w: Size::Grow,
-                        h: Size::Fit,
-                        padding: Edges::all(6.0),
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&content, &mut |ui| {
-                    for (index, item) in items.iter().enumerate() {
-                        let row = ui.node_keyed(
-                            int_key(content.box_key, item.key as i64),
-                            Node {
-                                axis: Axis::Column,
-                                w: Size::Grow,
-                                h: Size::Fit,
-                                ..Node::DEFAULT
-                            },
-                        );
-                        ui.within(&row, &mut |ui| {
-                            if index == 0 || items[index - 1].group != item.group {
-                                let header = ui.node(
-                                    "group",
-                                    Node {
-                                        axis: Axis::Column,
-                                        w: Size::Grow,
-                                        h: Size::Px(30.8),
-                                        padding: Edges {
-                                            l: 12.0,
-                                            r: 12.0,
-                                            t: 10.0,
-                                            b: 4.0,
-                                        },
-                                        ..Node::DEFAULT
-                                    },
-                                );
-                                ui.within(&header, &mut |ui| {
-                                    text(
-                                        ui,
-                                        "name",
-                                        item.group,
-                                        12,
-                                        p.secondary,
-                                        (Size::Grow, 16.8),
-                                        false,
-                                    );
-                                });
-                            }
-                            result_row(ui, player, catalog, item, index == selected, p, intent);
-                        });
-                    }
-                    if items.is_empty() {
+                items.len().max(1),
+                ui.row_height() as f32,
+                &mut |ui, index| {
+                    let Some(item) = items.get(index) else {
                         text(
                             ui,
                             "empty",
@@ -381,9 +292,68 @@ pub(super) fn palette_view(
                             (Size::Grow, 48.0),
                             false,
                         );
-                    }
-                });
-            });
+                        return;
+                    };
+                    let row = ui.node_keyed(
+                        int_key(Ui::key_of(0, "localwave-command-row"), item.key as i64),
+                        Node {
+                            axis: Axis::Column,
+                            w: Size::Grow,
+                            h: Size::Fit,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&row, &mut |ui| {
+                        if index == 0 || items[index - 1].group != item.group {
+                            let header = ui.node(
+                                "group",
+                                Node {
+                                    axis: Axis::Column,
+                                    w: Size::Grow,
+                                    h: Size::Fit,
+                                    padding: Edges {
+                                        l: 12.0,
+                                        r: 12.0,
+                                        t: 10.0,
+                                        b: 4.0,
+                                    },
+                                    ..Node::DEFAULT
+                                },
+                            );
+                            ui.within(&header, &mut |ui| {
+                                text(
+                                    ui,
+                                    "name",
+                                    item.group,
+                                    12,
+                                    p.secondary,
+                                    (Size::Grow, 16.8),
+                                    false,
+                                );
+                            });
+                        }
+                        result_row(ui, player, catalog, item, index == selected, p, intent);
+                    });
+                },
+            );
+            ui.set_node_layout(
+                &list,
+                &Node {
+                    w: Size::Grow,
+                    h: Size::Fit,
+                    min_h: 60.0,
+                    max_h: result_limit,
+                    padding: Edges::all(6.0),
+                    ..Node::DEFAULT
+                },
+            );
+            let prior_selection = ui.state(&list, -1);
+            if !items.is_empty() && prior_selection != selected as i64 {
+                ui.reveal(&list, selected);
+                ui.set_state(&list, selected as i64);
+            } else if items.is_empty() {
+                ui.set_state(&list, -1);
+            }
         },
     );
 }
@@ -403,12 +373,13 @@ fn result_row(
             flags: CLICKABLE,
             axis: Axis::Row,
             w: Size::Grow,
-            h: Size::Px(44.0),
+            h: Size::Fit,
             role: Role::Button,
             padding: Edges {
                 l: 12.0,
                 r: 12.0,
-                ..Edges::ZERO
+                t: 8.0,
+                b: 8.0,
             },
             gap: 12.0,
             align: Align::Center,
@@ -456,11 +427,16 @@ fn result_row(
                 "icon",
                 Axis::Column,
                 Size::Px(16.0),
-                Size::Px(16.0),
+                Size::Px(28.0),
                 Rgba::default(),
             );
             let kind = item.icon;
             ui.draw(&icon, move |paint, rect| {
+                let rect = Rect {
+                    y: rect.y + (rect.h - 16.0) * 0.5,
+                    h: 16.0,
+                    ..rect
+                };
                 type Line = ((f32, f32), (f32, f32));
                 let lines: &[Line] = match kind {
                     crate::commands::Icon::Chevron => {
@@ -540,7 +516,7 @@ pub(super) fn shortcuts(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) {
         "Keyboard shortcuts",
         (
             (width - 32.0).clamp(0.0, 520.0),
-            body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0)),
+            Size::Px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))),
         ),
         p,
         Intent::CloseShortcuts,
