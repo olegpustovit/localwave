@@ -64,6 +64,16 @@ struct StoredRow {
     release_year: Option<i64>,
     has_format: bool,
     cover_art: usize,
+    file_size: u64,
+}
+
+/// One source of the current account as the sidebar shows it; the count is Swift's `totalPaths`.
+#[derive(Clone)]
+pub struct SourceRow {
+    pub location: crate::files::Location,
+    pub name: String,
+    pub count: String,
+    pub reconnect: bool,
 }
 
 #[derive(Clone)]
@@ -110,6 +120,11 @@ pub struct Library {
     pub sources: Option<usize>,
     pub artists: Vec<Collection>,
     pub collections: Vec<Collection>,
+    /// Swift's sidebar Sources group, prepared by the catalog worker.
+    pub source_rows: Vec<SourceRow>,
+    /// Sidebar footer "1.4 / 8 GB" and the filled fraction of its meter.
+    pub offline_usage: String,
+    pub offline_fraction: f32,
     pub album_count: String,
     pub artist_count: String,
     pub artist_table: Option<Arc<ArtistTable>>,
@@ -234,6 +249,7 @@ impl Library {
                 release_year: song.release_year,
                 has_format,
                 cover_art,
+                file_size: song.file_size.unwrap_or(0).max(0) as u64,
             });
         }
         out.by_id = out
@@ -349,11 +365,15 @@ impl Library {
             (0..out.rows.len().min(24)).collect(),
             PlaybackContext::Automatic("Recently Added".into()),
         );
-        out.add_collection(
-            "Most played",
-            Vec::new(),
-            PlaybackContext::Automatic("Most Played".into()),
-        );
+        // Swift's list order; membership comes from preferences and availability in `prepare_smart_lists`.
+        for (title, name) in [
+            ("Most played", "Most Played"),
+            ("Kept offline", "Kept Offline"),
+            ("On this device now", "Offline"),
+            ("Never played", "Never Played"),
+        ] {
+            out.add_collection(title, Vec::new(), PlaybackContext::Automatic(name.into()));
+        }
         out
     }
     /// Worker-prepared labels include empty sources as in the Swift library model.
@@ -612,18 +632,55 @@ impl Catalog {
             .take(24)
             .map(|row| row.0)
             .collect::<Vec<_>>();
-        let Some(index) = self.collections.iter().position(|group| matches!(&*group.context, PlaybackContext::Automatic(name) if name == "Most Played")) else { return; };
+        self.set_automatic("Most played", "Most Played", rows);
+    }
+    /// Replace one automatic list's rows; unchanged membership keeps the published page.
+    fn set_automatic(&mut self, title: &str, name: &str, rows: Vec<usize>) {
+        let Some(index) = self.collections.iter().position(|group| matches!(&*group.context, PlaybackContext::Automatic(value) if value == name)) else { return; };
         if self.collections[index].rows == rows {
             return;
         }
         let group = self.library.make_collection(
-            "Most played",
+            title,
             "Collection",
             rows,
-            PlaybackContext::Automatic("Most Played".into()),
+            PlaybackContext::Automatic(name.into()),
         );
         Arc::make_mut(&mut self.library).collections[index] = group;
         self.view = None;
+    }
+    /// Swift's Kept offline, On this device now and Never played lists plus the Offline meter,
+    /// from one preferences and availability snapshot on the catalog worker.
+    pub fn prepare_smart_lists(
+        &mut self,
+        plays: &mut dyn FnMut(i64) -> i64,
+        pinned: &mut dyn FnMut(i64) -> bool,
+        limit_gb: u64,
+    ) {
+        let (mut kept, mut device, mut never, mut bytes) = (Vec::new(), Vec::new(), Vec::new(), 0u64);
+        for (index, row) in self.rows.iter().enumerate() {
+            if pinned(row.id) {
+                kept.push(index);
+            }
+            if row.availability == Some(FileAvailability::OnDevice) {
+                device.push(index);
+                bytes += row.file_size;
+            }
+            if plays(row.id) == 0 {
+                never.push(index);
+            }
+        }
+        self.set_automatic("Kept offline", "Kept Offline", kept);
+        self.set_automatic("On this device now", "Offline", device);
+        self.set_automatic("Never played", "Never Played", never);
+        const GIB: f64 = 1_073_741_824.0;
+        let limit_gb = if limit_gb == 0 { 8 } else { limit_gb };
+        let usage = format!("{:.1} / {limit_gb} GB", bytes as f64 / GIB);
+        if self.offline_usage != usage {
+            let library = Arc::make_mut(&mut self.library);
+            library.offline_fraction = (bytes as f64 / (limit_gb as f64 * GIB)).min(1.0) as f32;
+            library.offline_usage = usage;
+        }
     }
     /// A consistent preferences snapshot, applied before preparing table projections.
     pub fn prepare_pins(&mut self, pinned: &mut dyn FnMut(i64) -> bool) {

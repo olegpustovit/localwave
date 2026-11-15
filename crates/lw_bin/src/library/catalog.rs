@@ -15,19 +15,37 @@ use super::LibraryWorker;
 use lw_apple_sys::collation::Key;
 use lw_core::{LibraryRepository, context::PlaybackContext};
 use lw_ui::browse::{Request, Scope, Sort};
-use lw_ui::catalog::Catalog;
+use lw_ui::catalog::{Catalog, SourceRow};
+use lw_ui::files::Location;
 use std::cmp::Ordering;
 use std::io;
 
 fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlite::Result<Catalog> {
     let songs = repository.search_songs("", count, 0)?;
     let mut catalog = Catalog::new(songs);
-    let source_count = repository
-        .user(identity)?
+    let user = repository.user(identity)?;
+    let source_count = user
+        .as_ref()
         .map(|user| repository.source_count(user.id))
         .transpose()?
         .unwrap_or(0);
-    std::sync::Arc::make_mut(&mut catalog.library).set_source_count(source_count);
+    let library = std::sync::Arc::make_mut(&mut catalog.library);
+    library.set_source_count(source_count);
+    if let Some(user) = user {
+        for source in repository.sources(user.id)? {
+            let Some(id) = source.id else { continue };
+            let name = lw_apple_sys::preferences::file_path(&source.dir_path)
+                .ok()
+                .and_then(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()))
+                .unwrap_or_else(|| "Music folder".into());
+            library.source_rows.push(SourceRow {
+                location: Location { user: user.id, source: id, parent: None },
+                name,
+                count: source.total_paths.map(|count| count.to_string()).unwrap_or_default(),
+                reconnect: source.sync_error.is_some(),
+            });
+        }
+    }
     for list in repository.playlists()? {
         let rows = repository
             .playlist_songs(list.id)?
@@ -144,6 +162,12 @@ impl LibraryWorker {
                 catalog.source_version = Some(version);
                 catalog.source_identity = Some(identity);
                 catalog.prepare_most_played(&mut |id| history.get(id).plays);
+                let pins = self.preferences.import_snapshot();
+                catalog.prepare_smart_lists(
+                    &mut |id| history.get(id).plays,
+                    &mut |id| pins.pinned(id),
+                    self.preferences.cache_protection().limit_bytes() >> 30,
+                );
                 let keep_view = command_query_changed
                     && request.is_some_and(|request| {
                         catalog

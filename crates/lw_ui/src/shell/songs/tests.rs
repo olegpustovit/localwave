@@ -1314,7 +1314,17 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
         ..Default::default()
     };
     run(&mut ui, &state, &[]);
-    // Sidebar button: dialog, then Create is refused until the name is non-blank.
+    // The sidebar lists scroll; New list ends them. Then the dialog refuses a blank name.
+    for _ in 0..30 {
+        run(
+            &mut ui,
+            &state,
+            &[
+                pointer(input::wire::POINTER_MOVED, 100.0, 450.0, 0),
+                pxui::Event { kind: input::wire::SCROLLED, y: -1.0, ..Default::default() },
+            ],
+        );
+    }
     activate(&mut ui, Role::Button, "New list");
     assert_eq!(run(&mut ui, &state, &[]), Some(Intent::NewList(None)));
     state.apply(Intent::NewList(None));
@@ -1421,6 +1431,16 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
     state.apply(Intent::CancelPlaylistName);
 
     // Sidebar list menu: secondary press, Rename prefilled, Delete behind a confirmation.
+    for _ in 0..30 {
+        run(
+            &mut ui,
+            &state,
+            &[
+                pointer(input::wire::POINTER_MOVED, 100.0, 450.0, 0),
+                pxui::Event { kind: input::wire::SCROLLED, y: 1.0, ..Default::default() },
+            ],
+        );
+    }
     run(&mut ui, &state, &[]);
     let (_, row) = find(&ui, Role::Button, "Mix").unwrap();
     let (x, y) = (row.x + 10.0, row.y + 10.0);

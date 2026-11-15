@@ -259,7 +259,7 @@ mod tests {
             (Route::Songs, 9_999, Route::Songs, 0),
             (Route::Album(9_999), 0, Route::Album(10_000), 0),
             (Route::Artist(9_999), 0, Route::Artist(10_000), 0),
-            (Route::Collection(3), 1, Route::Collection(3), 2),
+            (Route::Collection(6), 1, Route::Collection(6), 2),
         ] {
             state.apply(Intent::Navigate(route));
             state.selected = Some(selected);

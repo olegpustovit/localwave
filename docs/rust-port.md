@@ -359,6 +359,11 @@ device/provider behavior remain open.
   playing list leaves its queue context label stale until playback is reconfigured; Swift's list
   menu extras (Play, Shuffle, Duplicate, Keep offline) are not ported. Deleting a list returns to
   Songs because routes address lists by position.
+- Sidebar parity (F-gate): Search, Sources (Reconnect badge, Browse intent), Add folder or files (picker), the six
+  smart lists, New list last and the Offline meter follow Swift. Deferred: source rows show no selected state or scan
+  progress/"scanning…" status, no source context menu or song-drop; the sidebar does not scale row heights to fit
+  (the lists scroll instead); the offline-meter bytes use catalog availability, not a live provider probe; the
+  Rust-only LOCALWAVE wordmark, Find/Files rows and Settings button are gone (use ⌘F, ⌘, the palette and source rows).
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F7: a song carry cannot edge-scroll Up next (pxui edge-scrolls only the carry's owner; queue
   occurrence carries transfer, song carries do not). Compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.

@@ -41,6 +41,10 @@ impl App {
         if let lw_ui::Intent::Files(request) = intent {
             let result = files.request(request);
             if result.is_ok() {
+                // A sidebar source row browses from any page, as Swift's Source route does.
+                if matches!(request, lw_ui::files::Request::Browse(_)) && !shell_state.files_visible() {
+                    shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+                }
                 shell_state.apply(lw_ui::Intent::CloseSourceMenu);
                 if matches!(request, lw_ui::files::Request::Remove(_)) {
                     shell_state.apply(lw_ui::Intent::CloseRemoveSource);

@@ -1651,7 +1651,7 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
         (Route::Songs, Some(0), Route::Songs, Some(1)),
         (Route::Album(0), Some(0), Route::Album(1), Some(0)),
         (Route::Artist(0), Some(0), Route::Artist(1), Some(0)),
-        (Route::Collection(3), Some(1), Route::Collection(4), Some(2)),
+        (Route::Collection(6), Some(1), Route::Collection(7), Some(2)),
     ] {
         state.apply(Intent::Navigate(route));
         state.selected = selected;
@@ -1711,7 +1711,7 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
     state.refresh(&before, &empty);
     assert_eq!(state.route, Route::Albums);
     assert_eq!(state.selected, None);
-    state.apply(Intent::Navigate(Route::Collection(3)));
+    state.apply(Intent::Navigate(Route::Collection(6)));
     state.selected = Some(1);
     state.refresh(&before, &empty);
     assert_eq!(state.route, Route::Songs);
@@ -1793,7 +1793,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
     };
     for (old, new) in [
         (Route::Album(0), Route::Album(1)),
-        (Route::Collection(3), Route::Collection(4)),
+        (Route::Collection(6), Route::Collection(7)),
     ] {
         assert_eq!(
             before.collection(old).unwrap().key,
@@ -2899,4 +2899,87 @@ fn favorite_burst_runs_only_on_the_off_to_on_transition_and_respects_reduced_mot
         run(&other, 2, 0.5);
         assert!(!run(&other, 1, 0.01), "track change never bursts");
     }
+}
+
+#[test]
+fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
+    use lw_core::{FileAvailability, Song};
+    mem_sys::set_peer(pxui::library_counter);
+    const GIB: i64 = 1 << 30;
+    let song = |id: i64, availability, size: i64| Song {
+        id: Some(id),
+        title: format!("Song {id}"),
+        source_availability: availability,
+        file_size: Some(size),
+        ..Song::default()
+    };
+    let mut catalog = prepared(vec![
+        song(1, Some(FileAvailability::OnDevice), GIB * 3 / 2),
+        song(2, Some(FileAvailability::OnDevice), GIB),
+        song(3, Some(FileAvailability::InCloud), GIB),
+        song(4, None, 0),
+    ]);
+    // Played once: song 1; kept: songs 2 and 3.
+    catalog.prepare_smart_lists(&mut |id| i64::from(id == 1), &mut |id| id == 2 || id == 3, 8);
+    let counts = catalog.collections.iter().map(|c| (c.title.as_str(), c.count.as_str())).collect::<Vec<_>>();
+    assert_eq!(
+        counts[3..],
+        [("Kept offline", "2"), ("On this device now", "2"), ("Never played", "3")]
+    );
+    assert_eq!(catalog.offline_usage, "2.5 / 8 GB");
+    assert!((catalog.offline_fraction - 0.3125).abs() < 1e-6);
+    let before = std::sync::Arc::as_ptr(&catalog.library);
+    catalog.prepare_smart_lists(&mut |id| i64::from(id == 1), &mut |id| id == 2 || id == 3, 8);
+    assert_eq!(before, std::sync::Arc::as_ptr(&catalog.library), "unchanged lists keep the page");
+    let location = |source| files::Location { user: 1, source, parent: None };
+    std::sync::Arc::make_mut(&mut catalog.library).source_rows = vec![
+        catalog::SourceRow { location: location(5), name: "iCloud Drive".into(), count: "34".into(), reconnect: false },
+        catalog::SourceRow { location: location(6), name: "Dropbox".into(), count: "6".into(), reconnect: true },
+    ];
+
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let state = ShellState::default();
+    let player = PlayerView::default();
+    let mut intent = None;
+    let frame = FrameIn { width: 1440.0, height: 872.0, ..FrameIn::default() };
+    let run = |ui: &mut Ui, intent: &mut Option<Intent>| {
+        ui.frame(&frame, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, intent)).unwrap();
+    };
+    for _ in 0..2 {
+        run(&mut ui, &mut intent);
+    }
+    let mut buttons = ui
+        .a11y_nodes()
+        .iter()
+        .filter(|node| node.is_role(pxui::ui::Role::Button) && node.rect.x < 231.0 && (1.0..800.0).contains(&node.rect.y))
+        .map(|node| (node.rect.y, ui.a11y_name_of(node).to_owned()))
+        .collect::<Vec<_>>();
+    buttons.sort_by(|a, b| a.0.total_cmp(&b.0));
+    let names = buttons.iter().map(|(_, name)| name.as_str()).collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        [
+            "Search", "Albums", "Artists", "Songs", "iCloud Drive", "Dropbox", "Add folder or files",
+            "Favorites", "Recently added", "Most played", "Kept offline", "On this device now",
+            "Never played", "New list", "Keyboard shortcuts",
+        ]
+    );
+    for (name, expected) in [
+        ("Search", Intent::ShowCommands),
+        ("Dropbox", Intent::Files(files::Request::Browse(location(6)))),
+        ("Add folder or files", Intent::ChooseAudio),
+        ("Keyboard shortcuts", Intent::ShowShortcuts),
+        ("Never played", Intent::Navigate(catalog::Route::Collection(5))),
+    ] {
+        let id = ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == name).unwrap().id;
+        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..pxui::A11yAction::default() }]);
+        run(&mut ui, &mut intent);
+        assert_eq!(intent.take(), Some(expected), "{name}");
+    }
+    mem_sys::local_reset();
+    for _ in 0..20 {
+        run(&mut ui, &mut intent);
+    }
+    assert_eq!(mem_sys::local_alloc_count(), 0, "warm sidebar frames allocate");
 }
