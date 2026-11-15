@@ -34,8 +34,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P2 | Profile top frame costs | done | 360a5e3 |
 | P3 | Isolate position ticks from stable content | done | d16e6a3 |
 | P4 | Worker-prepared catalog remapping | done | 81ab1ca |
-| P5 | Single controller-poll lock | done | HEAD |
-| P6 | Fix measured hot paths; pass phase gate | todo | — |
+| P5 | Single controller-poll lock | done | 7bb51ac |
+| P6 | Fix measured hot paths; pass phase gate | doing | — |
+| P6a | Bind fixed renderer state once per pass | done | HEAD + pxui d10fb8c |
 | F1 | Global shortcuts from one command table | todo | — |
 | F2 | Favorite commands, menu, key and heart | todo | — |
 | F3 | Complete track menu and native reveal | todo | — |
@@ -53,12 +54,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P5 `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+P6a `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
 GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
 strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
-Bundle/signature/rpath/default-stack checks and settled idle smoke pass (506.2 ms).
-Source: `/tmp/localwave-p5-performance.log`; prior P1–P4 failures remain in commit evidence.
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (503.2 ms).
+Source: `/tmp/localwave-p6-bindings-performance.log`; prior P1–P5 failures remain in commit evidence.
 
 The original twelve cases have zero measured Rust allocations and pass the frame-82 audit.
 LongScroll still exposes 202 allocations/frame and six new text layouts at frame 82 and during
@@ -71,23 +72,23 @@ Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-
 
 | Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 761/1005/1062 | 842/3406/4179/5073 | 1214/1644/55289 | 16626/19727/30241/108335 | 0 | 0 | pass |
-| find-filters-title-descending | 726/950/1005 | 785/2777/4339/4421 | 1223/1522/1597 | 16655/17894/20101/20242 | 0 | 0 | pass |
-| queue-occurrences | 604/870/886 | 651/1629/3223/3630 | 1040/1417/1470 | 16670/18078/20725/20910 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 503/885/1120 | 560/2493/3250/4680 | 949/1437/1566 | 16635/18992/20426/23976 | 0 | 0 | pass |
-| full-queue-playlist-editor | 718/1104/1119 | 789/3169/4242/4813 | 1217/1631/1649 | 16600/19133/21127/21501 | 0 | 0 | pass |
-| albums-artwork | 595/1198/1234 | 680/1422/3380/3516 | 1263/1988/2001 | 16610/19382/21277/22183 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 415/854/977 | 429/1063/2961/2975 | 838/1383/1454 | 16645/19028/20573/20591 | 0 | 0 | pass |
-| settings-menus-appearance | 285/576/619 | 315/1298/1828/2000 | 761/2503/2779 | 16625/19490/21388/21462 | 0 | 0 | pass |
-| files-indexed-directory | 347/441/481 | 365/1481/2375/3293 | 871/1030/1038 | 16648/17823/21069/21395 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 302/392/401 | 313/515/792/2366 | 786/1069/1073 | 16650/20441/23313/35632 | 0 | 0 | pass |
-| artists-measured-columns | 587/964/997 | 644/1394/3623/4148 | 1050/1509/1522 | 16639/20672/21361/31567 | 0 | 0 | pass |
-| songs-playing-indicator | 807/1016/1132 | 835/1239/2450/4074 | 1248/1537/1649 | 16624/20747/23788/26171 | 0 | 0 | pass |
-| songs-long-scroll | 1030/1348/1404 | 1096/3643/5224/5407 | 1473/1843/1853 | 16628/18365/19934/21625 | 202 | 6 | fail (6 layouts) |
+| songs-original | 747/1027/1056 | 834/3470/4645/5313 | 1233/1646/1681 | 16635/18718/19863/20420 | 0 | 0 | pass |
+| find-filters-title-descending | 676/874/893 | 742/2822/3312/4328 | 1108/1322/1373 | 16679/18007/19868/20497 | 0 | 0 | pass |
+| queue-occurrences | 616/817/898 | 649/1616/2640/3886 | 1088/1369/45145 | 16666/19329/27466/75827 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 531/993/1028 | 576/2258/3819/4529 | 983/1485/1507 | 16644/18342/20559/20605 | 0 | 0 | pass |
+| full-queue-playlist-editor | 711/1081/1107 | 831/2867/3583/3721 | 1241/1586/1631 | 16627/17904/18732/18755 | 0 | 0 | pass |
+| albums-artwork | 622/1072/1111 | 644/3158/3620/3903 | 1196/1672/1931 | 16645/18692/19690/19811 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 339/946/1093 | 492/2579/3228/4039 | 836/1482/1623 | 16659/18250/20147/21057 | 0 | 0 | pass |
+| settings-menus-appearance | 288/531/546 | 315/1489/2849/4387 | 685/2484/2512 | 16657/19682/20449/20776 | 0 | 0 | pass |
+| files-indexed-directory | 333/559/588 | 347/817/3143/3601 | 766/1120/1137 | 16644/17901/20297/20495 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 296/400/419 | 314/836/1246/1273 | 753/973/1019 | 16662/18976/20420/20692 | 0 | 0 | pass |
+| artists-measured-columns | 712/1031/1087 | 793/3514/3989/4118 | 1164/1571/1657 | 16621/19085/20505/20621 | 0 | 0 | pass |
+| songs-playing-indicator | 806/1098/1269 | 888/3457/3904/4719 | 1239/1653/1703 | 16655/18262/20507/20846 | 0 | 0 | pass |
+| songs-long-scroll | 1066/1268/1348 | 1128/3827/4657/4819 | 1510/1745/1790 | 16654/18094/20297/24549 | 202 | 6 | fail (6 layouts) |
 
 ### CPU profile
 
-Separate signed `--performance-check --trace-frames` runs of the five P5 follow-up cases use the same
+Separate signed `--performance-check --trace-frames` runs of the five P6a follow-up cases use the same
 10,000-song, 1440×872, 182/82/100 fixture. All five fail the unchanged performance gate;
 LongScroll also retains its allocation/cold-layout failure. Rank by mean thread CPU over the
 100 measured frames, rather than wall time or an individual outlier. Profiling is opt-in.
@@ -99,50 +100,36 @@ Raw CPU samples are retained with their corresponding wall/phase records before 
 
 | Workload | First CPU phase (µs) | Second | Third |
 | --- | --- | --- | --- |
-| queue-drag | draw 320.85 | build 189.41 | paint 163.70 |
-| song-indicators | paint 341.87 | draw 311.46 | build 248.73 |
-| waveform | draw 336.53 | paint 203.11 | build 181.63 |
-| artwork | draw 510.39 | build 282.26 | paint 186.87 |
-| long-scroll | paint 541.70 | draw 303.16 | build 262.49 |
+| queue-drag | draw 352.30 | build 206.62 | paint 175.45 |
+| song-indicators | paint 376.62 | draw 350.42 | build 300.93 |
+| waveform | draw 304.78 | paint 205.84 | build 175.21 |
+| artwork | draw 448.75 | build 281.43 | paint 190.28 |
+| long-scroll | paint 551.28 | draw 319.50 | build 266.48 |
 
-Sources: `/tmp/localwave-p5-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
+Sources: `/tmp/localwave-p6-bindings-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
 The corresponding full phase means, aggregate CPU/wall timings and failing exits are preserved in
-P5 commit evidence. Earlier baselines remain in their corresponding commits.
+P6a commit evidence. Earlier baselines remain in their corresponding commits.
 Separate runs do not establish a controlled speedup. Correlated records confirm the measured CPU
 phases fit inside their parent spans.
 
-Stable `PlayerView` data remains separate from position. Worker delivery revisions still advance
-on position ticks; stable revisions leave desktop/compact library and metadata views cached.
-The 20-tick/10,000-song regression keeps seek/clock values live with no row rebuilds or warm Rust
-allocations, then verifies that real metadata/current-track/pause changes invalidate retained views.
-Signed fixtures still advance position each frame; waveform retains 200 bars/nine release-only seeks
-and indicators retain 58 playing/34 paused/57 changing frames. No warm-up/input/assertions were omitted.
+P6a reuses pipeline/atlas/sampler bindings across retained image segments within a pass. Each
+segment still binds its current globals, instances and image; every split callback restores full
+state, including callbacks retaining the same pass. No state cache crosses a draw call. All 45 GPU
+cases pass, including exact pixels, blur splits, draw counts, dirty bytes and warm Rust allocations.
+The original seven gallery growth/shrink frames and warm assertions remain; twenty additional
+128-image measurements use the same isolated test command before and after the production edit.
 
-P4 prepares route and repeated-song occurrence remaps on the library worker. UI refresh validates
-source/target identities and indexes prepared arrays; a 10,000-song/album/artist test bounds adoption
-to three mapping probes with zero Rust allocations. Playlist renames, disappearing routes, duplicate
-occurrences, sorted views, Find query identity and collection scroll positions remain covered.
-Byline artist/album routes are prepared per song ID, including album-artist grouping; stale displayed
-metadata cannot activate a mismatched group. Byline fitting/native geometry and warm checks still pass.
+| P6 fix / benchmark | Before mean draw CPU (µs) | After | Warm Rust allocations |
+| --- | --- | --- | --- |
+| P6a / 128 alternating images, 20 samples | 189.14 | 84.88 | 0 |
 
-The mailbox retains a shared owner of the displayed catalog and reserves the next base before UI
-repair, outside the repair callback's lock scope. Worker publication rechecks that base and reuses
-prepared remaps for an unchanged coalesced page. Deterministic tests cover superseded deliveries and
-publication during repair, plus existing retirement backpressure and worker-side final release.
-Remaps use weak source/target identities so old label arenas are not retained by a snapshot chain.
-Bulk preparation and superseded/retired storage release stay outside the mailbox lock on the worker.
+Sources: `/tmp/localwave-p6-bindings-{baseline,final}-images.log`. The full-suite run measured
+81.30 µs separately. These microbenchmarks do not qualify full-frame latency or native allocations.
+The 206-case LocalWave suite, dependency gate and signed iOS simulator build also pass;
+iOS was built only. Strict renderer Clippy still reports existing warnings; its scoped check passes.
 
-P5 exchanges native events/readings, pending replies, output, catalog and changed status under
-one inbox lock per native poll. Native operations and UI repair run unlocked. Their acknowledgements
-and retired catalog occupy bounded local return slots until an immediately woken follow-up poll;
-explicit media/audio-session command delivery retains its enqueue synchronization. New native readings
-win over older acknowledgement snapshots. Retirement backpressure and worker-side final release,
-including shutdown, remain intact. The focused reply/overflow/stop and catalog tests pass with the
-full 206-case Rust suite. Packaging checks, scoped Clippy and the signed iOS simulator build pass;
-the iOS build was not installed or launched.
-
-P6 still needs framework draw and paint/text work, including LongScroll's fresh layouts and
-allocations. The strict latency and cold-work failures remain open; these changes and CPU percentiles
+P6 remains open after the binding fix: paint/text work still includes LongScroll's fresh layouts
+and allocations. The strict latency and cold-work failures remain open; these changes and CPU percentiles
 do not replace the signed workload gate.
 
 ## Open qualification
