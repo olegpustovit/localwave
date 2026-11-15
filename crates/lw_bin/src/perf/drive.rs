@@ -539,11 +539,10 @@ fn song_drag_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Re
         }
         12..=19 => {
             let queue = center(ui, Role::List, |name| name == "Up next queue", "Up next list")?;
-            // Sweep down across the list as a user would aim a drop.
-            events.push(Event::PointerMoved((
-                queue.0 + jitter,
-                queue.1 + (phase - 12) as f64 * 12.0,
-            )));
+            // Sweep down across the list as a user aims a drop, after resting on its upper rows
+            // (the highest instance count of the cycle).
+            let y = if phase < 15 { queue.1 - 40.0 } else { queue.1 + (phase - 15) as f64 * 12.0 };
+            events.push(Event::PointerMoved((queue.0 + jitter, y)));
         }
         20 => events.push(Event::KeyPressed(Key::Escape)),
         21 => {

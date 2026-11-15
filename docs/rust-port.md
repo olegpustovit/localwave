@@ -363,10 +363,7 @@ device/provider behavior remain open.
   Songs because routes address lists by position.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F7: a song carry cannot edge-scroll Up next (pxui edge-scrolls only the carry's owner; queue
-  occurrence carries transfer, song carries do not). Holding a song carry over the upper Up next rows
-  first reaches a new per-layer instance maximum and grows pxui's retained GPU buffer once (17 warm
-  allocations in pxui_render draw_retained_split: capacity len.max(256), doubling); framework
-  capacity policy (pre-size or reserve API) is open. Compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
+  occurrence carries transfer, song carries do not). Compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
 - F8: the editor omits disc number (kept untouched) and has no compact-layout scrolling; Delete Album
   (Swift's album-cell menu) has no Rust album menu or command; deleting a queued song keeps its queue
   occurrence, as source removal does. Edit info and Delete act on the clicked song only.
