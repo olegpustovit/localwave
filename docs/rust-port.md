@@ -12,8 +12,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C0.2 | One-page status | done | ee9f024 |
 | C1.0 | Lossless manifest-driven Rust split tool | done | 4e9ceec + 2627081 |
 | C1.1 | Move lw_ui lib tests out | done | 26817c6 |
-| C1.2 | Split shell into screen modules | doing | HEAD |
-| C1.3 | Split song table, rows, menus and tests | todo | — |
+| C1.2 | Split shell into screen modules | done | 9e52567 |
+| C1.3 | Split song table, rows, menus and tests | done | HEAD |
 | C1.4 | Extract performance harness (a–c) | todo | — |
 | C1.4a | Parse one Workload enum | todo | — |
 | C1.4b | Extract performance setup | todo | — |

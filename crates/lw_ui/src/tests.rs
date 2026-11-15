@@ -1,4 +1,3 @@
-
 use super::*;
 use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
 pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
