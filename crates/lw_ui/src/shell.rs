@@ -2,6 +2,8 @@
 //! scope navigation scroll by route and virtualize sidebar collections. App-authored accessibility
 //! semantics build a tree only for tests or a consuming bridge. Clock digits stay on cached glyphs;
 //! virtual slots retain accessibility string capacity.
+//! PlayerView holds stable data; the separate position only reaches transport/Now clocks and seek.
+//! Keep both desktop and compact library revisions independent of those ticks.
 //!
 //! Icon buttons retain full semantic/hit bounds and scale only the cached visual child to 0.96,
 //! restarting animation only when held changes. Host reduced motion overrides theme flags. Wrapped
@@ -364,9 +366,39 @@ impl ShellState {
     }
 }
 
+fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellState) -> u64 {
+    pxui::hash!((
+        state.revision,
+        (
+            std::sync::Arc::as_ptr(&catalog.library) as usize,
+            catalog.all.is_some()
+        ),
+        player.revision,
+        (player.current_id, player.playing),
+        player.artwork.map_or(0, crate::artwork::Images::revision),
+        player.settings,
+        (
+            player.cache_usage.as_ptr() as usize,
+            player.cache_usage.len()
+        ),
+        player.storage_busy,
+        (
+            player.settings_message.as_ptr() as usize,
+            player.settings_message.len()
+        ),
+        (player.message.as_ptr() as usize, player.message.len()),
+        if state.files_visible() {
+            player.files.map_or(0, |files| files.revision)
+        } else {
+            0
+        },
+    ))
+}
+
 pub fn shell(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
     catalog: &Catalog,
     state: &ShellState,
     intent: &mut Option<Intent>,
@@ -397,9 +429,9 @@ pub fn shell(
         files::confirm_remove(ui, player, target, p, intent);
     }
     let root = if ui.view_size().0 < compact::BREAKPOINT {
-        compact::view(ui, player, catalog, state, p, intent)
+        compact::view(ui, player, position, catalog, state, p, intent)
     } else {
-        desktop(ui, player, catalog, state, p, intent)
+        desktop(ui, player, position, catalog, state, p, intent)
     };
     if player.file_dragging {
         ui.draw_over(&root, move |paint, rect| {

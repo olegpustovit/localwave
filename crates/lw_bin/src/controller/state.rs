@@ -237,6 +237,7 @@ impl Worker {
             waveform: self.waveform,
             context: self.context.clone(),
             revision: self.status.revision,
+            stable_revision: self.status.stable_revision,
             initialized: true,
             processed_command: self.revision,
             generation: transport.generation(),
@@ -256,9 +257,7 @@ impl Worker {
             album: self.album.clone(),
             message: self.message.clone(),
         };
-        if status != self.status {
-            self.status = status;
-            self.status.revision += 1;
+        if self.status.update(status) {
             let mut inbox = self.shared.inbox.lock().unwrap();
             inbox.catalog_pending = self.catalog_dirty || self.browse_dirty;
             inbox.status = self.status.clone();

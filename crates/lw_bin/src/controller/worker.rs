@@ -145,6 +145,7 @@ impl Worker {
                 inbox.status = Status {
                     initialized: true,
                     revision: 1,
+                    stable_revision: 1,
                     phase: Phase::Failed,
                     fault: Some(Fault::Session),
                     message: Arc::from(error.to_string()),

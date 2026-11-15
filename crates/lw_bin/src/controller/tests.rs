@@ -1,4 +1,31 @@
 use super::*;
+
+#[test]
+fn position_ticks_publish_without_advancing_stable_revision_or_allocating() {
+    let mut status = Status::default();
+    assert!(!status.update(status.clone()));
+    mem_sys::local_reset();
+    for tick in 1..=20 {
+        let mut next = status.clone();
+        next.position = tick as f64 * 0.05;
+        assert!(status.update(next));
+        assert_eq!((status.revision, status.stable_revision), (tick, 0));
+        assert!(!status.update(status.clone()));
+    }
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+    let mut next = status.clone();
+    next.wants_playback = true;
+    next.title = Arc::from("Updated metadata");
+    next.position = 2.0;
+    assert!(status.update(next));
+    assert_eq!((status.revision, status.stable_revision), (21, 1));
+    let mut next = status.clone();
+    next.duration = 240.0;
+    next.waveform = Some([0.5; 512]);
+    assert!(status.update(next));
+    assert_eq!((status.revision, status.stable_revision), (22, 2));
+    assert_eq!(status.position, 2.0);
+}
 use lw_core::preferences::Change as SettingChange;
 use lw_ui::catalog::Catalog;
 extern "C" fn wake() {}

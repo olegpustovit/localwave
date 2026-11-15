@@ -571,7 +571,6 @@ pub(super) mod button_tests {
         peaks[256..].fill(1.0);
         let player = PlayerView {
             waveform: Some(&peaks),
-            position: 60.0,
             duration: 240.0,
             initialized: true,
             ..Default::default()
@@ -594,7 +593,7 @@ pub(super) mod button_tests {
                 },
                 &mut |ui| {
                     let p = palette(ui);
-                    transport(ui, player, p, intent);
+                    transport(ui, player, 60.0, p, intent);
                 },
             )
             .unwrap();

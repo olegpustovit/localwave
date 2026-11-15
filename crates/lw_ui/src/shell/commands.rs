@@ -629,6 +629,7 @@ mod tests {
                         command_theme: Some(theme),
                         ..Default::default()
                     },
+                    0.0,
                     catalog,
                     state,
                     &mut intent,

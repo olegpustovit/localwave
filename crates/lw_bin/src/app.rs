@@ -297,7 +297,7 @@ impl App {
             storage_busy: status.storage_busy,
             artwork: Some(graphics.images()),
             waveform: status.waveform.as_ref(),
-            revision: status.revision + (*error_revision),
+            revision: status.stable_revision + (*error_revision),
             title: &status.title,
             context: status.context.title(),
             message: (*command_error).unwrap_or(&status.message),
@@ -306,7 +306,6 @@ impl App {
             current_id: status.current.map(|entry| entry.song_id),
             artist: &status.artist,
             album: &status.album,
-            position: status.position,
             volume: status.volume,
             shuffled: status.shuffled,
             repeat: status.repeat,
@@ -327,10 +326,18 @@ impl App {
             event_count: wire.len(),
             ..FrameIn::default()
         };
-        frame.view(&mut view, &mut input);
+        let mut position = status.position;
+        frame.view(&mut view, &mut position, &mut input);
         let seek_duration = view.duration;
         ui.frame(&input, &mut |ui| {
-            lw_ui::shell(ui, &view, player.catalog(), shell_state, &mut intent)
+            lw_ui::shell(
+                ui,
+                &view,
+                position,
+                player.catalog(),
+                shell_state,
+                &mut intent,
+            )
         })
         .map_err(|code| format!("Frame failed ({code})"))?;
         frame.check_intent(&intent, &status.settings)?;

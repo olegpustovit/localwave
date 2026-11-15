@@ -54,7 +54,7 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
                         reduced_motion: 1,
                         ..Default::default()
                     },
-                    &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                    &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
                 )
                 .unwrap();
                 let row = ui
@@ -358,7 +358,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     for time in [0.0, 1.0, 2.0] {
         frame.time = time;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut None)
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
     }
@@ -375,12 +375,12 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         ..Default::default()
     }]);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     // Settle the viewport once; animation frames must keep its content build count unchanged.
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     let viewport_rebuilds = ui.output().rebuilt_views;
@@ -396,7 +396,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         frame.time = 2.0 + tick as f64 / 60.0;
         mem_sys::local_reset();
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut None)
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
         let revision = ui.draw_revision();
@@ -424,7 +424,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     player.playing = false;
     frame.time += 1.0;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     assert!(
@@ -435,7 +435,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     frame.time += 1.0;
     frame.reduced_motion = 1;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     assert!(
@@ -445,7 +445,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     frame.reduced_motion = 0;
     frame.time += 1.0;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     let list = ui
@@ -463,7 +463,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         }]);
         frame.time += 1.0;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut None)
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
         let heading = ui
@@ -496,12 +496,12 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     }]);
     frame.time += 1.0;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     frame.time += 1.0;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut None)
+        shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
     assert!(
@@ -526,7 +526,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
     };
     let mut intent = None;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
     for cycle in 0..8 {
@@ -552,13 +552,13 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
             frame.time += 0.01;
             intent = None;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
             })
             .unwrap();
             assert!(matches!(intent, Some(Intent::SongMenu(0, 0, _, _))));
             state.apply(intent.take().unwrap());
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
             })
             .unwrap();
             let item = ui
@@ -575,14 +575,14 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
             frame.time += 0.01;
             intent = None;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
             })
             .unwrap();
             assert_eq!(intent, Some(expected));
             state.apply(Intent::CloseSongMenu);
             intent = None;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
             })
             .unwrap();
         }
@@ -605,7 +605,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
     state.apply(Intent::SongMenu(0, 0, key, (500.0, 200.0)));
     intent = None;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &changed, &state, &mut intent)
+        shell(ui, &player, 0.0, &changed, &state, &mut intent)
     })
     .unwrap();
     let item = ui
@@ -622,7 +622,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
     frame.time += 0.01;
     intent = None;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &changed, &state, &mut intent)
+        shell(ui, &player, 0.0, &changed, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent, None, "stale menu cannot append a different row");
@@ -669,7 +669,7 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
             .rect
     };
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalogs[0], &state, &mut None)
+        shell(ui, &player, 0.0, &catalogs[0], &state, &mut None)
     })
     .unwrap();
     assert_eq!(glyph(&ui).w, 10.0, "first appearance does not pop");
@@ -680,13 +680,13 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
             frame.time += 1.0;
             let start = frame.time;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalogs[next], &state, &mut None)
+                shell(ui, &player, 0.0, &catalogs[next], &state, &mut None)
             })
             .unwrap();
             for progress in [0.0, 0.044, 0.205, 0.245, 0.472, 1.0] {
                 frame.time = start + f64::from(crate::motion::BASE * progress);
                 ui.frame(&frame, &mut |ui| {
-                    shell(ui, &player, &catalogs[next], &state, &mut None)
+                    shell(ui, &player, 0.0, &catalogs[next], &state, &mut None)
                 })
                 .unwrap();
                 let expected = 10.0
@@ -713,7 +713,7 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
     frame.reduced_motion = 1;
     frame.time += 1.0;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalogs[1], &state, &mut None)
+        shell(ui, &player, 0.0, &catalogs[1], &state, &mut None)
     })
     .unwrap();
     assert_eq!(

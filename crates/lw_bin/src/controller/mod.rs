@@ -24,6 +24,8 @@
 //! revalidate after materialization token changes. Background waveform/copy cancellation resets
 //! under the inbox lock, after playback work. Explicit refresh invalidates current metadata before
 //! replacement peaks.
+//! Every changed status advances revision for delivery/media; stable_revision excludes position
+//! ticks so retained library/metadata views can stay cached. All other status facts invalidate it.
 //!
 //! Audio-session delivery is bounded to 32 notices per poll. Blocking category/activation stays on
 //! the worker; callbacks cache facts and wake. Preserve configure/activate epochs, reset

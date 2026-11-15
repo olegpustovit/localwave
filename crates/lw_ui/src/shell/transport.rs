@@ -9,6 +9,7 @@ use crate::{Intent, PlayerView};
 pub(super) fn transport(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
@@ -79,10 +80,10 @@ pub(super) fn transport(
                 *intent = Some(Intent::Next);
             }
         });
-        let elapsed = player.position.max(0.0) as u64;
-        let remaining = (player.duration - player.position).max(0.0) as u64;
+        let elapsed = position.max(0.0) as u64;
+        let remaining = (player.duration - position).max(0.0) as u64;
         small_clock(ui, "elapsed", elapsed, false, 44.0, p.secondary);
-        seek(ui, player, p, intent);
+        seek(ui, player, position, p, intent);
         small_clock(ui, "remaining", remaining, true, 50.0, p.secondary);
         if icon_button(
             ui,
@@ -152,6 +153,7 @@ pub(super) fn transport(
 pub(super) fn desktop(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
     catalog: &Catalog,
     state: &ShellState,
     p: Palette,
@@ -210,24 +212,7 @@ pub(super) fn desktop(
                 &mut |ui| sidebar(ui, catalog, state, sidebar_width, p, intent),
             );
             rule(ui, "sidebar-divider", true, p);
-            let library_revision = pxui::hash!((
-                revision,
-                (player.current_id, player.playing),
-                player.artwork.map_or(0, crate::artwork::Images::revision),
-                player.settings,
-                player.cache_usage.as_ptr() as usize,
-                player.cache_usage.len(),
-                player.storage_busy,
-                player.settings_message.as_ptr() as usize,
-                player.settings_message.len(),
-                player.message.as_ptr() as usize,
-                player.message.len(),
-                if state.files_visible() {
-                    player.files.map_or(0, |files| files.revision)
-                } else {
-                    0
-                },
-            ));
+            let library_revision = library_revision(player, catalog, state);
             let page = ui.view(
                 "library",
                 library_revision,
@@ -281,7 +266,7 @@ pub(super) fn desktop(
             if panel {
                 rule(ui, "panel-divider", true, p);
                 let panel_revision = pxui::hash!((
-                    player.revision,
+                    (player.revision, position.to_bits()),
                     player.artwork.map_or(0, crate::artwork::Images::revision),
                     catalog.queue.as_ref().map(|queue| queue.revision),
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -291,7 +276,7 @@ pub(super) fn desktop(
                     panel_revision,
                     Size::Px(319.0),
                     Size::Grow,
-                    &mut |ui| now_panel(ui, player, catalog, p, intent),
+                    &mut |ui| now_panel(ui, player, position, catalog, p, intent),
                 );
                 ui.view_clip(
                     &panel,
@@ -308,23 +293,29 @@ pub(super) fn desktop(
         rule(ui, "transport-divider", false, p);
         ui.view(
             "transport",
-            player.revision,
+            pxui::hash!((player.revision, position.to_bits())),
             Size::Grow,
             Size::Px(71.0),
-            &mut |ui| transport(ui, player, p, intent),
+            &mut |ui| transport(ui, player, position, p, intent),
         );
     });
     root
 }
 
-pub(super) fn seek(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Option<Intent>) {
+pub(super) fn seek(
+    ui: &mut Ui,
+    player: &PlayerView<'_>,
+    position: f64,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
     let duration = if player.duration.is_finite() {
         player.duration.max(0.0)
     } else {
         0.0
     };
-    let position = if player.position.is_finite() {
-        player.position.clamp(0.0, duration)
+    let position = if position.is_finite() {
+        position.clamp(0.0, duration)
     } else {
         0.0
     };

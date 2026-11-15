@@ -103,6 +103,7 @@ fn artwork(
 pub(super) fn view(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
     catalog: &Catalog,
     state: &ShellState,
     p: Palette,
@@ -142,6 +143,7 @@ pub(super) fn view(
             expanded(
                 ui,
                 player,
+                position,
                 catalog,
                 (width, height - top.max(state.top_inset) - bottom),
                 state.entry_revision,
@@ -150,190 +152,203 @@ pub(super) fn view(
             );
             return;
         }
-        if !state.settings_visible && state.route != Route::Files && state.route != Route::Find {
-            let head = ui.node(
-                "compact-heading",
-                Node {
-                    axis: Axis::Row,
-                    align: Align::Center,
-                    w: Size::Grow,
-                    h: Size::Px(64.0),
-                    padding: Edges {
-                        l: 16.0,
-                        r: 16.0,
-                        ..Edges::ZERO
-                    },
-                    ..Node::DEFAULT
-                },
-            );
-            ui.within(&head, &mut |ui| {
-                let parent = match state.route {
-                    Route::Album(_) => Some(Route::Albums),
-                    Route::Artist(_) => Some(Route::Artists),
-                    Route::Collection(_) => Some(Route::Lists),
-                    _ => None,
-                };
-                if let Some(parent) = parent {
-                    let back = ui.node(
-                        "back-holder",
+        ui.view(
+            "compact-library",
+            library_revision(player, catalog, state),
+            Size::Grow,
+            Size::Grow,
+            &mut |ui| {
+                if !state.settings_visible
+                    && state.route != Route::Files
+                    && state.route != Route::Find
+                {
+                    let head = ui.node(
+                        "compact-heading",
                         Node {
-                            w: Size::Px(64.0),
-                            h: Size::Px(44.0),
+                            axis: Axis::Row,
+                            align: Align::Center,
+                            w: Size::Grow,
+                            h: Size::Px(64.0),
+                            padding: Edges {
+                                l: 16.0,
+                                r: 16.0,
+                                ..Edges::ZERO
+                            },
                             ..Node::DEFAULT
                         },
                     );
-                    ui.within(&back, &mut |ui| {
-                        if button(ui, "back", "Back", false, p) {
-                            *intent = Some(Intent::Navigate(parent));
+                    ui.within(&head, &mut |ui| {
+                        let parent = match state.route {
+                            Route::Album(_) => Some(Route::Albums),
+                            Route::Artist(_) => Some(Route::Artists),
+                            Route::Collection(_) => Some(Route::Lists),
+                            _ => None,
+                        };
+                        if let Some(parent) = parent {
+                            let back = ui.node(
+                                "back-holder",
+                                Node {
+                                    w: Size::Px(64.0),
+                                    h: Size::Px(44.0),
+                                    ..Node::DEFAULT
+                                },
+                            );
+                            ui.within(&back, &mut |ui| {
+                                if button(ui, "back", "Back", false, p) {
+                                    *intent = Some(Intent::Navigate(parent));
+                                }
+                            });
                         }
+                        let title = match state.route {
+                            Route::Lists => "Lists",
+                            Route::Album(_) | Route::Artist(_) | Route::Collection(_) => state
+                                .collection(catalog)
+                                .map_or("Library", |group| group.title.as_str()),
+                            _ => "Library",
+                        };
+                        line(ui, "heading", title, 28.0, p.ink);
+                        let settings = ui.node(
+                            "settings-holder",
+                            Node {
+                                w: Size::Px(72.0),
+                                h: Size::Px(44.0),
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.within(&settings, &mut |ui| {
+                            if button(ui, "settings", "Settings", false, p) {
+                                *intent = Some(Intent::ShowSettings);
+                            }
+                        });
                     });
-                }
-                let title = match state.route {
-                    Route::Lists => "Lists",
-                    Route::Album(_) | Route::Artist(_) | Route::Collection(_) => state
-                        .collection(catalog)
-                        .map_or("Library", |group| group.title.as_str()),
-                    _ => "Library",
-                };
-                line(ui, "heading", title, 28.0, p.ink);
-                let settings = ui.node(
-                    "settings-holder",
-                    Node {
-                        w: Size::Px(72.0),
-                        h: Size::Px(44.0),
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&settings, &mut |ui| {
-                    if button(ui, "settings", "Settings", false, p) {
-                        *intent = Some(Intent::ShowSettings);
+                    if matches!(state.route, Route::Albums | Route::Artists | Route::Songs) {
+                        let hero = ui.node(
+                            "library-summary",
+                            Node {
+                                w: Size::Grow,
+                                h: Size::Px(72.0),
+                                padding: Edges {
+                                    l: 16.0,
+                                    r: 16.0,
+                                    ..Edges::ZERO
+                                },
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.within(&hero, &mut |ui| {
+                            let count = container(
+                                ui,
+                                "song-count",
+                                Axis::Row,
+                                Size::Grow,
+                                Size::Px(42.0),
+                                p.paper,
+                            );
+                            ui.within(&count, &mut |ui| {
+                                text(
+                                    ui,
+                                    "number",
+                                    &catalog.song_count,
+                                    30,
+                                    p.ink,
+                                    (Size::Fit, 42.0),
+                                    false,
+                                );
+                                text(
+                                    ui,
+                                    "unit",
+                                    " songs",
+                                    15,
+                                    p.secondary,
+                                    (Size::Fit, 42.0),
+                                    false,
+                                );
+                            });
+                            line(
+                                ui,
+                                "library-size",
+                                &catalog.library_subtitle,
+                                12.0,
+                                p.secondary,
+                            );
+                        });
+                        let tabs = container(
+                            ui,
+                            "library-tabs",
+                            Axis::Row,
+                            Size::Grow,
+                            Size::Px(44.0),
+                            p.paper,
+                        );
+                        ui.set_role(&tabs, Role::Group, 0);
+                        ui.a11y_name(&tabs, "Library view");
+                        ui.within(&tabs, &mut |ui| {
+                            for (label, route) in [
+                                ("Albums", Route::Albums),
+                                ("Artists", Route::Artists),
+                                ("Songs", Route::Songs),
+                            ] {
+                                if button(ui, label, label, state.route == route, p) {
+                                    *intent = Some(Intent::Navigate(route));
+                                }
+                            }
+                        });
+                        rule(ui, "tabs-divider", false, p);
                     }
-                });
-            });
-            if matches!(state.route, Route::Albums | Route::Artists | Route::Songs) {
-                let hero = ui.node(
-                    "library-summary",
-                    Node {
-                        w: Size::Grow,
-                        h: Size::Px(72.0),
-                        padding: Edges {
-                            l: 16.0,
-                            r: 16.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&hero, &mut |ui| {
-                    let count = container(
-                        ui,
-                        "song-count",
-                        Axis::Row,
-                        Size::Grow,
-                        Size::Px(42.0),
-                        p.paper,
-                    );
-                    ui.within(&count, &mut |ui| {
-                        text(
-                            ui,
-                            "number",
-                            &catalog.song_count,
-                            30,
-                            p.ink,
-                            (Size::Fit, 42.0),
-                            false,
-                        );
-                        text(
-                            ui,
-                            "unit",
-                            " songs",
-                            15,
-                            p.secondary,
-                            (Size::Fit, 42.0),
-                            false,
-                        );
-                    });
-                    line(
-                        ui,
-                        "library-size",
-                        &catalog.library_subtitle,
-                        12.0,
-                        p.secondary,
-                    );
-                });
-                let tabs = container(
+                }
+                let body = container(
                     ui,
-                    "library-tabs",
-                    Axis::Row,
+                    "compact-content",
+                    Axis::Column,
                     Size::Grow,
-                    Size::Px(44.0),
+                    Size::Grow,
                     p.paper,
                 );
-                ui.set_role(&tabs, Role::Group, 0);
-                ui.a11y_name(&tabs, "Library view");
-                ui.within(&tabs, &mut |ui| {
-                    for (label, route) in [
-                        ("Albums", Route::Albums),
-                        ("Artists", Route::Artists),
-                        ("Songs", Route::Songs),
-                    ] {
-                        if button(ui, label, label, state.route == route, p) {
-                            *intent = Some(Intent::Navigate(route));
+                let route_key = pxui::hash!((
+                    state.route,
+                    state.settings_visible,
+                    if state.route == Route::Find {
+                        state.query_revision
+                    } else {
+                        0
+                    },
+                ));
+                ui.within(&body, &mut |ui| {
+                    let page = ui.node_keyed(
+                        int_key(body.box_key, route_key as i64),
+                        Node {
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&page, &mut |ui| {
+                        if state.settings_visible {
+                            settings::view(ui, player, state, width, p, intent);
+                        } else {
+                            match state.route {
+                                Route::Files => files::view(ui, player, width, p, intent),
+                                Route::Albums => {
+                                    albums::gallery(ui, catalog, state, player, width, p, intent)
+                                }
+                                Route::Artists => {
+                                    groups(ui, catalog, player, true, width, p, intent)
+                                }
+                                Route::Lists => collections(ui, catalog, player, width, p, intent),
+                                _ => songs(ui, catalog, state, player, width, p, intent),
+                            }
                         }
-                    }
+                    });
                 });
-                rule(ui, "tabs-divider", false, p);
-            }
-        }
-        let body = container(
-            ui,
-            "compact-content",
-            Axis::Column,
-            Size::Grow,
-            Size::Grow,
-            p.paper,
-        );
-        let route_key = pxui::hash!((
-            state.route,
-            state.settings_visible,
-            if state.route == Route::Find {
-                state.query_revision
-            } else {
-                0
+                crate::motion::enter(
+                    ui,
+                    &body,
+                    state.entry_revision,
+                    (24.0, 0.0),
+                    crate::motion::BASE,
+                    0.0,
+                );
             },
-        ));
-        ui.within(&body, &mut |ui| {
-            let page = ui.node_keyed(
-                int_key(body.box_key, route_key as i64),
-                Node {
-                    w: Size::Grow,
-                    h: Size::Grow,
-                    ..Node::DEFAULT
-                },
-            );
-            ui.within(&page, &mut |ui| {
-                if state.settings_visible {
-                    settings::view(ui, player, state, width, p, intent);
-                } else {
-                    match state.route {
-                        Route::Files => files::view(ui, player, width, p, intent),
-                        Route::Albums => {
-                            albums::gallery(ui, catalog, state, player, width, p, intent)
-                        }
-                        Route::Artists => groups(ui, catalog, player, true, width, p, intent),
-                        Route::Lists => collections(ui, catalog, player, width, p, intent),
-                        _ => songs(ui, catalog, state, player, width, p, intent),
-                    }
-                }
-            });
-        });
-        crate::motion::enter(
-            ui,
-            &body,
-            state.entry_revision,
-            (24.0, 0.0),
-            crate::motion::BASE,
-            0.0,
         );
         rule(ui, "mini-divider", false, p);
         mini(ui, player, catalog, p, intent);
@@ -652,9 +667,11 @@ fn groups(
     );
 }
 
+#[allow(clippy::too_many_arguments)] // Keep ticking position separate from stable player data.
 fn expanded(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
     catalog: &Catalog,
     size: (f32, f32),
     generation: u64,
@@ -723,18 +740,18 @@ fn expanded(
         spacer(ui, "clock-gap", 18.0);
         let clock = container(ui, "clock", Axis::Row, Size::Grow, Size::Px(43.0), p.paper);
         ui.within(&clock, &mut |ui| {
-            matrix_clock(ui, player.position.max(0.0) as u64, p.ink);
+            matrix_clock(ui, position.max(0.0) as u64, p.ink);
             ui.box_("flex", BoxOpts::default().w(Size::Grow));
             small_clock(
                 ui,
                 "remaining",
-                (player.duration - player.position).max(0.0) as u64,
+                (player.duration - position).max(0.0) as u64,
                 true,
                 50.0,
                 p.secondary,
             );
         });
-        seek(ui, player, p, intent);
+        seek(ui, player, position, p, intent);
         let keys = ui.node(
             "keys",
             Node {
@@ -851,6 +868,7 @@ mod tests {
         catalog: &Catalog,
         state: &ShellState,
         player: &PlayerView<'_>,
+        position: f64,
         width: f32,
         time: f64,
     ) -> Option<Intent> {
@@ -866,7 +884,7 @@ mod tests {
                 },
                 ..Default::default()
             },
-            &mut |ui| shell(ui, player, catalog, state, &mut intent),
+            &mut |ui| shell(ui, player, position, catalog, state, &mut intent),
         )
         .unwrap();
         intent
@@ -902,7 +920,10 @@ mod tests {
             ..Default::default()
         };
         for (width, time) in [(1440.0, 1.0), (390.0, 2.0), (390.0, 3.0)] {
-            assert_eq!(frame(&mut ui, &catalog, &state, &player, width, time), None);
+            assert_eq!(
+                frame(&mut ui, &catalog, &state, &player, 0.0, width, time),
+                None
+            );
         }
         let nav = ui
             .a11y_nodes()
@@ -924,12 +945,12 @@ mod tests {
         assert_eq!(state.selected, Some(2));
         click(&mut ui, "Open Now Playing");
         assert_eq!(
-            frame(&mut ui, &catalog, &state, &player, 390.0, 4.0),
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 4.0),
             Some(Intent::TogglePlayer)
         );
         state.apply(Intent::TogglePlayer);
-        frame(&mut ui, &catalog, &state, &player, 390.0, 5.0);
-        frame(&mut ui, &catalog, &state, &player, 390.0, 6.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 5.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 6.0);
         assert!(
             ui.a11y_nodes()
                 .iter()
@@ -937,32 +958,32 @@ mod tests {
         );
         click(&mut ui, "Pause");
         assert_eq!(
-            frame(&mut ui, &catalog, &state, &player, 390.0, 7.0),
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 7.0),
             Some(Intent::Pause)
         );
-        frame(&mut ui, &catalog, &state, &player, 1440.0, 8.0);
-        frame(&mut ui, &catalog, &state, &player, 390.0, 9.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 1440.0, 8.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 9.0);
         assert!(state.player_expanded && state.panel_visible);
         assert_eq!(state.route, Route::Album(0));
         assert_eq!(state.selected, Some(2));
         click(&mut ui, "Close Now Playing");
         assert_eq!(
-            frame(&mut ui, &catalog, &state, &player, 390.0, 10.0),
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 10.0),
             Some(Intent::TogglePlayer)
         );
         state.apply(Intent::TogglePlayer);
-        frame(&mut ui, &catalog, &state, &player, 390.0, 11.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 11.0);
         click(&mut ui, "Lists");
         assert_eq!(
-            frame(&mut ui, &catalog, &state, &player, 390.0, 12.0),
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 12.0),
             Some(Intent::Navigate(Route::Lists))
         );
         state.apply(Intent::Navigate(Route::Lists));
-        frame(&mut ui, &catalog, &state, &player, 390.0, 13.0);
-        frame(&mut ui, &catalog, &state, &player, 390.0, 14.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 13.0);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 14.0);
         click(&mut ui, "Favorites");
         assert_eq!(
-            frame(&mut ui, &catalog, &state, &player, 390.0, 15.0),
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 15.0),
             Some(Intent::Navigate(Route::Collection(0)))
         );
     }
@@ -987,7 +1008,7 @@ mod tests {
             let width = widths[tick % widths.len()];
             mem_sys::local_reset();
             assert_eq!(
-                frame(&mut ui, &catalog, &state, &player, width, tick as f64),
+                frame(&mut ui, &catalog, &state, &player, 0.0, width, tick as f64),
                 None
             );
             if tick >= 82 {
@@ -1047,7 +1068,7 @@ mod tests {
                     event_count: events.len(),
                     ..Default::default()
                 },
-                &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
             )
             .unwrap();
             saw_later_row |= ui
@@ -1103,7 +1124,7 @@ mod tests {
                     event_count: 1,
                     ..Default::default()
                 },
-                &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
             )
             .unwrap();
             assert_eq!(intent, None, "finger scroll/catch/cancel activated a song");
@@ -1166,7 +1187,7 @@ mod tests {
             }
             for tick in 0..182 {
                 let width = if tick % 4 < 2 { 390.0 } else { 320.0 };
-                player.position = tick as f64;
+                let position = tick as f64;
                 player.revision = tick as u64;
                 mem_sys::local_reset();
                 let intent = frame(
@@ -1174,6 +1195,7 @@ mod tests {
                     &catalog,
                     &state,
                     &player,
+                    position,
                     width,
                     (page * 1000 + tick) as f64,
                 );
@@ -1214,7 +1236,7 @@ mod tests {
         }
         click(&mut ui, "Show full queue");
         assert_eq!(
-            frame(&mut ui, &catalog, &state, &player, 390.0, 6000.0),
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 6000.0),
             Some(Intent::ShowQueue)
         );
     }
@@ -1258,7 +1280,7 @@ mod tests {
                         },
                         ..Default::default()
                     },
-                    &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                    &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
                 assert_eq!(intent, None);
@@ -1299,8 +1321,8 @@ mod tests {
         for width in [320.0, 390.0, 1000.0] {
             let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
-            frame(&mut ui, &catalog, &state, &player, width, 0.0);
-            frame(&mut ui, &catalog, &state, &player, width, 1.0);
+            frame(&mut ui, &catalog, &state, &player, 0.0, width, 0.0);
+            frame(&mut ui, &catalog, &state, &player, 0.0, width, 1.0);
             let rect = ui
                 .a11y_nodes()
                 .iter()
@@ -1347,7 +1369,7 @@ mod tests {
                         },
                         ..Default::default()
                     },
-                    &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                    &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
                 assert_eq!(

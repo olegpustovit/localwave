@@ -501,6 +501,7 @@ mod tests {
         ui: &mut Ui,
         state: &ShellState,
         player: &PlayerView<'_>,
+        position: f64,
         frame: &FrameIn,
     ) -> Option<Intent> {
         static CATALOG: std::sync::LazyLock<crate::catalog::Catalog> =
@@ -513,7 +514,7 @@ mod tests {
             });
         let mut intent = None;
         ui.frame(frame, &mut |ui| {
-            crate::shell(ui, player, &CATALOG, state, &mut intent)
+            crate::shell(ui, player, position, &CATALOG, state, &mut intent)
         })
         .unwrap();
         intent
@@ -543,7 +544,7 @@ mod tests {
         frame.events = &event;
         frame.event_count = 1;
         frame.time += 0.02;
-        let result = build(ui, state, player, frame);
+        let result = build(ui, state, player, 0.0, frame);
         frame.events = std::ptr::null();
         frame.event_count = 0;
         result
@@ -601,7 +602,7 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..3 {
-            build(&mut ui, &state, &player, &frame);
+            build(&mut ui, &state, &player, 0.0, &frame);
         }
         let at = point(&ui, "Download ahead");
         assert_eq!(
@@ -646,7 +647,7 @@ mod tests {
         ));
         state.apply(intent);
         for _ in 0..3 {
-            build(&mut ui, &state, &player, &frame);
+            build(&mut ui, &state, &player, 0.0, &frame);
         }
         let at = point(&ui, "Use red signal");
         let intent = click(&mut ui, &state, &player, &mut frame, at, 0).unwrap();
@@ -689,7 +690,7 @@ mod tests {
             },
         );
         for _ in 0..3 {
-            build(&mut ui, &state, &player, &frame);
+            build(&mut ui, &state, &player, 0.0, &frame);
         }
         let at = point(&ui, "Use 32 GB");
         assert_eq!(
@@ -702,7 +703,7 @@ mod tests {
         let start = frame.time;
         for offset in [0.0, 0.5, 1.0] {
             frame.time = start + offset;
-            build(&mut ui, &state, &player, &frame);
+            build(&mut ui, &state, &player, 0.0, &frame);
         }
         let paragraph = ui
             .a11y_nodes()
@@ -792,11 +793,11 @@ mod tests {
                     for _ in 0..3 {
                         player.storage_busy = index.is_multiple_of(2);
                         player.revision += 1;
-                        player.position = player.revision as f64;
+                        let position = player.revision as f64;
                         frame.time += 0.02;
                         let own = mem_sys::own(mem_sys::COUNT_LOCAL_ALLOCS);
                         let peer = pxui::library_counter(mem_sys::COUNT_LOCAL_ALLOCS);
-                        build(&mut ui, &state, &player, &frame);
+                        build(&mut ui, &state, &player, position, &frame);
                         trace[index] = (
                             mem_sys::own(mem_sys::COUNT_LOCAL_ALLOCS) - own,
                             pxui::library_counter(mem_sys::COUNT_LOCAL_ALLOCS) - peer,

@@ -7,6 +7,129 @@ pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
 }
 
 #[test]
+fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
+    mem_sys::set_peer(pxui::library_counter);
+    let catalog = prepared(
+        (0..10_000)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("Track {id:05}"),
+                ..Default::default()
+            })
+            .collect(),
+    );
+    let state = ShellState::default();
+    let player = PlayerView {
+        revision: 7,
+        current_id: Some(0),
+        initialized: true,
+        playing: true,
+        title: "Track 00000",
+        duration: 240.0,
+        ..Default::default()
+    };
+    for width in [1440.0, 390.0] {
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        ui.set_a11y(true);
+        let mut frame = FrameIn {
+            width,
+            height: 872.0,
+            reduced_motion: 1,
+            ..Default::default()
+        };
+        let watched = if width == 1440.0 {
+            "song-visual"
+        } else {
+            "compact-library"
+        };
+        let mut initial_rows = 0;
+        for tick in 0..20 {
+            frame.time = tick as f64 * 0.05;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, tick as f64, &catalog, &state, &mut None)
+            })
+            .unwrap();
+            let _ = ui.output(); // The native host consumes the ABI output on every frame.
+            initial_rows += ui.rebuilt_named(watched);
+        }
+        assert!(
+            initial_rows > 0,
+            "the retained-view counter must observe the initial build at width {width}"
+        );
+        for tick in 1..=20 {
+            let position = 12.0 + tick as f64 * 0.05;
+            frame.time += 0.05;
+            let layouts = ui.text_layout_count();
+            mem_sys::local_reset();
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, position, &catalog, &state, &mut None)
+            })
+            .unwrap();
+            for view in [
+                "song-visual",
+                "song-copy",
+                "sidebar",
+                "library",
+                "compact-library",
+                "track-information",
+            ] {
+                assert_eq!(
+                    ui.rebuilt_named(view),
+                    0,
+                    "{view}, width {width}, tick {tick}"
+                );
+            }
+            if width == 1440.0 {
+                assert!(ui.rebuilt_named("transport") > 0);
+                assert!(ui.rebuilt_named("playback-clock") > 0);
+                let seek = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| ui.a11y_name_of(node) == "Playback position")
+                    .unwrap();
+                assert!((seek.value.now - position).abs() < 0.001);
+                let clock = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| ui.a11y_name_of(node) == "Elapsed time")
+                    .unwrap();
+                assert_eq!(clock.value.now, position as u64 as f64);
+            }
+            assert_eq!(
+                mem_sys::local_alloc_count(),
+                0,
+                "width {width}, tick {tick}, own {}, peer {}, layouts {}",
+                mem_sys::own(mem_sys::COUNT_LOCAL_ALLOCS),
+                pxui::library_counter(mem_sys::COUNT_LOCAL_ALLOCS),
+                ui.text_layout_count() - layouts
+            );
+        }
+        let updated = PlayerView {
+            revision: player.revision + 1,
+            current_id: Some(1),
+            playing: false,
+            title: "Updated track",
+            ..player
+        };
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &updated, 13.0, &catalog, &state, &mut None)
+        })
+        .unwrap();
+        assert!(ui.rebuilt_named(watched) > 0);
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Updated track")
+        );
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| ui.a11y_name_of(node) == "Play")
+        );
+    }
+}
+
+#[test]
 fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allocations() {
     mem_sys::set_peer(pxui::library_counter);
     let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
@@ -161,7 +284,7 @@ fn desktop_album_cards_and_player_artwork_use_swift_point_dimensions() {
                     reduced_motion: 1,
                     ..Default::default()
                 },
-                &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
             )
             .unwrap();
         }
@@ -236,6 +359,7 @@ fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocat
                                 file_dragging: dragging,
                                 ..Default::default()
                             },
+                            0.0,
                             &catalog,
                             &state,
                             &mut None,
@@ -284,7 +408,6 @@ fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
     {
         let player = PlayerView {
             revision: revision as u64,
-            position,
             duration,
             ..Default::default()
         };
@@ -294,7 +417,7 @@ fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
                 height: 872.0,
                 ..Default::default()
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+            &mut |ui| shell(ui, &player, position, &catalog, &state, &mut None),
         )
         .unwrap();
         let progress = ui
@@ -312,6 +435,7 @@ fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
 
 #[test]
 fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_warm_allocations() {
+    let mut position = 0.0;
     use lw_core::{context::PlaybackContext, queue::Entry};
     use std::sync::Arc;
     mem_sys::set_peer(pxui::library_counter);
@@ -347,7 +471,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     let mut intent = None;
     for _ in 0..3 {
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -420,7 +544,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
         frame.event_count = 1;
         frame.time += 0.01;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
         assert!(intent.is_none());
@@ -436,7 +560,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     let release = pointer(input::wire::POINTER_RELEASED, grips[2].1);
     frame.events = &release;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(
@@ -453,7 +577,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     };
     frame.events = &scroll_back;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     frame.events = std::ptr::null();
@@ -473,14 +597,14 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     };
     activate(&mut ui, "Save queue as playlist");
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::NamePlaylist));
     state.apply(Intent::NamePlaylist);
     for _ in 0..3 {
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -491,13 +615,13 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     );
     activate(&mut ui, "Cancel playlist creation");
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::CancelPlaylistName));
     state.apply(Intent::CancelPlaylistName);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -509,18 +633,18 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     let name = browse::Query::new("  Air 🎵  ").unwrap();
     state.apply(Intent::EditPlaylistName(name));
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     activate(&mut ui, "Create playlist from queue");
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::SaveQueue(name)));
     state.apply(Intent::PlaylistNameTooLong);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -548,9 +672,9 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
         frame.event_count = events.len();
         frame.time += 0.02;
         player.revision += 1;
-        player.position += 1.0;
+        position += 1.0;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
         if cycle > 8 {
@@ -570,7 +694,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     frame.events = &escape;
     frame.event_count = 1;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::CloseQueue));
@@ -582,7 +706,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     frame.height = 778.0;
     for _ in 0..3 {
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -615,7 +739,7 @@ fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
                     height: 872.0,
                     ..Default::default()
                 },
-                &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
             )
             .unwrap();
         }
@@ -639,7 +763,7 @@ fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
                 height: 480.0,
                 ..Default::default()
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
         )
         .unwrap();
     }
@@ -656,6 +780,7 @@ fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
 
 #[test]
 fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_drag() {
+    let mut position = 0.0;
     use lw_core::{context::PlaybackContext, queue::Entry};
     use std::sync::Arc;
     mem_sys::set_peer(pxui::library_counter);
@@ -694,7 +819,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
     for time in [0.0, 0.5, 1.0] {
         frame.time = time;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -729,9 +854,9 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             frame.event_count = usize::from(e.is_some());
             frame.time += 0.01;
             player.revision += 1;
-            player.position += 1.0;
+            position += 1.0;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
             if e.is_some_and(|e| e.kind == input::wire::POINTER_RELEASED) {
@@ -774,9 +899,9 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             frame.event_count = usize::from(e.is_some());
             frame.time += 0.02;
             player.revision += 1;
-            player.position += 1.0;
+            position += 1.0;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
             if e.is_none() && intent.is_none() && ui.carrying_ref().is_some() {
@@ -830,7 +955,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             frame.event_count = 1;
             frame.time += 0.01;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
             assert!(intent.is_none(), "cancelled drags never reorder");
@@ -866,7 +991,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
     );
     assert_eq!(state.selected, Some(0));
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &next, &state, &mut intent)
+        shell(ui, &player, position, &next, &state, &mut intent)
     })
     .unwrap();
     let moved = ui
@@ -896,7 +1021,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         }]);
         frame.time += 0.01;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &next, &state, &mut intent)
+            shell(ui, &player, position, &next, &state, &mut intent)
         })
         .unwrap();
         assert_eq!(intent.take(), Some(expected));
@@ -910,7 +1035,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         true,
     )));
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &cleared, &state, &mut intent)
+        shell(ui, &player, position, &cleared, &state, &mut intent)
     })
     .unwrap();
     let undo = ui
@@ -925,7 +1050,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         ..Default::default()
     }]);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &cleared, &state, &mut intent)
+        shell(ui, &player, position, &cleared, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent, Some(Intent::UndoQueue));
@@ -959,7 +1084,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
     let mut intent = None;
     for _ in 0..2 {
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -993,7 +1118,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         }]);
         if cycle % 2 == 1 {
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut intent)
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
             })
             .unwrap();
             assert!(intent.is_none());
@@ -1003,7 +1128,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         mem_sys::local_reset();
         frame.time += 0.01;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         let expected = if cycle % 2 == 0 {
@@ -1017,7 +1142,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         frame.event_count = 0;
         frame.time += 0.01;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         if cycle >= 6 {
@@ -1032,7 +1157,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         frame.width = width;
         frame.time += 0.01;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         let chips: Vec<_> = ui
@@ -1072,7 +1197,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
     state.apply(Intent::Search(Query::new(&maximum).unwrap()));
     frame.width = 1440.0;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
     let id = ui
@@ -1087,13 +1212,13 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         ..Default::default()
     }]);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent, Some(Intent::SearchTooLong));
     state.apply(intent.take().unwrap());
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(state.query.as_str(), maximum);
@@ -1142,7 +1267,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     let mut intent = None;
     for _ in 0..2 {
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -1186,7 +1311,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
             event_count: click.len(),
             ..frame
         },
-        &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+        &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
     )
     .unwrap();
     assert!(ui.text_input_focused());
@@ -1204,7 +1329,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
             event_count: 1,
             ..frame
         },
-        &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+        &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
     )
     .unwrap();
     assert_eq!(intent, Some(Intent::Search(Query::new("track").unwrap())));
@@ -1215,7 +1340,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     found.project(request, (0..400).collect());
     state.refresh(&catalog, &found);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &found, &state, &mut intent)
+        shell(ui, &player, 0.0, &found, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -1247,7 +1372,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
                 event_count: wheel.len(),
                 ..frame
             },
-            &mut |ui| shell(ui, &player, &found, &state, &mut intent),
+            &mut |ui| shell(ui, &player, 0.0, &found, &state, &mut intent),
         )
         .unwrap();
         if tick >= 80 {
@@ -1266,7 +1391,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         "old responses never appear under a newer query"
     );
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &found, &state, &mut intent)
+        shell(ui, &player, 0.0, &found, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -1279,7 +1404,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     next.project(state.request(&catalog).unwrap(), (100..400).collect());
     state.refresh(&found, &next);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &next, &state, &mut intent)
+        shell(ui, &player, 0.0, &next, &state, &mut intent)
     })
     .unwrap();
     let first = ui
@@ -1307,7 +1432,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         ..Default::default()
     }]);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &next, &state, &mut intent)
+        shell(ui, &player, 0.0, &next, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent, Some(Intent::Search(Query::default())));
@@ -1339,7 +1464,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
     };
     let mut intent = None;
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
     let heading = ui
@@ -1354,7 +1479,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
         ..Default::default()
     }]);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &catalog, &state, &mut intent)
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent, Some(Intent::Sort(Sort::Duration)));
@@ -1368,7 +1493,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
     assert_eq!(state.selected, Some(19));
     assert_eq!(state.collection(&sorted).unwrap().ids[19], 10);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &sorted, &state, &mut intent)
+        shell(ui, &player, 0.0, &sorted, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -1387,7 +1512,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
             event_count: 1,
             ..frame
         },
-        &mut |ui| shell(ui, &player, &sorted, &state, &mut intent),
+        &mut |ui| shell(ui, &player, 0.0, &sorted, &state, &mut intent),
     )
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::PlayRow(19)));
@@ -1403,7 +1528,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
         ..Default::default()
     }]);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &sorted, &state, &mut intent)
+        shell(ui, &player, 0.0, &sorted, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent, Some(Intent::Sort(Sort::Original)));
@@ -1443,7 +1568,7 @@ fn transport_buttons_return_intents_and_update_retained_labels() {
         player.revision += 1;
         let mut intent = None;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         let id = ui
@@ -1459,7 +1584,7 @@ fn transport_buttons_return_intents_and_update_retained_labels() {
         }]);
         player.revision += 1;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         assert_eq!(intent, Some(expected));
@@ -1536,7 +1661,7 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
     state.apply(Intent::Navigate(Route::Songs));
     state.selected = Some(0);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &before, &state, &mut intent)
+        shell(ui, &player, 0.0, &before, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -1546,7 +1671,7 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
     );
     state.refresh(&before, &after);
     ui.frame(&frame, &mut |ui| {
-        shell(ui, &player, &after, &state, &mut intent)
+        shell(ui, &player, 0.0, &after, &state, &mut intent)
     })
     .unwrap();
     assert!(
@@ -1659,7 +1784,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
         state.apply(Intent::Navigate(old));
         for _ in 0..2 {
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &before, &state, &mut intent)
+                shell(ui, &player, 0.0, &before, &state, &mut intent)
             })
             .unwrap();
         }
@@ -1677,7 +1802,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
             ..Default::default()
         }]);
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &before, &state, &mut intent)
+            shell(ui, &player, 0.0, &before, &state, &mut intent)
         })
         .unwrap();
         let scrolled = row_y(&ui);
@@ -1685,7 +1810,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
         state.refresh(&before, &after);
         assert_eq!(state.route, new);
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &after, &state, &mut intent)
+            shell(ui, &player, 0.0, &after, &state, &mut intent)
         })
         .unwrap();
         assert_eq!(row_y(&ui), scrolled);
@@ -1718,7 +1843,7 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
     ] {
         player.revision += 1;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         let id = ui
@@ -1735,7 +1860,7 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
         }]);
         player.revision += 1;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         assert_eq!(intent.take(), Some(expected), "{name}");
@@ -1744,6 +1869,7 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
 
 #[test]
 fn shell_themes_and_warm_build_allocate_nothing() {
+    let mut position;
     mem_sys::set_peer(pxui::library_counter);
     let catalog = prepared(Vec::new());
     let state = ShellState::default();
@@ -1772,7 +1898,7 @@ fn shell_themes_and_warm_build_allocate_nothing() {
         let mut intent = None;
         for frame in 0..20 {
             player.revision = frame;
-            player.position = frame as f64;
+            position = frame as f64;
             player.playing = frame % 2 == 0;
             player.context = if player.playing {
                 "Favorites"
@@ -1791,14 +1917,14 @@ fn shell_themes_and_warm_build_allocate_nothing() {
                     time: frame as f64,
                     ..FrameIn::default()
                 },
-                &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
             )
             .unwrap();
         }
         mem_sys::local_reset();
         for frame in 21..121 {
             player.revision = frame;
-            player.position = frame as f64;
+            position = frame as f64;
             player.playing = frame % 2 == 0;
             player.context = if player.playing {
                 "Favorites"
@@ -1817,7 +1943,7 @@ fn shell_themes_and_warm_build_allocate_nothing() {
                     time: frame as f64,
                     ..FrameIn::default()
                 },
-                &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+                &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
             )
             .unwrap();
         }
@@ -1842,6 +1968,7 @@ fn shell_themes_and_warm_build_allocate_nothing() {
 }
 #[test]
 fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
+    let mut position = 0.0;
     mem_sys::set_peer(pxui::library_counter);
     let catalog = prepared(
         (0..10_000)
@@ -1872,7 +1999,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
                 height: 872.0,
                 ..FrameIn::default()
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+            &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
         )
         .unwrap();
     }
@@ -1890,7 +2017,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
                 ..pxui::Event::default()
             },
         ];
-        player.position = frame as f64;
+        position = frame as f64;
         player.revision = frame;
         if frame == 80 {
             mem_sys::local_reset();
@@ -1905,7 +2032,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
                 event_count: events.len(),
                 ..FrameIn::default()
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+            &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
         )
         .unwrap();
         if frame >= 80 {
@@ -1944,7 +2071,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
             height: 872.0,
             ..FrameIn::default()
         },
-        &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+        &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
     )
     .unwrap();
     assert_eq!(intent, Some(Intent::Navigate(catalog::Route::Albums)));
@@ -1955,7 +2082,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
             height: 872.0,
             ..FrameIn::default()
         },
-        &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+        &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
     )
     .unwrap();
     assert!(
@@ -1996,7 +2123,7 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
     };
     for _ in 0..2 {
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
     }
@@ -2025,7 +2152,7 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
                 event_count: events.len(),
                 ..frame
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut intent),
+            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
         )
         .unwrap();
         if tick >= 80 {
@@ -2065,8 +2192,10 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
     };
     let mut intent = None;
     let build = |ui: &mut Ui, state: &ShellState, frame: &FrameIn, intent: &mut Option<Intent>| {
-        ui.frame(frame, &mut |ui| shell(ui, &player, &catalog, state, intent))
-            .unwrap();
+        ui.frame(frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, intent)
+        })
+        .unwrap();
     };
     for _ in 0..2 {
         build(&mut ui, &state, &frame, &mut intent);

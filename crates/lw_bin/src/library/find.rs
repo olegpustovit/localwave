@@ -762,6 +762,7 @@ mod tests {
                         lw_ui::shell(
                             ui,
                             &lw_ui::PlayerView::default(),
+                            0.0,
                             &catalog,
                             &state,
                             &mut None,

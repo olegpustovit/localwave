@@ -728,7 +728,6 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
             current_id: Some(7),
             initialized: true,
             title: "Covered song",
-            position: frame as f64,
             ..Default::default()
         };
         ui.frame(
@@ -738,7 +737,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
                 time: frame as f64 * 0.02,
                 ..Default::default()
             },
-            &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut None),
+            &mut |ui| lw_ui::shell(ui, &player, frame as f64, &catalog, &state, &mut None),
         )
         .unwrap();
         assert!(graphics.draw(&mut window, &ui, None).unwrap());
@@ -784,7 +783,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
                 time: 1.0 + frame as f64 * 0.02,
                 ..Default::default()
             },
-            &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut None),
+            &mut |ui| lw_ui::shell(ui, &player, frame as f64, &catalog, &state, &mut None),
         )
         .unwrap();
         let image_quads: usize = ui
@@ -874,6 +873,7 @@ fn system_preferences_use_appkit_notifications_and_cached_warm_reads() {
 
 // SDL startup and real event routing require a main-thread integration process, bounded by cargo t.
 fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
+    let mut position;
     mem_sys::set_peer(pxui::library_counter);
     let mut window =
         pxui_sdl::Window::open_with("LocalWave input check", 1440, 872, false, true, true).unwrap();
@@ -911,7 +911,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
             assert_eq!(mem_sys::local_alloc_count(), 0, "event encoding allocated");
         }
         player.revision = frame;
-        player.position = frame as f64;
+        position = frame as f64;
         player.playing = frame % 2 == 0;
         player.context = if player.playing {
             "Favorites"
@@ -933,7 +933,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
                 event_count: wire.len(),
                 ..pxui::FrameIn::default()
             },
-            &mut |ui| lw_ui::shell(ui, &player, &catalog, &state, &mut intent),
+            &mut |ui| lw_ui::shell(ui, &player, position, &catalog, &state, &mut intent),
         )
         .unwrap();
         if frame >= 20 {

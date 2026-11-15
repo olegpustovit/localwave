@@ -96,6 +96,7 @@ pub enum Intent {
     CloseRemoveSource,
 }
 
+/// Stable player data. Advance revision when these facts change; position is a separate shell input.
 #[derive(Default)]
 pub struct PlayerView<'a> {
     pub command_theme: Option<&'a pxui::Theme>,
@@ -116,7 +117,6 @@ pub struct PlayerView<'a> {
     pub current_id: Option<i64>,
     pub artist: &'a str,
     pub album: &'a str,
-    pub position: f64,
     pub duration: f64,
     pub volume: f32,
     pub shuffled: bool,

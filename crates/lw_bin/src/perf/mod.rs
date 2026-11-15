@@ -1,5 +1,6 @@
 //! Preserve all signed workloads and 182/82/100 frame counts at 1440x872, both Rust allocation
-//! counters and unchanged strict timing assertions. Advance PlayerView revision with position.
+//! counters and unchanged strict timing assertions. Advance the separate position every frame;
+//! stable PlayerView revisions follow actual state changes. Never freeze clocks to meet a gate.
 //! Require 200 waveform bars/nine release-only seeks; queue carry traces warm twice, preserve
 //! payload/capture and cancel without intents or fixture mutation. Filtered Find uses Track m4a
 //! year:2019 unplayed and matches all 10,000 fixture rows. Files draws real virtual rows; Settings

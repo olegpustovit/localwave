@@ -424,6 +424,7 @@ mod tests {
                             files: Some(files),
                             ..Default::default()
                         },
+                        0.0,
                         catalog,
                         state,
                         intent,
@@ -803,6 +804,7 @@ mod tests {
                             files: Some(&files),
                             ..Default::default()
                         },
+                        0.0,
                         &catalog,
                         &state,
                         &mut None,

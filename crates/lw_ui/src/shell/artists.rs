@@ -388,7 +388,7 @@ mod tests {
         };
         let pending = Catalog::new(Vec::new());
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &pending, &state, &mut None)
+            shell(ui, &player, 0.0, &pending, &state, &mut None)
         })
         .unwrap();
         let loading = ui
@@ -403,7 +403,7 @@ mod tests {
         state.refresh(&pending, &catalog);
         for _ in 0..3 {
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut None)
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
         }
@@ -489,7 +489,7 @@ mod tests {
             }]);
             frame.time += 0.02;
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut None)
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
             let heading = ui
@@ -528,7 +528,7 @@ mod tests {
         frame.reduced_motion = 0;
         frame.time += 1.0;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut None)
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
         let entered = frame.time + 0.01;
@@ -545,7 +545,7 @@ mod tests {
                 event_count: 1,
                 ..frame
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
         )
         .unwrap();
         assert!(ui.repaint_at().is_some());
@@ -554,7 +554,7 @@ mod tests {
                 time: entered + 0.07,
                 ..frame
             },
-            &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
         )
         .unwrap();
         assert!(
@@ -563,7 +563,7 @@ mod tests {
         );
         frame.time = entered + 0.15;
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut None)
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
         assert!(ui.repaint_at().is_none(), "hover settles after 140 ms");
@@ -580,7 +580,7 @@ mod tests {
             ..Default::default()
         }]);
         ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, &catalog, &state, &mut intent)
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
         assert_eq!(intent, Some(Intent::Navigate(Route::Artist(0))));
@@ -617,7 +617,7 @@ mod tests {
                             reduced_motion: 1,
                             ..Default::default()
                         },
-                        &mut |ui| shell(ui, &player, &catalog, &state, &mut None),
+                        &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
                     )
                     .unwrap();
                     let rect = |name: &str, role: Role| {

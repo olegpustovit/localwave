@@ -5,6 +5,7 @@ use crate::{Intent, PlayerView};
 pub(super) fn now_panel(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
     catalog: &Catalog,
     p: Palette,
     intent: &mut Option<Intent>,
@@ -78,11 +79,8 @@ pub(super) fn now_panel(
         ui.a11y_name(&art, "Current track artwork");
         spacer(ui, "artwork-bottom-gap", 14.0);
         let information_revision = pxui::hash!((
-            player.initialized,
-            player.current_id,
-            player.title,
-            player.artist,
-            player.album,
+            player.revision,
+            std::sync::Arc::as_ptr(&catalog.library) as usize,
         ));
         let information = ui.view(
             "track-information",
@@ -137,7 +135,7 @@ pub(super) fn now_panel(
         spacer(ui, "title-clock-gap", 14.0);
         let clock_group = ui.view(
             "playback-clock",
-            player.revision,
+            pxui::hash!((player.revision, position.to_bits())),
             Size::Grow,
             Size::Px(43.0),
             &mut |ui| {
@@ -152,12 +150,12 @@ pub(super) fn now_panel(
                     },
                 );
                 ui.within(&clock, &mut |ui| {
-                    matrix_clock(ui, player.position.max(0.0) as u64, p.ink);
+                    matrix_clock(ui, position.max(0.0) as u64, p.ink);
                     ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
                     small_clock(
                         ui,
                         "panel-remaining",
-                        (player.duration - player.position).max(0.0) as u64,
+                        (player.duration - position).max(0.0) as u64,
                         true,
                         50.0,
                         p.secondary,

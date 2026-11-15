@@ -145,6 +145,7 @@ pub struct Status {
     pub storage_busy: bool,
     pub waveform: Option<lw_core::waveform::Peaks>,
     pub revision: u64,
+    pub stable_revision: u64,
     pub initialized: bool,
     pub processed_command: u64,
     pub generation: u64,
@@ -165,6 +166,24 @@ pub struct Status {
     pub context: Arc<PlaybackContext>,
     pub message: Arc<str>,
 }
+impl Status {
+    /// Position ticks publish to the controller without invalidating stable UI data.
+    pub(super) fn update(&mut self, mut next: Self) -> bool {
+        next.revision = self.revision;
+        next.stable_revision = self.stable_revision;
+        let position_changed = self.position != next.position;
+        self.position = next.position;
+        let stable_changed = *self != next;
+        if stable_changed || position_changed {
+            next.revision += 1;
+            next.stable_revision += u64::from(stable_changed);
+            *self = next;
+            true
+        } else {
+            false
+        }
+    }
+}
 impl Default for Status {
     fn default() -> Self {
         Self {
@@ -174,6 +193,7 @@ impl Default for Status {
             storage_busy: false,
             waveform: None,
             revision: 0,
+            stable_revision: 0,
             context: Arc::new(PlaybackContext::Library),
             initialized: false,
             processed_command: 0,

@@ -364,7 +364,7 @@ mod tests {
         };
         for _ in 0..3 {
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut None)
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
         }
@@ -389,7 +389,7 @@ mod tests {
                 }]);
                 frame.time += 0.1;
                 ui.frame(&frame, &mut |ui| {
-                    shell(ui, &player, &catalog, &state, &mut None)
+                    shell(ui, &player, 0.0, &catalog, &state, &mut None)
                 })
                 .unwrap();
                 let offset = if delta > 0.0 { 200.0 } else { 0.0 };
@@ -495,7 +495,7 @@ mod tests {
         };
         for _ in 0..3 {
             ui.frame(&frame, &mut |ui| {
-                shell(ui, &player, &catalog, &state, &mut None)
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
         }
@@ -546,7 +546,7 @@ mod tests {
             for scale in [1.0, 2.0] {
                 frame.scale = scale;
                 ui.frame(&frame, &mut |ui| {
-                    shell(ui, &player, &catalog, &state, &mut None)
+                    shell(ui, &player, 0.0, &catalog, &state, &mut None)
                 })
                 .unwrap();
                 let widths = if scale == 1.0 {
@@ -580,13 +580,13 @@ mod tests {
                     frame.time += 0.1;
                     let mut intent = None;
                     ui.frame(&frame, &mut |ui| {
-                        shell(ui, &player, &catalog, &state, &mut intent)
+                        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
                     })
                     .unwrap();
                     assert_eq!(intent, Some(Intent::SortAlbums(sort)));
                     assert!(state.apply(intent.unwrap()));
                     ui.frame(&frame, &mut |ui| {
-                        shell(ui, &player, &catalog, &state, &mut None)
+                        shell(ui, &player, 0.0, &catalog, &state, &mut None)
                     })
                     .unwrap();
                     assert_ne!(find(&ui, name).states & pxui::a11y::state::SELECTED, 0);
@@ -606,7 +606,7 @@ mod tests {
                 }]);
                 let mut intent = None;
                 ui.frame(&frame, &mut |ui| {
-                    shell(ui, &player, &catalog, &state, &mut intent)
+                    shell(ui, &player, 0.0, &catalog, &state, &mut intent)
                 })
                 .unwrap();
                 assert_eq!(intent, Some(Intent::ShuffleAll));

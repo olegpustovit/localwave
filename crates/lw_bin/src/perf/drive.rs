@@ -177,13 +177,18 @@ impl Frame {
         }
         Ok(())
     }
-    pub(crate) fn view(&self, view: &mut lw_ui::PlayerView<'_>, input: &mut FrameIn) {
+    pub(crate) fn view(
+        &self,
+        view: &mut lw_ui::PlayerView<'_>,
+        position: &mut f64,
+        input: &mut FrameIn,
+    ) {
         if self.workload.is_some() {
-            view.revision = self.index as u64;
-            view.position = self.index as f64;
+            *position = self.index as f64;
             view.duration = 240.0;
         }
         if matches!(self.workload, Some(Workload::SongIndicators)) {
+            view.revision = (self.index / 20) as u64;
             view.playing = self.index % 40 < 20;
             view.current_id = self.indicator_song;
             input.reduced_motion = 0;
@@ -811,21 +816,18 @@ mod tests {
         mem_sys::set_peer(pxui::library_counter);
         let mut view = lw_ui::PlayerView {
             revision: 77,
-            position: 12.5,
             duration: 99.0,
             current_id: Some(7),
             ..Default::default()
         };
+        let mut position = 12.5;
         let mut input = FrameIn {
             reduced_motion: 1,
             ..Default::default()
         };
         let normal = Frame::new(0, false);
-        normal.view(&mut view, &mut input);
-        assert_eq!(
-            (view.revision, view.position, view.duration),
-            (77, 12.5, 99.0)
-        );
+        normal.view(&mut view, &mut position, &mut input);
+        assert_eq!((view.revision, position, view.duration), (77, 12.5, 99.0));
         assert_eq!(
             (view.current_id, view.playing, input.reduced_motion),
             (Some(7), false, 1)
@@ -849,9 +851,9 @@ mod tests {
             for event in &mut events {
                 assert!(drop.event(event, None).is_none());
             }
-            frame.view(&mut view, &mut input);
-            assert_eq!(view.revision, index as u64);
-            assert_eq!((view.position, view.duration), (index as f64, 240.0));
+            frame.view(&mut view, &mut position, &mut input);
+            assert_eq!(view.revision, 77);
+            assert_eq!((position, view.duration), (index as f64, 240.0));
             assert_eq!((view.current_id, input.reduced_motion), (Some(7), 1));
             if index >= WARMUP_FRAMES {
                 overlays += usize::from(drop.hovered());
@@ -873,7 +875,7 @@ mod tests {
         for index in [0, 19, 20, 39, 40] {
             let frame = perf.inject(index, false);
             input.reduced_motion = 1;
-            frame.view(&mut view, &mut input);
+            frame.view(&mut view, &mut position, &mut input);
             assert_eq!(
                 (view.current_id, view.playing, input.reduced_motion),
                 (Some(99), index % 40 < 20, 0)
