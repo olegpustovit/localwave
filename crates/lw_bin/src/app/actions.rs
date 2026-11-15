@@ -315,6 +315,7 @@ impl App {
                 | lw_ui::Intent::CloseSongMenu
                 | lw_ui::Intent::SongMenuLists
                 | lw_ui::Intent::SelectRow(_)
+                | lw_ui::Intent::Select(_)
                 | lw_ui::Intent::Search(_)
                 | lw_ui::Intent::SearchTooLong
                 | lw_ui::Intent::ShowCommands

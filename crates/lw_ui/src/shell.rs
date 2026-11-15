@@ -13,7 +13,7 @@
 //!
 use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
-use crate::{Intent, PlayerView};
+use crate::{Intent, PlayerView, Selection};
 use pxui::ui::*;
 
 mod albums;
@@ -31,6 +31,10 @@ pub struct ShellState {
     song_window: std::cell::Cell<Option<crate::song_text::Window>>,
     pub route: Route,
     pub selected: Option<usize>,
+    /// Sorted row positions of the multi-selection; grows only in `apply`/`refresh`, never in frames.
+    marked: Vec<usize>,
+    anchor: Option<usize>,
+    selection_revision: u64,
     pub panel_visible: bool,
     pub query: Query,
     pub sort: Sort,
@@ -65,6 +69,9 @@ impl Default for ShellState {
             song_window: std::cell::Cell::new(None),
             route: Route::Songs,
             selected: None,
+            marked: Vec::new(),
+            anchor: None,
+            selection_revision: 0,
             panel_visible: true,
             query: Query::default(),
             sort: Sort::Original,
@@ -102,6 +109,62 @@ impl ShellState {
                 && self.collection(catalog).is_some()
                 && window.matches(catalog, self.route)
         })
+    }
+    /// Song ids of the selected rows in displayed order, borrowed for context-menu actions.
+    pub fn selected_song_ids<'a>(&'a self, catalog: &'a Catalog) -> impl Iterator<Item = i64> + 'a {
+        let ids = self.collection(catalog).map_or(&[][..], |c| &c.ids[..]);
+        self.marked.iter().filter_map(move |&i| ids.get(i).copied())
+    }
+    fn is_marked(&self, index: usize) -> bool {
+        self.marked.binary_search(&index).is_ok()
+    }
+    fn clear_selection(&mut self) {
+        (self.selected, self.anchor) = (None, None);
+        self.marked.clear();
+    }
+    fn select(&mut self, selection: Selection) {
+        match selection {
+            Selection::Toggle(i) => {
+                match self.marked.binary_search(&i) {
+                    Ok(at) => {
+                        self.marked.remove(at);
+                    }
+                    Err(at) => self.marked.insert(at, i),
+                }
+                self.selected = self.is_marked(i).then_some(i);
+                self.anchor = Some(i);
+            }
+            Selection::Range(i) => {
+                let from = *self.anchor.get_or_insert(i);
+                self.marked.clear();
+                self.marked.extend(from.min(i)..=from.max(i));
+                self.selected = Some(i);
+            }
+            Selection::All(len) => {
+                self.marked.clear();
+                self.marked.reserve_exact(len);
+                self.marked.extend(0..len);
+            }
+            Selection::Clear => self.clear_selection(),
+            Selection::Move { delta, extend, len } => {
+                let Some(&first) = self.marked.first().filter(|_| len > 0) else {
+                    return;
+                };
+                let at = (self.selected.unwrap_or(first) as isize + delta)
+                    .clamp(0, len as isize - 1) as usize;
+                if extend {
+                    if let Err(pos) = self.marked.binary_search(&at) {
+                        self.marked.insert(pos, at);
+                    }
+                } else {
+                    self.marked.clear();
+                    self.marked.push(at);
+                    self.anchor = Some(at);
+                }
+                self.selected = Some(at);
+            }
+        }
+        self.selection_revision = self.selection_revision.wrapping_add(1);
     }
     pub fn files_visible(&self) -> bool {
         self.route == Route::Files && !self.settings_visible
@@ -162,11 +225,35 @@ impl ShellState {
             "catalog remap must match both pages"
         );
         self.song_menu = None;
-        (self.route, self.selected) = remap.resolve(self.route, self.selected, self.query);
+        let old = self.route;
+        (self.route, self.selected) = remap.resolve(old, self.selected, self.query);
+        if !self.marked.is_empty() || self.anchor.is_some() {
+            let map = |i: &usize| remap.resolve(old, Some(*i), self.query).1;
+            self.anchor = self.anchor.as_ref().and_then(map);
+            let mut marked: Vec<usize> = self.marked.iter().filter_map(map).collect();
+            marked.sort_unstable();
+            self.marked = marked;
+            self.selection_revision = self.selection_revision.wrapping_add(1);
+        }
         self.revision = self.revision.wrapping_add(1);
     }
 
     pub fn apply(&mut self, intent: Intent) -> bool {
+        // Selection changes rebuild only affected rows, so they skip the shared revision.
+        match intent {
+            Intent::SelectRow(index) => {
+                self.marked.clear();
+                self.marked.push(index);
+                (self.selected, self.anchor) = (Some(index), Some(index));
+                self.selection_revision = self.selection_revision.wrapping_add(1);
+                return true;
+            }
+            Intent::Select(selection) => {
+                self.select(selection);
+                return true;
+            }
+            _ => {}
+        }
         if matches!(
             intent,
             Intent::Navigate(_)
@@ -242,12 +329,12 @@ impl ShellState {
                 self.settings_menu = None;
                 self.player_expanded = false;
                 self.route = route;
-                self.selected = None;
+                self.clear_selection();
+                self.selection_revision = self.selection_revision.wrapping_add(1);
                 self.sort = Sort::Original;
                 self.ascending = true;
             }
             Intent::SortAlbums(sort) => self.album_sort = sort,
-            Intent::SelectRow(index) => self.selected = Some(index),
             Intent::TogglePanel => self.panel_visible = !self.panel_visible,
             Intent::TogglePlayer => self.player_expanded = !self.player_expanded,
             Intent::ShowQueue => {
@@ -269,7 +356,8 @@ impl ShellState {
             Intent::CancelPlaylistName => self.playlist_editing = false,
             Intent::Search(query) => {
                 self.query = query;
-                self.selected = None;
+                self.clear_selection();
+                self.selection_revision = self.selection_revision.wrapping_add(1);
                 self.query_too_long = false;
                 self.query_revision = self.query_revision.wrapping_add(1);
             }
@@ -335,6 +423,7 @@ impl ShellState {
 fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellState) -> u64 {
     pxui::hash!((
         state.revision,
+        state.selection_revision,
         (
             std::sync::Arc::as_ptr(&catalog.library) as usize,
             catalog.all.is_some()
@@ -458,6 +547,40 @@ fn global_shortcut(
     None
 }
 
+/// ⌘A, Esc and arrows over the song selection; raw scalar key queries only.
+fn selection_shortcut(
+    ui: &Ui,
+    catalog: &Catalog,
+    state: &ShellState,
+    carrying: bool,
+) -> Option<Intent> {
+    let len = state.collection(catalog)?.rows.len();
+    let (meta, shift) = (input::Key::Meta.code(), input::Key::Shift.code());
+    if ui.key_pressed_with('a' as u32, meta) || ui.key_pressed_with('A' as u32, meta) {
+        return (len > 0).then_some(Intent::Select(Selection::All(len)));
+    }
+    if state.marked.is_empty() {
+        return None;
+    }
+    // Esc that cancels a drag is spent on the drag.
+    if !carrying && ui.key_pressed(input::Key::Escape.code()) {
+        return Some(Intent::Select(Selection::Clear));
+    }
+    if ui.view_size().0 < compact::BREAKPOINT {
+        return None;
+    }
+    let plain = ![meta, shift, input::Key::Alt.code(), input::Key::Ctrl.code()]
+        .iter()
+        .any(|&m| ui.key_down(m));
+    for (key, delta) in [(input::Key::ArrowUp, -1), (input::Key::ArrowDown, 1)] {
+        let extend = ui.key_pressed_with(key.code(), shift);
+        if extend || (plain && ui.key_pressed(key.code())) {
+            return Some(Intent::Select(Selection::Move { delta, extend, len }));
+        }
+    }
+    None
+}
+
 pub fn shell(
     ui: &mut Ui,
     player: &PlayerView<'_>,
@@ -467,6 +590,7 @@ pub fn shell(
     intent: &mut Option<Intent>,
 ) {
     let input_was_focused = ui.text_input_focused();
+    let carrying = ui.carrying_ref().is_some();
     if ui.key_pressed(input::Key::Escape.code()) {
         ui.cancel_carry();
     }
@@ -566,7 +690,8 @@ pub fn shell(
         && state.source_menu.is_none()
         && state.remove_source.is_none()
     {
-        *intent = global_shortcut(ui, player, catalog, position);
+        *intent = global_shortcut(ui, player, catalog, position)
+            .or_else(|| selection_shortcut(ui, catalog, state, carrying));
     }
     if !state.commands_visible && !state.shortcuts_visible && !state.queue_visible {
         if ui.key_pressed_with('k' as u32, input::Key::Meta.code())

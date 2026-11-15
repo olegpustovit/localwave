@@ -22,6 +22,22 @@ pub enum SettingsMenu {
     Appearance,
 }
 
+/// Multi-selection edits over row positions of the displayed collection (its occurrences).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Selection {
+    Toggle(usize),
+    /// Replace the selection with the span from the anchor to this row in the displayed order.
+    Range(usize),
+    /// Every row of a collection with this many rows.
+    All(usize),
+    Clear,
+    Move {
+        delta: isize,
+        extend: bool,
+        len: usize,
+    },
+}
+
 // Fixed UTF-8 packets avoid heap allocations when handing searches or playlist names to the worker.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -33,6 +49,7 @@ pub enum Intent {
     Previous,
     Navigate(catalog::Route),
     SelectRow(usize),
+    Select(Selection),
     PlayRow(usize),
     AppendSong(i64),
     SetFavorite {

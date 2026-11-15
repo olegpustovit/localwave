@@ -53,10 +53,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F3 | Complete track menu and native reveal | done | 3a56ba9 |
 | F4 | Playlist CRUD, membership and reorder | todo | — |
 | F5 | Album/artist detail headers and actions | done | 1868431 |
-| F6 | Occurrence-based multi-selection | todo | — |
+| F6 | Occurrence-based multi-selection | done | HEAD |
 | F7 | Drag songs to playlists and queue | todo | — |
 | F8 | Metadata editor and metadata-only deletion | todo | — |
-| F9 | Source observation and debounced rescan | done | HEAD |
+| F9 | Source observation and debounced rescan | done | 12c2408 |
 | F10 | Onboarding, route empty states and Share | todo | — |
 | S | Sign, migrate, TestFlight and release macOS | todo | — |
 | I1 | Framework gestures and device comparison | todo | — |
@@ -347,7 +347,7 @@ device/provider behavior remain open.
   absent; Share… is F10. Long playlist lists rely on the popup's 288-point max height (unverified past 8).
 - F4: create/rename/delete playlists, membership editing and drag reorder; preserve active playback.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
-- F6–F7: multi-select, range/select-all behavior and song drops to playlists/queue.
+- F7: song drops to playlists/queue. F6 selection is stored; the track menu acting on it (`ShellState::selected_song_ids`) is pending integration.
 - F8: metadata editor, transactional song/FTS updates and deletion without removing original files.
 - F9: presenters start with the lazy Files worker (first Files use), not at app launch; moved-root
   notices only trigger a rescan, bookmark re-resolution handles the new location.

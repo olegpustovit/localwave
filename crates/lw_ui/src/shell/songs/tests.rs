@@ -1228,3 +1228,268 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         }
     }
 }
+
+fn titled(count: i64) -> Catalog {
+    crate::tests::prepared(
+        (0..count)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("T{id}"),
+                artist: "Artist".into(),
+                album: "Album".into(),
+                duration: Some(60.0),
+                ..Default::default()
+            })
+            .collect(),
+    )
+}
+
+#[test]
+fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows() {
+    use crate::Selection;
+    mem_sys::set_peer(pxui::library_counter);
+    let mut catalog = titled(6);
+    let key = catalog.all.as_ref().unwrap().key;
+    // Displayed order is T5..T0, so index ranges differ from id ranges.
+    catalog.project(
+        crate::browse::Request {
+            commands: None,
+            scope: Scope::Collection(key),
+            query: Query::default(),
+            sort: Sort::Title,
+            ascending: false,
+        },
+        vec![5, 4, 3, 2, 1, 0],
+    );
+    let mut state = ShellState::default();
+    let player = PlayerView::default();
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            reduced_motion: 1,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        mem_sys::local_reset();
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
+        if let Some(intent) = intent {
+            state.apply(intent);
+        }
+        intent
+    };
+    let key_event = |kind, code: u32| pxui::Event {
+        kind,
+        code,
+        ..Default::default()
+    };
+    let (meta, shift) = (input::Key::Meta.code(), input::Key::Shift.code());
+    let tap = |ui: &mut Ui,
+               state: &mut ShellState,
+               run: &mut dyn FnMut(&mut Ui, &mut ShellState, &[pxui::Event]) -> Option<Intent>,
+               code: u32| {
+        let intent = run(ui, state, &[key_event(input::wire::KEY_PRESSED, code)]);
+        run(ui, state, &[key_event(input::wire::KEY_RELEASED, code)]);
+        intent
+    };
+    let click =
+        |ui: &mut Ui,
+         state: &mut ShellState,
+         run: &mut dyn FnMut(&mut Ui, &mut ShellState, &[pxui::Event]) -> Option<Intent>,
+         name: &str| {
+            let id = ui
+                .a11y_nodes()
+                .iter()
+                .find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == name)
+                .unwrap()
+                .id;
+            ui.inject_a11y(&[pxui::A11yAction {
+                id,
+                action_code: 1,
+                ..Default::default()
+            }]);
+            run(ui, state, &[])
+        };
+    let ids = |state: &ShellState| state.selected_song_ids(&catalog).collect::<Vec<_>>();
+    run(&mut ui, &mut state, &[]);
+    run(&mut ui, &mut state, &[]);
+
+    // Plain click selects one row; only the old and new rows rebuild.
+    assert_eq!(
+        click(&mut ui, &mut state, &mut run, "T4"),
+        Some(Intent::SelectRow(1))
+    );
+    assert_eq!(ids(&state), [4]);
+    run(&mut ui, &mut state, &[]);
+    assert_eq!(
+        ui.rebuilt_named("song-visual"),
+        1,
+        "only the newly selected row"
+    );
+    run(&mut ui, &mut state, &[]);
+    assert_eq!(
+        mem_sys::local_alloc_count(),
+        0,
+        "warm frame with a selection"
+    );
+
+    // Cmd-click toggles on and off.
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_PRESSED, meta)],
+    );
+    assert_eq!(
+        click(&mut ui, &mut state, &mut run, "T1"),
+        Some(Intent::Select(Selection::Toggle(4)))
+    );
+    assert_eq!(ids(&state), [4, 1]);
+    run(&mut ui, &mut state, &[]);
+    assert_eq!(ui.rebuilt_named("song-visual"), 1);
+    click(&mut ui, &mut state, &mut run, "T1");
+    assert_eq!(ids(&state), [4]);
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_RELEASED, meta)],
+    );
+
+    click(&mut ui, &mut state, &mut run, "T4");
+    // Shift-click spans anchor (T4) to the target in the displayed order: T4, T3, T2.
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_PRESSED, shift)],
+    );
+    click(&mut ui, &mut state, &mut run, "T2");
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_RELEASED, shift)],
+    );
+    assert_eq!(ids(&state), [4, 3, 2]);
+
+    // Shift+Down extends by one displayed row; plain Up moves a single selection.
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_PRESSED, shift)],
+    );
+    tap(&mut ui, &mut state, &mut run, input::Key::ArrowDown.code());
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_RELEASED, shift)],
+    );
+    assert_eq!(ids(&state), [4, 3, 2, 1]);
+    tap(&mut ui, &mut state, &mut run, input::Key::ArrowUp.code());
+    assert_eq!(ids(&state), [2]);
+    assert_eq!(state.selected, Some(3));
+
+    // Selection survives scrolling away and back; Cmd-A selects the collection; Esc clears.
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_PRESSED, meta)],
+    );
+    assert_eq!(
+        tap(&mut ui, &mut state, &mut run, 'a' as u32),
+        Some(Intent::Select(Selection::All(6)))
+    );
+    run(
+        &mut ui,
+        &mut state,
+        &[key_event(input::wire::KEY_RELEASED, meta)],
+    );
+    assert_eq!(ids(&state), [5, 4, 3, 2, 1, 0]);
+    state.apply(Intent::Select(Selection::Toggle(0)));
+    for _ in 0..3 {
+        run(&mut ui, &mut state, &[]);
+    }
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+    assert_eq!(ids(&state), [4, 3, 2, 1, 0]);
+    assert_eq!(
+        tap(&mut ui, &mut state, &mut run, input::Key::Escape.code()),
+        Some(Intent::Select(Selection::Clear))
+    );
+    assert!(ids(&state).is_empty());
+}
+
+#[test]
+fn select_all_is_a_no_op_while_find_is_focused() {
+    mem_sys::set_peer(pxui::library_counter);
+    let mut catalog = titled(3);
+    catalog.project(
+        crate::browse::Request {
+            commands: None,
+            scope: Scope::Find,
+            query: Query::default(),
+            sort: Sort::Original,
+            ascending: true,
+        },
+        vec![0, 1, 2],
+    );
+    let mut state = ShellState::default();
+    state.apply(Intent::Navigate(Route::Find));
+    let player = PlayerView::default();
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        intent
+    };
+    run(&mut ui, &[]);
+    run(&mut ui, &[]);
+    let field = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(Role::TextField))
+        .unwrap()
+        .rect;
+    let at = |kind| pxui::Event {
+        kind,
+        x: f64::from(field.x + field.w * 0.8),
+        y: f64::from(field.y + field.h * 0.5),
+        ..Default::default()
+    };
+    run(
+        &mut ui,
+        &[
+            at(input::wire::POINTER_MOVED),
+            at(input::wire::POINTER_PRESSED),
+            at(input::wire::POINTER_RELEASED),
+        ],
+    );
+    assert!(ui.text_input_focused());
+    let key = |code: u32| pxui::Event {
+        kind: input::wire::KEY_PRESSED,
+        code,
+        ..Default::default()
+    };
+    run(&mut ui, &[key(input::Key::Meta.code())]);
+    assert_eq!(run(&mut ui, &[key('a' as u32)]), None);
+}

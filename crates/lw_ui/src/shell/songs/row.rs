@@ -269,7 +269,8 @@ impl Rows<'_> {
         } = *self;
         let row = catalog.row(collection.rows[index]);
         let current = player.current_id == Some(row.id);
-        let revision = pxui::hash!((revision, current));
+        let marked = state.is_marked(index);
+        let revision = pxui::hash!((revision, current, marked));
         let layout = row_layout(
             ui,
             catalog,
@@ -282,12 +283,11 @@ impl Rows<'_> {
         let y = content_y - viewport.offset + layout.y(11.0);
         let visible = y + 11.0 > (viewport.leading - viewport.offset).max(0.0) + viewport.heading
             && y < viewport.height;
-        let visual_revision =
-            if current || row.state == lw_core::FileState::CopyPending {
-                pxui::hash!((revision, current && player.playing, visible))
-            } else {
-                revision
-            };
+        let visual_revision = if current || row.state == lw_core::FileState::CopyPending {
+            pxui::hash!((revision, current && player.playing, visible))
+        } else {
+            revision
+        };
         let visual = ui.view(
             "song-visual",
             visual_revision,
@@ -310,7 +310,7 @@ impl Rows<'_> {
                 ui.set_look(
                     &root,
                     Look {
-                        fill: if state.selected == Some(index) {
+                        fill: if marked {
                             p.selected
                         } else if signal.hovered {
                             Rgba { a: 153, ..p.panel }
@@ -495,7 +495,14 @@ impl Rows<'_> {
                     ));
                 }
                 if intent.is_none() && signal.clicked {
-                    *intent = Some(Intent::SelectRow(index));
+                    let (meta, shift) = (input::Key::Meta.code(), input::Key::Shift.code());
+                    *intent = Some(if ui.key_down(meta) {
+                        Intent::Select(crate::Selection::Toggle(index))
+                    } else if ui.key_down(shift) {
+                        Intent::Select(crate::Selection::Range(index))
+                    } else {
+                        Intent::SelectRow(index)
+                    });
                 }
                 if signal.double_clicked {
                     *intent = Some(Intent::PlayRow(index));
