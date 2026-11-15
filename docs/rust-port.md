@@ -61,7 +61,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | S | Sign, migrate, TestFlight and release macOS | doing | `make sign` (keychain access pending), `tools/notarize-macos.sh` unrun, `tools/migration-check.sh` passes on a container copy |
 | I1 | Framework gestures and device comparison | todo | — |
 | I2 | iOS flows, physical install and shipping gates | todo | — |
-| D | Resolve deferred accessibility/opacity decisions | todo | — |
+| D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |
 
 ## Latest performance
 
@@ -426,7 +426,11 @@ device/provider behavior remain open.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.
-- D: VoiceOver bridges and group opacity remain deferred. Antialiasing: pxui 4dff60c rasterises Apple text
+- D: owner policy: VoiceOver before the first Rust macOS release. pxui a0a0cb8 adds the macOS NSAccessibility bridge
+  (one element per a11y node, sync on revision change, actions via inject_a11y; tree built only while VoiceOver runs or
+  PXUI_ACCESSIBILITY=1); LocalWave enables it outside performance runs. Not yet qualified with a live VoiceOver session;
+  missing: custom rotors, table/column semantics, live announcements, text value/selection setting, scroll-to-visible.
+  Group opacity remains deferred. Antialiasing: pxui 4dff60c rasterises Apple text
   CoreText-style (unhinted, ppem-quantised origins, rounded baseline, 0.006·ppem stem growth, shader light-text growth;
   ABI 1.37); mean MAE vs CoreText 1×/2× Host Grotesk 1.86/0.99, Geist Mono 2.40/1.69 (pxui tools/glyph_ref.sh).
   Geist Mono 20 pt stays ~4 (layout drift, open). pxui static abi_bench body/page ratios

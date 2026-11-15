@@ -37,6 +37,8 @@ pub(crate) struct App {
     ui: Ui,
     #[cfg(target_os = "macos")]
     chrome: pxui_host::Chrome,
+    #[cfg(target_os = "macos")]
+    accessibility: pxui_host::Accessibility,
     environment: pxui_sdl::Preferences,
     preferences: pxui_sdl::PreferencesSnapshot,
     pub(super) player: Controller,
@@ -97,6 +99,8 @@ pub(super) fn open(
         window.resize(1440, 872 + extra)?;
         chrome
     };
+    #[cfg(target_os = "macos")]
+    let accessibility = pxui_host::Accessibility::open(window)?;
     #[cfg(target_os = "macos")]
     let top_inset = chrome
         .snapshot()
@@ -221,6 +225,8 @@ pub(super) fn open(
         ui,
         #[cfg(target_os = "macos")]
         chrome,
+        #[cfg(target_os = "macos")]
+        accessibility,
         environment,
         preferences,
         player,
@@ -278,6 +284,8 @@ impl App {
         let Self {
             graphics_slot,
             ui,
+            #[cfg(target_os = "macos")]
+            accessibility,
             themes,
             player,
             files,
@@ -364,6 +372,11 @@ impl App {
         let mut position = status.position;
         frame.view(&mut view, &mut position, &mut input);
         let seek_duration = view.duration;
+        // VoiceOver follows the real client; workloads keep their own a11y setting.
+        #[cfg(target_os = "macos")]
+        if perf.is_none() {
+            accessibility.frame(ui);
+        }
         ui.frame(&input, &mut |ui| {
             lw_ui::shell(
                 ui,
