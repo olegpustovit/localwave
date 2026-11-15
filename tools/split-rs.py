@@ -173,7 +173,8 @@ def split(source_path, manifest_path):
             outputs[destination] = body
             parent[id(item)] = declaration
         else:
-            if counts[module]:
+            if any(name == module and kind not in ("fn", "const", "static", "impl")
+                   for name, kind, _, _ in original):
                 raise ValueError(f"module name already used in parent: {module}")
             moved = []
             for _, kind, block, offset in group:

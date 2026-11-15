@@ -132,6 +132,12 @@ class SplitTests(unittest.TestCase):
         _, parsed = tool.items("struct Item<T>(T);\nimpl<T: Copy> Clone for Item<T> {\n}\n")
         self.assertEqual([(item[0], item[1]) for item in parsed], [("Item", "struct"), ("Item", "impl")])
 
+    def test_destination_module_can_share_a_function_name(self):
+        self.manifest.write_text('[rgb]\nitems = ["rgb"]')
+        tool.split(self.source, self.manifest)
+        self.assertIn("mod rgb;\nuse rgb::*;", self.source.read_text())
+        self.assertIn("pub(super) const fn rgb()", (self.root / "shell/rgb.rs").read_text())
+
     def test_cli_reports_missing_item_without_writing(self):
         self.manifest.write_text('[kit]\nitems = ["missing"]')
         result = subprocess.run([sys.executable, str(SCRIPT), str(self.source), str(self.manifest)],
