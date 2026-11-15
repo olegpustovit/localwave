@@ -380,6 +380,11 @@ device/provider behavior remain open.
   Return does not confirm the metadata editor or the Rust-only delete-song dialog (Swift's editor has
   no default action; its song delete has no dialog). Delete (Backspace) removes from a list route only.
 - macOS parity gate: complete 1440×872 reference goldens, Swift shortcut parity and new-screen workloads.
+  Goldens: `tools/reference-goldens.sh && tools/compare-goldens.py` (outputs and `index.html` in /tmp/localwave-goldens;
+  needs the booted iOS 18 simulator and Screen Recording rights). Swift: DEBUG canvas hook at 1440×872; Rust:
+  `--reference-screen` window via `screencapture` (pxui_host has no pixel readback). 15 of 19 screens compare (add, folder,
+  track, onboarding have no Rust equivalent); mean abs diff 8.8-36.8, 6.6-34.6% of pixels over 24 (find best; queue, commands
+  worst). Known fixture gaps: no Sources sidebar, blank current-track metadata (no audio files), Folders still loading, commands "Searching…".
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.

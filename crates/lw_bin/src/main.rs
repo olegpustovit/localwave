@@ -3,6 +3,7 @@ mod app;
 mod events;
 mod gpu;
 mod perf;
+mod reference;
 mod smoke;
 use app::App;
 use pxui_sdl::app::{Schedule, Signal};
@@ -14,6 +15,7 @@ extern "C" fn wake() {
 fn run() -> Result<(), String> {
     let args: Vec<String> = std::env::args().collect();
     let workload = perf::Workload::from_args(&args)?;
+    let reference = reference::from_args(&args)?;
     let smoke = args.iter().any(|arg| arg == "--smoke-test");
     let trace_frames = args.iter().any(|arg| arg == "--trace-frames");
     let mut app: Option<Box<App>> = None;
@@ -28,7 +30,7 @@ fn run() -> Result<(), String> {
         height,
         Box::new(move |window, signal| {
             if signal == Signal::Initialize {
-                app = Some(app::open(window, workload, smoke, trace_frames)?);
+                app = Some(app::open(window, workload, smoke, trace_frames, reference.clone())?);
                 return Ok(Schedule::NextFrame);
             }
             if signal == Signal::Finish {

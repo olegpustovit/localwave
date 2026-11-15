@@ -7,7 +7,7 @@
 //!
 //!
 //! Main-thread application state. Window/GPU integration stays in pxui_host/pxui_sdl.
-use crate::{events, gpu, perf, smoke, wake};
+use crate::{events, gpu, perf, reference, smoke, wake};
 use ::input::Event as HostEvent;
 use lw_bin::{
     controller::{Command, Controller},
@@ -58,6 +58,8 @@ pub(crate) struct App {
     draws: usize,
     smoke_check: smoke::Smoke,
     smoke_finished: bool,
+    /// Reference-golden mode: (last draw count, time it changed, READY printed).
+    reference: Option<(usize, f64, bool)>,
     pub(super) shell_state: lw_ui::ShellState,
     command_error: Option<&'static str>,
     error_revision: u64,
@@ -75,6 +77,7 @@ pub(super) fn open(
     workload: Option<perf::Workload>,
     smoke: bool,
     trace_frames: bool,
+    reference: Option<String>,
 ) -> Result<Box<App>, String> {
     if cfg!(target_os = "ios") && workload.is_some() {
         return Err("The signed 1440x872 performance matrix requires the macOS host".into());
@@ -115,7 +118,7 @@ pub(super) fn open(
         ui.set_timing(true);
     }
     let graphics = gpu::Graphics::open(window, &ui)?;
-    let temporary = if smoke || workload.is_some() {
+    let temporary = if smoke || workload.is_some() || reference.is_some() {
         Some(
             lw_apple_sys::preferences::AppPaths::load()
                 .map_err(|error| error.to_string())?
@@ -134,8 +137,18 @@ pub(super) fn open(
                 .as_nanos()
         ))
     }));
+    let seeded = reference.is_some();
     let mut player = if let Some(base) = fixture.0.clone() {
-        Controller::open(move || perf::setup::library(&base, workload), wake)
+        Controller::open(
+            move || {
+                if seeded {
+                    reference::library(&base)
+                } else {
+                    perf::setup::library(&base, workload)
+                }
+            },
+            wake,
+        )
     } else {
         Controller::open(LibraryWorker::current, wake)
     }
@@ -173,7 +186,7 @@ pub(super) fn open(
         .map_err(|error| error.to_string())?;
     // Workers do not inherit the UI's interactive QoS.
     mem_sys::profile::ui_thread_priority().map_err(|error| error.to_string())?;
-    let indicator_song = perf::setup::wait_ready(window, &mut player, smoke, workload)?;
+    let indicator_song = perf::setup::wait_ready(window, &mut player, smoke || seeded, workload)?;
     let extent = window.extent();
     let events: Vec<HostEvent> = Vec::with_capacity(256);
     let encoded = pxui_host::Events::default();
@@ -185,6 +198,7 @@ pub(super) fn open(
     let perf = workload.map(|workload| perf::Perf::new(workload, indicator_song));
     let smoke_check = smoke::Smoke::new(window.time());
     let smoke_finished = false;
+    let reference_state = reference.as_ref().map(|_| (0, window.time(), false));
     let shell_state = lw_ui::ShellState::default();
     let command_error: Option<&'static str> = None;
     let error_revision = 0;
@@ -221,6 +235,7 @@ pub(super) fn open(
         draws,
         smoke_check,
         smoke_finished,
+        reference: reference_state,
         shell_state,
         command_error,
         error_revision,
@@ -234,8 +249,11 @@ pub(super) fn open(
     if let Some(workload) = workload {
         perf::setup::prepare(&mut app, workload, window)?;
     } else {
+        if let Some(screen) = &reference {
+            reference::route(&mut app, screen)?;
+        }
         app.player
-            .enable_media_controls(!smoke)
+            .enable_media_controls(!smoke && !seeded)
             .map_err(|error| error.to_string())?;
     }
     Ok(app)
@@ -580,11 +598,24 @@ impl App {
         if self.perf.is_some() {
             return Ok(Schedule::NextFrame);
         }
+        let mut settle = None;
+        if let Some((draws, changed, printed)) = &mut self.reference {
+            if *draws != self.draws {
+                (*draws, *changed) = (self.draws, observed_at);
+            } else if !*printed && self.draws > 0 && observed_at >= *changed + 2.0 {
+                *printed = true;
+                println!("LOCALWAVE_REFERENCE_READY={}x{}", self.extent.logical.0, self.extent.logical.1);
+            }
+            settle = (!*printed).then_some(*changed + 2.0);
+        }
         let deadline = if self.smoke {
             let deadline = self.smoke_check.deadline();
             Some(self.repaint.unwrap_or(deadline).min(deadline))
         } else {
-            self.repaint
+            match (self.repaint, settle) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            }
         };
         let progress = self
             .player

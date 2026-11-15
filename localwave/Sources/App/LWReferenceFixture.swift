@@ -156,6 +156,24 @@ enum LWReferenceFixture {
         // command receivers or native text-field responders alive.
         old?.rootViewController = nil
         host.setNeedsStatusBarAppearanceUpdate()
+        capture(host)
+    }
+    /// DEBUG golden hook: LOCALWAVE_REFERENCE_CAPTURE=<png path> writes the canvas at exact canvasSize, scale 1.
+    @MainActor private static func capture(_ host: UIViewController) {
+        guard let path = ProcessInfo.processInfo.environment["LOCALWAVE_REFERENCE_CAPTURE"] else { return }
+        let delay = Double(ProcessInfo.processInfo.environment["LOCALWAVE_REFERENCE_CAPTURE_DELAY"] ?? "") ?? 4
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            let bounds = CGRect(origin: .zero, size: canvasSize)
+            host.view.frame = bounds
+            host.view.layoutIfNeeded()
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 1
+            let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
+                host.view.drawHierarchy(in: bounds, afterScreenUpdates: true)
+            }
+            try? image.pngData()?.write(to: URL(fileURLWithPath: path))
+            FileHandle.standardOutput.write(Data("LOCALWAVE_REFERENCE_CAPTURED=\(path)\n".utf8))
+        }
     }
 }
 
