@@ -32,6 +32,7 @@ void lw_preferences_settings(void *raw, LWSettings *settings) {
         settings->appearance = [appearance isEqual:@"light"] ? 1 : [appearance isEqual:@"dark"] ? 2 : 0;
         settings->signal = [signal isEqual:@"red"] ? 1 : [signal isEqual:@"green"] ? 2 : [signal isEqual:@"mono"] ? 3 : 0;
         int64_t gb = [defaults integerForKey:@"lwCacheGB"];
+        settings->did_start = [defaults boolForKey:@"lwDidStart"];
         settings->cache_gb = [@[@2, @4, @8, @16, @32] containsObject:@(gb)] ? gb : 8;
     }
 }
@@ -44,6 +45,7 @@ void lw_preferences_save_settings(void *raw, const LWSettings *settings) {
         [defaults setBool:settings->reduce_motion forKey:@"lwReduceMotion"];
         [defaults setObject:@[@"system", @"light", @"dark"][settings->appearance] forKey:@"lwAppearance"];
         [defaults setObject:@[@"blue", @"red", @"green", @"mono"][settings->signal] forKey:@"lwSignal"];
+        [defaults setBool:settings->did_start forKey:@"lwDidStart"];
         lw_preferences_set_cache_limit(raw, settings->cache_gb);
     }
 }

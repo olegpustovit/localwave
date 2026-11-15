@@ -29,6 +29,8 @@ pub struct Settings {
     pub signal: Signal,
     pub reduce_motion: bool,
     pub cache_gb: i64,
+    /// Swift's `lwDidStart`: onboarding was dismissed or a source was added.
+    pub did_start: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
@@ -40,6 +42,7 @@ impl Default for Settings {
             signal: Signal::Blue,
             reduce_motion: false,
             cache_gb: 8,
+            did_start: false,
         }
     }
 }
@@ -53,6 +56,7 @@ pub enum Change {
     Signal(Signal),
     ToggleReduceMotion,
     CacheGB(i64),
+    DidStart,
 }
 impl Settings {
     pub fn applying(mut self, change: Change) -> io::Result<Self> {
@@ -64,6 +68,7 @@ impl Settings {
             Change::Signal(value) => self.signal = value,
             Change::ToggleReduceMotion => self.reduce_motion = !self.reduce_motion,
             Change::CacheGB(value) if [2, 4, 8, 16, 32].contains(&value) => self.cache_gb = value,
+            Change::DidStart => self.did_start = true,
             Change::CacheGB(_) => return Err(io::ErrorKind::InvalidInput.into()),
         }
         Ok(self)
@@ -148,9 +153,12 @@ mod tests {
                 appearance: Appearance::Dark,
                 signal: Signal::Green,
                 reduce_motion: true,
-                cache_gb: 32
+                cache_gb: 32,
+                did_start: false
             }
         );
+        assert!(!settings.did_start);
+        assert!(settings.applying(Change::DidStart).unwrap().did_start);
         let unchanged = settings;
         for value in [i64::MIN, -1, 0, 1, 3, 6, 64, i64::MAX] {
             assert!(settings.applying(Change::CacheGB(value)).is_err());

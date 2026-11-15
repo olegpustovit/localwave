@@ -65,6 +65,7 @@ impl LibraryWorker {
             simulate_no_network: values.no_network != 0,
             reduce_motion: values.reduce_motion != 0,
             cache_gb: values.cache_gb,
+            did_start: values.did_start != 0,
             appearance: match values.appearance {
                 1 => Appearance::Light,
                 2 => Appearance::Dark,
@@ -87,6 +88,7 @@ impl LibraryWorker {
             cache_gb: settings.cache_gb,
             appearance: settings.appearance as i32,
             signal: settings.signal as i32,
+            did_start: settings.did_start as i32,
         })
     }
     pub fn load_player_state(&self) -> io::Result<PlayerState> {

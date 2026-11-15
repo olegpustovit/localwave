@@ -382,9 +382,12 @@ device/provider behavior remain open.
   occurrence, as source removal does. Edit info and Delete act on the clicked song only.
 - F9: folder observers start with the lazy Files worker (first Files use), not at app launch; moved-root
   notices only trigger a rescan, bookmark re-resolution handles the new location.
-- F10: onboarding omits the animated MatrixText counter (static "00"), the iOS Google Drive disclosure and
-  the demo-library installer ("Explore the library" only leaves onboarding; the gate is in-memory, not
-  Swift's persisted `didStart`, so an empty library re-onboards on relaunch). Empty library text replaces
+- F10/F-gate: onboarding matches Swift (matrix "00" counter shared with the Now clock, full-width Choose a
+  folder, Pick some files, Google Drive disclosure) and persists `lwDidStart` through the preferences worker
+  (set on Explore or once a source exists; an empty library no longer re-onboards). Still differs: "Try the
+  demo library" (needs the 92-track bundled catalog and an isolated install; the link stays "Explore the
+  library"), the folder glyph on the primary button, medium heading weight, the live song count
+  (always "00" for an empty library). Golden diff 22.03 -> 2.15 mean, 10.8% -> 1.9% over 24. Empty library text replaces
   "No songs here yet." on Songs; compact Now omits its empty hint. Share… is in the track menu only (macOS,
   NSSharingServicePicker anchored at the click): Rust Files has no per-file menu, so Swift's Files Share and
   iOS UIActivityViewController remain. Share copies run on the LibraryWorker background slot (blocking

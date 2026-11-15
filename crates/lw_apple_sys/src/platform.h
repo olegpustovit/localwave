@@ -18,7 +18,7 @@ typedef struct { unsigned char *data; size_t len; } LWBytes;
 typedef struct { int availability, provider; int64_t size; double modified; } LWFileInfo;
 typedef struct { char *name, *relative, *url, *parent; int directory; int64_t size; } LWScanEntry;
 typedef struct { char *path; double modified; int64_t size; } LWCopyResult;
-typedef struct { int download_ahead, show_non_audio, no_network, appearance, signal, reduce_motion; int64_t cache_gb; } LWSettings;
+typedef struct { int download_ahead, show_non_audio, no_network, appearance, signal, reduce_motion; int64_t cache_gb; int did_start; } LWSettings;
 typedef struct { int kind, has_path; int64_t id, path; LWBytes name, artist; } LWContext;
 void *lw_context_decode(const unsigned char *data, size_t len, LWContext *fields, char **error);
 int lw_context_encode(const LWContext *fields, LWBytes *data, char **error);

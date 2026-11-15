@@ -768,8 +768,11 @@ pub fn shell(
     if let Some(song) = state.delete_song {
         metadata::confirm_delete(ui, catalog, song, p, intent);
     }
-    let root = if onboarding::wanted(catalog, state) {
-        onboarding::view(ui, p, intent)
+    if intent.is_none() && onboarding::needs_start_flag(catalog, player.settings.did_start) {
+        *intent = Some(Intent::Setting(lw_core::preferences::Change::DidStart));
+    }
+    let root = if onboarding::wanted(catalog, state, player.settings.did_start) {
+        onboarding::view(ui, state.top_inset, p, intent)
     } else if ui.view_size().0 < compact::BREAKPOINT {
         state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, p, intent)

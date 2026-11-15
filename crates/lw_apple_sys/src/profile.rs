@@ -14,6 +14,7 @@ pub struct SettingValues {
     pub signal: i32,
     pub reduce_motion: i32,
     pub cache_gb: i64,
+    pub did_start: i32,
 }
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PlayerValues {
@@ -302,8 +303,11 @@ mod tests {
         settings.download_ahead = 0;
         settings.reduce_motion = 1;
         settings.cache_gb = 16;
+        assert_eq!(settings.did_start, 0, "fresh suite has not started");
+        settings.did_start = 1; // Swift's `lwDidStart`
         first.save_settings(&settings).unwrap();
         assert_eq!(first.load_settings(), settings);
+        assert_eq!(second.load_settings().did_start, 0, "suites stay isolated");
         let reopened = Preferences::for_ui_test(Some(&first_id)).unwrap();
         assert_eq!(reopened.load_player().unwrap(), saved);
         first.save_player(&[], 0, None, None).unwrap();

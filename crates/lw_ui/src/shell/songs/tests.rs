@@ -1893,6 +1893,9 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
         "Choose a folder",
         "Pick some files",
         "Explore the library",
+        "0 songs so far",
+        "v2",
+        "Google Drive not in the list?",
         "Point it at a folder.",
         "Choose a folder in Files",
         "Your files stay where they are. Nothing is uploaded.",
@@ -1929,6 +1932,37 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     )
     .unwrap();
     assert_eq!(intent, Some(Intent::ChooseFolder));
+    // The other actions and the Drive disclosure (collapsed until pressed).
+    let press = |ui: &mut Ui, name: &str, time: f64| {
+        show(ui, &empty, &ShellState::default(), &player);
+        let id = (ui.a11y_nodes().iter())
+            .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..Default::default() }]);
+        let mut intent = None;
+        let frame = FrameIn { width: 1440.0, height: 872.0, time, reduced_motion: 1, ..Default::default() };
+        ui.frame(&frame, &mut |ui| shell(ui, &player, 0.0, &empty, &ShellState::default(), &mut intent))
+            .unwrap();
+        intent
+    };
+    assert_eq!(press(&mut ui, "Pick some files", 10.0), Some(Intent::ChooseAudio));
+    assert_eq!(press(&mut ui, "Explore the library", 11.0), Some(Intent::Navigate(Route::Albums)));
+    let help = "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.";
+    assert!(!has(&show(&mut ui, &empty, &state, &player), help));
+    assert_eq!(press(&mut ui, "Google Drive not in the list?", 12.0), None);
+    assert!(has(&show(&mut ui, &empty, &state, &player), help));
+    // The persisted `lwDidStart` flag suppresses onboarding for an empty library; a library that
+    // gained a source asks once for the flag to be saved.
+    let started = PlayerView {
+        settings: lw_core::preferences::Settings { did_start: true, ..Default::default() },
+        ..Default::default()
+    };
+    assert!(!has(&show(&mut ui, &empty, &state, &started), "Choose a folder"));
+    let mut intent = None;
+    let frame = FrameIn { width: 1440.0, height: 872.0, time: 13.0, reduced_motion: 1, ..Default::default() };
+    ui.frame(&frame, &mut |ui| shell(ui, &player, 0.0, &sourced, &state, &mut intent)).unwrap();
+    assert_eq!(intent, Some(Intent::Setting(lw_core::preferences::Change::DidStart)));
     // Exploring leaves onboarding.
     state.apply(Intent::Navigate(Route::Albums));
     assert!(!has(

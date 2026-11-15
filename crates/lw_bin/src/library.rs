@@ -644,6 +644,7 @@ mod tests {
             appearance: Appearance::Dark,
             signal: Signal::Green,
             cache_gb: 16,
+            did_start: true,
             ..Settings::default()
         };
         worker.save_settings(&settings).unwrap();

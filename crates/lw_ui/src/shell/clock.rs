@@ -81,20 +81,46 @@ pub(super) fn small_clock(
         }
     });
 }
+const DIGITS: [[u8; 7]; 10] = [
+    [14, 17, 17, 17, 17, 17, 14],
+    [4, 12, 4, 4, 4, 4, 14],
+    [14, 17, 1, 2, 4, 8, 31],
+    [31, 2, 4, 2, 1, 17, 14],
+    [2, 6, 10, 18, 31, 2, 2],
+    [31, 16, 30, 1, 1, 17, 14],
+    [6, 8, 16, 30, 17, 17, 14],
+    [31, 1, 2, 4, 8, 8, 8],
+    [14, 17, 17, 14, 17, 17, 14],
+    [14, 17, 17, 15, 1, 2, 12],
+];
+/// Static matrix numerals (Swift's `MatrixText` without the change animation), `height` tall.
+pub(super) fn matrix_digits(ui: &mut Ui, key: &str, digits: &'static [u8], height: f32, color: Rgba) {
+    let unit = height / 7.0;
+    let columns = digits.len() * 6 - 1;
+    let node = ui.node(
+        key,
+        Node {
+            w: Size::Px((columns as f32 - 0.22) * unit),
+            h: Size::Px(height),
+            ..Node::DEFAULT
+        },
+    );
+    ui.draw(&node, move |paint, rect| {
+        for (index, digit) in digits.iter().enumerate() {
+            let x = rect.x + index as f32 * 6.0 * unit;
+            for (row, bits) in DIGITS[(digit - b'0') as usize].iter().enumerate() {
+                for column in 0..5 {
+                    if bits & (1 << (4 - column)) != 0 {
+                        let y = rect.y + row as f32 * unit;
+                        paint.fill_fractional(x + column as f32 * unit, y, unit * 0.78, unit * 0.78, color);
+                    }
+                }
+            }
+        }
+    });
+}
 pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, color: Rgba) {
     use pxui::kit::{AnimationTarget, Keyframe};
-    const DIGITS: [[u8; 7]; 10] = [
-        [14, 17, 17, 17, 17, 17, 14],
-        [4, 12, 4, 4, 4, 4, 14],
-        [14, 17, 1, 2, 4, 8, 31],
-        [31, 2, 4, 2, 1, 17, 14],
-        [2, 6, 10, 18, 31, 2, 2],
-        [31, 16, 30, 1, 1, 17, 14],
-        [6, 8, 16, 30, 17, 17, 14],
-        [31, 1, 2, 4, 8, 8, 8],
-        [14, 17, 17, 14, 17, 17, 14],
-        [14, 17, 17, 15, 1, 2, 12],
-    ];
     const ROW_KEYS: [&str; 7] = [
         "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
     ];

@@ -1,28 +1,37 @@
 //! Port of WaveOnboardingView for a library with no sources, plus the empty-library page and the
-//! Find hint. All strings are static; the screen is one retained view keyed by its width.
-//! Deferred against Swift: the animated MatrixText counter (a static "00"), the iOS-only Google
-//! Drive disclosure and the demo-library installer ("Explore the library" just leaves onboarding).
+//! Find hint. All strings are static; the screen is one retained view keyed by its width and the
+//! Google Drive disclosure. Deferred against Swift: the demo-library installer (92 bundled tracks;
+//! the second link stays "Explore the library"), the folder glyph on the primary button and the
+//! live song count (onboarding only shows for an empty library, so it is always "00").
 use super::*;
 
-/// Swift's `didStart` gate: shown until a source exists, the library has songs or it is explored.
-pub(super) fn wanted(catalog: &Catalog, state: &ShellState) -> bool {
-    catalog.sources == Some(0) && catalog.is_empty() && !state.explored
+/// Swift's `didStart` gate (persisted as `lwDidStart`): shown until a source is added or it is
+/// explored. An empty library alone never re-onboards a user who already started.
+pub(super) fn wanted(catalog: &Catalog, state: &ShellState, did_start: bool) -> bool {
+    !did_start && catalog.sources == Some(0) && catalog.is_empty() && !state.explored
+}
+
+/// A source exists but the flag is unset (import finished): persist it once, as Swift's `onImported`.
+pub(super) fn needs_start_flag(catalog: &Catalog, did_start: bool) -> bool {
+    !did_start && catalog.sources.is_some_and(|count| count > 0)
 }
 
 pub(super) const LIBRARY_EMPTY: &str =
     "Your music starts with a folder. Add music in Folders to build your library.";
 pub(super) const FIND_HINT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
 
-pub(super) fn view(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) -> Handle {
+pub(super) fn view(ui: &mut Ui, top_inset: f32, p: Palette, intent: &mut Option<Intent>) -> Handle {
     let (width, _) = ui.view_size();
-    let column = (width - 32.0).clamp(1.0, 560.0);
+    let column = (width - 32.0).max(1.0);
     let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, p.paper);
     ui.set_role(&root, Role::Window, 0);
     ui.a11y_name(&root, "LocalWave");
+    // The disclosure state lives on the root so the retained page rebuilds when it flips.
+    let drive = ui.state(&root, 0) != 0;
     ui.within(&root, &mut |ui| {
         ui.view(
             "onboarding-page",
-            pxui::hash!(column.to_bits()),
+            pxui::hash!((column.to_bits(), top_inset.to_bits(), drive)),
             Size::Grow,
             Size::Grow,
             &mut |ui| {
@@ -31,31 +40,57 @@ pub(super) fn view(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) -> Hand
                     Node {
                         w: Size::Grow,
                         h: Size::Grow,
-                        align: Align::Center,
-                        padding: Edges { t: 16.0, b: 34.0, ..Edges::ZERO },
+                        padding: Edges { l: 16.0, r: 16.0, t: 16.0 + top_inset, b: 34.0 },
                         ..Node::DEFAULT
                     },
                 );
-                ui.within(&outer, &mut |ui| page(ui, column, p, intent));
+                ui.within(&outer, &mut |ui| {
+                    if page(ui, column, drive, p, intent) {
+                        ui.set_state(&root, i64::from(!drive));
+                    }
+                });
             },
         );
     });
     root
 }
 
-fn page(ui: &mut Ui, column: f32, p: Palette, intent: &mut Option<Intent>) {
-    let page = ui.node(
-        "onboarding-column",
-        Node { w: Size::Px(column), h: Size::Grow, ..Node::DEFAULT },
+fn underlined(ui: &mut Ui, key: &str, label: &'static str, p: Palette) -> bool {
+    let link = ui.node(
+        key,
+        Node {
+            axis: Axis::Column,
+            flags: CLICKABLE | TAB_STOP,
+            role: Role::Button,
+            w: Size::Fit,
+            h: Size::Px(44.0),
+            justify: Justify::Center,
+            ..Node::DEFAULT
+        },
     );
+    ui.a11y_name(&link, label);
+    ui.within(&link, &mut |ui| {
+        text(ui, "label", label, 15, p.ink, (Size::Fit, 21.0), false);
+        rule(ui, "underline", false, p);
+    });
+    ui.signal_state(&link).clicked
+}
+
+/// Returns true when the Google Drive disclosure was toggled.
+fn page(ui: &mut Ui, column: f32, drive: bool, p: Palette, intent: &mut Option<Intent>) -> bool {
+    let mut toggled = false;
+    let page = ui.node("onboarding-column", Node { w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
     ui.within(&page, &mut |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), p.paper);
         ui.within(&top, &mut |ui| {
             text(ui, "name", "LocalWave", 13, p.secondary, (Size::Grow, 18.2), false);
-            text(ui, "version", "v2", 12, p.secondary, (Size::Px(24.0), 16.8), true);
+            text(ui, "version", "v2", 12, p.secondary, (Size::Px(16.0), 16.8), true);
         });
         spacer(ui, "count-gap", 28.0);
-        text(ui, "count", "00", 72, p.ink, (Size::Grow, 79.0), true);
+        let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), p.paper);
+        ui.set_role(&count, Role::Label, 0);
+        ui.a11y_name(&count, "0 songs so far");
+        ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, p.ink));
         spacer(ui, "count-label-gap", 8.0);
         text(ui, "count-label", "songs so far", 15, p.secondary, (Size::Grow, 21.0), false);
         spacer(ui, "heading-gap", 28.0);
@@ -99,45 +134,107 @@ fn page(ui: &mut Ui, column: f32, p: Palette, intent: &mut Option<Intent>) {
             Node {
                 axis: Axis::Row,
                 align: Align::Center,
+                justify: Justify::Center,
                 flags: CLICKABLE | TAB_STOP,
                 role: Role::Button,
                 w: Size::Grow,
                 h: Size::Px(52.0),
-                padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO },
-                look: Look { fill: p.ink, text: p.paper, font: Font { size: 15, ..Font::BODY }, ..Look::NONE },
+                look: Look { fill: p.ink, ..Look::NONE },
                 ..Node::DEFAULT
             },
         );
         ui.a11y_name(&choose, "Choose a folder");
-        ui.text(&choose, "Choose a folder");
+        ui.within(&choose, &mut |ui| {
+            text(ui, "label", "Choose a folder", 15, p.paper, (Size::Fit, 21.0), false);
+        });
         if ui.signal_state(&choose).clicked {
             *intent = Some(Intent::ChooseFolder);
         }
+        spacer(ui, "links-gap", 4.0);
         let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), p.paper);
         ui.within(&links, &mut |ui| {
-            for (key, label, action) in [
-                ("pick-files", "Pick some files", Intent::ChooseAudio),
-                ("explore", "Explore the library", Intent::Navigate(Route::Albums)),
-            ] {
-                let link = ui.node(
-                    key,
-                    Node {
-                        flags: CLICKABLE | TAB_STOP,
-                        role: Role::Button,
-                        w: Size::Grow,
-                        h: Size::Px(44.0),
-                        look: Look { text: p.ink, font: Font { size: 15, ..Font::BODY }, ..Look::NONE },
-                        ..Node::DEFAULT
-                    },
+            if underlined(ui, "pick-files", "Pick some files", p) {
+                *intent = Some(Intent::ChooseAudio);
+            }
+            ui.box_("links-flex", BoxOpts::default().w(Size::Grow));
+            if underlined(ui, "explore", "Explore the library", p) {
+                *intent = Some(Intent::Navigate(Route::Albums));
+            }
+        });
+        spacer(ui, "drive-gap", 4.0);
+        toggled = drive_box(ui, column, drive, p);
+    });
+    toggled
+}
+
+/// Swift's "Google Drive not in the list?" disclosure with its bordered 1px frame.
+fn drive_box(ui: &mut Ui, column: f32, expanded: bool, p: Palette) -> bool {
+    let frame = ui.node(
+        "drive-frame",
+        Node {
+            w: Size::Grow,
+            h: Size::Fit,
+            padding: Edges { l: 1.0, r: 1.0, t: 1.0, b: 1.0 },
+            look: Look { fill: p.line, ..Look::NONE },
+            ..Node::DEFAULT
+        },
+    );
+    let mut clicked = false;
+    ui.within(&frame, &mut |ui| {
+        let inner = ui.node(
+            "drive-inner",
+            Node {
+                w: Size::Grow,
+                h: Size::Fit,
+                padding: Edges { l: 14.0, r: 14.0, t: 14.0, b: 14.0 },
+                look: Look { fill: p.paper, ..Look::NONE },
+                ..Node::DEFAULT
+            },
+        );
+        ui.within(&inner, &mut |ui| {
+            let header = ui.node(
+                "drive-toggle",
+                Node {
+                    axis: Axis::Row,
+                    flags: CLICKABLE | TAB_STOP,
+                    role: Role::Button,
+                    w: Size::Grow,
+                    h: Size::Px(19.5),
+                    ..Node::DEFAULT
+                },
+            );
+            ui.a11y_name(&header, "Google Drive not in the list?");
+            ui.within(&header, &mut |ui| {
+                let marker = ui.node("marker", Node { w: Size::Px(40.0 / 3.0), h: Size::Px(19.5), ..Node::DEFAULT });
+                let ink = p.ink;
+                ui.draw(&marker, move |paint, rect| {
+                    // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
+                    let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };
+                    let top = rect.y + 14.0 - h;
+                    for i in 0..h as i32 {
+                        let t = (i as f32 + 0.5) / h;
+                        let span = if expanded { w * (1.0 - t) } else { w * (1.0 - (2.0 * t - 1.0).abs()) };
+                        let x = if expanded { rect.x + (w - span) / 2.0 } else { rect.x };
+                        paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
+                    }
+                });
+                text(ui, "title", "Google Drive not in the list?", 13, p.ink, (Size::Grow, 19.5), false);
+            });
+            clicked = ui.signal_state(&header).clicked;
+            if expanded {
+                spacer(ui, "drive-help-gap", 8.0);
+                settings::paragraph(
+                    ui,
+                    "drive-help",
+                    "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.",
+                    column - 30.0,
+                    13.0,
+                    p.secondary,
                 );
-                ui.a11y_name(&link, label);
-                ui.text(&link, label);
-                if ui.signal_state(&link).clicked {
-                    *intent = Some(action);
-                }
             }
         });
     });
+    clicked
 }
 
 /// Swift's "Your music starts with a folder" message under the Albums/Artists header.

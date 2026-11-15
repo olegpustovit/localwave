@@ -176,6 +176,7 @@ impl Command {
                         | SettingChange::Signal(_)
                         | SettingChange::ToggleReduceMotion
                         | SettingChange::ToggleShowNonAudio
+                        | SettingChange::DidStart
                         | SettingChange::CacheGB(_)
                 )
         )
