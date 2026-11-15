@@ -55,7 +55,8 @@ Allowed production dependencies (plus std):
 ## Performance contract
 
 Warm input/build/draw frames allocate zero Rust heap objects across app and libpxui; idle draws
-zero frames. Keep UI frame builds below 1 ms at 10,000 songs. Preserve existing wall assertions
+zero frames. At 10,000 songs on the M1 reference machine keep build CPU p99 < 1.5 ms, frame CPU
+p99 < 2.5 ms and frame work wall p99 (excluding drawable acquisition) < 8 ms. Preserve existing wall assertions
 until the plan's explicit performance step changes them; CPU time never silently replaces wall time.
 No per-frame formatting, sorting, string hashing, decoding or fresh resource wrappers. Use retained
 views, virtualization, cached strings/widths, fixed-capacity messages and bounded caches/queues.

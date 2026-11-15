@@ -80,13 +80,20 @@ impl Frame {
         self.timing.phase_cpu[7] = (self.cpu_time()? - started) / 1000;
         Ok(())
     }
-    pub(crate) fn finish_frame(&mut self, ui: &Ui, draw_started: u64) -> Result<(), String> {
+    pub(crate) fn finish_frame(
+        &mut self,
+        ui: &Ui,
+        draw_started: u64,
+        acquire: std::time::Duration,
+    ) -> Result<(), String> {
         if self.workload.is_some() {
             let (started, cpu) = self
                 .started
                 .take()
                 .ok_or("Performance frame did not include an input pump")?;
             self.timing.frame_wall = started.elapsed().as_micros();
+            // Drawable/slot acquisition is display pacing; the rest of the frame is work users feel.
+            self.timing.work_wall = self.timing.frame_wall.saturating_sub(acquire.as_micros());
             let ended =
                 mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())?;
             self.timing.frame_cpu = (ended - cpu) / 1000;
@@ -764,6 +771,7 @@ impl Perf {
                 cpu: cpu_us,
                 frame_wall,
                 frame_cpu,
+                work_wall: frame.timing.work_wall,
                 phase_cpu: frame.timing.phase_cpu,
                 phases: if trace_frames {
                     ui.phase_times().map(|time| time.as_micros() as u64)

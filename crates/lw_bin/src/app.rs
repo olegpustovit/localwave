@@ -370,7 +370,7 @@ impl App {
         if perf.is_some() || ui.draw_revision() != (*revision) {
             let draw_cpu = frame.cpu_time()?;
             let drawn = graphics.draw(window, ui, frame.gpu_trace())?;
-            frame.finish_frame(ui, draw_cpu)?;
+            frame.finish_frame(ui, draw_cpu, graphics.acquire_wall())?;
             frame.audit(ui, artwork, player);
             if drawn {
                 (*draws) += 1;

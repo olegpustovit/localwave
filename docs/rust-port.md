@@ -36,7 +36,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P3 | Isolate position ticks from stable content | done | d16e6a3 |
 | P4 | Worker-prepared catalog remapping | done | 81ab1ca |
 | P5 | Single controller-poll lock | done | 7bb51ac |
-| P6 | Fix measured hot paths; pass phase gate | doing | HEAD + pxui 766f6ff |
+| P6 | Fix measured hot paths; pass phase gate | done | HEAD + pxui 520db20 |
 | P6a | Bind fixed renderer state once per pass | done | 89ee53a + pxui d10fb8c |
 | P6b | Worker-prepared text API and ownership | done | 8a934a3 + pxui 3231c8e |
 | P6c | Bounded song-text delivery; remove LongScroll allocations | done | d67773d |
@@ -46,7 +46,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P6g | Avoid recursive native background redraws under opaque Metal | done | 6614ab5 + pxui 8a9f05b |
 | P6h | Borrow instances during retained-run compaction | done | 4f4ed00 + pxui 7556bee |
 | P6i | Limit playback invalidation to affected song rows | done | 5f03419 |
-| P6j | Borrow fresh instances during retained placement | done | HEAD + pxui 766f6ff |
+| P6j | Borrow fresh instances during retained placement | done | ca17adc + pxui 766f6ff |
+| P6k | Owner-approved M1 limits; gate frame work wall | done | HEAD + pxui 520db20 |
 | F1 | Global shortcuts from one command table | todo | — |
 | F2 | Favorite commands, menu, key and heart | todo | — |
 | F3 | Complete track menu and native reveal | todo | — |
@@ -64,38 +65,41 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P6j retained placement `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
-182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
-GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
-strict 1,000 µs build wall maximum is unchanged. ExternalDrop passes in this run; the other twelve
-workloads fail (make exits nonzero). Bundle/signature/rpath/default-stack checks and settled idle
-smoke pass (510.1 ms).
-Source: `/tmp/localwave-p6-place-performance.log`; prior signed failures remain in commit evidence.
+P6k `make performance` (exit 0): thirteen signed workloads, 10,000 songs, 1440×872, 182 frames /
+82 warm-up / 100 measured, both Rust counters. All thirteen pass with zero warm Rust allocations and
+new layouts, and a passing frame-82 audit. Settled idle smoke passes (507.9 ms).
+Source: `/tmp/localwave-p6-limits-performance.log`. An earlier run of the same build failed one case
+(queue sheet, work wall p99 8,165 µs at load average 19); three reruns of that case passed (p99 3.7–5.3 ms).
+That run is kept at `/tmp/localwave-p6-limits-performance-1.log`.
 
-All thirteen cases have zero measured Rust allocations/new UI text layouts and pass the frame-82
-audit. LongScroll formerly exposed 202 allocations/frame and six new layouts; bounded worker
-delivery removes both. It still advances rows 240→537 in all 100 measured frames. The original
-182/82/100 frames and wheel trace are unchanged. End-to-end CPU also fails its gate.
-Wall spans are recorded without attributing their gaps. Native/process allocations and physical-device
-behavior remain open. Waveform retains 200 bars/nine release seeks; indicator behavior is verified.
+Gate (owner decision for this M1 Mac mini, 2026-11-15): build CPU p99 < 1,500 µs, frame CPU p99
+< 2,500 µs, frame work wall p99 < 8,000 µs (half a 60 Hz vsync), zero warm allocations. Work wall is
+the input-pump-to-draw-return span minus drawable/slot acquisition, which `pxui_host::Graphics`
+reports. Build wall and work wall maxima are recorded, not gated.
 
-Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-miss shaping work.
+Evidence for the decision: in a System Trace of LongScroll (`/tmp/localwave-p6-system-trace-long-scroll.trace`),
+measured builds were never Blocked. All off-CPU time was Preempted (VM_compressor, WindowServer,
+fseventsd, another app's display link, the GPU work loop), with load average 7–25 and 21 GB of
+swap in use. 83% of build CPU ran on E cores. The same build costs a median 312 µs on P cores (max
+547) and 896 µs on E cores (max 1,298). A foreground task-role experiment did not change residency.
 
-| Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 660/981/985 | 747/2691/3522/3789 | 1192/1549/1551 | 16657/17981/19251/20934 | 0 | 0 | pass |
-| find-filters-title-descending | 616/831/888 | 649/1799/3053/3319 | 1085/1432/1454 | 16630/17839/20629/21907 | 0 | 0 | pass |
-| queue-occurrences | 554/806/811 | 618/1602/2903/3361 | 1021/1272/1337 | 16639/17902/20503/20631 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 569/927/937 | 578/1076/4078/5157 | 1089/1556/1637 | 16604/21196/21447/25669 | 0 | 0 | pass |
-| full-queue-playlist-editor | 639/894/938 | 732/1746/3505/3579 | 1109/1427/1472 | 16648/20395/20903/21179 | 0 | 0 | pass |
-| albums-artwork | 617/1270/1528 | 661/1392/2051/3215 | 1246/2057/2137 | 16628/20188/21474/24432 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 355/771/777 | 431/828/1453/2079 | 916/1292/1303 | 16647/20220/26868/27564 | 0 | 0 | pass |
-| settings-menus-appearance | 286/534/536 | 292/795/1869/2985 | 690/1056/1081 | 16651/19327/20907/31705 | 0 | 0 | pass |
-| files-indexed-directory | 343/481/498 | 359/1500/3140/3428 | 814/1137/1142 | 16631/17934/21023/29707 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 300/367/389 | 315/459/620/830 | 754/980/1018 | 16636/16966/17095/17564 | 0 | 0 | pass |
-| artists-measured-columns | 659/980/1010 | 718/2750/3480/3923 | 1194/1622/1667 | 16605/17935/18865/19019 | 0 | 0 | pass |
-| songs-playing-indicator | 695/940/1044 | 750/1744/2806/3379 | 1138/1650/1817 | 16631/20434/21497/25726 | 0 | 0 | pass |
-| songs-long-scroll | 792/1085/1165 | 859/1296/2954/4761 | 1280/1707/1787 | 16619/17293/17666/22956 | 0 | 0 | pass |
+Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p50/p95/p99/max.
+
+| Workload | Build CPU | Build wall | Frame CPU | Work wall | Alloc max | Gate |
+| --- | --- | --- | --- | --- | --- | --- |
+| songs-original | 640/900/910 | 685/1598/3922/4205 | 1115/1435/1455 | 1077/3572/4655/4718 | 0 | pass |
+| find-filters-title-descending | 591/853/866 | 644/3462/3739/3982 | 1017/1322/1388 | 969/3888/4031/4294 | 0 | pass |
+| queue-occurrences | 572/720/851 | 609/3205/5209/12886 | 995/1203/1249 | 958/3777/5748/13160 | 0 | pass |
+| queue-carry-scroll-cancel | 568/930/1007 | 610/2961/3549/5496 | 1120/1539/1609 | 1123/4041/5240/5817 | 0 | pass |
+| full-queue-playlist-editor | 658/936/1091 | 750/1262/2808/3074 | 1119/1415/1543 | 1099/2844/3738/3973 | 0 | pass |
+| albums-artwork | 605/963/965 | 643/2537/3138/3596 | 1182/1571/1816 | 1157/3866/4411/4754 | 0 | pass |
+| waveform-scrub-and-scroll | 462/785/794 | 526/2648/3260/3544 | 902/1231/1468 | 922/3289/5384/6295 | 0 | pass |
+| settings-menus-appearance | 330/590/667 | 364/1997/2579/3995 | 835/1109/1169 | 852/2925/3709/4384 | 0 | pass |
+| files-indexed-directory | 330/422/444 | 349/760/2729/3409 | 752/889/931 | 693/2964/3679/4691 | 0 | pass |
+| external-drop-hover-and-cancel | 296/413/452 | 303/2096/3055/3558 | 747/908/925 | 663/3297/4313/5310 | 0 | pass |
+| artists-measured-columns | 650/903/977 | 716/1868/3237/3907 | 1178/1555/1559 | 1146/2261/3614/5413 | 0 | pass |
+| songs-playing-indicator | 756/1064/1143 | 844/3595/4028/4351 | 1217/1610/1658 | 1352/4084/4772/4797 | 0 | pass |
+| songs-long-scroll | 761/1039/1120 | 813/3336/3601/4586 | 1214/1470/1494 | 1170/3753/4436/4822 | 0 | pass |
 
 ### CPU profile
 
@@ -308,8 +312,8 @@ Sources: `/tmp/localwave-p6-row-state-paired-{1,4,5}-before.log` and `{2,3,6}-af
 The separate final LongScroll trace has build CPU 763/949/968 µs, frame CPU 1200/1455/1465 µs and
 build wall maximum 3,809 µs (fail). Earlier slower runs remain recorded; native memory is separate.
 
-P6 remains open: allocation/layout misses are fixed in the measured matrix, but CPU/wall latency
-still fails the full gate. Native/process allocation and real device/provider behavior remain open.
+P6 closes under the owner-approved M1 limits (P6k). Native/process allocation and real
+device/provider behavior remain open.
 
 ## Open qualification
 
@@ -323,9 +327,8 @@ still fails the full gate. Native/process allocation and real device/provider be
 
 ## Known gaps
 
-- Performance P6 precedes new feature work.
-  All thirteen workloads now have zero measured warm UI-thread Rust allocations/new layouts,
-  including LongScroll, and pass their frame-82 audit. CPU/wall latency still exceeds its gates.
+- Performance: all thirteen workloads pass the P6k limits. P-core builds stay near 300 µs;
+  further engine CPU work (paint visit, placement, compaction, a11y emit) remains worthwhile.
   Cold glyphs, other scripts/native font discovery and native/process memory need separate evidence.
   A text/core edit check took 1.60 s, exceeding pxui's 1 s warm-edit target.
   P3 removes Now metadata string hashes and caches stable pages/rows across ticks; P6 hot-path work remains.
