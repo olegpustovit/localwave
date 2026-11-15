@@ -35,14 +35,15 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P3 | Isolate position ticks from stable content | done | d16e6a3 |
 | P4 | Worker-prepared catalog remapping | done | 81ab1ca |
 | P5 | Single controller-poll lock | done | 7bb51ac |
-| P6 | Fix measured hot paths; pass phase gate | doing | HEAD + pxui 8a9f05b |
+| P6 | Fix measured hot paths; pass phase gate | doing | HEAD + pxui 7556bee |
 | P6a | Bind fixed renderer state once per pass | done | 89ee53a + pxui d10fb8c |
 | P6b | Worker-prepared text API and ownership | done | 8a934a3 + pxui 3231c8e |
 | P6c | Bounded song-text delivery; remove LongScroll allocations | done | d67773d |
 | P6d | Skip damage calculations inside an already covered view clip | done | 79cb6c6 + pxui 71dc0a1 |
 | P6e | Reuse bounded fresh-row gaps before retained runs | done | ec54614 + pxui 796ba63 |
 | P6f | Bound actual write ends when reusing retained storage | done | 962df25 + pxui 519e367 |
-| P6g | Avoid recursive native background redraws under opaque Metal | done | HEAD + pxui 8a9f05b |
+| P6g | Avoid recursive native background redraws under opaque Metal | done | 6614ab5 + pxui 8a9f05b |
+| P6h | Borrow instances during retained-run compaction | done | HEAD + pxui 7556bee |
 | F1 | Global shortcuts from one command table | todo | — |
 | F2 | Favorite commands, menu, key and heart | todo | — |
 | F3 | Complete track menu and native reveal | todo | — |
@@ -60,12 +61,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P6g native background updates `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+P6h borrowed compaction instances `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
 GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
 strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
-Bundle/signature/rpath/default-stack checks and settled idle smoke pass (508.5 ms).
-Source: `/tmp/localwave-p6-background-performance.log`; prior P1–P6f failures remain in commit evidence.
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (510.4 ms).
+Source: `/tmp/localwave-p6-borrow-performance.log`; prior P1–P6g failures remain in commit evidence.
 
 All thirteen cases have zero measured Rust allocations/new UI text layouts and pass the frame-82
 audit. LongScroll formerly exposed 202 allocations/frame and six new layouts; bounded worker
@@ -78,26 +79,26 @@ Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-
 
 | Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 682/978/1014 | 757/2984/4976/6746 | 1170/1551/1571 | 16640/17768/18830/19836 | 0 | 0 | pass |
-| find-filters-title-descending | 616/845/894 | 689/2641/3468/3603 | 1065/1370/1430 | 16639/18715/20414/25194 | 0 | 0 | pass |
-| queue-occurrences | 646/897/1014 | 708/2969/5058/6229 | 1112/1429/1432 | 16621/18265/21558/32826 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 516/915/951 | 540/2299/3678/3802 | 974/1433/1461 | 16634/18490/19597/20834 | 0 | 0 | pass |
-| full-queue-playlist-editor | 670/1096/1184 | 821/3157/3800/3978 | 1155/1644/1646 | 16624/19410/20235/20248 | 0 | 0 | pass |
-| albums-artwork | 611/1247/1423 | 642/1539/2974/3404 | 1198/1885/2311 | 16654/17552/18723/20138 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 351/850/858 | 516/2315/3114/4486 | 868/1358/1359 | 16636/18721/19273/20451 | 0 | 0 | pass |
-| settings-menus-appearance | 326/596/626 | 392/1228/2957/3435 | 767/1157/1227 | 16631/18298/19967/20086 | 0 | 0 | pass |
-| files-indexed-directory | 347/487/500 | 384/2577/2793/3095 | 809/1059/1102 | 16662/18441/19831/20151 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 314/466/518 | 359/1699/3454/3736 | 782/1099/1155 | 16618/18543/20724/20845 | 0 | 0 | pass |
-| artists-measured-columns | 667/997/1039 | 790/2750/4044/5228 | 1115/1463/1501 | 16673/19891/21300/23677 | 0 | 0 | pass |
-| songs-playing-indicator | 783/1253/1655 | 1078/3587/4455/5837 | 1245/1828/2293 | 16649/18322/20877/21139 | 0 | 0 | pass |
-| songs-long-scroll | 848/1197/1276 | 1083/3705/5497/5706 | 1328/1760/1760 | 16666/20120/22018/22344 | 0 | 0 | pass |
+| songs-original | 627/1005/1017 | 685/2815/4054/4871 | 1092/1506/1563 | 16632/17817/18820/20874 | 0 | 0 | pass |
+| find-filters-title-descending | 542/878/958 | 562/2774/4304/5592 | 945/1325/1387 | 16645/18748/21099/22035 | 0 | 0 | pass |
+| queue-occurrences | 587/839/894 | 632/2102/3348/3654 | 1054/1392/1468 | 16631/19720/20920/29564 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 520/879/969 | 549/2295/2835/2899 | 983/1377/1446 | 16637/18641/19975/20878 | 0 | 0 | pass |
+| full-queue-playlist-editor | 682/971/1076 | 740/2334/3339/4211 | 1168/1463/1582 | 16659/19213/20150/20740 | 0 | 0 | pass |
+| albums-artwork | 625/1035/1188 | 665/1919/3188/3415 | 1220/1721/1832 | 16630/17869/20184/20604 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 487/982/1417 | 512/1064/1953/2121 | 982/1660/2142 | 16660/18716/20876/21286 | 0 | 0 | pass |
+| settings-menus-appearance | 298/520/592 | 340/1929/2579/2767 | 676/971/1162 | 16638/18081/20256/22354 | 0 | 0 | pass |
+| files-indexed-directory | 336/424/438 | 350/1308/2481/2862 | 785/990/1131 | 16638/17932/20177/20585 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 323/442/465 | 337/2207/2790/4012 | 785/1069/1107 | 16575/18882/20134/20647 | 0 | 0 | pass |
+| artists-measured-columns | 634/978/1016 | 713/2904/3995/6058 | 1103/1483/1556 | 16651/18557/19670/19988 | 0 | 0 | pass |
+| songs-playing-indicator | 785/1149/1160 | 939/3393/4143/4607 | 1272/1627/1754 | 16622/18293/19396/20272 | 0 | 0 | pass |
+| songs-long-scroll | 851/1217/1256 | 952/3664/4441/4516 | 1318/1798/1832 | 16601/19014/21008/21377 | 0 | 0 | pass |
 
 ### CPU profile
 
 Separate signed `--performance-check --trace-frames` runs of the five P6a follow-up cases use the same
 10,000-song, 1440×872, 182/82/100 fixture. All five fail the unchanged performance gate;
 Rank by mean thread CPU over the 100 measured frames, rather than wall time or an individual
-outlier. Profiling is opt-in. LongScroll retains the P6f trace, Settings uses P6g, and the other
+outlier. Profiling is opt-in. LongScroll uses the P6h trace, Settings retains P6g, and the other
 four rows retain their P6a trace baseline. Settings additionally required input-pump attribution
 outside the engine/output/draw phases; that work remains included in full-frame CPU.
 The ABI 1.35 CPU clock sums every engine settling pass. Existing wall-phase times remain the
@@ -112,11 +113,11 @@ Raw CPU samples are retained with their corresponding wall/phase records before 
 | song-indicators | paint 376.62 | draw 350.42 | build 300.93 |
 | waveform | draw 304.78 | paint 205.84 | build 175.21 |
 | artwork | draw 448.75 | build 281.43 | paint 190.28 |
-| long-scroll | draw 368.13 | build 319.65 | paint 313.18 |
+| long-scroll | draw 297.84 | build 275.94 | paint 264.58 |
 | settings | draw 349.73 | paint 138.97 | build 99.37 |
 
 Sources: `/tmp/localwave-p6-bindings-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
-The LongScroll trace is `/tmp/localwave-p6-budget-long-trace.log`; it also has zero
+The LongScroll trace is `/tmp/localwave-p6-borrow-long-trace.log`; it also has zero
 warm Rust allocations/layouts and a passing frame-82 audit, while latency still fails. Settings
 uses `/tmp/localwave-p6-background-settings-clean.log`, also zero/zero with a passing audit. Full phase
 means, aggregate CPU/wall timings and failing exits are preserved in each corresponding commit. Earlier baselines remain in their corresponding commits.
@@ -145,6 +146,8 @@ from the two warm UI-thread Rust counters.
 | P6f / 20×64 tiles, nineteen new rows/frame, mean paint, 100 samples | 53.90 | 72.66 | 0 |
 | P6g / precreated native colors, mean setter CPU, 100 calls | 3.804 | 0.066 | — |
 | P6g / signed Settings full-frame CPU p99 | 2334 | 1157 | 0 |
+| P6h / 20×64 tiles, three new rows/frame, mean paint, 100 samples | 33.26 | 22.55 | 0 |
+| P6h / 20×64 tiles, nineteen new rows/frame, mean paint, 100 samples | 70.53 | 45.85 | 0 |
 
 P6c also removes six new UI layouts/frame and changes the frame-82 audit from fail to pass.
 Before: `/tmp/localwave-p6-prepared-performance.log`; after:
@@ -203,6 +206,26 @@ Final clean Settings: build CPU 340/628/631 µs, full-frame CPU 822/1117/1135 µ
 P6g verification: 440 framework cases pass in 18.471 s; 209 LocalWave cases pass in 16.710 s,
 zero skips, with two/four existing isolated retries. Dependency/diff and bundle checks pass.
 Temporary GPU/App probes were removed. Earlier timings/failures remain in commit evidence.
+
+P6h follows a temporary signed LongScroll probe: mean paint CPU splits into visit/paint 143.84,
+retained placement 131.89, view refresh 30.02 and settling 12.29 µs over 101 post-warm-up passes.
+The probe and sample evidence are in `/tmp/localwave-p6-hot-{paint-probe.log,long-sample.txt}`;
+they were removed before qualification. Compaction now compares borrowed 64-byte instances rather
+than copying both into temporary Options. Equality, damage, dirty ranges, moves and ownership are
+unchanged. The existing scrolling regression checks every row/tile, retained footer, geometry,
+zero warm allocations, the same 50/100 compactions and bounded 2,049/2,561-instance storage.
+Before/after: `/tmp/localwave-p6-merge-{before,borrowed}.log`; a warm repeat measures 20.82/45.49 µs.
+Release test execution is 0.032/0.029/0.051 s; first release rebuilds take 53.18/50.81 s,
+while the repeat builds in 0.07 s. No profile or test deadline changed.
+The full signed matrix retains slower results too: LongScroll build CPU p99 1197→1217 µs,
+full-frame p99 1760→1798 µs, compared with P6g. The separate clean P6h trace measures
+778/1061/1204 µs build CPU and 1214/1577/1688 µs frame CPU; wall maximum 4,587 µs still fails.
+Mean paint is 264.58 µs, but all phases vary between runs; the isolated compaction benchmark
+supports the narrower improvement claim. All 13 allocation/layout/audit checks pass unchanged.
+P6h verification: 440 framework cases pass in 25.623 s wall (19.353 s case sum);
+209 LocalWave cases pass in 9.417 s wall (13.792 s case sum), zero skips. Five/four
+existing cases pass on the runner’s isolated contention retry. Native pixels, retained geometry,
+input, text, ownership, allocation, bundle and dependency/diff checks pass.
 
 P6 remains open: allocation/layout misses are fixed in the measured matrix, but CPU/wall latency
 still fails the full gate. Native/process allocation and real device/provider behavior remain open.
