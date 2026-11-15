@@ -9,8 +9,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | ID | Title | State | Commit |
 | --- | --- | --- | --- |
 | C0.1 | Durable rules; contracts beside code | done | bd31587 |
-| C0.2 | One-page status | done | HEAD |
-| C1.0 | Lossless manifest-driven Rust split tool | todo | — |
+| C0.2 | One-page status | done | ee9f024 |
+| C1.0 | Lossless manifest-driven Rust split tool | done | HEAD |
 | C1.1 | Move lw_ui lib tests out | todo | — |
 | C1.2 | Split shell into screen modules | todo | — |
 | C1.3 | Split song table, rows, menus and tests | todo | — |
