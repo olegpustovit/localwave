@@ -158,6 +158,28 @@ impl LibraryWorker {
         }
         self.repository.set_favorite(id, on).map_err(db)
     }
+    /// Metadata editor save: song row and FTS5 entry in one transaction.
+    pub fn edit_metadata(&mut self, edit: &lw_ui::MetadataEdit, now: f64) -> io::Result<()> {
+        let (year, track) = edit.numbers().ok_or(io::ErrorKind::InvalidInput)?;
+        self.repository
+            .edit_song_metadata(
+                edit.song,
+                [
+                    edit.title.as_str().trim(),
+                    edit.artist.as_str().trim(),
+                    edit.album.as_str().trim(),
+                    edit.album_artist.as_str().trim(),
+                ],
+                year,
+                track,
+                now,
+            )
+            .map_err(db)
+    }
+    /// Library rows only (songs, FTS, list memberships); original files are never touched.
+    pub fn delete_song(&mut self, id: i64) -> io::Result<()> {
+        self.repository.delete_song(id).map_err(db)
+    }
     /// Swift's `addToList`: one transaction; duplicates and members already present are skipped.
     pub fn add_to_list(&mut self, list: i64, ids: &[i64]) -> io::Result<()> {
         self.repository.add_playlist_songs(list, ids).map_err(db)

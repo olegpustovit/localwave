@@ -47,6 +47,9 @@ pub struct ShellState {
     list_dialog: Option<crate::ListDialog>,
     list_menu: Option<(i64, (f32, f32))>,
     delete_list: Option<i64>,
+    metadata: Option<crate::MetadataEdit>,
+    metadata_too_long: bool,
+    delete_song: Option<i64>,
     playlist_name: Query,
     playlist_name_too_long: bool,
     top_inset: f32,
@@ -88,6 +91,9 @@ impl Default for ShellState {
             list_dialog: None,
             list_menu: None,
             delete_list: None,
+            metadata: None,
+            metadata_too_long: false,
+            delete_song: None,
             playlist_name: Query::default(),
             playlist_name_too_long: false,
             top_inset: 0.0,
@@ -388,6 +394,30 @@ impl ShellState {
                 self.list_menu = None;
             }
             Intent::CloseDeleteList => self.delete_list = None,
+            Intent::OpenMetadata(edit) => {
+                self.metadata = Some(edit);
+                self.metadata_too_long = false;
+                self.song_menu = None;
+                self.song_lists = false;
+            }
+            Intent::MetadataField(index, value) => {
+                if let Some(field) = self
+                    .metadata
+                    .as_mut()
+                    .and_then(|edit| edit.field_mut(index))
+                {
+                    *field = value;
+                }
+                self.metadata_too_long = false;
+            }
+            Intent::MetadataTooLong => self.metadata_too_long = true,
+            Intent::CloseMetadata => self.metadata = None,
+            Intent::ConfirmDeleteSong(song) => {
+                self.delete_song = Some(song);
+                self.song_menu = None;
+                self.song_lists = false;
+            }
+            Intent::CloseDeleteSong => self.delete_song = None,
             Intent::EditPlaylistName(name) => {
                 self.playlist_name = name;
                 self.playlist_name_too_long = false;
@@ -663,7 +693,16 @@ pub fn shell(
         files::popup(ui, player, target, at, p, intent);
     }
     if let Some((index, id, key, at)) = state.song_menu {
-        songs::popup(ui, catalog, state, (index, id, key), at, player.sharing, p, intent);
+        songs::popup(
+            ui,
+            catalog,
+            state,
+            (index, id, key),
+            at,
+            player.sharing,
+            p,
+            intent,
+        );
     }
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, p, intent);
@@ -676,6 +715,12 @@ pub fn shell(
     }
     if let Some(dialog) = state.list_dialog {
         lists::name_dialog(ui, state, dialog, p, intent);
+    }
+    if let Some(edit) = state.metadata {
+        metadata::editor(ui, state, edit, p, intent);
+    }
+    if let Some(song) = state.delete_song {
+        metadata::confirm_delete(ui, catalog, song, p, intent);
     }
     let root = if onboarding::wanted(catalog, state) {
         onboarding::view(ui, p, intent)
@@ -730,6 +775,8 @@ pub fn shell(
         && state.song_menu.is_none()
         && state.list_dialog.is_none()
         && state.delete_list.is_none()
+        && state.metadata.is_none()
+        && state.delete_song.is_none()
         && ui.key_pressed(input::Key::Enter)
         && !input_was_focused
         && !ui.text_input_focused()
@@ -755,6 +802,8 @@ pub fn shell(
         && state.list_dialog.is_none()
         && state.list_menu.is_none()
         && state.delete_list.is_none()
+        && state.metadata.is_none()
+        && state.delete_song.is_none()
         && state.song_menu.is_none()
         && state.source_menu.is_none()
         && state.remove_source.is_none()
@@ -812,6 +861,7 @@ mod sidebar;
 use sidebar::*;
 mod header;
 mod lists;
+mod metadata;
 use header::*;
 mod now;
 use now::*;

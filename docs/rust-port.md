@@ -54,8 +54,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F4 | Playlist CRUD, membership and reorder | done | 72bb927 |
 | F5 | Album/artist detail headers and actions | done | 1868431 |
 | F6 | Occurrence-based multi-selection | done | 8ce3af5 |
-| F7 | Drag songs to playlists and queue | done | HEAD |
-| F8 | Metadata editor and metadata-only deletion | todo | — |
+| F7 | Drag songs to playlists and queue | done | 905149e |
+| F8 | Metadata editor and metadata-only deletion | done | HEAD |
 | F9 | Source observation and debounced rescan | done | 12c2408 + d7c9b87 |
 | F10 | Onboarding, route empty states and Share | done | 92993cf |
 | S | Sign, migrate, TestFlight and release macOS | todo | — |
@@ -355,8 +355,10 @@ device/provider behavior remain open.
   Songs because routes address lists by position.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F7: compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
-- F8: metadata editor, transactional song/FTS updates and deletion without removing original files.
-- F9: presenters start with the lazy Files worker (first Files use), not at app launch; moved-root
+- F8: the editor omits disc number (kept untouched) and has no compact-layout scrolling; Delete Album
+  (Swift's album-cell menu) has no Rust album menu or command; deleting a queued song keeps its queue
+  occurrence, as source removal does. Edit info and Delete act on the clicked song only.
+- F9: folder observers start with the lazy Files worker (first Files use), not at app launch; moved-root
   notices only trigger a rescan, bookmark re-resolution handles the new location.
 - F10: onboarding omits the animated MatrixText counter (static "00"), the iOS Google Drive disclosure and
   the demo-library installer ("Explore the library" only leaves onboarding; the gate is in-memory, not

@@ -247,6 +247,8 @@ impl App {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::RetryDownload(id)
                 }
+                lw_ui::Intent::SaveMetadata(edit) => Command::EditMetadata(Box::new(edit)),
+                lw_ui::Intent::DeleteSong(id) => Command::DeleteSong(id),
                 lw_ui::Intent::RevealSong(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::Reveal(id)
@@ -398,7 +400,13 @@ impl App {
                 lw_ui::Intent::SourceMenu(_, _)
                 | lw_ui::Intent::CloseSourceMenu
                 | lw_ui::Intent::ConfirmRemoveSource(_)
-                | lw_ui::Intent::CloseRemoveSource => {
+                | lw_ui::Intent::CloseRemoveSource
+                | lw_ui::Intent::OpenMetadata(_)
+                | lw_ui::Intent::MetadataField(..)
+                | lw_ui::Intent::MetadataTooLong
+                | lw_ui::Intent::CloseMetadata
+                | lw_ui::Intent::ConfirmDeleteSong(_)
+                | lw_ui::Intent::CloseDeleteSong => {
                     unreachable!("handled by ShellState")
                 }
             })
@@ -415,6 +423,12 @@ impl App {
                     | lw_ui::Intent::CreateList { .. }
                     | lw_ui::Intent::RenameList { .. } => {
                         shell_state.apply(lw_ui::Intent::CancelPlaylistName);
+                    }
+                    lw_ui::Intent::SaveMetadata(_) => {
+                        shell_state.apply(lw_ui::Intent::CloseMetadata);
+                    }
+                    lw_ui::Intent::DeleteSong(_) => {
+                        shell_state.apply(lw_ui::Intent::CloseDeleteSong);
                     }
                     lw_ui::Intent::DeleteList(_) => {
                         shell_state.apply(lw_ui::Intent::CloseDeleteList);

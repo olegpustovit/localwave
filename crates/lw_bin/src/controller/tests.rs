@@ -1243,15 +1243,31 @@ fn reveal_and_share_resolve_the_source_grant_on_the_worker_and_reject_missing_fi
         assert_eq!(std::fs::read(copy).unwrap(), [1; 8]);
         assert!(copy.starts_with(base.join("tmp").join("LocalWave Share")));
     }
-    let batches = || std::fs::read_dir(base.join("tmp").join("LocalWave Share")).unwrap().count();
+    let batches = || {
+        std::fs::read_dir(base.join("tmp").join("LocalWave Share"))
+            .unwrap()
+            .count()
+    };
     let before = batches();
     for bad in [&[][..], &[here, gone][..], &[loose][..], &[9999][..]] {
         assert!(library.prepare_share(bad, 1.0).is_err());
     }
     assert_eq!(batches(), before, "failed batches leave no copies");
-    assert!(Command::Share(Arc::from([here]), (1.0, 2.0)).validate().is_ok());
-    assert!(Command::Share(Arc::from([0]), (1.0, 2.0)).validate().is_err());
-    assert!(Command::Share(Arc::from([1]), (f32::NAN, 2.0)).validate().is_err());
+    assert!(
+        Command::Share(Arc::from([here]), (1.0, 2.0))
+            .validate()
+            .is_ok()
+    );
+    assert!(
+        Command::Share(Arc::from([0]), (1.0, 2.0))
+            .validate()
+            .is_err()
+    );
+    assert!(
+        Command::Share(Arc::from([1]), (f32::NAN, 2.0))
+            .validate()
+            .is_err()
+    );
     let _ = std::fs::remove_dir_all(&base);
 }
 
@@ -1434,5 +1450,237 @@ fn list_commands_validate_persist_and_deleting_the_playing_list_falls_back_to_li
     assert_eq!(
         lists.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(),
         ["Empty"]
+    );
+}
+
+#[test]
+fn metadata_edit_is_atomic_with_search_and_song_delete_keeps_files_and_the_current_item() {
+    use lw_core::Song;
+    use lw_ui::MetadataEdit;
+    let q = |text: &str| lw_ui::browse::Query::new(text).unwrap();
+    let edit = |song: i64, title: &str, year: &str, track: &str| MetadataEdit {
+        song,
+        title: q(title),
+        artist: q("New artist"),
+        album: q("New album"),
+        album_artist: q(""),
+        year: q(year),
+        track: q(track),
+    };
+    for bad in [
+        Command::EditMetadata(Box::new(edit(2, "  ", "", ""))),
+        Command::EditMetadata(Box::new(edit(0, "T", "", ""))),
+        Command::EditMetadata(Box::new(edit(2, "T", "10000", ""))),
+        Command::EditMetadata(Box::new(edit(2, "T", "-1", ""))),
+        Command::EditMetadata(Box::new(edit(2, "T", "", "1x"))),
+        Command::DeleteSong(0),
+    ] {
+        assert!(bad.validate().is_err());
+    }
+    let good = Command::EditMetadata(Box::new(edit(2, "T", "1999", " 7 ")));
+    assert!(good.validate().is_ok() && good.changes_catalog() && !good.fences_preparation());
+    assert!(Command::DeleteSong(2).validate().is_ok());
+
+    let base = std::env::temp_dir().join(format!("lw-metadata-command-{}", std::process::id()));
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let audio = base.join("Documents/Added Files/keep.flac");
+    std::fs::create_dir_all(audio.parent().unwrap()).unwrap();
+    std::fs::write(&audio, [7u8; 16]).unwrap();
+    let suite = format!("localwave.metadata-command.{}", std::process::id());
+    let open = |base: &std::path::Path, suite: &str| -> io::Result<LibraryWorker> {
+        LibraryWorker::open(
+            &base.join("library.sqlite"),
+            lw_apple_sys::preferences::Preferences::open(Some(suite))?,
+            lw_apple_sys::preferences::AppPaths {
+                documents: base.join("Documents"),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+        )
+    };
+    let shared = shared();
+    shared.inbox.lock().unwrap().native.volume = 1.0;
+    let (worker_base, worker_suite, owner) = (base.clone(), suite.clone(), shared.clone());
+    let thread = std::thread::spawn(move || {
+        Worker::run(
+            move || {
+                let mut library = open(&worker_base, &worker_suite)?;
+                for id in 1..=3 {
+                    library
+                        .repository
+                        .upsert_song(
+                            &Song {
+                                song_key: id,
+                                title: format!("Oldtitle{id}"),
+                                local_file_path: Some("Added Files/keep.flac".into()),
+                                file_state: lw_core::FileState::Copied,
+                                ..Default::default()
+                            },
+                            1.0,
+                        )
+                        .map_err(io::Error::other)?;
+                }
+                let list = library
+                    .repository
+                    .create_playlist_with_songs("Mix", &[1, 2, 3], 1.0)
+                    .map_err(io::Error::other)?;
+                assert!(list.id > 0);
+                Ok(library)
+            },
+            owner,
+        )
+    });
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    let wait = |done: &dyn Fn(&Shared) -> bool| {
+        while !done(&shared) {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "metadata command stalled"
+            );
+            std::thread::yield_now();
+        }
+    };
+    let send = |revision: u64, command: Command| {
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
+            revision,
+            preparation: 0,
+            command,
+        });
+        shared.changed.notify_one();
+        wait(&|shared| shared.inbox.lock().unwrap().status.processed_command >= revision);
+    };
+    send(
+        1,
+        Command::Configure {
+            songs: Arc::from([1, 2, 3]),
+            start: 1,
+            autoplay: false,
+            context: None,
+        },
+    );
+    wait(&|shared| &*shared.inbox.lock().unwrap().status.title == "Oldtitle2");
+    send(
+        2,
+        Command::EditMetadata(Box::new(edit(2, " Zephyr ", "1999", " 7 "))),
+    );
+    wait(&|shared| &*shared.inbox.lock().unwrap().status.title == "Zephyr");
+    send(3, Command::DeleteSong(1));
+    send(4, Command::DeleteSong(2)); // the current song
+    wait(&|shared| {
+        shared
+            .inbox
+            .lock()
+            .unwrap()
+            .catalog
+            .as_ref()
+            .is_some_and(|catalog| catalog.row_index(1).is_none() && catalog.row_index(2).is_none())
+    });
+    {
+        let inbox = shared.inbox.lock().unwrap();
+        assert_eq!(
+            (inbox.status.queue_len, inbox.status.current_index),
+            (3, Some(1)),
+            "deleting keeps queue occurrences and the cursor"
+        );
+        assert_eq!(
+            &*inbox.status.title, "Zephyr",
+            "the current item keeps its metadata"
+        );
+    }
+    shared.inbox.lock().unwrap().closed = true;
+    shared.changed.notify_one();
+    thread.join().unwrap();
+    let mut library = open(&base, &suite).unwrap();
+    assert!(library.repository.get_song(1).unwrap().is_none());
+    assert!(library.repository.get_song(2).unwrap().is_none());
+    assert!(
+        library
+            .repository
+            .search_songs("Zephyr", 10, 0)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        library
+            .repository
+            .search_songs("Oldtitle1", 10, 0)
+            .unwrap()
+            .is_empty()
+    );
+    let members: Vec<_> = library
+        .repository
+        .playlist_songs(1)
+        .unwrap()
+        .iter()
+        .map(|song| song.id.unwrap())
+        .collect();
+    assert_eq!(members, [3], "memberships go with the songs");
+    assert_eq!(
+        std::fs::read(&audio).unwrap(),
+        [7u8; 16],
+        "original bytes stay"
+    );
+
+    // Edit atomicity: search finds the new title, not the old; invalid input writes nothing.
+    library
+        .edit_metadata(&edit(3, "Quasar", "2001", "4"), 5.0)
+        .unwrap();
+    let found = library.repository.search_songs("Quasar", 10, 0).unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(
+        (
+            found[0].artist.as_str(),
+            found[0].album.as_str(),
+            found[0].release_year,
+            found[0].track_number
+        ),
+        ("New artist", "New album", Some(2001), Some(4))
+    );
+    assert_eq!(
+        found[0].local_file_path.as_deref(),
+        Some("Added Files/keep.flac")
+    );
+    assert!(
+        library
+            .repository
+            .search_songs("Oldtitle3", 10, 0)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        library
+            .edit_metadata(&edit(3, "Bad", "12345", ""), 6.0)
+            .is_err()
+    );
+    assert!(
+        library
+            .edit_metadata(&edit(99, "Ghost", "", ""), 6.0)
+            .is_err()
+    );
+    assert!(
+        library
+            .repository
+            .search_songs("Bad", 10, 0)
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        library
+            .repository
+            .search_songs("Ghost", 10, 0)
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        library.repository.get_song(3).unwrap().unwrap().title,
+        "Quasar"
     );
 }

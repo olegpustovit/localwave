@@ -68,6 +68,16 @@ pub enum Intent {
     KeepOffline(i64),
     RetryDownload(i64),
     RevealSong(i64),
+    /// Open the metadata editor prefilled from the row (track menu "Edit info…").
+    OpenMetadata(MetadataEdit),
+    MetadataField(usize, browse::Query),
+    MetadataTooLong,
+    CloseMetadata,
+    SaveMetadata(MetadataEdit),
+    /// Ask before removing the song's library entry; files are never deleted.
+    ConfirmDeleteSong(i64),
+    CloseDeleteSong,
+    DeleteSong(i64),
     /// Share the song (or its selection) from the menu opened at this window point.
     ShareSong(i64, (f32, f32)),
     /// Swap the open track menu for its playlist choices.
@@ -157,6 +167,53 @@ pub enum Intent {
     ReconnectSource(files::Target),
     ConfirmRemoveSource(files::Target),
     CloseRemoveSource,
+}
+
+/// The editable metadata of one song as bounded text packets; year and track stay text until saved.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub struct MetadataEdit {
+    pub song: i64,
+    pub title: browse::Query,
+    pub artist: browse::Query,
+    pub album: browse::Query,
+    pub album_artist: browse::Query,
+    pub year: browse::Query,
+    pub track: browse::Query,
+}
+impl MetadataEdit {
+    pub const MAX_NUMBER: i64 = 9999;
+    pub fn field_mut(&mut self, index: usize) -> Option<&mut browse::Query> {
+        Some(match index {
+            0 => &mut self.title,
+            1 => &mut self.artist,
+            2 => &mut self.album,
+            3 => &mut self.album_artist,
+            4 => &mut self.year,
+            5 => &mut self.track,
+            _ => return None,
+        })
+    }
+    /// Blank means unset; otherwise a whole number within 0..=9999.
+    fn number(text: &browse::Query) -> Option<Option<i64>> {
+        let text = text.as_str().trim();
+        if text.is_empty() {
+            return Some(None);
+        }
+        text.parse::<i64>()
+            .ok()
+            .filter(|n| {
+                (0..=Self::MAX_NUMBER).contains(n) && text.bytes().all(|b| b.is_ascii_digit())
+            })
+            .map(Some)
+    }
+    /// (year, track) when both fields are valid.
+    pub fn numbers(&self) -> Option<(Option<i64>, Option<i64>)> {
+        Some((Self::number(&self.year)?, Self::number(&self.track)?))
+    }
+    /// A song needs an id and a title; numbers must parse.
+    pub fn valid(&self) -> bool {
+        self.song > 0 && !self.title.as_str().trim().is_empty() && self.numbers().is_some()
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

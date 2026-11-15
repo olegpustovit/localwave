@@ -91,6 +91,8 @@ impl Worker {
             | Command::DeleteList(_)
             | Command::ReorderList(..)
             | Command::RetryDownload(_)
+            | Command::EditMetadata(_)
+            | Command::DeleteSong(_)
             | Command::Reveal(_)
             | Command::Share(..)) => self.library_command(command)?,
         };
@@ -403,6 +405,24 @@ impl Worker {
             Command::ReorderList(list, order) => {
                 let result = self.library.reorder_list(list, &order);
                 self.list_result(result, "reorder the list", "")
+            }
+            Command::EditMetadata(edit) => {
+                let result = self.library.edit_metadata(&edit, now());
+                if result.is_ok() {
+                    // The current song's title/artist/album are republished on the next status.
+                    self.metadata_id = None;
+                }
+                self.list_result(result, "save the metadata", "")
+            }
+            Command::DeleteSong(song) => {
+                // Rows only: the queue keeps its occurrences and a current native item
+                // keeps its metadata and cache lease until retirement, as for source removal.
+                let result = self.library.delete_song(song);
+                self.list_result(
+                    result,
+                    "delete the song",
+                    "Removed from the library. The file was not deleted.",
+                )
             }
             Command::RetryDownload(song) => {
                 match self.library.retry_download(song) {

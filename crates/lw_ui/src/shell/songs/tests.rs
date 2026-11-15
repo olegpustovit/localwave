@@ -1076,6 +1076,8 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         ("Favorite", true),
         ("Keep offline", true),
         ("Share…", false),
+        ("Edit info…", true),
+        ("Delete…", true),
     ];
     let names = |items: &[(String, bool)]| {
         items
@@ -1877,7 +1879,10 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     ] {
         assert!(has(&names, text), "onboarding: {text}");
     }
-    assert!(!has(&show(&mut ui, &titled(0), &state, &player), "Choose a folder"));
+    assert!(!has(
+        &show(&mut ui, &titled(0), &state, &player),
+        "Choose a folder"
+    ));
     // Its primary action is the add-folder flow, shortcut and button alike.
     show(&mut ui, &empty, &state, &player);
     let button = ui
@@ -1906,7 +1911,10 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     assert_eq!(intent, Some(Intent::ChooseFolder));
     // Exploring leaves onboarding.
     state.apply(Intent::Navigate(Route::Albums));
-    assert!(!has(&show(&mut ui, &empty, &state, &player), "Choose a folder"));
+    assert!(!has(
+        &show(&mut ui, &empty, &state, &player),
+        "Choose a folder"
+    ));
 
     // A source without songs gets the library message on Songs, Albums and Artists.
     for route in [Route::Songs, Route::Albums, Route::Artists] {
@@ -1919,10 +1927,16 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     find.apply(Intent::Navigate(Route::Find));
     let request = find.request(&filled).unwrap();
     filled.project(request, Vec::new());
-    assert!(has(&show(&mut ui, &filled, &*find, &player), onboarding::FIND_HINT));
+    assert!(has(
+        &show(&mut ui, &filled, &*find, &player),
+        onboarding::FIND_HINT
+    ));
     let lists = &mut state;
     lists.apply(Intent::Navigate(Route::Collection(list)));
-    assert!(has(&show(&mut ui, &filled, &*lists, &player), "No songs here yet."));
+    assert!(has(
+        &show(&mut ui, &filled, &*lists, &player),
+        "No songs here yet."
+    ));
     // Queue and Files.
     let queue = &mut state;
     queue.apply(Intent::ShowQueue);
@@ -1933,7 +1947,10 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
         std::sync::Arc::new(PlaybackContext::Library),
         false,
     )));
-    assert!(has(&show(&mut ui, &filled, &*queue, &player), "Queue is empty."));
+    assert!(has(
+        &show(&mut ui, &filled, &*queue, &player),
+        "Queue is empty."
+    ));
     let files = &mut state;
     files.apply(Intent::CloseQueue);
     files.apply(Intent::Navigate(Route::Files));
@@ -2086,5 +2103,140 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     for _ in 0..4 {
         run(&mut ui, &[]);
         assert_eq!(mem_sys::local_alloc_count(), 0, "warm frame during a drag");
+    }
+}
+
+#[test]
+fn metadata_editor_opens_prefilled_saves_edited_fields_and_delete_confirms_without_allocations() {
+    mem_sys::set_peer(pxui::library_counter);
+    let catalog = crate::tests::prepared(vec![lw_core::Song {
+        id: Some(1),
+        title: "Quiet lights".into(),
+        artist: "The National".into(),
+        album: "A midnight album".into(),
+        album_artist: "Various".into(),
+        release_year: Some(2010),
+        track_number: Some(3),
+        ..Default::default()
+    }]);
+    let all = catalog.all.as_ref().unwrap().key;
+    let player = PlayerView::default();
+    let mut state = ShellState::default();
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, state: &ShellState| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            reduced_motion: 1,
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
+        intent
+    };
+    let activate = |ui: &mut Ui, role: Role, name: &str| {
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(role) && ui.a11y_name_of(node) == name)
+            .unwrap_or_else(|| panic!("no {name}"))
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
+    };
+    let q = |text: &str| Query::new(text).unwrap();
+    run(&mut ui, &state);
+    state.apply(Intent::SongMenu(0, 1, all, (500.0, 200.0)));
+    run(&mut ui, &state);
+    activate(&mut ui, Role::MenuItem, "Edit info…");
+    let opened = run(&mut ui, &state);
+    let prefilled = crate::MetadataEdit {
+        song: 1,
+        title: q("Quiet lights"),
+        artist: q("The National"),
+        album: q("A midnight album"),
+        album_artist: q("Various"),
+        year: q("2010"),
+        track: q("3"),
+    };
+    assert_eq!(opened, Some(Intent::OpenMetadata(prefilled)));
+    state.apply(opened.unwrap());
+    run(&mut ui, &state);
+    run(&mut ui, &state); // the tall sheet settles to its centred position
+    activate(&mut ui, Role::Button, "Cancel");
+    assert_eq!(
+        run(&mut ui, &state),
+        Some(Intent::CloseMetadata),
+        "Cancel emits no save"
+    );
+    state.apply(Intent::CloseMetadata);
+    run(&mut ui, &state);
+
+    // Save carries the edited fields; invalid numbers or a blank title refuse it.
+    state.apply(Intent::OpenMetadata(prefilled));
+    state.apply(Intent::MetadataField(0, q("Brand new")));
+    state.apply(Intent::MetadataField(4, q("1999")));
+    run(&mut ui, &state);
+    activate(&mut ui, Role::Button, "Save");
+    assert_eq!(
+        run(&mut ui, &state),
+        Some(Intent::SaveMetadata(crate::MetadataEdit {
+            title: q("Brand new"),
+            year: q("1999"),
+            ..prefilled
+        }))
+    );
+    for (field, text) in [(4, "20x0"), (5, "10000"), (0, "  ")] {
+        state.apply(Intent::OpenMetadata(prefilled));
+        state.apply(Intent::MetadataField(field, q(text)));
+        run(&mut ui, &state);
+        activate(&mut ui, Role::Button, "Save");
+        assert_eq!(run(&mut ui, &state), None, "{text:?}");
+    }
+    state.apply(Intent::CloseMetadata);
+
+    // Delete asks first; only the confirmation emits the command.
+    state.apply(Intent::SongMenu(0, 1, all, (500.0, 200.0)));
+    run(&mut ui, &state);
+    activate(&mut ui, Role::MenuItem, "Delete…");
+    assert_eq!(run(&mut ui, &state), Some(Intent::ConfirmDeleteSong(1)));
+    state.apply(Intent::ConfirmDeleteSong(1));
+    run(&mut ui, &state);
+    activate(&mut ui, Role::Button, "Cancel");
+    assert_eq!(run(&mut ui, &state), Some(Intent::CloseDeleteSong));
+    run(&mut ui, &state);
+    activate(&mut ui, Role::Button, "Delete Song");
+    assert_eq!(run(&mut ui, &state), Some(Intent::DeleteSong(1)));
+    state.apply(Intent::CloseDeleteSong);
+
+    for cycle in 0..8 {
+        mem_sys::local_reset();
+        for open in [
+            Intent::OpenMetadata(prefilled),
+            Intent::ConfirmDeleteSong(1),
+        ] {
+            state.apply(open);
+            run(&mut ui, &state);
+            state.apply(Intent::CloseMetadata);
+            state.apply(Intent::CloseDeleteSong);
+            run(&mut ui, &state);
+        }
+        if cycle >= 3 {
+            assert_eq!(
+                mem_sys::local_alloc_count(),
+                0,
+                "warm editor and delete dialogs"
+            );
+        }
     }
 }

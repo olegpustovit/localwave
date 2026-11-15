@@ -1,4 +1,5 @@
 use super::*;
+use crate::browse;
 
 pub(in crate::shell) fn popup(
     ui: &mut Ui,
@@ -24,7 +25,7 @@ pub(in crate::shell) fn popup(
         });
     let routes = catalog.byline_routes(target.1);
     // Swift's LWTrackMenu order.
-    let mut items: [Option<(&'static str, bool, Intent)>; 13] = [None; 13];
+    let mut items: [Option<(&'static str, bool, Intent)>; 15] = [None; 15];
     let mut count = 0;
     for entry in [
         Some(("Play", true, Intent::PlayRow(target.0))),
@@ -62,6 +63,9 @@ pub(in crate::shell) fn popup(
             row.is_some_and(|row| row.source_id.is_some()) && !sharing,
             Intent::ShareSong(target.1, click),
         )),
+        row.and_then(|row| edit(&row))
+            .map(|edit| ("Edit info…", true, Intent::OpenMetadata(edit))),
+        Some(("Delete…", true, Intent::ConfirmDeleteSong(target.1))),
         list.map(|list| {
             (
                 "Remove from list",
@@ -184,4 +188,29 @@ fn item_node(enabled: bool, p: Palette) -> Node {
         },
         ..Node::DEFAULT
     }
+}
+
+/// Prefill from the row; `None` when a field exceeds the packet, so saving cannot truncate it.
+fn edit(row: &crate::catalog::Row<'_>) -> Option<crate::MetadataEdit> {
+    let number = |n: Option<i64>| {
+        let mut digits = [0u8; 20];
+        let mut at = digits.len();
+        if let Some(mut n) = n.map(|n| n.max(0) as u64) {
+            while n > 0 || at == digits.len() {
+                at -= 1;
+                digits[at] = b'0' + (n % 10) as u8;
+                n /= 10;
+            }
+        }
+        browse::Query::new(std::str::from_utf8(&digits[at..]).ok()?)
+    };
+    Some(crate::MetadataEdit {
+        song: row.id,
+        title: browse::Query::new(row.title)?,
+        artist: browse::Query::new(row.artist)?,
+        album: browse::Query::new(row.album)?,
+        album_artist: browse::Query::new(row.album_artist)?,
+        year: number(row.release_year)?,
+        track: number(row.track_number)?,
+    })
 }

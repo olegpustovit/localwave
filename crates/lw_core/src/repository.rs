@@ -208,6 +208,42 @@ impl LibraryRepository {
         result
     }
 
+    /// Swift's metadata editor: the song row and its FTS5 row change in one transaction.
+    /// Everything else on the row (cache state, favorite, disc) is untouched.
+    pub fn edit_song_metadata(
+        &mut self,
+        id: i64,
+        [title, artist, album, album_artist]: [&str; 4],
+        year: Option<i64>,
+        track: Option<i64>,
+        now: f64,
+    ) -> Result<()> {
+        let result = self.db.transaction(|db| {
+            self.song_fts.refresh(db)?;
+            let changed = db.execute(
+                "UPDATE songs SET title=?,artist=?,album=?,albumArtist=?,releaseYear=?,trackNumber=?,updatedAt=? WHERE id=?",
+                &[
+                    Text(title),
+                    Text(artist),
+                    Text(album),
+                    Text(album_artist),
+                    year.map_or(Null, Integer),
+                    track.map_or(Null, Integer),
+                    Real(now),
+                    Integer(id),
+                ],
+            )?;
+            if changed == 0 {
+                return Err(Error::invalid("Song was removed"));
+            }
+            store_fts(db, &mut self.song_fts, id, [artist, title, album, album_artist])
+        });
+        if result.is_err() {
+            self.song_fts.invalidate();
+        }
+        result
+    }
+
     pub fn set_favorite(&self, id: i64, favorite: bool) -> Result<()> {
         self.db.execute(
             "UPDATE songs SET isFavorite=? WHERE id=?",
@@ -506,16 +542,32 @@ pub(crate) fn store_song(
         db.execute("INSERT INTO songs (songKey,artist,title,album,albumArtist,releaseYear,discNumber,trackNumber,coverArtPath,bookmark,pathHash,createdAt,updatedAt,localFilePath,fileState,isFavorite,sourceId,relativePath,duration,fileSize,fileExtension,sampleRate,bitDepth,sourceAvailability) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", &values)?;
         db.last_insert_id()
     };
+    store_fts(
+        db,
+        fts,
+        id,
+        [&song.artist, &song.title, &song.album, &song.album_artist],
+    )?;
+    required(get_song(db, id)?)
+}
+
+/// Write the song's FTS5 row(s) (artist, title, album, albumArtist), inserting when none exist.
+fn store_fts(
+    db: &Connection,
+    fts: &mut SongSearchRows,
+    id: i64,
+    [artist, title, album, album_artist]: [&str; 4],
+) -> Result<()> {
     let rows = fts.rows.entry(id).or_default();
     if rows.is_empty() {
         db.execute(
             "INSERT INTO songs_fts (songId,artist,title,album,albumArtist) VALUES (?,?,?,?,?)",
             &[
                 Integer(id),
-                Text(&song.artist),
-                Text(&song.title),
-                Text(&song.album),
-                Text(&song.album_artist),
+                Text(artist),
+                Text(title),
+                Text(album),
+                Text(album_artist),
             ],
         )?;
         rows.push(db.last_insert_id());
@@ -523,18 +575,11 @@ pub(crate) fn store_song(
         for &row_id in rows.iter() {
             db.execute(
                 "UPDATE songs_fts SET artist=?,title=?,album=?,albumArtist=? WHERE rowid=? AND songId=?",
-                &[
-                    Text(&song.artist),
-                    Text(&song.title),
-                    Text(&song.album),
-                    Text(&song.album_artist),
-                    Integer(row_id),
-                    Integer(id),
-                ],
+                &[Text(artist), Text(title), Text(album), Text(album_artist), Integer(row_id), Integer(id)],
             )?;
         }
     }
-    required(get_song(db, id)?)
+    Ok(())
 }
 
 fn query_songs(db: &Connection, clause: &str, parameters: &[Value<'_>]) -> Result<Vec<Song>> {

@@ -75,6 +75,10 @@ pub enum Command {
     DeleteList(i64),
     ReorderList(i64, Arc<[i64]>),
     RetryDownload(i64),
+    /// Metadata editor save (song row and FTS5 in one transaction).
+    EditMetadata(Box<lw_ui::MetadataEdit>),
+    /// Remove the library entry only; the original file and any current native item stay.
+    DeleteSong(i64),
     /// Show the song's file in Finder through its source grant.
     Reveal(i64),
     /// Copy the songs' files under their source grants, then show the share picker at the anchor.
@@ -95,6 +99,8 @@ impl Command {
                 | Self::DeleteList(_)
                 | Self::ReorderList(..)
                 | Self::RetryDownload(_)
+                | Self::EditMetadata(_)
+                | Self::DeleteSong(_)
         )
     }
     pub(super) fn validate(&self) -> io::Result<()> {
@@ -128,7 +134,8 @@ impl Command {
             Self::RenameList(list, name) => *list <= 0 || name.as_str().trim().is_empty(),
             Self::DeleteList(list) => *list <= 0,
             Self::ReorderList(list, order) => *list <= 0 || bad_ids(order),
-            Self::RetryDownload(song) | Self::Reveal(song) => *song <= 0,
+            Self::RetryDownload(song) | Self::Reveal(song) | Self::DeleteSong(song) => *song <= 0,
+            Self::EditMetadata(edit) => !edit.valid(),
             Self::Share(songs, anchor) => {
                 bad_ids(songs) || !anchor.0.is_finite() || !anchor.1.is_finite()
             }
@@ -160,6 +167,8 @@ impl Command {
                 | Self::DeleteList(_)
                 | Self::ReorderList(..)
                 | Self::RetryDownload(_)
+                | Self::EditMetadata(_)
+                | Self::DeleteSong(_)
                 | Self::Reveal(_)
                 | Self::Share(..)
                 | Self::Setting(
