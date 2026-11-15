@@ -342,8 +342,6 @@ device/provider behavior remain open.
   P3 removes Now metadata string hashes and caches stable pages/rows across ticks; P6 hot-path work remains.
   Whole-framework Clippy has existing dependency/integration-test warnings; changed production,
   ABI/public tests and the full LocalWave workspace pass their scoped checks.
-- Framework `repaint_node` resets accumulated damage for each between-frame patch; multiple patches
-  before one draw need a separate correctness fix. Dirty upload ranges still accumulate.
 - Shared Swift checks fail two child source-notification tests, also in an isolated run on unchanged
   Swift sources. Six Swift/Rust exchange cases pass. Investigated in F9 on macOS 27.0.1: a file
   presenter gets coordinated writes reliably, but a directory presenter receives subitem
