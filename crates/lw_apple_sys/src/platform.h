@@ -47,6 +47,7 @@ void lw_player_release(void *player);
 void lw_player_run_loop(double seconds);
 int lw_window_open_link(int kind);
 int lw_window_reveal_file(const char *path);
+int lw_window_share_files(const char *const *paths, size_t count, double x, double y);
 
 typedef struct { int kind; double seconds; } LWMediaCommand;
 typedef struct {

@@ -77,6 +77,8 @@ pub enum Command {
     RetryDownload(i64),
     /// Show the song's file in Finder through its source grant.
     Reveal(i64),
+    /// Copy the songs' files under their source grants, then show the share picker at the anchor.
+    Share(Arc<[i64]>, (f32, f32)),
 }
 impl Command {
     pub(super) fn changes_catalog(&self) -> bool {
@@ -127,6 +129,9 @@ impl Command {
             Self::DeleteList(list) => *list <= 0,
             Self::ReorderList(list, order) => *list <= 0 || bad_ids(order),
             Self::RetryDownload(song) | Self::Reveal(song) => *song <= 0,
+            Self::Share(songs, anchor) => {
+                bad_ids(songs) || !anchor.0.is_finite() || !anchor.1.is_finite()
+            }
             Self::SaveQueue(name) => name.as_str().trim().is_empty(),
             Self::Setting(change) => Settings::default().applying(*change).is_err(),
             _ => false,
@@ -156,6 +161,7 @@ impl Command {
                 | Self::ReorderList(..)
                 | Self::RetryDownload(_)
                 | Self::Reveal(_)
+                | Self::Share(..)
                 | Self::Setting(
                     SettingChange::Appearance(_)
                         | SettingChange::Signal(_)
@@ -196,6 +202,7 @@ pub struct Status {
     pub cache_usage: Arc<str>,
     pub settings_message: Arc<str>,
     pub storage_busy: bool,
+    pub sharing: bool,
     pub waveform: Option<lw_core::waveform::Peaks>,
     pub revision: u64,
     pub stable_revision: u64,
@@ -244,6 +251,7 @@ impl Default for Status {
             cache_usage: Arc::from(""),
             settings_message: Arc::from(""),
             storage_busy: false,
+            sharing: false,
             waveform: None,
             revision: 0,
             stable_revision: 0,

@@ -1165,7 +1165,7 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
 }
 
 #[test]
-fn reveal_resolves_the_source_grant_on_the_worker_and_rejects_missing_files() {
+fn reveal_and_share_resolve_the_source_grant_on_the_worker_and_reject_missing_files() {
     use lw_core::{Song, Source};
     let base = std::env::temp_dir().join(format!("lw-reveal-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
@@ -1230,6 +1230,24 @@ fn reveal_resolves_the_source_grant_on_the_worker_and_rejects_missing_files() {
     assert!(library.reveal_target(9999, 1.0).is_err());
     // The native call is queued on the main run loop, which a test process never services.
     library.reveal_song(here, 1.0).unwrap();
+    // Share copies each file under the grant, one numbered folder per song; picker not opened here.
+    let shared = library.prepare_share(&[here, here], 1.0).unwrap();
+    assert_eq!(shared.len(), 2);
+    assert_ne!(shared[0].parent(), shared[1].parent());
+    for copy in &shared {
+        assert_eq!(copy.file_name().unwrap(), "here.flac");
+        assert_eq!(std::fs::read(copy).unwrap(), [1; 8]);
+        assert!(copy.starts_with(base.join("tmp").join("LocalWave Share")));
+    }
+    let batches = || std::fs::read_dir(base.join("tmp").join("LocalWave Share")).unwrap().count();
+    let before = batches();
+    for bad in [&[][..], &[here, gone][..], &[loose][..], &[9999][..]] {
+        assert!(library.prepare_share(bad, 1.0).is_err());
+    }
+    assert_eq!(batches(), before, "failed batches leave no copies");
+    assert!(Command::Share(Arc::from([here]), (1.0, 2.0)).validate().is_ok());
+    assert!(Command::Share(Arc::from([0]), (1.0, 2.0)).validate().is_err());
+    assert!(Command::Share(Arc::from([1]), (f32::NAN, 2.0)).validate().is_err());
     let _ = std::fs::remove_dir_all(&base);
 }
 

@@ -1075,6 +1075,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         ("Show in Finder", false),
         ("Favorite", true),
         ("Keep offline", true),
+        ("Share…", false),
     ];
     let names = |items: &[(String, bool)]| {
         items
@@ -1143,6 +1144,29 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
     activate(&mut ui, "Retry download");
     run(&mut ui, &state, &mut frame, &mut intent);
     assert_eq!(intent, Some(Intent::RetryDownload(2)));
+    state.apply(Intent::SongMenu(1, 2, all, (500.0, 200.0)));
+    run(&mut ui, &state, &mut frame, &mut intent);
+    let order: Vec<_> = items(&ui).into_iter().map(|item| item.0).collect();
+    let (retry, share) = (
+        order.iter().position(|name| name == "Retry download"),
+        order.iter().position(|name| name == "Share…"),
+    );
+    assert_eq!(share, retry.map(|index| index + 1), "Share follows Retry");
+    assert!(items(&ui).iter().any(|item| item.0 == "Share…" && item.1));
+    activate(&mut ui, "Share…");
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(intent, Some(Intent::ShareSong(2, (500.0, 200.0))));
+    // A share in flight disables the item, as Swift's `sharing` flag does.
+    frame.time += 0.01;
+    ui.frame(&frame, &mut |ui| {
+        let busy = PlayerView {
+            sharing: true,
+            ..Default::default()
+        };
+        shell(ui, &busy, 0.0, &catalog, &state, &mut None)
+    })
+    .unwrap();
+    assert!(items(&ui).iter().any(|item| item.0 == "Share…" && !item.1));
     state.apply(Intent::CloseSongMenu);
     // Inside a playlist: Remove from list, and that list is not offered as a target.
     state.apply(Intent::SongMenu(0, 1, morning, (500.0, 200.0)));
@@ -1780,4 +1804,147 @@ fn select_all_is_a_no_op_while_find_is_focused() {
     };
     run(&mut ui, &[key(input::Key::Meta.code())]);
     assert_eq!(run(&mut ui, &[key('a' as u32)]), None);
+}
+
+#[test]
+fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() {
+    use lw_core::context::PlaybackContext;
+    mem_sys::set_peer(pxui::library_counter);
+    let mut empty = titled(0);
+    std::sync::Arc::make_mut(&mut empty.library).set_source_count(0);
+    let mut sourced = titled(0);
+    std::sync::Arc::make_mut(&mut sourced.library).set_source_count(1);
+    let mut filled = titled(2);
+    filled.add_collection(
+        "Quiet",
+        Vec::new(),
+        PlaybackContext::Playlist {
+            id: 9,
+            name: "Quiet".into(),
+        },
+    );
+    filled.prepare_tables().unwrap();
+    let list = filled
+        .collections
+        .iter()
+        .position(|group| matches!(&*group.context, PlaybackContext::Playlist { id: 9, .. }))
+        .unwrap();
+    let folders = crate::files::Snapshot {
+        account: Some(1),
+        ..Default::default()
+    };
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let time = std::cell::Cell::new(0.0);
+    // Renders three warm frames; the last must not allocate. Returns the accessibility strings.
+    let show = |ui: &mut Ui, catalog: &Catalog, state: &ShellState, player: &PlayerView<'_>| {
+        let mut intent = None;
+        for cycle in 0..4 {
+            time.set(time.get() + 0.02);
+            mem_sys::local_reset();
+            ui.frame(
+                &FrameIn {
+                    width: 1440.0,
+                    height: 872.0,
+                    time: time.get(),
+                    reduced_motion: 1,
+                    ..Default::default()
+                },
+                &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent),
+            )
+            .unwrap();
+            if cycle == 3 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "warm empty state");
+            }
+        }
+        (ui.a11y_nodes().iter())
+            .map(|node| ui.a11y_name_of(node).to_string())
+            .collect::<Vec<_>>()
+    };
+    let has = |names: &[String], text: &str| names.iter().any(|name| name == text);
+    let player = PlayerView::default();
+    let mut state = ShellState::default();
+
+    // No sources and no songs: onboarding with its three steps; unloaded sources never show it.
+    let names = show(&mut ui, &empty, &state, &player);
+    for text in [
+        "Choose a folder",
+        "Pick some files",
+        "Explore the library",
+        "Point it at a folder.",
+        "Choose a folder in Files",
+        "Your files stay where they are. Nothing is uploaded.",
+    ] {
+        assert!(has(&names, text), "onboarding: {text}");
+    }
+    assert!(!has(&show(&mut ui, &titled(0), &state, &player), "Choose a folder"));
+    // Its primary action is the add-folder flow, shortcut and button alike.
+    show(&mut ui, &empty, &state, &player);
+    let button = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == "Choose a folder")
+        .unwrap()
+        .id;
+    ui.inject_a11y(&[pxui::A11yAction {
+        id: button,
+        action_code: 1,
+        ..Default::default()
+    }]);
+    let mut intent = None;
+    ui.frame(
+        &FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time: 9.0,
+            reduced_motion: 1,
+            ..Default::default()
+        },
+        &mut |ui| shell(ui, &player, 0.0, &empty, &state, &mut intent),
+    )
+    .unwrap();
+    assert_eq!(intent, Some(Intent::ChooseFolder));
+    // Exploring leaves onboarding.
+    state.apply(Intent::Navigate(Route::Albums));
+    assert!(!has(&show(&mut ui, &empty, &state, &player), "Choose a folder"));
+
+    // A source without songs gets the library message on Songs, Albums and Artists.
+    for route in [Route::Songs, Route::Albums, Route::Artists] {
+        state.apply(Intent::Navigate(route));
+        let names = show(&mut ui, &sourced, &state, &player);
+        assert!(has(&names, onboarding::LIBRARY_EMPTY), "{route:?}");
+    }
+    // Find without a query hints; a list without songs has its own text.
+    let find = &mut state;
+    find.apply(Intent::Navigate(Route::Find));
+    let request = find.request(&filled).unwrap();
+    filled.project(request, Vec::new());
+    assert!(has(&show(&mut ui, &filled, &*find, &player), onboarding::FIND_HINT));
+    let lists = &mut state;
+    lists.apply(Intent::Navigate(Route::Collection(list)));
+    assert!(has(&show(&mut ui, &filled, &*lists, &player), "No songs here yet."));
+    // Queue and Files.
+    let queue = &mut state;
+    queue.apply(Intent::ShowQueue);
+    filled.queue = Some(std::sync::Arc::new(crate::queue::Snapshot::new(
+        1,
+        std::sync::Arc::from([]),
+        None,
+        std::sync::Arc::new(PlaybackContext::Library),
+        false,
+    )));
+    assert!(has(&show(&mut ui, &filled, &*queue, &player), "Queue is empty."));
+    let files = &mut state;
+    files.apply(Intent::CloseQueue);
+    files.apply(Intent::Navigate(Route::Files));
+    let names = show(
+        &mut ui,
+        &filled,
+        &*files,
+        &PlayerView {
+            files: Some(&folders),
+            ..Default::default()
+        },
+    );
+    assert!(has(&names, "Point it at a folder."));
 }

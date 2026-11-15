@@ -301,6 +301,7 @@ impl App {
             cache_usage: &status.cache_usage,
             settings_message: &status.settings_message,
             storage_busy: status.storage_busy,
+            sharing: status.sharing,
             artwork: Some(graphics.images()),
             waveform: status.waveform.as_ref(),
             revision: status.stable_revision + (*error_revision),

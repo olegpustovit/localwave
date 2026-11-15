@@ -68,6 +68,8 @@ pub enum Intent {
     KeepOffline(i64),
     RetryDownload(i64),
     RevealSong(i64),
+    /// Share the song (or its selection) from the menu opened at this window point.
+    ShareSong(i64, (f32, f32)),
     /// Swap the open track menu for its playlist choices.
     SongMenuLists,
     TogglePins,
@@ -174,6 +176,8 @@ pub struct PlayerView<'a> {
     pub cache_usage: &'a str,
     pub settings_message: &'a str,
     pub storage_busy: bool,
+    /// A share is being prepared; Swift's `sharing` flag disables Share…
+    pub sharing: bool,
     pub artwork: Option<&'a artwork::Images>,
     pub waveform: Option<&'a lw_core::waveform::Peaks>,
     pub revision: u64,

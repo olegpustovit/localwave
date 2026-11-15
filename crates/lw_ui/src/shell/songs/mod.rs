@@ -342,6 +342,9 @@ pub(super) fn table(
     ));
     let entry = crate::motion::Page::new(ui, state.entry_revision);
     let find = state.route == Route::Find;
+    // Swift shows no empty text for Find results; an empty query gets its hint instead.
+    let hint = find && state.query.as_str().trim().is_empty();
+    let placeholder = collection.rows.is_empty() && (!find || hint);
     if find {
         header_view(ui, catalog, state, width, p, intent);
     }
@@ -377,12 +380,12 @@ pub(super) fn table(
             let list = ui.section_list_measured(
                 "songs",
                 &SectionList {
-                    count: if collection.rows.is_empty() && !find {
+                    count: if placeholder {
                         1
                     } else {
                         collection.rows.len()
                     },
-                    row_height: if collection.rows.is_empty() && !find {
+                    row_height: if placeholder {
                         83.6
                     } else {
                         38.0
@@ -403,7 +406,7 @@ pub(super) fn table(
                         viewport.height = ui.rect(&list).h;
                         heading(ui, widths, applied, heading_layout, p, intent);
                     }
-                    SectionPart::Row(_) if collection.rows.is_empty() => {
+                    SectionPart::Row(_) if placeholder => {
                         let empty = ui.node(
                             "empty",
                             Node {
@@ -417,7 +420,13 @@ pub(super) fn table(
                             text(
                                 ui,
                                 "no-songs",
-                                "No songs here yet.",
+                                if hint {
+                                    onboarding::FIND_HINT
+                                } else if catalog.is_empty() {
+                                    onboarding::LIBRARY_EMPTY
+                                } else {
+                                    "No songs here yet."
+                                },
                                 14,
                                 p.secondary,
                                 (Size::Grow, 19.6),

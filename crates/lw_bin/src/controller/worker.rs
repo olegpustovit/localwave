@@ -25,6 +25,7 @@ pub(super) struct Worker {
     pub(super) cache_usage: Arc<str>,
     pub(super) settings_message: Arc<str>,
     pub(super) storage_pending: bool,
+    pub(super) share_pending: Option<(Arc<[i64]>, (f32, f32))>,
     pub(super) copies_pending: bool,
     pub(super) context: Arc<PlaybackContext>,
     pub(super) library: LibraryWorker,
@@ -106,6 +107,7 @@ impl Worker {
                 cache_usage: empty.clone(),
                 settings_message: empty.clone(),
                 storage_pending: false,
+                share_pending: None,
                 copies_pending,
                 context,
                 library,
@@ -275,6 +277,7 @@ impl Worker {
             }
             if self.pending.is_none() {
                 self.load_storage();
+                self.load_share();
                 let reload = std::mem::take(&mut self.catalog_dirty);
                 if std::mem::take(&mut self.browse_dirty) || reload {
                     self.shared.inbox.lock().unwrap().catalog_pending = true;

@@ -251,6 +251,10 @@ impl App {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::Reveal(id)
                 }
+                lw_ui::Intent::ShareSong(id, at) => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::Share(targets(shell_state, player.catalog(), id), at)
+                }
                 lw_ui::Intent::AppendSong(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::Append(id)

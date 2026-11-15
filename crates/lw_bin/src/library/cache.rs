@@ -218,6 +218,54 @@ impl LibraryWorker {
         let path = self.reveal_target(id, now)?;
         lw_apple_sys::window::reveal(&path)
     }
+    /// Swift's `LWSourceFileSharing.prepare`: coordinated copies under each source's held grant,
+    /// one numbered folder per song so equal file names never collide. Any failure removes the batch.
+    pub fn prepare_share(&mut self, ids: &[i64], now: f64) -> io::Result<Vec<PathBuf>> {
+        if ids.is_empty() {
+            return Err(io::Error::other("No songs were selected to share."));
+        }
+        let base = self.paths.temporary.join("LocalWave Share");
+        std::fs::create_dir_all(&base)?;
+        // shortcut: pickers cannot report completion here, so batches are swept a day later.
+        for old in std::fs::read_dir(&base)?.flatten() {
+            let stale = old
+                .metadata()
+                .and_then(|info| info.modified())
+                .ok()
+                .and_then(|time| time.elapsed().ok())
+                .is_some_and(|age| age.as_secs() > 86_400);
+            if stale {
+                let _ = std::fs::remove_dir_all(old.path());
+            }
+        }
+        let batch = base.join(format!(
+            "{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(0, |time| time.as_nanos())
+        ));
+        let cancelled = AtomicBool::new(false);
+        let result = ids
+            .iter()
+            .enumerate()
+            .map(|(index, id)| {
+                let source = self.reveal_target(*id, now)?;
+                let folder = batch.join(index.to_string());
+                std::fs::create_dir_all(&folder)?;
+                lw_apple_sys::copy::copy_named(&source, &folder, &self.preferences, &cancelled)
+                    .map(|copied| copied.path)
+            })
+            .collect::<io::Result<Vec<_>>>();
+        if result.is_err() {
+            let _ = std::fs::remove_dir_all(&batch);
+        }
+        result
+    }
+    pub fn share_songs(&mut self, ids: &[i64], anchor: (f32, f32), now: f64) -> io::Result<()> {
+        let files = self.prepare_share(ids, now)?;
+        lw_apple_sys::window::share(&files, anchor)
+    }
     /// Swift's bulk pin toggle: persist one preference update and queue uncopied songs together.
     pub fn toggle_pins(&mut self, ids: &[i64]) -> io::Result<bool> {
         if ids.is_empty() || ids.len() > 1_000_000 {

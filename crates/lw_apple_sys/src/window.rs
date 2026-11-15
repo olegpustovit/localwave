@@ -39,6 +39,34 @@ pub fn reveal(path: &std::path::Path) -> io::Result<()> {
     }
 }
 
+/// Show the system share picker for prepared files, anchored at a window point (top-left origin).
+/// Callable from any thread; the files must already be copies the process may read.
+pub fn share(paths: &[std::path::PathBuf], anchor: (f32, f32)) -> io::Result<()> {
+    unsafe extern "C" {
+        fn lw_window_share_files(
+            paths: *const *const std::ffi::c_char,
+            count: usize,
+            x: f64,
+            y: f64,
+        ) -> i32;
+    }
+    let texts = paths
+        .iter()
+        .map(|path| {
+            path.to_str()
+                .and_then(|text| std::ffi::CString::new(text).ok())
+                .ok_or_else(|| io::Error::other("File path is not valid"))
+        })
+        .collect::<io::Result<Vec<_>>>()?;
+    let pointers: Vec<_> = texts.iter().map(|text| text.as_ptr()).collect();
+    let (x, y) = (f64::from(anchor.0), f64::from(anchor.1));
+    if unsafe { lw_window_share_files(pointers.as_ptr(), pointers.len(), x, y) } == 0 {
+        Err(io::Error::other("Could not share these files"))
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod link_tests {
     #[test]

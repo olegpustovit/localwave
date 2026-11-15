@@ -24,6 +24,7 @@ mod compact;
 mod detail;
 mod files;
 mod find;
+mod onboarding;
 mod settings;
 mod songs;
 
@@ -59,6 +60,7 @@ pub struct ShellState {
     source_menu: Option<(crate::files::Target, (f32, f32))>,
     song_menu: Option<(usize, i64, u64, (f32, f32))>,
     song_lists: bool,
+    explored: bool,
     remove_source: Option<crate::files::Target>,
     commands_visible: bool,
     command_query: Query,
@@ -99,6 +101,7 @@ impl Default for ShellState {
             source_menu: None,
             song_menu: None,
             song_lists: false,
+            explored: false,
             remove_source: None,
             commands_visible: false,
             command_query: Query::default(),
@@ -336,6 +339,7 @@ impl ShellState {
                 self.song_lists = false;
             }
             Intent::Navigate(route) => {
+                self.explored = true;
                 self.commands_visible = false;
                 self.shortcuts_visible = false;
                 self.source_menu = None;
@@ -649,7 +653,7 @@ pub fn shell(
         files::popup(ui, player, target, at, p, intent);
     }
     if let Some((index, id, key, at)) = state.song_menu {
-        songs::popup(ui, catalog, state, (index, id, key), at, p, intent);
+        songs::popup(ui, catalog, state, (index, id, key), at, player.sharing, p, intent);
     }
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, p, intent);
@@ -663,7 +667,9 @@ pub fn shell(
     if let Some(dialog) = state.list_dialog {
         lists::name_dialog(ui, state, dialog, p, intent);
     }
-    let root = if ui.view_size().0 < compact::BREAKPOINT {
+    let root = if onboarding::wanted(catalog, state) {
+        onboarding::view(ui, p, intent)
+    } else if ui.view_size().0 < compact::BREAKPOINT {
         state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, p, intent)
     } else {

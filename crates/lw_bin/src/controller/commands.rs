@@ -92,7 +92,8 @@ impl Worker {
             | Command::DeleteList(_)
             | Command::ReorderList(..)
             | Command::RetryDownload(_)
-            | Command::Reveal(_)) => self.library_command(command)?,
+            | Command::Reveal(_)
+            | Command::Share(..)) => self.library_command(command)?,
         };
         self.action(action);
         if structural && !keep_undo {
@@ -424,6 +425,11 @@ impl Worker {
                         "Could not show this file. Reconnect its source folder and try again.",
                     );
                 }
+                Action::None
+            }
+            // Copies run later in the background slot so this status shows `sharing` first.
+            Command::Share(songs, anchor) => {
+                self.share_pending.get_or_insert((songs, anchor));
                 Action::None
             }
             _ => unreachable!("command family dispatched above"),

@@ -65,6 +65,10 @@ pub(super) fn table(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    if catalog.artist_table.is_some() && catalog.is_empty() {
+        onboarding::empty_library(ui, catalog, state, width, p, intent);
+        return;
+    }
     let Some(table) = &catalog.artist_table else {
         header_view(ui, catalog, state, width, p, intent);
         let inset = ui.node(

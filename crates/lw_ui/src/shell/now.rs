@@ -135,6 +135,16 @@ pub(super) fn now_panel(
                 if player.current_id.is_some() {
                     byline::draw(ui, player, catalog, 279.0, p, intent);
                 }
+                if player.initialized && player.title.is_empty() {
+                    settings::paragraph(
+                        ui,
+                        "nothing-playing-hint",
+                        "Double-click a song, or drop audio files anywhere in this window.",
+                        279.0,
+                        14.0,
+                        p.secondary,
+                    );
+                }
             },
         );
         crate::motion::enter(

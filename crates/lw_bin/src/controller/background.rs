@@ -2,6 +2,15 @@
 use super::*;
 
 impl Worker {
+    pub(super) fn load_share(&mut self) {
+        let Some((songs, anchor)) = self.share_pending.take() else {
+            return;
+        };
+        if let Err(error) = self.library.share_songs(&songs, anchor, now()) {
+            eprintln!("LocalWave share: {error}");
+            self.message = Arc::from("This file is unavailable. Reconnect its folder, then try sharing again.");
+        }
+    }
     pub(super) fn load_storage(&mut self) {
         if !std::mem::take(&mut self.storage_pending) {
             return;

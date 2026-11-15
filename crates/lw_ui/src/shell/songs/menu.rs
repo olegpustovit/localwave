@@ -6,9 +6,11 @@ pub(in crate::shell) fn popup(
     state: &ShellState,
     target: (usize, i64, u64),
     at: (f32, f32),
+    sharing: bool,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    let click = at;
     let present = state.collection(catalog).is_some_and(|collection| {
         collection.key == target.2 && collection.ids.get(target.0) == Some(&target.1)
     });
@@ -21,8 +23,8 @@ pub(in crate::shell) fn popup(
             _ => None,
         });
     let routes = catalog.byline_routes(target.1);
-    // Swift's LWTrackMenu order. Share is F10.
-    let mut items: [Option<(&'static str, bool, Intent)>; 12] = [None; 12];
+    // Swift's LWTrackMenu order.
+    let mut items: [Option<(&'static str, bool, Intent)>; 13] = [None; 13];
     let mut count = 0;
     for entry in [
         Some(("Play", true, Intent::PlayRow(target.0))),
@@ -55,6 +57,11 @@ pub(in crate::shell) fn popup(
         )),
         row.filter(|row| row.state == lw_core::FileState::Failed)
             .map(|_| ("Retry download", true, Intent::RetryDownload(target.1))),
+        Some((
+            "Share…",
+            row.is_some_and(|row| row.source_id.is_some()) && !sharing,
+            Intent::ShareSong(target.1, click),
+        )),
         list.map(|list| {
             (
                 "Remove from list",

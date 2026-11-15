@@ -226,6 +226,7 @@ impl Worker {
             cache_usage: self.cache_usage.clone(),
             settings_message: self.settings_message.clone(),
             storage_busy: self.storage_pending,
+            sharing: self.share_pending.is_some(),
             waveform: self.waveform,
             context: self.context.clone(),
             revision: self.status.revision,

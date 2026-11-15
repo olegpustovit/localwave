@@ -51,13 +51,13 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F1 | Global shortcuts from one command table | done | af4b2e8 |
 | F2 | Favorite commands, menu, key and heart | done | 504bf9f |
 | F3 | Complete track menu and native reveal | done | 3a56ba9 |
-| F4 | Playlist CRUD, membership and reorder | done | HEAD |
+| F4 | Playlist CRUD, membership and reorder | done | 72bb927 |
 | F5 | Album/artist detail headers and actions | done | 1868431 |
 | F6 | Occurrence-based multi-selection | done | 8ce3af5 |
 | F7 | Drag songs to playlists and queue | todo | — |
 | F8 | Metadata editor and metadata-only deletion | todo | — |
-| F9 | Source observation and debounced rescan | done | 12c2408 + HEAD |
-| F10 | Onboarding, route empty states and Share | todo | — |
+| F9 | Source observation and debounced rescan | done | 12c2408 + d7c9b87 |
+| F10 | Onboarding, route empty states and Share | done | HEAD |
 | S | Sign, migrate, TestFlight and release macOS | todo | — |
 | I1 | Framework gestures and device comparison | todo | — |
 | I2 | iOS flows, physical install and shipping gates | todo | — |
@@ -347,7 +347,7 @@ device/provider behavior remain open.
   Real FSEvents delivery is on demand only: this host's fseventsd ran at ~100% CPU with 5 GB
   resident and delivered in 2 of 6 standalone probes, with stream start taking 53 ms–5.3 s. iOS
   keeps an NSFilePresenter, unqualified until I2.
-- F3: the submenu chevron and group dividers are absent; Share… is F10.
+- F3: the submenu chevron and group dividers are absent.
 - F4: the compact (narrow) layout has no New list button or list menu (⌘N and the track menu work);
   the sidebar list menu opens on secondary press only (no visible actions button); renaming the
   playing list leaves its queue context label stale until playback is reconfigured; Swift's list
@@ -358,7 +358,13 @@ device/provider behavior remain open.
 - F8: metadata editor, transactional song/FTS updates and deletion without removing original files.
 - F9: presenters start with the lazy Files worker (first Files use), not at app launch; moved-root
   notices only trigger a rescan, bookmark re-resolution handles the new location.
-- F10: onboarding, route-specific empty states and native sharing.
+- F10: onboarding omits the animated MatrixText counter (static "00"), the iOS Google Drive disclosure and
+  the demo-library installer ("Explore the library" only leaves onboarding; the gate is in-memory, not
+  Swift's persisted `didStart`, so an empty library re-onboards on relaunch). Empty library text replaces
+  "No songs here yet." on Songs; compact Now omits its empty hint. Share… is in the track menu only (macOS,
+  NSSharingServicePicker anchored at the click): Rust Files has no per-file menu, so Swift's Files Share and
+  iOS UIActivityViewController remain. Share copies run on the LibraryWorker background slot (blocking
+  playback preparation for large files); temp copies are swept after a day, not on picker completion.
 - macOS parity gate: complete 1440×872 reference goldens, Swift shortcut parity and new-screen workloads.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,

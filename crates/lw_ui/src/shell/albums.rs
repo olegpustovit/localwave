@@ -158,6 +158,10 @@ pub(super) fn gallery(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    if catalog.all.is_some() && catalog.is_empty() {
+        onboarding::empty_library(ui, catalog, state, width, p, intent);
+        return;
+    }
     let revision = pxui::hash!((
         state.revision,
         player.current_id,

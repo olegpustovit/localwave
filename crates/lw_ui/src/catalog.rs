@@ -106,6 +106,8 @@ pub struct Library {
     pub album_orders: [Vec<usize>; 3],
     pub size_label: String,
     pub library_subtitle: String,
+    /// Known only once the worker has read the sources; onboarding needs a real zero.
+    pub sources: Option<usize>,
     pub artists: Vec<Collection>,
     pub collections: Vec<Collection>,
     pub album_count: String,
@@ -322,6 +324,7 @@ impl Library {
         }
         out.song_count = out.rows.len().to_string();
         out.set_source_count(0);
+        out.sources = None;
         out.album_count = out.albums.len().to_string();
         out.artist_count = out.artists.len().to_string();
         out.all = Some(out.make_collection(
@@ -355,6 +358,7 @@ impl Library {
     }
     /// Worker-prepared labels include empty sources as in the Swift library model.
     pub fn set_source_count(&mut self, count: usize) {
+        self.sources = Some(count);
         self.library_subtitle = format!(
             "{} songs across {count} sources · {}",
             self.song_count, self.size_label
