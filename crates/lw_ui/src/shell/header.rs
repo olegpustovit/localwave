@@ -228,87 +228,92 @@ pub(super) fn find_tokens(
     intent: &mut Option<Intent>,
 ) {
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
-    let widths = TOKENS.map(|token| (ui.text_width(Some(13), token) + 24.0).min(width));
-    let positions = {
-        let (mut x, mut y) = (0.0, 0.0);
-        widths.map(|w| {
-            if x > 0.0 && x + w > width {
-                x = 0.0;
-                y += 38.0;
-            }
-            let at = (x, y);
-            x += w + 6.0;
-            at
-        })
-    };
     let revision = pxui::hash!((state.query_revision, width.to_bits()));
     ui.view(
         "find-tokens",
         revision,
-        Size::Grow,
-        Size::Px(positions[4].1 + 44.0),
+        Size::Px(width),
+        Size::Fit,
         &mut |ui| {
-            for (index, token) in TOKENS.into_iter().enumerate() {
-                let selected = state.query.has_token(token);
-                let chip = ui.node(
-                    token,
-                    Node {
-                        flags: CLICKABLE | TAB_STOP | CLIP,
-                        role: Role::Toggle,
-                        w: Size::Px(widths[index]),
-                        h: Size::Px(32.0),
-                        at: Some(positions[index]).into(),
-                        look: Look {
-                            fill: if selected { p.ink } else { p.panel },
-                            ..Look::NONE
-                        },
-                        ..Node::DEFAULT
+            let flow = ui.node(
+                "flow",
+                Node {
+                    axis: Axis::Row,
+                    wrap: true,
+                    gap: 6.0,
+                    row_gap: 6.0,
+                    w: Size::Px(width),
+                    h: Size::Fit,
+                    padding: Edges {
+                        b: 12.0,
+                        ..Edges::ZERO
                     },
-                );
-                ui.set_role(
-                    &chip,
-                    Role::Toggle,
-                    pxui::a11y::state::CHECKABLE
-                        | if selected {
-                            pxui::a11y::state::CHECKED
-                        } else {
-                            0
-                        },
-                );
-                ui.a11y_name(&chip, token);
-                ui.within(&chip, &mut |ui| {
-                    let label = ui.node(
-                        "label",
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&flow, &mut |ui| {
+                for token in TOKENS {
+                    let selected = state.query.has_token(token);
+                    let chip_w = (ui.text_width(Some(13), token) + 24.0).min(width);
+                    let chip = ui.node(
+                        token,
                         Node {
-                            flags: FIT_TEXT,
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            inset: Edges {
-                                l: 12.0,
-                                ..Edges::ZERO
-                            },
+                            flags: CLICKABLE | TAB_STOP | CLIP,
+                            role: Role::Toggle,
+                            w: Size::Px(chip_w),
+                            h: Size::Px(32.0),
                             look: Look {
-                                text: if selected { p.paper } else { p.secondary },
-                                font: Font {
-                                    size: 13,
-                                    ..Font::BODY
-                                },
+                                fill: if selected { p.ink } else { p.panel },
                                 ..Look::NONE
                             },
                             ..Node::DEFAULT
                         },
                     );
-                    ui.text(&label, token);
-                });
-                if ui.signal_state(&chip).clicked {
-                    *intent = Some(
-                        state
-                            .query
-                            .toggle_token(token)
-                            .map_or(Intent::SearchTooLong, Intent::Search),
+                    ui.set_role(
+                        &chip,
+                        Role::Toggle,
+                        pxui::a11y::state::CHECKABLE
+                            | if selected {
+                                pxui::a11y::state::CHECKED
+                            } else {
+                                0
+                            },
                     );
+                    ui.a11y_name(&chip, token);
+                    ui.within(&chip, &mut |ui| {
+                        let label = ui.node(
+                            "label",
+                            Node {
+                                flags: FIT_TEXT,
+                                w: Size::Grow,
+                                h: Size::Grow,
+                                inset: Edges {
+                                    l: 12.0,
+                                    ..Edges::ZERO
+                                },
+                                look: Look {
+                                    text: if selected { p.paper } else { p.secondary },
+                                    font: Font {
+                                        size: 13,
+                                        ..Font::BODY
+                                    },
+                                    ..Look::NONE
+                                },
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.text(&label, token);
+                    });
+                    if ui.signal_state(&chip).clicked {
+                        *intent = Some(
+                            state
+                                .query
+                                .toggle_token(token)
+                                .map_or(Intent::SearchTooLong, Intent::Search),
+                        );
+                    }
                 }
-            }
+            });
         },
     );
 }
