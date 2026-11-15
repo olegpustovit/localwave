@@ -7,9 +7,9 @@ cd "$(dirname "$0")/.."
 OUT=${1:-/tmp/localwave-goldens}
 SIM=${SIMULATOR:-booted}
 BUNDLE=com.olegpustovit.localwave
-# Swift screens; Rust has no equivalent of add, folder, track and onboarding (captured, not compared).
+# Swift screens; add (picker sheet) and track (anchored popup never paints in the Rust capture) are captured, not compared.
 SWIFT_SCREENS="songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue add folder track onboarding"
-RUST_SCREENS=${ONLY:-"songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue"}
+RUST_SCREENS=${ONLY:-"songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue folder onboarding"}
 mkdir -p "$OUT/reference" "$OUT/rust"
 
 if [ -z "${SKIP_BUILD:-}" ]; then
@@ -41,7 +41,10 @@ for s in $RUST_SCREENS; do
   pid=$!
   for _ in $(seq 240); do grep -q "READY\|LocalWave:" "$OUT/rust-$s.log" && break; sleep 0.5; done
   if grep -q READY "$OUT/rust-$s.log"; then
+    # The window is 1440x(872+inset): drop the titlebar inset so the PNG is the 1440x872 content area.
+    inset=$(sed -n 's/.*inset=\([0-9]*\).*/\1/p' "$OUT/rust-$s.log" | head -1)
     screencapture -x -o -l "$(window_id $pid)" "$OUT/rust/$s.png" || echo "rust $s: capture failed" >&2
+    tools/compare-goldens.py --crop "$OUT/rust/$s.png" "${inset:-0}"
   else
     echo "rust $s: $(cat "$OUT/rust-$s.log")" >&2
   fi

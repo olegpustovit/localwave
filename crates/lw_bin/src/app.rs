@@ -60,6 +60,10 @@ pub(crate) struct App {
     smoke_finished: bool,
     /// Reference-golden mode: (last draw count, time it changed, READY printed).
     reference: Option<(usize, f64, bool)>,
+    /// Reference overlay screen still to open once the page below it has drawn.
+    reference_overlay: Option<String>,
+    /// Reference position still to seek to once the prepared item reports its duration.
+    reference_seek: Option<f64>,
     pub(super) shell_state: lw_ui::ShellState,
     command_error: Option<&'static str>,
     error_revision: u64,
@@ -88,7 +92,9 @@ pub(super) fn open(
         window.set_resizable(true)?;
         let chrome = pxui_host::Chrome::open(window.token()?, (320.0, 480.0))
             .map_err(|error| error.to_string())?;
-        window.resize(1440, 872)?;
+        // Goldens compare the 1440x872 content area; tools/reference-goldens.sh crops the titlebar inset.
+        let extra = if reference.is_some() { chrome.snapshot().map_err(|error| error.to_string())?.top_inset.ceil() as i64 } else { 0 };
+        window.resize(1440, 872 + extra)?;
         chrome
     };
     #[cfg(target_os = "macos")]
@@ -138,11 +144,12 @@ pub(super) fn open(
         ))
     }));
     let seeded = reference.is_some();
+    let screen = reference.clone().unwrap_or_default();
     let mut player = if let Some(base) = fixture.0.clone() {
         Controller::open(
             move || {
                 if seeded {
-                    reference::library(&base)
+                    reference::library(&base, &screen)
                 } else {
                     perf::setup::library(&base, workload)
                 }
@@ -236,6 +243,8 @@ pub(super) fn open(
         smoke_check,
         smoke_finished,
         reference: reference_state,
+        reference_seek: reference.as_ref().map(|_| reference::position()).transpose()?,
+        reference_overlay: reference.clone().filter(|screen| reference::is_overlay(screen)),
         shell_state,
         command_error,
         error_revision,
@@ -250,7 +259,7 @@ pub(super) fn open(
         perf::setup::prepare(&mut app, workload, window)?;
     } else {
         if let Some(screen) = &reference {
-            reference::route(&mut app, screen)?;
+            reference::route(&mut app, screen, false)?;
         }
         app.player
             .enable_media_controls(!smoke && !seeded)
@@ -599,12 +608,26 @@ impl App {
             return Ok(Schedule::NextFrame);
         }
         let mut settle = None;
+        if self.reference_overlay.is_some()
+            && self.draws >= 10
+            && self.player.status().initialized
+            && (self.reference_overlay.as_deref() != Some("folder") || self.files.snapshot().account.is_some())
+        {
+            let screen = self.reference_overlay.take().unwrap_or_default();
+            reference::route(self, &screen, true)?;
+            self.repaint = Some(now);
+        }
+        if self.reference_seek.is_some() && self.player.status().duration > 0.0 {
+            let at = self.reference_seek.take().unwrap_or_default();
+            self.player.command(Command::Seek(at)).map_err(|error| error.to_string())?;
+            self.repaint = Some(now);
+        }
         if let Some((draws, changed, printed)) = &mut self.reference {
             if *draws != self.draws {
                 (*draws, *changed) = (self.draws, observed_at);
             } else if !*printed && self.draws > 0 && observed_at >= *changed + 2.0 {
                 *printed = true;
-                println!("LOCALWAVE_REFERENCE_READY={}x{}", self.extent.logical.0, self.extent.logical.1);
+                println!("LOCALWAVE_REFERENCE_READY={}x{} inset={}", self.extent.logical.0, self.extent.logical.1, self.top_inset.ceil());
             }
             settle = (!*printed).then_some(*changed + 2.0);
         }

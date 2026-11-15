@@ -6,12 +6,14 @@ use crate::app::App;
 use lw_bin::library::LibraryWorker;
 use std::path::Path;
 use lw_ui::{Intent, catalog::Route};
+use lw_bin::controller::Command;
 
-/// Screens with a Rust equivalent. Skipped: add (picker sheet), folder (nested Files navigation),
-/// track (anchored menu), onboarding (first-run flow is not seedable here).
+/// Screens with a Rust equivalent. Skipped: add (Swift's sheet; Rust uses the native picker) and
+/// track (the song menu popup never paints in a captured window, see docs/rust-port.md). Folder is Files
+/// browsing, onboarding an empty library.
 pub const SCREENS: &[&str] = &[
     "songs", "artists", "album", "artist", "list", "favorites", "find", "find-results", "lists",
-    "folders", "settings", "commands", "shortcuts", "now", "queue",
+    "folders", "settings", "commands", "shortcuts", "now", "queue", "folder", "onboarding",
 ];
 
 pub fn from_args(args: &[String]) -> Result<Option<String>, String> {
@@ -217,9 +219,9 @@ fn manifest() -> Result<Json, String> {
     parse(&std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?)
 }
 
-/// Seeds the isolated library from the Swift reference manifest: songs, playlists, sources,
-/// queue and artwork. Play counts, pins and waveforms are not seeded.
-pub fn library(base: &Path) -> std::io::Result<LibraryWorker> {
+/// Seeds the isolated library from the Swift reference manifest: songs, playlists, sources, queue,
+/// artwork, non-audio files, play counts/last played, pins and waveforms (LWReferenceFixture.seed).
+pub fn library(base: &Path, screen: &str) -> std::io::Result<LibraryWorker> {
     use lw_core::{FileAvailability, FileState, Song, Source, SourcePath, preferences::*};
     let other = |e: String| std::io::Error::other(e);
     let data = manifest().map_err(other)?;
@@ -243,6 +245,9 @@ pub fn library(base: &Path) -> std::io::Result<LibraryWorker> {
         },
     )?;
     library.save_settings(&Settings { appearance: Appearance::Light, ..Default::default() })?;
+    if screen == "onboarding" {
+        return Ok(library); // first run: no sources, no songs
+    }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -297,7 +302,35 @@ pub fn library(base: &Path) -> std::io::Result<LibraryWorker> {
             });
         }
     }
+    for file in data.items("nonAudio") {
+        let dir = file.str("dir");
+        let Some(&source_id) = sources.get(&root_of(dir)) else { continue };
+        let relative_dir = dir.split_once('/').map_or("", |(_, rest)| rest);
+        let parent = base.join("Sources").join(source_name(&data, &root_of(dir))).join(relative_dir);
+        std::fs::create_dir_all(&parent)?;
+        let name = file.str("name");
+        let target = parent.join(name);
+        // Swift copies the album cover for cover.jpg and writes a rip log otherwise.
+        let album = data.items("tracks").iter().find(|t| t.str("dir") == dir).map(|t| t.str("al"));
+        match album.filter(|_| name.ends_with(".jpg")) {
+            Some(album) => drop(std::fs::copy(fixtures.join(format!("reference-{album}.png")), &target)?),
+            None => std::fs::write(&target, "LocalWave reference rip log.\n")?,
+        }
+        paths.push(SourcePath {
+            source_id,
+            path_id: hash(&format!("{dir}/{name}")),
+            parent_path_id: Some(hash(dir)),
+            name: name.into(),
+            relative_path: if relative_dir.is_empty() { name.into() } else { format!("{relative_dir}/{name}") },
+            file_size: Some(std::fs::metadata(&target)?.len() as i64),
+            created_at: now,
+            ..Default::default()
+        });
+    }
     let mut songs = std::collections::HashMap::new();
+    let mut audio = std::collections::HashMap::new();
+    let current = data.get("player").map_or(0, |p| p.num("i") as usize);
+    let documents_music = base.join("Documents").join("Music");
     let by_id = |id: &Json| data.items("tracks").iter().find(|t| matches!(id, Json::Str(s) if s == t.str("id")));
     // Swift's library order, not manifest order.
     for track in data.items("order").iter().filter_map(by_id) {
@@ -351,7 +384,25 @@ pub fn library(base: &Path) -> std::io::Result<LibraryWorker> {
             });
         }
         songs.insert(track.str("id").to_string(), song.id.unwrap_or_default());
+        // Queue songs get real playable files: the current one at full length (the native player
+        // reports its duration), the rest one second so next-item preparation succeeds.
+        let slot = data.get("player").and_then(|p| p.items("queue").iter().position(|q| *q == Json::Str(track.str("id").into())));
+        if let Some(slot) = slot {
+            let file = base.join("Sources").join(source_name(&data, &root_of(dir))).join(&song.relative_path.clone().unwrap_or_default());
+            std::fs::create_dir_all(file.parent().ok_or_else(|| other("No parent".into()))?)?;
+            std::fs::write(&file, silent_wav(if slot == current { track.num("dur") as u32 } else { 1 }))?;
+            if slot == current {
+                // Playing copies a Copied song into Music/<sha256>.<ext>, and the waveform signature is
+                // derived from that name: pre-place the identical copy to compute the same signature.
+                let sha = lw_core::import::hex_digest(&lw_apple_sys::audio::read(&file, false, &std::sync::atomic::AtomicBool::new(false))?.sha256);
+                std::fs::create_dir_all(&documents_music)?;
+                let copy = documents_music.join(format!("{sha}.{}", track.str("ext")));
+                std::fs::copy(&file, &copy)?;
+                audio.insert(track.str("id").to_string(), copy);
+            }
+        }
     }
+    seed_history(&suite, &data, &songs, &audio, &documents_music, &base.join("Caches"))?;
     library.repository.upsert_source_paths(&paths).map_err(|e| other(e.to_string()))?;
     for list in data.items("lists").iter().filter(|l| l.num("auto") != 1.0) {
         let ids: Vec<i64> = list.items("tracks").iter().filter_map(|t| if let Json::Str(t) = t { songs.get(t).copied() } else { None }).collect();
@@ -362,14 +413,93 @@ pub fn library(base: &Path) -> std::io::Result<LibraryWorker> {
         song_ids: player.items("queue").iter().filter_map(|t| if let Json::Str(t) = t { songs.get(t).copied() } else { None }).collect(),
         current_index: player.num("i") as i64,
         volume: Some(player.num("vol") as f32),
-        context_data: None,
+        context_data: match player.str("ctx").strip_prefix("al:") {
+            Some(id) => {
+                let album = data.items("albums").iter().find(|a| a.str("id") == id).ok_or_else(|| other("Unknown context album".into()))?;
+                Some(library.playback_context_data(&lw_core::context::PlaybackContext::Album { name: album.str("t").into(), artist: album.str("ar").into() })?)
+            }
+            None => None,
+        },
     })?;
     Ok(library)
 }
 
-/// Route state for a screen once the catalog is prepared.
-pub fn route(app: &mut App, screen: &str) -> Result<(), String> {
-    let App { shell_state, player, .. } = app;
+/// Play counts (`lwPlayCounts`), last played (`lwLastPlayed`), pins (`lwPinnedSongs`) and persisted
+/// waveforms, keyed like Swift: by song row id, and by song key for waveforms.
+fn seed_history(
+    suite: &str,
+    data: &Json,
+    songs: &std::collections::HashMap<String, i64>,
+    audio: &std::collections::HashMap<String, std::path::PathBuf>,
+    music: &Path,
+    caches: &Path,
+) -> std::io::Result<()> {
+    let other = |e: String| std::io::Error::other(e);
+    let preferences = lw_apple_sys::preferences::Preferences::open(Some(suite))?;
+    let directory = caches.join("LocalWave");
+    std::fs::create_dir_all(&directory)?;
+    let waveforms = lw_core::waveform::Repository::open(directory.join("waveforms.sqlite").to_str().ok_or_else(|| other("Fixture path is not UTF-8".into()))?)
+        .map_err(|e| other(e.to_string()))?;
+    for track in data.items("tracks") {
+        let id = *songs.get(track.str("id")).ok_or_else(|| other("Unknown track".into()))?;
+        // record_playback increments, so replaying `plays` times at the added date gives both values.
+        for _ in 0..track.num("plays") as u32 {
+            preferences.record_playback(id, track.num("added") / 1000.0)?;
+        }
+        if track.flag("pin") {
+            preferences.set_pinned(id, true);
+        }
+        let Some(Json::Arr(peaks)) = data.get("waveforms").and_then(|w| w.get(track.str("id"))).and_then(|w| w.get("desktop")) else { continue };
+        // A real file makes the worker re-derive the signature; match it so the seeded peaks stay.
+        let signature = match audio.get(track.str("id")) {
+            Some(file) => lw_core::import::hex_digest(&lw_apple_sys::waveform::version(file, music, false)?.digest),
+            None => "reference".into(),
+        };
+        waveforms
+            .put(hash(track.str("id")), &signature, &resample(peaks))
+            .map_err(|e| other(e.to_string()))?;
+    }
+    Ok(())
+}
+
+/// The manifest carries 200 desktop bars; the cache holds 512 peaks.
+fn resample(peaks: &[Json]) -> lw_core::waveform::Peaks {
+    std::array::from_fn(|i| match peaks.get(i * peaks.len() / lw_core::waveform::PEAK_COUNT) {
+        Some(Json::Num(n)) => n.clamp(0.0, 1.0) as f32,
+        _ => 0.0,
+    })
+}
+
+/// Silent 8 kHz mono 8-bit WAV of the exact duration; AVFoundation sniffs content, not the extension.
+fn silent_wav(seconds: u32) -> Vec<u8> {
+    let data = seconds * 8000;
+    let mut bytes = Vec::with_capacity(44 + data as usize);
+    for part in [&b"RIFF"[..], &(36 + data).to_le_bytes(), b"WAVEfmt ", &16u32.to_le_bytes(), &1u16.to_le_bytes(), &1u16.to_le_bytes(),
+        &8000u32.to_le_bytes(), &8000u32.to_le_bytes(), &1u16.to_le_bytes(), &8u16.to_le_bytes(), b"data", &data.to_le_bytes()] {
+        bytes.extend_from_slice(part);
+    }
+    bytes.resize(44 + data as usize, 0x80);
+    bytes
+}
+
+fn source_name<'a>(data: &'a Json, id: &str) -> &'a str {
+    data.items("sources").iter().find(|s| s.str("id") == id).map_or("", |s| s.str("name"))
+}
+
+/// Paused position of the Swift snapshot, in seconds.
+pub fn position() -> Result<f64, String> {
+    Ok(manifest()?.get("player").map_or(0.0, |p| p.num("t")))
+}
+
+/// Screens that open over the Albums page; their overlay is applied after the page has drawn.
+pub fn is_overlay(screen: &str) -> bool {
+    matches!(screen, "settings" | "commands" | "shortcuts" | "queue" | "folder")
+}
+
+/// Route state for a screen once the catalog is prepared. Overlay screens are routed in two calls:
+/// `late == false` shows the page, `late == true` (after the page drew) opens the overlay.
+pub fn route(app: &mut App, screen: &str, late: bool) -> Result<(), String> {
+    let App { shell_state, player, files, .. } = app;
     let library = &player.catalog().library;
     let find = |list: &[lw_ui::catalog::Collection], title: &str| {
         list.iter().position(|c| c.title == title).ok_or_else(|| format!("Reference collection missing: {title}"))
@@ -390,14 +520,33 @@ pub fn route(app: &mut App, screen: &str) -> Result<(), String> {
         "commands" => vec![albums, Intent::ShowCommands],
         "shortcuts" => vec![albums, Intent::ShowShortcuts],
         "now" => vec![albums],
+        "onboarding" => vec![],
+        "folder" => vec![Intent::Navigate(Route::Files)],
         "queue" => vec![albums, Intent::ShowQueue],
         _ => vec![Intent::Navigate(Route::Songs)],
     };
-    for intent in intents {
-        shell_state.apply(intent);
+    let split = if is_overlay(screen) { 1 } else { intents.len() };
+    for intent in if late { &intents[split..] } else { &intents[..split] } {
+        shell_state.apply(intent.clone());
     }
-    if screen == "find-results" {
-        let request = shell_state.request(player.catalog()).ok_or("Find request unavailable")?;
+    if !late {
+        // Swift's snapshot is paused at `t`; prepare the restored current item without autoplay (the frame loop seeks once its duration is known).
+        if let Some(current) = player.status().current {
+            player.command(Command::Select { occurrence: current.id, autoplay: false }).map_err(|e| e.to_string())?;
+        }
+    }
+    if late && screen == "folder" {
+        let snapshot = files.snapshot();
+        let (user, source) = (snapshot.account.ok_or("No account")?, snapshot.sources.first().ok_or("No source")?.id);
+        let location = lw_ui::files::Location { user, source, parent: Some(hash("icloud/Halden Marsh/Field Recordings 04")) };
+        files.request(lw_ui::files::Request::Browse(location)).map_err(|e| e.to_string())?;
+    }
+    // actions.rs requests these when the intent is dispatched; the route applies intents directly.
+    if !late && matches!(screen, "folders" | "folder") {
+        files.request(lw_ui::files::Request::Roots).map_err(|e| e.to_string())?;
+    }
+    if (late || !is_overlay(screen)) && matches!(screen, "find-results" | "commands") {
+        let request = shell_state.request(player.catalog()).ok_or("Browse request unavailable")?;
         player.browse(request).map_err(|e| e.to_string())?;
     }
     Ok(())
@@ -413,6 +562,14 @@ mod tests {
         assert_eq!(json.items("a").len(), 4);
         assert_eq!(json.str("s"), "x\u{b7}\u{1f600}\n");
         assert!(parse("{\"a\":1} x").is_err());
+    }
+
+    #[test]
+    fn resamples_desktop_peaks_to_the_cache_width() {
+        let peaks: Vec<Json> = (0..200).map(|i| Json::Num(i as f64 / 199.0)).collect();
+        let out = resample(&peaks);
+        assert_eq!((out[0], out[511]), (0.0, 1.0));
+        assert!(out.windows(2).all(|w| w[0] <= w[1]));
     }
 
     #[test]

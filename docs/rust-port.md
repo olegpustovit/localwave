@@ -380,9 +380,13 @@ device/provider behavior remain open.
 - macOS parity gate: complete 1440×872 reference goldens, Swift shortcut parity and new-screen workloads.
   Goldens: `tools/reference-goldens.sh && tools/compare-goldens.py` (outputs and `index.html` in /tmp/localwave-goldens;
   needs the booted iOS 18 simulator and Screen Recording rights). Swift: DEBUG canvas hook at 1440×872; Rust:
-  `--reference-screen` window via `screencapture` (pxui_host has no pixel readback). 15 of 19 screens compare (add, folder,
-  track, onboarding have no Rust equivalent); mean abs diff 8.8-36.8, 6.6-34.6% of pixels over 24 (find best; queue, commands
-  worst). Known fixture gaps: no Sources sidebar, blank current-track metadata (no audio files), Folders still loading, commands "Searching…".
+  `--reference-screen` window via `screencapture` (pxui_host has no pixel readback); the window is 1440×(872+titlebar inset)
+  and the inset is cropped, so both sides are the 1440×872 content area. The Rust seed mirrors LWReferenceFixture (play counts,
+  last played, pins, waveforms, non-audio files, queue/context, paused at 1:41 on a real silent file). 16 of 19 screens compare
+  (add: native picker; track: the anchored song-menu popup never paints in the capture; no pixel diff for them); mean abs diff
+  5.9-34.7, 5.3-34.0% of pixels over 24 (artists best; queue worst: Swift bottom sheet vs Rust modal). Genuine gaps: no Sources
+  sidebar/Search field/Offline meter, Now panel lacks the Format/Size/File/Plays block and the title is not drawn, Kept offline
+  and similar automatic lists missing, modal scrim popups (commands, shortcuts, settings) hide the page beneath them.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.
