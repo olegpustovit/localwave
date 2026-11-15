@@ -1,6 +1,16 @@
+//! Preserve all signed workloads and 182/82/100 frame counts at 1440x872, both Rust allocation
+//! counters and unchanged strict timing assertions. Advance PlayerView revision with position.
+//! Require 200 waveform bars/nine release-only seeks; queue carry traces warm twice, preserve
+//! payload/capture and cancel without intents or fixture mutation. Filtered Find uses Track m4a
+//! year:2019 unplayed and matches all 10,000 fixture rows. Files draws real virtual rows; Settings
+//! visits all eight themes through real actions; drop checks draw the overlay without importing.
+//!
 //! Startup selection for the isolated signed performance matrix; no argument work runs in frames.
 
+mod drive;
+mod report;
 pub(crate) mod setup;
+pub(crate) use drive::Frame;
 
 pub(super) type FrameTrace = (usize, [usize; 8], u64, u64, u64, [u64; 4], u64);
 
@@ -83,6 +93,80 @@ impl Workload {
             (true, selected) => Ok(Some(selected.map_or(Self::Songs, |(workload, _)| workload))),
             (false, Some((_, arg))) => Err(format!("{arg} requires --performance-check")),
             (false, None) => Ok(None),
+        }
+    }
+}
+
+// Two layout frames, then two complete wheel cycles before the measured cycles.
+const WARMUP_FRAMES: usize = 82;
+const MEASURED_FRAMES: usize = 100;
+
+pub(crate) struct Perf {
+    workload: Workload,
+    indicator_song: Option<i64>,
+    waveform_seeks: i32,
+    settings_changes: usize,
+    settings_themes: u8,
+    min_artist_rows: usize,
+    max_artist_rows: usize,
+    first_artist_min: usize,
+    first_artist_max: usize,
+    min_waveform_bars: usize,
+    indicator_playing: usize,
+    indicator_paused: usize,
+    indicator_changes: usize,
+    indicator_previous: Option<[u32; 3]>,
+    drop_overlay_frames: usize,
+    warm_allocations: u64,
+    warm_build_us: u128,
+    timings: [report::FrameTiming; MEASURED_FRAMES],
+    frame_trace: [FrameTrace; WARMUP_FRAMES + MEASURED_FRAMES],
+    min_artwork_quads: usize,
+    warm_artwork_requests: usize,
+    min_files_rows: usize,
+    max_files_rows: usize,
+}
+impl Perf {
+    pub(crate) fn new(workload: Workload, indicator_song: Option<i64>) -> Self {
+        let waveform_seeks = 0;
+        let (settings_changes, settings_themes) = (0, 0u8);
+        let (min_artist_rows, max_artist_rows) = (usize::MAX, 0usize);
+        let (first_artist_min, first_artist_max) = (usize::MAX, 0usize);
+        let min_waveform_bars = usize::MAX;
+        let (indicator_playing, indicator_paused, indicator_changes) = (0usize, 0usize, 0usize);
+        let indicator_previous = None::<[u32; 3]>;
+
+        let drop_overlay_frames = 0usize;
+        let (warm_allocations, warm_build_us) = (0, 0);
+        let timings = [report::FrameTiming::default(); MEASURED_FRAMES];
+        let frame_trace = [(0usize, [0usize; 8], 0u64, 0u64, 0u64, [0u64; 4], 0u64);
+            WARMUP_FRAMES + MEASURED_FRAMES];
+        let (min_artwork_quads, warm_artwork_requests) = (usize::MAX, 0usize);
+        let (min_files_rows, max_files_rows) = (usize::MAX, 0usize);
+        Self {
+            workload,
+            indicator_song,
+            waveform_seeks,
+            settings_changes,
+            settings_themes,
+            min_artist_rows,
+            max_artist_rows,
+            first_artist_min,
+            first_artist_max,
+            min_waveform_bars,
+            indicator_playing,
+            indicator_paused,
+            indicator_changes,
+            indicator_previous,
+            drop_overlay_frames,
+            warm_allocations,
+            warm_build_us,
+            timings,
+            frame_trace,
+            min_artwork_quads,
+            warm_artwork_requests,
+            min_files_rows,
+            max_files_rows,
         }
     }
 }

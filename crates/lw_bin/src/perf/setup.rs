@@ -1,6 +1,6 @@
 //! Isolated fixture I/O stays on the library worker; startup waits borrow the framework Window.
 use super::Workload;
-use crate::{App, smoke};
+use crate::app::App;
 use lw_bin::{
     controller::{Command, Controller},
     library::LibraryWorker,
@@ -32,16 +32,16 @@ pub(crate) fn library(base: &Path, workload: Option<Workload>) -> std::io::Resul
                 ..Default::default()
             })?;
         }
-        smoke::seed_catalog(&base.join("library.sqlite"))?;
+        seed_catalog(&base.join("library.sqlite"))?;
         if matches!(workload, Some(Workload::Artists)) {
-            smoke::seed_artists(&base.join("library.sqlite"))?;
+            seed_artists(&base.join("library.sqlite"))?;
         }
         if matches!(workload, Some(Workload::Artwork)) {
-            smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
+            seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
         }
-        smoke::seed_waveform(&base.join("Caches"))?;
+        seed_waveform(&base.join("Caches"))?;
         if matches!(workload, Some(Workload::Files)) {
-            smoke::seed_files(&mut library)?;
+            seed_files(&mut library)?;
         }
         library.save_player_state(&lw_core::preferences::PlayerState {
             song_ids: if workload.is_some_and(Workload::uses_queue) {
@@ -245,4 +245,101 @@ pub(crate) fn prepare(
         ));
     }
     Ok(())
+}
+
+pub(crate) fn configure_ui(ui: &mut pxui::Ui, workload: Option<Workload>) {
+    if matches!(workload, Some(Workload::QueueDrag))
+        || matches!(workload, Some(Workload::Artists))
+        || matches!(workload, Some(Workload::SongIndicators))
+    {
+        ui.set_a11y(true);
+    }
+}
+
+/// A valid persisted waveform with no audio copy exercises the same cache delivery as eviction.
+pub fn seed_waveform(caches: &std::path::Path) -> std::io::Result<()> {
+    let directory = caches.join("LocalWave");
+    std::fs::create_dir_all(&directory)?;
+    let database = directory.join("waveforms.sqlite");
+    let peaks = std::array::from_fn(|index| (index % 64) as f32 / 63.0);
+    lw_core::waveform::Repository::open(
+        database
+            .to_str()
+            .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?,
+    )
+    .map_err(std::io::Error::other)?
+    .put(1, "qualification-cached-waveform", &peaks)
+    .map_err(std::io::Error::other)
+}
+
+/// Populate only the isolated qualification database, after its normal migration.
+pub fn seed_catalog(path: &std::path::Path) -> std::io::Result<()> {
+    let path = path
+        .to_str()
+        .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?;
+    let db = lw_apple_sys::sqlite::Connection::open(path).map_err(std::io::Error::other)?;
+    db.execute_batch("BEGIN IMMEDIATE; WITH RECURSIVE seq(n) AS (SELECT 1 UNION ALL SELECT n+1 FROM seq WHERE n<10000) INSERT INTO songs (songKey,artist,title,album,albumArtist,pathHash,createdAt,duration,fileExtension,isFavorite,releaseYear) SELECT n,'Artist '||(n%10),printf('Track %05d',n),'Album '||(n%100),'Artist '||(n%10),n,n,240,'m4a',n%2,2019 FROM seq; INSERT INTO songs_fts(songId,artist,title,album,albumArtist) SELECT id,artist,title,album,albumArtist FROM songs; COMMIT").map_err(std::io::Error::other)
+}
+
+/// A separate artist workload keeps the ten existing fixture distributions unchanged.
+pub fn seed_artists(path: &std::path::Path) -> std::io::Result<()> {
+    let path = path
+        .to_str()
+        .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?;
+    let db = lw_apple_sys::sqlite::Connection::open(path).map_err(std::io::Error::other)?;
+    db.execute_batch("BEGIN IMMEDIATE; UPDATE songs SET artist=printf('Artist %05d',id),albumArtist=printf('Artist %05d',id); DELETE FROM songs_fts; INSERT INTO songs_fts(songId,artist,title,album,albumArtist) SELECT id,artist,title,album,albumArtist FROM songs; COMMIT").map_err(std::io::Error::other)
+}
+
+/// Indexed metadata only: Files performance must never enumerate a user's real folders.
+pub fn seed_files(library: &mut lw_bin::library::LibraryWorker) -> std::io::Result<()> {
+    let account = library.current_sources()?;
+    let source = library
+        .repository
+        .create_source(&lw_core::Source {
+            user_id: account.user.id,
+            dir_path: "/qualification/original-music".into(),
+            path_id: 1_000_000,
+            is_current: true,
+            total_paths: Some(10_000),
+            created_at: 1.0,
+            ..Default::default()
+        })
+        .map_err(std::io::Error::other)?;
+    let paths: Vec<_> = (1..=10_000)
+        .map(|id| lw_core::SourcePath {
+            source_id: source.id.unwrap(),
+            path_id: id,
+            parent_path_id: Some(source.path_id),
+            name: format!("Track {id:05}.flac"),
+            relative_path: format!("Track {id:05}.flac"),
+            file_size: Some(2_000_000),
+            created_at: 1.0,
+            ..Default::default()
+        })
+        .collect();
+    library
+        .repository
+        .upsert_source_paths(&paths)
+        .map_err(std::io::Error::other)
+}
+
+pub fn seed_artwork(
+    database: &std::path::Path,
+    documents: &std::path::Path,
+) -> std::io::Result<()> {
+    let directory = documents.join("CoverArt");
+    std::fs::create_dir_all(&directory)?;
+    for index in 0..100 {
+        std::fs::write(
+            directory.join(format!("benchmark-{index}.png")),
+            include_bytes!("../../../../Tests/LocalWaveDataTests/Fixtures/artwork-large.png"),
+        )?;
+    }
+    let database = database
+        .to_str()
+        .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?;
+    lw_apple_sys::sqlite::Connection::open(database)
+        .map_err(std::io::Error::other)?
+        .execute_batch("UPDATE songs SET coverArtPath='CoverArt/benchmark-'||(songKey%100)||'.png'")
+        .map_err(std::io::Error::other)
 }
