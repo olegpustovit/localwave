@@ -47,8 +47,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P6h | Borrow instances during retained-run compaction | done | 4f4ed00 + pxui 7556bee |
 | P6i | Limit playback invalidation to affected song rows | done | 5f03419 |
 | P6j | Borrow fresh instances during retained placement | done | ca17adc + pxui 766f6ff |
-| P6k | Owner-approved M1 limits; gate frame work wall | done | HEAD + pxui 520db20 |
-| F1 | Global shortcuts from one command table | todo | — |
+| P6k | Owner-approved M1 limits; gate frame work wall | done | d41fb42 + pxui 520db20 |
+| F1 | Global shortcuts from one command table | done | HEAD |
 | F2 | Favorite commands, menu, key and heart | todo | — |
 | F3 | Complete track menu and native reveal | todo | — |
 | F4 | Playlist CRUD, membership and reorder | todo | — |
@@ -338,7 +338,7 @@ device/provider behavior remain open.
   before one draw need a separate correctness fix. Dirty upload ranges still accumulate.
 - Shared Swift checks fail two child source-notification tests, also in an isolated run on unchanged
   Swift sources. Six Swift/Rust exchange cases pass; native notification delivery remains unresolved.
-- F1: global Space/S/R/I/L, open/find/new-list, navigation and seek shortcuts.
+- F1 leaves L (favourite) for F2, which adds its intent; the shortcuts overlay lists it until then.
 - F2: favorite toggle entry points and retained favorite burst.
 - F3: Play next, playlist submenu, album/artist routing, native reveal, per-song offline/retry,
   contextual removal and right-click track menus.

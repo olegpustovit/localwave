@@ -353,6 +353,81 @@ fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellSta
     ))
 }
 
+/// Swift's global shortcuts. Raw scalar queries: routed key vectors allocate.
+fn global_shortcut(ui: &Ui, player: &PlayerView<'_>, position: f64) -> Option<Intent> {
+    use crate::commands::Command;
+    let (meta, alt) = (input::Key::Meta.code(), input::Key::Alt.code());
+    let pressed = |key: u32, modifier: u32| {
+        let upper = char::from_u32(key).map_or(key, |c| c.to_ascii_uppercase() as u32);
+        if modifier == 0 {
+            ui.key_pressed(key)
+                && ![meta, alt, input::Key::Shift.code(), input::Key::Ctrl.code()]
+                    .iter()
+                    .any(|&m| ui.key_down(m))
+        } else {
+            ui.key_pressed_with(key, modifier) || ui.key_pressed_with(upper, modifier)
+        }
+    };
+    for command in [
+        Command::PlayPause,
+        Command::Shuffle,
+        Command::Repeat,
+        Command::AddMusic,
+        Command::Panel,
+    ] {
+        let (key, modifier) = command.key()?;
+        if pressed(key, modifier) {
+            return Some(match command {
+                Command::PlayPause if player.playing => Intent::Pause,
+                Command::PlayPause => Intent::Play,
+                Command::Shuffle => Intent::Shuffle,
+                Command::Repeat => Intent::Repeat,
+                // Swift's Command-O is "Add Folder…".
+                Command::AddMusic => Intent::ChooseFolder,
+                _ => Intent::TogglePanel,
+            });
+        }
+    }
+    for (key, modifier, intent) in [
+        ('f', meta, Intent::Navigate(Route::Find)),
+        ('n', meta, Intent::NamePlaylist),
+        ('1', meta, Intent::Navigate(Route::Albums)),
+        ('2', meta, Intent::Navigate(Route::Artists)),
+        ('3', meta, Intent::Navigate(Route::Songs)),
+    ] {
+        if pressed(key as u32, modifier) {
+            return Some(intent);
+        }
+    }
+    let shift = input::Key::Shift.code();
+    for (key, modifier, intent) in [
+        (input::Key::ArrowLeft, meta, Intent::Previous),
+        (input::Key::ArrowRight, meta, Intent::Next),
+        (input::Key::ArrowLeft, shift, Intent::Previous),
+        (input::Key::ArrowRight, shift, Intent::Next),
+        (input::Key::ArrowUp, meta, Intent::Volume((player.volume + 1.0 / 12.0).min(1.0))),
+        (input::Key::ArrowDown, meta, Intent::Volume((player.volume - 1.0 / 12.0).max(0.0))),
+    ] {
+        if pressed(key.code(), modifier) {
+            return Some(intent);
+        }
+    }
+    if player.duration > 0.0 {
+        for (key, modifier, seconds) in [
+            (input::Key::ArrowLeft, 0, -5.0),
+            (input::Key::ArrowRight, 0, 5.0),
+            (input::Key::ArrowLeft, alt, -30.0),
+            (input::Key::ArrowRight, alt, 30.0),
+        ] {
+            if pressed(key.code(), modifier) {
+                let to = ((position + seconds) / player.duration).clamp(0.0, 1.0);
+                return Some(Intent::SeekFraction(to));
+            }
+        }
+    }
+    None
+}
+
 pub fn shell(
     ui: &mut Ui,
     player: &PlayerView<'_>,
@@ -448,6 +523,20 @@ pub fn shell(
     let settings_shortcut = ui.key_pressed_with(',' as u32, input::Key::Meta.code());
     if !state.commands_visible && !state.shortcuts_visible && settings_shortcut {
         *intent = Some(Intent::ShowSettings);
+    }
+    if intent.is_none()
+        && !input_was_focused
+        && !ui.text_input_focused()
+        && !state.commands_visible
+        && !state.shortcuts_visible
+        && !state.queue_visible
+        && !state.settings_visible
+        && !state.playlist_editing
+        && state.song_menu.is_none()
+        && state.source_menu.is_none()
+        && state.remove_source.is_none()
+    {
+        *intent = global_shortcut(ui, player, position);
     }
     if !state.commands_visible && !state.shortcuts_visible && !state.queue_visible {
         if ui.key_pressed_with('k' as u32, input::Key::Meta.code())

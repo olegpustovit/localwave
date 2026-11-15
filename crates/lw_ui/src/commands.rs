@@ -46,15 +46,35 @@ impl Command {
             Self::Settings => "Settings",
         }
     }
+    /// The one shortcut table: (key code, modifier key code or 0). `hint` derives from it.
+    /// Favourite (L) has no command or intent yet; F2 adds both.
+    pub fn key(self) -> Option<(u32, u32)> {
+        let meta = input::Key::Meta.code();
+        Some(match self {
+            Self::PlayPause => (input::Key::Space.code(), 0),
+            Self::Shuffle => ('s' as u32, 0),
+            Self::Repeat => ('r' as u32, 0),
+            Self::AddMusic => ('o' as u32, meta),
+            Self::Panel => ('i' as u32, 0),
+            Self::Shortcuts => ('?' as u32, 0),
+            Self::Settings => (',' as u32, meta),
+            _ => return None,
+        })
+    }
     pub fn hint(self) -> &'static str {
-        match self {
-            Self::PlayPause => "Space",
-            Self::Shuffle => "S",
-            Self::Repeat => "R",
-            Self::AddMusic => "⌘O",
-            Self::Panel => "I",
-            Self::Shortcuts => "?",
-            Self::Settings => "⌘,",
+        let Some((key, modifier)) = self.key() else {
+            return "";
+        };
+        if key == input::Key::Space.code() {
+            return "Space";
+        }
+        match (char::from_u32(key), modifier != 0) {
+            (Some('s'), false) => "S",
+            (Some('r'), false) => "R",
+            (Some('i'), false) => "I",
+            (Some('?'), false) => "?",
+            (Some('o'), true) => "⌘O",
+            (Some(','), true) => "⌘,",
             _ => "",
         }
     }

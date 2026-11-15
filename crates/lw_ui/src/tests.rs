@@ -2266,3 +2266,145 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
             .any(|node| ui.a11y_name_of(node) == "Track 000")
     );
 }
+
+#[test]
+fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
+    use catalog::Route;
+    let catalog = prepared(vec![lw_core::Song {
+        id: Some(1),
+        title: "Track".into(),
+        ..Default::default()
+    }]);
+    let mut state = ShellState::default();
+    let player = PlayerView {
+        initialized: true,
+        duration: 100.0,
+        ..PlayerView::default()
+    };
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 10.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
+        intent
+    };
+    let ev = |kind: u32, code: u32| pxui::Event {
+        kind,
+        code,
+        ..Default::default()
+    };
+    let tap = |ui: &mut Ui,
+               state: &ShellState,
+               run: &mut dyn FnMut(&mut Ui, &ShellState, &[pxui::Event]) -> Option<Intent>,
+               code: u32| {
+        let intent = run(ui, state, &[ev(input::wire::KEY_PRESSED, code)]);
+        run(ui, state, &[ev(input::wire::KEY_RELEASED, code)]);
+        intent
+    };
+    run(&mut ui, &state, &[]);
+    run(&mut ui, &state, &[]);
+    let ch = |c: char| c as u32;
+    for (code, expected) in [
+        (input::Key::Space.code(), Intent::Play),
+        (ch('s'), Intent::Shuffle),
+        (ch('r'), Intent::Repeat),
+        (ch('i'), Intent::TogglePanel),
+        (input::Key::ArrowRight.code(), Intent::SeekFraction(0.15)),
+        (input::Key::ArrowLeft.code(), Intent::SeekFraction(0.05)),
+    ] {
+        assert_eq!(tap(&mut ui, &state, &mut run, code), Some(expected));
+    }
+    for c in [
+        commands::Command::Shuffle,
+        commands::Command::Network,
+        commands::Command::Settings,
+    ] {
+        assert_eq!(c.key().is_some(), !c.hint().is_empty());
+    }
+    let alt = input::Key::Alt.code();
+    run(&mut ui, &state, &[ev(input::wire::KEY_PRESSED, alt)]);
+    assert_eq!(
+        tap(&mut ui, &state, &mut run, input::Key::ArrowRight.code()),
+        Some(Intent::SeekFraction(0.4))
+    );
+    run(&mut ui, &state, &[ev(input::wire::KEY_RELEASED, alt)]);
+    let shift = input::Key::Shift.code();
+    run(&mut ui, &state, &[ev(input::wire::KEY_PRESSED, shift)]);
+    assert_eq!(
+        tap(&mut ui, &state, &mut run, input::Key::ArrowRight.code()),
+        Some(Intent::Next)
+    );
+    run(&mut ui, &state, &[ev(input::wire::KEY_RELEASED, shift)]);
+    let meta = input::Key::Meta.code();
+    run(&mut ui, &state, &[ev(input::wire::KEY_PRESSED, meta)]);
+    for (code, expected) in [
+        (ch('o'), Intent::ChooseFolder),
+        (ch('f'), Intent::Navigate(Route::Find)),
+        (ch('n'), Intent::NamePlaylist),
+        (ch('1'), Intent::Navigate(Route::Albums)),
+        (ch('2'), Intent::Navigate(Route::Artists)),
+        (ch('3'), Intent::Navigate(Route::Songs)),
+        (input::Key::ArrowLeft.code(), Intent::Previous),
+        (input::Key::ArrowRight.code(), Intent::Next),
+        (input::Key::ArrowUp.code(), Intent::Volume(1.0 / 12.0)),
+        (input::Key::ArrowDown.code(), Intent::Volume(0.0)),
+    ] {
+        assert_eq!(tap(&mut ui, &state, &mut run, code), Some(expected));
+    }
+    assert_eq!(tap(&mut ui, &state, &mut run, ch('s')), None);
+    run(&mut ui, &state, &[ev(input::wire::KEY_RELEASED, meta)]);
+    state.apply(Intent::ShowShortcuts);
+    assert_eq!(
+        tap(&mut ui, &state, &mut run, input::Key::Space.code()),
+        None
+    );
+    state.apply(Intent::CloseShortcuts);
+    state.apply(Intent::Navigate(Route::Find));
+    run(&mut ui, &state, &[]);
+    let rect = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(pxui::ui::Role::TextField))
+        .unwrap()
+        .rect;
+    let (x, y) = (
+        f64::from(rect.x + rect.w * 0.8),
+        f64::from(rect.y + rect.h * 0.5),
+    );
+    let at = |kind| pxui::Event {
+        kind,
+        x,
+        y,
+        ..Default::default()
+    };
+    run(
+        &mut ui,
+        &state,
+        &[
+            at(input::wire::POINTER_MOVED),
+            at(input::wire::POINTER_PRESSED),
+            at(input::wire::POINTER_RELEASED),
+        ],
+    );
+    assert!(ui.text_input_focused());
+    for code in [
+        input::Key::Space.code(),
+        ch('s'),
+        input::Key::ArrowLeft.code(),
+    ] {
+        assert_eq!(tap(&mut ui, &state, &mut run, code), None);
+    }
+}
