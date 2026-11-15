@@ -17,6 +17,30 @@ pub enum Workload {
 }
 
 impl Workload {
+    pub fn uses_queue(self) -> bool {
+        matches!(
+            self,
+            Self::Queue | Self::QueueDrag | Self::QueueSheet | Self::Artwork
+        )
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Songs => "songs-original",
+            Self::SongIndicators => "songs-playing-indicator",
+            Self::Artists => "artists-measured-columns",
+            Self::Drop => "external-drop-hover-and-cancel",
+            Self::Files => "files-indexed-directory",
+            Self::Settings => "settings-menus-appearance",
+            Self::Waveform => "waveform-scrub-and-scroll",
+            Self::Artwork => "albums-artwork",
+            Self::Find => "find-filters-title-descending",
+            Self::QueueSheet => "full-queue-playlist-editor",
+            Self::QueueDrag => "queue-carry-scroll-cancel",
+            Self::Queue => "queue-occurrences",
+        }
+    }
+
     pub fn from_args(args: &[String]) -> Result<Option<Self>, String> {
         let mut enabled = false;
         let mut selected = None;
@@ -62,6 +86,27 @@ impl Workload {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn workload_reports_and_queue_fixtures_match_the_signed_matrix() {
+        for (workload, name, queue) in [
+            (Workload::Songs, "songs-original", false),
+            (Workload::SongIndicators, "songs-playing-indicator", false),
+            (Workload::Artists, "artists-measured-columns", false),
+            (Workload::Drop, "external-drop-hover-and-cancel", false),
+            (Workload::Files, "files-indexed-directory", false),
+            (Workload::Settings, "settings-menus-appearance", false),
+            (Workload::Waveform, "waveform-scrub-and-scroll", false),
+            (Workload::Artwork, "albums-artwork", true),
+            (Workload::Find, "find-filters-title-descending", false),
+            (Workload::QueueSheet, "full-queue-playlist-editor", true),
+            (Workload::QueueDrag, "queue-carry-scroll-cancel", true),
+            (Workload::Queue, "queue-occurrences", true),
+        ] {
+            assert_eq!(workload.name(), name);
+            assert_eq!(workload.uses_queue(), queue);
+        }
+    }
 
     #[test]
     fn workload_args_select_one_complete_matrix_case_and_reject_mixed_fixtures() {

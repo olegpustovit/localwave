@@ -23,6 +23,7 @@ use lw_bin::{
     controller::{Command, Controller},
     library::LibraryWorker,
 };
+use perf::Workload;
 use pxui::{FrameIn, Platform, Ui};
 use pxui_sdl::{
     Window,
@@ -52,121 +53,13 @@ fn open(window: &mut Window) -> Result<App, String> {
     // Two layout frames, then two complete wheel cycles before the measured cycles.
     const WARMUP_FRAMES: usize = 82;
     const MEASURED_FRAMES: usize = 100;
-    perf::Workload::from_args(&std::env::args().collect::<Vec<_>>())?;
-    let smoke = std::env::args().any(|arg| arg == "--smoke-test");
-    let performance = std::env::args().any(|arg| arg == "--performance-check");
-    if cfg!(target_os = "ios") && performance {
+    let args: Vec<String> = std::env::args().collect();
+    let workload = Workload::from_args(&args)?;
+    let smoke = args.iter().any(|arg| arg == "--smoke-test");
+    if cfg!(target_os = "ios") && workload.is_some() {
         return Err("The signed 1440x872 performance matrix requires the macOS host".into());
     }
-    let trace_frames = std::env::args().any(|arg| arg == "--trace-frames");
-    let performance_find = std::env::args().any(|arg| arg == "--performance-find");
-    let performance_settings = std::env::args().any(|arg| arg == "--performance-settings");
-    let performance_files = std::env::args().any(|arg| arg == "--performance-files");
-    let performance_artists = std::env::args().any(|arg| arg == "--performance-artists");
-    let performance_song_indicators =
-        std::env::args().any(|arg| arg == "--performance-song-indicators");
-    if performance_song_indicators
-        && (!performance
-            || std::env::args().any(|arg| {
-                arg.starts_with("--performance-")
-                    && !matches!(
-                        arg.as_str(),
-                        "--performance-check" | "--performance-song-indicators"
-                    )
-            }))
-    {
-        return Err(
-            "--performance-song-indicators requires --performance-check and its own workload"
-                .into(),
-        );
-    }
-
-    if performance_artists
-        && (!performance
-            || std::env::args().any(|arg| {
-                arg.starts_with("--performance-")
-                    && !matches!(
-                        arg.as_str(),
-                        "--performance-check" | "--performance-artists"
-                    )
-            }))
-    {
-        return Err(
-            "--performance-artists requires --performance-check and its own workload".into(),
-        );
-    }
-    let performance_drop = std::env::args().any(|arg| arg == "--performance-drop");
-    if performance_drop
-        && (!performance
-            || std::env::args().any(|arg| {
-                arg.starts_with("--performance-")
-                    && !matches!(arg.as_str(), "--performance-check" | "--performance-drop")
-            }))
-    {
-        return Err("--performance-drop requires --performance-check and its own workload".into());
-    }
-    if performance_files
-        && (!performance
-            || std::env::args().any(|arg| {
-                matches!(
-                    arg.as_str(),
-                    "--performance-settings"
-                        | "--performance-find"
-                        | "--performance-waveform"
-                        | "--performance-artwork"
-                        | "--performance-queue"
-                        | "--performance-queue-drag"
-                        | "--performance-queue-sheet"
-                )
-            }))
-    {
-        return Err("--performance-files requires --performance-check and its own workload".into());
-    }
-    if performance_settings
-        && (!performance
-            || std::env::args().any(|arg| {
-                matches!(
-                    arg.as_str(),
-                    "--performance-find"
-                        | "--performance-waveform"
-                        | "--performance-artwork"
-                        | "--performance-queue"
-                        | "--performance-queue-drag"
-                        | "--performance-queue-sheet"
-                        | "--performance-files"
-                )
-            }))
-    {
-        return Err(
-            "--performance-settings requires --performance-check and its own workload".into(),
-        );
-    }
-    let performance_waveform = std::env::args().any(|arg| arg == "--performance-waveform");
-    if performance_waveform && !performance {
-        return Err("--performance-waveform requires --performance-check".into());
-    }
-    let performance_artwork = std::env::args().any(|arg| arg == "--performance-artwork");
-    if performance_artwork && !performance {
-        return Err("--performance-artwork requires --performance-check".into());
-    }
-    if performance_find && !performance {
-        return Err("--performance-find requires --performance-check".into());
-    }
-    let performance_queue_drag = std::env::args().any(|arg| arg == "--performance-queue-drag");
-    let performance_queue_sheet = std::env::args().any(|arg| arg == "--performance-queue-sheet");
-    if performance_queue_sheet && !performance {
-        return Err("--performance-queue-sheet requires --performance-check".into());
-    }
-    if performance_queue_drag && !performance {
-        return Err("--performance-queue-drag requires --performance-check".into());
-    }
-    let performance_queue = performance_queue_drag
-        || performance_queue_sheet
-        || performance_artwork
-        || std::env::args().any(|arg| arg == "--performance-queue");
-    if performance_queue && !performance {
-        return Err("--performance-queue requires --performance-check".into());
-    }
+    let trace_frames = args.iter().any(|arg| arg == "--trace-frames");
     mem_sys::set_peer(pxui::library_counter);
     #[cfg(target_os = "macos")]
     let chrome = {
@@ -190,7 +83,10 @@ fn open(window: &mut Window) -> Result<App, String> {
         Some(if cfg!(target_os = "ios") { 18 } else { 15 }),
         &[lw_ui::FONT, lw_ui::MONO],
     );
-    if performance_queue_drag || performance_artists || performance_song_indicators {
+    if matches!(workload, Some(Workload::QueueDrag))
+        || matches!(workload, Some(Workload::Artists))
+        || matches!(workload, Some(Workload::SongIndicators))
+    {
         ui.set_a11y(true);
     }
     ui.enable_system_fonts()
@@ -205,7 +101,7 @@ fn open(window: &mut Window) -> Result<App, String> {
         ui.set_timing(true);
     }
     let graphics = gpu::Graphics::open(window, &ui)?;
-    let temporary = if smoke || performance {
+    let temporary = if smoke || workload.is_some() {
         Some(
             lw_apple_sys::preferences::AppPaths::load()
                 .map_err(|error| error.to_string())?
@@ -243,26 +139,26 @@ fn open(window: &mut Window) -> Result<App, String> {
                         test_database: None,
                     },
                 )?;
-                if performance {
-                    if performance_settings {
+                if workload.is_some() {
+                    if matches!(workload, Some(Workload::Settings)) {
                         library.save_settings(&lw_core::preferences::Settings {
                             appearance: lw_core::preferences::Appearance::Light,
                             ..Default::default()
                         })?;
                     }
                     smoke::seed_catalog(&base.join("library.sqlite"))?;
-                    if performance_artists {
+                    if matches!(workload, Some(Workload::Artists)) {
                         smoke::seed_artists(&base.join("library.sqlite"))?;
                     }
-                    if performance_artwork {
+                    if matches!(workload, Some(Workload::Artwork)) {
                         smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
                     }
                     smoke::seed_waveform(&base.join("Caches"))?;
-                    if performance_files {
+                    if matches!(workload, Some(Workload::Files)) {
                         smoke::seed_files(&mut library)?;
                     }
                     library.save_player_state(&lw_core::preferences::PlayerState {
-                        song_ids: if performance_queue {
+                        song_ids: if workload.is_some_and(Workload::uses_queue) {
                             (1..=10_000).collect()
                         } else {
                             vec![1]
@@ -311,7 +207,7 @@ fn open(window: &mut Window) -> Result<App, String> {
     .map_err(|error| error.to_string())?;
     // Workers do not inherit the UI's interactive QoS.
     lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
-    if cfg!(target_os = "macos") && (smoke || performance) {
+    if cfg!(target_os = "macos") && (smoke || workload.is_some()) {
         let deadline = window.time() + 5.0;
         loop {
             player.poll().map_err(|error| error.to_string())?;
@@ -320,8 +216,8 @@ fn open(window: &mut Window) -> Result<App, String> {
                     return Err(player.status().message.to_string());
                 }
                 // Queue and status travel through separate bounded handoffs.
-                if (!performance_queue || player.catalog().queue.is_some())
-                    && (!performance || player.status().waveform.is_some())
+                if (!workload.is_some_and(Workload::uses_queue) || player.catalog().queue.is_some())
+                    && (workload.is_none() || player.status().waveform.is_some())
                 {
                     break;
                 }
@@ -332,10 +228,10 @@ fn open(window: &mut Window) -> Result<App, String> {
             window.wait(Some(window.time() + 0.05));
         }
     }
-    if performance && player.catalog().len() != 10_000 {
+    if workload.is_some() && player.catalog().len() != 10_000 {
         return Err("Performance fixture must contain 10,000 songs".into());
     }
-    if performance_queue
+    if workload.is_some_and(Workload::uses_queue)
         && player
             .catalog()
             .queue
@@ -345,7 +241,7 @@ fn open(window: &mut Window) -> Result<App, String> {
     {
         return Err("Queue performance fixture must contain 9,999 upcoming occurrences".into());
     }
-    let indicator_song = if performance_song_indicators {
+    let indicator_song = if matches!(workload, Some(Workload::SongIndicators)) {
         Some(
             player
                 .catalog()
@@ -391,13 +287,13 @@ fn open(window: &mut Window) -> Result<App, String> {
     let mut smoke_check = smoke::Smoke::new(window.time());
     let mut smoke_finished = false;
     let mut shell_state = lw_ui::ShellState::default();
-    if performance_settings {
+    if matches!(workload, Some(Workload::Settings)) {
         shell_state.apply(lw_ui::Intent::ShowSettings);
         player
             .command(Command::ReadStorage)
             .map_err(|error| error.to_string())?;
     }
-    if performance_files {
+    if matches!(workload, Some(Workload::Files)) {
         use lw_ui::files::{Location, Request};
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
         files
@@ -438,10 +334,10 @@ fn open(window: &mut Window) -> Result<App, String> {
             window.wait(Some(window.time() + 0.05));
         }
     }
-    if performance_artwork {
+    if matches!(workload, Some(Workload::Artwork)) {
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
     }
-    if performance_artists {
+    if matches!(workload, Some(Workload::Artists)) {
         if player.catalog().artists.len() != 10_000
             || player
                 .catalog()
@@ -453,7 +349,7 @@ fn open(window: &mut Window) -> Result<App, String> {
         }
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Artists));
     }
-    if performance_find {
+    if matches!(workload, Some(Workload::Find)) {
         use lw_ui::{
             Intent,
             browse::{Query, Sort},
@@ -494,10 +390,10 @@ fn open(window: &mut Window) -> Result<App, String> {
         }
     }
     player
-        .enable_media_controls(!smoke && !performance)
+        .enable_media_controls(!smoke && workload.is_none())
         .map_err(|error| error.to_string())?;
     let mut command_error: Option<&'static str> = None;
-    if performance_queue_sheet {
+    if matches!(workload, Some(Workload::QueueSheet)) {
         shell_state.apply(lw_ui::Intent::ShowQueue);
         shell_state.apply(lw_ui::Intent::NamePlaylist);
         shell_state.apply(lw_ui::Intent::EditPlaylistName(
@@ -525,13 +421,13 @@ fn open(window: &mut Window) -> Result<App, String> {
             first = true;
             return Ok(Schedule::NextFrame);
         }
-        if performance {
+        if workload.is_some() {
             mem_sys::local_reset();
         }
         if signal == Signal::Frame && graphics.can_draw() {
             events.clear();
             if !platform.pump(window, &mut events)? {
-                if performance || (smoke && !smoke_finished) {
+                if workload.is_some() || (smoke && !smoke_finished) {
                     return Err("Window closed before qualification finished".into());
                 }
                 return Ok(Schedule::Exit);
@@ -539,7 +435,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             if let Some(error) = window.take_failure() {
                 return Err(error);
             }
-            if performance_drop && frames >= 2 {
+            if matches!(workload, Some(Workload::Drop)) && frames >= 2 {
                 smoke::drop_events(frames - 2, &mut events);
             }
             for event in &mut events {
@@ -642,13 +538,13 @@ fn open(window: &mut Window) -> Result<App, String> {
             artwork.ready_images(),
         )?;
         let mut expected_settings_intent = None;
-        if performance && frames >= 2 && !performance_drop {
-            if performance_settings {
+        if workload.is_some() && frames >= 2 && !matches!(workload, Some(Workload::Drop)) {
+            if matches!(workload, Some(Workload::Settings)) {
                 expected_settings_intent =
                     smoke::settings_events(frames - 2, top_inset, &mut events);
-            } else if performance_waveform {
+            } else if matches!(workload, Some(Workload::Waveform)) {
                 smoke::waveform_events(frames - 2, &mut events);
-            } else if performance_queue_drag {
+            } else if matches!(workload, Some(Workload::QueueDrag)) {
                 let grip = ui
                     .a11y_nodes()
                     .iter()
@@ -665,9 +561,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                 );
             } else {
                 events.push(HostEvent::PointerMoved(
-                    if performance_queue_sheet || performance_artwork {
+                    if matches!(workload, Some(Workload::QueueSheet))
+                        || matches!(workload, Some(Workload::Artwork))
+                    {
                         (650.0, 400.0)
-                    } else if performance_queue {
+                    } else if workload.is_some_and(Workload::uses_queue) {
                         (1300.0, 690.0)
                     } else {
                         (650.0, 400.0)
@@ -676,7 +574,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                 events.push(HostEvent::Scrolled((
                     0.0,
                     (if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 })
-                        * if performance_artwork { 0.2 } else { 1.0 },
+                        * if matches!(workload, Some(Workload::Artwork)) {
+                            0.2
+                        } else {
+                            1.0
+                        },
                 )));
             }
         }
@@ -701,11 +603,11 @@ fn open(window: &mut Window) -> Result<App, String> {
             }
         }
         shell_state.set_window_inset(top_inset as f32);
-        if performance && extent.logical != (1440, 872) {
+        if workload.is_some() && extent.logical != (1440, 872) {
             return Err("Performance qualification requires a 1440x872 logical window".into());
         }
         if first
-            || performance
+            || workload.is_some()
             || resized
             || !events.is_empty()
             || player_changed
@@ -719,7 +621,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             let wire = encoded.encode(&events);
             let interval =
                 trace_frames.then(|| lw_apple_sys::timing::FrameInterval::begin(frames as u64 + 1));
-            let cpu_started = if performance {
+            let cpu_started = if workload.is_some() {
                 lw_apple_sys::thread_cpu_time_ns().map_err(|error| error.to_string())?
             } else {
                 0
@@ -742,7 +644,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             let mut gpu_trace = [0u64; 4];
             let mut intent = None;
             let status = player.status();
-            if performance && status.waveform.is_none() {
+            if workload.is_some() && status.waveform.is_none() {
                 return Err("Waveform disappeared during performance qualification".into());
             }
             themes.apply(&mut ui, &status.settings, preferences);
@@ -756,7 +658,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 storage_busy: status.storage_busy,
                 artwork: Some(graphics.images()),
                 waveform: status.waveform.as_ref(),
-                revision: if performance {
+                revision: if workload.is_some() {
                     frames as u64
                 } else {
                     status.revision + error_revision
@@ -764,20 +666,20 @@ fn open(window: &mut Window) -> Result<App, String> {
                 title: &status.title,
                 context: status.context.title(),
                 message: command_error.unwrap_or(&status.message),
-                playing: if performance_song_indicators {
+                playing: if matches!(workload, Some(Workload::SongIndicators)) {
                     frames % 40 < 20
                 } else {
                     status.wants_playback
                 },
                 initialized: status.initialized,
-                current_id: if performance_song_indicators {
+                current_id: if matches!(workload, Some(Workload::SongIndicators)) {
                     indicator_song
                 } else {
                     status.current.map(|entry| entry.song_id)
                 },
                 artist: &status.artist,
                 album: &status.album,
-                position: if performance {
+                position: if workload.is_some() {
                     frames as f64
                 } else {
                     status.position
@@ -785,7 +687,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                 volume: status.volume,
                 shuffled: status.shuffled,
                 repeat: status.repeat,
-                duration: if performance { 240.0 } else { status.duration },
+                duration: if workload.is_some() {
+                    240.0
+                } else {
+                    status.duration
+                },
             };
             ui.frame(
                 &FrameIn {
@@ -797,7 +703,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     keyboard: platform.keyboard(),
                     appearance: preferences.appearance,
                     reduced_motion: u32::from(
-                        !performance_song_indicators
+                        !matches!(workload, Some(Workload::SongIndicators))
                             && (preferences.reduced_motion != 0 || status.settings.reduce_motion),
                     ),
                     events: wire.as_ptr(),
@@ -807,7 +713,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 &mut |ui| lw_ui::shell(ui, &view, player.catalog(), &shell_state, &mut intent),
             )
             .map_err(|code| format!("Frame failed ({code})"))?;
-            if performance_settings {
+            if matches!(workload, Some(Workload::Settings)) {
                 if intent != expected_settings_intent {
                     return Err(format!(
                         "Settings input at frame {frames}: expected {expected_settings_intent:?}, got {intent:?}"
@@ -820,7 +726,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     ) * 4
                         + status.settings.signal as usize);
             }
-            if performance_drop && intent.is_some() {
+            if matches!(workload, Some(Workload::Drop)) && intent.is_some() {
                 return Err("External drag hover activated an application action".into());
             }
             let mut image_requests = graphics.images().visible_requests(&ui);
@@ -833,7 +739,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             } else {
                 0
             };
-            let cpu_us = if performance {
+            let cpu_us = if workload.is_some() {
                 (lw_apple_sys::thread_cpu_time_ns().map_err(|error| error.to_string())?
                     - cpu_started)
                     / 1000
@@ -846,7 +752,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             artwork
                 .request(image_requests)
                 .map_err(|error| error.to_string())?;
-            if performance_waveform && frames >= 2 {
+            if matches!(workload, Some(Workload::Waveform)) && frames >= 2 {
                 let phase = (frames - 2) % 20;
                 if ui.captured() != (phase < 9) {
                     return Err("Waveform qualification lost held pointer capture".into());
@@ -866,7 +772,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     }
                 }
             }
-            if performance_queue_drag && frames >= 2 {
+            if matches!(workload, Some(Workload::QueueDrag)) && frames >= 2 {
                 let carrying = ui.carrying_ref();
                 let expected = (1..20).contains(&((frames - 2) % 40));
                 if expected != carrying.is_some()
@@ -900,7 +806,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             };
             frames += 1;
             repaint = ui.repaint_at();
-            if performance || ui.draw_revision() != revision {
+            if workload.is_some() || ui.draw_revision() != revision {
                 if graphics.draw(window, &ui, trace_frames.then_some(&mut gpu_trace))? {
                     draws += 1;
                     revision = ui.draw_revision();
@@ -1163,7 +1069,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                         lw_ui::Intent::SaveQueue(name) => Command::SaveQueue(name),
                         lw_ui::Intent::SeekFraction(fraction) => Command::Seek(
                             fraction
-                                * if performance {
+                                * if workload.is_some() {
                                     240.0
                                 } else {
                                     player.status().duration
@@ -1242,7 +1148,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 error_revision += 1;
                 repaint = Some(now);
             }
-            if trace_frames && performance {
+            if trace_frames && workload.is_some() {
                 let keys = image_requests;
                 let mut ids = [0usize; 8];
                 for (out, key) in ids.iter_mut().zip(keys.keys()) {
@@ -1262,7 +1168,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     output_allocations,
                 );
             }
-            if performance_artwork && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::Artwork)) && frames > WARMUP_FRAMES {
                 let image_quads = ui
                     .layers()
                     .map(|layer| {
@@ -1276,7 +1182,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 min_artwork_quads = min_artwork_quads.min(image_quads);
                 warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
             }
-            if performance_song_indicators && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::SongIndicators)) && frames > WARMUP_FRAMES {
                 let visible = ui.a11y_nodes().iter().any(|node| {
                     node.is_role(pxui::ui::Role::Image)
                         && matches!(ui.a11y_name_of(node), "Playing" | "Paused")
@@ -1325,7 +1231,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     }
                 }
             }
-            if performance_artists && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::Artists)) && frames > WARMUP_FRAMES {
                 let mut rows = 0;
                 for node in ui
                     .a11y_nodes()
@@ -1347,7 +1253,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 min_artist_rows = min_artist_rows.min(rows);
                 max_artist_rows = max_artist_rows.max(rows);
             }
-            if performance_files && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::Files)) && frames > WARMUP_FRAMES {
                 let rows = ui
                     .layers()
                     .flat_map(|layer| layer.instances.iter())
@@ -1360,7 +1266,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 min_files_rows = min_files_rows.min(rows);
                 max_files_rows = max_files_rows.max(rows);
             }
-            if performance_drop {
+            if matches!(workload, Some(Workload::Drop)) {
                 let overlays = ui
                     .layers()
                     .flat_map(|layer| layer.instances.iter())
@@ -1380,7 +1286,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     drop_overlay_frames += usize::from(file_drop.hovered());
                 }
             }
-            if performance && frames > WARMUP_FRAMES {
+            if workload.is_some() && frames > WARMUP_FRAMES {
                 let bars = ui
                     .layers()
                     .flat_map(|layer| layer.instances.iter())
@@ -1402,7 +1308,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 };
             }
         }
-        if performance && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
+        if workload.is_some() && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
             let artwork_bytes = graphics.resident_image_bytes();
             if let Some(graphics) = graphics_slot.take() {
                 graphics.close()?;
@@ -1411,7 +1317,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 for (frame, (ready, keys, host, build, draw, gpu, output)) in
                     frame_trace.iter().enumerate()
                 {
-                    if performance_artwork
+                    if matches!(workload, Some(Workload::Artwork))
                         && (*ready != 0 || *host + *build + *draw != 0 || keys[0] != 0)
                     {
                         println!(
@@ -1440,36 +1346,12 @@ fn open(window: &mut Window) -> Result<App, String> {
             cpu_samples.sort_unstable();
             println!(
                 "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-                if performance_song_indicators {
-                    "songs-playing-indicator"
-                } else if performance_artists {
-                    "artists-measured-columns"
-                } else if performance_drop {
-                    "external-drop-hover-and-cancel"
-                } else if performance_settings {
-                    "settings-menus-appearance"
-                } else if performance_files {
-                    "files-indexed-directory"
-                } else if performance_waveform {
-                    "waveform-scrub-and-scroll"
-                } else if performance_artwork {
-                    "albums-artwork"
-                } else if performance_queue_sheet {
-                    "full-queue-playlist-editor"
-                } else if performance_queue_drag {
-                    "queue-carry-scroll-cancel"
-                } else if performance_queue {
-                    "queue-occurrences"
-                } else if performance_find {
-                    "find-filters-title-descending"
-                } else {
-                    "songs-original"
-                }
+                workload.map_or("songs-original", Workload::name)
             );
             println!(
                 "LocalWave waveform: peaks=512 min_bars={min_waveform_bars} scrub_commits={waveform_seeks}"
             );
-            if performance_song_indicators {
+            if matches!(workload, Some(Workload::SongIndicators)) {
                 println!(
                     "LocalWave song indicator: visible_playing_frames={indicator_playing} visible_paused_frames={indicator_paused} changed_frames={indicator_changes}"
                 );
@@ -1480,7 +1362,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     );
                 }
             }
-            if performance_settings {
+            if matches!(workload, Some(Workload::Settings)) {
                 println!(
                     "LocalWave settings: changes={settings_changes} themes={settings_themes:#04x}"
                 );
@@ -1488,7 +1370,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     return Err("Settings workload missed an action or theme".into());
                 }
             }
-            if performance_artists {
+            if matches!(workload, Some(Workload::Artists)) {
                 println!(
                     "LocalWave artists: prepared_rows=10000 min_rows={min_artist_rows} max_rows={max_artist_rows} first_min={first_artist_min} first_max={first_artist_max}"
                 );
@@ -1499,7 +1381,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     return Err("Artist workload did not scroll its measured virtual table".into());
                 }
             }
-            if performance_files {
+            if matches!(workload, Some(Workload::Files)) {
                 println!(
                     "LocalWave files: indexed_rows=10000 min_drawn_rows={min_files_rows} max_drawn_rows={max_files_rows}"
                 );
@@ -1507,7 +1389,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     return Err("Files workload did not draw its virtualized rows".into());
                 }
             }
-            if performance_drop {
+            if matches!(workload, Some(Workload::Drop)) {
                 println!(
                     "LocalWave external drop: measured_overlay_frames={drop_overlay_frames} mutation_jobs=0"
                 );
@@ -1517,7 +1399,9 @@ fn open(window: &mut Window) -> Result<App, String> {
                     );
                 }
             }
-            if performance_waveform && (waveform_seeks != 9 || min_waveform_bars < 200) {
+            if matches!(workload, Some(Workload::Waveform))
+                && (waveform_seeks != 9 || min_waveform_bars < 200)
+            {
                 return Err("Waveform qualification did not exercise all nine scrub cycles".into());
             }
             println!(
@@ -1530,7 +1414,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 cpu_samples[98],
                 cpu_samples[99]
             );
-            if performance_artwork {
+            if matches!(workload, Some(Workload::Artwork)) {
                 println!(
                     "LocalWave artwork: texture_bytes={artwork_bytes} min_image_quads={min_artwork_quads} max_warm_requests={warm_artwork_requests}"
                 );
@@ -1585,7 +1469,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             smoke_finished = true;
             return Ok(Schedule::Exit);
         }
-        if performance {
+        if workload.is_some() {
             return Ok(Schedule::NextFrame);
         }
         let deadline = if smoke {
