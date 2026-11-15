@@ -170,9 +170,12 @@ impl Worker {
             }
         }
         let _ = worker.library.release_all_playback();
-        let mut inbox = shared.inbox.lock().unwrap();
-        inbox.closed = true;
-        drop(inbox);
+        let retired = {
+            let mut inbox = shared.inbox.lock().unwrap();
+            inbox.closed = true;
+            inbox.retired_catalog.take()
+        };
+        drop(retired);
         (shared.wake)();
     }
     pub(super) fn work(&mut self) -> io::Result<()> {

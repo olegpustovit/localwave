@@ -47,6 +47,56 @@ pub(super) struct Ack {
     pub(super) result: io::Result<bool>,
     pub(super) snapshot: Snapshot,
 }
+#[derive(Default)]
+pub(super) struct Feedback {
+    pub(super) ack: Option<Ack>,
+    pub(super) stopped: bool,
+    pub(super) retired_catalog: Option<Arc<lw_ui::catalog::Catalog>>,
+}
+impl Feedback {
+    pub(super) fn pending(&self) -> bool {
+        self.ack.is_some() || self.stopped || self.retired_catalog.is_some()
+    }
+    pub(super) fn flush(&mut self, inbox: &mut Inbox) -> bool {
+        let changed = self.pending();
+        if let Some(ack) = self.ack.take() {
+            debug_assert!(inbox.ack.is_none());
+            inbox.ack = Some(ack);
+            inbox.dirty = true;
+        }
+        if std::mem::take(&mut self.stopped) {
+            inbox.stopped = true;
+        }
+        if let Some(retired) = self.retired_catalog.take() {
+            debug_assert!(inbox.retired_catalog.is_none());
+            inbox.retired_catalog = Some(retired);
+        }
+        changed
+    }
+    pub(super) fn adopt(
+        &mut self,
+        current: &mut Arc<lw_ui::catalog::Catalog>,
+        next: Option<Arc<lw_ui::catalog::Catalog>>,
+        changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
+    ) -> bool {
+        if let Some(next) = next {
+            changed(current, &next);
+            debug_assert!(self.retired_catalog.is_none());
+            self.retired_catalog = Some(std::mem::replace(current, next));
+            true
+        } else {
+            false
+        }
+    }
+}
+pub(super) struct Poll {
+    pub(super) stop_requested: bool,
+    pub(super) stopped: bool,
+    pub(super) output: Option<Output>,
+    pub(super) catalog: Option<Arc<lw_ui::catalog::Catalog>>,
+    pub(super) status: Option<Status>,
+    pub(super) worker_changed: bool,
+}
 pub(super) struct Envelope {
     pub(super) audio_notice: Option<lw_apple_sys::session::Notification>,
     pub(super) revision: u64,
@@ -73,6 +123,21 @@ pub(super) struct Inbox {
     pub(super) stopped: bool,
 }
 impl Inbox {
+    fn take_catalog(
+        &mut self,
+        current: &Arc<lw_ui::catalog::Catalog>,
+    ) -> Option<Arc<lw_ui::catalog::Catalog>> {
+        if self.closed || self.retired_catalog.is_some() {
+            return None;
+        }
+        let next = self.catalog.take();
+        if let Some(next) = &next {
+            debug_assert!(Arc::ptr_eq(&self.presented_catalog, current));
+            // Reserve the new base before repair: a worker can publish during the callback.
+            self.presented_catalog = next.clone();
+        }
+        next
+    }
     pub(super) fn has_pending_catalog(&self) -> bool {
         self.catalog_pending
             || self.catalog.is_some()
@@ -170,33 +235,41 @@ impl Shared {
         self.waveform_cancelled.store(false, Ordering::SeqCst);
         true
     }
-    pub(super) fn update_catalog(
+    #[allow(clippy::too_many_arguments)] // One bounded mailbox exchange; native work stays outside it.
+    pub(super) fn exchange(
         &self,
-        current: &mut Arc<lw_ui::catalog::Catalog>,
-        changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
-    ) -> bool {
-        let catalog = {
-            let mut inbox = self.inbox.lock().unwrap();
-            if !inbox.closed && inbox.retired_catalog.is_none() {
-                let next = inbox.catalog.take();
-                if let Some(next) = &next {
-                    debug_assert!(Arc::ptr_eq(&inbox.presented_catalog, current));
-                    // Reserve the new base before repair: a worker can publish during the callback.
-                    inbox.presented_catalog = next.clone();
-                }
-                next
-            } else {
-                None
-            }
-        };
-        if let Some(catalog) = catalog {
-            changed(current, &catalog);
-            let old = std::mem::replace(current, catalog);
-            self.inbox.lock().unwrap().retired_catalog = Some(old);
-            self.changed.notify_one();
-            true
-        } else {
-            false
+        feedback: &mut Feedback,
+        batch: &[Option<Event>],
+        snapshot: Snapshot,
+        fault: Option<io::Error>,
+        apply_output: bool,
+        current: &Arc<lw_ui::catalog::Catalog>,
+        revision: u64,
+    ) -> io::Result<Poll> {
+        let mut inbox = self.inbox.lock().unwrap();
+        if inbox.native.token != snapshot.token || !batch.is_empty() || fault.is_some() {
+            self.waveform_cancelled.store(true, Ordering::SeqCst);
         }
+        let worker_changed = inbox.update_native(batch, snapshot, fault)?;
+        let worker_changed = feedback.flush(&mut inbox) || worker_changed;
+        let stop_requested = inbox.stop_requested;
+        let output = if apply_output || stop_requested {
+            inbox.output.take()
+        } else {
+            None
+        };
+        let catalog = if apply_output {
+            inbox.take_catalog(current)
+        } else {
+            None
+        };
+        Ok(Poll {
+            stop_requested,
+            stopped: inbox.stopped,
+            output,
+            catalog,
+            status: (inbox.status.revision != revision).then(|| inbox.status.clone()),
+            worker_changed,
+        })
     }
 }

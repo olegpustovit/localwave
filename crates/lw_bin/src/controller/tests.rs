@@ -418,9 +418,132 @@ fn unchanged_native_polls_need_no_worker_notification_or_warm_allocation() {
     );
     assert!(inbox.fault.is_none());
 }
+
+#[test]
+fn one_poll_exchange_delivers_bounded_replies_and_preserves_newer_native_readings() {
+    let shared = shared();
+    let current = shared.inbox.lock().unwrap().presented_catalog.clone();
+    let mut feedback = Feedback::default();
+    shared.changed.notify_one();
+    mem_sys::local_reset();
+    for _ in 0..20 {
+        let poll = shared
+            .exchange(
+                &mut feedback,
+                &[],
+                Snapshot::default(),
+                None,
+                true,
+                &current,
+                0,
+            )
+            .unwrap();
+        assert!(!poll.worker_changed);
+        assert!(poll.output.is_none() && poll.catalog.is_none() && poll.status.is_none());
+        assert!(!feedback.pending());
+        assert!(shared.inbox.try_lock().is_ok());
+    }
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+    {
+        let mut inbox = shared.inbox.lock().unwrap();
+        inbox.output = Some(Output {
+            preparation: 7,
+            operation: Operation::Seek(4.0),
+        });
+        inbox.status.revision = 1;
+    }
+    let poll = shared
+        .exchange(
+            &mut feedback,
+            &[],
+            Snapshot::default(),
+            None,
+            true,
+            &current,
+            0,
+        )
+        .unwrap();
+    assert_eq!(poll.output.unwrap().preparation, 7);
+    assert_eq!(poll.status.unwrap().revision, 1);
+    assert!(shared.inbox.lock().unwrap().ack.is_none());
+    feedback.ack = Some(Ack {
+        result: Ok(true),
+        snapshot: Snapshot {
+            position: 4.0,
+            ..Default::default()
+        },
+    });
+    let now = Snapshot {
+        position: 4.5,
+        ..Default::default()
+    };
+    assert!(
+        shared
+            .exchange(&mut feedback, &[None; 129], now, None, true, &current, 1)
+            .is_err()
+    );
+    assert!(
+        feedback.ack.is_some(),
+        "a refused event batch must retain the pending acknowledgement"
+    );
+    assert!(shared.inbox.lock().unwrap().ack.is_none());
+    mem_sys::local_reset();
+    let poll = shared
+        .exchange(&mut feedback, &[], now, None, true, &current, 1)
+        .unwrap();
+    assert!(poll.worker_changed);
+    assert!(!feedback.pending());
+    {
+        let mut inbox = shared.inbox.lock().unwrap();
+        assert_eq!(
+            inbox.native.position, 4.5,
+            "the later reading must not regress to the acknowledgement"
+        );
+        assert_eq!(inbox.ack.take().unwrap().snapshot.position, 4.0);
+        inbox.dirty = false;
+        inbox.stop_requested = true;
+    }
+    let poll = shared
+        .exchange(&mut feedback, &[], now, None, false, &current, 1)
+        .unwrap();
+    assert!(poll.stop_requested && !poll.stopped);
+    assert!(
+        !shared.inbox.lock().unwrap().stopped,
+        "copying the request cannot acknowledge native stop"
+    );
+    feedback.stopped = true;
+    let poll = shared
+        .exchange(&mut feedback, &[], now, None, false, &current, 1)
+        .unwrap();
+    assert!(poll.stop_requested && poll.stopped && poll.worker_changed);
+    let poll = shared
+        .exchange(&mut feedback, &[], now, None, false, &current, 1)
+        .unwrap();
+    assert!(
+        poll.stopped && !poll.worker_changed,
+        "an acknowledged stop must not cause a wake loop"
+    );
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+}
+fn exchange_catalog(
+    shared: &Shared,
+    feedback: &mut Feedback,
+    current: &mut Arc<Catalog>,
+    changed: &mut dyn FnMut(&Catalog, &Catalog),
+) -> bool {
+    let poll = shared
+        .exchange(feedback, &[], Snapshot::default(), None, true, current, 0)
+        .unwrap();
+    assert!(poll.output.is_none());
+    if poll.worker_changed {
+        shared.changed.notify_one();
+    }
+    feedback.adopt(current, poll.catalog, changed)
+}
 #[test]
 fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
     let shared = shared();
+    let mut feedback = Feedback::default();
     let entries: Arc<[lw_core::queue::Entry]> = (0..10_000)
         .map(|id| lw_core::queue::Entry { id, song_id: 7 })
         .collect();
@@ -442,22 +565,32 @@ fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
     // Warm the condition variable before measuring exchanges.
     shared.changed.notify_one();
     mem_sys::local_reset();
-    assert!(shared.update_catalog(&mut current, &mut |previous, next| {
-        assert!(previous.all.is_none());
-        assert!(next.all.is_some());
-        assert!(
-            shared.inbox.try_lock().is_ok(),
-            "view-state repair must not hold the mailbox lock"
-        );
-    }));
+    assert!(exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |previous, next| {
+            assert!(previous.all.is_none());
+            assert!(next.all.is_some());
+            assert!(
+                shared.inbox.try_lock().is_ok(),
+                "view-state repair must not hold the mailbox lock"
+            );
+        }
+    ));
     assert_eq!(mem_sys::local_alloc_count(), 0);
     assert_eq!(
         old.strong_count(),
         1,
-        "only the worker's retirement slot keeps the old catalog alive"
+        "only the bounded return slot keeps the old catalog alive"
     );
     shared.publish_catalog(&Catalog::default());
-    assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("retirement backpressure")));
+    assert!(!exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |_, _| panic!("retirement backpressure")
+    ));
     assert!(shared.inbox.lock().unwrap().catalog.is_some());
     assert_eq!(
         old_entries.strong_count(),
@@ -479,17 +612,27 @@ fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
     })
     .join()
     .unwrap();
-    assert!(shared.update_catalog(&mut current, &mut |previous, next| {
-        assert!(previous.all.is_some());
-        assert!(next.all.is_none());
-    }));
+    assert!(exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |previous, next| {
+            assert!(previous.all.is_some());
+            assert!(next.all.is_none());
+        }
+    ));
     {
         let mut inbox = shared.inbox.lock().unwrap();
         inbox.retired_catalog.take();
         inbox.catalog = Some(Arc::new(Catalog::new(Vec::new())));
         inbox.closed = true;
     }
-    assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("closed mailbox")));
+    assert!(!exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |_, _| panic!("closed mailbox")
+    ));
 }
 
 #[test]
@@ -505,6 +648,7 @@ fn coalesced_catalog_remaps_follow_the_presented_base_even_during_repair() {
         )
     };
     let shared = shared();
+    let mut feedback = Feedback::default();
     let mut current = Arc::new(catalog(&[1, 2]));
     shared.inbox.lock().unwrap().presented_catalog = current.clone();
     let mut state = lw_ui::ShellState::default();
@@ -540,25 +684,39 @@ fn coalesced_catalog_remaps_follow_the_presented_base_even_during_repair() {
         ),
         "unchanged page publications reuse the prepared remap while the UI is behind"
     );
-    assert!(shared.update_catalog(&mut current, &mut |previous, next| {
-        state.refresh(previous, next);
-        assert_eq!(state.selected, Some(2));
-        assert!(shared.inbox.try_lock().is_ok());
-        // Deterministic worker publication while UI repair still borrows the previous page.
-        shared.publish_catalog(&catalog(&[2, 1]));
-    }));
+    assert!(exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |previous, next| {
+            state.refresh(previous, next);
+            assert_eq!(state.selected, Some(2));
+            assert!(shared.inbox.try_lock().is_ok());
+            // Deterministic worker publication while UI repair still borrows the previous page.
+            shared.publish_catalog(&catalog(&[2, 1]));
+        }
+    ));
     {
         let inbox = shared.inbox.lock().unwrap();
         let pending = inbox.catalog.as_ref().unwrap();
         assert!(pending.remap.as_ref().unwrap().matches(&current, pending));
-        assert!(inbox.retired_catalog.is_some());
+        assert!(inbox.retired_catalog.is_none());
+        assert!(feedback.retired_catalog.is_some());
     }
-    assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("retirement backpressure")));
+    assert!(!exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |_, _| panic!("retirement backpressure")
+    ));
     let retired = shared.inbox.lock().unwrap().retired_catalog.take();
     drop(retired);
-    assert!(shared.update_catalog(&mut current, &mut |previous, next| {
-        state.refresh(previous, next)
-    }));
+    assert!(exchange_catalog(
+        &shared,
+        &mut feedback,
+        &mut current,
+        &mut |previous, next| { state.refresh(previous, next) }
+    ));
     assert_eq!(state.selected, Some(0));
     assert_eq!(
         current

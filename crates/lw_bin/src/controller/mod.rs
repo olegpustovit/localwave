@@ -4,6 +4,12 @@
 //! native items and preserve buffered items on append. Worker errors wait for native stop
 //! acknowledgement before clearing leases.
 //!
+//! Each native poll exchanges bounded mailbox fields under one lock, then performs native work
+//! and UI repair unlocked. Operation/stop acknowledgements and the retired catalog wait in one
+//! controller-local return slot, flushed by an immediately woken follow-up poll. Retirement
+//! occupies either that slot or the inbox slot; shutdown flushes it before the worker exits.
+//! Explicit media/audio-session command delivery keeps its own enqueue synchronization.
+//!
 //! Preserve logical queue selection while native advance awaits acknowledgement. Coalesce
 //! volume/seek without cancelling preparation; queue changes fence operations/preparation. Browse
 //! has its own coalesced fixed-capacity slot, independent of playback capacity, and never fences
@@ -63,6 +69,7 @@ pub struct Controller {
     preparation: u64,
     status: Status,
     faulted: bool,
+    feedback: Feedback,
     media: Option<crate::media::Media>,
 }
 impl Controller {
@@ -115,6 +122,7 @@ impl Controller {
             preparation: 0,
             status,
             faulted: false,
+            feedback: Feedback::default(),
             media: None,
         })
     }
@@ -291,14 +299,6 @@ impl Controller {
         changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
     ) -> io::Result<bool> {
         self.native.run_loop(Duration::ZERO);
-        let stop_requested = self.shared.inbox.lock().unwrap().stop_requested;
-        if stop_requested {
-            self.native.stop();
-            let mut inbox = self.shared.inbox.lock().unwrap();
-            inbox.output.take();
-            inbox.stopped = true;
-            self.shared.changed.notify_one();
-        }
         let mut batch = [None; 64];
         let mut count = 0;
         let mut fault = None;
@@ -327,26 +327,31 @@ impl Controller {
             }
         }
         let snapshot = self.native.snapshot();
-        let (output, mut worker_changed) = {
-            let mut inbox = self.shared.inbox.lock().unwrap();
-            if inbox.native.token != snapshot.token || count != 0 || fault.is_some() {
-                self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
+        let poll = match self.shared.exchange(
+            &mut self.feedback,
+            &batch[..count],
+            snapshot,
+            fault,
+            apply_output,
+            &self.catalog,
+            self.status.revision,
+        ) {
+            Ok(poll) => poll,
+            Err(error) => {
+                self.native.pause();
+                return Err(error);
             }
-            let worker_changed = match inbox.update_native(&batch[..count], snapshot, fault) {
-                Ok(changed) => changed,
-                Err(error) => {
-                    self.native.pause();
-                    return Err(error);
-                }
-            };
-            let output = if apply_output {
-                inbox.output.take()
-            } else {
-                None
-            };
-            (output, worker_changed)
         };
-        if let Some(output) = output {
+        if poll.worker_changed {
+            self.shared.changed.notify_one();
+        }
+        if poll.stop_requested {
+            if !poll.stopped {
+                self.native.stop();
+                self.feedback.stopped = true;
+            }
+            drop(poll.output);
+        } else if let Some(output) = poll.output {
             let result = if output.preparation != self.preparation {
                 Ok(false)
             } else if self.faulted
@@ -359,24 +364,20 @@ impl Controller {
                 self.apply(output.operation)
             };
             let snapshot = self.native.snapshot();
-            let mut inbox = self.shared.inbox.lock().unwrap();
-            debug_assert!(inbox.ack.is_none());
-            inbox.native = snapshot;
-            inbox.dirty = true;
-            inbox.ack = Some(Ack { result, snapshot });
-            worker_changed = true;
+            debug_assert!(self.feedback.ack.is_none());
+            self.feedback.ack = Some(Ack { result, snapshot });
         }
-        if worker_changed {
-            self.shared.changed.notify_one();
+        let catalog_changed = self
+            .feedback
+            .adopt(&mut self.catalog, poll.catalog, changed);
+        let status_changed = poll.status.is_some();
+        if let Some(status) = poll.status {
+            self.status = status;
         }
-        let catalog_changed =
-            apply_output && self.shared.update_catalog(&mut self.catalog, changed);
-        let inbox = self.shared.inbox.lock().unwrap();
-        if inbox.status.revision == self.status.revision {
-            return Ok(catalog_changed);
+        if self.feedback.pending() {
+            (self.shared.wake)();
         }
-        self.status = inbox.status.clone();
-        Ok(true)
+        Ok(catalog_changed || status_changed)
     }
     fn apply(&mut self, operation: Operation) -> io::Result<bool> {
         match operation {
@@ -450,11 +451,13 @@ impl Drop for Controller {
         self.native.stop();
         self.shared.cancelled.store(true, Ordering::SeqCst);
         self.shared.waveform_cancelled.store(true, Ordering::SeqCst);
-        {
+        let output = {
             let mut inbox = self.shared.inbox.lock().unwrap();
+            self.feedback.flush(&mut inbox);
             inbox.closed = true;
-            inbox.output.take();
-        }
+            inbox.output.take()
+        };
+        drop(output);
         self.shared.changed.notify_one();
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
