@@ -45,6 +45,8 @@ pub(super) struct Worker {
     pub(super) advance: Option<(u64, u64)>,
     pub(super) undo: Option<Vec<Entry>>,
     pub(super) metadata_id: Option<i64>,
+    /// The song whose title/artist/album are currently published.
+    pub(super) labels_id: Option<i64>,
     pub(super) waveform_key: Option<(i64, u64)>,
     pub(super) waveform: Option<lw_core::waveform::Peaks>,
     pub(super) title: Arc<str>,
@@ -127,6 +129,7 @@ impl Worker {
                 advance: None,
                 undo: None,
                 metadata_id: None,
+                labels_id: None,
                 waveform_key: None,
                 waveform: None,
                 title: empty.clone(),

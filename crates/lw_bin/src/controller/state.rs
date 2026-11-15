@@ -214,11 +214,14 @@ impl Worker {
                 self.title = Arc::from(song.title.as_str());
                 self.artist = Arc::from(song.artist.as_str());
                 self.album = Arc::from(song.album.as_str());
-            } else {
+                self.labels_id = id;
+            } else if self.labels_id != id {
                 self.title = self.empty.clone();
                 self.artist = self.empty.clone();
                 self.album = self.empty.clone();
+                self.labels_id = id;
             }
+            // else: the current song's row was deleted; it keeps the labels it was playing with.
         }
         let transport = self.session.transport();
         let status = Status {
