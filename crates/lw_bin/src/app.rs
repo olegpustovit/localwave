@@ -344,13 +344,16 @@ impl App {
             .map_err(|error| error.to_string())?;
         frame.check_capture(ui, &intent)?;
         let before_output = frame.allocations();
+        let output_cpu = frame.cpu_time()?;
         platform.apply(window, ui)?;
+        frame.finish_output(output_cpu)?;
         frame.output_allocations = frame.allocations() - before_output;
         (*frames) += 1;
         (*repaint) = ui.repaint_at();
         if perf.is_some() || ui.draw_revision() != (*revision) {
+            let draw_cpu = frame.cpu_time()?;
             let drawn = graphics.draw(window, ui, frame.gpu_trace())?;
-            frame.finish_frame()?;
+            frame.finish_frame(ui, draw_cpu)?;
             frame.audit(ui, artwork, player);
             if drawn {
                 (*draws) += 1;

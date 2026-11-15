@@ -30,8 +30,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | B5 | Framework virtual-list reveal | done | 6179982 |
 | B6 | Framework completed file-drop events | done | 042b961 |
 | B7 | Move profiling/lifetime checks; close boundary | done | 325d54a |
-| P1 | End-to-end timing and LongScroll workload | done | HEAD |
-| P2 | Profile top frame costs | todo | — |
+| P1 | End-to-end timing and LongScroll workload | done | d407e8a |
+| P2 | Profile top frame costs | done | HEAD |
 | P3 | Isolate position ticks from stable content | todo | — |
 | P4 | Worker-prepared catalog remapping | todo | — |
 | P5 | Single controller-poll lock | todo | — |
@@ -53,38 +53,68 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P1 `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+P2 `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
 GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
 strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
-Bundle/signature/rpath/default-stack checks and settled idle smoke pass (502.0 ms).
-Source: `/tmp/localwave-p1-performance-final.log`; prior failures remain in commit evidence.
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (509.0 ms).
+Source: `/tmp/localwave-p2-performance.log`; prior P1 failures remain in commit evidence.
 
 The original twelve cases have zero measured Rust allocations and pass the frame-82 audit.
-LongScroll exposes 202 allocations/frame and six new text layouts at frame 82 and during measurement;
-its audit fails. It advances rows 240→537 in all 100 measured frames, without revisiting a wheel cycle.
-No additional warm-up or pre-shaping hides this cold work. Its accessibility tree is consumed to
-verify row order. End-to-end CPU exposes work omitted by build-only timing; wall spans are recorded
-without attributing their gaps. Native/process allocations and physical-device behavior remain open.
-Waveform retains 200 bars/nine release seeks; the indicator validates 58 playing/34 paused/57 changes.
+LongScroll still exposes 202 allocations/frame and six new text layouts at frame 82 and during
+measurement; its audit fails. It advances rows 240→537 in all 100 measured frames. No added warm-up,
+pre-shaping or repeated wheel cycle hides cold work. End-to-end CPU also fails its gate.
+Wall spans are recorded without attributing their gaps. Native/process allocations and physical-device
+behavior remain open. Waveform retains 200 bars/nine release seeks; indicator behavior is verified.
 
 Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-miss shaping work.
 
 | Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 715/939/965 | 754/1887/2653/2691 | 1139/1673/1720 | 16643/18677/19162/20215 | 0 | 0 | pass |
-| find-filters-title-descending | 747/937/969 | 811/1640/3477/3556 | 1312/1577/1682 | 16680/19167/19898/20282 | 0 | 0 | pass |
-| queue-occurrences | 674/864/908 | 735/1382/2365/2966 | 1174/1533/1545 | 16649/18699/19123/19299 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 363/817/838 | 374/954/1435/1649 | 861/1336/1361 | 16657/18947/19640/33296 | 0 | 0 | pass |
-| full-queue-playlist-editor | 643/976/1100 | 759/1854/2182/2712 | 1122/1450/1460 | 16639/17707/18308/18668 | 0 | 0 | pass |
-| albums-artwork | 648/1133/1144 | 739/1919/2712/3185 | 1305/1958/1980 | 16601/18920/19153/19230 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 468/953/1054 | 494/1598/2798/11077 | 895/1442/1544 | 16664/18447/18957/19117 | 0 | 0 | pass |
-| settings-menus-appearance | 308/583/588 | 353/1067/1497/1840 | 798/2740/2849 | 16618/18142/18870/19816 | 0 | 0 | pass |
-| files-indexed-directory | 309/396/399 | 326/1633/1849/2062 | 722/827/853 | 16637/18412/18671/19065 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 291/370/392 | 307/1032/1430/1672 | 718/849/858 | 16646/18652/18928/21060 | 0 | 0 | pass |
-| artists-measured-columns | 676/952/1054 | 752/2295/2636/2986 | 1112/1561/1632 | 16663/18222/18872/21327 | 0 | 0 | pass |
-| songs-playing-indicator | 850/1146/1198 | 944/2337/2840/2847 | 1310/1693/1795 | 16606/18246/19297/19705 | 0 | 0 | pass |
-| songs-long-scroll | 1182/1409/1510 | 1327/2745/3479/3769 | 1727/2009/2029 | 16606/18087/18783/19012 | 202 | 6 | fail (6 layouts) |
+| songs-original | 824/1056/1075 | 908/2840/3419/3772 | 1342/1577/1578 | 16643/18837/20257/20260 | 0 | 0 | pass |
+| find-filters-title-descending | 745/939/945 | 805/2146/2992/3650 | 1229/1518/1539 | 16622/18002/18605/18856 | 0 | 0 | pass |
+| queue-occurrences | 636/793/807 | 665/2139/2788/2805 | 1082/1336/1338 | 16640/18857/20625/29363 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 500/832/836 | 551/1529/1676/2343 | 965/1433/1480 | 16639/18747/19234/22303 | 0 | 0 | pass |
+| full-queue-playlist-editor | 668/1062/1093 | 788/2315/3469/4061 | 1170/1554/1610 | 16586/18309/20939/41604 | 0 | 0 | pass |
+| albums-artwork | 580/1075/1093 | 658/1992/2561/2715 | 1266/1940/1941 | 16626/18790/20160/29991 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 354/967/981 | 466/1991/2859/2896 | 809/1453/1529 | 16655/18447/18981/23019 | 0 | 0 | pass |
+| settings-menus-appearance | 313/602/771 | 378/1780/2585/3726 | 794/2593/3085 | 16624/18160/18438/18581 | 0 | 0 | pass |
+| files-indexed-directory | 322/436/469 | 344/1780/2010/2246 | 737/1041/1067 | 16650/18111/19090/19092 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 295/390/420 | 328/1466/2281/2407 | 725/909/919 | 16638/19163/19973/20061 | 0 | 0 | pass |
+| artists-measured-columns | 723/956/965 | 807/1669/3051/3308 | 1180/1456/1520 | 16673/18074/20181/21235 | 0 | 0 | pass |
+| songs-playing-indicator | 875/1193/1223 | 989/2230/2448/2970 | 1354/1778/1801 | 16650/18794/19279/19306 | 0 | 0 | pass |
+| songs-long-scroll | 1186/1501/1684 | 1350/2869/4611/8841 | 1737/2041/2177 | 16582/18780/19531/22224 | 202 | 6 | fail (6 layouts) |
+
+### CPU profile
+
+Separate signed `--performance-check --trace-frames` runs of the five P2 cases use the same
+10,000-song, 1440×872, 182/82/100 fixture. All five fail the unchanged performance gate;
+LongScroll also retains its allocation/cold-layout failure. Rank by mean thread CPU over the
+100 measured frames, rather than wall time or an individual outlier. Profiling is opt-in.
+The ABI 1.35 CPU clock sums every engine settling pass. Existing wall-phase times remain the
+final pass. Output spans `platform.apply`; draw spans the public `Graphics::draw`, including
+acquisition, preparation, recording, submission and image retirement. Other host/ABI/input work
+remains in the full-frame total; these phase means do not exhaust it or measure GPU execution.
+Raw CPU samples are retained with their corresponding wall/phase records before sorting copies.
+
+| Workload | First CPU phase (µs) | Second | Third |
+| --- | --- | --- | --- |
+| queue-drag | draw 336.20 | build 210.02 | paint 188.24 |
+| song-indicators | paint 386.59 | draw 340.92 | build 283.14 |
+| waveform | draw 325.63 | paint 226.95 | build 193.45 |
+| artwork | draw 587.76 | build 336.76 | paint 217.75 |
+| long-scroll | paint 603.11 | draw 352.92 | build 309.58 |
+
+Sources: `/tmp/localwave-p2-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
+The corresponding full phase means, aggregate CPU/wall timings and failing exits are preserved in
+P2 commit evidence. Correlated records confirm the measured CPU phases fit inside their parent spans.
+
+P3 remains the next fix: isolate ticking transport data so stable tables/sidebar do not rebuild or
+repaint. P4 and P5 still address adoption/polling work outside these engine phases; this profile
+alone does not quantify their benefit. P6 should investigate framework draw and paint/text first:
+artwork draw is the largest draw cost, and LongScroll paint coincides with six fresh layouts/frame.
+Arrange means are only 30–53 µs in these cases; do not assume queue/grid arrange is the primary cost.
+Keep cold-row allocation and layout failures open, with no extra warm-up or omitted input.
 
 ## Open qualification
 
@@ -98,7 +128,7 @@ Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-
 
 ## Known gaps
 
-- Performance P2–P6 precedes new feature work.
+- Performance P3–P6 precedes new feature work.
   LongScroll now exposes cold text shaping and 202 measured Rust allocations/frame; its warm-up
   audit fails. Twelve visited-row workloads remain zero. End-to-end CPU also exceeds the new gate.
   The full strict latency gate still fails; cold shaping and native memory need evidence.

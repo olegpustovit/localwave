@@ -7,6 +7,17 @@
 //! Reports run only after measurement and GPU retirement; failures stay failures.
 use super::*;
 const FRAME_BUILD_LIMIT_US: u128 = 1_000;
+const CPU_PHASE_NAMES: [&str; 9] = [
+    "begin",
+    "build",
+    "intrinsic",
+    "arrange",
+    "paint",
+    "a11y",
+    "finish",
+    "output",
+    "draw",
+];
 
 #[derive(Clone, Copy, Default)]
 pub struct FrameTiming {
@@ -15,15 +26,16 @@ pub struct FrameTiming {
     pub frame_wall: u128,
     pub frame_cpu: u64,
     pub phases: [u64; 7],
+    pub phase_cpu: [u64; 9],
 }
 impl FrameTiming {
-    /// Called after measurement; phase durations are wall times and can include preemption.
+    /// Called after measurement; wall and thread CPU phases stay labeled and correlated.
     pub fn write_outlier(&self, frame: usize, out: &mut dyn std::io::Write) -> std::io::Result<()> {
         if self.wall >= FRAME_BUILD_LIMIT_US || self.frame_cpu >= FRAME_BUILD_LIMIT_US as u64 {
             writeln!(
                 out,
-                "LocalWave frame outlier: frame={frame} wall_us={} cpu_us={} frame_wall_us={} frame_cpu_us={} phase_wall_us={:?}",
-                self.wall, self.cpu, self.frame_wall, self.frame_cpu, self.phases
+                "LocalWave frame outlier: frame={frame} wall_us={} cpu_us={} frame_wall_us={} frame_cpu_us={} phase_wall_us={:?} phase_cpu_us={:?}",
+                self.wall, self.cpu, self.frame_wall, self.frame_cpu, self.phases, self.phase_cpu
             )?;
         }
         Ok(())
@@ -188,13 +200,35 @@ impl Perf {
             }
         }
         if trace_frames {
+            let totals: [u64; 9] = std::array::from_fn(|phase| {
+                timings.iter().map(|sample| sample.phase_cpu[phase]).sum()
+            });
+            let mut order = std::array::from_fn::<_, 9, _>(|phase| phase);
+            order.sort_by_key(|&phase| std::cmp::Reverse(totals[phase]));
+            print!("LocalWave phase CPU mean us:");
+            for (phase, name) in CPU_PHASE_NAMES.iter().enumerate() {
+                print!(
+                    " {name}={:.2}",
+                    totals[phase] as f64 / MEASURED_FRAMES as f64
+                );
+            }
+            println!();
+            print!("LocalWave top CPU phases: workload={name}");
+            for phase in &order[..3] {
+                print!(
+                    " {}={:.2}",
+                    CPU_PHASE_NAMES[*phase],
+                    totals[*phase] as f64 / MEASURED_FRAMES as f64
+                );
+            }
+            println!();
             let mut phase_samples: [[u64; MEASURED_FRAMES]; 7] =
                 std::array::from_fn(|phase| (*timings).map(|sample| sample.phases[phase]));
             for samples in &mut phase_samples {
                 samples.sort_unstable();
             }
             println!(
-                "LocalWave phase medians us: begin={} build={} intrinsic={} arrange={} paint={} a11y={} finish={}",
+                "LocalWave phase wall medians us: begin={} build={} intrinsic={} arrange={} paint={} a11y={} finish={}",
                 phase_samples[0][49],
                 phase_samples[1][49],
                 phase_samples[2][49],
@@ -330,7 +364,7 @@ mod tests {
         }
         assert_eq!(
             String::from_utf8(output).unwrap(),
-            "LocalWave frame outlier: frame=84 wall_us=1000 cpu_us=300 frame_wall_us=0 frame_cpu_us=0 phase_wall_us=[1, 2, 3, 4, 5, 6, 7]\nLocalWave frame outlier: frame=85 wall_us=1500 cpu_us=400 frame_wall_us=0 frame_cpu_us=0 phase_wall_us=[7, 6, 5, 4, 3, 2, 1]\n"
+            "LocalWave frame outlier: frame=84 wall_us=1000 cpu_us=300 frame_wall_us=0 frame_cpu_us=0 phase_wall_us=[1, 2, 3, 4, 5, 6, 7] phase_cpu_us=[0, 0, 0, 0, 0, 0, 0, 0, 0]\nLocalWave frame outlier: frame=85 wall_us=1500 cpu_us=400 frame_wall_us=0 frame_cpu_us=0 phase_wall_us=[7, 6, 5, 4, 3, 2, 1] phase_cpu_us=[0, 0, 0, 0, 0, 0, 0, 0, 0]\n"
         );
     }
 }

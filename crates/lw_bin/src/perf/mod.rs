@@ -5,6 +5,11 @@
 //! year:2019 unplayed and matches all 10,000 fixture rows. Files draws real virtual rows; Settings
 //! visits all eight themes through real actions; drop checks draw the overlay without importing.
 //!
+//! CPU traces sum all engine settling passes; output spans platform.apply and draw spans the
+//! public Graphics::draw call, including acquisition/preparation/submission/retirement. Other host
+//! work remains in the full-frame total. Rank phase means only after measurement, with wall
+//! phases separately labeled. Timing is opt-in, fixed-capacity and never substitutes wall gates.
+//!
 //! Startup selection for the isolated signed performance matrix; no argument work runs in frames.
 
 mod drive;
