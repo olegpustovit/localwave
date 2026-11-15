@@ -53,10 +53,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F3 | Complete track menu and native reveal | done | 3a56ba9 |
 | F4 | Playlist CRUD, membership and reorder | todo | — |
 | F5 | Album/artist detail headers and actions | done | 1868431 |
-| F6 | Occurrence-based multi-selection | done | HEAD |
+| F6 | Occurrence-based multi-selection | done | 8ce3af5 |
 | F7 | Drag songs to playlists and queue | todo | — |
 | F8 | Metadata editor and metadata-only deletion | todo | — |
-| F9 | Source observation and debounced rescan | done | 12c2408 |
+| F9 | Source observation and debounced rescan | done | 12c2408 + HEAD |
 | F10 | Onboarding, route empty states and Share | todo | — |
 | S | Sign, migrate, TestFlight and release macOS | todo | — |
 | I1 | Framework gestures and device comparison | todo | — |
@@ -341,8 +341,12 @@ device/provider behavior remain open.
   presenter gets coordinated writes reliably, but a directory presenter receives subitem
   notifications only intermittently (about 1 in 12 coordinated writes, in-process or from a child
   process, in /tmp, /Users/Shared and $HOME; registration delay and run loop servicing do not
-  matter). Rust covers the callbacks/unregister deterministically and keeps real delivery as an
-  ignored on-demand test; OS delivery is unverified on device.
+  matter). An in-process directory presenter also makes the app's own coordinated reads under it
+  wait for presenter registration (75 ms–4.9 s measured, 1–4 ms without), so macOS source
+  observation uses FSEvents instead (started and released on its own queue; drop never blocks).
+  Real FSEvents delivery is on demand only: this host's fseventsd ran at ~100% CPU with 5 GB
+  resident and delivered in 2 of 6 standalone probes, with stream start taking 53 ms–5.3 s. iOS
+  keeps an NSFilePresenter, unqualified until I2.
 - F3: "New list…" (needs F4's name dialog for arbitrary songs), the submenu chevron and group dividers are
   absent; Share… is F10. Long playlist lists rely on the popup's 288-point max height (unverified past 8).
 - F4: create/rename/delete playlists, membership editing and drag reorder; preserve active playback.

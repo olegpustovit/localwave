@@ -52,7 +52,7 @@ pub mod player;
 pub mod media;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
-pub mod presenter;
+pub mod observer;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn require_worker_thread() -> std::io::Result<()> {

@@ -25,16 +25,16 @@
 //!
 //! Folder enumeration/import has its own connection and worker, leaving playback preparation free.
 //!
-//! Source observation: the worker thread owns one `Presenter` per known source (created when a
+//! Source observation: the worker thread owns one `FolderObserver` per known source (created when a
 //! snapshot lists it, dropped before release when the source disappears, the account clears or the
-//! worker closes). Presenter callbacks only mark the source dirty in the inbox and wake the worker.
+//! worker closes). Observer callbacks only mark the source dirty in the inbox and wake the worker.
 //! The worker coalesces marks with a trailing `QUIET` debounce and then runs the ordinary rescan
-//! job once, never while a user job is pending. Presenters watch the registered path only; rescans
+//! job once, never while a user job is pending. Observers watch the registered path only; rescans
 //! still resolve the stored bookmark grant. Sources are observed from the first Files use (the
 //! worker is lazy).
 use crate::library::LibraryWorker;
 use lw_apple_sys::{
-    bookmarks::FileSelection, collation::Key, preferences::file_path, presenter::Presenter,
+    bookmarks::FileSelection, collation::Key, preferences::file_path, observer::FolderObserver,
 };
 use lw_ui::files::{Directory, Entry, Folder, Location, Request, Snapshot, Target};
 use std::{
@@ -331,7 +331,7 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
         }
     };
     let mut debounce = Debounce::default();
-    let mut observers: HashMap<i64, (String, Presenter)> = HashMap::new();
+    let mut observers: HashMap<i64, (String, FolderObserver)> = HashMap::new();
     loop {
         let (job, browse, retired) = {
             let mut inbox = shared.inbox.lock().unwrap();
@@ -433,7 +433,7 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
 }
 /// Best effort: a source whose folder cannot be presented is simply not observed.
 fn sync_observers(
-    observers: &mut HashMap<i64, (String, Presenter)>,
+    observers: &mut HashMap<i64, (String, FolderObserver)>,
     snapshot: &Snapshot,
     shared: &Arc<Shared>,
     debounce: &mut Debounce,
@@ -456,15 +456,15 @@ fn sync_observers(
             continue;
         }
         let (owner, source) = (shared.clone(), folder.id);
-        let presenter = Presenter::new(Path::new(&folder.path), move || {
+        let observer = FolderObserver::new(Path::new(&folder.path), move || {
             let mut inbox = owner.inbox.lock().unwrap();
             if !inbox.dirty.contains(&source) {
                 inbox.dirty.push(source);
             }
             owner.changed.notify_one();
         });
-        if let Ok(presenter) = presenter {
-            observers.insert(folder.id, (folder.path.clone(), presenter));
+        if let Ok(observer) = observer {
+            observers.insert(folder.id, (folder.path.clone(), observer));
         }
     }
 }
@@ -863,7 +863,7 @@ mod tests {
             (folder.id, folder.root)
         };
         std::fs::write(music.join("02.flac"), tagged).unwrap();
-        // Same inbox path as a presenter callback; repeated marks coalesce into one rescan.
+        // Same inbox path as an observer callback; repeated marks coalesce into one rescan.
         for _ in 0..3 {
             let mut inbox = worker.shared.inbox.lock().unwrap();
             inbox.dirty.push(source);
