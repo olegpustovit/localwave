@@ -332,9 +332,6 @@ impl App {
                 lw_ui::Intent::MoveQueue { occurrence, before } => {
                     Command::MoveUpcoming { occurrence, before }
                 }
-                lw_ui::Intent::MoveFullQueue { occurrence, before } => {
-                    Command::MoveEntry { occurrence, before }
-                }
                 lw_ui::Intent::ClearQueue => Command::ClearUpcoming,
                 lw_ui::Intent::UndoQueue => Command::UndoClear,
                 lw_ui::Intent::SaveQueue(name) => Command::SaveQueue(name),

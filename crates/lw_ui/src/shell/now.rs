@@ -45,19 +45,6 @@ pub(super) fn now_panel(
                 (Size::Grow, 18.2),
                 false,
             );
-            let favorite = player.current_id.map(|id| {
-                (
-                    id,
-                    catalog
-                        .row_index(id)
-                        .is_some_and(|i| catalog.row(i).favorite),
-                )
-            });
-            if favorite_button(ui, favorite, p)
-                && let Some((song, on)) = favorite
-            {
-                *intent = Some(Intent::SetFavorite { song, on: !on });
-            }
             if icon_button(
                 ui,
                 "hide-panel",
@@ -91,70 +78,99 @@ pub(super) fn now_panel(
         );
         ui.a11y_name(&art, "Current track artwork");
         spacer(ui, "artwork-bottom-gap", 14.0);
-        let information_revision = pxui::hash!((
-            player.revision,
-            std::sync::Arc::as_ptr(&catalog.library) as usize,
-        ));
-        let information = ui.view(
-            "track-information",
-            information_revision,
-            Size::Grow,
-            Size::Fit,
-            &mut |ui| {
-                let title = ui.node(
-                    "current-track",
-                    Node {
-                        w: Size::Grow,
-                        h: Size::Fit,
-                        min_h: 22.8,
-                        role: Role::Label,
-                        ..Node::DEFAULT
-                    },
-                );
-                let value = if !player.initialized {
-                    "Loading library"
-                } else if player.title.is_empty() {
-                    "Nothing playing"
-                } else {
-                    player.title
-                };
-                ui.text_line_box(
-                    &title,
-                    value,
-                    &pxui::TextStyle {
-                        size_points: 19.0,
-                        weight: 500,
-                        tracking: -0.285,
-                        line_height: 22.8,
-                        wrap: 1,
-                        ..Default::default()
-                    },
-                    &[],
-                )
-                .unwrap();
-                if player.current_id.is_some() {
-                    byline::draw(ui, player, catalog, 279.0, p, intent);
-                }
-                if player.initialized && player.title.is_empty() {
-                    settings::paragraph(
-                        ui,
-                        "nothing-playing-hint",
-                        "Double-click a song, or drop audio files anywhere in this window.",
-                        279.0,
-                        14.0,
-                        p.secondary,
-                    );
-                }
+        let favorite = player.current_id.map(|id| {
+            (
+                id,
+                catalog
+                    .row_index(id)
+                    .is_some_and(|i| catalog.row(i).favorite),
+            )
+        });
+        // Swift's heart sits at the end of the title row, level with the title.
+        let title_row = ui.node(
+            "title-row",
+            Node {
+                axis: Axis::Row,
+                w: Size::Grow,
+                h: Size::Fit,
+                ..Node::DEFAULT
             },
         );
-        crate::motion::enter(
-            ui,
-            &information,
-            1,
-            (0.0, 10.0),
-            crate::motion::BASE,
-            crate::motion::QUICK + 0.045,
-        );
+        ui.within(&title_row, &mut |ui| {
+            let information_revision = pxui::hash!((
+                player.revision,
+                std::sync::Arc::as_ptr(&catalog.library) as usize,
+            ));
+            let information = ui.view(
+                "track-information",
+                information_revision,
+                Size::Grow,
+                Size::Fit,
+                &mut |ui| {
+                    let title = ui.node(
+                        "current-track",
+                        Node {
+                            w: Size::Grow,
+                            h: Size::Fit,
+                            min_h: 22.8,
+                            role: Role::Label,
+                            look: Look {
+                                text: p.ink,
+                                ..Look::NONE
+                            },
+                            ..Node::DEFAULT
+                        },
+                    );
+                    let value = if !player.initialized {
+                        "Loading library"
+                    } else if player.title.is_empty() {
+                        "Nothing playing"
+                    } else {
+                        player.title
+                    };
+                    ui.text_line_box(
+                        &title,
+                        value,
+                        &pxui::TextStyle {
+                            size_points: 19.0,
+                            weight: 500,
+                            tracking: -0.285,
+                            line_height: 22.8,
+                            wrap: 1,
+                            ..Default::default()
+                        },
+                        &[],
+                    )
+                    .unwrap();
+                    if player.current_id.is_some() {
+                        byline::draw(ui, player, catalog, 243.0, p, intent);
+                    }
+                    if player.initialized && player.title.is_empty() {
+                        settings::paragraph(
+                            ui,
+                            "nothing-playing-hint",
+                            "Double-click a song, or drop audio files anywhere in this window.",
+                            243.0,
+                            14.0,
+                            p.secondary,
+                        );
+                    }
+                },
+            );
+            crate::motion::enter(
+                ui,
+                &information,
+                1,
+                (0.0, 10.0),
+                crate::motion::BASE,
+                crate::motion::QUICK + 0.045,
+            );
+            if favorite_button(ui, favorite, p)
+                && let Some((song, on)) = favorite
+            {
+                *intent = Some(Intent::SetFavorite { song, on: !on });
+            }
+        });
         spacer(ui, "title-clock-gap", 14.0);
         let clock_group = ui.view(
             "playback-clock",
@@ -195,27 +211,19 @@ pub(super) fn now_panel(
             crate::motion::QUICK + 2.0 * 0.045,
         );
         spacer(ui, "clock-bottom-gap", 14.0);
-        rule(ui, "context-divider", false, p);
-        spacer(ui, "context-top-gap", 13.0);
-        text(
-            ui,
-            "playback-context",
-            player.context,
-            12,
-            p.secondary,
-            (Size::Grow, 24.0),
-            false,
-        );
-        // Keep the queue viewport stable when playback reports a notice.
-        text(
-            ui,
-            "playback-notice",
-            player.message,
-            13,
-            p.secondary,
-            (Size::Grow, 44.0),
-            false,
-        );
+        metadata(ui, player.info, p);
+        // A playback notice takes room from the (growing) queue viewport only while it shows.
+        if !player.message.is_empty() {
+            text(
+                ui,
+                "playback-notice",
+                player.message,
+                13,
+                p.secondary,
+                (Size::Grow, 44.0),
+                false,
+            );
+        }
         spacer(ui, "queue-gap", 14.0);
         rule(ui, "queue-divider", false, p);
         let queue_revision = pxui::hash!((
@@ -255,7 +263,7 @@ fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> boo
                 0
             },
             w: Size::Px(36.0),
-            h: Size::Px(36.0),
+            h: Size::Px(28.0),
             role: Role::Button,
             state: State {
                 disabled: current.is_none(),
@@ -311,7 +319,7 @@ fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> boo
                 Node {
                     w: Size::Px(4.0),
                     h: Size::Px(4.0),
-                    at: Some((16.0, 16.0)).into(),
+                    at: Some((16.0, 12.0)).into(),
                     ..Node::DEFAULT
                 },
             );
@@ -375,4 +383,66 @@ fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> boo
         }
     });
     signal.clicked
+}
+
+/// Format / Size / File / Plays under a hairline, drawn from the worker-prepared strings.
+fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>, p: Palette) {
+    let Some(info) = info else {
+        return;
+    };
+    spacer(ui, "metadata-gap", 14.0);
+    rule(ui, "metadata-divider", false, p);
+    spacer(ui, "metadata-top", 13.0);
+    let revision = pxui::hash!((info as *const crate::now_info::NowInfo as usize));
+    ui.view(
+        "now-metadata",
+        revision,
+        Size::Grow,
+        Size::Px(79.2),
+        &mut |ui| {
+            let column = ui.node(
+                "rows",
+                Node {
+                    axis: Axis::Column,
+                    w: Size::Grow,
+                    h: Size::Fit,
+                    gap: 4.0,
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&column, &mut |ui| {
+                for (key, label, value, ink) in [
+                    ("format", "Format", &info.format, p.secondary),
+                    ("size", "Size", &info.size, p.secondary),
+                    ("file", "File", &info.file, p.ink),
+                    ("plays", "Plays", &info.plays, p.secondary),
+                ] {
+                    let row = ui.node(
+                        key,
+                        Node {
+                            axis: Axis::Row,
+                            w: Size::Grow,
+                            h: Size::Px(16.8),
+                            gap: 8.0,
+                            role: Role::Label,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&row, &mut |ui| {
+                        text(
+                            ui,
+                            "label",
+                            label,
+                            12,
+                            p.secondary,
+                            (Size::Px(64.0), 16.8),
+                            false,
+                        );
+                        text(ui, "value", value, 12, ink, (Size::Grow, 16.8), true);
+                    });
+                    ui.a11y_name(&row, if key == "file" { &info.folder } else { value });
+                }
+            });
+        },
+    );
 }

@@ -6,6 +6,7 @@ pub mod commands;
 pub mod files;
 mod icons;
 pub mod motion;
+pub mod now_info;
 pub mod queue;
 mod shell;
 pub mod song_text;
@@ -113,10 +114,6 @@ pub enum Intent {
     PlayQueue(u64),
     RemoveQueue(u64),
     MoveQueue {
-        occurrence: u64,
-        before: Option<u64>,
-    },
-    MoveFullQueue {
         occurrence: u64,
         before: Option<u64>,
     },
@@ -248,6 +245,8 @@ pub struct PlayerView<'a> {
     pub current_id: Option<i64>,
     pub artist: &'a str,
     pub album: &'a str,
+    /// Worker-formatted metadata of the current song, when known.
+    pub info: Option<&'a now_info::NowInfo>,
     pub duration: f64,
     pub volume: f32,
     pub shuffled: bool,

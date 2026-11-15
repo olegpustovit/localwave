@@ -15,6 +15,7 @@ use std::sync::Arc;
 /// Register once, outside frames; select this body only in the palette's retained theme.
 pub fn register(ui: &mut pxui::Ui) -> Result<(), String> {
     ui.register_text_field_body("localwave-command", crate::shell::commands::field_body)?;
+    static_items();
     Ok(())
 }
 
@@ -135,4 +136,16 @@ pub struct Results {
     pub items: Vec<Item>,
     pub songs: Arc<[i64]>,
     pub context: Arc<PlaybackContext>,
+}
+
+/// The empty-query Commands section without a source-specific Rescan row; built once.
+pub fn static_items() -> &'static [Item] {
+    static ITEMS: std::sync::OnceLock<Vec<Item>> = std::sync::OnceLock::new();
+    ITEMS.get_or_init(|| {
+        use Command::*;
+        [PlayPause, Shuffle, Repeat, AddMusic, Network, Theme, Panel, Shortcuts]
+            .into_iter()
+            .map(|c| Item::new("Commands", c.label(), c.hint(), Icon::Chevron, None, Action::Command(c)))
+            .collect()
+    })
 }

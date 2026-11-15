@@ -776,6 +776,19 @@ pub fn shell(
     } else {
         desktop(ui, player, position, catalog, state, p, intent)
     };
+    // Swift's scrims: 0.28 behind the palette and help, 0.32 behind the queue sheet.
+    let dim = if state.queue_visible {
+        82
+    } else if state.commands_visible || state.shortcuts_visible {
+        71
+    } else {
+        0
+    };
+    if dim > 0 {
+        ui.draw_over(&root, move |paint, rect| {
+            paint.fill(rect.x, rect.y, rect.w, rect.h, Rgba { r: 10, g: 10, b: 10, a: dim });
+        });
+    }
     if player.file_dragging {
         ui.draw_over(&root, move |paint, rect| {
             let (x, y, w, h) = (

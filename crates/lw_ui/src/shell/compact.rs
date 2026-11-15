@@ -1023,7 +1023,7 @@ mod tests {
                     .a11y_nodes()
                     .iter()
                     .find(|node| {
-                        node.is_role(Role::Button) && ui.a11y_name_of(node) == "Toggle player panel"
+                        node.is_role(Role::Button) && ui.a11y_name_of(node) == "Toggle now playing panel"
                     })
                     .unwrap();
                 assert!(

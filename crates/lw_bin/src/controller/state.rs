@@ -222,6 +222,11 @@ impl Worker {
                 self.labels_id = id;
             }
             // else: the current song's row was deleted; it keeps the labels it was playing with.
+            self.info_dirty = true;
+        }
+        if self.info_dirty {
+            self.info_dirty = false;
+            self.info = id.and_then(|id| self.library.now_info(id));
         }
         let transport = self.session.transport();
         let status = Status {
@@ -251,6 +256,7 @@ impl Worker {
             title: self.title.clone(),
             artist: self.artist.clone(),
             album: self.album.clone(),
+            info: self.info.clone(),
             message: self.message.clone(),
         };
         if self.status.update(status) {

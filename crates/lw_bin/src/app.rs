@@ -340,6 +340,7 @@ impl App {
             current_id: status.current.map(|entry| entry.song_id),
             artist: &status.artist,
             album: &status.album,
+            info: status.info.as_deref(),
             volume: status.volume,
             shuffled: status.shuffled,
             repeat: status.repeat,

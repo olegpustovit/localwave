@@ -354,6 +354,16 @@ device/provider behavior remain open.
   resident and delivered in 2 of 6 standalone probes, with stream start taking 53 ms–5.3 s. iOS
   keeps an NSFilePresenter, unqualified until I2.
 - F3: the submenu chevron and group dividers are absent.
+- F-gate palette/Now/queue/transport: the AirPlay route button is deferred (iOS-only in Swift: an
+  invisible image on macOS; needs AVRoutePickerView through lw_apple_sys on iOS). Swift's mini
+  "Open now playing" card in the transport (panel hidden) is not ported; a Queue key shows beside the
+  mode keys only while the panel is hidden, since Swift opens the sheet from the track menu, which Rust
+  lacks. Desktop transport has no Stop key or volume meter (Swift: play key cancels loading, volume is
+  ⌘↑/⌘↓); Intent::Stop stays for compact and media keys. Save as list is reached from the queue sheet
+  header (secondary press or accessible activation), as Swift's context menu. The Now panel's Plays
+  count refreshes on each recorded start; an empty-query palette lists commands statically, so its
+  Rescan row appears when the worker's results arrive. Reference fixture seeds no play counts or
+  album context, so Plays reads 0 and the sheet says "From Library".
 - F4: the compact (narrow) layout has no New list button or list menu (⌘N and the track menu work);
   the sidebar list menu opens on secondary press only (no visible actions button); renaming the
   playing list leaves its queue context label stale until playback is reconfigured; Swift's list

@@ -9,7 +9,7 @@ pub(super) struct Viewport {
     pub(super) height: f32,
 }
 
-pub(super) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: Palette) {
+pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: Palette) {
     use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
     let root = ui.node(
         "equalizer",
@@ -103,7 +103,7 @@ pub(super) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: P
     });
 }
 
-pub(super) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette) {
+pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette) {
     use lw_core::{FileAvailability, FileState};
     let root = ui.node(
         "availability",

@@ -52,6 +52,27 @@ pub(crate) fn offline(paint: &mut Paint<'_>, rect: Rect, kept: bool, color: Rgba
     }
 }
 
+pub(crate) fn repeat(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    // LW-rep.imageset: M5 11V9.5A2.5 2.5 0 0 1 7.5 7H19M16 4l3 3-3 3M19 13v1.5a2.5 2.5 0 0 1-2.5 2.5H5M8 20l-3-3 3-3
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let width = 1.6 * scale;
+    for (a, control, b) in [
+        ((5.0, 11.0), (5.0, 11.0), (5.0, 9.5)),
+        ((5.0, 9.5), (5.0, 7.0), (7.5, 7.0)),
+        ((7.5, 7.0), (13.25, 7.0), (19.0, 7.0)),
+        ((16.0, 4.0), (17.5, 5.5), (19.0, 7.0)),
+        ((19.0, 7.0), (17.5, 8.5), (16.0, 10.0)),
+        ((19.0, 13.0), (19.0, 13.0), (19.0, 14.5)),
+        ((19.0, 14.5), (19.0, 17.0), (16.5, 17.0)),
+        ((16.5, 17.0), (10.75, 17.0), (5.0, 17.0)),
+        ((8.0, 20.0), (6.5, 18.5), (5.0, 17.0)),
+        ((5.0, 17.0), (6.5, 15.5), (8.0, 14.0)),
+    ] {
+        paint.curve(at(a), at(control), at(b), width, color);
+    }
+}
+
 pub(crate) fn shuffle(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     // Same 24-unit paths and 1.6-unit round stroke as LW-shuf.imageset/shuf.svg.
     let scale = rect.w.min(rect.h) / 24.0;

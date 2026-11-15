@@ -6,6 +6,16 @@ use super::*;
 use crate::commands::{Action, Command, Results};
 
 impl ShellState {
+    /// Rows to show: the worker's for this query, or for an empty query the static command list,
+    /// so the palette is usable before (and without) a worker round trip.
+    pub fn command_items<'a>(&self, catalog: &'a Catalog) -> &'a [crate::commands::Item] {
+        match self.command_results(catalog) {
+            Some(results) => &results.items,
+            None if self.command_query.as_str().trim().is_empty() => crate::commands::static_items(),
+            None => &[],
+        }
+    }
+
     pub fn command_results<'a>(&self, catalog: &'a Catalog) -> Option<&'a Results> {
         catalog
             .commands
@@ -20,12 +30,11 @@ impl ShellState {
         playing: bool,
         dark: bool,
     ) -> Option<Intent> {
-        let results = self.command_results(catalog)?;
-        let action = results.items.iter().find(|item| item.key == key)?.action;
-        let query = results.query;
+        let action = self.command_items(catalog).iter().find(|item| item.key == key)?.action;
+        let query = self.command_query;
         let intent = match action {
             Action::Play(index) => {
-                results.songs.get(index)?;
+                self.command_results(catalog)?.songs.get(index)?;
                 return Some(Intent::PlayCommand(key));
             }
             Action::Navigate(route) => Intent::Navigate(route),
@@ -140,72 +149,41 @@ fn overlay(
     build: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
     let (width, height) = dimensions;
-    let (vw, vh) = ui.view_size();
     let content = ui.content_rect();
     let top = (content.h * 0.12).min(96.0);
     let width = width.min(content.w);
     let max_height = (content.h - top - 16.0).max(0.0);
+    // The popup is just the card: a full-view popup would paint its own sheet fill over the page.
+    // Press-outside dismissal is the popup's; shell() draws the dim over the live page.
     let open = ui.popup(
         None,
-        None,
+        Some(max_height),
         false,
         false,
-        (0.0, 0.0),
-        vw,
-        vh,
+        (content.x + (content.w - width) * 0.5, content.y + top),
+        width,
+        60.0,
         label,
         &mut |ui| {
-            let extent = container(
-                ui,
-                "extent",
-                Axis::Stack,
-                Size::Px(vw),
-                Size::Px(vh),
-                Rgba::default(),
+            let card = ui.node(
+                "card",
+                Node {
+                    flags: BLOCKING | CLIP,
+                    axis: Axis::Column,
+                    role: Role::Dialog,
+                    w: Size::Px(width),
+                    h: height,
+                    max_h: max_height,
+                    look: Look {
+                        fill: p.paper,
+                        ..Look::NONE
+                    },
+                    ..Node::DEFAULT
+                },
             );
-            ui.within(&extent, &mut |ui| {
-                let scrim = ui.node(
-                    "scrim",
-                    Node {
-                        flags: CLICKABLE,
-                        w: Size::Grow,
-                        h: Size::Grow,
-                        look: Look {
-                            fill: Rgba {
-                                r: 10,
-                                g: 10,
-                                b: 10,
-                                a: 71,
-                            },
-                            ..Look::NONE
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                if ui.signal_state(&scrim).clicked {
-                    *intent = Some(close);
-                }
-                let card = ui.node(
-                    "card",
-                    Node {
-                        flags: BLOCKING | CLIP,
-                        axis: Axis::Column,
-                        role: Role::Dialog,
-                        at: Some((content.x + (content.w - width) * 0.5, content.y + top)).into(),
-                        w: Size::Px(width),
-                        h: height,
-                        max_h: max_height,
-                        look: Look {
-                            fill: p.paper,
-                            ..Look::NONE
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.set_role(&card, Role::Dialog, pxui::a11y::state::MODAL);
-                ui.a11y_name(&card, label);
-                ui.within(&card, &mut |ui| build(ui, intent));
-            });
+            ui.set_role(&card, Role::Dialog, pxui::a11y::state::MODAL);
+            ui.a11y_name(&card, label);
+            ui.within(&card, &mut |ui| build(ui, intent));
         },
     );
     if !open && intent.is_none() {
@@ -227,7 +205,7 @@ pub(super) fn palette_view(
     let content = ui.content_rect();
     let (width, height) = (content.w, content.h);
     let results = state.command_results(catalog);
-    let items = results.map_or(&[][..], |results| results.items.as_slice());
+    let items = state.command_items(catalog);
     let result_limit = 420.0_f32.min((height - 176.0).max(60.0));
     overlay(
         ui,

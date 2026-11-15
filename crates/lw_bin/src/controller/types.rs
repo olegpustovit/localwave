@@ -232,6 +232,7 @@ pub struct Status {
     pub title: Arc<str>,
     pub artist: Arc<str>,
     pub album: Arc<str>,
+    pub info: Option<Arc<lw_ui::now_info::NowInfo>>,
     pub context: Arc<PlaybackContext>,
     pub message: Arc<str>,
 }
@@ -282,6 +283,7 @@ impl Default for Status {
             title: Arc::from(""),
             artist: Arc::from(""),
             album: Arc::from(""),
+            info: None,
             message: Arc::from(""),
         }
     }

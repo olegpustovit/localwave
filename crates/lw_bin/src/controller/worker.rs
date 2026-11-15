@@ -52,6 +52,9 @@ pub(super) struct Worker {
     pub(super) title: Arc<str>,
     pub(super) artist: Arc<str>,
     pub(super) album: Arc<str>,
+    pub(super) info: Option<Arc<lw_ui::now_info::NowInfo>>,
+    /// Refresh `info` (song changed, or a start recorded a play).
+    pub(super) info_dirty: bool,
     pub(super) message: Arc<str>,
     pub(super) empty: Arc<str>,
     pub(super) status: Status,
@@ -135,6 +138,8 @@ impl Worker {
                 title: empty.clone(),
                 artist: empty.clone(),
                 album: empty.clone(),
+                info: None,
+                info_dirty: false,
                 message: empty.clone(),
                 empty,
                 status: Status::default(),
@@ -234,6 +239,7 @@ impl Worker {
             {
                 if self.library.record_playback_start(event.token(), now())? {
                     self.browse_dirty = true;
+                    self.info_dirty = true;
                 }
             }
             if dirty {

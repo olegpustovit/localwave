@@ -485,7 +485,7 @@ pub(super) fn table(
     ));
 }
 
-mod row;
+pub(in crate::shell) mod row;
 use row::*;
 pub(super) use row::SONG_DRAG;
 

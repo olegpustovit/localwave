@@ -434,7 +434,7 @@ fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
 }
 
 #[test]
-fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_warm_allocations() {
+fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_allocations() {
     let mut position = 0.0;
     use lw_core::{context::PlaybackContext, queue::Entry};
     use std::sync::Arc;
@@ -479,11 +479,6 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
         ui.a11y_nodes().len() < 700,
         "ten thousand occurrences remain virtual"
     );
-    assert!(
-        ui.a11y_nodes()
-            .iter()
-            .any(|node| ui.a11y_name_of(node) == "Currently playing")
-    );
     let queue_rect = ui
         .a11y_nodes()
         .iter()
@@ -496,32 +491,24 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
         .filter(|node| {
             node.is_role(pxui::ui::Role::ListItem)
                 && ui.a11y_name_of(node) == "Repeated queue song"
-                && node.rect.x >= queue_rect.x
-                && node.rect.x < queue_rect.x + queue_rect.w
+                && node.rect.w > 1000.0
+                && node.rect.x == 10.0
         })
         .map(|node| node.rect)
         .collect();
     assert!(rows.len() > 3 && rows.len() < 30);
     assert!(
         rows.windows(2)
-            .all(|rows| (rows[1].y - rows[0].y - 44.0).abs() < 0.1),
-        "one column of 44-point rows: {rows:?}"
+            .all(|rows| (rows[1].y - rows[0].y - 56.0).abs() < 0.1),
+        "one column of 56-point rows: {rows:?}"
     );
-    let current_remove = ui.a11y_nodes().iter().any(|node| {
-        ui.a11y_name_of(node) == "Remove from queue"
-            && node.rect.x >= queue_rect.x
-            && node.rect.x < queue_rect.x + queue_rect.w
-            && (node.rect.y - rows[1].y).abs() < 0.1
-    });
-    assert!(!current_remove, "the current occurrence cannot be removed");
     let grips: Vec<_> = ui
         .a11y_nodes()
         .iter()
         .filter(|node| {
             ui.a11y_name_of(node) == "Reorder queued track"
-                && node.rect.x >= queue_rect.x
-                && node.rect.x < queue_rect.x + queue_rect.w
-                && node.rect.y > rows[1].y
+                && node.rect.x < 1000.0
+                && node.rect.y >= rows[0].y
         })
         .map(|node| (node.id, node.rect))
         .collect();
@@ -565,7 +552,7 @@ fn full_queue_sheet_virtualizes_marks_current_and_saves_bounded_names_without_wa
     .unwrap();
     assert_eq!(
         intent.take(),
-        Some(Intent::MoveFullQueue {
+        Some(Intent::MoveQueue {
             occurrence: 3,
             before: Some(35)
         })
@@ -1576,7 +1563,6 @@ fn transport_buttons_return_intents_and_update_retained_labels() {
         ("Pause", Intent::Pause),
         ("Previous", Intent::Previous),
         ("Next", Intent::Next),
-        ("Stop", Intent::Stop),
     ] {
         player.playing = name == "Pause";
         player.revision += 1;
@@ -1853,9 +1839,8 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
     };
     let mut intent = None;
     for (name, action, payload, expected) in [
-        ("Volume", 4, 0.25, Intent::Volume(0.25)),
         ("Playback position", 4, 60.0, Intent::SeekFraction(0.25)),
-        ("Toggle player panel", 1, 0.0, Intent::TogglePanel),
+        ("Toggle now playing panel", 1, 0.0, Intent::TogglePanel),
         ("Shuffle off", 1, 0.0, Intent::Shuffle),
         ("Repeat off", 1, 0.0, Intent::Repeat),
     ] {
@@ -2982,4 +2967,261 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
         run(&mut ui, &mut intent);
     }
     assert_eq!(mem_sys::local_alloc_count(), 0, "warm sidebar frames allocate");
+}
+
+fn press(ui: &mut Ui, name: &str, nth: usize) {
+    let id = ui
+        .a11y_nodes()
+        .iter()
+        .filter(|node| ui.a11y_name_of(node) == name)
+        .nth(nth)
+        .unwrap_or_else(|| panic!("no control named {name}"))
+        .id;
+    ui.inject_a11y(&[pxui::A11yAction {
+        id,
+        action_code: 1,
+        ..Default::default()
+    }]);
+}
+
+fn y_of(ui: &Ui, name: &str, nth: usize) -> f32 {
+    ui.a11y_nodes()
+        .iter()
+        .filter(|node| ui.a11y_name_of(node) == name)
+        .nth(nth)
+        .unwrap_or_else(|| panic!("no node named {name}"))
+        .rect
+        .y
+}
+
+#[test]
+fn empty_palette_lists_swift_commands_over_the_live_page_without_a_worker_round_trip() {
+    let catalog = prepared(Vec::new());
+    let mut state = ShellState::default();
+    state.apply(Intent::ShowCommands);
+    assert!(
+        state.command_results(&catalog).is_none(),
+        "no worker results yet"
+    );
+    let items = state.command_items(&catalog);
+    let rows: Vec<_> = items
+        .iter()
+        .map(|item| (item.group, item.label.as_str(), item.hint.as_str()))
+        .collect();
+    // Swift's order and labels; hints only for bound keys (Rescan needs a source, so it is worker-only).
+    let swift = [
+        ("Play / pause", "Space"),
+        ("Shuffle on or off", "S"),
+        ("Cycle repeat", "R"),
+        ("Add folder or files…", "⌘O"),
+        ("Simulate no network on / off", ""),
+        ("Switch light / dark", ""),
+        ("Minimise or restore the player", "I"),
+        ("Show keyboard shortcuts", "?"),
+    ];
+    assert_eq!(
+        rows,
+        swift.map(|(label, hint)| ("Commands", label, hint)),
+        "{rows:?}"
+    );
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let player = PlayerView {
+        initialized: true,
+        ..Default::default()
+    };
+    let frame = FrameIn {
+        width: 1440.0,
+        height: 872.0,
+        ..Default::default()
+    };
+    for _ in 0..3 {
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
+        })
+        .unwrap();
+    }
+    let ys: Vec<f32> = swift.iter().map(|(label, _)| y_of(&ui, label, 0)).collect();
+    assert!(ys.windows(2).all(|pair| pair[0] < pair[1]), "{ys:?}");
+    assert!(
+        ui.a11y_nodes()
+            .iter()
+            .any(|node| ui.a11y_name_of(node) == "Current track artwork"),
+        "the page stays under the dim"
+    );
+    let key = |label: &str| items.iter().find(|item| item.label == label).unwrap().key;
+    assert_eq!(
+        state.activate_command(&catalog, key("Shuffle on or off"), false, false),
+        Some(Intent::Shuffle)
+    );
+    assert_eq!(
+        state.activate_command(&catalog, key("Play / pause"), true, false),
+        Some(Intent::Pause)
+    );
+}
+
+#[test]
+fn now_panel_draws_title_and_worker_formatted_metadata_without_warm_allocations() {
+    mem_sys::set_peer(pxui::library_counter);
+    let song = lw_core::Song {
+        id: Some(7),
+        title: "Field Day".into(),
+        artist: "Juno Abara".into(),
+        album: "Weather Systems".into(),
+        file_extension: Some("flac".into()),
+        sample_rate: Some(96_000.0),
+        bit_depth: Some(24),
+        file_size: Some(108_113_920),
+        file_state: lw_core::FileState::Copied,
+        relative_path: Some("Weather Systems/Field Day.flac".into()),
+        ..Default::default()
+    };
+    let info = now_info::NowInfo::new(&song, Some("Google Drive"), 16);
+    let catalog = prepared(vec![song]);
+    let state = ShellState::default();
+    let player = PlayerView {
+        initialized: true,
+        revision: 1,
+        current_id: Some(7),
+        title: "Field Day",
+        artist: "Juno Abara",
+        album: "Weather Systems",
+        duration: 224.0,
+        info: Some(&info),
+        ..Default::default()
+    };
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let frame = FrameIn {
+        width: 1440.0,
+        height: 872.0,
+        ..Default::default()
+    };
+    for round in 0..10 {
+        mem_sys::local_reset();
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 101.0, &catalog, &state, &mut None)
+        })
+        .unwrap();
+        if round > 5 {
+            assert_eq!(mem_sys::local_alloc_count(), 0, "warm Now panel frame");
+        }
+    }
+    let panel = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| ui.a11y_name_of(node) == "Current track artwork")
+        .unwrap()
+        .rect;
+    let below = |name: &str| {
+        let node = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == name && node.rect.x >= panel.x)
+            .unwrap_or_else(|| panic!("no node named {name} in the panel"));
+        node.rect.y
+    };
+    // Title, then the metadata rows in Swift's order: Format, Size, File, Plays.
+    let order = [
+        below("Field Day"),
+        below("flac · 96 kHz · 24 bit"),
+        below("103.1 MB · on device"),
+        below("Google Drive / Weather Systems"),
+        below("16"),
+    ];
+    assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{order:?}");
+}
+
+#[test]
+fn queue_sheet_follows_swift_structure_order_and_actions() {
+    use lw_core::{context::PlaybackContext, queue::Entry};
+    use std::sync::Arc;
+    let mut catalog = prepared(
+        (1..=4)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("Song {id}"),
+                artist: "Artist".into(),
+                ..Default::default()
+            })
+            .collect(),
+    );
+    catalog.queue = Some(Arc::new(queue::Snapshot::new(
+        1,
+        (1..=4)
+            .map(|id| Entry {
+                id,
+                song_id: id as i64,
+            })
+            .collect(),
+        Some(0),
+        Arc::new(PlaybackContext::Library),
+        false,
+    )));
+    let mut state = ShellState::default();
+    state.apply(Intent::ShowQueue);
+    let player = PlayerView {
+        initialized: true,
+        context: "Library",
+        playing: true,
+        ..Default::default()
+    };
+    let frame = FrameIn {
+        width: 1440.0,
+        height: 872.0,
+        ..Default::default()
+    };
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut intent = None;
+    let run = |ui: &mut Ui, intent: &mut Option<Intent>| {
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, intent)
+        })
+        .unwrap();
+    };
+    for _ in 0..3 {
+        run(&mut ui, &mut intent);
+    }
+    // A full-width bottom sheet (Swift's sheet host has no macOS variant).
+    let sheet = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| ui.a11y_name_of(node) == "Playback queue" && node.rect.w > 1000.0)
+        .expect("queue sheet")
+        .rect;
+    assert_eq!((sheet.x, sheet.w), (0.0, 1440.0));
+    assert!((sheet.y + sheet.h - 872.0).abs() < 0.5, "{sheet:?}");
+    // Header, Now row (current song), Up next rows (upcoming only), Clear up next.
+    let order = [
+        y_of(&ui, "Close queue", 0),
+        y_of(&ui, "Song 1", 0),
+        y_of(&ui, "Song 2", 0),
+        y_of(&ui, "Song 3", 0),
+        y_of(&ui, "Song 4", 0),
+        y_of(&ui, "Clear up next", 0),
+    ];
+    assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{order:?}");
+    assert_eq!(
+        ui.a11y_nodes()
+            .iter()
+            .filter(|node| ui.a11y_name_of(node) == "Remove from queue" && node.rect.h == 56.0)
+            .count(),
+        3,
+        "the playing song is not removable"
+    );
+    assert!(
+        ui.a11y_nodes()
+            .iter()
+            .any(|node| ui.a11y_name_of(node) == "Save queue as playlist")
+    );
+    for (name, nth, expected) in [
+        ("Remove from queue", 0, Intent::RemoveQueue(2)),
+        ("Clear up next", 0, Intent::ClearQueue),
+        ("Close queue", 0, Intent::CloseQueue),
+    ] {
+        press(&mut ui, name, nth);
+        run(&mut ui, &mut intent);
+        assert_eq!(intent.take(), Some(expected), "{name}");
+    }
 }

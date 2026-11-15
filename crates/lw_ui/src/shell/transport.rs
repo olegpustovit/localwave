@@ -10,6 +10,7 @@ pub(super) fn transport(
     ui: &mut Ui,
     player: &PlayerView<'_>,
     position: f64,
+    panel: bool,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
@@ -85,68 +86,105 @@ pub(super) fn transport(
         small_clock(ui, "elapsed", elapsed, false, 44.0, p.secondary);
         seek(ui, player, position, p, intent);
         small_clock(ui, "remaining", remaining, true, 50.0, p.secondary);
-        if icon_button(
-            ui,
-            "shuffle",
-            if player.shuffled {
-                "Shuffle on"
-            } else {
-                "Shuffle off"
+        // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
+        // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
+        let modes = ui.node(
+            "modes",
+            Node {
+                axis: Axis::Row,
+                gap: 2.0,
+                padding: Edges::all(2.0),
+                w: Size::Px(if panel { 140.0 } else { 186.0 }),
+                h: Size::Px(44.0),
+                look: Look {
+                    fill: p.panel,
+                    ..Look::NONE
+                },
+                ..Node::DEFAULT
             },
-            Icon::Shuffle,
-            (36.0, 40.0),
-            player.shuffled,
-            p,
-        ) {
-            *intent = Some(Intent::Shuffle);
-        }
-        if icon_button(
-            ui,
-            "repeat",
-            match player.repeat {
-                lw_core::queue::RepeatMode::None => "Repeat off",
-                lw_core::queue::RepeatMode::All => "Repeat all",
-                lw_core::queue::RepeatMode::One => "Repeat one",
-            },
-            Icon::Repeat,
-            (36.0, 40.0),
-            player.repeat != lw_core::queue::RepeatMode::None,
-            p,
-        ) {
-            *intent = Some(Intent::Repeat);
-        }
-        volume(
-            ui,
-            player,
-            Size::Px(if narrow { 60.0 } else { 80.0 }),
-            p,
-            intent,
         );
-        if icon_button(ui, "stop", "Stop", Icon::Stop, (36.0, 40.0), false, p) {
-            *intent = Some(Intent::Stop);
-        }
-        if icon_button(
-            ui,
-            "queue",
-            "Show full queue",
-            Icon::Queue,
-            (36.0, 40.0),
-            false,
-            p,
-        ) {
-            *intent = Some(Intent::ShowQueue);
-        }
-        if icon_button(
-            ui,
-            "panel",
-            "Toggle player panel",
-            Icon::Panel,
-            (36.0, 40.0),
-            false,
-            p,
-        ) {
-            *intent = Some(Intent::TogglePanel);
-        }
+        ui.within(&modes, &mut |ui| {
+            if icon_button(
+                ui,
+                "shuffle",
+                if player.shuffled {
+                    "Shuffle on"
+                } else {
+                    "Shuffle off"
+                },
+                Icon::Shuffle,
+                (44.0, 40.0),
+                player.shuffled,
+                p,
+            ) {
+                *intent = Some(Intent::Shuffle);
+            }
+            let again = ui.node(
+                "repeat-key",
+                Node {
+                    axis: Axis::Stack,
+                    w: Size::Px(44.0),
+                    h: Size::Px(40.0),
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&again, &mut |ui| {
+                if icon_button(
+                    ui,
+                    "repeat",
+                    match player.repeat {
+                        lw_core::queue::RepeatMode::None => "Repeat off",
+                        lw_core::queue::RepeatMode::All => "Repeat all",
+                        lw_core::queue::RepeatMode::One => "Repeat one",
+                    },
+                    Icon::Repeat,
+                    (44.0, 40.0),
+                    player.repeat != lw_core::queue::RepeatMode::None,
+                    p,
+                ) {
+                    *intent = Some(Intent::Repeat);
+                }
+                if player.repeat == lw_core::queue::RepeatMode::One {
+                    let badge = ui.node(
+                        "repeat-one",
+                        Node {
+                            at: Some((31.0, 25.0)).into(),
+                            w: Size::Px(8.0),
+                            h: Size::Px(12.0),
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&badge, &mut |ui| {
+                        text(ui, "one", "1", 9, p.paper, (Size::Px(8.0), 12.0), true);
+                    });
+                }
+            });
+            if icon_button(
+                ui,
+                "panel",
+                "Toggle now playing panel",
+                Icon::Panel,
+                (44.0, 40.0),
+                panel,
+                p,
+            ) {
+                *intent = Some(Intent::TogglePanel);
+            }
+            // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
+            if !panel
+                && icon_button(
+                    ui,
+                    "queue",
+                    "Show full queue",
+                    Icon::Queue,
+                    (44.0, 40.0),
+                    false,
+                    p,
+                )
+            {
+                *intent = Some(Intent::ShowQueue);
+            }
+        });
     });
 }
 
@@ -320,10 +358,10 @@ pub(super) fn desktop(
         rule(ui, "transport-divider", false, p);
         ui.view(
             "transport",
-            pxui::hash!((player.revision, position.to_bits())),
+            pxui::hash!((player.revision, position.to_bits(), panel)),
             Size::Grow,
             Size::Px(71.0),
-            &mut |ui| transport(ui, player, position, p, intent),
+            &mut |ui| transport(ui, player, position, panel, p, intent),
         );
     });
     root

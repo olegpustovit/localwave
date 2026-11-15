@@ -272,12 +272,16 @@ pub(super) fn icon_button(
                             color,
                         );
                     }
-                    Icon::Repeat => {
-                        paint.line((x + 3.0, y + 5.0), (x + 17.0, y + 5.0), color);
-                        paint.line((x + 17.0, y + 5.0), (x + 17.0, y + 15.0), color);
-                        paint.line((x + 17.0, y + 15.0), (x + 3.0, y + 15.0), color);
-                        paint.line((x + 3.0, y + 15.0), (x + 3.0, y + 9.0), color);
-                    }
+                    Icon::Repeat => crate::icons::repeat(
+                        paint,
+                        Rect {
+                            x,
+                            y,
+                            w: 20.0,
+                            h: 20.0,
+                        },
+                        color,
+                    ),
                     Icon::Refresh => {
                         paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
                         paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
@@ -593,7 +597,7 @@ pub(super) mod button_tests {
                 },
                 &mut |ui| {
                     let p = palette(ui);
-                    transport(ui, player, 60.0, p, intent);
+                    transport(ui, player, 60.0, true, p, intent);
                 },
             )
             .unwrap();

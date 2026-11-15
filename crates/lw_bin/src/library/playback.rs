@@ -24,6 +24,7 @@ use lw_apple_sys::{audio, player::Prepared};
 use lw_core::Song;
 use std::io;
 use std::path::PathBuf;
+use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 
 pub struct PreparedPlayback {
@@ -123,6 +124,20 @@ impl LibraryWorker {
             lw_apple_sys::history::touch_cache_file(&lease.path, &root, now);
         }
         Ok(true)
+    }
+    /// The Now panel's metadata block for `song`, formatted here so frames only draw it.
+    pub fn now_info(&self, song: i64) -> Option<Arc<lw_ui::now_info::NowInfo>> {
+        let row = self.repository.get_song(song).ok()??;
+        let source = row
+            .source_id
+            .and_then(|id| self.repository.source(id).ok().flatten())
+            .and_then(|source| {
+                let path = super::file_path(&source.dir_path).ok()?;
+                let name = path.file_name()?;
+                Some(name.to_string_lossy().into_owned())
+            });
+        let plays = self.playback_history().get(song).plays;
+        Some(Arc::new(lw_ui::now_info::NowInfo::new(&row, source.as_deref(), plays)))
     }
     pub fn playback_history(&self) -> lw_apple_sys::history::History {
         self.preferences.history()
