@@ -35,13 +35,18 @@ pub enum Workload {
     QueueSheet,
     QueueDrag,
     Queue,
+    AlbumDetail,
+    ArtistDetail,
+    ListDialogs,
+    MetadataEditor,
+    SongDrag,
 }
 
 impl Workload {
     pub fn uses_queue(self) -> bool {
         matches!(
             self,
-            Self::Queue | Self::QueueDrag | Self::QueueSheet | Self::Artwork
+            Self::Queue | Self::QueueDrag | Self::QueueSheet | Self::Artwork | Self::SongDrag
         )
     }
 
@@ -60,6 +65,11 @@ impl Workload {
             Self::QueueSheet => "full-queue-playlist-editor",
             Self::QueueDrag => "queue-carry-scroll-cancel",
             Self::Queue => "queue-occurrences",
+            Self::AlbumDetail => "album-detail-scoped-scroll",
+            Self::ArtistDetail => "artist-detail-scoped-scroll",
+            Self::ListDialogs => "list-dialogs-menu-and-name",
+            Self::MetadataEditor => "metadata-editor-typing",
+            Self::SongDrag => "song-drag-carry-hover-cancel",
         }
     }
 
@@ -84,6 +94,11 @@ impl Workload {
                 "--performance-queue-sheet" => Self::QueueSheet,
                 "--performance-queue-drag" => Self::QueueDrag,
                 "--performance-queue" => Self::Queue,
+                "--performance-album-detail" => Self::AlbumDetail,
+                "--performance-artist-detail" => Self::ArtistDetail,
+                "--performance-list-dialogs" => Self::ListDialogs,
+                "--performance-metadata-editor" => Self::MetadataEditor,
+                "--performance-song-drag" => Self::SongDrag,
                 _ if arg.starts_with("--performance-") => {
                     return Err(format!("Unknown performance option: {arg}"));
                 }
@@ -152,6 +167,10 @@ pub(crate) struct Perf {
     warm_artwork_requests: usize,
     min_files_rows: usize,
     max_files_rows: usize,
+    detail_first_min: usize,
+    detail_first_max: usize,
+    marker_frames: usize,
+    menu_frames: usize,
 }
 impl Perf {
     pub(crate) fn new(workload: Workload, indicator_song: Option<i64>) -> Self {
@@ -199,6 +218,10 @@ impl Perf {
             warm_artwork_requests,
             min_files_rows,
             max_files_rows,
+            detail_first_min: usize::MAX,
+            detail_first_max: 0,
+            marker_frames: 0,
+            menu_frames: 0,
         }
     }
 }
@@ -223,6 +246,11 @@ mod tests {
             (Workload::QueueSheet, "full-queue-playlist-editor", true),
             (Workload::QueueDrag, "queue-carry-scroll-cancel", true),
             (Workload::Queue, "queue-occurrences", true),
+            (Workload::AlbumDetail, "album-detail-scoped-scroll", false),
+            (Workload::ArtistDetail, "artist-detail-scoped-scroll", false),
+            (Workload::ListDialogs, "list-dialogs-menu-and-name", false),
+            (Workload::MetadataEditor, "metadata-editor-typing", false),
+            (Workload::SongDrag, "song-drag-carry-hover-cancel", true),
         ] {
             assert_eq!(workload.name(), name);
             assert_eq!(workload.uses_queue(), queue);
@@ -258,6 +286,11 @@ mod tests {
             ("--performance-queue-sheet", Workload::QueueSheet),
             ("--performance-queue-drag", Workload::QueueDrag),
             ("--performance-queue", Workload::Queue),
+            ("--performance-album-detail", Workload::AlbumDetail),
+            ("--performance-artist-detail", Workload::ArtistDetail),
+            ("--performance-list-dialogs", Workload::ListDialogs),
+            ("--performance-metadata-editor", Workload::MetadataEditor),
+            ("--performance-song-drag", Workload::SongDrag),
         ];
         for (flag, expected) in modes {
             for values in [

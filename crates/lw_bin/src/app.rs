@@ -489,6 +489,7 @@ impl App {
         )?;
         frame.artwork_updated = artwork_updated;
         frame.input(&self.ui, self.top_inset, &mut self.events)?;
+        frame.state_input(&mut self.shell_state);
         let now = window.time();
         let current = window.extent();
         if current.drawable.0 <= 0 || current.drawable.1 <= 0 {

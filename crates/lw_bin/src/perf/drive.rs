@@ -26,6 +26,7 @@ pub(crate) struct Frame {
     ids: [usize; 8],
     requests: usize,
     pub(crate) artwork_updated: bool,
+    carry_frames: usize,
 }
 
 pub(crate) struct Build {
@@ -58,6 +59,7 @@ impl Frame {
             ids: [0; 8],
             requests: 0,
             artwork_updated: false,
+            carry_frames: 0,
         }
     }
     pub(crate) fn begin_frame(&mut self) -> Result<(), String> {
@@ -126,6 +128,17 @@ impl Frame {
                 expected_settings_intent = settings_events(self.index - 2, top_inset, &mut *events);
             } else if matches!(workload, Some(Workload::Waveform)) {
                 waveform_events(self.index - 2, &mut *events);
+            } else if matches!(workload, Some(Workload::AlbumDetail | Workload::ArtistDetail)) {
+                events.push(HostEvent::PointerMoved((650.0, 600.0)));
+                // Small steps keep the header in view while the table moves.
+                let step = if (self.index - 2) % 40 < 20 { -0.2 } else { 0.2 };
+                events.push(HostEvent::Scrolled((0.0, step)));
+            } else if matches!(workload, Some(Workload::ListDialogs)) {
+                list_dialog_events(self.index - 2, ui, &mut *events)?;
+            } else if matches!(workload, Some(Workload::MetadataEditor)) {
+                events.push(HostEvent::PointerMoved((720.0, 400.0)));
+            } else if matches!(workload, Some(Workload::SongDrag)) {
+                song_drag_events(self.index - 2, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::QueueDrag)) {
                 let grip = ui
                     .a11y_nodes()
@@ -171,6 +184,30 @@ impl Frame {
         }
         self.expected_settings_intent = expected_settings_intent;
         Ok(())
+    }
+    /// Typing is driven as the Intents a real text field emits: TextInput events own Strings and
+    /// would put host allocations inside the zero-allocation frame.
+    pub(crate) fn state_input(&self, state: &mut lw_ui::ShellState) {
+        use lw_ui::{Intent, browse::Query};
+        if self.index < 2 {
+            return;
+        }
+        let phase = (self.index - 2) % 40;
+        match self.workload {
+            Some(Workload::ListDialogs) if (14..30).contains(&phase) => {
+                let typed = if phase < 22 { phase - 13 } else { 29 - phase };
+                if let Some(name) = Query::new(&NAME_TEXT[..typed]) {
+                    state.apply(Intent::EditPlaylistName(name));
+                }
+            }
+            Some(Workload::MetadataEditor) if phase < 22 => {
+                let typed = if phase < 11 { phase + 1 } else { 21 - phase };
+                if let Some(title) = Query::new(&TITLE_FULL[..TITLE_TEXT.len() + typed]) {
+                    state.apply(Intent::MetadataField(0, title));
+                }
+            }
+            _ => {}
+        }
     }
     pub(crate) fn require_extent(&self, extent: pxui_sdl::Extent) -> Result<(), String> {
         if self.workload.is_some() && extent.logical != (1440, 872) {
@@ -242,6 +279,26 @@ impl Frame {
             self.settings_themes |= 1
                 << (usize::from(settings.appearance == lw_core::preferences::Appearance::Dark) * 4
                     + settings.signal as usize);
+        }
+        use lw_ui::Intent::*;
+        let allowed = match workload {
+            Some(Workload::ListDialogs) => matches!(
+                intent,
+                None | Some(ListMenu(..) | CloseListMenu | NewList(None) | CancelPlaylistName)
+            ),
+            Some(
+                Workload::AlbumDetail
+                | Workload::ArtistDetail
+                | Workload::MetadataEditor
+                | Workload::SongDrag,
+            ) => intent.is_none(),
+            _ => true,
+        };
+        if !allowed {
+            return Err(format!(
+                "{} produced an unexpected or mutating action: {intent:?}",
+                self.workload.map_or("", Workload::name)
+            ));
         }
         if matches!(workload, Some(Workload::Drop)) && intent.is_some() {
             return Err("External drag hover activated an application action".into());
@@ -344,25 +401,31 @@ impl Frame {
                 }
             }
         }
-        if matches!(workload, Some(Workload::QueueDrag)) && self.index >= 2 {
+        if matches!(workload, Some(Workload::QueueDrag | Workload::SongDrag)) && self.index >= 2 {
+            let song = workload == Some(Workload::SongDrag);
             let carrying = ui.carrying_ref();
+            self.carry_frames = usize::from(carrying.is_some());
             let expected = (1..20).contains(&((self.index - 2) % 40));
             if expected != carrying.is_some()
                 || (expected
                     && (!ui.captured()
                         || carrying.is_none_or(|p| {
-                            p.kind != "localwave.queue-occurrence:2" || p.value != "Track 00002"
+                            if song {
+                                !p.kind.starts_with("localwave.song:") || !p.value.starts_with("Track ")
+                            } else {
+                                p.kind != "localwave.queue-occurrence:2" || p.value != "Track 00002"
+                            }
                         })))
             {
                 return Err(format!(
-                    "Queue carry did not survive the cross-page scroll or cancel correctly: frame={frames} phase={} expected={expected} captured={} kind={:?}",
+                    "Carry did not survive hover/scroll or cancel correctly: frame={frames} phase={} expected={expected} captured={} kind={:?}",
                     (self.index - 2) % 40,
                     ui.captured(),
                     carrying.map(|p| p.kind)
                 ));
             }
             if intent.is_some() {
-                return Err("Cancelled queue carry produced an application action".into());
+                return Err("Cancelled carry produced an application action".into());
             }
         }
         Ok(())
@@ -377,6 +440,121 @@ impl Frame {
     pub(crate) fn gpu_trace(&mut self) -> Option<&mut [u64; 4]> {
         self.trace_frames.then_some(&mut self.gpu)
     }
+}
+
+pub(crate) const TITLE_TEXT: &str = "Track 00001";
+const TITLE_FULL: &str = "Track 00001-remastered";
+const NAME_TEXT: &str = "Night drive mix";
+
+fn center(
+    ui: &Ui,
+    role: pxui::ui::Role,
+    wanted: impl Fn(&str) -> bool,
+    what: &str,
+) -> Result<(f64, f64), String> {
+    ui.a11y_nodes()
+        .iter()
+        .find(|node| {
+            node.is_role(role)
+                && node.states & pxui::a11y::state::VISIBLE != 0
+                && node.rect.y >= 60.0
+                && node.rect.y + node.rect.h <= 800.0
+                && wanted(ui.a11y_name_of(node))
+        })
+        .map(|node| {
+            (
+                f64::from(node.rect.x + node.rect.w * 0.5),
+                f64::from(node.rect.y + node.rect.h * 0.5),
+            )
+        })
+        .ok_or_else(|| format!("Performance fixture has no visible {what}"))
+}
+
+/// Right-click a sidebar list for its menu, dismiss it, open New list and leave it with Esc;
+/// typing happens through `state_input`. Nothing is ever created, renamed or deleted.
+fn list_dialog_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Result<(), String> {
+    use input::{Event, Key, MouseButton};
+    use pxui::ui::Role;
+    let phase = frame % 40;
+    if phase <= 8 {
+        let list = center(
+            ui,
+            Role::Button,
+            |name| name.starts_with(super::setup::LIST_NAME),
+            "sidebar list",
+        )?;
+        match phase {
+            0 => {
+                events.push(Event::PointerMoved(list));
+                events.push(Event::PointerPressed(MouseButton::RightButton, list));
+            }
+            1 => events.push(Event::PointerReleased(MouseButton::RightButton, list)),
+            _ => events.push(Event::PointerMoved((list.0 + 20.0, list.1 + 18.0 + (phase & 1) as f64))),
+        }
+    } else if matches!(phase, 11 | 12) {
+        let new_list = center(ui, Role::Button, |name| name == "New list", "New list button")?;
+        events.push(Event::PointerMoved(new_list));
+        events.push(if phase == 11 {
+            Event::PointerPressed(MouseButton::LeftButton, new_list)
+        } else {
+            Event::PointerReleased(MouseButton::LeftButton, new_list)
+        });
+    } else if matches!(phase, 9 | 30) {
+        events.push(Event::KeyPressed(Key::Escape));
+    } else if matches!(phase, 10 | 31) {
+        events.push(Event::KeyReleased(Key::Escape));
+    }
+    Ok(())
+}
+
+/// Carry the first visible song across the table, over a sidebar list and Up next, then cancel
+/// with Esc before release (no drop, no intents); the rest of the cycle scrolls the table.
+fn song_drag_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Result<(), String> {
+    use input::{Event, Key, MouseButton};
+    use pxui::ui::Role;
+    let phase = frame % 40;
+    let jitter = (phase % 3) as f64;
+    match phase {
+        0 | 1 => {
+            let row = center(ui, Role::ListItem, |name| name.starts_with("Track "), "song row")?;
+            if phase == 0 {
+                events.push(Event::PointerMoved(row));
+                events.push(Event::PointerPressed(MouseButton::LeftButton, row));
+            } else {
+                events.push(Event::PointerMoved((row.0, row.1 + 8.0)));
+            }
+        }
+        2..=5 => events.push(Event::PointerMoved((
+            650.0 + phase as f64 * 10.0,
+            200.0 + phase as f64 * 60.0,
+        ))),
+        6..=11 => {
+            let list = center(
+                ui,
+                Role::Button,
+                |name| name.starts_with(super::setup::LIST_NAME),
+                "sidebar list",
+            )?;
+            events.push(Event::PointerMoved((list.0 + jitter, list.1)));
+        }
+        12..=19 => {
+            let queue = center(ui, Role::List, |name| name == "Up next queue", "Up next list")?;
+            // Horizontal moves only: vertical motion over a carried-into list scrolls it, which
+            // would show new rows every cycle instead of a repeating workload.
+            let y = center(ui, Role::Button, |name| name.starts_with(super::setup::LIST_NAME), "sidebar list")?.1;
+            events.push(Event::PointerMoved((queue.0 + jitter, y)));
+        }
+        20 => events.push(Event::KeyPressed(Key::Escape)),
+        21 => {
+            events.push(Event::KeyReleased(Key::Escape));
+            events.push(Event::PointerReleased(MouseButton::LeftButton, (1300.0, 400.0)));
+        }
+        _ => {
+            events.push(Event::PointerMoved((650.0, 400.0)));
+            events.push(Event::Scrolled((0.0, if (frame / 40) % 2 == 0 { -1.0 } else { 1.0 })));
+        }
+    }
+    Ok(())
 }
 
 /// Real external hover/completion routing without filesystem mutations in the fixture.
@@ -625,7 +803,52 @@ impl Perf {
                 output_allocations,
             );
         }
-        if matches!(workload, Some(Workload::Artwork)) && (*frames) > WARMUP_FRAMES {
+        if (*frames) > WARMUP_FRAMES {
+            let visible = |name: &str, below: f32| {
+                ui.a11y_nodes().iter().any(|node| {
+                    node.states & pxui::a11y::state::VISIBLE != 0
+                        && node.rect.y < below
+                        && ui.a11y_name_of(node) == name
+                })
+            };
+            match workload {
+                Some(Workload::AlbumDetail | Workload::ArtistDetail) => {
+                    let marker = if workload == Some(Workload::AlbumDetail) {
+                        "Album artwork"
+                    } else {
+                        "Shuffle"
+                    };
+                    self.marker_frames += usize::from(visible(marker, 400.0));
+                    let first = ui
+                        .a11y_nodes()
+                        .iter()
+                        .filter(|node| {
+                            node.is_role(pxui::ui::Role::ListItem)
+                                && node.states & pxui::a11y::state::VISIBLE != 0
+                        })
+                        .find(|node| ui.a11y_name_of(node).starts_with("Track "))
+                        .map(|node| node.rect.y as usize);
+                    if let Some(first) = first {
+                        self.detail_first_min = self.detail_first_min.min(first);
+                        self.detail_first_max = self.detail_first_max.max(first);
+                    }
+                }
+                Some(Workload::ListDialogs) => {
+                    self.menu_frames += usize::from(visible("List actions", f32::MAX));
+                    self.marker_frames += usize::from(visible("List name", f32::MAX));
+                }
+                Some(Workload::MetadataEditor) => {
+                    self.marker_frames += usize::from(visible("Release year", f32::MAX));
+                }
+                Some(Workload::SongDrag) => {
+                    self.marker_frames += frame.carry_frames;
+                }
+                _ => {}
+            }
+        }
+        if matches!(workload, Some(Workload::Artwork | Workload::AlbumDetail))
+            && (*frames) > WARMUP_FRAMES
+        {
             let image_quads = ui
                 .layers()
                 .map(|layer| {
@@ -927,6 +1150,24 @@ mod tests {
                     ]
                 ),
             }
+        }
+    }
+
+    #[test]
+    fn typing_workloads_edit_bounded_text_without_allocating() {
+        let mut state = lw_ui::ShellState::default();
+        state.apply(lw_ui::Intent::NewList(None));
+        let mut perf = Perf::new(Workload::ListDialogs, None);
+        for index in 2..WARMUP_FRAMES + MEASURED_FRAMES {
+            let frame = perf.inject(index, false);
+            frame.state_input(&mut state);
+            assert_eq!(mem_sys::local_alloc_count(), 0);
+        }
+        let mut perf = Perf::new(Workload::MetadataEditor, None);
+        for index in 2..WARMUP_FRAMES + MEASURED_FRAMES {
+            let frame = perf.inject(index, false);
+            frame.state_input(&mut state);
+            assert_eq!(mem_sys::local_alloc_count(), 0);
         }
     }
 

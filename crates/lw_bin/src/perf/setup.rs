@@ -1,5 +1,5 @@
 //! Isolated fixture I/O stays on the library worker; startup waits borrow the framework Window.
-use super::Workload;
+use super::{Workload, drive};
 use crate::app::App;
 use lw_bin::{
     controller::{Command, Controller},
@@ -7,6 +7,8 @@ use lw_bin::{
 };
 use pxui_sdl::Window;
 use std::path::Path;
+
+pub(crate) const LIST_NAME: &str = "Qualification mix";
 
 pub(crate) fn library(base: &Path, workload: Option<Workload>) -> std::io::Result<LibraryWorker> {
     let documents = base.join("Documents");
@@ -36,8 +38,18 @@ pub(crate) fn library(base: &Path, workload: Option<Workload>) -> std::io::Resul
         if matches!(workload, Some(Workload::Artists)) {
             seed_artists(&base.join("library.sqlite"))?;
         }
-        if matches!(workload, Some(Workload::Artwork)) {
+        if matches!(workload, Some(Workload::Artwork | Workload::AlbumDetail)) {
             seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
+        }
+        if matches!(
+            workload,
+            Some(Workload::ListDialogs | Workload::SongDrag)
+        ) {
+            // A sidebar list row for the menu and drop target, in the isolated fixture only.
+            library
+                .repository
+                .create_playlist(LIST_NAME, 1.0)
+                .map_err(std::io::Error::other)?;
         }
         seed_waveform(&base.join("Caches"))?;
         if matches!(workload, Some(Workload::Files)) {
@@ -182,6 +194,33 @@ pub(crate) fn prepare(
     if matches!(workload, Some(Workload::Artwork)) {
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
     }
+    if let Some(route @ (Workload::AlbumDetail | Workload::ArtistDetail)) = workload {
+        use lw_ui::catalog::Route;
+        shell_state.apply(lw_ui::Intent::Navigate(if route == Workload::AlbumDetail {
+            Route::Album(0)
+        } else {
+            Route::Artist(0)
+        }));
+        if shell_state
+            .collection(player.catalog())
+            .is_none_or(|group| group.rows.len() < 50)
+        {
+            return Err("Detail performance fixture needs a scoped table of 50+ songs".into());
+        }
+    }
+    if matches!(workload, Some(Workload::MetadataEditor)) {
+        use lw_ui::browse::Query;
+        let field = |text| Query::new(text).unwrap_or_default();
+        shell_state.apply(lw_ui::Intent::OpenMetadata(lw_ui::MetadataEdit {
+            song: 1,
+            title: field(drive::TITLE_TEXT),
+            artist: field("Artist 1"),
+            album: field("Album 1"),
+            album_artist: field("Artist 1"),
+            year: field("2019"),
+            track: field("1"),
+        }));
+    }
     if matches!(workload, Some(Workload::Artists)) {
         if player.catalog().artists.len() != 10_000
             || player
@@ -248,11 +287,20 @@ pub(crate) fn prepare(
 }
 
 pub(crate) fn configure_ui(ui: &mut pxui::Ui, workload: Option<Workload>) {
-    if matches!(workload, Some(Workload::LongScroll))
-        || matches!(workload, Some(Workload::QueueDrag))
-        || matches!(workload, Some(Workload::Artists))
-        || matches!(workload, Some(Workload::SongIndicators))
-    {
+    if matches!(
+        workload,
+        Some(
+            Workload::LongScroll
+                | Workload::QueueDrag
+                | Workload::Artists
+                | Workload::SongIndicators
+                | Workload::AlbumDetail
+                | Workload::ArtistDetail
+                | Workload::ListDialogs
+                | Workload::MetadataEditor
+                | Workload::SongDrag
+        )
+    ) {
         ui.set_a11y(true);
     }
 }

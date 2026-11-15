@@ -205,13 +205,41 @@ impl Perf {
             "LocalWave work timing: wall_us_p50={} wall_us_p95={} wall_us_p99={} wall_us_max={}",
             work_samples[49], work_samples[94], work_samples[98], work_samples[99]
         );
-        if matches!(workload, Some(Workload::Artwork)) {
+        if matches!(workload, Some(Workload::Artwork | Workload::AlbumDetail)) {
             println!(
                 "LocalWave artwork: texture_bytes={artwork_bytes} min_image_quads={min_artwork_quads} max_warm_requests={warm_artwork_requests}"
             );
-            if artwork_bytes == 0 || (*min_artwork_quads) < 10 || (*warm_artwork_requests) != 0 {
+            let needed = if workload == Some(Workload::Artwork) { 10 } else { 1 };
+            if artwork_bytes == 0 || (*min_artwork_quads) < needed || (*warm_artwork_requests) != 0
+            {
                 return Err("Artwork workload did not retain its warmed image working set".into());
             }
+        }
+        let (marker, menu) = (self.marker_frames, self.menu_frames);
+        let (first_min, first_max) = (self.detail_first_min, self.detail_first_max);
+        let exercised = match workload {
+            Some(Workload::AlbumDetail | Workload::ArtistDetail) => {
+                println!(
+                    "LocalWave detail: header_frames={marker} first_row_min={first_min} first_row_max={first_max}"
+                );
+                marker >= 50 && first_min < first_max
+            }
+            Some(Workload::ListDialogs) => {
+                println!("LocalWave list dialogs: menu_frames={menu} name_dialog_frames={marker}");
+                menu >= 15 && marker >= 35
+            }
+            Some(Workload::MetadataEditor) => {
+                println!("LocalWave metadata editor: sheet_frames={marker}");
+                marker == MEASURED_FRAMES
+            }
+            Some(Workload::SongDrag) => {
+                println!("LocalWave song drag: carry_frames={marker} mutation_jobs=0");
+                marker >= 50
+            }
+            _ => true,
+        };
+        if !exercised {
+            return Err("Workload did not exercise its screen".into());
         }
         if trace_frames {
             let totals: [u64; 9] = std::array::from_fn(|phase| {
