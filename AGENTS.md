@@ -50,7 +50,7 @@ Allowed production dependencies (plus std):
 - `lw_apple_sys`: `file_access_sys`, `lw_sqlite` (existing public re-export); `cc` for native builds.
 - `lw_ui`: `lw_core`, public `pxui`, `input`; no private engine/GPU imports or unsafe code.
 - `lw_bin`: application crates including `lw_sqlite`, `pxui`, `pxui_sdl`, `pxui_host`, `input`, `mem_sys`.
-  Existing GPU test-only dependencies are removed by B7; add none to production.
+  Keep `ogpu_*` out of every dependency section; native texture checks belong to pxui_host.
 
 ## Performance contract
 

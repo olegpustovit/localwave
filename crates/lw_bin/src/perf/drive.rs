@@ -25,7 +25,7 @@ pub(crate) struct Frame {
 }
 
 pub(crate) struct Build {
-    interval: Option<lw_apple_sys::timing::FrameInterval>,
+    interval: Option<mem_sys::profile::FrameInterval>,
     cpu_started: u64,
     allocations_before: u64,
     started: std::time::Instant,
@@ -140,9 +140,9 @@ impl Frame {
     pub(crate) fn begin(&self) -> Result<Build, String> {
         let interval = self
             .trace_frames
-            .then(|| lw_apple_sys::timing::FrameInterval::begin(self.index as u64 + 1));
+            .then(|| mem_sys::profile::FrameInterval::begin(self.index as u64 + 1));
         let cpu_started = if self.workload.is_some() {
-            lw_apple_sys::thread_cpu_time_ns().map_err(|error| error.to_string())?
+            mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())?
         } else {
             0
         };
@@ -187,7 +187,7 @@ impl Frame {
         self.allocations_before = build.allocations_before;
         self.allocations_after = self.allocations();
         let cpu = if self.workload.is_some() {
-            (lw_apple_sys::thread_cpu_time_ns().map_err(|error| error.to_string())?
+            (mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())?
                 - build.cpu_started)
                 / 1000
         } else {

@@ -5,8 +5,6 @@
 use super::*;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 
 pub(super) fn transport(
     ui: &mut Ui,
@@ -212,8 +210,7 @@ pub(super) fn desktop(
                 &mut |ui| sidebar(ui, catalog, state, sidebar_width, p, intent),
             );
             rule(ui, "sidebar-divider", true, p);
-            let mut library_revision = FastHasher::default();
-            (
+            let library_revision = pxui::hash!((
                 revision,
                 (player.current_id, player.playing),
                 player.artwork.map_or(0, crate::artwork::Images::revision),
@@ -230,28 +227,23 @@ pub(super) fn desktop(
                 } else {
                     0
                 },
-            )
-                .hash(&mut library_revision);
+            ));
             let page = ui.view(
                 "library",
-                library_revision.finish(),
+                library_revision,
                 Size::Grow,
                 Size::Grow,
                 &mut |ui| {
-                    let mut route_key = FastHasher::default();
-                    if let Some(group) = catalog
+                    let route_key = if let Some(group) = catalog
                         .collection(state.route)
                         .filter(|_| state.route != Route::Find)
                     {
-                        (true, group.key).hash(&mut route_key);
+                        pxui::hash!((true, group.key))
                     } else {
-                        (false, state.route).hash(&mut route_key);
-                    }
+                        pxui::hash!((false, state.route))
+                    };
                     let route = ui.node_keyed(
-                        int_key(
-                            Ui::key_of(0, "localwave-library-route"),
-                            route_key.finish() as i64,
-                        ),
+                        int_key(Ui::key_of(0, "localwave-library-route"), route_key as i64),
                         Node {
                             w: Size::Grow,
                             h: Size::Grow,
@@ -288,17 +280,15 @@ pub(super) fn desktop(
             );
             if panel {
                 rule(ui, "panel-divider", true, p);
-                let mut panel_revision = FastHasher::default();
-                (
+                let panel_revision = pxui::hash!((
                     player.revision,
                     player.artwork.map_or(0, crate::artwork::Images::revision),
                     catalog.queue.as_ref().map(|queue| queue.revision),
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
-                )
-                    .hash(&mut panel_revision);
+                ));
                 let panel = ui.view(
                     "now-panel",
-                    panel_revision.finish(),
+                    panel_revision,
                     Size::Px(319.0),
                     Size::Grow,
                     &mut |ui| now_panel(ui, player, catalog, p, intent),

@@ -10,9 +10,6 @@ pub use lw_sqlite as sqlite;
 pub mod collation;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
-pub mod timing;
-
-#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod bookmarks;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -70,45 +67,6 @@ pub fn require_worker_thread() -> std::io::Result<()> {
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod window;
-
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub fn thread_cpu_time_ns() -> std::io::Result<u64> {
-    unsafe extern "C" {
-        fn lw_thread_cpu_ns() -> u64;
-    }
-    let value = unsafe { lw_thread_cpu_ns() };
-    if value == u64::MAX {
-        Err(std::io::Error::other("Thread CPU clock is unavailable"))
-    } else {
-        Ok(value)
-    }
-}
-
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub fn ui_thread_priority() -> std::io::Result<()> {
-    unsafe extern "C" {
-        fn lw_ui_thread_priority() -> i32;
-    }
-    match unsafe { lw_ui_thread_priority() } {
-        0 => Ok(()),
-        code => Err(std::io::Error::from_raw_os_error(code)),
-    }
-}
-
-#[cfg(all(test, target_os = "macos"))]
-mod thread_tests {
-    #[test]
-    fn ui_priority_rejects_worker_threads() {
-        std::thread::spawn(|| {
-            assert_eq!(
-                super::ui_thread_priority().unwrap_err().kind(),
-                std::io::ErrorKind::InvalidInput
-            )
-        })
-        .join()
-        .unwrap();
-    }
-}
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub fn normalized_file_url(path: &str) -> std::io::Result<String> {

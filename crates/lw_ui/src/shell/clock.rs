@@ -1,6 +1,4 @@
 use super::*;
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Copy)]
 pub(super) struct ClockLabel {
@@ -142,9 +140,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, color: Rgba) {
             ui.set_state(&previous, old as i64);
         }
         let before = label(ui.state(&previous, seconds as i64) as u64);
-        let mut revision = FastHasher::default();
-        (shown.bytes(), before.bytes()).hash(&mut revision);
-        let revision = revision.finish();
+        let revision = pxui::hash!((shown.bytes(), before.bytes()));
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
             ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {

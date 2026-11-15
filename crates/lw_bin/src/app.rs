@@ -169,7 +169,7 @@ pub(super) fn open(
     )
     .map_err(|error| error.to_string())?;
     // Workers do not inherit the UI's interactive QoS.
-    lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
+    mem_sys::profile::ui_thread_priority().map_err(|error| error.to_string())?;
     let indicator_song = perf::setup::wait_ready(window, &mut player, smoke, workload)?;
     let extent = window.extent();
     let events: Vec<HostEvent> = Vec::with_capacity(256);

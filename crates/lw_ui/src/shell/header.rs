@@ -2,8 +2,6 @@ use super::*;
 use crate::browse::Query;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 
 pub(super) fn header(
     ui: &mut Ui,
@@ -184,23 +182,17 @@ pub(super) fn header_view(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let mut revision = FastHasher::default();
-    (
+    let revision = pxui::hash!((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         catalog
             .view
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
-    )
-        .hash(&mut revision);
-    ui.view(
-        "page-heading",
-        revision.finish(),
-        Size::Grow,
-        Size::Fit,
-        &mut |ui| header(ui, catalog, state, width, p, intent),
-    );
+    ));
+    ui.view("page-heading", revision, Size::Grow, Size::Fit, &mut |ui| {
+        header(ui, catalog, state, width, p, intent)
+    });
 }
 
 pub(super) fn content(
@@ -249,11 +241,10 @@ pub(super) fn find_tokens(
             at
         })
     };
-    let mut revision = FastHasher::default();
-    (state.query_revision, width.to_bits()).hash(&mut revision);
+    let revision = pxui::hash!((state.query_revision, width.to_bits()));
     ui.view(
         "find-tokens",
-        revision.finish(),
+        revision,
         Size::Grow,
         Size::Px(positions[4].1 + 44.0),
         &mut |ui| {

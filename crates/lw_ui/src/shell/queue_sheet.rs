@@ -2,8 +2,6 @@ use super::*;
 use crate::browse::Query;
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 
 pub(super) fn queue_action(
     ui: &mut Ui,
@@ -49,8 +47,7 @@ pub(super) fn queue_sheet(
     let width = (window_width - 32.0).clamp(240.0, 680.0);
     let height = (window_height - 64.0).clamp(160.0, 620.0);
     let open = ui.modal(Some(width), "Playback queue", &mut |ui| {
-        let mut revision = FastHasher::default();
-        (
+        let revision = pxui::hash!((
             state.revision,
             player.artwork.map_or(0, crate::artwork::Images::revision),
             catalog.queue.as_ref().map(|queue| queue.revision),
@@ -59,11 +56,10 @@ pub(super) fn queue_sheet(
             player.message.len(),
             width.to_bits(),
             height.to_bits(),
-        )
-            .hash(&mut revision);
+        ));
         ui.view(
             "queue-sheet-content",
-            revision.finish(),
+            revision,
             Size::Grow,
             Size::Px(height),
             &mut |ui| {
@@ -227,17 +223,15 @@ pub(super) fn queue_sheet(
                         false,
                     );
                     rule(ui, "full-queue-divider", false, p);
-                    let mut revision = FastHasher::default();
-                    (
+                    let revision = pxui::hash!((
                         catalog.queue.as_ref().map(|queue| queue.revision),
                         std::sync::Arc::as_ptr(&catalog.library) as usize,
                         width.to_bits(),
                         player.artwork.map_or(0, crate::artwork::Images::revision),
-                    )
-                        .hash(&mut revision);
+                    ));
                     ui.view(
                         "full-queue-rows",
-                        revision.finish(),
+                        revision,
                         Size::Grow,
                         Size::Grow,
                         &mut |ui| {

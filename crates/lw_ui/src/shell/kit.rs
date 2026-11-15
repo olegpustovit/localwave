@@ -1,6 +1,4 @@
 use super::*;
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Copy)]
 pub(super) struct Palette {
@@ -199,37 +197,71 @@ pub(super) fn icon_button(
         p.key
     };
     let color = if inverse { p.paper } else { p.ink };
-    let mut revision = FastHasher::default();
-    (icon as u8, inverse, signal.hovered, signal.held).hash(&mut revision);
+    let revision = pxui::hash!((icon as u8, inverse, signal.hovered, signal.held));
     ui.within(&node, &mut |ui| {
-        let visual = ui.view(
-            "visual",
-            revision.finish(),
-            Size::Grow,
-            Size::Grow,
-            &mut |ui| {
-                let surface = ui.node(
-                    "surface",
-                    Node {
-                        w: Size::Grow,
-                        h: Size::Grow,
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.set_look(
-                    &surface,
-                    Look { fill, ..Look::NONE },
-                    State {
-                        hovered: signal.hovered,
-                        pressed: signal.held,
-                        ..State::default()
-                    },
-                );
-                ui.draw(&surface, move |paint, rect| {
-                    let x = rect.x + (rect.w - 20.0) / 2.0;
-                    let y = rect.y + (rect.h - 20.0) / 2.0;
-                    match icon {
-                        Icon::Play => crate::icons::play(
+        let visual = ui.view("visual", revision, Size::Grow, Size::Grow, &mut |ui| {
+            let surface = ui.node(
+                "surface",
+                Node {
+                    w: Size::Grow,
+                    h: Size::Grow,
+                    ..Node::DEFAULT
+                },
+            );
+            ui.set_look(
+                &surface,
+                Look { fill, ..Look::NONE },
+                State {
+                    hovered: signal.hovered,
+                    pressed: signal.held,
+                    ..State::default()
+                },
+            );
+            ui.draw(&surface, move |paint, rect| {
+                let x = rect.x + (rect.w - 20.0) / 2.0;
+                let y = rect.y + (rect.h - 20.0) / 2.0;
+                match icon {
+                    Icon::Play => crate::icons::play(
+                        paint,
+                        Rect {
+                            x,
+                            y,
+                            w: 20.0,
+                            h: 20.0,
+                        },
+                        color,
+                    ),
+                    Icon::Pause => {
+                        paint.fill(x + 4.0, y + 3.0, 4.0, 14.0, color);
+                        paint.fill(x + 12.0, y + 3.0, 4.0, 14.0, color);
+                    }
+                    Icon::Stop => paint.fill(x + 5.0, y + 5.0, 10.0, 10.0, color),
+                    Icon::Queue => {
+                        for dy in [5.0, 10.0, 15.0] {
+                            paint.fill(x + 2.0, y + dy, 2.0, 1.5, color);
+                            paint.fill(x + 6.0, y + dy, 12.0, 1.5, color);
+                        }
+                    }
+                    Icon::Previous | Icon::Next => {
+                        let next = matches!(icon, Icon::Next);
+                        paint.fill(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0, color);
+                        for row in 0..12 {
+                            let w = (6.0 - (row as f32 - 5.5).abs()) * 1.5;
+                            paint.fill(
+                                x + if next { 4.0 } else { 15.0 - w },
+                                y + 4.0 + row as f32,
+                                w,
+                                1.0,
+                                color,
+                            );
+                        }
+                    }
+                    Icon::Panel => {
+                        paint.stroke(x + 2.0, y + 3.0, 16.0, 14.0, color);
+                        paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), color);
+                    }
+                    Icon::Shuffle => {
+                        crate::icons::shuffle(
                             paint,
                             Rect {
                                 x,
@@ -238,76 +270,29 @@ pub(super) fn icon_button(
                                 h: 20.0,
                             },
                             color,
-                        ),
-                        Icon::Pause => {
-                            paint.fill(x + 4.0, y + 3.0, 4.0, 14.0, color);
-                            paint.fill(x + 12.0, y + 3.0, 4.0, 14.0, color);
-                        }
-                        Icon::Stop => paint.fill(x + 5.0, y + 5.0, 10.0, 10.0, color),
-                        Icon::Queue => {
-                            for dy in [5.0, 10.0, 15.0] {
-                                paint.fill(x + 2.0, y + dy, 2.0, 1.5, color);
-                                paint.fill(x + 6.0, y + dy, 12.0, 1.5, color);
-                            }
-                        }
-                        Icon::Previous | Icon::Next => {
-                            let next = matches!(icon, Icon::Next);
-                            paint.fill(
-                                x + if next { 15.0 } else { 3.0 },
-                                y + 4.0,
-                                2.0,
-                                12.0,
-                                color,
-                            );
-                            for row in 0..12 {
-                                let w = (6.0 - (row as f32 - 5.5).abs()) * 1.5;
-                                paint.fill(
-                                    x + if next { 4.0 } else { 15.0 - w },
-                                    y + 4.0 + row as f32,
-                                    w,
-                                    1.0,
-                                    color,
-                                );
-                            }
-                        }
-                        Icon::Panel => {
-                            paint.stroke(x + 2.0, y + 3.0, 16.0, 14.0, color);
-                            paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), color);
-                        }
-                        Icon::Shuffle => {
-                            crate::icons::shuffle(
-                                paint,
-                                Rect {
-                                    x,
-                                    y,
-                                    w: 20.0,
-                                    h: 20.0,
-                                },
-                                color,
-                            );
-                        }
-                        Icon::Repeat => {
-                            paint.line((x + 3.0, y + 5.0), (x + 17.0, y + 5.0), color);
-                            paint.line((x + 17.0, y + 5.0), (x + 17.0, y + 15.0), color);
-                            paint.line((x + 17.0, y + 15.0), (x + 3.0, y + 15.0), color);
-                            paint.line((x + 3.0, y + 15.0), (x + 3.0, y + 9.0), color);
-                        }
-                        Icon::Refresh => {
-                            paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
-                            paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
-                            paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), color);
-                            paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), color);
-                            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
-                            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
-                        }
-                        Icon::Clear => {
-                            paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
-                            paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
-                        }
+                        );
                     }
-                });
-            },
-        );
+                    Icon::Repeat => {
+                        paint.line((x + 3.0, y + 5.0), (x + 17.0, y + 5.0), color);
+                        paint.line((x + 17.0, y + 5.0), (x + 17.0, y + 15.0), color);
+                        paint.line((x + 17.0, y + 15.0), (x + 3.0, y + 15.0), color);
+                        paint.line((x + 3.0, y + 15.0), (x + 3.0, y + 9.0), color);
+                    }
+                    Icon::Refresh => {
+                        paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
+                        paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
+                        paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), color);
+                        paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), color);
+                        paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
+                        paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
+                    }
+                    Icon::Clear => {
+                        paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
+                        paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
+                    }
+                }
+            });
+        });
         if ui.state(&visual, 0) != i64::from(signal.held) {
             ui.set_state(&visual, i64::from(signal.held));
             let scale = if signal.held { 0.96 } else { 1.0 };

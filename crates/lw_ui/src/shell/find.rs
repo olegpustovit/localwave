@@ -110,57 +110,50 @@ fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> bool {
             before != i64::from(selected),
         );
         background(ui, "press", p.panel, signal.held, false);
-        let mut revision = FastHasher::default();
-        (label, selected).hash(&mut revision);
-        ui.view(
-            "action-copy",
-            revision.finish(),
-            Size::Grow,
-            Size::Grow,
-            &mut |ui| {
-                let row = ui.node(
-                    "content",
+        let revision = pxui::hash!((label, selected));
+        ui.view("action-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
+            let row = ui.node(
+                "content",
+                Node {
+                    axis: Axis::Row,
+                    align: Align::Center,
+                    gap: 6.0,
+                    w: Size::Grow,
+                    h: Size::Grow,
+                    padding: Edges {
+                        l: 10.0,
+                        r: 10.0,
+                        ..Edges::ZERO
+                    },
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&row, &mut |ui| {
+                let color = if selected { p.ink } else { p.secondary };
+                let icon = ui.node(
+                    "icon",
                     Node {
-                        axis: Axis::Row,
-                        align: Align::Center,
-                        gap: 6.0,
-                        w: Size::Grow,
-                        h: Size::Grow,
-                        padding: Edges {
-                            l: 10.0,
-                            r: 10.0,
-                            ..Edges::ZERO
-                        },
+                        w: Size::Px(icon_size),
+                        h: Size::Px(icon_size),
                         ..Node::DEFAULT
                     },
                 );
-                ui.within(&row, &mut |ui| {
-                    let color = if selected { p.ink } else { p.secondary };
-                    let icon = ui.node(
-                        "icon",
-                        Node {
-                            w: Size::Px(icon_size),
-                            h: Size::Px(icon_size),
-                            ..Node::DEFAULT
-                        },
-                    );
-                    ui.draw(&icon, move |paint, rect| match action {
-                        Action::Play => crate::icons::play(paint, rect, color),
-                        Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
-                    });
-                    let copy = text(
-                        ui,
-                        "label",
-                        label,
-                        13,
-                        color,
-                        (Size::Px(label_width), 18.2),
-                        false,
-                    );
-                    ui.set_role(&copy, Role::Unknown, 0);
+                ui.draw(&icon, move |paint, rect| match action {
+                    Action::Play => crate::icons::play(paint, rect, color),
+                    Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
                 });
-            },
-        );
+                let copy = text(
+                    ui,
+                    "label",
+                    label,
+                    13,
+                    color,
+                    (Size::Px(label_width), 18.2),
+                    false,
+                );
+                ui.set_role(&copy, Role::Unknown, 0);
+            });
+        });
     });
     enabled && signal.clicked
 }

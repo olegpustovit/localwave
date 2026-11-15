@@ -119,7 +119,6 @@ int lw_artwork_pixels(void *image, unsigned char *pixels, size_t length);
 void lw_artwork_thumbnail_release(void *image);
 int lw_is_main_thread(void);
 
-int lw_ui_thread_priority(void);
 void *lw_bookmark_url(void *access);
 void *lw_scan_open(void *root_url, const char *registered_root, const char *const *excluded, size_t excluded_count, char **error);
 int lw_scan_next(void *scan, LWScanEntry *entry, char **error);
@@ -137,8 +136,5 @@ int lw_bookmark_create(const char *path, LWBytes *bookmark, char **error);
 void *lw_bookmark_resolve(const unsigned char *bookmark, size_t len, LWBytes *renewed, char **error);
 char *lw_bookmark_path(void *access);
 void lw_bookmark_release(void *access);
-uint64_t lw_thread_cpu_ns(void);
-uint64_t lw_frame_interval_begin(uint64_t frame);
-void lw_frame_interval_end(uint64_t interval, uint64_t wall, uint64_t cpu);
 
 #endif

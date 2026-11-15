@@ -118,15 +118,12 @@ pub(super) fn table(
         .fold(16.8f32, f32::max)
         + 20.5;
     let entry = crate::motion::Page::new(ui, state.entry_revision);
-    let mut revision = FastHasher::default();
-    (
+    let revision = pxui::hash!((
         state.revision,
         columns.map(f32::to_bits),
         images.map_or(0, crate::artwork::Images::revision),
         std::sync::Arc::as_ptr(&catalog.library) as usize,
-    )
-        .hash(&mut revision);
-    let revision = revision.finish();
+    ));
     ui.section_list_measured(
         "artists",
         &SectionList {

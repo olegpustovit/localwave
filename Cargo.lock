@@ -49,7 +49,6 @@ dependencies = [
  "lw_sqlite",
  "lw_ui",
  "mem_sys",
- "ogpu_core",
  "pxui",
  "pxui_host",
  "pxui_sdl",

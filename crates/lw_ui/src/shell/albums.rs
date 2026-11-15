@@ -158,15 +158,13 @@ pub(super) fn gallery(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let mut revision = FastHasher::default();
-    (
+    let revision = pxui::hash!((
         state.revision,
         player.current_id,
         player.artwork.map_or(0, crate::artwork::Images::revision),
         std::sync::Arc::as_ptr(&catalog.library) as usize,
-    )
-        .hash(&mut revision);
-    let row_revision = revision.finish();
+    ));
+    let row_revision = revision;
     let entry = crate::motion::Page::new(ui, state.entry_revision);
     let groups = &catalog.albums;
     let order = &catalog.album_orders[state.album_sort as usize];

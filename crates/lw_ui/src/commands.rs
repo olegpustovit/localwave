@@ -10,8 +10,6 @@
 //! Prepared on the library worker; palette frames borrow labels, actions and the ranked queue.
 use crate::{browse::Query, catalog::Route, files::Location};
 use lw_core::context::PlaybackContext;
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 /// Register once, outside frames; select this body only in the palette's retained theme.
@@ -96,10 +94,9 @@ impl Item {
         artwork: Option<usize>,
         action: Action,
     ) -> Self {
-        let mut key = FastHasher::default();
-        (group, label, hint, action).hash(&mut key);
+        let key = pxui::hash!((group, label, hint, action));
         Self {
-            key: key.finish(),
+            key,
             group,
             label: label.into(),
             hint: hint.into(),

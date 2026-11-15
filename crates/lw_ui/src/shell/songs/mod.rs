@@ -328,16 +328,13 @@ pub(super) fn table(
         state.route,
     );
     let heading_layout = heading_layout(ui, catalog, widths, applied);
-    let mut revision = FastHasher::default();
-    (
+    let revision = pxui::hash!((
         state.revision,
         player.current_id,
         player.playing,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         widths.map(f32::to_bits),
-    )
-        .hash(&mut revision);
-    let revision = revision.finish();
+    ));
     let entry = crate::motion::Page::new(ui, state.entry_revision);
     let find = state.route == Route::Find;
     if find {

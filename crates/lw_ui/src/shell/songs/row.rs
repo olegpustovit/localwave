@@ -351,9 +351,7 @@ impl Rows<'_> {
             && y < viewport.height;
         let visual_revision =
             if player.current_id == Some(row.id) || row.state == lw_core::FileState::CopyPending {
-                let mut hash = FastHasher::default();
-                (revision, visible).hash(&mut hash);
-                hash.finish()
+                pxui::hash!((revision, visible))
             } else {
                 revision
             };

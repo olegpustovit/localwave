@@ -1,8 +1,6 @@
 use super::*;
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
-use pxui::geom::hash::FastHasher;
-use std::hash::{Hash, Hasher};
 
 pub(super) fn now_panel(
     ui: &mut Ui,
@@ -79,18 +77,16 @@ pub(super) fn now_panel(
         );
         ui.a11y_name(&art, "Current track artwork");
         spacer(ui, "artwork-bottom-gap", 14.0);
-        let mut information_revision = FastHasher::default();
-        (
+        let information_revision = pxui::hash!((
             player.initialized,
             player.current_id,
             player.title,
             player.artist,
             player.album,
-        )
-            .hash(&mut information_revision);
+        ));
         let information = ui.view(
             "track-information",
-            information_revision.finish(),
+            information_revision,
             Size::Grow,
             Size::Fit,
             &mut |ui| {
@@ -201,16 +197,14 @@ pub(super) fn now_panel(
         );
         spacer(ui, "queue-gap", 14.0);
         rule(ui, "queue-divider", false, p);
-        let mut queue_revision = FastHasher::default();
-        (
+        let queue_revision = pxui::hash!((
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,
             player.artwork.map_or(0, crate::artwork::Images::revision),
-        )
-            .hash(&mut queue_revision);
+        ));
         ui.view(
             "up-next",
-            queue_revision.finish(),
+            queue_revision,
             Size::Grow,
             Size::Grow,
             &mut |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, p, intent),

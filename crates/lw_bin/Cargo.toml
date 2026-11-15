@@ -25,7 +25,6 @@ input = { path = "../../pxui/crates/open/input" }
 pxui_host = { path = "../../pxui/crates/host/pxui_host" }
 
 [dev-dependencies]
-ogpu_core = { path = "../../pxui/crates/open/ogpu_core" }
 lw_apple_sys = { path = "../lw_apple_sys", features = ["interop-test"] }
 sdl3_sys = { path = "../../pxui/crates/open/sdl3_sys", features = ["test-util"] }
 

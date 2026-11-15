@@ -293,8 +293,7 @@ pub(super) fn view(
             Size::Grow,
             p.paper,
         );
-        let mut route_key = FastHasher::default();
-        (
+        let route_key = pxui::hash!((
             state.route,
             state.settings_visible,
             if state.route == Route::Find {
@@ -302,11 +301,10 @@ pub(super) fn view(
             } else {
                 0
             },
-        )
-            .hash(&mut route_key);
+        ));
         ui.within(&body, &mut |ui| {
             let page = ui.node_keyed(
-                int_key(body.box_key, route_key.finish() as i64),
+                int_key(body.box_key, route_key as i64),
                 Node {
                     w: Size::Grow,
                     h: Size::Grow,
