@@ -22,6 +22,23 @@ pub fn open_link(link: Link) -> io::Result<()> {
     }
 }
 
+/// Select a file in Finder. Callable from any thread; the caller must hold the source's grant
+/// and pass the path it resolved. macOS only: iOS has no Finder, so it reports an error.
+pub fn reveal(path: &std::path::Path) -> io::Result<()> {
+    unsafe extern "C" {
+        fn lw_window_reveal_file(path: *const std::ffi::c_char) -> i32;
+    }
+    let text = path
+        .to_str()
+        .and_then(|text| std::ffi::CString::new(text).ok())
+        .ok_or_else(|| io::Error::other("File path is not valid"))?;
+    if unsafe { lw_window_reveal_file(text.as_ptr()) } == 0 {
+        Err(io::Error::other("Could not show this file"))
+    } else {
+        Ok(())
+    }
+}
+
 #[cfg(test)]
 mod link_tests {
     #[test]

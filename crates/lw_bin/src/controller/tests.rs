@@ -1002,3 +1002,233 @@ fn set_favorite_persists_on_the_library_worker_and_refreshes_the_catalog() {
         }
     }
 }
+
+#[test]
+fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
+    use lw_core::{FileState, Song};
+    let ids = |values: &[i64]| Arc::<[i64]>::from(values);
+    for bad in [
+        Command::InsertNext(ids(&[])),
+        Command::InsertNext(ids(&[1, 0])),
+        Command::AddToList(0, ids(&[1])),
+        Command::AddToList(1, ids(&[])),
+        Command::RemoveFromList(1, ids(&[-1])),
+        Command::RetryDownload(0),
+        Command::Reveal(0),
+    ] {
+        assert!(bad.validate().is_err());
+    }
+    for good in [
+        Command::AddToList(1, ids(&[1, 2])),
+        Command::RemoveFromList(1, ids(&[1])),
+        Command::RetryDownload(1),
+        Command::Reveal(1),
+    ] {
+        assert!(good.validate().is_ok() && !good.interrupts());
+        assert!(!good.fences_preparation() || matches!(good, Command::InsertNext(_)));
+    }
+    assert!(Command::InsertNext(ids(&[1])).fences_preparation());
+    assert!(Command::AddToList(1, ids(&[1])).changes_catalog());
+    assert!(Command::RetryDownload(1).changes_catalog());
+
+    let base = std::env::temp_dir().join(format!("lw-menu-command-{}", std::process::id()));
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let suite = format!("localwave.menu-command.{}", std::process::id());
+    let open = |base: &std::path::Path, suite: &str| -> io::Result<LibraryWorker> {
+        std::fs::create_dir_all(base)?;
+        LibraryWorker::open(
+            &base.join("library.sqlite"),
+            lw_apple_sys::preferences::Preferences::open(Some(suite))?,
+            lw_apple_sys::preferences::AppPaths {
+                documents: base.join("Documents"),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+        )
+    };
+    let shared = shared();
+    shared.inbox.lock().unwrap().native.volume = 1.0;
+    let (worker_base, worker_suite, owner) = (base.clone(), suite.clone(), shared.clone());
+    let thread = std::thread::spawn(move || {
+        Worker::run(
+            move || {
+                let mut library = open(&worker_base, &worker_suite)?;
+                for id in 1..=5 {
+                    library
+                        .repository
+                        .upsert_song(
+                            &Song {
+                                song_key: id,
+                                title: format!("Track {id}"),
+                                file_state: if id == 4 {
+                                    FileState::Failed
+                                } else {
+                                    FileState::BookmarkOnly
+                                },
+                                ..Default::default()
+                            },
+                            1.0,
+                        )
+                        .map_err(io::Error::other)?;
+                }
+                library
+                    .repository
+                    .create_playlist("Mix", 1.0)
+                    .map_err(io::Error::other)?;
+                Ok(library)
+            },
+            owner,
+        )
+    });
+    struct Close(Arc<Shared>, Option<JoinHandle<()>>);
+    impl Drop for Close {
+        fn drop(&mut self) {
+            self.0.inbox.lock().unwrap().closed = true;
+            self.0.changed.notify_one();
+            if let Some(thread) = self.1.take() {
+                thread.join().unwrap();
+            }
+        }
+    }
+    let mut close = Close(shared.clone(), Some(thread));
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    let wait = |done: &dyn Fn(&Shared) -> bool| {
+        while !done(&shared) {
+            assert!(std::time::Instant::now() < deadline, "menu command stalled");
+            std::thread::yield_now();
+        }
+    };
+    let send = |revision: u64, command: Command| {
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
+            revision,
+            preparation: 0,
+            command,
+        });
+        shared.changed.notify_one();
+        wait(&|shared| shared.inbox.lock().unwrap().status.processed_command >= revision);
+    };
+    let song_state = |shared: &Shared, id: i64| {
+        shared
+            .inbox
+            .lock()
+            .unwrap()
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.row_index(id).map(|index| catalog.row(index).state))
+    };
+    wait(&|shared| song_state(shared, 4) == Some(FileState::Failed));
+    let list = 1; // the only playlist, created first
+    // Queue 1, 2, 3 with 2 current; Play next of 4 and 5 lands right after 2.
+    send(
+        1,
+        Command::Configure {
+            songs: ids(&[1, 2, 3]),
+            start: 1,
+            autoplay: false,
+            context: None,
+        },
+    );
+    send(2, Command::InsertNext(ids(&[4, 5])));
+    send(3, Command::AddToList(list, ids(&[1, 2, 2, 5])));
+    send(4, Command::RemoveFromList(list, ids(&[2])));
+    send(5, Command::RetryDownload(4));
+    wait(&|shared| {
+        song_state(shared, 4) == Some(FileState::CopyPending)
+            || song_state(shared, 4) == Some(FileState::Copied)
+    });
+    // A song without a source reports a notice rather than reaching Finder.
+    send(6, Command::Reveal(1));
+    wait(&|shared| !shared.inbox.lock().unwrap().status.message.is_empty());
+    close.0.inbox.lock().unwrap().closed = true;
+    close.0.changed.notify_one();
+    close.1.take().unwrap().join().unwrap();
+    let library = open(&base, &suite).unwrap();
+    let saved = library.load_player_state().unwrap();
+    assert_eq!(saved.song_ids, [1, 2, 4, 5, 3]);
+    assert_eq!(saved.current_index, 1);
+    let members: Vec<_> = library
+        .repository
+        .playlist_songs(list)
+        .unwrap()
+        .iter()
+        .map(|song| song.id.unwrap())
+        .collect();
+    assert_eq!(members, [1, 5], "duplicates once; removed member gone");
+}
+
+#[test]
+fn reveal_resolves_the_source_grant_on_the_worker_and_rejects_missing_files() {
+    use lw_core::{Song, Source};
+    let base = std::env::temp_dir().join(format!("lw-reveal-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&base);
+    let folder = base.join("Music");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("here.flac"), [1; 8]).unwrap();
+    let mut library = LibraryWorker::open(
+        &base.join("library.sqlite"),
+        lw_apple_sys::preferences::Preferences::open(Some(&format!(
+            "localwave.reveal.{}",
+            std::process::id()
+        )))
+        .unwrap(),
+        lw_apple_sys::preferences::AppPaths {
+            documents: base.join("Documents"),
+            caches: base.join("Caches"),
+            temporary: base.join("tmp"),
+            test_database: None,
+        },
+    )
+    .unwrap();
+    let source = library
+        .repository
+        .create_source(&Source {
+            dir_path: folder.to_str().unwrap().into(),
+            bookmark: Some(lw_apple_sys::bookmarks::create(&folder).unwrap()),
+            created_at: 1.0,
+            ..Source::default()
+        })
+        .unwrap()
+        .id
+        .unwrap();
+    let mut add = |key, relative: Option<&str>, source| {
+        library
+            .repository
+            .upsert_song(
+                &Song {
+                    song_key: key,
+                    title: "T".into(),
+                    source_id: source,
+                    relative_path: relative.map(Into::into),
+                    ..Default::default()
+                },
+                1.0,
+            )
+            .unwrap()
+            .id
+            .unwrap()
+    };
+    let (here, gone, loose) = (
+        add(1, Some("here.flac"), Some(source)),
+        add(2, Some("gone.flac"), Some(source)),
+        add(3, None, None),
+    );
+    let target = library.reveal_target(here, 1.0).unwrap();
+    assert_eq!(target.file_name().unwrap(), "here.flac");
+    assert_eq!(
+        library.reveal_target(gone, 1.0).unwrap_err().kind(),
+        io::ErrorKind::NotFound
+    );
+    assert!(library.reveal_target(loose, 1.0).is_err());
+    assert!(library.reveal_target(9999, 1.0).is_err());
+    // The native call is queued on the main run loop, which a test process never services.
+    library.reveal_song(here, 1.0).unwrap();
+    let _ = std::fs::remove_dir_all(&base);
+}

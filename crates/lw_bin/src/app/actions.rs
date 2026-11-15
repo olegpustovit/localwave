@@ -227,6 +227,30 @@ impl App {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::SetFavorite { song, on }
                 }
+                lw_ui::Intent::PlayNext(id) => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::InsertNext(std::sync::Arc::from([id]))
+                }
+                lw_ui::Intent::AddToList { song, list } => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::AddToList(list, std::sync::Arc::from([song]))
+                }
+                lw_ui::Intent::RemoveFromList { song, list } => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::RemoveFromList(list, std::sync::Arc::from([song]))
+                }
+                lw_ui::Intent::KeepOffline(id) => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::TogglePins(std::sync::Arc::from([id]))
+                }
+                lw_ui::Intent::RetryDownload(id) => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::RetryDownload(id)
+                }
+                lw_ui::Intent::RevealSong(id) => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::Reveal(id)
+                }
                 lw_ui::Intent::AppendSong(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::Append(id)
@@ -289,6 +313,7 @@ impl App {
                 lw_ui::Intent::Navigate(_)
                 | lw_ui::Intent::SongMenu(_, _, _, _)
                 | lw_ui::Intent::CloseSongMenu
+                | lw_ui::Intent::SongMenuLists
                 | lw_ui::Intent::SelectRow(_)
                 | lw_ui::Intent::Search(_)
                 | lw_ui::Intent::SearchTooLong

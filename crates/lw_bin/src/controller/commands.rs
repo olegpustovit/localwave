@@ -38,9 +38,12 @@ impl Worker {
         {
             self.commit_selection(ticket);
         }
-        if matches!(envelope.command, Command::Append(_))
-            && self.session.queue().entries().len() == 1_000_000
-        {
+        let adding = match &envelope.command {
+            Command::Append(_) => 1,
+            Command::InsertNext(songs) => songs.len(),
+            _ => 0,
+        };
+        if adding > 0 && self.session.queue().entries().len() + adding > 1_000_000 {
             self.message = Arc::from("The queue is full");
             return Ok(());
         }
@@ -71,6 +74,7 @@ impl Worker {
             | Command::MoveEntry { .. }
             | Command::Remove(_)
             | Command::Append(_)
+            | Command::InsertNext(_)
             | Command::ClearUpcoming
             | Command::UndoClear) => self.queue_command(command, &mut structural)?,
             command @ (Command::Volume(_) | Command::ReadStorage | Command::Setting(_)) => {
@@ -80,7 +84,11 @@ impl Worker {
             | Command::DismissNotice
             | Command::RefreshCatalog
             | Command::TogglePins(_)
-            | Command::SetFavorite { .. }) => self.library_command(command)?,
+            | Command::SetFavorite { .. }
+            | Command::AddToList(..)
+            | Command::RemoveFromList(..)
+            | Command::RetryDownload(_)
+            | Command::Reveal(_)) => self.library_command(command)?,
         };
         self.action(action);
         if structural && !keep_undo {
@@ -220,6 +228,20 @@ impl Worker {
                 *structural = true;
                 Action::None
             }
+            Command::InsertNext(songs) => {
+                let count = self.session.queue().entries().len();
+                let after = self.session.queue().current_index().map(|index| index + 1);
+                for song in songs.iter() {
+                    self.session.append(*song);
+                }
+                // An empty queue makes the first append current; nothing needs to move.
+                if let (Some(after), true) = (after, count > 0) {
+                    let moved: Vec<usize> = (count..count + songs.len()).collect();
+                    self.session.reorder(&moved, after.min(count));
+                }
+                *structural = true;
+                Action::None
+            }
             Command::ClearUpcoming => {
                 if self
                     .session
@@ -344,7 +366,56 @@ impl Worker {
                 }
                 Action::None
             }
+            Command::AddToList(list, songs) => {
+                let result = self.library.add_to_list(list, &songs);
+                self.list_result(result, "add to the list", "Added to the list.")
+            }
+            Command::RemoveFromList(list, songs) => {
+                let result = self.library.remove_from_list(list, &songs);
+                self.list_result(result, "remove from the list", "")
+            }
+            Command::RetryDownload(song) => {
+                match self.library.retry_download(song) {
+                    Ok(()) => {
+                        self.copies_pending = true;
+                        self.dirty_catalog();
+                        self.message = self.empty.clone();
+                    }
+                    Err(error) => {
+                        eprintln!("LocalWave retry download: {error}");
+                        self.message =
+                            Arc::from("Could not retry this download. Refresh and try again.");
+                    }
+                }
+                Action::None
+            }
+            Command::Reveal(song) => {
+                if let Err(error) = self.library.reveal_song(song, now()) {
+                    eprintln!("LocalWave reveal: {error}");
+                    self.message = Arc::from(
+                        "Could not show this file. Reconnect its source folder and try again.",
+                    );
+                }
+                Action::None
+            }
             _ => unreachable!("command family dispatched above"),
         })
+    }
+    fn list_result(&mut self, result: io::Result<()>, what: &str, done: &str) -> Action {
+        match result {
+            Ok(()) => {
+                self.dirty_catalog();
+                self.message = if done.is_empty() {
+                    self.empty.clone()
+                } else {
+                    Arc::from(done)
+                };
+            }
+            Err(error) => {
+                eprintln!("LocalWave {what}: {error}");
+                self.message = Arc::from(format!("Could not {what}. Refresh and try again."));
+            }
+        }
+        Action::None
     }
 }

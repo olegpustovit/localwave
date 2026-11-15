@@ -21,3 +21,19 @@ int lw_window_open_link(int kind) {
 #endif
     }
 }
+
+// Queued on the main run loop so worker threads may request it; a headless process never services it.
+int lw_window_reveal_file(const char *path) {
+#if TARGET_OS_IOS
+    (void)path;
+    return 0;
+#else
+    NSString *text = path ? [NSString stringWithUTF8String:path] : nil;
+    if (!text || !text.isAbsolutePath) return 0;
+    NSURL *url = [NSURL fileURLWithPath:text];
+    dispatch_async(dispatch_get_main_queue(), ^{
+        [NSWorkspace.sharedWorkspace activateFileViewerSelectingURLs:@[url]];
+    });
+    return 1;
+#endif
+}

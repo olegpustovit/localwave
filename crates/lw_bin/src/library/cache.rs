@@ -158,6 +158,39 @@ impl LibraryWorker {
         }
         self.repository.set_favorite(id, on).map_err(db)
     }
+    /// Swift's `addToList`: one transaction; duplicates and members already present are skipped.
+    pub fn add_to_list(&mut self, list: i64, ids: &[i64]) -> io::Result<()> {
+        self.repository.add_playlist_songs(list, ids).map_err(db)
+    }
+    pub fn remove_from_list(&mut self, list: i64, ids: &[i64]) -> io::Result<()> {
+        self.repository.remove_playlist_songs(list, ids).map_err(db)
+    }
+    /// Swift's `markSongForCopy` for a failed row; the copy queue then retries it.
+    pub fn retry_download(&mut self, id: i64) -> io::Result<()> {
+        if self.repository.get_songs(&[id]).map_err(db)?.is_empty() {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "Song was removed"));
+        }
+        self.repository.mark_song_for_copy(id).map_err(db)
+    }
+    /// The file under its source's held security-scoped grant; never a portable path.
+    pub fn reveal_target(&mut self, id: i64, now: f64) -> io::Result<PathBuf> {
+        let song = self
+            .repository
+            .get_songs(&[id])
+            .map_err(db)?
+            .pop()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "Song was removed"))?;
+        let (Some(source), Some(relative)) = (song.source_id, song.relative_path) else {
+            return Err(io::Error::other("This song has no source folder"));
+        };
+        let path = self.source_file(source, &relative, now)?;
+        path.symlink_metadata()?;
+        Ok(path)
+    }
+    pub fn reveal_song(&mut self, id: i64, now: f64) -> io::Result<()> {
+        let path = self.reveal_target(id, now)?;
+        lw_apple_sys::window::reveal(&path)
+    }
     /// Swift's bulk pin toggle: persist one preference update and queue uncopied songs together.
     pub fn toggle_pins(&mut self, ids: &[i64]) -> io::Result<bool> {
         if ids.is_empty() || ids.len() > 1_000_000 {

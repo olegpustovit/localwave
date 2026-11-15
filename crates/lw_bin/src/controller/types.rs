@@ -64,6 +64,13 @@ pub enum Command {
         song: i64,
         on: bool,
     },
+    /// Swift's queueNext: append occurrences, then move them after the current one.
+    InsertNext(Arc<[i64]>),
+    AddToList(i64, Arc<[i64]>),
+    RemoveFromList(i64, Arc<[i64]>),
+    RetryDownload(i64),
+    /// Show the song's file in Finder through its source grant.
+    Reveal(i64),
 }
 impl Command {
     pub(super) fn changes_catalog(&self) -> bool {
@@ -73,6 +80,9 @@ impl Command {
                 | Self::SaveQueue(_)
                 | Self::TogglePins(_)
                 | Self::SetFavorite { .. }
+                | Self::AddToList(..)
+                | Self::RemoveFromList(..)
+                | Self::RetryDownload(_)
         )
     }
     pub(super) fn validate(&self) -> io::Result<()> {
@@ -96,6 +106,11 @@ impl Command {
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
             Self::TogglePins(songs) => songs.is_empty() || songs.len() > 1_000_000,
             Self::SetFavorite { song, .. } => *song <= 0,
+            Self::InsertNext(songs) => bad_ids(songs),
+            Self::AddToList(list, songs) | Self::RemoveFromList(list, songs) => {
+                *list <= 0 || bad_ids(songs)
+            }
+            Self::RetryDownload(song) | Self::Reveal(song) => *song <= 0,
             Self::SaveQueue(name) => name.as_str().trim().is_empty(),
             Self::Setting(change) => Settings::default().applying(*change).is_err(),
             _ => false,
@@ -117,6 +132,10 @@ impl Command {
                 | Self::ReadStorage
                 | Self::TogglePins(_)
                 | Self::SetFavorite { .. }
+                | Self::AddToList(..)
+                | Self::RemoveFromList(..)
+                | Self::RetryDownload(_)
+                | Self::Reveal(_)
                 | Self::Setting(
                     SettingChange::Appearance(_)
                         | SettingChange::Signal(_)
@@ -145,6 +164,10 @@ impl Command {
                 | Self::Previous
         )
     }
+}
+
+fn bad_ids(songs: &[i64]) -> bool {
+    songs.is_empty() || songs.len() > 1_000_000 || songs.iter().any(|song| *song <= 0)
 }
 
 #[derive(Clone, Debug, PartialEq)]

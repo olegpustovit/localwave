@@ -976,3 +976,255 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
     assert!(!window.matches(&catalog, Route::Find));
     assert!(!window.matches(&self::catalog(2), Route::Songs));
 }
+
+#[test]
+fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_allocations() {
+    use lw_core::context::PlaybackContext;
+    mem_sys::set_peer(pxui::library_counter);
+    let mut catalog = crate::tests::prepared(vec![
+        lw_core::Song {
+            id: Some(1),
+            title: "Quiet lights".into(),
+            artist: "The National".into(),
+            album: "A midnight album".into(),
+            duration: Some(240.0),
+            ..Default::default()
+        },
+        lw_core::Song {
+            id: Some(2),
+            title: "Second".into(),
+            source_id: Some(5),
+            relative_path: Some("second.flac".into()),
+            file_state: lw_core::FileState::Failed,
+            ..Default::default()
+        },
+    ]);
+    for (id, name, rows) in [(7, "Morning", vec![0]), (8, "Night", vec![1])] {
+        catalog.add_collection(
+            name,
+            rows,
+            PlaybackContext::Playlist {
+                id,
+                name: name.into(),
+            },
+        );
+    }
+    let all = catalog.all.as_ref().unwrap().key;
+    let slot = catalog
+        .collections
+        .iter()
+        .position(|group| matches!(&*group.context, PlaybackContext::Playlist { id: 7, .. }))
+        .unwrap();
+    let morning = catalog.collections[slot].key;
+    let player = PlayerView::default();
+    let mut state = ShellState::default();
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut frame = FrameIn {
+        width: 1440.0,
+        height: 872.0,
+        reduced_motion: 1,
+        ..Default::default()
+    };
+    let mut intent = None;
+    let run =
+        |ui: &mut Ui, state: &ShellState, frame: &mut FrameIn, intent: &mut Option<Intent>| {
+            frame.time += 0.01;
+            *intent = None;
+            ui.frame(frame, &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, state, intent)
+            })
+            .unwrap();
+        };
+    let items = |ui: &Ui| -> Vec<(String, bool)> {
+        ui.a11y_nodes()
+            .iter()
+            .filter(|node| node.is_role(Role::MenuItem))
+            .map(|node| {
+                (
+                    ui.a11y_name_of(node).to_string(),
+                    node.states & pxui::a11y::state::ENABLED != 0,
+                )
+            })
+            .collect()
+    };
+    let activate = |ui: &mut Ui, name: &str| {
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == name)
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
+    };
+    // Plain library row without a source: no Retry, no Remove, Show in Finder disabled.
+    run(&mut ui, &state, &mut frame, &mut intent);
+    state.apply(Intent::SongMenu(0, 1, all, (500.0, 200.0)));
+    run(&mut ui, &state, &mut frame, &mut intent);
+    let expected = [
+        ("Play", true),
+        ("Play next", true),
+        ("Add to queue", true),
+        ("Add to list", true),
+        ("Go to album", true),
+        ("Go to artist", true),
+        ("Show in Finder", false),
+        ("Favorite", true),
+        ("Keep offline", true),
+    ];
+    let names = |items: &[(String, bool)]| {
+        items
+            .iter()
+            .map(|(name, on)| (name.clone(), *on))
+            .collect::<Vec<_>>()
+    };
+    let got = names(&items(&ui));
+    let want: Vec<_> = expected
+        .iter()
+        .map(|(name, on)| (name.to_string(), *on && !cfg!(target_os = "ios")))
+        .collect();
+    assert_eq!(
+        got.iter().map(|item| item.0.as_str()).collect::<Vec<_>>(),
+        expected.iter().map(|item| item.0).collect::<Vec<_>>()
+    );
+    assert_eq!(got.iter().map(|item| item.1).collect::<Vec<_>>(), {
+        let mut on = want.iter().map(|item| item.1).collect::<Vec<_>>();
+        on[6] = false;
+        on
+    });
+    let routes = catalog.byline_routes(1).unwrap();
+    for (label, want) in [
+        ("Play", Intent::PlayRow(0)),
+        ("Play next", Intent::PlayNext(1)),
+        ("Add to queue", Intent::AppendSong(1)),
+        ("Go to album", Intent::Navigate(routes[1])),
+        ("Go to artist", Intent::Navigate(routes[0])),
+        ("Keep offline", Intent::KeepOffline(1)),
+    ] {
+        activate(&mut ui, label);
+        run(&mut ui, &state, &mut frame, &mut intent);
+        assert_eq!(intent, Some(want), "{label}");
+        state.apply(Intent::SongMenu(0, 1, all, (500.0, 200.0)));
+        run(&mut ui, &state, &mut frame, &mut intent);
+    }
+    // Submenu: playlists from the catalog, then the add intent.
+    activate(&mut ui, "Add to list");
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(intent, Some(Intent::SongMenuLists));
+    state.apply(Intent::SongMenuLists);
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(
+        items(&ui)
+            .iter()
+            .map(|item| item.0.as_str())
+            .collect::<Vec<_>>(),
+        ["Morning", "Night"]
+    );
+    activate(&mut ui, "Night");
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(intent, Some(Intent::AddToList { song: 1, list: 8 }));
+    state.apply(Intent::CloseSongMenu);
+    // A failed, sourced row offers Retry and an enabled Show in Finder.
+    state.apply(Intent::SongMenu(1, 2, all, (500.0, 200.0)));
+    run(&mut ui, &state, &mut frame, &mut intent);
+    let failed = items(&ui);
+    assert!(failed.iter().any(|item| item.0 == "Retry download"));
+    assert!(
+        failed
+            .iter()
+            .any(|item| item.0 == "Show in Finder" && item.1)
+            || cfg!(target_os = "ios")
+    );
+    assert!(!failed.iter().any(|item| item.0 == "Remove from list"));
+    activate(&mut ui, "Retry download");
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(intent, Some(Intent::RetryDownload(2)));
+    state.apply(Intent::CloseSongMenu);
+    // Inside a playlist: Remove from list, and that list is not offered as a target.
+    state.apply(Intent::SongMenu(0, 1, morning, (500.0, 200.0)));
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(state.song_menu.map(|menu| menu.2), Some(morning));
+    state.apply(Intent::CloseSongMenu);
+    state.apply(Intent::Navigate(Route::Collection(slot)));
+    state.apply(Intent::SongMenu(0, 1, morning, (500.0, 200.0)));
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(items(&ui).last().unwrap().0, "Remove from list");
+    activate(&mut ui, "Remove from list");
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(intent, Some(Intent::RemoveFromList { song: 1, list: 7 }));
+    state.apply(Intent::SongMenu(0, 1, morning, (500.0, 200.0)));
+    state.apply(Intent::SongMenuLists);
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert_eq!(
+        items(&ui)
+            .iter()
+            .map(|item| item.0.as_str())
+            .collect::<Vec<_>>(),
+        ["Night"]
+    );
+    state.apply(Intent::CloseSongMenu);
+    // Secondary click on a row opens the menu at the pointer.
+    run(&mut ui, &state, &mut frame, &mut intent);
+    let row = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| {
+            node.is_role(Role::Button) && ui.a11y_name_of(node) == "Actions for Quiet lights"
+        })
+        .unwrap()
+        .rect;
+    let (x, y) = (f64::from(row.x - 200.0), f64::from(row.y + 16.0));
+    let press = [
+        pxui::Event {
+            kind: input::wire::POINTER_MOVED,
+            x,
+            y,
+            ..Default::default()
+        },
+        pxui::Event {
+            kind: input::wire::POINTER_PRESSED,
+            code: 1,
+            x,
+            y,
+            ..Default::default()
+        },
+        pxui::Event {
+            kind: input::wire::POINTER_RELEASED,
+            code: 1,
+            x,
+            y,
+            ..Default::default()
+        },
+    ];
+    frame.time += 0.01;
+    intent = None;
+    ui.frame(
+        &FrameIn {
+            events: press.as_ptr(),
+            event_count: press.len(),
+            ..frame
+        },
+        &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
+    )
+    .unwrap();
+    assert!(
+        matches!(intent, Some(Intent::SongMenu(_, 1, _, _))),
+        "{intent:?}"
+    );
+    // Warm menu frames, including the playlist panel, allocate nothing.
+    state.apply(intent.take().unwrap());
+    for cycle in 0..8 {
+        mem_sys::local_reset();
+        state.apply(Intent::SongMenuLists);
+        run(&mut ui, &state, &mut frame, &mut intent);
+        state.apply(Intent::SongMenu(0, 1, all, (500.0, 200.0)));
+        run(&mut ui, &state, &mut frame, &mut intent);
+        if cycle >= 3 {
+            assert_eq!(mem_sys::local_alloc_count(), 0, "warm track menu");
+        }
+    }
+}

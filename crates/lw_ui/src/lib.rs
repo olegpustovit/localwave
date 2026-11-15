@@ -39,6 +39,20 @@ pub enum Intent {
         song: i64,
         on: bool,
     },
+    PlayNext(i64),
+    AddToList {
+        song: i64,
+        list: i64,
+    },
+    RemoveFromList {
+        song: i64,
+        list: i64,
+    },
+    KeepOffline(i64),
+    RetryDownload(i64),
+    RevealSong(i64),
+    /// Swap the open track menu for its playlist choices.
+    SongMenuLists,
     TogglePins,
     SongMenu(usize, i64, u64, (f32, f32)),
     CloseSongMenu,

@@ -50,7 +50,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P6k | Owner-approved M1 limits; gate frame work wall | done | d41fb42 + pxui 520db20 |
 | F1 | Global shortcuts from one command table | done | af4b2e8 |
 | F2 | Favorite commands, menu, key and heart | done | 504bf9f |
-| F3 | Complete track menu and native reveal | todo | — |
+| F3 | Complete track menu and native reveal | done | HEAD |
 | F4 | Playlist CRUD, membership and reorder | todo | — |
 | F5 | Album/artist detail headers and actions | done | HEAD |
 | F6 | Occurrence-based multi-selection | todo | — |
@@ -338,8 +338,8 @@ device/provider behavior remain open.
   before one draw need a separate correctness fix. Dirty upload ranges still accumulate.
 - Shared Swift checks fail two child source-notification tests, also in an isolated run on unchanged
   Swift sources. Six Swift/Rust exchange cases pass; native notification delivery remains unresolved.
-- F3: Play next, playlist submenu, album/artist routing, native reveal, per-song offline/retry,
-  contextual removal and right-click track menus.
+- F3: "New list…" (needs F4's name dialog for arbitrary songs), the submenu chevron and group dividers are
+  absent; Share… is F10. Long playlist lists rely on the popup's 288-point max height (unverified past 8).
 - F4: create/rename/delete playlists, membership editing and drag reorder; preserve active playback.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F6–F7: multi-select, range/select-all behavior and song drops to playlists/queue.

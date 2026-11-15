@@ -51,6 +51,7 @@ pub struct ShellState {
     settings_menu: Option<(crate::SettingsMenu, (f32, f32))>,
     source_menu: Option<(crate::files::Target, (f32, f32))>,
     song_menu: Option<(usize, i64, u64, (f32, f32))>,
+    song_lists: bool,
     remove_source: Option<crate::files::Target>,
     commands_visible: bool,
     command_query: Query,
@@ -84,6 +85,7 @@ impl Default for ShellState {
             settings_menu: None,
             source_menu: None,
             song_menu: None,
+            song_lists: false,
             remove_source: None,
             commands_visible: false,
             command_query: Query::default(),
@@ -220,11 +222,16 @@ impl ShellState {
             Intent::SongMenu(index, id, key, at) => {
                 if at.0.is_finite() && at.1.is_finite() {
                     self.song_menu = Some((index, id, key, at));
+                    self.song_lists = false;
                     self.settings_menu = None;
                     self.source_menu = None;
                 }
             }
-            Intent::CloseSongMenu => self.song_menu = None,
+            Intent::SongMenuLists => self.song_lists = self.song_menu.is_some(),
+            Intent::CloseSongMenu => {
+                self.song_menu = None;
+                self.song_lists = false;
+            }
             Intent::Navigate(route) => {
                 self.commands_visible = false;
                 self.shortcuts_visible = false;
