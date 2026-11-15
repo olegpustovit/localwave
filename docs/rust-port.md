@@ -18,8 +18,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C1.4a | Parse one Workload enum | done | e93d3da |
 | C1.4b | Extract performance setup | done | 7da3d02 |
 | C1.4c | Extract driver/report and production App | done | bf16b90 |
-| C1.5 | Split controller and command families | done | HEAD |
-| C1.6 | Enforce Rust production file-size limit | todo | — |
+| C1.5 | Split controller and command families | done | 8a0a83e |
+| C1.6 | Reasonable module boundaries; no line-count gate | done | HEAD |
 | C2 | Labels, module description and test contention | todo | — |
 | B1 | Extract SQLite; remove core Apple dependency | todo | — |
 | B2 | Framework text identity and pixel rounding | todo | — |

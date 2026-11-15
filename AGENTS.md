@@ -105,3 +105,7 @@ fixes. Feature behavior precedes pixel polish. Read implementations/callers befo
 finish affected callers/tests/fixtures/config/exports, preserve trust-boundary validation, errors,
 accessibility and ownership. Nontrivial logic needs a focused runnable check. No new dependencies,
 abstractions or flexibility without a demonstrated requirement. Deferred platform checks stay explicit.
+
+File and function length are review signals, not hard limits. Split when ownership, responsibility
+or readability benefits; keep cohesive functions and tests together. Do not add line-count gates
+or extract helpers solely to meet numeric caps. Performance and test-time gates still apply.
