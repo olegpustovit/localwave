@@ -226,6 +226,119 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
 }
 
 #[test]
+fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds() {
+    mem_sys::set_peer(pxui::library_counter);
+    let catalog = catalog(1);
+    for scale in [1.0, 2.0] {
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut frame = FrameIn {
+            width: 100.0,
+            height: 100.0,
+            scale,
+            ..Default::default()
+        };
+        let mut song = catalog.row(0);
+        song.state = lw_core::FileState::CopyPending;
+        let mut build = |ui: &mut Ui| {
+            let p = palette(ui);
+            ui.view("indicator", 0, Size::Px(14.0), Size::Px(11.0), &mut |ui| {
+                row::equalizer(ui, true, true, song.id, p)
+            });
+            ui.view("file-state", 0, Size::Px(10.0), Size::Px(10.0), &mut |ui| {
+                row::availability(ui, song, true, p)
+            });
+        };
+        ui.frame(&frame, &mut build).unwrap();
+        ui.frame(&frame, &mut build).unwrap();
+        let indicator = Ui::key_of(pxui::ui::ROOT_KEY, "indicator");
+        let equalizer = Ui::key_of(indicator, "equalizer");
+        let bars = ["bar-0", "bar-1", "bar-2"].map(|key| {
+            let position = Ui::key_of(equalizer, key);
+            let visual = Ui::key_of(position, "bar");
+            ui.box_of_key(Ui::key_of(visual, "fill")).unwrap()
+        });
+        let instances: Vec<_> = ui
+            .layers()
+            .flat_map(|layer| layer.instances.iter().copied())
+            .collect();
+        for tick in 1..61 {
+            frame.time = tick as f64 / 60.0;
+            mem_sys::local_reset();
+            ui.frame(&frame, &mut build).unwrap();
+            for (index, bar) in bars.iter().enumerate() {
+                let phase = (frame.time / 0.9 + index as f64 / 3.0).fract() as f32;
+                let progress = if phase < 0.5 {
+                    phase * 2.0
+                } else {
+                    (1.0 - phase) * 2.0
+                };
+                let curve = Curve::Bezier {
+                    duration: 1.0,
+                    points: [0.42, 0.0, 0.58, 1.0],
+                };
+                let rect = ui.rect(bar);
+                assert!((rect.h - 11.0 * (0.4 + 0.6 * curve.at(progress))).abs() < 0.001);
+                assert!(
+                    (rect.x - index as f32 * 4.0).abs() < 0.001 && (rect.w - 2.0).abs() < 0.001
+                );
+                assert!((rect.y + rect.h - 11.0).abs() < 0.001);
+            }
+            assert_eq!(ui.output().rebuilt_views, 0);
+            assert!(
+                ui.layers()
+                    .flat_map(|layer| layer.instances.iter().copied())
+                    .eq(instances.iter().copied())
+            );
+            assert_eq!(mem_sys::local_alloc_count(), 0);
+        }
+        // Exercise the pending-state loop on its own, including removal and restart.
+        let mut state_revision = 0;
+        let mut last_draw = 0;
+        for (time, pending, reduced, changed) in [
+            (2.0, false, 0, true),
+            (3.0, true, 0, true),
+            (3.25, true, 0, false),
+            (3.5, true, 0, true),
+            (3.75, true, 0, false),
+            (4.0, true, 0, true),
+            (4.25, true, 1, false),
+            (5.0, true, 1, false),
+        ] {
+            if !pending || time == 3.0 {
+                state_revision += 1;
+            }
+            song.state = if pending {
+                lw_core::FileState::CopyPending
+            } else {
+                lw_core::FileState::BookmarkOnly
+            };
+            frame.time = time;
+            frame.reduced_motion = reduced;
+            ui.frame(&frame, &mut |ui| {
+                let p = palette(ui);
+                ui.view(
+                    "file-state",
+                    state_revision,
+                    Size::Px(10.0),
+                    Size::Px(10.0),
+                    &mut |ui| row::availability(ui, song, true, p),
+                );
+            })
+            .unwrap();
+            assert_eq!(
+                ui.draw_revision() != last_draw,
+                changed,
+                "pending pulse at {time}"
+            );
+            last_draw = ui.draw_revision();
+            if reduced != 0 {
+                assert!(ui.output().repaint_at.is_infinite());
+            }
+        }
+    }
+}
+
+#[test]
 fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocations() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = catalog(100);
@@ -265,7 +378,11 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         shell(ui, &player, &catalog, &state, &mut None)
     })
     .unwrap();
-    // A viewport build includes culled overscan; the timer adds only its row and indicator.
+    // Settle the viewport once; animation frames must keep its content build count unchanged.
+    ui.frame(&frame, &mut |ui| {
+        shell(ui, &player, &catalog, &state, &mut None)
+    })
+    .unwrap();
     let viewport_rebuilds = ui.output().rebuilt_views;
     let glyphs: Vec<_> = ui
         .layers()
@@ -273,7 +390,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         .filter(|i| i.kind == pxui::draw::kind::MASK)
         .copied()
         .collect();
-    let mut previous = [0u32; 3];
+    let mut previous = ui.draw_revision();
     let mut changes = 0;
     for tick in 1..121 {
         frame.time = 2.0 + tick as f64 / 60.0;
@@ -282,47 +399,9 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
             shell(ui, &player, &catalog, &state, &mut None)
         })
         .unwrap();
-        let mut bars = [0u32; 3];
-        let mut found = 0;
-        for instance in ui
-            .layers()
-            .flat_map(|layer| layer.instances.iter())
-            .filter(|i| {
-                i.kind == pxui::draw::kind::RECT
-                    && (i.rect[0] - 264.0).abs() < 9.0
-                    && (i.rect[2] - i.rect[0] - 2.0).abs() < 0.001
-                    && (4.39..11.01).contains(&(i.rect[3] - i.rect[1]))
-            })
-        {
-            assert!(found < 3);
-            bars[found] = (instance.rect[3] - instance.rect[1]).to_bits();
-            found += 1;
-        }
-        assert_eq!(found, 3);
-        for (index, height) in bars.into_iter().enumerate() {
-            let phase = (frame.time / 0.9 + index as f64 / 3.0) % 1.0;
-            let target = if phase < 0.5 {
-                phase * 2.0
-            } else {
-                (1.0 - phase) * 2.0
-            };
-            let (mut low, mut high) = (0.0, 1.0);
-            for _ in 0..20 {
-                let t = (low + high) * 0.5;
-                let x = 3.0 * (1.0 - t) * (1.0 - t) * t * 0.42
-                    + 3.0 * (1.0 - t) * t * t * 0.58
-                    + t * t * t;
-                if x < target { low = t } else { high = t }
-            }
-            let t = (low + high) * 0.5;
-            let native = 11.0 * (0.4 + 0.6 * (3.0 * (1.0 - t) * t * t + t * t * t));
-            assert!(
-                (f64::from(f32::from_bits(height)) - native).abs() < 0.001,
-                "native 900ms/three-phase bar {index}"
-            );
-        }
-        changes += usize::from(bars != previous);
-        previous = bars;
+        let revision = ui.draw_revision();
+        changes += usize::from(revision != previous);
+        previous = revision;
         assert!(
             ui.layers()
                 .flat_map(|layer| layer.instances.iter())
@@ -332,8 +411,8 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
             "animation preserves all cached glyph instances"
         );
         assert!(
-            ui.output().rebuilt_views <= viewport_rebuilds + 2,
-            "only the current row and indicator add to a viewport build: {}",
+            ui.output().rebuilt_views == viewport_rebuilds,
+            "animation must keep the shell content build count constant: {}",
             ui.output().rebuilt_views
         );
         assert!(ui.output().repaint_at.is_finite());

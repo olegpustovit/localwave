@@ -2,8 +2,9 @@
 //! labels and per-song occurrence keys. Frames select maxima in bounded work, never scanning
 //! collections or constructing text engines. Formats compare original case and render lowercase.
 //! Stable occurrence scopes survive sorting; duplicate queue entries retain distinct visual state.
-//! Playing bars reuse glyphs and request frames only while visible/playing; pause/reduced motion
-//! settles. File-state pops use the 240 ms spring without initial animation. Preserve responsive
+//! Playing bars and the 2 Hz pending-copy pulse use retained pxui repeat keyframes; ticks never
+//! rebuild row content. Start on identity/activity changes, stop when hidden/paused, and show static
+//! bars/left-half fill with reduced motion. File-state pops use the 240 ms spring without initial animation. Preserve responsive
 //! thresholds, wrapped baselines and stale-popup guards.
 //!
 //! Page headings scroll with section content; Artists column headings pin and overlay thumbs

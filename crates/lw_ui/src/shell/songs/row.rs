@@ -78,6 +78,7 @@ pub(super) struct Viewport {
 }
 
 pub(super) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: Palette) {
+    use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
     let root = ui.node(
         "equalizer",
         Node {
@@ -88,14 +89,6 @@ pub(super) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: P
         },
     );
     ui.a11y_name(&root, if playing { "Playing" } else { "Paused" });
-    let clock = ui.node(
-        "equalizer-clock",
-        Node {
-            w: Size::Px(0.0),
-            h: Size::Px(0.0),
-            ..Node::DEFAULT
-        },
-    );
     let song = ui.node(
         "equalizer-song",
         Node {
@@ -104,46 +97,78 @@ pub(super) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: P
             ..Node::DEFAULT
         },
     );
-    let now = ui.now();
-    if ui.state(&root, -1) != i64::from(playing) || ui.state(&song, i64::MIN) != id {
-        ui.set_state(&root, i64::from(playing));
-        ui.set_state(&song, id);
-        ui.set_state(&clock, now.to_bits() as i64);
-    }
-    let elapsed = (now - f64::from_bits(ui.state(&clock, now.to_bits() as i64) as u64)).max(0.0);
-    let animate = playing && !ui.tokens().reduced_motion;
-    let heights = std::array::from_fn::<_, 3, _>(|index| {
-        let phase = (elapsed / 0.9 + index as f64 / 3.0).fract() as f32;
-        let target = if phase < 0.5 {
-            phase * 2.0
-        } else {
-            (1.0 - phase) * 2.0
-        };
-        11.0 * if animate {
-            0.4 + 0.6
-                * Curve::Bezier {
-                    duration: 1.0,
-                    points: [0.42, 0.0, 0.58, 1.0],
-                }
-                .at(target)
-        } else {
-            0.4
-        }
-    });
-    ui.draw(&root, move |paint, rect| {
-        for (index, height) in heights.into_iter().enumerate() {
-            paint.fill_fractional(
-                rect.x + index as f32 * 4.0,
-                rect.y + 11.0 - height,
-                2.0,
-                height,
-                p.signal,
+    let active = playing && visible && !ui.tokens().reduced_motion;
+    let changed = ui.state(&root, -1) != i64::from(active) || ui.state(&song, i64::MIN) != id;
+    ui.set_state(&root, i64::from(active));
+    ui.set_state(&song, id);
+    ui.within(&root, &mut |ui| {
+        for (index, key) in ["bar-0", "bar-1", "bar-2"].into_iter().enumerate() {
+            let position = ui.node(
+                key,
+                Node {
+                    w: Size::Px(2.0),
+                    h: Size::Px(11.0),
+                    at: Some((index as f32 * 4.0, 0.0)).into(),
+                    ..Node::DEFAULT
+                },
             );
+            ui.within(&position, &mut |ui| {
+                let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
+                    let fill = ui.node(
+                        "fill",
+                        Node {
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.draw(&fill, move |paint, rect| {
+                        paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, p.signal)
+                    });
+                });
+                if changed {
+                    let scale = |y| Target::Scale {
+                        x: 1.0,
+                        y,
+                        anchor: (0.5, 1.0),
+                    };
+                    let curve = Curve::Bezier {
+                        duration: 0.45,
+                        points: [0.42, 0.0, 0.58, 1.0],
+                    };
+                    if active {
+                        ui.animate_keys_repeat(
+                            &bar,
+                            &[
+                                Keyframe {
+                                    time: 0.0,
+                                    target: scale(0.4),
+                                    curve,
+                                },
+                                Keyframe {
+                                    time: 0.45,
+                                    target: scale(1.0),
+                                    curve,
+                                },
+                            ],
+                            Repeat::Forever,
+                            true,
+                            index as f32 * 0.3,
+                        );
+                    } else {
+                        ui.animate_keys(
+                            &bar,
+                            &[Keyframe {
+                                time: 0.0,
+                                target: scale(0.4),
+                                curve,
+                            }],
+                        );
+                    }
+                }
+            });
         }
     });
-    if animate && visible {
-        ui.repaint_after(1.0 / 60.0);
-    }
 }
 
 pub(super) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette) {
@@ -151,6 +176,7 @@ pub(super) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette)
     let root = ui.node(
         "availability",
         Node {
+            axis: Axis::Stack,
             w: Size::Px(10.0),
             h: Size::Px(10.0),
             role: Role::Image,
@@ -169,11 +195,6 @@ pub(super) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette)
         },
     };
     ui.a11y_name(&root, label);
-    let alternate = row.state == FileState::CopyPending && !ui.tokens().reduced_motion;
-    let left = !alternate || (ui.now() * 2.0).floor() as i64 % 2 == 0;
-    if alternate && visible {
-        ui.repaint_after(0.5 - (ui.now() % 0.5));
-    }
     let (state, available, pinned) = (row.state, row.availability, row.pinned);
     ui.draw(&root, move |paint, rect| {
         let (x, y) = (rect.x, rect.y);
@@ -207,14 +228,79 @@ pub(super) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette)
                 paint.fill_fractional(x, y + 1.5, 1.5, 7.0, ink);
                 paint.fill_fractional(x + 8.5, y + 1.5, 1.5, 7.0, ink);
             }
-            if state == FileState::CopyPending {
-                paint.fill_fractional(x + if left { 0.0 } else { 5.0 }, y, 5.0, 10.0, p.signal);
-            }
             if state == FileState::Failed {
                 paint.line((x + 1.0, y + 9.0), (x + 9.0, y + 1.0), p.signal);
             }
         }
     });
+    if row.state == FileState::CopyPending {
+        use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
+        let active = visible && !ui.tokens().reduced_motion;
+        let changed = ui.state(&root, -1) != i64::from(active);
+        ui.set_state(&root, i64::from(active));
+        ui.within(&root, &mut |ui| {
+            for (index, key) in ["left", "right"].into_iter().enumerate() {
+                let half = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
+                    let fill = ui.node(
+                        "fill",
+                        Node {
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.draw(&fill, move |paint, rect| {
+                        paint.fill_fractional(
+                            rect.x + index as f32 * 5.0,
+                            rect.y,
+                            5.0,
+                            10.0,
+                            p.signal,
+                        )
+                    });
+                });
+                if changed {
+                    let curve = crate::motion::steps(1, 0.5);
+                    if active {
+                        ui.animate_keys_repeat(
+                            &half,
+                            &[
+                                Keyframe {
+                                    time: 0.0,
+                                    target: Target::Opacity(1.0),
+                                    curve,
+                                },
+                                Keyframe {
+                                    time: 0.5,
+                                    target: Target::Opacity(0.0),
+                                    curve,
+                                },
+                                Keyframe {
+                                    time: 1.0,
+                                    target: Target::Opacity(1.0),
+                                    curve,
+                                },
+                            ],
+                            Repeat::Forever,
+                            false,
+                            index as f32 * 0.5,
+                        );
+                    } else {
+                        ui.animate_keys(
+                            &half,
+                            &[Keyframe {
+                                time: 0.0,
+                                target: Target::Opacity(if index == 0 { 1.0 } else { 0.0 }),
+                                curve,
+                            }],
+                        );
+                    }
+                }
+            }
+        });
+    } else {
+        ui.set_state(&root, -1);
+    }
 }
 
 pub(super) struct Rows<'a> {

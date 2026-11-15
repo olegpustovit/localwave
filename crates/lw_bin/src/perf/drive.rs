@@ -514,18 +514,16 @@ impl Perf {
             (*warm_artwork_requests) = (*warm_artwork_requests).max(frame.requests);
         }
         if matches!(workload, Some(Workload::SongIndicators)) && (*frames) > WARMUP_FRAMES {
-            let visible = ui.a11y_nodes().iter().any(|node| {
+            let indicator = ui.a11y_nodes().iter().find(|node| {
                 node.is_role(pxui::ui::Role::Image)
                     && matches!(ui.a11y_name_of(node), "Playing" | "Paused")
                     && node.states & pxui::a11y::state::VISIBLE != 0
                     && node.rect.y >= 37.3
                     && node.rect.y + node.rect.h <= 800.0
             });
-            if visible {
+            if let Some(indicator) = indicator {
                 let accent = ui.theme().tokens.accent;
-                let mut heights = [0u32; 3];
-                let mut found = 0;
-                for quad in ui
+                let drawn_bars = ui
                     .layers()
                     .flat_map(|layer| layer.instances.iter())
                     .filter(|quad| {
@@ -533,17 +531,30 @@ impl Perf {
                             && quad.color == [accent.r, accent.g, accent.b, accent.a]
                             && (quad.rect[0] - 264.0).abs() < 9.0
                             && (quad.rect[2] - quad.rect[0] - 2.0).abs() < 0.001
-                            && (4.39..11.01).contains(&(quad.rect[3] - quad.rect[1]))
+                            && (quad.rect[3] - quad.rect[1] - 11.0).abs() < 0.001
                     })
-                {
-                    if found >= 3 {
-                        return Err("Song indicator workload drew extra bars".into());
-                    }
-                    heights[found] = (quad.rect[3] - quad.rect[1]).to_bits();
-                    found += 1;
-                }
-                if found != 3 {
+                    .count();
+                if drawn_bars != 3 {
                     return Err("Song indicator workload lost its three drawn bars".into());
+                }
+                let root = ui
+                    .box_of_a11y(indicator.id)
+                    .ok_or("Song indicator identity retired during its frame")?;
+                let mut heights = [0u32; 3];
+                for (index, key) in ["bar-0", "bar-1", "bar-2"].into_iter().enumerate() {
+                    let position = pxui::Ui::key_of(root.box_key, key);
+                    let visual = pxui::Ui::key_of(position, "bar");
+                    let fill = ui
+                        .box_of_key(pxui::Ui::key_of(visual, "fill"))
+                        .ok_or("Song indicator workload lost a retained bar")?;
+                    // Retained scale lives in the view table; source instances stay full height.
+                    let rect = ui.rect(&fill);
+                    if !(4.39..11.01).contains(&rect.h) || (rect.w - 2.0).abs() > 0.001 {
+                        return Err(
+                            "Song indicator workload has invalid transformed bar geometry".into(),
+                        );
+                    }
+                    heights[index] = rect.h.to_bits();
                 }
                 if ((*frames) - 1) % 40 < 20 {
                     (*indicator_playing) += 1;
