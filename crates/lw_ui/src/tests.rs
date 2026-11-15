@@ -2453,8 +2453,8 @@ fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
             root: 3,
             name: "Music".into(),
             path: "/Music".into(),
-            detail: String::new(),
             current: true,
+            ..Default::default()
         }]
         .into(),
         ..Default::default()
@@ -2469,9 +2469,7 @@ fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
         source_root: 3,
         up: Some(8),
         title: "Folder".into(),
-        path: "/Music/Folder".into(),
-        detail: String::new(),
-        entries: Vec::new(),
+        ..Default::default()
     }));
     let player = PlayerView {
         initialized: true,

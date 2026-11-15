@@ -374,6 +374,23 @@ device/provider behavior remain open.
   progress/"scanning…" status, no source context menu or song-drop; the sidebar does not scale row heights to fit
   (the lists scroll instead); the offline-meter bytes use catalog availability, not a live provider probe; the
   Rust-only LOCALWAVE wordmark, Find/Files rows and Settings button are gone (use ⌘F, ⌘, the palette and source rows).
+- Files parity (F-gate): source cards (name, path, "N songs", kept/on device/in cloud stats with bar, Swift's
+  abbreviated relative scan age, expired-source Reconnect folder/Options, Offline space meter) and the folder page
+  (Back, breadcrumb, "N songs · size · N offline", Play folder, Shuffle, Keep offline, legend, #/Name/Kind/Size/On
+  device/Time table with greyed non-audio files, per-file availability glyphs) follow Swift; every label is formatted on
+  the FilesWorker. Play/Shuffle send the page's saved songs as a Folder context, Keep offline is TogglePins; stats and
+  glyphs come from worker probes and fall back to the stored availability when a file cannot be proven (Swift: dashed
+  unknown). Goldens (before to after, mean abs diff / % px over 24): folders 21.4/19.7% to 23.0/15.5%, folder
+  15.1/9.9% to 15.4/9.9%; content and numbers now equal Swift (the remainder is the sidebar, top spacing, glyph
+  AA and Swift's DEBUG-only subtitle "Music" and "2m ago" strings: Rust shows the real path and Foundation's
+  "2 min. ago"; the seed's Google Drive shows 22 on device because kept songs have real cached files).
+  Deferred: no per-card scan progress/"Scanning" state (global progress bar only), no source-card context-menu
+  extras (Play all, Keep everything offline, Add folder to queue), no row selection, double-click play, sorting
+  headers, per-row context menu or drag,
+  Play folder/Shuffle act on saved songs (Swift imports missing files first: use Import folder or the row's Import),
+  the add-music sheet is two header buttons plus Refresh folders, the folder page keeps Rust-only Import folder and
+  Folder options buttons (Rescan, Reconnect, Remove live in the options menu), the compact folder page reuses the
+  table without Kind/Size and honours Show non-audio files only there, and button labels are left-aligned.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F7: a song carry cannot edge-scroll Up next (pxui edge-scrolls only the carry's owner; queue
   occurrence carries transfer, song carries do not). Compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.

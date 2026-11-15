@@ -313,6 +313,31 @@ fn source_grant(library: &LibraryWorker, source: &Source) -> Option<Access> {
             .and_then(|bookmark| Access::resolve(bookmark).ok()),
     }
 }
+impl LibraryWorker {
+    /// Availability and pin flag per saved song (Swift's source stats and file glyphs).
+    pub fn song_states(&self, songs: &[Song]) -> Vec<(FileAvailability, bool)> {
+        let pins = self.preferences.import_snapshot();
+        let mut sources = HashMap::new();
+        let mut grants = HashMap::new();
+        songs
+            .iter()
+            .map(|song| {
+                if let Some(id) = song.source_id {
+                    sources
+                        .entry(id)
+                        .or_insert_with(|| self.repository.source(id).ok().flatten());
+                }
+                let mut state = availability(self, song, &sources, &mut grants);
+                // shortcut: an unprovable file shows its last stored state (the sidebar's Offline
+                // counts use it too) instead of Swift's dashed unknown; drop when probes always resolve.
+                if state == FileAvailability::Unknown {
+                    state = song.source_availability.unwrap_or(state);
+                }
+                (state, song.id.is_some_and(|id| pins.pinned(id)))
+            })
+            .collect()
+    }
+}
 pub(super) fn availability(
     library: &LibraryWorker,
     song: &Song,

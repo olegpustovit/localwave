@@ -32,11 +32,13 @@
 //! job once, never while a user job is pending. Observers watch the registered path only; rescans
 //! still resolve the stored bookmark grant. Sources are observed from the first Files use (the
 //! worker is lazy).
+mod format;
 use crate::library::LibraryWorker;
 use lw_apple_sys::{
     bookmarks::FileSelection, collation::Key, preferences::file_path, observer::FolderObserver,
 };
-use lw_ui::files::{Directory, Entry, Folder, Location, Request, Snapshot, Target};
+use lw_core::FileAvailability;
+use lw_ui::files::{Directory, Entry, Folder, Glyph, Location, Request, Snapshot, Target};
 use std::{
     collections::HashMap,
     io,
@@ -388,7 +390,8 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
                 }
                 Err(error) => error.to_string(),
             };
-            if let Err(error) = refresh_sources(&mut library, &mut snapshot) {
+            let roots = snapshot.directory.is_none();
+            if let Err(error) = refresh_sources(&mut library, &mut snapshot, roots) {
                 clear_account(&mut snapshot, error);
             }
             if let Some(directory) = snapshot.directory.as_ref() {
@@ -403,7 +406,7 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
         }
         if let Some(request) = browse {
             snapshot.message.clear();
-            let result = match refresh_sources(&mut library, &mut snapshot) {
+            let result = match refresh_sources(&mut library, &mut snapshot, matches!(request, Request::Roots)) {
                 Err(error) => {
                     clear_account(&mut snapshot, error);
                     None
@@ -476,13 +479,26 @@ fn clear_account(snapshot: &mut Snapshot, error: io::Error) {
     snapshot.source_count.clear();
     snapshot.message = error.to_string();
 }
-fn refresh_sources(library: &mut LibraryWorker, snapshot: &mut Snapshot) -> io::Result<()> {
+/// `stats` probes every saved song's availability (Swift's source cards), so only the source list
+/// asks for it; folder pages and jobs keep the cheap labels.
+fn refresh_sources(
+    library: &mut LibraryWorker,
+    snapshot: &mut Snapshot,
+    stats: bool,
+) -> io::Result<()> {
     let account = library.current_sources()?;
     if snapshot.account != Some(account.user.id) {
         snapshot.directory = None;
         snapshot.selection = None;
     }
     snapshot.account = Some(account.user.id);
+    let now = now();
+    if stats && let Ok((bytes, limit)) = library.cache_usage() {
+        const GIB: f64 = 1_073_741_824.0;
+        let gigabytes = if limit == 0 { 8 } else { limit >> 30 };
+        snapshot.offline_usage = format!("{:.1} of {gigabytes} GB", bytes as f64 / GIB);
+        snapshot.offline_fraction = (bytes as f64 / (gigabytes as f64 * GIB)).min(1.0) as f32;
+    }
     let sources = account
         .sources
         .into_iter()
@@ -493,24 +509,43 @@ fn refresh_sources(library: &mut LibraryWorker, snapshot: &mut Snapshot) -> io::
                 .and_then(|name| name.to_str())
                 .unwrap_or("Music folder")
                 .to_owned();
+            let id = source
+                .id
+                .ok_or_else(|| io::Error::other("Source is not saved"))?;
+            // Swift shows stats only for sources that have saved songs.
+            let (mut songs, mut local, mut cloud, mut pinned) = (0, 0, 0, 0);
+            if stats {
+                let saved = library.repository.songs_in_source(id).map_err(io::Error::other)?;
+                for (availability, kept) in library.song_states(&saved) {
+                    songs += 1;
+                    local += usize::from(availability == FileAvailability::OnDevice);
+                    cloud += usize::from(availability == FileAvailability::InCloud);
+                    pinned += usize::from(kept);
+                }
+            }
             Ok(Folder {
-                id: source
-                    .id
-                    .ok_or_else(|| io::Error::other("Source is not saved"))?,
+                id,
                 root: source.path_id,
                 name,
                 path: path.to_string_lossy().into_owned(),
                 current: source.is_current,
-                detail: source.sync_error.unwrap_or_else(|| {
-                    source.total_paths.map_or_else(
-                        || "Not indexed yet".into(),
-                        |count| format!("{count} audio files"),
-                    )
-                }),
+                count: if songs > 0 {
+                    format!("{songs} songs")
+                } else {
+                    format!("{} indexed items", source.total_paths.unwrap_or(0))
+                },
+                stats: if songs > 0 {
+                    format::stats(pinned, local, cloud)
+                } else {
+                    String::new()
+                },
+                scanned: format::age(now, source.last_synced_at),
+                error: source.sync_error,
+                local: if songs > 0 { local as f32 / songs as f32 } else { 0.0 },
             })
         })
         .collect::<io::Result<Vec<_>>>()?;
-    snapshot.source_count = format!("{} sources", sources.len());
+    snapshot.source_count = format!("{} sources, watched for changes", sources.len());
     snapshot.sources = Arc::from(sources);
     Ok(())
 }
@@ -533,44 +568,122 @@ fn browse_directory(
                 .ok_or_else(|| io::Error::other("This folder was removed. Refresh its source."))?,
         )
     };
+    let root = file_path(&source.dir_path)?;
+    let root_name = root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("Music folder")
+        .to_owned();
+    let prefix = path.as_ref().map(|path| path.relative_path.as_str());
+    // Swift lists every saved song below the folder, in natural relative-path order.
+    let mut inside = Vec::new();
+    for song in library
+        .repository
+        .songs_in_source(location.source)
+        .map_err(io::Error::other)?
+    {
+        let Some(relative) = song.relative_path.as_deref() else {
+            continue;
+        };
+        let rest = match prefix {
+            None => Some(relative),
+            Some(prefix) => relative
+                .strip_prefix(prefix)
+                .and_then(|rest| rest.strip_prefix('/')),
+        };
+        if rest.is_some() {
+            inside.push((Key::new(relative)?, song));
+        }
+    }
+    inside.sort_unstable_by(|(ak, a), (bk, b)| ak.compare(bk).then(a.id.cmp(&b.id)));
+    let inside = inside.into_iter().map(|(_, song)| song).collect::<Vec<_>>();
+    let states = library.song_states(&inside);
+    let by_path = inside
+        .iter()
+        .enumerate()
+        .filter_map(|(index, song)| Some((song.relative_path.as_deref()?, index)))
+        .collect::<HashMap<_, _>>();
+    // Per child folder: saved songs and bytes below it (the first path component after the prefix).
+    let mut totals: HashMap<&str, (usize, i64)> = HashMap::new();
+    for song in &inside {
+        let relative = song.relative_path.as_deref().unwrap_or_default();
+        let rest = prefix.map_or(relative, |prefix| &relative[prefix.len() + 1..]);
+        if let Some((child, _)) = rest.split_once('/') {
+            let total = totals.entry(child).or_default();
+            total.0 += 1;
+            total.1 += song.file_size.unwrap_or(0);
+        }
+    }
     let mut entries = Vec::new();
-    let show_non_audio = library.load_settings().show_non_audio;
     for path in library
         .repository
         .source_paths(location.source, Some(parent))
         .map_err(io::Error::other)?
     {
-        if !path.is_directory && !path.is_audio() && !show_non_audio {
-            continue;
-        }
+        let audio = path.is_audio();
         let key = Key::new(&path.name)?;
+        let index = by_path.get(path.relative_path.as_str()).copied();
+        let song = index.map(|index| &inside[index]);
+        let (count, total) = totals.get(path.name.as_str()).copied().unwrap_or_default();
         entries.push((
             Entry {
                 id: path.path_id,
                 directory: path.is_directory,
-                audio: path.is_audio(),
-                name: path.name,
-                detail: if path.is_directory {
-                    "Folder".into()
+                audio,
+                number: String::new(),
+                kind: if path.is_directory {
+                    format!("Folder · {count} songs")
+                } else if audio {
+                    let extension = song
+                        .and_then(|song| song.file_extension.as_deref())
+                        .or_else(|| Path::new(&path.name).extension().and_then(|e| e.to_str()))
+                        .unwrap_or_default();
+                    format!("{extension} audio")
                 } else {
-                    path.file_size
-                        .map_or_else(|| "File".into(), |bytes| format!("{bytes} bytes"))
+                    "Not audio".into()
                 },
+                size: if path.is_directory {
+                    format::bytes(total)
+                } else {
+                    song.and_then(|song| song.file_size)
+                        .or(path.file_size)
+                        .map_or_else(|| "—".into(), format::megabytes)
+                },
+                time: song
+                    .and_then(|song| song.duration)
+                    .map_or_else(String::new, format::duration),
+                glyph: index.map(|index| Glyph {
+                    state: inside[index].file_state,
+                    availability: Some(states[index].0),
+                    pinned: states[index].1,
+                }),
+                name: path.name,
             },
             key,
         ));
     }
+    // Swift's order: folders, then audio, then other files.
+    let rank = |entry: &Entry| if entry.directory { 0 } else if entry.audio { 1 } else { 2 };
     entries.sort_unstable_by(|(a, ak), (b, bk)| {
-        b.directory
-            .cmp(&a.directory)
+        rank(a)
+            .cmp(&rank(b))
             .then_with(|| ak.compare(bk))
             .then(a.id.cmp(&b.id))
     });
-    let entries = entries
+    let mut entries = entries
         .into_iter()
         .map(|(entry, _)| entry)
         .collect::<Vec<_>>();
-    let root = file_path(&source.dir_path)?;
+    for (number, entry) in entries.iter_mut().filter(|entry| entry.audio).enumerate() {
+        entry.number = (number + 1).to_string();
+    }
+    let title = path
+        .as_ref()
+        .map_or_else(|| root_name.clone(), |path| path.name.clone());
+    let offline = states
+        .iter()
+        .filter(|(availability, _)| *availability == FileAvailability::OnDevice)
+        .count();
     let directory = Directory {
         source_root: source.path_id,
         location: Location {
@@ -578,20 +691,26 @@ fn browse_directory(
             ..location
         },
         up: path.as_ref().and_then(|path| path.parent_path_id),
-        title: path.as_ref().map_or_else(
-            || {
-                root.file_name()
-                    .and_then(|name| name.to_str())
-                    .unwrap_or("Music folder")
-                    .to_owned()
-            },
-            |path| path.name.clone(),
-        ),
-        path: path.as_ref().map_or_else(
-            || root.to_string_lossy().into_owned(),
-            |path| path.relative_path.clone(),
-        ),
+        context: Arc::new(lw_core::context::PlaybackContext::Folder {
+            source_id: location.source,
+            path_id: Some(parent),
+            name: title.clone(),
+        }),
+        title,
+        breadcrumb: prefix.map_or_else(String::new, |prefix| {
+            format!("{root_name} / {}", prefix.replace('/', " / "))
+        }),
         detail: format!("{} items", entries.len()),
+        summary: format!(
+            "{} songs · {} · {offline} offline",
+            inside.len(),
+            format::bytes(inside.iter().filter_map(|song| song.file_size).sum())
+        ),
+        error: source.sync_error.clone(),
+        kept: !states.is_empty() && states.iter().all(|(_, pinned)| *pinned),
+        songs: inside.iter().filter_map(|song| song.id).collect(),
+        show_non_audio: library.load_settings().show_non_audio,
+        non_audio: entries.iter().filter(|entry| !entry.directory && !entry.audio).count(),
         entries,
     };
     library.select_source(location.user, location.source)?;
@@ -666,7 +785,7 @@ fn execute(
                     .ok_or_else(|| io::Error::other("Source is not saved"))?,
                 parent: Some(selection.source.path_id),
             };
-            refresh_sources(library, snapshot)?;
+            refresh_sources(library, snapshot, false)?;
             if dropped {
                 snapshot.directory = None;
             } else {
@@ -689,7 +808,7 @@ fn execute(
                 source: target.source,
                 parent: Some(source.path_id),
             };
-            refresh_sources(library, snapshot)?;
+            refresh_sources(library, snapshot, false)?;
             browse_directory(library, snapshot, location)?;
             (location, true, None)
         }
@@ -767,7 +886,7 @@ fn execute(
             }
         },
     )?;
-    refresh_sources(library, snapshot)?;
+    refresh_sources(library, snapshot, false)?;
     browse_directory(library, snapshot, location)?;
     Ok(format!(
         "{} imported, {} unchanged, {} awaiting download.",
@@ -1064,10 +1183,23 @@ mod tests {
         let directory = worker.snapshot().directory.as_ref().unwrap();
         assert_eq!(
             directory.entries.len(),
-            1,
-            "non-audio files are hidden by default"
+            2,
+            "the desktop list shows non-audio files after folders and audio"
         );
         assert_eq!(directory.entries[0].name, "Album");
+        assert_eq!(directory.entries[0].kind, "Folder · 1 songs");
+        assert!(directory.entries[0].size.ends_with(" MB"));
+        let notes = &directory.entries[1];
+        assert_eq!(
+            (notes.name.as_str(), notes.kind.as_str(), notes.glyph, notes.audio),
+            ("notes.txt", "Not audio", None, false)
+        );
+        assert_eq!((directory.non_audio, directory.songs.len()), (1, 1));
+        assert!(!directory.show_non_audio, "the setting only affects compact lists");
+        assert!(directory.summary.starts_with("1 songs · "), "{}", directory.summary);
+        assert!(directory.summary.ends_with(" offline"));
+        assert_eq!(directory.title, "Original music 名前");
+        assert_eq!(directory.breadcrumb, "", "no breadcrumb at the source root");
         let root = directory.location;
         let nested = Location {
             parent: Some(directory.entries[0].id),
@@ -1084,7 +1216,18 @@ mod tests {
         });
         let directory = worker.snapshot().directory.as_ref().unwrap();
         assert_eq!(directory.up, root.parent);
-        assert_eq!(directory.entries[0].name, "01.flac");
+        let entry = &directory.entries[0];
+        assert_eq!(entry.name, "01.flac");
+        assert_eq!((entry.number.as_str(), entry.kind.as_str()), ("1", "flac audio"));
+        assert!(entry.size.ends_with(" MB") && entry.time.contains(':'), "{} {}", entry.size, entry.time);
+        assert!(entry.glyph.is_some_and(|glyph| !glyph.pinned));
+        assert_eq!(directory.breadcrumb, "Original music 名前 / Album");
+        assert_eq!(directory.title, "Album");
+        assert_eq!(directory.songs.len(), 1);
+        assert!(matches!(
+            directory.context.as_ref(),
+            lw_core::context::PlaybackContext::Folder { name, path_id: Some(_), .. } if name == "Album"
+        ));
         std::fs::write(
             music.join("02.flac"),
             include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged.flac"),
@@ -1099,7 +1242,7 @@ mod tests {
             directory.location, root,
             "rescan updates the entire source, even from a nested page"
         );
-        assert_eq!(directory.entries.len(), 2);
+        assert_eq!(directory.entries.len(), 3, "Album, 02.flac, then notes.txt");
         assert_eq!(directory.entries[1].name, "02.flac");
         let stale = Location {
             user: user.checked_add(1).unwrap(),
@@ -1119,6 +1262,14 @@ mod tests {
             1,
             "stale requests must not remove the registered source"
         );
+        let card = &worker.snapshot().sources[0];
+        assert_eq!(card.name, "Original music 名前");
+        assert!(card.count.ends_with(" songs") && !card.count.starts_with('0'), "{}", card.count);
+        assert!(card.stats.starts_with("0 kept · "), "{}", card.stats);
+        assert!(card.scanned.ends_with(" ago"), "{}", card.scanned);
+        assert!(card.error.is_none() && card.local >= 0.0 && card.local <= 1.0);
+        assert!(worker.snapshot().offline_usage.ends_with(" GB"), "{}", worker.snapshot().offline_usage);
+        assert!(worker.snapshot().source_count.ends_with(" sources, watched for changes"));
         worker
             .add_folder(user, base.join("Documents/CoverArt"))
             .unwrap();
@@ -1186,8 +1337,8 @@ mod tests {
         assert_ne!(worker.snapshot().sources[0].root, target.root);
         assert_eq!(
             worker.snapshot().directory.as_ref().unwrap().entries.len(),
-            2,
-            "{}",
+            3,
+            "Album, 02.flac and notes.txt: {}",
             worker.snapshot().message
         );
         {

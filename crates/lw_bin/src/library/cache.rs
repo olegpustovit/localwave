@@ -343,6 +343,13 @@ impl LibraryWorker {
         Ok(pinned)
     }
 
+    /// Cached bytes and the configured limit (Swift's Offline space meter).
+    pub fn cache_usage(&self) -> io::Result<(u64, u64)> {
+        Ok((
+            self.cached_byte_count()?,
+            self.preferences.cache_protection().limit_bytes(),
+        ))
+    }
     pub fn cached_byte_count(&self) -> io::Result<u64> {
         cache::total_bytes(&files(&music_root(&self.paths.documents)?)?)
     }

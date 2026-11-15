@@ -1155,9 +1155,8 @@ mod tests {
                 source_root: 3,
                 up: None,
                 title: "Music".into(),
-                path: "/Music".into(),
                 detail: "200 songs".into(),
-                entries: Vec::new(),
+                ..Default::default()
             })),
             ..Default::default()
         };
@@ -1208,14 +1207,7 @@ mod tests {
                 }
                 assert_eq!(intent, None);
                 if route == Route::Files {
-                    for label in [
-                        "Add folder",
-                        "Add audio files",
-                        "Back",
-                        "Rescan source",
-                        "Import folder",
-                        "Folder options",
-                    ] {
+                    for label in ["Back", "Import folder", "Folder options"] {
                         let node = ui
                             .a11y_nodes()
                             .iter()

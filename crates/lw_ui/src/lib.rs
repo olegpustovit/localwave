@@ -159,6 +159,10 @@ pub enum Intent {
     PrivacyPolicy,
     Support,
     Files(files::Request),
+    /// Play or shuffle the open folder page's saved songs, or toggle keeping them offline.
+    PlayFolder,
+    ShuffleFolder,
+    KeepFolder,
     ChooseFolder,
     ChooseAudio,
     SourceMenu(files::Target, (f32, f32)),

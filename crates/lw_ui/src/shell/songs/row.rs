@@ -104,6 +104,16 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
 }
 
 pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette) {
+    glyph(ui, (row.state, row.availability, row.pinned), visible, p);
+}
+
+/// Swift's LWStateGlyph from its three inputs; Files rows share it.
+pub(in crate::shell) fn glyph(
+    ui: &mut Ui,
+    (state, available, pinned): (lw_core::FileState, Option<lw_core::FileAvailability>, bool),
+    visible: bool,
+    p: Palette,
+) {
     use lw_core::{FileAvailability, FileState};
     let root = ui.node(
         "availability",
@@ -115,11 +125,11 @@ pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p
             ..Node::DEFAULT
         },
     );
-    let label = match row.state {
+    let label = match state {
         FileState::CopyPending => "Preparing offline copy",
         FileState::Failed => "File unavailable — retry",
-        _ => match row.availability {
-            Some(FileAvailability::OnDevice) if row.pinned => "Kept offline",
+        _ => match available {
+            Some(FileAvailability::OnDevice) if pinned => "Kept offline",
             Some(FileAvailability::OnDevice) => "On this device",
             Some(FileAvailability::InCloud) => "In cloud — downloads when played",
             Some(FileAvailability::Unknown) => "Availability unknown",
@@ -127,7 +137,6 @@ pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p
         },
     };
     ui.a11y_name(&root, label);
-    let (state, available, pinned) = (row.state, row.availability, row.pinned);
     ui.draw(&root, move |paint, rect| {
         let (x, y) = (rect.x, rect.y);
         if available == Some(FileAvailability::OnDevice)
@@ -165,7 +174,7 @@ pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p
             }
         }
     });
-    if row.state == FileState::CopyPending {
+    if state == FileState::CopyPending {
         use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
         let active = visible && !ui.tokens().reduced_motion;
         let changed = ui.state(&root, -1) != i64::from(active);

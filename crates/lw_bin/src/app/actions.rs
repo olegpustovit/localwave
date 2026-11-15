@@ -299,6 +299,33 @@ impl App {
                         context: None,
                     }
                 }
+                lw_ui::Intent::PlayFolder
+                | lw_ui::Intent::ShuffleFolder
+                | lw_ui::Intent::KeepFolder => {
+                    // The FilesWorker prepared the page's songs and context in natural path order.
+                    let Some(directory) = files
+                        .snapshot()
+                        .directory
+                        .as_ref()
+                        .filter(|directory| !directory.songs.is_empty())
+                    else {
+                        return Ok(Some(Schedule::NextFrame));
+                    };
+                    match intent {
+                        lw_ui::Intent::PlayFolder => Command::Configure {
+                            songs: directory.songs.clone(),
+                            start: 0,
+                            autoplay: true,
+                            context: Some(directory.context.clone()),
+                        },
+                        lw_ui::Intent::ShuffleFolder => Command::ShuffleAll {
+                            songs: directory.songs.clone(),
+                            seed: now.to_bits(),
+                            context: Some(directory.context.clone()),
+                        },
+                        _ => Command::TogglePins(directory.songs.clone()),
+                    }
+                }
                 lw_ui::Intent::ShuffleCollection => {
                     let Some(collection) = shell_state
                         .collection(player.catalog())

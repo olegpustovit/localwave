@@ -466,10 +466,22 @@ impl App {
         let next_preferences = self.environment.snapshot();
         let preferences_changed = next_preferences != self.preferences;
         self.preferences = next_preferences;
+        let mut library_changed = false;
         let player_changed = self
             .player
-            .poll_with_catalog(&mut |previous, next| self.shell_state.refresh(previous, next))
+            .poll_with_catalog(&mut |previous, next| {
+                library_changed |= !std::sync::Arc::ptr_eq(&previous.library, &next.library);
+                self.shell_state.refresh(previous, next)
+            })
             .map_err(|error| error.to_string())?;
+        // Kept/availability labels come from the FilesWorker; re-read them when songs or pins change.
+        if library_changed && self.shell_state.files_visible() && self.files.snapshot().account.is_some() {
+            let request = self.files.snapshot().directory.as_ref().map_or(
+                lw_ui::files::Request::Roots,
+                |directory| lw_ui::files::Request::Browse(directory.location),
+            );
+            let _ = self.files.request(request);
+        }
         let files_changed = self.files.poll() && self.shell_state.files_visible();
         if self.files.snapshot().catalog_revision != self.files_catalog_revision
             && self.player.command(Command::RefreshCatalog).is_ok()

@@ -319,6 +319,11 @@ impl LibraryRepository {
         .pop())
     }
 
+    /// Every saved song of one source (Files cards and folder pages), in id order.
+    pub fn songs_in_source(&self, source_id: i64) -> Result<Vec<Song>> {
+        query_songs(&self.db, "WHERE s.sourceId=? ORDER BY s.id", &[Integer(source_id)])
+    }
+
     pub fn song_with_path_hash(&self, path_hash: i64) -> Result<Option<Song>> {
         Ok(query_songs(
             &self.db,
@@ -1137,6 +1142,13 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(updated.bookmark, Some(vec![10]));
+        assert!(
+            repo.songs_in_source(source_id)
+                .unwrap()
+                .iter()
+                .any(|song| song.id == Some(first_id))
+        );
+        assert!(repo.songs_in_source(source_id + 1000).unwrap().is_empty());
         assert_eq!(updated.source_availability, Some(FileAvailability::InCloud));
         assert_eq!(repo.song_with_path_hash(456).unwrap(), Some(second));
         let list = repo.create_playlist("Both", 1.0).unwrap();
