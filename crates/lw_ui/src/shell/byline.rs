@@ -53,16 +53,11 @@ pub(super) fn draw(
     });
     let density = ui.density() as f32;
     let sizes = std::array::from_fn(|index| {
-        let key = Ui::key_of(index as i64 + 0xb711e, values[index]) as u64;
         let service = &mut ui.text_service();
-        let natural = service
-            .measure(key, values[index], &styles[index], 0.0)
-            .unwrap();
+        let natural = service.measure(values[index], &styles[index], 0.0).unwrap();
         let metrics = if natural.width > width {
-            let mut wrapped = DefaultHasher::new();
-            (key, width.to_bits()).hash(&mut wrapped);
             service
-                .measure(wrapped.finish(), values[index], &styles[index], width)
+                .measure(values[index], &styles[index], width)
                 .unwrap()
         } else {
             natural

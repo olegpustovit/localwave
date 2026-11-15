@@ -57,8 +57,6 @@ fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> bool {
             kept,
         ),
     };
-    let mut key_hash = DefaultHasher::new();
-    ("find-action-label", label).hash(&mut key_hash);
     let style = pxui::TextStyle {
         size_points: 13.0,
         line_height: 18.2,
@@ -67,13 +65,8 @@ fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> bool {
         ..Default::default()
     };
     let density = ui.density() as f32;
-    let label_width = (ui
-        .text_service()
-        .width(key_hash.finish(), label, &style, 0.0)
-        .unwrap()
-        * density)
-        .ceil()
-        / density;
+    let label_width =
+        (ui.text_service().width(label, &style, 0.0).unwrap() * density).ceil() / density;
     let root = ui.node(
         key,
         Node {

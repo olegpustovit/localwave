@@ -21,7 +21,6 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
     ];
     let metrics = samples.map(|(font, size, line, _)| {
         text.measure(
-            font as u64 + size as u64,
             "Ag01",
             &pxui::TextStyle {
                 font,

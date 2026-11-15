@@ -54,12 +54,7 @@ pub(super) fn paragraph(
     };
     let metrics = ui
         .text_service()
-        .measure(
-            Ui::key_of(Ui::key_of(0x5e771, key), value) as u64,
-            value,
-            &style,
-            width.max(1.0),
-        )
+        .measure(value, &style, width.max(1.0))
         .unwrap();
     let node = ui.node(
         key,
@@ -112,12 +107,7 @@ fn row(
         0.0
     } else {
         ui.text_service()
-            .measure(
-                Ui::key_of(Ui::key_of(0x5e772, key), detail) as u64,
-                detail,
-                &label_style,
-                label_width,
-            )
+            .measure(detail, &label_style, label_width)
             .unwrap()
             .height
     };

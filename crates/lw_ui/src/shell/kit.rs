@@ -89,18 +89,9 @@ pub(super) fn text(
         ..Default::default()
     };
     let width = if matches!(dimensions.0, Size::Fit) {
-        let mut key = DefaultHasher::new();
-        (value, mono, size).hash(&mut key);
         // SwiftUI rounds intrinsic Text widths to physical pixels; CoreText widths stay fractional.
         let density = ui.density() as f32;
-        Size::Px(
-            (ui.text_service()
-                .width(key.finish(), value, &style, 0.0)
-                .unwrap()
-                * density)
-                .ceil()
-                / density,
-        )
+        Size::Px((ui.text_service().width(value, &style, 0.0).unwrap() * density).ceil() / density)
     } else {
         dimensions.0
     };
@@ -368,20 +359,9 @@ pub(super) fn table_text_size(
     style: &pxui::TextStyle,
 ) -> (f32, f32) {
     let (width, lines) = if natural > available {
-        let mut key = DefaultHasher::new();
-        (
-            "table-wrap",
-            value,
-            available.to_bits(),
-            style.font,
-            style.size_points.to_bits(),
-            style.weight,
-            style.features,
-        )
-            .hash(&mut key);
         let metrics = ui
             .text_service()
-            .measure(key.finish(), value, style, available.max(0.01))
+            .measure(value, style, available.max(0.01))
             .unwrap();
         (metrics.width, metrics.lines)
     } else {

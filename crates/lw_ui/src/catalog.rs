@@ -605,9 +605,7 @@ impl Catalog {
                 weight,
                 ..Default::default()
             };
-            let mut key = DefaultHasher::new();
-            (value, mono, size.to_bits(), weight).hash(&mut key);
-            text.width(key.finish(), value, &style, 0.0)
+            text.width(value, &style, 0.0)
                 .map_err(|code| format!("Library text measurement failed ({code})"))
         };
         let mut preferred = [0.0f32; 4];
@@ -854,7 +852,7 @@ mod tests {
     fn table_font_widths_match_coretext_reference_faces_and_weights() {
         let mut text = pxui::Text::new(&[crate::FONT, crate::MONO]).unwrap();
         // CTLineGetTypographicBounds with the bundled named faces, captured on macOS.
-        for (index, (label, font, size, weight, expected)) in [
+        for (label, font, size, weight, expected) in [
             ("Name", 0, 12.0, 500, 32.424),
             ("Albums", 0, 12.0, 500, 40.98),
             ("Songs", 0, 12.0, 500, 34.224),
@@ -864,13 +862,9 @@ mod tests {
             ("High Violet, Trouble Will Find Me", 0, 14.0, 400, 205.59),
             ("0 min", 1, 12.0, 400, 35.99945),
             ("92", 1, 12.0, 400, 14.39978),
-        ]
-        .into_iter()
-        .enumerate()
-        {
+        ] {
             let width = text
                 .width(
-                    index as u64,
                     label,
                     &pxui::TextStyle {
                         font,
