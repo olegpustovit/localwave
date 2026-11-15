@@ -118,7 +118,7 @@ pub(super) fn table(
         .fold(16.8f32, f32::max)
         + 20.5;
     let entry = crate::motion::Page::new(ui, state.entry_revision);
-    let mut revision = DefaultHasher::new();
+    let mut revision = FastHasher::default();
     (
         state.revision,
         columns.map(f32::to_bits),

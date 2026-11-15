@@ -1,5 +1,6 @@
 use super::*;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use pxui::geom::hash::FastHasher;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Copy)]
 pub(super) struct Palette {
@@ -88,18 +89,11 @@ pub(super) fn text(
         ellipsis: pxui::TextStyle::ELLIPSIS_END,
         ..Default::default()
     };
-    let width = if matches!(dimensions.0, Size::Fit) {
-        // SwiftUI rounds intrinsic Text widths to physical pixels; CoreText widths stay fractional.
-        let density = ui.density() as f32;
-        Size::Px((ui.text_service().width(value, &style, 0.0).unwrap() * density).ceil() / density)
-    } else {
-        dimensions.0
-    };
     let node = ui.node(
         key,
         Node {
-            flags: FIT_TEXT,
-            w: width,
+            flags: FIT_TEXT | FIT_TEXT_PIXEL,
+            w: dimensions.0,
             h: Size::Px(dimensions.1),
             role: Role::Label,
             look: Look {
@@ -205,7 +199,7 @@ pub(super) fn icon_button(
         p.key
     };
     let color = if inverse { p.paper } else { p.ink };
-    let mut revision = DefaultHasher::new();
+    let mut revision = FastHasher::default();
     (icon as u8, inverse, signal.hovered, signal.held).hash(&mut revision);
     ui.within(&node, &mut |ui| {
         let visual = ui.view(

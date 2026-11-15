@@ -12,8 +12,9 @@
 use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
+use pxui::geom::hash::FastHasher;
 use pxui::ui::*;
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 
 mod albums;
 mod artists;

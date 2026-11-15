@@ -110,7 +110,7 @@ fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> bool {
             before != i64::from(selected),
         );
         background(ui, "press", p.panel, signal.held, false);
-        let mut revision = DefaultHasher::new();
+        let mut revision = FastHasher::default();
         (label, selected).hash(&mut revision);
         ui.view(
             "action-copy",

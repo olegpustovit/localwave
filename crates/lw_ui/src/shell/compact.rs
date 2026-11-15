@@ -293,7 +293,7 @@ pub(super) fn view(
             Size::Grow,
             p.paper,
         );
-        let mut route_key = DefaultHasher::new();
+        let mut route_key = FastHasher::default();
         (
             state.route,
             state.settings_visible,

@@ -22,8 +22,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C1.6 | Reasonable module boundaries; no line-count gate | done | d85b8f8 |
 | C2 | Labels, module description and test contention | done | 0ea2899 |
 | B1 | Extract SQLite; remove core Apple dependency | done | 77e86c6 |
-| B2 | Framework text identity and pixel rounding | doing | — |
-| B2a | Keyless measurement and bounded layout cache | done | HEAD |
+| B2 | Framework text identity and pixel rounding | done | HEAD |
+| B2a | Keyless measurement and bounded layout cache | done | 7ad09dc |
+| B2b | Pixel Fit layout and public fast identities | done | HEAD |
 | B3 | Repeating retained keyframes and indicators | todo | — |
 | B4 | Framework scrub signal for seek/volume | todo | — |
 | B5 | Framework virtual-list reveal | todo | — |
@@ -52,27 +53,27 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-B2a `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
+B2 `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Bundle signature/dependency/default-stack
-checks and settled idle smoke pass (502.3 ms). Source: `/tmp/localwave-b2a-performance.log`.
-Nine strict 1,000 µs wall maxima fail, so `make performance` returns nonzero. Settings, Files and
-Drop pass in this run; the full latency gate remains unmet. Native/process allocations remain
-unqualified. Previous failures and measurements remain in git history.
+checks and settled idle smoke pass (507.8 ms). Source: `/tmp/localwave-b2-performance.log`.
+12 strict 1,000 µs wall maxima fail, so `make performance` returns nonzero. The full latency
+gate remains unmet; no causal speedup is claimed. Native/process allocations remain unqualified.
+Previous failures and measurements remain in git history.
 
 | Workload | CPU p50/p99/max µs | Wall p50/p95/p99/max µs | Warm Rust allocations |
 | --- | --- | --- | --- |
-| songs-original | 708/1047/1084 | 780/2331/2991/3149 | 0 |
-| find-filters-title-descending | 736/873/909 | 763/1272/1697/1736 | 0 |
-| queue-occurrences | 630/777/831 | 686/1287/2666/2998 | 0 |
-| queue-carry-scroll-cancel | 536/901/928 | 549/1004/1149/1325 | 0 |
-| full-queue-playlist-editor | 752/1085/1132 | 874/1882/2675/2762 | 0 |
-| albums-artwork | 609/1485/1536 | 631/1326/1568/2845 | 0 |
-| waveform-scrub-and-scroll | 459/855/916 | 488/978/1596/1797 | 0 |
-| settings-menus-appearance | 288/506/636 | 311/595/670/841 | 0 |
-| files-indexed-directory | 333/414/419 | 346/429/510/548 | 0 |
-| external-drop-hover-and-cancel | 310/386/393 | 318/549/767/820 | 0 |
-| artists-measured-columns | 715/946/1031 | 755/1287/2003/2644 | 0 |
-| songs-playing-indicator | 919/1186/1231 | 979/1778/2720/3146 | 0 |
+| songs-original | 708/934/950 | 781/2189/2654/2674 | 0 |
+| find-filters-title-descending | 664/842/852 | 733/2080/2811/3148 | 0 |
+| queue-occurrences | 630/828/845 | 684/1958/2278/3412 | 0 |
+| queue-carry-scroll-cancel | 482/882/998 | 499/2060/3996/4273 | 0 |
+| full-queue-playlist-editor | 719/1069/1109 | 833/2424/3407/3837 | 0 |
+| albums-artwork | 581/1053/1159 | 653/1680/2167/2477 | 0 |
+| waveform-scrub-and-scroll | 374/949/983 | 509/2231/3473/4696 | 0 |
+| settings-menus-appearance | 280/549/556 | 283/849/1293/1547 | 0 |
+| files-indexed-directory | 332/447/469 | 347/1500/2148/2264 | 0 |
+| external-drop-hover-and-cancel | 305/403/424 | 321/1714/2239/2867 | 0 |
+| artists-measured-columns | 745/1092/1185 | 850/2160/3106/3187 | 0 |
+| songs-playing-indicator | 823/1087/1143 | 883/1610/2341/2499 | 0 |
 
 ## Open qualification
 
@@ -86,9 +87,10 @@ unqualified. Previous failures and measurements remain in git history.
 
 ## Known gaps
 
-- Boundary B2–B7 and performance P1–P6 precede new feature work.
+- Boundary B3–B7 and performance P1–P6 precede new feature work.
   The full strict latency gate still fails; cold shaping and native memory need evidence.
   A text/core edit check took 1.60 s, exceeding pxui's 1 s warm-edit target.
+  P3 still needs to remove stable metadata/state string hashing and position-driven rebuilds.
 - Shared Swift checks fail two child source-notification tests, also in an isolated run on unchanged
   Swift sources. Six Swift/Rust exchange cases pass; native notification delivery remains unresolved.
 - F1: global Space/S/R/I/L, open/find/new-list, navigation and seek shortcuts.

@@ -2,7 +2,8 @@ use super::*;
 use crate::browse::Query;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use pxui::geom::hash::FastHasher;
+use std::hash::{Hash, Hasher};
 
 pub(super) fn header(
     ui: &mut Ui,
@@ -183,7 +184,7 @@ pub(super) fn header_view(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let mut revision = DefaultHasher::new();
+    let mut revision = FastHasher::default();
     (
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -248,7 +249,7 @@ pub(super) fn find_tokens(
             at
         })
     };
-    let mut revision = DefaultHasher::new();
+    let mut revision = FastHasher::default();
     (state.query_revision, width.to_bits()).hash(&mut revision);
     ui.view(
         "find-tokens",

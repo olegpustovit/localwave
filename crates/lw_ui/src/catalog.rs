@@ -2,9 +2,10 @@
 use lw_core::context::PlaybackContext;
 use lw_core::{FileAvailability, FileState, Song};
 mod song_table;
+use pxui::geom::hash::FastHasher;
 pub use song_table::{Column as SongColumn, SongTable};
 use std::collections::{BTreeMap, HashMap};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use std::hash::{Hash, Hasher};
 use std::ops::{Deref, Range};
 use std::sync::Arc;
 
@@ -421,7 +422,7 @@ impl Library {
         rows: Vec<usize>,
         context: PlaybackContext,
     ) -> Collection {
-        let mut key = DefaultHasher::new();
+        let mut key = FastHasher::default();
         match &context {
             PlaybackContext::Playlist { id, .. } => (true, id).hash(&mut key),
             context => (false, context).hash(&mut key),

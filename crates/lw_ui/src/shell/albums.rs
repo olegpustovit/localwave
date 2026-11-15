@@ -158,7 +158,7 @@ pub(super) fn gallery(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let mut revision = DefaultHasher::new();
+    let mut revision = FastHasher::default();
     (
         state.revision,
         player.current_id,

@@ -1,7 +1,8 @@
 use super::*;
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use pxui::geom::hash::FastHasher;
+use std::hash::{Hash, Hasher};
 
 pub(super) fn now_panel(
     ui: &mut Ui,
@@ -78,7 +79,7 @@ pub(super) fn now_panel(
         );
         ui.a11y_name(&art, "Current track artwork");
         spacer(ui, "artwork-bottom-gap", 14.0);
-        let mut information_revision = DefaultHasher::new();
+        let mut information_revision = FastHasher::default();
         (
             player.initialized,
             player.current_id,
@@ -200,7 +201,7 @@ pub(super) fn now_panel(
         );
         spacer(ui, "queue-gap", 14.0);
         rule(ui, "queue-divider", false, p);
-        let mut queue_revision = DefaultHasher::new();
+        let mut queue_revision = FastHasher::default();
         (
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,

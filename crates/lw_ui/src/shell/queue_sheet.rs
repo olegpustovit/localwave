@@ -2,7 +2,8 @@ use super::*;
 use crate::browse::Query;
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use pxui::geom::hash::FastHasher;
+use std::hash::{Hash, Hasher};
 
 pub(super) fn queue_action(
     ui: &mut Ui,
@@ -48,7 +49,7 @@ pub(super) fn queue_sheet(
     let width = (window_width - 32.0).clamp(240.0, 680.0);
     let height = (window_height - 64.0).clamp(160.0, 620.0);
     let open = ui.modal(Some(width), "Playback queue", &mut |ui| {
-        let mut revision = DefaultHasher::new();
+        let mut revision = FastHasher::default();
         (
             state.revision,
             player.artwork.map_or(0, crate::artwork::Images::revision),
@@ -226,7 +227,7 @@ pub(super) fn queue_sheet(
                         false,
                     );
                     rule(ui, "full-queue-divider", false, p);
-                    let mut revision = DefaultHasher::new();
+                    let mut revision = FastHasher::default();
                     (
                         catalog.queue.as_ref().map(|queue| queue.revision),
                         std::sync::Arc::as_ptr(&catalog.library) as usize,

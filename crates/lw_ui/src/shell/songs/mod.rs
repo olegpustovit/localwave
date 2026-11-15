@@ -327,7 +327,7 @@ pub(super) fn table(
         state.route,
     );
     let heading_layout = heading_layout(ui, catalog, widths, applied);
-    let mut revision = DefaultHasher::new();
+    let mut revision = FastHasher::default();
     (
         state.revision,
         player.current_id,

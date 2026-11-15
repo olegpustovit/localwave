@@ -1,7 +1,8 @@
 use super::*;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
-use std::hash::{DefaultHasher, Hash, Hasher};
+use pxui::geom::hash::FastHasher;
+use std::hash::{Hash, Hasher};
 
 pub(super) fn transport(
     ui: &mut Ui,
@@ -207,7 +208,7 @@ pub(super) fn desktop(
                 &mut |ui| sidebar(ui, catalog, state, sidebar_width, p, intent),
             );
             rule(ui, "sidebar-divider", true, p);
-            let mut library_revision = DefaultHasher::new();
+            let mut library_revision = FastHasher::default();
             (
                 revision,
                 (player.current_id, player.playing),
@@ -233,7 +234,7 @@ pub(super) fn desktop(
                 Size::Grow,
                 Size::Grow,
                 &mut |ui| {
-                    let mut route_key = DefaultHasher::new();
+                    let mut route_key = FastHasher::default();
                     if let Some(group) = catalog
                         .collection(state.route)
                         .filter(|_| state.route != Route::Find)
@@ -283,7 +284,7 @@ pub(super) fn desktop(
             );
             if panel {
                 rule(ui, "panel-divider", true, p);
-                let mut panel_revision = DefaultHasher::new();
+                let mut panel_revision = FastHasher::default();
                 (
                     player.revision,
                     player.artwork.map_or(0, crate::artwork::Images::revision),

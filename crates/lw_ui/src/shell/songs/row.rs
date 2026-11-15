@@ -265,7 +265,7 @@ impl Rows<'_> {
             && y < viewport.height;
         let visual_revision =
             if player.current_id == Some(row.id) || row.state == lw_core::FileState::CopyPending {
-                let mut hash = DefaultHasher::new();
+                let mut hash = FastHasher::default();
                 (revision, visible).hash(&mut hash);
                 hash.finish()
             } else {
