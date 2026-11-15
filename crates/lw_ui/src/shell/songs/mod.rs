@@ -331,8 +331,6 @@ pub(super) fn table(
     let heading_layout = heading_layout(ui, catalog, widths, applied);
     let revision = pxui::hash!((
         state.revision,
-        player.current_id,
-        player.playing,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         widths.map(f32::to_bits),
     ));

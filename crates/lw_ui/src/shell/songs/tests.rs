@@ -226,6 +226,98 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
 }
 
 #[test]
+fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
+    mem_sys::set_peer(pxui::library_counter);
+    let catalog = crate::tests::prepared(
+        (0..8)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: "Track".into(),
+                artist: "Artist".into(),
+                album: "Album".into(),
+                duration: Some(240.0),
+                ..Default::default()
+            })
+            .collect(),
+    );
+    let state = ShellState::default();
+    let mut player = PlayerView {
+        initialized: true,
+        title: "Track",
+        duration: 240.0,
+        ..Default::default()
+    };
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut frame = FrameIn {
+        width: 1440.0,
+        height: 872.0,
+        ..Default::default()
+    };
+    let mut previous = Some(1);
+    let mut observed = 0;
+    for tick in 0..80 {
+        let (id, playing) = [(0, false), (0, true), (1, true), (1, false)][tick % 4];
+        player.current_id = Some(id);
+        player.playing = playing;
+        player.revision = tick as u64;
+        frame.time = tick as f64;
+        mem_sys::local_reset();
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
+        })
+        .unwrap();
+        let _ = ui.output();
+        observed += ui.rebuilt_named("song-visual");
+        if tick >= 40 {
+            assert_eq!(mem_sys::local_alloc_count(), 0, "playback update {tick}");
+            let changed_song = previous != player.current_id;
+            assert_eq!(
+                ui.rebuilt_named("song-visual"),
+                if changed_song { 2 } else { 1 },
+                "only old/new current rows, tick {tick}"
+            );
+            assert_eq!(
+                ui.rebuilt_named("song-copy"),
+                if changed_song { 2 } else { 0 },
+                "play/pause keeps text, tick {tick}"
+            );
+            let indicator = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| {
+                    node.is_role(Role::Image)
+                        && ui.a11y_name_of(node) == if playing { "Playing" } else { "Paused" }
+                })
+                .unwrap();
+            let row = ui
+                .a11y_nodes()
+                .iter()
+                .filter(|node| node.is_role(Role::ListItem) && ui.a11y_name_of(node) == "Track")
+                .nth(id as usize)
+                .unwrap();
+            assert!(
+                indicator.rect.y >= row.rect.y
+                    && indicator.rect.y + indicator.rect.h <= row.rect.y + row.rect.h
+            );
+            assert_eq!(
+                ui.a11y_nodes()
+                    .iter()
+                    .filter(|node| node.is_role(Role::Image)
+                        && matches!(ui.a11y_name_of(node), "Playing" | "Paused"))
+                    .count(),
+                1
+            );
+        }
+        previous = player.current_id;
+    }
+    assert!(
+        observed > 0,
+        "the rebuild counter must observe actual row builds"
+    );
+}
+
+#[test]
 fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = catalog(1);

@@ -269,6 +269,7 @@ impl Rows<'_> {
         } = *self;
         let row = catalog.row(collection.rows[index]);
         let current = player.current_id == Some(row.id);
+        let revision = pxui::hash!((revision, current));
         let layout = row_layout(
             ui,
             catalog,
@@ -282,8 +283,8 @@ impl Rows<'_> {
         let visible = y + 11.0 > (viewport.leading - viewport.offset).max(0.0) + viewport.heading
             && y < viewport.height;
         let visual_revision =
-            if player.current_id == Some(row.id) || row.state == lw_core::FileState::CopyPending {
-                pxui::hash!((revision, visible))
+            if current || row.state == lw_core::FileState::CopyPending {
+                pxui::hash!((revision, current && player.playing, visible))
             } else {
                 revision
             };
