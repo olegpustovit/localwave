@@ -1,5 +1,9 @@
 //! Startup selection for the isolated signed performance matrix; no argument work runs in frames.
 
+pub(crate) mod setup;
+
+pub(super) type FrameTrace = (usize, [usize; 8], u64, u64, u64, [u64; 4], u64);
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Workload {
     Songs,

@@ -15,8 +15,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C1.2 | Split shell into screen modules | done | 9e52567 |
 | C1.3 | Split song table, rows, menus and tests | done | 76a5c71 |
 | C1.4 | Extract performance harness (a–c) | doing | 71d32b2 |
-| C1.4a | Parse one Workload enum | done | HEAD |
-| C1.4b | Extract performance setup | todo | — |
+| C1.4a | Parse one Workload enum | done | e93d3da |
+| C1.4b | Extract performance setup | done | HEAD |
 | C1.4c | Extract driver/report and production App | todo | — |
 | C1.5 | Split controller and command families | todo | — |
 | C1.6 | Enforce Rust production file-size limit | todo | — |
@@ -51,26 +51,26 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-C1.4a `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
+C1.4b `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Bundle signature/dependency/default-stack
-checks and settled idle smoke pass (510.0 ms). Source: `/tmp/localwave-c14a-performance.log`.
+checks and settled idle smoke pass (508.3 ms). Source: `/tmp/localwave-c14b-performance.log`.
 All strict 1,000 µs wall maxima fail, so `make performance` returns nonzero. These are failures,
 not passes; native/process allocation behavior remains unqualified. Previous measurements live in git history.
 
 | Workload | CPU p50/p99/max µs | Wall p50/p95/p99/max µs | Warm Rust allocations |
 | --- | --- | --- | --- |
-| songs-original | 735/971/1295 | 806/1746/2630/2653 | 0 |
-| find-filters-title-descending | 664/834/835 | 725/1778/2419/2514 | 0 |
-| queue-occurrences | 636/849/864 | 709/1700/2574/2950 | 0 |
-| queue-carry-scroll-cancel | 531/879/889 | 569/1173/1852/1886 | 0 |
-| full-queue-playlist-editor | 717/1116/1141 | 811/2070/3232/3562 | 0 |
-| albums-artwork | 588/1077/1236 | 740/1660/3502/4669 | 0 |
-| waveform-scrub-and-scroll | 355/978/1051 | 502/1490/2164/2284 | 0 |
-| settings-menus-appearance | 285/516/541 | 346/920/1566/2439 | 0 |
-| files-indexed-directory | 344/447/448 | 418/1150/1321/1652 | 0 |
-| external-drop-hover-and-cancel | 301/403/436 | 318/936/1371/1482 | 0 |
-| artists-measured-columns | 698/1401/1462 | 785/2051/2416/2528 | 0 |
-| songs-playing-indicator | 901/1215/1309 | 1317/2566/3316/3464 | 0 |
+| songs-original | 759/1001/1031 | 883/2649/3349/3567 | 0 |
+| find-filters-title-descending | 682/898/912 | 745/1809/3479/7867 | 0 |
+| queue-occurrences | 656/892/1211 | 718/2658/2969/3324 | 0 |
+| queue-carry-scroll-cancel | 548/877/892 | 598/1839/2928/4445 | 0 |
+| full-queue-playlist-editor | 720/1140/1170 | 869/2029/2277/2576 | 0 |
+| albums-artwork | 578/1119/1166 | 614/1666/2179/3339 | 0 |
+| waveform-scrub-and-scroll | 383/877/908 | 519/1863/2534/2834 | 0 |
+| settings-menus-appearance | 300/525/595 | 327/920/2214/2285 | 0 |
+| files-indexed-directory | 348/495/512 | 382/1811/2392/2395 | 0 |
+| external-drop-hover-and-cancel | 133/351/383 | 133/473/1302/1833 | 0 |
+| artists-measured-columns | 713/1081/1096 | 843/2382/2949/4189 | 0 |
+| songs-playing-indicator | 977/1311/1324 | 1381/3140/3562/3732 | 0 |
 
 ## Open qualification
 

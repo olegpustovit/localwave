@@ -27,7 +27,7 @@ use perf::Workload;
 use pxui::{FrameIn, Platform, Ui};
 use pxui_sdl::{
     Window,
-    app::{Callback, Schedule, Signal},
+    app::{Schedule, Signal},
 };
 
 extern "C" fn wake() {
@@ -43,16 +43,72 @@ impl Drop for Fixture {
     }
 }
 
+// Two layout frames, then two complete wheel cycles before the measured cycles.
+const WARMUP_FRAMES: usize = 82;
+const MEASURED_FRAMES: usize = 100;
+
 struct App {
-    callback: Box<Callback>,
-    // Workers captured by the callback must stop before their temporary files are removed.
+    // GPU resources and themes retire before the UI they borrow.
+    graphics_slot: Option<gpu::Graphics>,
+    themes: lw_bin::appearance::Themes,
+    ui: Ui,
+    #[cfg(target_os = "macos")]
+    chrome: pxui_host::Chrome,
+    environment: pxui_sdl::Preferences,
+    preferences: pxui_sdl::PreferencesSnapshot,
+    player: Controller,
+    artwork: lw_bin::library::ArtworkWorker,
+    files: lw_bin::files::FilesWorker,
+    top_inset: f64,
+    workload: Option<Workload>,
+    smoke: bool,
+    trace_frames: bool,
+    indicator_song: Option<i64>,
+    extent: pxui_sdl::Extent,
+    events: Vec<HostEvent>,
+    encoded: pxui_host::Events,
+    platform: pxui_host::Platform,
+    first: bool,
+    repaint: Option<f64>,
+    revision: u64,
+    frames: usize,
+    draws: usize,
+    waveform_seeks: i32,
+    settings_changes: usize,
+    settings_themes: u8,
+    min_artist_rows: usize,
+    max_artist_rows: usize,
+    first_artist_min: usize,
+    first_artist_max: usize,
+    min_waveform_bars: usize,
+    indicator_playing: usize,
+    indicator_paused: usize,
+    indicator_changes: usize,
+    indicator_previous: Option<[u32; 3]>,
+    drop_overlay_frames: usize,
+    warm_allocations: u64,
+    warm_build_us: u128,
+    timings: [smoke::FrameTiming; MEASURED_FRAMES],
+    frame_trace: [perf::FrameTrace; WARMUP_FRAMES + MEASURED_FRAMES],
+    min_artwork_quads: usize,
+    warm_artwork_requests: usize,
+    min_files_rows: usize,
+    max_files_rows: usize,
+    smoke_check: smoke::Smoke,
+    smoke_finished: bool,
+    shell_state: lw_ui::ShellState,
+    command_error: Option<&'static str>,
+    error_revision: u64,
+    folder_picker: Option<(i64, events::FolderPurpose)>,
+    audio_picker: Option<(i64, i64)>,
+    file_drop: events::FileDrop,
+    files_catalog_revision: u64,
+    files_selection_revision: u64,
+    // Workers and graphics must drop before their isolated fixture files.
     _fixture: Fixture,
 }
 
-fn open(window: &mut Window) -> Result<App, String> {
-    // Two layout frames, then two complete wheel cycles before the measured cycles.
-    const WARMUP_FRAMES: usize = 82;
-    const MEASURED_FRAMES: usize = 100;
+fn open(window: &mut Window) -> Result<Box<App>, String> {
     let args: Vec<String> = std::env::args().collect();
     let workload = Workload::from_args(&args)?;
     let smoke = args.iter().any(|arg| arg == "--smoke-test");
@@ -70,14 +126,14 @@ fn open(window: &mut Window) -> Result<App, String> {
         chrome
     };
     #[cfg(target_os = "macos")]
-    let mut top_inset = chrome
+    let top_inset = chrome
         .snapshot()
         .map_err(|error| error.to_string())?
         .top_inset;
     #[cfg(target_os = "ios")]
     let top_inset = 0.0;
     let environment = window.preferences(wake)?;
-    let mut preferences = environment.snapshot();
+    let preferences = environment.snapshot();
     let mut ui = Ui::create(
         Platform::Apple,
         Some(if cfg!(target_os = "ios") { 18 } else { 15 }),
@@ -121,68 +177,18 @@ fn open(window: &mut Window) -> Result<App, String> {
         ))
     }));
     let mut player = if let Some(base) = fixture.0.clone() {
-        Controller::open(
-            move || {
-                let documents = base.join("Documents");
-                std::fs::create_dir_all(&documents)?;
-                let suite = format!(
-                    "com.olegpustovit.localwave.{}",
-                    base.file_name().unwrap().to_string_lossy()
-                );
-                let mut library = LibraryWorker::open(
-                    &base.join("library.sqlite"),
-                    lw_apple_sys::preferences::Preferences::open(Some(&suite))?,
-                    lw_apple_sys::preferences::AppPaths {
-                        documents,
-                        caches: base.join("Caches"),
-                        temporary: base.join("tmp"),
-                        test_database: None,
-                    },
-                )?;
-                if workload.is_some() {
-                    if matches!(workload, Some(Workload::Settings)) {
-                        library.save_settings(&lw_core::preferences::Settings {
-                            appearance: lw_core::preferences::Appearance::Light,
-                            ..Default::default()
-                        })?;
-                    }
-                    smoke::seed_catalog(&base.join("library.sqlite"))?;
-                    if matches!(workload, Some(Workload::Artists)) {
-                        smoke::seed_artists(&base.join("library.sqlite"))?;
-                    }
-                    if matches!(workload, Some(Workload::Artwork)) {
-                        smoke::seed_artwork(&base.join("library.sqlite"), &base.join("Documents"))?;
-                    }
-                    smoke::seed_waveform(&base.join("Caches"))?;
-                    if matches!(workload, Some(Workload::Files)) {
-                        smoke::seed_files(&mut library)?;
-                    }
-                    library.save_player_state(&lw_core::preferences::PlayerState {
-                        song_ids: if workload.is_some_and(Workload::uses_queue) {
-                            (1..=10_000).collect()
-                        } else {
-                            vec![1]
-                        },
-                        current_index: 0,
-                        volume: Some(0.0),
-                        context_data: None,
-                    })?;
-                }
-                Ok(library)
-            },
-            wake,
-        )
+        Controller::open(move || perf::setup::library(&base, workload), wake)
     } else {
         Controller::open(LibraryWorker::current, wake)
     }
     .map_err(|error| error.to_string())?;
-    let mut artwork = lw_bin::library::ArtworkWorker::open(
+    let artwork = lw_bin::library::ArtworkWorker::open(
         fixture.0.as_ref().map(|base| base.join("Documents")),
         wake,
     )
     .map_err(|error| error.to_string())?;
     let files_base = fixture.0.clone();
-    let mut files = lw_bin::files::FilesWorker::open(
+    let files = lw_bin::files::FilesWorker::open(
         move || {
             if let Some(base) = files_base {
                 LibraryWorker::open(
@@ -207,207 +213,173 @@ fn open(window: &mut Window) -> Result<App, String> {
     .map_err(|error| error.to_string())?;
     // Workers do not inherit the UI's interactive QoS.
     lw_apple_sys::ui_thread_priority().map_err(|error| error.to_string())?;
-    if cfg!(target_os = "macos") && (smoke || workload.is_some()) {
-        let deadline = window.time() + 5.0;
-        loop {
-            player.poll().map_err(|error| error.to_string())?;
-            if player.status().initialized {
-                if !player.status().message.is_empty() {
-                    return Err(player.status().message.to_string());
-                }
-                // Queue and status travel through separate bounded handoffs.
-                if (!workload.is_some_and(Workload::uses_queue) || player.catalog().queue.is_some())
-                    && (workload.is_none() || player.status().waveform.is_some())
-                {
-                    break;
-                }
-            }
-            if window.time() >= deadline {
-                return Err("Library initialization timed out during qualification".into());
-            }
-            window.wait(Some(window.time() + 0.05));
-        }
-    }
-    if workload.is_some() && player.catalog().len() != 10_000 {
-        return Err("Performance fixture must contain 10,000 songs".into());
-    }
-    if workload.is_some_and(Workload::uses_queue)
-        && player
-            .catalog()
-            .queue
-            .as_ref()
-            .map(|queue| queue.upcoming().len())
-            != Some(9_999)
-    {
-        return Err("Queue performance fixture must contain 9,999 upcoming occurrences".into());
-    }
-    let indicator_song = if matches!(workload, Some(Workload::SongIndicators)) {
-        Some(
-            player
-                .catalog()
-                .row(
-                    *player
-                        .catalog()
-                        .all
-                        .as_ref()
-                        .unwrap()
-                        .rows
-                        .get(15)
-                        .ok_or("Song indicator fixture needs sixteen rows")?,
-                )
-                .id,
-        )
-    } else {
-        None
-    };
-    let mut extent = window.extent();
-    let mut events: Vec<HostEvent> = Vec::with_capacity(256);
-    let mut encoded = pxui_host::Events::default();
-    let mut platform = pxui_host::Platform::default();
-    let mut first = true;
-    let mut repaint = None;
-    let mut revision = u64::MAX;
-    let (mut frames, mut draws) = (0, 0);
-    let mut waveform_seeks = 0;
-    let (mut settings_changes, mut settings_themes) = (0, 0u8);
-    let (mut min_artist_rows, mut max_artist_rows) = (usize::MAX, 0usize);
-    let (mut first_artist_min, mut first_artist_max) = (usize::MAX, 0usize);
-    let mut min_waveform_bars = usize::MAX;
-    let (mut indicator_playing, mut indicator_paused, mut indicator_changes) =
-        (0usize, 0usize, 0usize);
-    let mut indicator_previous = None::<[u32; 3]>;
+    let indicator_song = perf::setup::wait_ready(window, &mut player, smoke, workload)?;
+    let extent = window.extent();
+    let events: Vec<HostEvent> = Vec::with_capacity(256);
+    let encoded = pxui_host::Events::default();
+    let platform = pxui_host::Platform::default();
+    let first = true;
+    let repaint = None;
+    let revision = u64::MAX;
+    let (frames, draws) = (0, 0);
+    let waveform_seeks = 0;
+    let (settings_changes, settings_themes) = (0, 0u8);
+    let (min_artist_rows, max_artist_rows) = (usize::MAX, 0usize);
+    let (first_artist_min, first_artist_max) = (usize::MAX, 0usize);
+    let min_waveform_bars = usize::MAX;
+    let (indicator_playing, indicator_paused, indicator_changes) = (0usize, 0usize, 0usize);
+    let indicator_previous = None::<[u32; 3]>;
 
-    let mut drop_overlay_frames = 0usize;
-    let (mut warm_allocations, mut warm_build_us) = (0, 0);
-    let mut timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
-    let mut frame_trace =
+    let drop_overlay_frames = 0usize;
+    let (warm_allocations, warm_build_us) = (0, 0);
+    let timings = [smoke::FrameTiming::default(); MEASURED_FRAMES];
+    let frame_trace =
         [(0usize, [0usize; 8], 0u64, 0u64, 0u64, [0u64; 4], 0u64); WARMUP_FRAMES + MEASURED_FRAMES];
-    let (mut min_artwork_quads, mut warm_artwork_requests) = (usize::MAX, 0usize);
-    let (mut min_files_rows, mut max_files_rows) = (usize::MAX, 0usize);
-    let mut smoke_check = smoke::Smoke::new(window.time());
-    let mut smoke_finished = false;
-    let mut shell_state = lw_ui::ShellState::default();
-    if matches!(workload, Some(Workload::Settings)) {
-        shell_state.apply(lw_ui::Intent::ShowSettings);
-        player
-            .command(Command::ReadStorage)
+    let (min_artwork_quads, warm_artwork_requests) = (usize::MAX, 0usize);
+    let (min_files_rows, max_files_rows) = (usize::MAX, 0usize);
+    let smoke_check = smoke::Smoke::new(window.time());
+    let smoke_finished = false;
+    let shell_state = lw_ui::ShellState::default();
+    let command_error: Option<&'static str> = None;
+    let error_revision = 0;
+    let folder_picker = None;
+    let audio_picker = None;
+    let file_drop = events::FileDrop::default();
+    let files_catalog_revision = 0;
+    let files_selection_revision = 0;
+    let graphics_slot = Some(graphics);
+    let mut app = Box::new(App {
+        graphics_slot,
+        ui,
+        themes,
+        #[cfg(target_os = "macos")]
+        chrome,
+        environment,
+        preferences,
+        player,
+        artwork,
+        files,
+        top_inset,
+        workload,
+        smoke,
+        trace_frames,
+        indicator_song,
+        extent,
+        events,
+        encoded,
+        platform,
+        first,
+        repaint,
+        revision,
+        frames,
+        draws,
+        waveform_seeks,
+        settings_changes,
+        settings_themes,
+        min_artist_rows,
+        max_artist_rows,
+        first_artist_min,
+        first_artist_max,
+        min_waveform_bars,
+        indicator_playing,
+        indicator_paused,
+        indicator_changes,
+        indicator_previous,
+        drop_overlay_frames,
+        warm_allocations,
+        warm_build_us,
+        timings,
+        frame_trace,
+        min_artwork_quads,
+        warm_artwork_requests,
+        min_files_rows,
+        max_files_rows,
+        smoke_check,
+        smoke_finished,
+        shell_state,
+        command_error,
+        error_revision,
+        folder_picker,
+        audio_picker,
+        file_drop,
+        files_catalog_revision,
+        files_selection_revision,
+        _fixture: fixture,
+    });
+    if let Some(workload) = workload {
+        perf::setup::prepare(&mut app, workload, window)?;
+    } else {
+        app.player
+            .enable_media_controls(!smoke)
             .map_err(|error| error.to_string())?;
     }
-    if matches!(workload, Some(Workload::Files)) {
-        use lw_ui::files::{Location, Request};
-        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
-        files
-            .request(Request::Roots)
-            .map_err(|error| error.to_string())?;
-        let deadline = window.time() + 5.0;
-        let mut browsing = false;
-        loop {
-            files.poll();
-            let snapshot = files.snapshot();
-            if !browsing
-                && let Some(user) = snapshot.account
-                && let Some(source) = snapshot.sources.first()
-            {
-                files
-                    .request(Request::Browse(Location {
-                        user,
-                        source: source.id,
-                        parent: None,
-                    }))
-                    .map_err(|error| error.to_string())?;
-                browsing = true;
-            }
-            if files
-                .snapshot()
-                .directory
-                .as_ref()
-                .is_some_and(|directory| directory.entries.len() == 10_000)
-            {
-                break;
-            }
-            if window.time() >= deadline {
-                return Err(format!(
-                    "Files fixture preparation failed: {}",
-                    files.snapshot().message
-                ));
-            }
-            window.wait(Some(window.time() + 0.05));
-        }
-    }
-    if matches!(workload, Some(Workload::Artwork)) {
-        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
-    }
-    if matches!(workload, Some(Workload::Artists)) {
-        if player.catalog().artists.len() != 10_000
-            || player
-                .catalog()
-                .artist_table
-                .as_ref()
-                .is_none_or(|table| table.rows.len() != 10_000)
-        {
-            return Err("Artist performance fixture must contain 10,000 prepared artists".into());
-        }
-        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Artists));
-    }
-    if matches!(workload, Some(Workload::Find)) {
-        use lw_ui::{
-            Intent,
-            browse::{Query, Sort},
-            catalog::Route,
-        };
-        shell_state.apply(Intent::Navigate(Route::Find));
-        shell_state.apply(Intent::Search(
-            Query::new("Track m4a year:2019 unplayed").unwrap(),
-        ));
-        shell_state.apply(Intent::Sort(Sort::Title));
-        shell_state.apply(Intent::Sort(Sort::Title));
-        let request = shell_state.request(player.catalog()).unwrap();
-        player.browse(request).map_err(|error| error.to_string())?;
-        let deadline = window.time() + 5.0;
-        loop {
-            player
-                .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
-                .map_err(|error| error.to_string())?;
-            if player
-                .catalog()
-                .view
-                .as_ref()
-                .is_some_and(|view| view.request == request)
-            {
-                if shell_state
-                    .collection(player.catalog())
-                    .map(|group| group.rows.len())
-                    != Some(10_000)
-                {
-                    return Err("Find performance fixture must match 10,000 songs".into());
-                }
-                break;
-            }
-            if window.time() >= deadline {
-                return Err("Find preparation timed out during qualification".into());
-            }
-            window.wait(Some(window.time() + 0.05));
-        }
-    }
-    player
-        .enable_media_controls(!smoke && workload.is_none())
-        .map_err(|error| error.to_string())?;
-    let mut command_error: Option<&'static str> = None;
-    if matches!(workload, Some(Workload::QueueSheet)) {
-        shell_state.apply(lw_ui::Intent::ShowQueue);
-        shell_state.apply(lw_ui::Intent::NamePlaylist);
-        shell_state.apply(lw_ui::Intent::EditPlaylistName(
-            lw_ui::browse::Query::new("Qualification queue").unwrap(),
-        ));
-    }
-    let mut error_revision = 0;
-    let mut folder_picker = None;
-    let mut audio_picker = None;
-    let mut file_drop = events::FileDrop::default();
-    let mut files_catalog_revision = 0;
-    let mut files_selection_revision = 0;
-    let mut graphics_slot = Some(graphics);
-    let callback: Box<Callback> = Box::new(move |window, signal| {
+    Ok(app)
+}
+
+impl App {
+    fn frame(&mut self, window: &mut Window, signal: Signal) -> Result<Schedule, String> {
+        let Self {
+            graphics_slot,
+            ui,
+            themes,
+            #[cfg(target_os = "macos")]
+            chrome,
+            environment,
+            preferences,
+            player,
+            artwork,
+            files,
+            top_inset,
+            workload,
+            smoke,
+            trace_frames,
+            indicator_song,
+            extent,
+            events,
+            encoded,
+            platform,
+            first,
+            repaint,
+            revision,
+            frames,
+            draws,
+            waveform_seeks,
+            settings_changes,
+            settings_themes,
+            min_artist_rows,
+            max_artist_rows,
+            first_artist_min,
+            first_artist_max,
+            min_waveform_bars,
+            indicator_playing,
+            indicator_paused,
+            indicator_changes,
+            indicator_previous,
+            drop_overlay_frames,
+            warm_allocations,
+            warm_build_us,
+            timings,
+            frame_trace,
+            min_artwork_quads,
+            warm_artwork_requests,
+            min_files_rows,
+            max_files_rows,
+            smoke_check,
+            smoke_finished,
+            shell_state,
+            command_error,
+            error_revision,
+            folder_picker,
+            audio_picker,
+            file_drop,
+            files_catalog_revision,
+            files_selection_revision,
+            ..
+        } = self;
+        let trace_frames = *trace_frames;
+        let indicator_song = *indicator_song;
+        let smoke = *smoke;
+        let workload = *workload;
         if signal == Signal::Finish {
             if let Some(graphics) = graphics_slot.take() {
                 graphics.close()?;
@@ -418,7 +390,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             .as_mut()
             .ok_or("App graphics have already closed")?;
         if matches!(signal, Signal::Resumed | Signal::LowMemory) {
-            first = true;
+            (*first) = true;
             return Ok(Schedule::NextFrame);
         }
         if workload.is_some() {
@@ -426,8 +398,8 @@ fn open(window: &mut Window) -> Result<App, String> {
         }
         if signal == Signal::Frame && graphics.can_draw() {
             events.clear();
-            if !platform.pump(window, &mut events)? {
-                if workload.is_some() || (smoke && !smoke_finished) {
+            if !platform.pump(window, &mut *events)? {
+                if workload.is_some() || (smoke && !(*smoke_finished)) {
                     return Err("Window closed before qualification finished".into());
                 }
                 return Ok(Schedule::Exit);
@@ -435,12 +407,12 @@ fn open(window: &mut Window) -> Result<App, String> {
             if let Some(error) = window.take_failure() {
                 return Err(error);
             }
-            if matches!(workload, Some(Workload::Drop)) && frames >= 2 {
-                smoke::drop_events(frames - 2, &mut events);
+            if matches!(workload, Some(Workload::Drop)) && (*frames) >= 2 {
+                smoke::drop_events((*frames) - 2, &mut *events);
             }
-            for event in &mut events {
+            for event in &mut *events {
                 if let Some(drop) = file_drop.event(event, files.snapshot().account) {
-                    command_error = match drop {
+                    (*command_error) = match drop {
                         Err(message) => Some(message),
                         Ok(drop) => match files.drop_files(drop.user, drop.paths) {
                             Ok(()) => {
@@ -454,12 +426,12 @@ fn open(window: &mut Window) -> Result<App, String> {
                             ),
                         },
                     };
-                    error_revision += 1;
+                    (*error_revision) += 1;
                 }
             }
-            let folder_id = folder_picker.map(|(id, _)| id);
-            if let Some(selection) = events::folder_selection(&mut folder_picker, &mut events) {
-                command_error = match selection {
+            let folder_id = (*folder_picker).map(|(id, _)| id);
+            if let Some(selection) = events::folder_selection(&mut (*folder_picker), &mut *events) {
+                (*command_error) = match selection {
                     Ok(None) => None,
                     Ok(Some((purpose, path))) => window
                         .take_dialog_selection(folder_id.unwrap())
@@ -482,11 +454,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                         .map(|_| "Could not update this folder. Try again."),
                     Err(message) => Some(message),
                 };
-                error_revision += 1;
+                (*error_revision) += 1;
             }
-            let audio_id = audio_picker.map(|(id, _)| id);
-            if let Some(selection) = events::audio_selection(&mut audio_picker, &mut events) {
-                command_error = match selection {
+            let audio_id = (*audio_picker).map(|(id, _)| id);
+            if let Some(selection) = events::audio_selection(&mut (*audio_picker), &mut *events) {
+                (*command_error) = match selection {
                     Ok(None) => None,
                     Ok(Some((user, paths))) => window.take_dialog_selection(audio_id.unwrap()).map_err(std::io::Error::other)
                         .and_then(|grants| files.add_audio_granted(user, paths, grants)).err().map(
@@ -494,23 +466,23 @@ fn open(window: &mut Window) -> Result<App, String> {
                     ),
                     Err(message) => Some(message),
                 };
-                error_revision += 1;
+                (*error_revision) += 1;
             }
         }
         let next_preferences = environment.snapshot();
-        let preferences_changed = next_preferences != preferences;
-        preferences = next_preferences;
+        let preferences_changed = next_preferences != (*preferences);
+        (*preferences) = next_preferences;
         let player_changed = player
             .poll_with_catalog(&mut |previous, next| shell_state.refresh(previous, next))
             .map_err(|error| error.to_string())?;
         let files_changed = files.poll() && shell_state.files_visible();
-        if files.snapshot().catalog_revision != files_catalog_revision
+        if files.snapshot().catalog_revision != (*files_catalog_revision)
             && player.command(Command::RefreshCatalog).is_ok()
         {
-            files_catalog_revision = files.snapshot().catalog_revision;
+            (*files_catalog_revision) = files.snapshot().catalog_revision;
         }
         if let Some(selection) = &files.snapshot().selection
-            && selection.revision != files_selection_revision
+            && selection.revision != (*files_selection_revision)
             && (selection.songs.is_empty()
                 || player
                     .command(Command::Configure {
@@ -521,14 +493,14 @@ fn open(window: &mut Window) -> Result<App, String> {
                     })
                     .is_ok())
         {
-            files_selection_revision = selection.revision;
+            (*files_selection_revision) = selection.revision;
             if selection.dropped {
                 shell_state.apply(lw_ui::Intent::CloseQueue);
                 shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
             }
         }
         if signal == Signal::Control || signal == Signal::Paused || !graphics.can_draw() {
-            first = true;
+            (*first) = true;
             return Ok(Schedule::WaitUntil(None));
         }
         let artwork_changed = artwork.poll();
@@ -538,12 +510,12 @@ fn open(window: &mut Window) -> Result<App, String> {
             artwork.ready_images(),
         )?;
         let mut expected_settings_intent = None;
-        if workload.is_some() && frames >= 2 && !matches!(workload, Some(Workload::Drop)) {
+        if workload.is_some() && (*frames) >= 2 && !matches!(workload, Some(Workload::Drop)) {
             if matches!(workload, Some(Workload::Settings)) {
                 expected_settings_intent =
-                    smoke::settings_events(frames - 2, top_inset, &mut events);
+                    smoke::settings_events((*frames) - 2, *top_inset, &mut *events);
             } else if matches!(workload, Some(Workload::Waveform)) {
-                smoke::waveform_events(frames - 2, &mut events);
+                smoke::waveform_events((*frames) - 2, &mut *events);
             } else if matches!(workload, Some(Workload::QueueDrag)) {
                 let grip = ui
                     .a11y_nodes()
@@ -555,9 +527,9 @@ fn open(window: &mut Window) -> Result<App, String> {
                     .ok_or("Queue drag fixture has no visible reorder target")?
                     .rect;
                 smoke::queue_drag_events(
-                    frames - 2,
+                    (*frames) - 2,
                     (f64::from(grip.x + 10.0), f64::from(grip.y + 10.0)),
-                    &mut events,
+                    &mut *events,
                 );
             } else {
                 events.push(HostEvent::PointerMoved(
@@ -573,7 +545,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 ));
                 events.push(HostEvent::Scrolled((
                     0.0,
-                    (if (frames - 2) % 40 < 20 { -1.0 } else { 1.0 })
+                    (if ((*frames) - 2) % 40 < 20 { -1.0 } else { 1.0 })
                         * if matches!(workload, Some(Workload::Artwork)) {
                             0.2
                         } else {
@@ -591,22 +563,22 @@ fn open(window: &mut Window) -> Result<App, String> {
                     .map(|wait| window.time() + wait.as_secs_f64()),
             ));
         }
-        let resized = current != extent;
+        let resized = current != (*extent);
         if resized {
-            extent = current;
+            (*extent) = current;
             #[cfg(target_os = "macos")]
             {
-                top_inset = chrome
+                (*top_inset) = chrome
                     .snapshot()
                     .map_err(|error| error.to_string())?
                     .top_inset;
             }
         }
-        shell_state.set_window_inset(top_inset as f32);
+        shell_state.set_window_inset((*top_inset) as f32);
         if workload.is_some() && extent.logical != (1440, 872) {
             return Err("Performance qualification requires a 1440x872 logical window".into());
         }
-        if first
+        if (*first)
             || workload.is_some()
             || resized
             || !events.is_empty()
@@ -615,12 +587,12 @@ fn open(window: &mut Window) -> Result<App, String> {
             || artwork_changed
             || artwork_updated
             || preferences_changed
-            || repaint.is_some_and(|time| now >= time)
+            || (*repaint).is_some_and(|time| now >= time)
         {
-            first = false;
-            let wire = encoded.encode(&events);
-            let interval =
-                trace_frames.then(|| lw_apple_sys::timing::FrameInterval::begin(frames as u64 + 1));
+            (*first) = false;
+            let wire = encoded.encode(events);
+            let interval = trace_frames
+                .then(|| lw_apple_sys::timing::FrameInterval::begin((*frames) as u64 + 1));
             let cpu_started = if workload.is_some() {
                 lw_apple_sys::thread_cpu_time_ns().map_err(|error| error.to_string())?
             } else {
@@ -647,7 +619,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             if workload.is_some() && status.waveform.is_none() {
                 return Err("Waveform disappeared during performance qualification".into());
             }
-            themes.apply(&mut ui, &status.settings, preferences);
+            themes.apply(&mut *ui, &status.settings, *preferences);
             let view = lw_ui::PlayerView {
                 command_theme: themes.command_field(),
                 files: Some(files.snapshot()),
@@ -659,15 +631,15 @@ fn open(window: &mut Window) -> Result<App, String> {
                 artwork: Some(graphics.images()),
                 waveform: status.waveform.as_ref(),
                 revision: if workload.is_some() {
-                    frames as u64
+                    (*frames) as u64
                 } else {
-                    status.revision + error_revision
+                    status.revision + (*error_revision)
                 },
                 title: &status.title,
                 context: status.context.title(),
-                message: command_error.unwrap_or(&status.message),
+                message: (*command_error).unwrap_or(&status.message),
                 playing: if matches!(workload, Some(Workload::SongIndicators)) {
-                    frames % 40 < 20
+                    (*frames) % 40 < 20
                 } else {
                     status.wants_playback
                 },
@@ -680,7 +652,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 artist: &status.artist,
                 album: &status.album,
                 position: if workload.is_some() {
-                    frames as f64
+                    (*frames) as f64
                 } else {
                     status.position
                 },
@@ -710,7 +682,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     event_count: wire.len(),
                     ..FrameIn::default()
                 },
-                &mut |ui| lw_ui::shell(ui, &view, player.catalog(), &shell_state, &mut intent),
+                &mut |ui| lw_ui::shell(ui, &view, player.catalog(), shell_state, &mut intent),
             )
             .map_err(|code| format!("Frame failed ({code})"))?;
             if matches!(workload, Some(Workload::Settings)) {
@@ -719,8 +691,9 @@ fn open(window: &mut Window) -> Result<App, String> {
                         "Settings input at frame {frames}: expected {expected_settings_intent:?}, got {intent:?}"
                     ));
                 }
-                settings_changes += usize::from(matches!(intent, Some(lw_ui::Intent::Setting(_))));
-                settings_themes |= 1
+                (*settings_changes) +=
+                    usize::from(matches!(intent, Some(lw_ui::Intent::Setting(_))));
+                (*settings_themes) |= 1
                     << (usize::from(
                         status.settings.appearance == lw_core::preferences::Appearance::Dark,
                     ) * 4
@@ -729,7 +702,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             if matches!(workload, Some(Workload::Drop)) && intent.is_some() {
                 return Err("External drag hover activated an application action".into());
             }
-            let mut image_requests = graphics.images().visible_requests(&ui);
+            let mut image_requests = graphics.images().visible_requests(ui);
             if let Some(media) = player.media_controls() {
                 media.request_artwork(&mut image_requests);
             }
@@ -752,8 +725,8 @@ fn open(window: &mut Window) -> Result<App, String> {
             artwork
                 .request(image_requests)
                 .map_err(|error| error.to_string())?;
-            if matches!(workload, Some(Workload::Waveform)) && frames >= 2 {
-                let phase = (frames - 2) % 20;
+            if matches!(workload, Some(Workload::Waveform)) && (*frames) >= 2 {
+                let phase = ((*frames) - 2) % 20;
                 if ui.captured() != (phase < 9) {
                     return Err("Waveform qualification lost held pointer capture".into());
                 }
@@ -761,7 +734,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     (9, Some(lw_ui::Intent::SeekFraction(value)))
                         if value.is_finite() && (0.0..=1.0).contains(&value) =>
                     {
-                        waveform_seeks += 1
+                        (*waveform_seeks) += 1
                     }
                     (9, _) => return Err("Waveform release did not commit a seek".into()),
                     (_, None) => {}
@@ -772,9 +745,9 @@ fn open(window: &mut Window) -> Result<App, String> {
                     }
                 }
             }
-            if matches!(workload, Some(Workload::QueueDrag)) && frames >= 2 {
+            if matches!(workload, Some(Workload::QueueDrag)) && (*frames) >= 2 {
                 let carrying = ui.carrying_ref();
-                let expected = (1..20).contains(&((frames - 2) % 40));
+                let expected = (1..20).contains(&(((*frames) - 2) % 40));
                 if expected != carrying.is_some()
                     || (expected
                         && (!ui.captured()
@@ -784,7 +757,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 {
                     return Err(format!(
                         "Queue carry did not survive the cross-page scroll or cancel correctly: frame={frames} phase={} expected={expected} captured={} kind={:?}",
-                        (frames - 2) % 40,
+                        ((*frames) - 2) % 40,
                         ui.captured(),
                         carrying.map(|p| p.kind)
                     ));
@@ -798,19 +771,19 @@ fn open(window: &mut Window) -> Result<App, String> {
             } else {
                 0
             };
-            platform.apply(window, &ui)?;
+            platform.apply(window, ui)?;
             let output_allocations = if trace_frames {
                 mem_sys::local_alloc_count() - before_output
             } else {
                 0
             };
-            frames += 1;
-            repaint = ui.repaint_at();
-            if workload.is_some() || ui.draw_revision() != revision {
-                if graphics.draw(window, &ui, trace_frames.then_some(&mut gpu_trace))? {
-                    draws += 1;
-                    revision = ui.draw_revision();
-                    if smoke && draws == 1 {
+            (*frames) += 1;
+            (*repaint) = ui.repaint_at();
+            if workload.is_some() || ui.draw_revision() != (*revision) {
+                if graphics.draw(window, ui, trace_frames.then_some(&mut gpu_trace))? {
+                    (*draws) += 1;
+                    (*revision) = ui.draw_revision();
+                    if smoke && (*draws) == 1 {
                         println!(
                             "LocalWave first frame: size={}x{} appearance={} reduced_motion={}",
                             extent.logical.0,
@@ -820,7 +793,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                         );
                     }
                 } else {
-                    repaint = Some(now + 1.0 / 60.0);
+                    (*repaint) = Some(now + 1.0 / 60.0);
                 }
             }
             if let Some(intent) = intent {
@@ -845,11 +818,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                             shell_state.apply(lw_ui::Intent::CloseRemoveSource);
                         }
                     }
-                    command_error = result
+                    (*command_error) = result
                         .err()
                         .map(|_| "Folder work is busy or unavailable. Try again.");
-                    error_revision += 1;
-                    repaint = Some(now);
+                    (*error_revision) += 1;
+                    (*repaint) = Some(now);
                     return Ok(Schedule::NextFrame);
                 }
                 if matches!(
@@ -866,8 +839,8 @@ fn open(window: &mut Window) -> Result<App, String> {
                         _ => files.snapshot().account.map(events::FolderPurpose::Add),
                     };
                     shell_state.apply(lw_ui::Intent::CloseSourceMenu);
-                    if folder_picker.is_none()
-                        && audio_picker.is_none()
+                    if (*folder_picker).is_none()
+                        && (*audio_picker).is_none()
                         && let Some(purpose) = purpose
                     {
                         let filters = if audio {
@@ -887,28 +860,28 @@ fn open(window: &mut Window) -> Result<App, String> {
                             Ok(id) => {
                                 if audio {
                                     if let events::FolderPurpose::Add(user) = purpose {
-                                        audio_picker = Some((id, user));
+                                        (*audio_picker) = Some((id, user));
                                     }
                                 } else {
-                                    folder_picker = Some((id, purpose));
+                                    (*folder_picker) = Some((id, purpose));
                                 }
-                                command_error = None;
+                                (*command_error) = None;
                             }
                             Err(_) => {
-                                command_error = Some("Could not open the music picker.");
+                                (*command_error) = Some("Could not open the music picker.");
                             }
                         }
-                        error_revision += 1;
-                        repaint = Some(now);
+                        (*error_revision) += 1;
+                        (*repaint) = Some(now);
                     }
                     return Ok(Schedule::NextFrame);
                 }
                 if intent == lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files) {
-                    command_error = files
+                    (*command_error) = files
                         .request(lw_ui::files::Request::Roots)
                         .err()
                         .map(|_| "Folders are unavailable. Try again.");
-                    error_revision += 1;
+                    (*error_revision) += 1;
                 }
                 if matches!(
                     intent,
@@ -930,11 +903,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                     } else {
                         lw_apple_sys::window::Link::Support
                     };
-                    command_error = lw_apple_sys::window::open_link(link)
+                    (*command_error) = lw_apple_sys::window::open_link(link)
                         .err()
                         .map(|_| "Could not open this link.");
-                    error_revision += 1;
-                    repaint = Some(now);
+                    (*error_revision) += 1;
+                    (*repaint) = Some(now);
                     return Ok(Schedule::NextFrame);
                 }
                 let command = if shell_state.apply(intent) {
@@ -1131,7 +1104,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 } else {
                     command.map_or(Ok(0), |command| player.command(command))
                 };
-                command_error = match result {
+                (*command_error) = match result {
                     Ok(_) => {
                         if matches!(intent, lw_ui::Intent::SaveQueue(_)) {
                             shell_state.apply(lw_ui::Intent::CancelPlaylistName);
@@ -1145,8 +1118,8 @@ fn open(window: &mut Window) -> Result<App, String> {
                         _ => return Err(error.to_string()),
                     }),
                 };
-                error_revision += 1;
-                repaint = Some(now);
+                (*error_revision) += 1;
+                (*repaint) = Some(now);
             }
             if trace_frames && workload.is_some() {
                 let keys = image_requests;
@@ -1154,7 +1127,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 for (out, key) in ids.iter_mut().zip(keys.keys()) {
                     *out = key.id;
                 }
-                frame_trace[frames - 1] = (
+                (*frame_trace)[(*frames) - 1] = (
                     if artwork_updated {
                         artwork.ready().map_or(0, |ready| ready.key.id)
                     } else {
@@ -1168,7 +1141,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     output_allocations,
                 );
             }
-            if matches!(workload, Some(Workload::Artwork)) && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::Artwork)) && (*frames) > WARMUP_FRAMES {
                 let image_quads = ui
                     .layers()
                     .map(|layer| {
@@ -1179,10 +1152,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                             .count()
                     })
                     .sum();
-                min_artwork_quads = min_artwork_quads.min(image_quads);
-                warm_artwork_requests = warm_artwork_requests.max(image_requests.keys().len());
+                (*min_artwork_quads) = (*min_artwork_quads).min(image_quads);
+                (*warm_artwork_requests) =
+                    (*warm_artwork_requests).max(image_requests.keys().len());
             }
-            if matches!(workload, Some(Workload::SongIndicators)) && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::SongIndicators)) && (*frames) > WARMUP_FRAMES {
                 let visible = ui.a11y_nodes().iter().any(|node| {
                     node.is_role(pxui::ui::Role::Image)
                         && matches!(ui.a11y_name_of(node), "Playing" | "Paused")
@@ -1214,14 +1188,14 @@ fn open(window: &mut Window) -> Result<App, String> {
                     if found != 3 {
                         return Err("Song indicator workload lost its three drawn bars".into());
                     }
-                    if (frames - 1) % 40 < 20 {
-                        indicator_playing += 1;
-                        indicator_changes += usize::from(
-                            indicator_previous.is_some_and(|previous| previous != heights),
+                    if ((*frames) - 1) % 40 < 20 {
+                        (*indicator_playing) += 1;
+                        (*indicator_changes) += usize::from(
+                            (*indicator_previous).is_some_and(|previous| previous != heights),
                         );
-                        indicator_previous = Some(heights);
+                        (*indicator_previous) = Some(heights);
                     } else {
-                        indicator_paused += 1;
+                        (*indicator_paused) += 1;
                         if heights
                             .iter()
                             .any(|height| (f32::from_bits(*height) - 4.4).abs() > 0.001)
@@ -1231,7 +1205,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                     }
                 }
             }
-            if matches!(workload, Some(Workload::Artists)) && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::Artists)) && (*frames) > WARMUP_FRAMES {
                 let mut rows = 0;
                 for node in ui
                     .a11y_nodes()
@@ -1244,16 +1218,16 @@ fn open(window: &mut Window) -> Result<App, String> {
                         .and_then(|label| label.parse::<usize>().ok())
                     {
                         if rows == 0 {
-                            first_artist_min = first_artist_min.min(index);
-                            first_artist_max = first_artist_max.max(index);
+                            (*first_artist_min) = (*first_artist_min).min(index);
+                            (*first_artist_max) = (*first_artist_max).max(index);
                         }
                         rows += 1;
                     }
                 }
-                min_artist_rows = min_artist_rows.min(rows);
-                max_artist_rows = max_artist_rows.max(rows);
+                (*min_artist_rows) = (*min_artist_rows).min(rows);
+                (*max_artist_rows) = (*max_artist_rows).max(rows);
             }
-            if matches!(workload, Some(Workload::Files)) && frames > WARMUP_FRAMES {
+            if matches!(workload, Some(Workload::Files)) && (*frames) > WARMUP_FRAMES {
                 let rows = ui
                     .layers()
                     .flat_map(|layer| layer.instances.iter())
@@ -1263,8 +1237,8 @@ fn open(window: &mut Window) -> Result<App, String> {
                             && (instance.rect[3] - instance.rect[1] - 36.0).abs() < 0.01
                     })
                     .count();
-                min_files_rows = min_files_rows.min(rows);
-                max_files_rows = max_files_rows.max(rows);
+                (*min_files_rows) = (*min_files_rows).min(rows);
+                (*max_files_rows) = (*max_files_rows).max(rows);
             }
             if matches!(workload, Some(Workload::Drop)) {
                 let overlays = ui
@@ -1282,11 +1256,11 @@ fn open(window: &mut Window) -> Result<App, String> {
                 if overlays != usize::from(file_drop.hovered()) {
                     return Err("External drag workload lost its actual overlay quad".into());
                 }
-                if frames > WARMUP_FRAMES {
-                    drop_overlay_frames += usize::from(file_drop.hovered());
+                if (*frames) > WARMUP_FRAMES {
+                    (*drop_overlay_frames) += usize::from(file_drop.hovered());
                 }
             }
-            if workload.is_some() && frames > WARMUP_FRAMES {
+            if workload.is_some() && (*frames) > WARMUP_FRAMES {
                 let bars = ui
                     .layers()
                     .flat_map(|layer| layer.instances.iter())
@@ -1294,10 +1268,10 @@ fn open(window: &mut Window) -> Result<App, String> {
                         instance.kind == pxui::draw::kind::RECT && instance.color[3] == 107
                     })
                     .count();
-                min_waveform_bars = min_waveform_bars.min(bars);
-                warm_allocations = warm_allocations.max(mem_sys::local_alloc_count());
-                warm_build_us = warm_build_us.max(build_us);
-                timings[frames - WARMUP_FRAMES - 1] = smoke::FrameTiming {
+                (*min_waveform_bars) = (*min_waveform_bars).min(bars);
+                (*warm_allocations) = (*warm_allocations).max(mem_sys::local_alloc_count());
+                (*warm_build_us) = (*warm_build_us).max(build_us);
+                (*timings)[(*frames) - WARMUP_FRAMES - 1] = smoke::FrameTiming {
                     wall: build_us,
                     cpu: cpu_us,
                     phases: if trace_frames {
@@ -1308,14 +1282,14 @@ fn open(window: &mut Window) -> Result<App, String> {
                 };
             }
         }
-        if workload.is_some() && frames >= WARMUP_FRAMES + MEASURED_FRAMES {
+        if workload.is_some() && (*frames) >= WARMUP_FRAMES + MEASURED_FRAMES {
             let artwork_bytes = graphics.resident_image_bytes();
             if let Some(graphics) = graphics_slot.take() {
                 graphics.close()?;
             }
             if trace_frames {
                 for (frame, (ready, keys, host, build, draw, gpu, output)) in
-                    frame_trace.iter().enumerate()
+                    (*frame_trace).iter().enumerate()
                 {
                     if matches!(workload, Some(Workload::Artwork))
                         && (*ready != 0 || *host + *build + *draw != 0 || keys[0] != 0)
@@ -1334,14 +1308,14 @@ fn open(window: &mut Window) -> Result<App, String> {
             }
             if trace_frames {
                 let mut out = std::io::stdout().lock();
-                for (index, sample) in timings.iter().enumerate() {
+                for (index, sample) in (*timings).iter().enumerate() {
                     sample
                         .write_outlier(WARMUP_FRAMES + index + 1, &mut out)
                         .map_err(|error| error.to_string())?;
                 }
             }
-            let mut build_samples = timings.map(|sample| sample.wall);
-            let mut cpu_samples = timings.map(|sample| sample.cpu);
+            let mut build_samples = (*timings).map(|sample| sample.wall);
+            let mut cpu_samples = (*timings).map(|sample| sample.cpu);
             build_samples.sort_unstable();
             cpu_samples.sort_unstable();
             println!(
@@ -1355,7 +1329,10 @@ fn open(window: &mut Window) -> Result<App, String> {
                 println!(
                     "LocalWave song indicator: visible_playing_frames={indicator_playing} visible_paused_frames={indicator_paused} changed_frames={indicator_changes}"
                 );
-                if indicator_playing < 20 || indicator_paused < 20 || indicator_changes < 10 {
+                if (*indicator_playing) < 20
+                    || (*indicator_paused) < 20
+                    || (*indicator_changes) < 10
+                {
                     return Err(
                         "Song indicator workload missed playback, pause or changing native draws"
                             .into(),
@@ -1366,7 +1343,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 println!(
                     "LocalWave settings: changes={settings_changes} themes={settings_themes:#04x}"
                 );
-                if settings_changes != 45 || settings_themes != 255 {
+                if (*settings_changes) != 45 || (*settings_themes) != 255 {
                     return Err("Settings workload missed an action or theme".into());
                 }
             }
@@ -1374,9 +1351,9 @@ fn open(window: &mut Window) -> Result<App, String> {
                 println!(
                     "LocalWave artists: prepared_rows=10000 min_rows={min_artist_rows} max_rows={max_artist_rows} first_min={first_artist_min} first_max={first_artist_max}"
                 );
-                if min_artist_rows < 12
-                    || max_artist_rows > 40
-                    || first_artist_min >= first_artist_max
+                if (*min_artist_rows) < 12
+                    || (*max_artist_rows) > 40
+                    || (*first_artist_min) >= (*first_artist_max)
                 {
                     return Err("Artist workload did not scroll its measured virtual table".into());
                 }
@@ -1385,7 +1362,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 println!(
                     "LocalWave files: indexed_rows=10000 min_drawn_rows={min_files_rows} max_drawn_rows={max_files_rows}"
                 );
-                if min_files_rows < 8 || max_files_rows > 40 {
+                if (*min_files_rows) < 8 || (*max_files_rows) > 40 {
                     return Err("Files workload did not draw its virtualized rows".into());
                 }
             }
@@ -1393,14 +1370,14 @@ fn open(window: &mut Window) -> Result<App, String> {
                 println!(
                     "LocalWave external drop: measured_overlay_frames={drop_overlay_frames} mutation_jobs=0"
                 );
-                if drop_overlay_frames != 50 {
+                if (*drop_overlay_frames) != 50 {
                     return Err(
                         "External drag workload missed an overlay/cancellation cycle".into(),
                     );
                 }
             }
             if matches!(workload, Some(Workload::Waveform))
-                && (waveform_seeks != 9 || min_waveform_bars < 200)
+                && ((*waveform_seeks) != 9 || (*min_waveform_bars) < 200)
             {
                 return Err("Waveform qualification did not exercise all nine scrub cycles".into());
             }
@@ -1418,7 +1395,8 @@ fn open(window: &mut Window) -> Result<App, String> {
                 println!(
                     "LocalWave artwork: texture_bytes={artwork_bytes} min_image_quads={min_artwork_quads} max_warm_requests={warm_artwork_requests}"
                 );
-                if artwork_bytes == 0 || min_artwork_quads < 10 || warm_artwork_requests != 0 {
+                if artwork_bytes == 0 || (*min_artwork_quads) < 10 || (*warm_artwork_requests) != 0
+                {
                     return Err(
                         "Artwork workload did not retain its warmed image working set".into(),
                     );
@@ -1426,7 +1404,7 @@ fn open(window: &mut Window) -> Result<App, String> {
             }
             if trace_frames {
                 let mut phase_samples: [[u64; MEASURED_FRAMES]; 7] =
-                    std::array::from_fn(|phase| timings.map(|sample| sample.phases[phase]));
+                    std::array::from_fn(|phase| (*timings).map(|sample| sample.phases[phase]));
                 for samples in &mut phase_samples {
                     samples.sort_unstable();
                 }
@@ -1441,9 +1419,9 @@ fn open(window: &mut Window) -> Result<App, String> {
                     phase_samples[6][49]
                 );
             }
-            if draws != WARMUP_FRAMES + MEASURED_FRAMES
-                || warm_allocations != 0
-                || warm_build_us >= smoke::FRAME_BUILD_LIMIT_US
+            if (*draws) != WARMUP_FRAMES + MEASURED_FRAMES
+                || (*warm_allocations) != 0
+                || (*warm_build_us) >= smoke::FRAME_BUILD_LIMIT_US
             {
                 return Err("Warm frame performance budget exceeded".into());
             }
@@ -1458,7 +1436,7 @@ fn open(window: &mut Window) -> Result<App, String> {
         }
         if smoke
             && player.status().initialized
-            && smoke_check.observe(observed_at, frames, draws, repaint.is_some())?
+            && smoke_check.observe(observed_at, *frames, *draws, (*repaint).is_some())?
         {
             println!(
                 "LocalWave smoke: frames={frames} draws={draws} size={}x{} idle_ms={:.1}",
@@ -1466,7 +1444,7 @@ fn open(window: &mut Window) -> Result<App, String> {
                 extent.logical.1,
                 smoke_check.idle_ms(observed_at)
             );
-            smoke_finished = true;
+            (*smoke_finished) = true;
             return Ok(Schedule::Exit);
         }
         if workload.is_some() {
@@ -1474,9 +1452,9 @@ fn open(window: &mut Window) -> Result<App, String> {
         }
         let deadline = if smoke {
             let deadline = smoke_check.deadline();
-            Some(repaint.unwrap_or(deadline).min(deadline))
+            Some((*repaint).unwrap_or(deadline).min(deadline))
         } else {
-            repaint
+            *repaint
         };
         let progress = player
             .poll_interval()
@@ -1485,15 +1463,11 @@ fn open(window: &mut Window) -> Result<App, String> {
             (Some(a), Some(b)) => Some(a.min(b)),
             (a, b) => a.or(b),
         }))
-    });
-    Ok(App {
-        callback,
-        _fixture: fixture,
-    })
+    }
 }
 
 fn run() -> Result<(), String> {
-    let mut app: Option<App> = None;
+    let mut app: Option<Box<App>> = None;
     let (width, height) = if cfg!(target_os = "ios") {
         (390, 778)
     } else {
@@ -1510,13 +1484,13 @@ fn run() -> Result<(), String> {
             }
             if signal == Signal::Finish {
                 if let Some(mut app) = app.take() {
-                    (app.callback)(window, signal)?;
+                    app.frame(window, signal)?;
                 }
                 return Ok(Schedule::Exit);
             }
-            (app.as_mut()
+            app.as_mut()
                 .ok_or("LocalWave was not initialized")?
-                .callback)(window, signal)
+                .frame(window, signal)
         }),
     )
 }
