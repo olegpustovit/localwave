@@ -20,8 +20,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C1.4c | Extract driver/report and production App | done | bf16b90 |
 | C1.5 | Split controller and command families | done | 8a0a83e |
 | C1.6 | Reasonable module boundaries; no line-count gate | done | d85b8f8 |
-| C2 | Labels, module description and test contention | done | HEAD |
-| B1 | Extract SQLite; remove core Apple dependency | todo | — |
+| C2 | Labels, module description and test contention | done | 0ea2899 |
+| B1 | Extract SQLite; remove core Apple dependency | done | HEAD |
 | B2 | Framework text identity and pixel rounding | todo | — |
 | B3 | Repeating retained keyframes and indicators | todo | — |
 | B4 | Framework scrub signal for seek/volume | todo | — |
@@ -84,8 +84,10 @@ not passes; native/process allocation behavior remains unqualified. Previous mea
 
 ## Known gaps
 
-- Boundary B1–B7 and performance P1–P6 precede new feature work.
+- Boundary B2–B7 and performance P1–P6 precede new feature work.
   The full strict latency gate still fails; cold shaping, native memory and build budgets need evidence.
+- Shared Swift checks fail two child source-notification tests, also in an isolated run on unchanged
+  Swift sources. Six Swift/Rust exchange cases pass; native notification delivery remains unresolved.
 - F1: global Space/S/R/I/L, open/find/new-list, navigation and seek shortcuts.
 - F2: favorite toggle entry points and retained favorite burst.
 - F3: Play next, playlist submenu, album/artist routing, native reveal, per-song offline/retry,

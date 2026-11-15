@@ -1,7 +1,7 @@
 use crate::repository::{SONG_COLUMNS, prefix_query, read_song, required};
 use crate::{LibraryRepository, Playlist, Song, Source, SourcePath, User};
 use Value::{Blob, Integer, Null, Real, Text};
-use lw_apple_sys::sqlite::{Connection, Error, Result, Row, Value};
+use lw_sqlite::{Connection, Error, Result, Row, Value};
 use std::collections::{HashMap, HashSet};
 
 // SQLite.swift Date columns are UTC text with millisecond precision; song dates are numeric.

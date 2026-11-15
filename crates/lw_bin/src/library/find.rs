@@ -65,7 +65,7 @@ impl Find {
         &self,
         repository: &LibraryRepository,
         catalog: &Catalog,
-    ) -> lw_apple_sys::sqlite::Result<Candidates> {
+    ) -> lw_sqlite::Result<Candidates> {
         self.prepare_ordered(repository, catalog, false)
     }
 
@@ -73,7 +73,7 @@ impl Find {
         &self,
         repository: &LibraryRepository,
         catalog: &Catalog,
-    ) -> lw_apple_sys::sqlite::Result<Candidates> {
+    ) -> lw_sqlite::Result<Candidates> {
         self.prepare_ordered(repository, catalog, true)
     }
 
@@ -82,7 +82,7 @@ impl Find {
         repository: &LibraryRepository,
         catalog: &Catalog,
         ranked: bool,
-    ) -> lw_apple_sys::sqlite::Result<Candidates> {
+    ) -> lw_sqlite::Result<Candidates> {
         let mut out = Candidates::default();
         if self.empty {
             return Ok(out);
@@ -521,18 +521,16 @@ mod tests {
             *song = worker.repository.upsert_song(song, 1.0).unwrap();
             if let Some(path) = invalid {
                 // Simulate pre-validation legacy rows without weakening the production write boundary.
-                lw_apple_sys::sqlite::Connection::open(
-                    base.join("library.sqlite").to_str().unwrap(),
-                )
-                .unwrap()
-                .execute(
-                    "UPDATE songs SET relativePath=? WHERE id=?",
-                    &[
-                        lw_apple_sys::sqlite::Value::Text(&path),
-                        lw_apple_sys::sqlite::Value::Integer(song.id.unwrap()),
-                    ],
-                )
-                .unwrap();
+                lw_sqlite::Connection::open(base.join("library.sqlite").to_str().unwrap())
+                    .unwrap()
+                    .execute(
+                        "UPDATE songs SET relativePath=? WHERE id=?",
+                        &[
+                            lw_sqlite::Value::Text(&path),
+                            lw_sqlite::Value::Integer(song.id.unwrap()),
+                        ],
+                    )
+                    .unwrap();
             }
         }
         let id = |index: usize| songs[index].id.unwrap();

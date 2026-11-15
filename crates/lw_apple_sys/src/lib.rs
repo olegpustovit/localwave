@@ -4,7 +4,7 @@
 //! Native-service diagnostics use isolated temporary files/private media fixtures.
 //!
 //! Safe access to native platform services.
-pub mod sqlite;
+pub use lw_sqlite as sqlite;
 
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod collation;

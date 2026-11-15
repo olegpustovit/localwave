@@ -1,6 +1,6 @@
 //! Worker-only cache metadata and pure eviction policy; no filesystem or provider latency.
-use lw_apple_sys::sqlite::Connection;
 use lw_core::{LibraryRepository, cache};
+use lw_sqlite::Connection;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

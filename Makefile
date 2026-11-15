@@ -27,7 +27,7 @@ install: bundle
 check: target/sdl/lib/libSDL3.a
 	python3 packaging/test_ios.py
 	python3 tools/test_split_rs.py
-	cargo t -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin
+	cargo t -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin
 	tools/check-pxui-remote.sh
 
 performance: PROFILE = release

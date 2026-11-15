@@ -1,6 +1,6 @@
 //! Persisted values and queue restoration policy; the application supplies native storage.
 use crate::{LibraryRepository, Song};
-use lw_apple_sys::sqlite::Result;
+use lw_sqlite::Result;
 use std::io;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]

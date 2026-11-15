@@ -35,6 +35,7 @@ version = "0.1.0"
 dependencies = [
  "cc",
  "file_access_sys",
+ "lw_sqlite",
  "mem_sys",
 ]
 
@@ -45,6 +46,7 @@ dependencies = [
  "input",
  "lw_apple_sys",
  "lw_core",
+ "lw_sqlite",
  "lw_ui",
  "mem_sys",
  "ogpu_core",
@@ -59,8 +61,13 @@ name = "lw_core"
 version = "0.1.0"
 dependencies = [
  "lw_apple_sys",
+ "lw_sqlite",
  "mem_sys",
 ]
+
+[[package]]
+name = "lw_sqlite"
+version = "0.1.0"
 
 [[package]]
 name = "lw_ui"

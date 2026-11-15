@@ -55,7 +55,7 @@ impl Commands {
         &self,
         repository: &LibraryRepository,
         catalog: &Catalog,
-    ) -> lw_apple_sys::sqlite::Result<Prepared> {
+    ) -> lw_sqlite::Result<Prepared> {
         let user = catalog
             .source_identity
             .map(|id| repository.user(id))

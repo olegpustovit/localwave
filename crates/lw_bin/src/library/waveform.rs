@@ -128,7 +128,7 @@ impl LibraryWorker {
 mod tests {
     use super::*;
     use lw_apple_sys::preferences::{AppPaths, Preferences};
-    use lw_apple_sys::sqlite::{Connection, Value};
+    use lw_sqlite::{Connection, Value};
     use std::path::Path;
     use std::sync::atomic::Ordering;
 

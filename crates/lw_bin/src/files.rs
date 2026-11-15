@@ -967,11 +967,11 @@ mod tests {
                 )
                 .unwrap();
             // Exercise a real legacy row whose identity must migrate before reconnecting its root.
-            lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())
+            lw_sqlite::Connection::open(database.to_str().unwrap())
                 .unwrap()
                 .execute(
                     "UPDATE songs SET sourceId=NULL,relativePath=NULL WHERE id=?",
-                    &[lw_apple_sys::sqlite::Value::Integer(id)],
+                    &[lw_sqlite::Value::Integer(id)],
                 )
                 .unwrap();
             (id, list.id, source, other_song)

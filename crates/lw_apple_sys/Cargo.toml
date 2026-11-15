@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 file_access_sys = { path = "../../pxui/crates/open/file_access_sys" }
+lw_sqlite = { path = "../lw_sqlite" }
 
 [features]
 interop-test = []

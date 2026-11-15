@@ -19,11 +19,7 @@ use lw_ui::catalog::Catalog;
 use std::cmp::Ordering;
 use std::io;
 
-fn load(
-    repository: &LibraryRepository,
-    count: usize,
-    identity: i64,
-) -> lw_apple_sys::sqlite::Result<Catalog> {
+fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlite::Result<Catalog> {
     let songs = repository.search_songs("", count, 0)?;
     let mut catalog = Catalog::new(songs);
     let source_count = repository
@@ -276,11 +272,11 @@ mod tests {
                     .unwrap(),
             );
         }
-        let external = lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap()).unwrap();
+        let external = lw_sqlite::Connection::open(database.to_str().unwrap()).unwrap();
         external
             .execute(
                 "INSERT INTO songs_fts(songId,title) VALUES (?,'Track 10')",
-                &[lw_apple_sys::sqlite::Value::Integer(ids[0])],
+                &[lw_sqlite::Value::Integer(ids[0])],
             )
             .unwrap();
         let catalog = worker.catalog().unwrap();

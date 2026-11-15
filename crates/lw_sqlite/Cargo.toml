@@ -1,0 +1,8 @@
+[package]
+name = "lw_sqlite"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true

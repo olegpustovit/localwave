@@ -445,7 +445,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     }
     let database = base.join("library.sqlite");
     std::thread::spawn(move || {
-        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+        lw_sqlite::Connection::open(database.to_str().unwrap())?
             .execute_batch("ALTER TABLE playlists RENAME TO unavailable_playlists")
     })
     .join()
@@ -479,7 +479,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     }
     let database = base.join("library.sqlite");
     std::thread::spawn(move || {
-        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+        lw_sqlite::Connection::open(database.to_str().unwrap())?
             .execute_batch("ALTER TABLE unavailable_playlists RENAME TO playlists")
     })
     .join()
@@ -842,7 +842,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     })?;
     let database = base.join("library.sqlite");
     std::thread::spawn(move || {
-        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+        lw_sqlite::Connection::open(database.to_str().unwrap())?
             .execute_batch("ALTER TABLE songs RENAME TO unavailable_songs")
     })
     .join()
@@ -868,7 +868,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     drop(database_failed);
     let database = base.join("library.sqlite");
     std::thread::spawn(move || {
-        lw_apple_sys::sqlite::Connection::open(database.to_str().unwrap())?
+        lw_sqlite::Connection::open(database.to_str().unwrap())?
             .execute_batch("ALTER TABLE unavailable_songs RENAME TO songs")
     })
     .join()

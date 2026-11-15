@@ -1,11 +1,9 @@
 //! Invoked by the Swift compatibility check against a temporary fixture database.
-use lw_apple_sys::{
-    normalized_file_url,
-    sqlite::{Connection, Error},
-};
+use lw_apple_sys::normalized_file_url;
 use lw_core::{
     FileAvailability, FileState, LibraryRepository, Song, SourcePath, hash_string, song_key,
 };
+use lw_sqlite::{Connection, Error};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let path = std::env::args()

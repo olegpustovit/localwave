@@ -5,9 +5,10 @@ edition.workspace = true
 license = "MIT AND Unicode-3.0"
 
 [dependencies]
-lw_apple_sys = { path = "../lw_apple_sys" }
+lw_sqlite = { path = "../lw_sqlite" }
 
 [dev-dependencies]
+lw_apple_sys = { path = "../lw_apple_sys" }
 mem_sys = { path = "../../pxui/crates/open/mem_sys" }
 
 [lints]

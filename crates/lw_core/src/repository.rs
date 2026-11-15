@@ -6,7 +6,7 @@
 //!
 use crate::{FileAvailability, FileState, Song};
 use Value::{Blob, Integer, Null, Real, Text};
-use lw_apple_sys::sqlite::{Connection, Error, Result, Row, Value};
+use lw_sqlite::{Connection, Error, Result, Row, Value};
 use std::collections::HashMap;
 
 pub(crate) const SONG_COLUMNS: &str = "s.id,s.songKey,s.artist,s.title,s.album,s.albumArtist,s.releaseYear,s.discNumber,s.trackNumber,s.coverArtPath,s.bookmark,s.pathHash,s.createdAt,s.updatedAt,s.localFilePath,s.fileState,s.isFavorite,s.sourceId,s.relativePath,s.duration,s.fileSize,s.fileExtension,s.sampleRate,s.bitDepth,s.sourceAvailability";

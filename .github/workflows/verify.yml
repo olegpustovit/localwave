@@ -29,9 +29,9 @@ jobs:
       - name: Check iOS development commands (offline)
         run: python3 packaging/test_ios.py
       - name: Check Rust formatting
-        run: cargo fmt -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --check
+        run: cargo fmt -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --check
       - name: Check Rust core and warm shell allocation contract
-        run: cargo t -p lw_core -p lw_apple_sys -p lw_ui
+        run: cargo t -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui
       - name: Check Swift and Rust database exchange
         run: tools/check-database-compatibility.sh
       - name: Build signed sandboxed Rust bundle
@@ -39,7 +39,7 @@ jobs:
       - name: Check warmed host input allocation contract
         run: cargo t -p lw_bin
       - name: Check Rust lints
-        run: cargo clippy --locked -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --all-targets --features lw_apple_sys/interop-test -- -D warnings
+        run: cargo clippy --locked -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --all-targets --features lw_apple_sys/interop-test -- -D warnings
   shared:
     runs-on: macos-26
     steps:

@@ -16,6 +16,7 @@ path = "src/playback.rs"
 [dependencies]
 lw_ui = { path = "../lw_ui" }
 lw_core = { path = "../lw_core" }
+lw_sqlite = { path = "../lw_sqlite" }
 lw_apple_sys = { path = "../lw_apple_sys" }
 mem_sys = { path = "../../pxui/crates/open/mem_sys" }
 pxui = { path = "../../pxui/crates/public/pxui" }

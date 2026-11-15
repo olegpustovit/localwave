@@ -1,5 +1,5 @@
 //! Swift-compatible waveform rows; decoding and source access belong to a worker.
-use lw_apple_sys::sqlite::{Connection, Error, Result, Value};
+use lw_sqlite::{Connection, Error, Result, Value};
 use std::fmt::Write;
 
 pub const PEAK_COUNT: usize = 512;

@@ -89,7 +89,7 @@ pub struct Summary {
     pub deferred: usize,
 }
 
-fn db_error(error: lw_apple_sys::sqlite::Error) -> io::Error {
+fn db_error(error: lw_sqlite::Error) -> io::Error {
     io::Error::other(error)
 }
 

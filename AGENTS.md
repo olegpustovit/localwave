@@ -15,7 +15,7 @@ language mode, iOS 18 app floor and iOS 18.2+ test simulator. Tests retain `musi
 
 | Loop | Command | Warm wall budget |
 | --- | --- | --- |
-| Rust | `cargo t -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin` | 60 s/run, 5 s/case |
+| Rust | `cargo t -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin` | 60 s/run, 5 s/case |
 | Swift shared | `swift test --parallel` | 30 s |
 | iOS logic changes | `xcodebuild … -only-testing:musicappTests test` | 90 s |
 | UI flows | Full simulator plan, manual Verify workflow | On demand |
@@ -27,6 +27,7 @@ Use `scripts/build-unsigned-ipa.sh` for the shipping unsigned device IPA.
 
 ## Source map
 
+- `lw_sqlite`: system SQLite FFI, statement lifetimes and transaction rollback; no Apple dependency.
 - `lw_core`: models, SQLite repositories, FTS5/BM25, import, cache and playback policy.
 - `lw_apple_sys`: native Apple FFI, bookmarks, playback, preferences and coordinated file services.
 - `lw_ui`: screens, app bodies, theme/motion tokens and navigation state through public pxui.
@@ -44,10 +45,11 @@ pxui owns reusable layout, widgets, editing, animation, text, rendering and touc
 
 Allowed production dependencies (plus std):
 
-- `lw_core`: currently `lw_apple_sys` for SQLite; plan B1 replaces this with `lw_sqlite`.
-- `lw_apple_sys`: `file_access_sys`; `cc` for native builds.
+- `lw_sqlite`: std only, linked to system sqlite3.
+- `lw_core`: `lw_sqlite`; Apple import fixtures use `lw_apple_sys` only in dev-dependencies.
+- `lw_apple_sys`: `file_access_sys`, `lw_sqlite` (existing public re-export); `cc` for native builds.
 - `lw_ui`: `lw_core`, public `pxui`, `input`; no private engine/GPU imports or unsafe code.
-- `lw_bin`: application crates, `pxui`, `pxui_sdl`, `pxui_host`, `input`, `mem_sys`.
+- `lw_bin`: application crates including `lw_sqlite`, `pxui`, `pxui_sdl`, `pxui_host`, `input`, `mem_sys`.
   Existing GPU test-only dependencies are removed by B7; add none to production.
 
 ## Performance contract

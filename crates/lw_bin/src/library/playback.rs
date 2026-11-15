@@ -374,7 +374,7 @@ mod tests {
         ] {
             assert!(!file_failure(&io::Error::from(kind)));
         }
-        assert!(!file_failure(&db(lw_apple_sys::sqlite::Error::invalid(
+        assert!(!file_failure(&db(lw_sqlite::Error::invalid(
             "database error"
         ))));
         for kind in [
@@ -854,8 +854,7 @@ mod tests {
             )
             .unwrap();
         let peer =
-            lw_apple_sys::sqlite::Connection::open(base.join("library.sqlite").to_str().unwrap())
-                .unwrap();
+            lw_sqlite::Connection::open(base.join("library.sqlite").to_str().unwrap()).unwrap();
         peer.execute_batch(&format!("CREATE TRIGGER replace_preparing_cache AFTER UPDATE OF localFilePath ON songs WHEN NEW.id={} BEGIN UPDATE songs SET localFilePath='Added Files/track.m4a' WHERE id=NEW.id; END;", replacement.id.unwrap())).unwrap();
         let error = worker
             .prepare_playback(replacement.id.unwrap(), 123, 123, 3.0, &cancel)

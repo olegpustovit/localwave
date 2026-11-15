@@ -1,6 +1,6 @@
 //! Worker-side library workload; warmed UI frames have their own zero-allocation gate.
-use lw_apple_sys::sqlite::Connection;
 use lw_core::LibraryRepository;
+use lw_sqlite::Connection;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
