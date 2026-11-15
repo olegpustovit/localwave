@@ -362,7 +362,9 @@ device/provider behavior remain open.
   menu extras (Play, Shuffle, Duplicate, Keep offline) are not ported. Deleting a list returns to
   Songs because routes address lists by position.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
-- F7: compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
+- F7: edge-scrolling Up next into unseen rows during a song carry allocated (17 draw-phase
+  allocations, found by the F-gate workload); the matrix sweeps within the list and does not cover it.
+  Compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
 - F8: the editor omits disc number (kept untouched) and has no compact-layout scrolling; Delete Album
   (Swift's album-cell menu) has no Rust album menu or command; deleting a queued song keeps its queue
   occurrence, as source removal does. Edit info and Delete act on the clicked song only.

@@ -539,10 +539,11 @@ fn song_drag_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Re
         }
         12..=19 => {
             let queue = center(ui, Role::List, |name| name == "Up next queue", "Up next list")?;
-            // Horizontal moves only: vertical motion over a carried-into list scrolls it, which
-            // would show new rows every cycle instead of a repeating workload.
-            let y = center(ui, Role::Button, |name| name.starts_with(super::setup::LIST_NAME), "sidebar list")?.1;
-            events.push(Event::PointerMoved((queue.0 + jitter, y)));
+            // Sweep down across the list as a user would aim a drop.
+            events.push(Event::PointerMoved((
+                queue.0 + jitter,
+                queue.1 + (phase - 12) as f64 * 12.0,
+            )));
         }
         20 => events.push(Event::KeyPressed(Key::Escape)),
         21 => {
