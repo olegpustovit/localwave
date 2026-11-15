@@ -15,6 +15,7 @@
 //!
 mod events;
 mod gpu;
+mod perf;
 mod smoke;
 
 use input::Event as HostEvent;
@@ -51,6 +52,7 @@ fn open(window: &mut Window) -> Result<App, String> {
     // Two layout frames, then two complete wheel cycles before the measured cycles.
     const WARMUP_FRAMES: usize = 82;
     const MEASURED_FRAMES: usize = 100;
+    perf::Workload::from_args(&std::env::args().collect::<Vec<_>>())?;
     let smoke = std::env::args().any(|arg| arg == "--smoke-test");
     let performance = std::env::args().any(|arg| arg == "--performance-check");
     if cfg!(target_os = "ios") && performance {
