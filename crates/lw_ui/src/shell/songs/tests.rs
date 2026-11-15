@@ -626,6 +626,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
     })
     .unwrap();
     assert_eq!(intent, None, "stale menu cannot append a different row");
+    changed.prepare_remap(&catalog);
     state.refresh(&catalog, &changed);
     assert!(state.song_menu.is_none());
 }
@@ -650,6 +651,11 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
             },
         ])
     });
+    let mut catalogs = catalogs;
+    let previous = catalogs[0].clone();
+    catalogs[1].prepare_remap(&previous);
+    let previous = catalogs[1].clone();
+    catalogs[0].prepare_remap(&previous);
     let mut state = ShellState::default();
     let player = PlayerView::default();
     let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);

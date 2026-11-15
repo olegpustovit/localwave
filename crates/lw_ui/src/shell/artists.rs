@@ -372,7 +372,7 @@ mod tests {
                 .collect(),
         );
         catalog.prepare_tables().unwrap();
-        let table = catalog.artist_table.as_ref().unwrap();
+        let table = catalog.artist_table.as_ref().unwrap().clone();
         assert_eq!(table.rows[0].albums, "Alpha, Beta, Gamma");
         assert_eq!(table.rows[0].minutes, "2 min");
         let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
@@ -400,6 +400,7 @@ mod tests {
         assert!(ui.a11y_nodes().iter().any(|node| node.is_role(Role::Label)
             && node.rect.x >= 232.0
             && ui.a11y_name_of(node) == "Artists"));
+        catalog.prepare_remap(&pending);
         state.refresh(&pending, &catalog);
         for _ in 0..3 {
             ui.frame(&frame, &mut |ui| {

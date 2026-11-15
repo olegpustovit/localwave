@@ -141,67 +141,16 @@ impl ShellState {
             );
             self.revision = self.revision.wrapping_add(1);
         }
-        let same_view = match (&previous.view, &next.view) {
-            (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
-            (None, None) => true,
-            _ => false,
-        };
-        if std::sync::Arc::ptr_eq(&previous.library, &next.library) && same_view {
+        if previous.same_page(next) {
             return;
         }
+        let remap = next.remap.as_ref().expect("worker-prepared catalog remap");
+        assert!(
+            remap.matches(previous, next),
+            "catalog remap must match both pages"
+        );
         self.song_menu = None;
-        let old = self.collection(previous);
-        let selected = old.and_then(|group| {
-            self.selected
-                .and_then(|index| group.ids.get(index).copied())
-        });
-        let occurrence = old.zip(self.selected).map_or(0, |(group, index)| {
-            group.ids[..index.min(group.ids.len())]
-                .iter()
-                .filter(|id| Some(**id) == selected)
-                .count()
-        });
-        let same = |group: &crate::catalog::Collection| {
-            old.is_some_and(|old| match (&*old.context, &*group.context) {
-                (
-                    lw_core::context::PlaybackContext::Playlist { id: a, .. },
-                    lw_core::context::PlaybackContext::Playlist { id: b, .. },
-                ) => a == b,
-                (a, b) => a == b,
-            })
-        };
-        self.route = match self.route {
-            Route::Album(_) => next
-                .albums
-                .iter()
-                .position(same)
-                .map_or(Route::Albums, Route::Album),
-            Route::Artist(_) => next
-                .artists
-                .iter()
-                .position(same)
-                .map_or(Route::Artists, Route::Artist),
-            Route::Collection(_) => next
-                .collections
-                .iter()
-                .position(same)
-                .map_or(Route::Songs, Route::Collection),
-            route => route,
-        };
-        self.selected = self
-            .collection(next)
-            .filter(|group| same(group))
-            .and_then(|group| {
-                selected.and_then(|selected| {
-                    group
-                        .ids
-                        .iter()
-                        .enumerate()
-                        .filter(|(_, id)| **id == selected)
-                        .nth(occurrence)
-                        .map(|(index, _)| index)
-                })
-            });
+        (self.route, self.selected) = remap.resolve(self.route, self.selected, self.query);
         self.revision = self.revision.wrapping_add(1);
     }
 

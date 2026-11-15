@@ -114,6 +114,7 @@ fn shared() -> Arc<Shared> {
         audio_session: lw_apple_sys::session::Session::open(wake).unwrap(),
         inbox: Mutex::new(Inbox {
             catalog: None,
+            presented_catalog: Arc::new(Catalog::default()),
             catalog_pending: false,
             retired_catalog: None,
             commands: VecDeque::new(),
@@ -436,7 +437,8 @@ fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
     };
     let mut current = Arc::new(catalog);
     let old = Arc::downgrade(&current);
-    shared.inbox.lock().unwrap().catalog = Some(Arc::new(Catalog::new(Vec::new())));
+    shared.inbox.lock().unwrap().presented_catalog = current.clone();
+    shared.publish_catalog(&Catalog::new(Vec::new()));
     // Warm the condition variable before measuring exchanges.
     shared.changed.notify_one();
     mem_sys::local_reset();
@@ -454,7 +456,7 @@ fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
         1,
         "only the worker's retirement slot keeps the old catalog alive"
     );
-    shared.inbox.lock().unwrap().catalog = Some(Arc::new(Catalog::default()));
+    shared.publish_catalog(&Catalog::default());
     assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("retirement backpressure")));
     assert!(shared.inbox.lock().unwrap().catalog.is_some());
     assert_eq!(
@@ -488,6 +490,83 @@ fn catalog_handoff_is_bounded_and_leaves_old_storage_for_the_worker() {
         inbox.closed = true;
     }
     assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("closed mailbox")));
+}
+
+#[test]
+fn coalesced_catalog_remaps_follow_the_presented_base_even_during_repair() {
+    let catalog = |ids: &[i64]| {
+        Catalog::new(
+            ids.iter()
+                .map(|id| lw_core::Song {
+                    id: Some(*id),
+                    ..Default::default()
+                })
+                .collect(),
+        )
+    };
+    let shared = shared();
+    let mut current = Arc::new(catalog(&[1, 2]));
+    shared.inbox.lock().unwrap().presented_catalog = current.clone();
+    let mut state = lw_ui::ShellState::default();
+    state.selected = Some(1);
+    shared.publish_catalog(&catalog(&[2, 1, 0]));
+    let mut latest = catalog(&[0, 1, 2]);
+    shared.publish_catalog(&latest);
+    let remap = shared
+        .inbox
+        .lock()
+        .unwrap()
+        .catalog
+        .as_ref()
+        .unwrap()
+        .remap
+        .clone()
+        .unwrap();
+    latest.source_version = Some(42);
+    shared.publish_catalog(&latest);
+    assert!(
+        Arc::ptr_eq(
+            &remap,
+            shared
+                .inbox
+                .lock()
+                .unwrap()
+                .catalog
+                .as_ref()
+                .unwrap()
+                .remap
+                .as_ref()
+                .unwrap()
+        ),
+        "unchanged page publications reuse the prepared remap while the UI is behind"
+    );
+    assert!(shared.update_catalog(&mut current, &mut |previous, next| {
+        state.refresh(previous, next);
+        assert_eq!(state.selected, Some(2));
+        assert!(shared.inbox.try_lock().is_ok());
+        // Deterministic worker publication while UI repair still borrows the previous page.
+        shared.publish_catalog(&catalog(&[2, 1]));
+    }));
+    {
+        let inbox = shared.inbox.lock().unwrap();
+        let pending = inbox.catalog.as_ref().unwrap();
+        assert!(pending.remap.as_ref().unwrap().matches(&current, pending));
+        assert!(inbox.retired_catalog.is_some());
+    }
+    assert!(!shared.update_catalog(&mut current, &mut |_, _| panic!("retirement backpressure")));
+    let retired = shared.inbox.lock().unwrap().retired_catalog.take();
+    drop(retired);
+    assert!(shared.update_catalog(&mut current, &mut |previous, next| {
+        state.refresh(previous, next)
+    }));
+    assert_eq!(state.selected, Some(0));
+    assert_eq!(
+        current
+            .collection(lw_ui::catalog::Route::Songs)
+            .unwrap()
+            .ids[0],
+        2
+    );
 }
 #[test]
 fn offline_commands_copy_on_the_library_worker_preserve_playback_and_release_pins() {

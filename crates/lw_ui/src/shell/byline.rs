@@ -89,26 +89,37 @@ pub(super) fn draw(
                     w: Size::Px(rect.w),
                     h: Size::Px(rect.h),
                     at: Some((rect.x, rect.y)).into(),
-                    inset: Edges { t: if link { 2.0 } else { 0.0 }, ..Edges::ZERO },
-                    look: Look { text: p.secondary, ..Look::NONE },
+                    inset: Edges {
+                        t: if link { 2.0 } else { 0.0 },
+                        ..Edges::ZERO
+                    },
+                    look: Look {
+                        text: p.secondary,
+                        ..Look::NONE
+                    },
                     ..Node::DEFAULT
                 },
             );
-            ui.text_line_box(&node, values[index], &styles[index], &[]).unwrap();
+            ui.text_line_box(&node, values[index], &styles[index], &[])
+                .unwrap();
             if link && ui.signal_state(&node).clicked {
-                let route = if index == 0 {
-                    catalog.artists.iter().position(|group| group.title == player.artist).map(Route::Artist)
-                } else {
-                    let album_artist = player.current_id.and_then(|id| catalog.row_index(id))
-                        .map(|row| catalog.row(row)).map_or(player.artist, |row| {
-                            if row.album_artist.is_empty() { row.artist } else { row.album_artist }
-                        });
-                    catalog.albums.iter().position(|group| matches!(
-                        group.context.as_ref(), lw_core::context::PlaybackContext::Album { name, artist }
-                        if name == player.album && artist == album_artist
-                    )).map(Route::Album)
-                };
-                if let Some(route) = route { *intent = Some(Intent::Navigate(route)); }
+                let route = player.current_id.and_then(|id| {
+                    let row = catalog.row(catalog.row_index(id)?);
+                    let matches = if index == 0 {
+                        row.artist == player.artist
+                    } else {
+                        row.album == player.album
+                    };
+                    if !matches {
+                        return None;
+                    }
+                    catalog
+                        .byline_routes(id)
+                        .map(|routes| routes[usize::from(index == 4)])
+                });
+                if let Some(route) = route {
+                    *intent = Some(Intent::Navigate(route));
+                }
             }
         }
     });
@@ -160,7 +171,7 @@ mod tests {
             album_artist: "Album artist".into(),
             ..Default::default()
         }]);
-        let player = PlayerView {
+        let mut player = PlayerView {
             current_id: Some(1),
             artist: "The National",
             album: "High Violet, Trouble Will Find Me",
@@ -248,6 +259,37 @@ mod tests {
                     "warm measured byline and accessible links"
                 );
             }
+        }
+        for artist in [true, false] {
+            let label = if artist {
+                "Unadopted artist"
+            } else {
+                "Unadopted album"
+            };
+            if artist {
+                player.artist = label;
+            } else {
+                player.album = label;
+            }
+            ui.frame(&frame, &mut |ui| {
+                draw(ui, &player, &catalog, 279.0, palette(ui), &mut intent)
+            })
+            .unwrap();
+            let id = find(&ui, label).id;
+            ui.inject_a11y(&[pxui::A11yAction {
+                id,
+                action_code: 1,
+                ..Default::default()
+            }]);
+            intent = None;
+            ui.frame(&frame, &mut |ui| {
+                draw(ui, &player, &catalog, 279.0, palette(ui), &mut intent)
+            })
+            .unwrap();
+            assert_eq!(
+                intent, None,
+                "metadata awaiting catalog adoption cannot route to an old group"
+            );
         }
     }
 }

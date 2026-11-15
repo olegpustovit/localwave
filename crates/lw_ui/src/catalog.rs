@@ -1,7 +1,11 @@
 //! Owned once by the library worker; frame construction only borrows these labels and orders.
+//! Prepare adoption remaps against the displayed page before publication; UI repair only indexes
+//! their fixed route/occurrence arrays. Byline routes are prepared by song ID with the label arena.
 use lw_core::context::PlaybackContext;
 use lw_core::{FileAvailability, FileState, Song};
+mod remap;
 mod song_table;
+pub use remap::Remap;
 pub use song_table::{Column as SongColumn, SongTable};
 use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, Range};
@@ -94,6 +98,7 @@ pub struct Library {
     covers: Vec<Range<usize>>,
     rows: Vec<StoredRow>,
     by_id: HashMap<i64, usize>,
+    byline_routes: Vec<[Route; 2]>,
     pub all: Option<Collection>,
     pub albums: Vec<Collection>,
     pub album_orders: [Vec<usize>; 3],
@@ -302,6 +307,17 @@ impl Library {
                 .flat_map(char::to_lowercase)
                 .collect::<String>()
         });
+        out.byline_routes = vec![[Route::Artists, Route::Albums]; out.rows.len()];
+        for (index, group) in out.artists.iter().enumerate() {
+            for row in &group.rows {
+                out.byline_routes[*row][0] = Route::Artist(index);
+            }
+        }
+        for (index, group) in out.albums.iter().enumerate() {
+            for row in &group.rows {
+                out.byline_routes[*row][1] = Route::Album(index);
+            }
+        }
         out.song_count = out.rows.len().to_string();
         out.set_source_count(0);
         out.album_count = out.albums.len().to_string();
@@ -474,6 +490,7 @@ pub struct Catalog {
     pub source_version: Option<i64>,
     pub source_identity: Option<i64>,
     pub queue: Option<Arc<crate::queue::Snapshot>>,
+    pub remap: Option<Arc<Remap>>,
 }
 #[derive(Clone)]
 pub struct FindSummary {
@@ -527,6 +544,7 @@ impl Catalog {
             source_version: None,
             source_identity: None,
             queue: None,
+            remap: None,
         }
     }
     /// Called with one native history snapshot on the catalog worker.
@@ -711,6 +729,22 @@ impl Catalog {
     }
     pub fn row_index(&self, id: i64) -> Option<usize> {
         self.library.by_id.get(&id).copied()
+    }
+    pub fn byline_routes(&self, id: i64) -> Option<[Route; 2]> {
+        self.row_index(id)
+            .and_then(|index| self.library.byline_routes.get(index).copied())
+    }
+    pub fn same_page(&self, next: &Self) -> bool {
+        Arc::ptr_eq(&self.library, &next.library)
+            && match (&self.view, &next.view) {
+                (None, None) => true,
+                (Some(a), Some(b)) => Arc::ptr_eq(a, b),
+                _ => false,
+            }
+    }
+    /// Worker-only preparation before publishing an immutable catalog.
+    pub fn prepare_remap(&mut self, previous: &Self) {
+        self.remap = (!previous.same_page(self)).then(|| Arc::new(Remap::new(previous, self)));
     }
     pub fn base_collection(&self, key: u64) -> Option<&Collection> {
         self.all

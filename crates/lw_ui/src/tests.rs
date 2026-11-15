@@ -1338,6 +1338,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     assert_eq!(request.scope, Scope::Find);
     let mut found = catalog.clone();
     found.project(request, (0..400).collect());
+    found.prepare_remap(&catalog);
     state.refresh(&catalog, &found);
     ui.frame(&frame, &mut |ui| {
         shell(ui, &player, 0.0, &found, &state, &mut intent)
@@ -1402,6 +1403,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     );
     let mut next = catalog.clone();
     next.project(state.request(&catalog).unwrap(), (100..400).collect());
+    next.prepare_remap(&found);
     state.refresh(&found, &next);
     ui.frame(&frame, &mut |ui| {
         shell(ui, &player, 0.0, &next, &state, &mut intent)
@@ -1489,6 +1491,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
     assert!(!state.ascending);
     let mut sorted = catalog.clone();
     sorted.project(state.request(&catalog).unwrap(), (0..30).rev().collect());
+    sorted.prepare_remap(&catalog);
     state.refresh(&catalog, &sorted);
     assert_eq!(state.selected, Some(19));
     assert_eq!(state.collection(&sorted).unwrap().ids[19], 10);
@@ -1631,6 +1634,7 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
             name: "Renamed playlist".into(),
         },
     );
+    after.prepare_remap(&before);
     let mut state = ShellState::default();
     for (route, selected, expected_route, expected_selected) in [
         (Route::Songs, Some(0), Route::Songs, Some(1)),
@@ -1689,14 +1693,16 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
             .iter()
             .any(|node| ui.a11y_name_of(node) == "Before")
     );
+    let mut empty = prepared(Vec::new());
+    empty.prepare_remap(&before);
     state.apply(Intent::Navigate(Route::Album(0)));
     state.selected = Some(0);
-    state.refresh(&before, &prepared(Vec::new()));
+    state.refresh(&before, &empty);
     assert_eq!(state.route, Route::Albums);
     assert_eq!(state.selected, None);
     state.apply(Intent::Navigate(Route::Collection(3)));
     state.selected = Some(1);
-    state.refresh(&before, &prepared(Vec::new()));
+    state.refresh(&before, &empty);
     assert_eq!(state.route, Route::Songs);
     assert_eq!(state.selected, None);
 }
@@ -1753,6 +1759,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
             name: "Renamed".into(),
         },
     );
+    after.prepare_remap(&before);
     let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView::default();

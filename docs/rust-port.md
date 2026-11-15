@@ -32,8 +32,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | B7 | Move profiling/lifetime checks; close boundary | done | 325d54a |
 | P1 | End-to-end timing and LongScroll workload | done | d407e8a |
 | P2 | Profile top frame costs | done | 360a5e3 |
-| P3 | Isolate position ticks from stable content | done | HEAD |
-| P4 | Worker-prepared catalog remapping | todo | — |
+| P3 | Isolate position ticks from stable content | done | d16e6a3 |
+| P4 | Worker-prepared catalog remapping | done | HEAD |
 | P5 | Single controller-poll lock | todo | — |
 | P6 | Fix measured hot paths; pass phase gate | todo | — |
 | F1 | Global shortcuts from one command table | todo | — |
@@ -53,12 +53,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P3 `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+P4 `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
 GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
 strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
-Bundle/signature/rpath/default-stack checks and settled idle smoke pass (507.2 ms).
-Source: `/tmp/localwave-p3-performance.log`; prior P1/P2 failures remain in commit evidence.
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (500.3 ms).
+Source: `/tmp/localwave-p4-performance.log`; prior P1–P3 failures remain in commit evidence.
 
 The original twelve cases have zero measured Rust allocations and pass the frame-82 audit.
 LongScroll still exposes 202 allocations/frame and six new text layouts at frame 82 and during
@@ -71,23 +71,23 @@ Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-
 
 | Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 703/969/999 | 734/2646/3133/3494 | 1133/1458/1458 | 16677/18163/18761/34662 | 0 | 0 | pass |
-| find-filters-title-descending | 697/904/1032 | 775/1984/5113/7522 | 1155/1450/1468 | 16662/18523/19579/21544 | 0 | 0 | pass |
-| queue-occurrences | 619/843/845 | 711/1987/2637/3191 | 1069/1358/1432 | 16646/18864/19107/19335 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 525/861/880 | 555/2022/2912/3441 | 979/1404/1450 | 16675/18532/18999/19152 | 0 | 0 | pass |
-| full-queue-playlist-editor | 659/994/1230 | 823/2662/3677/5360 | 1123/1451/1549 | 16664/18876/20178/21821 | 0 | 0 | pass |
-| albums-artwork | 612/1027/1069 | 648/1580/1871/2646 | 1327/1844/2158 | 16649/17516/18212/18332 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 442/970/973 | 530/2238/2874/3646 | 902/1500/1512 | 16649/18740/20690/21319 | 0 | 0 | pass |
-| settings-menus-appearance | 330/601/618 | 365/1105/1511/2737 | 818/2613/3111 | 16637/18173/22446/33116 | 0 | 0 | pass |
-| files-indexed-directory | 354/431/433 | 366/997/1555/1628 | 869/1034/1039 | 16618/18923/21005/21638 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 303/414/438 | 334/1896/2166/2774 | 743/952/953 | 16608/18815/20033/25142 | 0 | 0 | pass |
-| artists-measured-columns | 646/1002/1025 | 670/2447/3146/4247 | 1076/1638/1644 | 16638/18671/19376/19537 | 0 | 0 | pass |
-| songs-playing-indicator | 933/1271/1306 | 1186/2528/3736/4442 | 1446/1758/1789 | 16604/18438/19281/19530 | 0 | 0 | pass |
-| songs-long-scroll | 1147/1520/1567 | 1456/3169/3544/3852 | 1588/2069/2200 | 16620/18761/18979/19059 | 202 | 6 | fail (6 layouts) |
+| songs-original | 790/1148/1180 | 862/2535/2670/3082 | 1290/1684/1757 | 16645/17798/18242/18770 | 0 | 0 | pass |
+| find-filters-title-descending | 699/921/990 | 787/2515/2938/3113 | 1141/1416/1580 | 16628/17772/18727/26384 | 0 | 0 | pass |
+| queue-occurrences | 561/839/874 | 648/1932/2780/2987 | 1014/1414/1499 | 16683/19041/21576/31982 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 496/879/1028 | 527/1479/2458/4927 | 931/1355/1508 | 16669/19427/20575/20632 | 0 | 0 | pass |
+| full-queue-playlist-editor | 671/1089/1093 | 762/2577/3182/3376 | 1136/1634/1733 | 16600/19191/19385/20431 | 0 | 0 | pass |
+| albums-artwork | 598/985/1142 | 718/1573/2034/2506 | 1258/1728/1814 | 16651/18828/19903/20831 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 420/989/1084 | 577/2504/3457/3904 | 907/1495/1580 | 16624/18718/19831/23346 | 0 | 0 | pass |
+| settings-menus-appearance | 282/546/550 | 311/853/2277/2336 | 696/2901/2904 | 16604/18125/19177/19184 | 0 | 0 | pass |
+| files-indexed-directory | 317/459/482 | 334/1410/2424/2540 | 738/914/992 | 16643/18449/19209/19240 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 298/397/405 | 312/1270/2178/2301 | 766/951/987 | 16574/18804/19974/34480 | 0 | 0 | pass |
+| artists-measured-columns | 655/1008/1054 | 730/2041/2581/3248 | 1124/1552/1624 | 16628/18815/20196/21266 | 0 | 0 | pass |
+| songs-playing-indicator | 827/1212/1308 | 917/2408/2818/3650 | 1252/1673/1710 | 16611/18789/19948/20038 | 0 | 0 | pass |
+| songs-long-scroll | 1224/1507/1587 | 1443/2728/3502/4480 | 1722/2108/2118 | 16582/17659/18580/19155 | 202 | 6 | fail (6 layouts) |
 
 ### CPU profile
 
-Separate signed `--performance-check --trace-frames` runs of the five P3 follow-up cases use the same
+Separate signed `--performance-check --trace-frames` runs of the five P4 follow-up cases use the same
 10,000-song, 1440×872, 182/82/100 fixture. All five fail the unchanged performance gate;
 LongScroll also retains its allocation/cold-layout failure. Rank by mean thread CPU over the
 100 measured frames, rather than wall time or an individual outlier. Profiling is opt-in.
@@ -99,37 +99,42 @@ Raw CPU samples are retained with their corresponding wall/phase records before 
 
 | Workload | First CPU phase (µs) | Second | Third |
 | --- | --- | --- | --- |
-| queue-drag | draw 374.62 | build 202.70 | paint 171.15 |
-| song-indicators | paint 352.54 | draw 319.87 | build 261.17 |
-| waveform | draw 333.77 | paint 213.15 | build 185.57 |
-| artwork | draw 545.98 | build 302.20 | paint 200.13 |
-| long-scroll | paint 590.94 | draw 372.96 | build 296.88 |
+| queue-drag | draw 314.78 | build 192.52 | paint 170.75 |
+| song-indicators | paint 375.28 | draw 357.51 | build 277.59 |
+| waveform | draw 378.47 | paint 224.03 | build 202.75 |
+| artwork | draw 578.35 | build 320.42 | paint 204.38 |
+| long-scroll | paint 646.45 | draw 377.11 | build 322.01 |
 
-Sources: `/tmp/localwave-p3-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
+Sources: `/tmp/localwave-p4-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
 The corresponding full phase means, aggregate CPU/wall timings and failing exits are preserved in
-P3 commit evidence. The P2 baseline remains in its parent commit.
+P4 commit evidence. Earlier baselines remain in their corresponding commits.
 Separate runs do not establish a controlled speedup. Correlated records confirm the measured CPU
 phases fit inside their parent spans.
 
-P3 separates position from stable `PlayerView` data. Worker status delivery keeps its full revision;
-a second stable revision excludes position-only updates. Desktop and compact libraries use stable
-revision keys, and Now metadata uses numeric revision/catalog identity instead of hashing track
-strings on each tick. Clocks and seek controls receive the separate position and still advance.
-The 10,000-song regression checks 20 ticks at 50 ms: no desktop song-row or stable metadata rebuilds,
-no compact-library rebuilds, live seek/clock values and zero Rust allocations across app and dylib.
-It also checks that actual metadata/current-track/pause changes invalidate the retained views.
-The worker test verifies all 20 ticks still publish while keeping the stable revision unchanged.
+Stable `PlayerView` data remains separate from position. Worker delivery revisions still advance
+on position ticks; stable revisions leave desktop/compact library and metadata views cached.
+The 20-tick/10,000-song regression keeps seek/clock values live with no row rebuilds or warm Rust
+allocations, then verifies that real metadata/current-track/pause changes invalidate retained views.
+Signed fixtures still advance position each frame; waveform retains 200 bars/nine release-only seeks
+and indicators retain 58 playing/34 paused/57 changing frames. No warm-up/input/assertions were omitted.
 
-Signed fixtures advance the position on every frame; actual indicator pause/play transitions still
-advance stable revision. No input, clock updates, frame counts, warm-up or assertions were omitted.
-Waveform retains 200 bars/nine release-only seeks; indicators retain 58 playing/34 paused/57 changes.
-Full Rust iOS simulator build/signing passes; this does not qualify device playback or provider behavior.
+P4 prepares route and repeated-song occurrence remaps on the library worker. UI refresh validates
+source/target identities and indexes prepared arrays; a 10,000-song/album/artist test bounds adoption
+to three mapping probes with zero Rust allocations. Playlist renames, disappearing routes, duplicate
+occurrences, sorted views, Find query identity and collection scroll positions remain covered.
+Byline artist/album routes are prepared per song ID, including album-artist grouping; stale displayed
+metadata cannot activate a mismatched group. Byline fitting/native geometry and warm checks still pass.
 
-P4 is next: prepare catalog adoption remaps on the worker. P5 still addresses polling locks; these
-engine profiles alone do not quantify either benefit. P6 should investigate framework draw and
-paint/text first, including LongScroll's six fresh layouts and 202 allocations/frame. The strict
-latency and cold-work failures remain open. Neither CPU percentiles nor cached tick tests replace
-the unchanged signed workload gate.
+The mailbox retains a shared owner of the displayed catalog and reserves the next base before UI
+repair, outside the repair callback's lock scope. Worker publication rechecks that base and reuses
+prepared remaps for an unchanged coalesced page. Deterministic tests cover superseded deliveries and
+publication during repair, plus existing retirement backpressure and worker-side final release.
+Remaps use weak source/target identities so old label arenas are not retained by a snapshot chain.
+Bulk preparation and superseded/retired storage release stay outside the mailbox lock on the worker.
+
+P5 is next: reduce controller polling locks. P6 still needs framework draw and paint/text work,
+including LongScroll's fresh layouts and allocations. The strict latency and cold-work failures
+remain open; constant-time adoption and CPU percentiles do not replace the signed workload gate.
 
 ## Open qualification
 
@@ -143,7 +148,7 @@ the unchanged signed workload gate.
 
 ## Known gaps
 
-- Performance P4–P6 precedes new feature work.
+- Performance P5–P6 precedes new feature work.
   LongScroll now exposes cold text shaping and 202 measured Rust allocations/frame; its warm-up
   audit fails. Twelve visited-row workloads remain zero. End-to-end CPU also exceeds the new gate.
   The full strict latency gate still fails; cold shaping and native memory need evidence.

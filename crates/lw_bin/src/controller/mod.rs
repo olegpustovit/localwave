@@ -19,6 +19,10 @@
 //! Preserve retirement backpressure and wake a waiting replacement after draining. Unchanged native
 //! polls must not wake the worker; notify for delivered events, changed snapshots, faults,
 //! acknowledgements, commands, stop and retirement.
+//! Prepare remaps against the displayed catalog, not an undelivered worker result. Reserve the new
+//! displayed base under the take lock before UI repair, so concurrent publications use that base.
+//! Retain only a shared owner of the current catalog; remaps weakly identify their source/target
+//! pages and never keep retired label arenas alive. Bulk remap work and drops stay on the worker.
 //!
 //! Status carries 512 peaks inline. Clear stale peaks on selection/catalog identity changes and
 //! revalidate after materialization token changes. Background waveform/copy cancellation resets
@@ -69,11 +73,13 @@ impl Controller {
         let mut native = Player::open()?;
         native.set_wake(Some(wake));
         let status = Status::default();
+        let catalog = Arc::new(lw_ui::catalog::Catalog::default());
         let shared = Arc::new(Shared {
             #[cfg(target_os = "ios")]
             audio_session: lw_apple_sys::session::Session::open(wake)?,
             inbox: Mutex::new(Inbox {
                 catalog: None,
+                presented_catalog: catalog.clone(),
                 catalog_pending: true,
                 retired_catalog: None,
                 commands: VecDeque::with_capacity(32),
@@ -101,7 +107,7 @@ impl Controller {
             .name("localwave-library".into())
             .spawn(move || Worker::run(factory, worker_shared))?;
         Ok(Self {
-            catalog: Arc::new(lw_ui::catalog::Catalog::default()),
+            catalog,
             native,
             shared,
             worker: Some(worker),

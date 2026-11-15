@@ -154,15 +154,7 @@ impl Worker {
         self.shared.inbox.lock().unwrap().catalog_pending = true;
     }
     pub(super) fn publish_catalog(&self) {
-        let previous = self
-            .shared
-            .inbox
-            .lock()
-            .unwrap()
-            .catalog
-            .replace(Arc::new(self.catalog.clone()));
-        drop(previous);
-        (self.shared.wake)();
+        self.shared.publish_catalog(&self.catalog);
     }
     pub(super) fn publish(&mut self) {
         let cursor = self.session.queue().current_index();

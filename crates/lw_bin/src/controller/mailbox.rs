@@ -55,6 +55,7 @@ pub(super) struct Envelope {
 }
 pub(super) struct Inbox {
     pub(super) catalog: Option<Arc<lw_ui::catalog::Catalog>>,
+    pub(super) presented_catalog: Arc<lw_ui::catalog::Catalog>,
     pub(super) catalog_pending: bool,
     pub(super) retired_catalog: Option<Arc<lw_ui::catalog::Catalog>>,
     pub(super) commands: VecDeque<Envelope>,
@@ -117,6 +118,39 @@ pub(super) struct Shared {
 }
 
 impl Shared {
+    /// Worker only: large remaps and superseded deliveries are prepared/dropped outside the lock.
+    pub(super) fn publish_catalog(&self, catalog: &lw_ui::catalog::Catalog) {
+        loop {
+            let (base, remap) = {
+                let inbox = self.inbox.lock().unwrap();
+                let base = inbox.presented_catalog.clone();
+                let remap = inbox
+                    .catalog
+                    .as_ref()
+                    .and_then(|pending| pending.remap.as_ref())
+                    .filter(|remap| remap.matches(&base, catalog))
+                    .cloned();
+                (base, remap)
+            };
+            let mut next = catalog.clone();
+            if let Some(remap) = remap {
+                next.remap = Some(remap);
+            } else {
+                next.prepare_remap(&base);
+            }
+            let next = Arc::new(next);
+            let mut inbox = self.inbox.lock().unwrap();
+            if !base.same_page(&inbox.presented_catalog) {
+                drop(inbox);
+                continue;
+            }
+            let previous = inbox.catalog.replace(next);
+            drop(inbox);
+            drop(previous);
+            (self.wake)();
+            return;
+        }
+    }
     pub(super) fn begin_background(&self, preparation: u64, token: u64) -> bool {
         let inbox = self.inbox.lock().unwrap();
         if inbox.closed
@@ -144,7 +178,13 @@ impl Shared {
         let catalog = {
             let mut inbox = self.inbox.lock().unwrap();
             if !inbox.closed && inbox.retired_catalog.is_none() {
-                inbox.catalog.take()
+                let next = inbox.catalog.take();
+                if let Some(next) = &next {
+                    debug_assert!(Arc::ptr_eq(&inbox.presented_catalog, current));
+                    // Reserve the new base before repair: a worker can publish during the callback.
+                    inbox.presented_catalog = next.clone();
+                }
+                next
             } else {
                 None
             }
