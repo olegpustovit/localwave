@@ -30,6 +30,8 @@ mod songs;
 
 pub struct ShellState {
     song_window: std::cell::Cell<Option<crate::song_text::Window>>,
+    /// Set by an arrow-key move; the song list reveals the cursor row once, like AppKit `scrollRowToVisible`.
+    reveal_selected: std::cell::Cell<bool>,
     pub route: Route,
     pub selected: Option<usize>,
     /// Sorted row positions of the multi-selection; grows only in `apply`/`refresh`, never in frames.
@@ -75,6 +77,7 @@ impl Default for ShellState {
     fn default() -> Self {
         Self {
             song_window: std::cell::Cell::new(None),
+            reveal_selected: std::cell::Cell::new(false),
             route: Route::Songs,
             selected: None,
             marked: Vec::new(),
@@ -187,6 +190,7 @@ impl ShellState {
                     self.anchor = Some(at);
                 }
                 self.selected = Some(at);
+                self.reveal_selected.set(true);
             }
         }
         self.selection_revision = self.selection_revision.wrapping_add(1);

@@ -463,6 +463,11 @@ pub(super) fn table(
                     }
                 },
             );
+            if state.reveal_selected.take()
+                && let Some(row) = state.selected
+            {
+                ui.reveal(&list, row);
+            }
             // Keep a list-row drag alive while its source row scrolls out of the virtual window.
             if ui
                 .carrying_ref()

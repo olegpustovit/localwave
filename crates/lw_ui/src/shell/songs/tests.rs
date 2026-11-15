@@ -2294,3 +2294,75 @@ fn metadata_editor_opens_prefilled_saves_edited_fields_and_delete_confirms_witho
         }
     }
 }
+
+#[test]
+fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocations() {
+    mem_sys::set_peer(pxui::library_counter);
+    let catalog = titled(100);
+    let mut state = ShellState::default();
+    let player = PlayerView::default();
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            reduced_motion: 1,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        mem_sys::local_reset();
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
+        if let Some(intent) = intent {
+            state.apply(intent);
+        }
+    };
+    let key = |kind, code: u32| pxui::Event {
+        kind,
+        code,
+        ..Default::default()
+    };
+    let top_of = |ui: &Ui, row: usize| {
+        let name = format!("T{row}");
+        ui.a11y_nodes()
+            .iter()
+            .find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == name)
+            .map(|n| n.rect.y)
+    };
+    run(&mut ui, &mut state, &[]);
+    run(&mut ui, &mut state, &[]);
+    state.apply(Intent::SelectRow(0));
+    let down = input::Key::ArrowDown.code();
+    let mut tops = Vec::new();
+    for row in 1..40 {
+        run(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, down)]);
+        run(&mut ui, &mut state, &[key(input::wire::KEY_RELEASED, down)]);
+        run(&mut ui, &mut state, &[]);
+        run(&mut ui, &mut state, &[]);
+        assert_eq!(mem_sys::local_alloc_count(), 0, "warm frame at row {row}");
+        assert_eq!(state.selected, Some(row));
+        tops.push(top_of(&ui, row).unwrap_or_else(|| panic!("row {row} is not on screen")));
+    }
+    // The cursor walks down one row height per press, then stays at the bottom edge while the list scrolls.
+    let last = *tops.last().unwrap();
+    assert!(last + 38.0 <= 872.0 && tops[..10].windows(2).all(|w| w[1] == w[0] + 38.0), "{tops:?}");
+    assert!(tops[20..].iter().all(|&y| y == last), "{tops:?}");
+
+    // Arrowing back up keeps the cursor row visible too, without moving the list while it is inside.
+    for _ in 0..39 {
+        run(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::ArrowUp.code())]);
+        run(&mut ui, &mut state, &[key(input::wire::KEY_RELEASED, input::Key::ArrowUp.code())]);
+        run(&mut ui, &mut state, &[]);
+        run(&mut ui, &mut state, &[]);
+    }
+    assert_eq!(state.selected, Some(0));
+    assert!(top_of(&ui, 0).is_some_and(|y| y >= 0.0), "row 0 visible after ArrowUp");
+}
