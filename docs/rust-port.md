@@ -14,11 +14,11 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C1.1 | Move lw_ui lib tests out | done | 26817c6 |
 | C1.2 | Split shell into screen modules | done | 9e52567 |
 | C1.3 | Split song table, rows, menus and tests | done | 76a5c71 |
-| C1.4 | Extract performance harness (a–c) | done | HEAD |
+| C1.4 | Extract performance harness (a–c) | done | bf16b90 |
 | C1.4a | Parse one Workload enum | done | e93d3da |
 | C1.4b | Extract performance setup | done | 7da3d02 |
-| C1.4c | Extract driver/report and production App | done | HEAD |
-| C1.5 | Split controller and command families | todo | — |
+| C1.4c | Extract driver/report and production App | done | bf16b90 |
+| C1.5 | Split controller and command families | done | HEAD |
 | C1.6 | Enforce Rust production file-size limit | todo | — |
 | C2 | Labels, module description and test contention | todo | — |
 | B1 | Extract SQLite; remove core Apple dependency | todo | — |
