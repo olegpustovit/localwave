@@ -105,6 +105,10 @@ make build                  # static SDL3, libpxui, Rust macOS app
 make bundle                 # signed sandboxed target/bundle/LocalWave.app
 open target/bundle/LocalWave.app
 make install                # install to /Applications (APPDIR overrides)
+make sign                   # Developer ID (team 7ZH3FYV964) hardened-runtime build, verifies signature + entitlements
+xcrun notarytool store-credentials <profile> --apple-id <id> --team-id 7ZH3FYV964   # one time
+NOTARY_PROFILE=<profile> make notarize   # submit, staple, spctl
+tools/migration-check.sh    # copy the Swift container to /tmp and run the Rust migration check on the copy
 cargo t -p lw_sqlite -p lw_core # Rust SQLite, storage and model checks
 cargo run -p lw_bin --bin localwave-playback -- --mute /absolute/path/audio.flac
 make performance            # twelve signed workloads: allocation/time/idle gates

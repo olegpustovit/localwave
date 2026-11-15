@@ -3,7 +3,7 @@ APPDIR ?= /Applications
 CARGOFLAGS = $(if $(filter release,$(PROFILE)),--release)
 PRODUCTS = target/$(if $(filter release,$(PROFILE)),release,debug)
 
-.PHONY: lib build bundle install check performance ios-build ios-run
+.PHONY: lib build bundle sign notarize install check performance ios-build ios-run
 
 target/sdl/lib/libSDL3.a:
 	packaging/build-sdl-macos.sh
@@ -18,6 +18,12 @@ build: target/sdl/lib/libSDL3.a lib
 
 bundle: build
 	packaging/bundle-macos.sh '$(PRODUCTS)'
+
+sign: build
+	tools/sign-macos.sh '$(PRODUCTS)'
+
+notarize:
+	tools/notarize-macos.sh
 
 install: bundle
 	@test ! -e '$(APPDIR)/LocalWave.app' || { echo 'Refusing to overwrite an installed LocalWave.app; choose APPDIR or move it first.' >&2; exit 1; }

@@ -58,7 +58,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F8 | Metadata editor and metadata-only deletion | done | HEAD |
 | F9 | Source observation and debounced rescan | done | 12c2408 + d7c9b87 |
 | F10 | Onboarding, route empty states and Share | done | 92993cf |
-| S | Sign, migrate, TestFlight and release macOS | todo | — |
+| S | Sign, migrate, TestFlight and release macOS | doing | `make sign` (keychain access pending), `tools/notarize-macos.sh` unrun, `tools/migration-check.sh` passes on a container copy |
 | I1 | Framework gestures and device comparison | todo | — |
 | I2 | iOS flows, physical install and shipping gates | todo | — |
 | D | Resolve deferred accessibility/opacity decisions | todo | — |

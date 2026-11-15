@@ -3,7 +3,8 @@
 ## Build and test
 
 Read [README.md](README.md) for setup. Rust: `make build`, `make bundle`, `make check`;
-`make performance` verifies signed release workloads. `make ios-build` / `make ios-run` build
+`make performance` verifies signed release workloads.
+`make sign` / `make notarize` (Developer ID) and `tools/migration-check.sh` (Swift-container copy check) cover phase S. `make ios-build` / `make ios-run` build
 and run the full Rust iOS app. Use focused `cargo t -p <crate> [filter]` while iterating.
 The runner enforces 5 seconds per case and 60 seconds per run; never raise deadlines to hide failures.
 Reuse shared `target/`, static SDL under `target/sdl` and the same `pxui/tools/cc-stack.sh`
