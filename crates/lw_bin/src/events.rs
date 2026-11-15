@@ -4,11 +4,10 @@
 //! Never reconstruct iOS provider access from portable event paths. Bookmark/grant mechanics belong
 //! to pxui/file_access_sys; source/account validation and import policy belong here.
 //!
-//! Accumulate Finder files through FileDragEnded across pumps. Capture known account on first
-//! hover/file; if Files has never opened, its worker resolves identity instead of guessing. Focus
-//! loss dismisses hover only: Finder may still deliver files. Submit one bounded mutation per
-//! complete set, reject invalid/oversized batches wholly and report busy delivery visibly.
-//! Empty/cancel cycles retain their buffers.
+//! Consume completed host drops. Capture the known account on first hover/file notification;
+//! if Files has never opened, its worker resolves identity instead of guessing. Focus loss only
+//! dismisses hover. Validate the whole bounded set before one worker submission; empty/cancel
+//! cycles allocate nothing. Native batching and path ownership belong to pxui_sdl.
 //!
 use input::Event as HostEvent;
 
@@ -31,16 +30,12 @@ pub struct FileDrop {
     active: bool,
     hovered: bool,
     user: Option<i64>,
-    paths: Vec<std::path::PathBuf>,
-    bytes: usize,
-    invalid: bool,
 }
 impl FileDrop {
     pub fn hovered(&self) -> bool {
         self.hovered
     }
 
-    /// SDL completes a set after its file events, which may span more than one pump.
     pub fn event(
         &mut self,
         event: &mut HostEvent,
@@ -48,7 +43,7 @@ impl FileDrop {
     ) -> Option<Result<DroppedFiles, &'static str>> {
         if matches!(
             event,
-            HostEvent::FileDragMoved(_) | HostEvent::FileDropped(_)
+            HostEvent::FileDragMoved(_) | HostEvent::FilesDropped { .. }
         ) && !self.active
         {
             self.active = true;
@@ -56,40 +51,36 @@ impl FileDrop {
         }
         match event {
             HostEvent::FileDragMoved(_) => self.hovered = true,
-            HostEvent::FileDropped(path) => {
-                self.bytes = self.bytes.saturating_add(path.len());
-                if self.invalid
-                    || self.paths.len() == 1_000_000
-                    || self.bytes > 64 * 1024 * 1024
-                    || path.contains('\0')
-                    || !std::path::Path::new(path).is_absolute()
-                {
-                    self.invalid = true;
-                } else {
-                    self.paths
-                        .push(std::path::PathBuf::from(std::mem::take(path)));
-                }
+            HostEvent::FilesDropped { paths, .. } => {
+                let user = self.user.take();
+                self.active = false;
+                self.hovered = false;
+                return match std::mem::replace(paths, Ok(Vec::new())) {
+                    Ok(paths) if paths.is_empty() => None,
+                    Ok(paths)
+                        if paths.len() <= 1_000_000
+                            && paths
+                                .iter()
+                                .fold(0usize, |bytes, path| bytes.saturating_add(path.len()))
+                                <= 64 * 1024 * 1024
+                            && paths.iter().all(|path| {
+                                !path.contains('\0') && std::path::Path::new(path).is_absolute()
+                            }) =>
+                    {
+                        Some(Ok(DroppedFiles {
+                            user,
+                            paths: paths.into_iter().map(std::path::PathBuf::from).collect(),
+                        }))
+                    }
+                    _ => Some(Err(
+                        "Choose supported audio files or original music folders. The drop was invalid or too large.",
+                    )),
+                };
             }
             HostEvent::FileDragEnded => {
-                let outcome = if self.invalid {
-                    Some(Err(
-                        "Choose supported audio files or original music folders. The drop was invalid or too large.",
-                    ))
-                } else if self.paths.is_empty() {
-                    None
-                } else {
-                    Some(Ok(DroppedFiles {
-                        user: self.user,
-                        paths: std::mem::take(&mut self.paths),
-                    }))
-                };
                 self.active = false;
                 self.hovered = false;
                 self.user = None;
-                self.bytes = 0;
-                self.invalid = false;
-                self.paths.clear();
-                return outcome;
             }
             // Finder can change keyboard focus without cancelling its drop delivery.
             HostEvent::FocusLost => self.hovered = false,
@@ -165,53 +156,53 @@ mod tests {
     use super::*;
 
     #[test]
-    fn file_drops_accumulate_across_pumps_capture_owner_and_reject_whole_invalid_batches() {
+    fn completed_drops_capture_owner_validate_whole_batches_and_reuse_empty_cancel() {
         let mut drop = FileDrop::default();
+        let completed = |paths| HostEvent::FilesDropped {
+            position: (10.0, 20.0),
+            paths,
+        };
         assert!(
             drop.event(&mut HostEvent::FileDragMoved((10.0, 20.0)), Some(42))
                 .is_none()
         );
         assert!(drop.hovered());
-        assert!(
-            drop.event(
-                &mut HostEvent::FileDropped("/Music/名前.flac".into()),
-                Some(43)
-            )
-            .is_none()
-        );
         assert!(drop.event(&mut HostEvent::FocusLost, Some(43)).is_none());
         assert!(!drop.hovered());
-        assert!(
-            drop.event(
-                &mut HostEvent::FileDropped("/Music/Folder".into()),
-                Some(43)
-            )
-            .is_none()
-        );
+        let mut batch = completed(Ok(vec!["/Music/名前.flac".into(), "/Music/Folder".into()]));
         assert_eq!(
-            drop.event(&mut HostEvent::FileDragEnded, Some(43)),
+            drop.event(&mut batch, Some(43)),
             Some(Ok(DroppedFiles {
                 user: Some(42),
-                paths: vec!["/Music/名前.flac".into(), "/Music/Folder".into()],
+                paths: vec!["/Music/名前.flac".into(), "/Music/Folder".into()]
             }))
         );
-        assert!(drop.event(&mut HostEvent::FileDragEnded, None).is_none());
-        for invalid in ["relative.flac", "/invalid\0file.m4a"] {
-            drop.event(&mut HostEvent::FileDropped("/valid.flac".into()), None);
-            drop.event(&mut HostEvent::FileDropped(invalid.into()), Some(99));
-            assert!(
-                drop.event(&mut HostEvent::FileDragEnded, Some(99))
-                    .unwrap()
-                    .is_err()
+        assert!(
+            drop.event(&mut batch, Some(43)).is_none(),
+            "completed payload is consumed once"
+        );
+        for paths in [
+            Ok(vec!["/valid.flac".into(), "relative.flac".into()]),
+            Ok(vec!["/valid.flac".into(), "/invalid\0file.m4a".into()]),
+            Err("transport limit exceeded".into()),
+            Ok(vec![String::new(); 1_000_001]),
+            Ok(vec![
+                String::from_utf8(vec![b'/'; 64 * 1024 * 1024 + 1]).unwrap(),
+            ]),
+        ] {
+            let mut batch = completed(paths);
+            assert!(drop.event(&mut batch, Some(99)).unwrap().is_err());
+            assert_eq!(
+                batch,
+                completed(Ok(Vec::new())),
+                "invalid payload cannot reach frame encoding or a worker"
             );
             assert!(!drop.hovered());
         }
-        drop.event(&mut HostEvent::FileDropped("/first.flac".into()), None);
+        drop.event(&mut HostEvent::FileDragMoved((1.0, 2.0)), None);
+        let mut batch = completed(Ok(vec!["/first.flac".into()]));
         assert_eq!(
-            drop.event(&mut HostEvent::FileDragEnded, Some(99))
-                .unwrap()
-                .unwrap()
-                .user,
+            drop.event(&mut batch, Some(99)).unwrap().unwrap().user,
             None
         );
         mem_sys::local_reset();
@@ -228,6 +219,7 @@ mod tests {
                 drop.event(&mut HostEvent::PointerMoved((12.0, 24.0)), Some(42))
                     .is_none()
             );
+            assert!(drop.event(&mut completed(Ok(Vec::new())), None).is_none());
         }
         assert_eq!(mem_sys::local_alloc_count(), 0);
     }

@@ -27,8 +27,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | B2b | Pixel Fit layout and public fast identities | done | 5426f94 |
 | B3 | Repeating retained keyframes and indicators | done | f7c573a |
 | B4 | Framework scrub signal for seek/volume | done | 57cb610 |
-| B5 | Framework virtual-list reveal | done | HEAD |
-| B6 | Framework completed file-drop events | todo | — |
+| B5 | Framework virtual-list reveal | done | 6179982 |
+| B6 | Framework completed file-drop events | done | HEAD |
 | B7 | Move profiling/lifetime checks; close boundary | todo | — |
 | P1 | End-to-end timing and LongScroll workload | todo | — |
 | P2 | Profile top frame costs | todo | — |
@@ -53,9 +53,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-B5 `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
+B6 `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Bundle signature/dependency/default-stack
-checks and settled idle smoke pass (506.5 ms). Source: `/tmp/localwave-b5-performance.log`.
+checks and settled idle smoke pass (507.3 ms). Source: `/tmp/localwave-b6-performance.log`.
 12 strict 1,000 µs wall maxima fail, so `make performance` returns nonzero. The full latency
 gate remains unmet; no causal speedup is claimed. Native/process allocations remain unqualified.
 Waveform scrubbing retains 200 bars and exactly nine release commits; the indicator validates
@@ -63,18 +63,18 @@ Waveform scrubbing retains 200 bars and exactly nine release commits; the indica
 
 | Workload | CPU p50/p99/max µs | Wall p50/p95/p99/max µs | Warm Rust allocations |
 | --- | --- | --- | --- |
-| songs-original | 690/938/967 | 738/2425/2904/3147 | 0 |
-| find-filters-title-descending | 743/937/966 | 813/3043/4088/5513 | 0 |
-| queue-occurrences | 620/844/849 | 646/2057/3147/3344 | 0 |
-| queue-carry-scroll-cancel | 498/841/990 | 536/1806/2173/2220 | 0 |
-| full-queue-playlist-editor | 701/1084/1124 | 854/2519/2591/2643 | 0 |
-| albums-artwork | 652/1135/1170 | 777/2070/2772/3651 | 0 |
-| waveform-scrub-and-scroll | 349/988/989 | 467/1314/1771/2438 | 0 |
-| settings-menus-appearance | 304/570/586 | 359/1563/1844/2204 | 0 |
-| files-indexed-directory | 327/413/502 | 349/746/1242/1828 | 0 |
-| external-drop-hover-and-cancel | 330/412/422 | 353/1290/2559/2907 | 0 |
-| artists-measured-columns | 775/1019/1060 | 911/2649/3180/3360 | 0 |
-| songs-playing-indicator | 897/1169/1220 | 1009/2669/3071/3454 | 0 |
+| songs-original | 708/909/954 | 807/2542/3006/4131 | 0 |
+| find-filters-title-descending | 738/924/960 | 879/2916/3374/3734 | 0 |
+| queue-occurrences | 629/857/918 | 707/2110/3310/3343 | 0 |
+| queue-carry-scroll-cancel | 541/1113/1149 | 592/1964/2254/2528 | 0 |
+| full-queue-playlist-editor | 635/923/953 | 750/1904/2238/2250 | 0 |
+| albums-artwork | 689/1165/1206 | 831/2186/2859/3080 | 0 |
+| waveform-scrub-and-scroll | 446/963/973 | 528/1535/2706/2769 | 0 |
+| settings-menus-appearance | 291/548/578 | 329/1224/1908/2686 | 0 |
+| files-indexed-directory | 314/426/470 | 334/1152/1680/2122 | 0 |
+| external-drop-hover-and-cancel | 310/416/419 | 334/1501/1972/2165 | 0 |
+| artists-measured-columns | 706/967/1020 | 762/2363/2777/3894 | 0 |
+| songs-playing-indicator | 885/1128/1209 | 1044/2787/3069/3871 | 0 |
 
 ## Open qualification
 
@@ -88,7 +88,7 @@ Waveform scrubbing retains 200 bars and exactly nine release commits; the indica
 
 ## Known gaps
 
-- Boundary B6–B7 and performance P1–P6 precede new feature work.
+- Boundary B7 and performance P1–P6 precede new feature work.
   The full strict latency gate still fails; cold shaping and native memory need evidence.
   A text/core edit check took 1.60 s, exceeding pxui's 1 s warm-edit target.
   P3 still needs to remove stable metadata/state string hashing and position-driven rebuilds.
