@@ -229,19 +229,19 @@ impl App {
                 }
                 lw_ui::Intent::PlayNext(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
-                    Command::InsertNext(std::sync::Arc::from([id]))
+                    Command::InsertNext(targets(shell_state, player.catalog(), id))
                 }
                 lw_ui::Intent::AddToList { song, list } => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
-                    Command::AddToList(list, std::sync::Arc::from([song]))
+                    Command::AddToList(list, targets(shell_state, player.catalog(), song))
                 }
                 lw_ui::Intent::RemoveFromList { song, list } => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
-                    Command::RemoveFromList(list, std::sync::Arc::from([song]))
+                    Command::RemoveFromList(list, targets(shell_state, player.catalog(), song))
                 }
                 lw_ui::Intent::KeepOffline(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
-                    Command::TogglePins(std::sync::Arc::from([id]))
+                    Command::TogglePins(targets(shell_state, player.catalog(), id))
                 }
                 lw_ui::Intent::RetryDownload(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
@@ -385,5 +385,47 @@ impl App {
         (*error_revision) += 1;
         (*repaint) = Some(now);
         Ok(None)
+    }
+}
+
+/// A menu action on a song that is part of a multi-row selection applies to the whole selection.
+fn targets(
+    state: &lw_ui::ShellState,
+    catalog: &lw_ui::catalog::Catalog,
+    song: i64,
+) -> std::sync::Arc<[i64]> {
+    let selected = || state.selected_song_ids(catalog);
+    if selected().nth(1).is_some() && selected().any(|id| id == song) {
+        selected().collect()
+    } else {
+        std::sync::Arc::from([song])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use lw_ui::{Intent, Selection, ShellState, catalog::Catalog};
+
+    #[test]
+    fn menu_targets_follow_a_multi_row_selection_that_contains_the_song() {
+        let mut catalog = Catalog::new(
+            (1..=4)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Song {id}"),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        catalog.prepare_tables().unwrap();
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(lw_ui::catalog::Route::Songs));
+        assert_eq!(&*super::targets(&state, &catalog, 2), &[2]);
+        state.apply(Intent::Select(Selection::Toggle(0)));
+        assert_eq!(&*super::targets(&state, &catalog, 2), &[2], "one row is not a group");
+        state.apply(Intent::Select(Selection::Toggle(2)));
+        let group = super::targets(&state, &catalog, state.selected_song_ids(&catalog).next().unwrap());
+        assert_eq!(group.len(), 2);
+        assert_eq!(&*super::targets(&state, &catalog, 99), &[99], "outside the selection");
     }
 }

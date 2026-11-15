@@ -351,7 +351,7 @@ device/provider behavior remain open.
   absent; Share… is F10. Long playlist lists rely on the popup's 288-point max height (unverified past 8).
 - F4: create/rename/delete playlists, membership editing and drag reorder; preserve active playback.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
-- F7: song drops to playlists/queue. F6 selection is stored; the track menu acting on it (`ShellState::selected_song_ids`) is pending integration.
+- F7: song drops to playlists/queue. Add to queue on a selection still appends only the clicked song.
 - F8: metadata editor, transactional song/FTS updates and deletion without removing original files.
 - F9: presenters start with the lazy Files worker (first Files use), not at app launch; moved-root
   notices only trigger a rescan, bookmark re-resolution handles the new location.
