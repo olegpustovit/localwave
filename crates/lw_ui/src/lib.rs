@@ -7,6 +7,7 @@ pub mod files;
 mod icons;
 pub mod motion;
 pub mod queue;
+pub mod song_text;
 mod shell;
 pub use shell::{ShellState, shell};
 

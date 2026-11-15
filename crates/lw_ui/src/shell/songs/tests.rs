@@ -729,3 +729,157 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
     );
     assert!(ui.output().repaint_at.is_infinite());
 }
+
+#[test]
+fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_numbers() {
+    let catalog = catalog(2);
+    for scale in [1.0, 1.5, 2.0] {
+        for width in [400.0, 888.0] {
+            for (route, current) in [
+                (Route::Songs, None),
+                (Route::Songs, Some(0)),
+                (Route::Album(0), None),
+            ] {
+                let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+                let mut reference =
+                    Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+                let input = FrameIn {
+                    width: 1200.0,
+                    height: 300.0,
+                    scale,
+                    reduced_motion: 1,
+                    ..Default::default()
+                };
+                ui.frame(&input, &mut |_| {}).unwrap();
+                reference.frame(&input, &mut |_| {}).unwrap();
+                let collection = catalog.collection(route).unwrap();
+                let widths = collection.song_table.as_ref().unwrap().columns(
+                    &catalog,
+                    width,
+                    current,
+                    Sort::Original,
+                    route,
+                );
+                let window = crate::song_text::Window::new(
+                    &catalog,
+                    route,
+                    widths,
+                    ui.density() as f32,
+                    current.map(|index| catalog.row(index).id),
+                    0,
+                    collection.rows.len(),
+                )
+                .unwrap();
+                let mut text = ui.text_service().fork().unwrap();
+                let source = catalog.clone();
+                let records = std::thread::spawn(move || {
+                    window
+                        .rows()
+                        .flat_map(|row| {
+                            window
+                                .prepare_row(&source, row, &mut text)
+                                .unwrap()
+                                .into_iter()
+                                .flatten()
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .join()
+                .unwrap();
+                let mut retired = Vec::with_capacity(records.len());
+                for (_, record) in records {
+                    match ui.text_service().install(record) {
+                        Ok(record) => retired.push(record),
+                        Err((code, _)) => panic!("prepared song cell refused ({code})"),
+                    }
+                }
+                let layouts = ui.text_layout_count();
+                let mut build = |ui: &mut Ui| {
+                    for (position, &index) in collection.rows.iter().enumerate() {
+                        let row = catalog.row(index);
+                        let current = current == Some(index);
+                        let numbered = matches!(route, Route::Album(_));
+                        let layout = row_layout(
+                            ui,
+                            &catalog,
+                            index,
+                            position + 1,
+                            numbered,
+                            widths,
+                            current,
+                        );
+                        let root = ui.node_keyed(
+                            int_key(91, position as i64),
+                            Node {
+                                w: Size::Px(width),
+                                h: Size::Px(layout.height),
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.within(&root, &mut |ui| {
+                            let number = ClockLabel::integer((position + 1) as u64);
+                            for column in Column::ALL {
+                                if widths[column as usize] <= 0.0
+                                    || matches!(column, Column::Actions | Column::State)
+                                    || (column == Column::Number && current)
+                                {
+                                    continue;
+                                }
+                                let (w, h) = layout.sizes[column as usize];
+                                label(
+                                    ui,
+                                    column.title(),
+                                    body_value(
+                                        &row,
+                                        column,
+                                        numbered,
+                                        std::str::from_utf8(number.bytes()).unwrap(),
+                                    ),
+                                    Rect {
+                                        x: column as usize as f32 * 100.0,
+                                        y: layout.y(baseline(column)),
+                                        w,
+                                        h,
+                                    },
+                                    body_style(column, current),
+                                    Rgba {
+                                        r: 17,
+                                        g: 33,
+                                        b: 55,
+                                        a: 255,
+                                    },
+                                    Role::Label,
+                                );
+                            }
+                        });
+                    }
+                };
+                ui.frame(&input, &mut build).unwrap();
+                assert_eq!(
+                    ui.text_layout_count(),
+                    layouts,
+                    "prepared widths/styles must serve both measurement and node painting: {route:?} {width} {scale}x"
+                );
+                reference.frame(&input, &mut build).unwrap();
+                let actual = ui
+                    .layers()
+                    .flat_map(|layer| layer.instances.iter().copied())
+                    .collect::<Vec<_>>();
+                let expected = reference
+                    .layers()
+                    .flat_map(|layer| layer.instances.iter().copied())
+                    .collect::<Vec<_>>();
+                assert!(!actual.is_empty());
+                assert_eq!(actual, expected);
+                std::thread::spawn(move || drop(retired)).join().unwrap();
+            }
+        }
+    }
+    let window =
+        crate::song_text::Window::new(&catalog, Route::Songs, [100.0; 8], 1.0, None, 0, usize::MAX)
+            .unwrap();
+    assert!(window.rows().len() <= crate::song_text::MAX_ROWS);
+    assert!(window.matches(&catalog.clone(), Route::Songs));
+    assert!(!window.matches(&catalog, Route::Find));
+    assert!(!window.matches(&self::catalog(2), Route::Songs));
+}

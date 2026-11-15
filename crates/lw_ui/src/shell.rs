@@ -27,6 +27,7 @@ mod settings;
 mod songs;
 
 pub struct ShellState {
+    song_window: std::cell::Cell<Option<crate::song_text::Window>>,
     pub route: Route,
     pub selected: Option<usize>,
     pub panel_visible: bool,
@@ -59,6 +60,7 @@ pub struct ShellState {
 impl Default for ShellState {
     fn default() -> Self {
         Self {
+            song_window: std::cell::Cell::new(None),
             route: Route::Songs,
             selected: None,
             panel_visible: true,
@@ -91,6 +93,13 @@ impl Default for ShellState {
     }
 }
 impl ShellState {
+    pub fn song_text_window(&self, catalog: &Catalog) -> Option<crate::song_text::Window> {
+        self.song_window.get().filter(|window| {
+            !self.settings_visible
+                && self.collection(catalog).is_some()
+                && window.matches(catalog, self.route)
+        })
+    }
     pub fn files_visible(&self) -> bool {
         self.route == Route::Files && !self.settings_visible
     }
@@ -378,6 +387,7 @@ pub fn shell(
         files::confirm_remove(ui, player, target, p, intent);
     }
     let root = if ui.view_size().0 < compact::BREAKPOINT {
+        state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, p, intent)
     } else {
         desktop(ui, player, position, catalog, state, p, intent)

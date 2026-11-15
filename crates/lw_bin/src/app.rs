@@ -41,6 +41,7 @@ pub(crate) struct App {
     preferences: pxui_sdl::PreferencesSnapshot,
     pub(super) player: Controller,
     artwork: lw_bin::library::ArtworkWorker,
+    text: lw_bin::song_text::SongTextWorker,
     pub(super) files: lw_bin::files::FilesWorker,
     top_inset: f64,
     perf: Option<perf::Perf>,
@@ -168,6 +169,8 @@ pub(super) fn open(
         wake,
     )
     .map_err(|error| error.to_string())?;
+    let text = lw_bin::song_text::SongTextWorker::open(&mut ui, wake)
+        .map_err(|error| error.to_string())?;
     // Workers do not inherit the UI's interactive QoS.
     mem_sys::profile::ui_thread_priority().map_err(|error| error.to_string())?;
     let indicator_song = perf::setup::wait_ready(window, &mut player, smoke, workload)?;
@@ -201,6 +204,7 @@ pub(super) fn open(
         preferences,
         player,
         artwork,
+        text,
         files,
         top_inset,
         perf,
@@ -258,6 +262,7 @@ impl App {
             platform,
             encoded,
             artwork,
+            text,
             frames,
             draws,
             repaint,
@@ -274,6 +279,7 @@ impl App {
             .ok_or("App graphics have already closed")?;
         let wire = encoded.encode(events);
         let clock = frame.begin(ui)?;
+        text.poll(ui)?;
         gpu::configure_artwork(
             graphics,
             extent.logical.0 as f32,
@@ -340,6 +346,10 @@ impl App {
             )
         })
         .map_err(|code| format!("Frame failed ({code})"))?;
+        text.request(
+            player.catalog(),
+            shell_state.song_text_window(player.catalog()),
+        );
         frame.check_intent(&intent, &status.settings)?;
         let mut image_requests = graphics.images().visible_requests(ui);
         if let Some(media) = player.media_controls() {
@@ -509,6 +519,7 @@ impl App {
             || files_changed
             || artwork_changed
             || artwork_updated
+            || self.text.ready()
             || preferences_changed
             || self.repaint.is_some_and(|time| now >= time)
         {

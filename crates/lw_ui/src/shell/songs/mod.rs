@@ -15,6 +15,7 @@
 //!
 use super::*;
 use crate::catalog::SongColumn as Column;
+use crate::song_text::{body_style, body_value};
 
 fn label(
     ui: &mut Ui,
@@ -348,6 +349,7 @@ pub(super) fn table(
             ..Node::DEFAULT
         },
     );
+    let (mut first, mut end) = (usize::MAX, 0);
     ui.within(&scope, &mut |ui| {
         let results = ui.node_keyed(
             int_key(
@@ -417,6 +419,8 @@ pub(super) fn table(
                         });
                     }
                     SectionPart::Row(index) => {
+                        first = first.min(index);
+                        end = end.max(index + 1);
                         let identity = ui.node_keyed(
                             int_key(list_key, collection.row_keys[index]),
                             Node {
@@ -445,6 +449,15 @@ pub(super) fn table(
             );
         });
     });
+    state.song_window.set(crate::song_text::Window::new(
+        catalog,
+        state.route,
+        widths,
+        ui.density() as f32,
+        player.current_id,
+        first,
+        end,
+    ));
 }
 
 mod row;

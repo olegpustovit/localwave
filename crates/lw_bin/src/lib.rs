@@ -8,4 +8,6 @@ pub mod files;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod library;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
+pub mod song_text;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
 pub mod media;
