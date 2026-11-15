@@ -19,8 +19,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | C1.4b | Extract performance setup | done | 7da3d02 |
 | C1.4c | Extract driver/report and production App | done | bf16b90 |
 | C1.5 | Split controller and command families | done | 8a0a83e |
-| C1.6 | Reasonable module boundaries; no line-count gate | done | HEAD |
-| C2 | Labels, module description and test contention | todo | — |
+| C1.6 | Reasonable module boundaries; no line-count gate | done | d85b8f8 |
+| C2 | Labels, module description and test contention | done | HEAD |
 | B1 | Extract SQLite; remove core Apple dependency | todo | — |
 | B2 | Framework text identity and pixel rounding | todo | — |
 | B3 | Repeating retained keyframes and indicators | todo | — |
@@ -84,7 +84,7 @@ not passes; native/process allocation behavior remains unqualified. Previous mea
 
 ## Known gaps
 
-- Cleanup C1.0–C2, boundary B1–B7 and performance P1–P6 precede new feature work.
+- Boundary B1–B7 and performance P1–P6 precede new feature work.
   The full strict latency gate still fails; cold shaping, native memory and build budgets need evidence.
 - F1: global Space/S/R/I/L, open/find/new-list, navigation and seek shortcuts.
 - F2: favorite toggle entry points and retained favorite burst.

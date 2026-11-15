@@ -39,7 +39,7 @@ impl Command {
             Self::Shuffle => "Shuffle on or off",
             Self::Repeat => "Cycle repeat",
             Self::AddMusic => "Add folder or files…",
-            Self::Rescan(_) => "Rescan Google Drive",
+            Self::Rescan(_) => "Rescan source",
             Self::Network => "Simulate no network on / off",
             Self::Theme => "Switch light / dark",
             Self::Panel => "Minimise or restore the player",

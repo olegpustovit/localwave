@@ -39,7 +39,7 @@ pub(super) struct Commands {
 pub(super) struct Prepared {
     songs: Candidates,
     items: Vec<Item>,
-    rescan: Option<Location>,
+    rescan: Option<(Location, String)>,
 }
 impl Commands {
     pub fn new(worker: &LibraryWorker, query: Query) -> io::Result<Self> {
@@ -66,10 +66,21 @@ impl Commands {
         if let Some(user) = &user {
             for source in repository.sources(user.id)? {
                 if self.drive.contained_in_case_insensitive(&source.dir_path) {
-                    rescan = source.id.map(|id| Location {
-                        user: user.id,
-                        source: id,
-                        parent: None,
+                    rescan = source.id.map(|id| {
+                        let path = super::file_path(&source.dir_path).ok();
+                        let name = path
+                            .as_deref()
+                            .and_then(Path::file_name)
+                            .and_then(|name| name.to_str())
+                            .unwrap_or("Music folder");
+                        (
+                            Location {
+                                user: user.id,
+                                source: id,
+                                parent: None,
+                            },
+                            format!("Rescan {name}"),
+                        )
                     });
                     break;
                 }
@@ -188,7 +199,9 @@ impl Commands {
             Some(Command::Shuffle),
             Some(Command::Repeat),
             Some(Command::AddMusic),
-            rescan.map(Command::Rescan),
+            rescan
+                .as_ref()
+                .map(|(location, _)| Command::Rescan(*location)),
             Some(Command::Network),
             Some(Command::Theme),
             Some(Command::Panel),
@@ -198,12 +211,16 @@ impl Commands {
         .into_iter()
         .flatten()
         {
+            let label = match (command, &rescan) {
+                (Command::Rescan(_), Some((_, label))) => label.as_str(),
+                _ => command.label(),
+            };
             if (empty && command != Command::Settings)
-                || (!empty && self.needle.contained_in_case_insensitive(command.label()))
+                || (!empty && self.needle.contained_in_case_insensitive(label))
             {
                 items.push(Item::new(
                     "Commands",
-                    command.label(),
+                    label,
                     command.hint(),
                     Icon::Chevron,
                     None,
@@ -277,7 +294,7 @@ mod tests {
         let own = worker
             .repository
             .create_source(&lw_core::Source {
-                dir_path: "/Music/Google Drive".into(),
+                dir_path: "/Music/Google Drive/Café sessions".into(),
                 path_id: 1,
                 user_id: user.id,
                 ..Default::default()
@@ -431,7 +448,7 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(folders.len(), 1);
         assert_eq!(folders[0].label, "Blue folder");
-        assert_eq!(folders[0].hint, "Google Drive");
+        assert_eq!(folders[0].hint, "Café sessions");
         assert_eq!(
             folders[0].action,
             Action::Folder(Location {
@@ -456,7 +473,17 @@ mod tests {
                 .iter()
                 .all(|item| item.action != Action::Command(Command::Settings))
         );
-        assert!(results.items.iter().any(|item| matches!(item.action, Action::Command(Command::Rescan(location)) if location.user == user.id && location.source == own)));
+        let rescan = Location {
+            user: user.id,
+            source: own,
+            parent: None,
+        };
+        let rescan_item = results
+            .items
+            .iter()
+            .find(|item| item.action == Action::Command(Command::Rescan(rescan)))
+            .unwrap();
+        assert_eq!(rescan_item.label, "Rescan Cafe\u{301} sessions");
         let lists = results
             .items
             .iter()
@@ -479,7 +506,11 @@ mod tests {
             &most.ids[1..],
             &ids[17..].iter().rev().copied().collect::<Vec<_>>()
         );
-        for (query, command) in [("settings", Command::Settings), ("REPEAT", Command::Repeat)] {
+        for (query, command) in [
+            ("settings", Command::Settings),
+            ("REPEAT", Command::Repeat),
+            ("Café sessions", Command::Rescan(rescan)),
+        ] {
             let next = worker
                 .catalog_view(
                     Some(&empty),

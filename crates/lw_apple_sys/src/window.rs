@@ -1,4 +1,4 @@
-//! Main-thread window chrome; read geometry after native size changes, never during a UI build.
+//! Open external help links on the main thread.
 use std::io;
 
 pub enum Link {
