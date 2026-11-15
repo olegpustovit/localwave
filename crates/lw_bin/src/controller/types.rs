@@ -51,7 +51,7 @@ pub enum Command {
         before: Option<u64>,
     },
     Remove(u64),
-    Append(i64),
+    Append(Arc<[i64]>),
     ClearUpcoming,
     UndoClear,
     SaveQueue(lw_ui::browse::Query),
@@ -118,7 +118,7 @@ impl Command {
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
             Self::TogglePins(songs) => songs.is_empty() || songs.len() > 1_000_000,
             Self::SetFavorite { song, .. } => *song <= 0,
-            Self::InsertNext(songs) => bad_ids(songs),
+            Self::Append(songs) | Self::InsertNext(songs) => bad_ids(songs),
             Self::AddToList(list, songs) | Self::RemoveFromList(list, songs) => {
                 *list <= 0 || bad_ids(songs)
             }

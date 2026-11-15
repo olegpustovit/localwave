@@ -1948,3 +1948,143 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     );
     assert!(has(&names, "Point it at a folder."));
 }
+
+#[test]
+fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
+    use lw_core::{context::PlaybackContext, queue::Entry};
+    use std::{cell::Cell, sync::Arc};
+    mem_sys::set_peer(pxui::library_counter);
+    let mut catalog = titled(4);
+    catalog.add_collection(
+        "Mix",
+        vec![0],
+        PlaybackContext::Playlist {
+            id: 7,
+            name: String::new(),
+        },
+    );
+    catalog.queue = Some(Arc::new(crate::queue::Snapshot::new(
+        1,
+        (1..=3).map(|id| Entry { id, song_id: 0 }).collect(),
+        Some(0),
+        Arc::new(PlaybackContext::Library),
+        false,
+    )));
+    let player = PlayerView {
+        initialized: true,
+        title: "T0",
+        duration: 60_000.0,
+        ..Default::default()
+    };
+    let mut state = ShellState::default();
+    state.apply(Intent::Navigate(Route::Songs));
+    state.apply(Intent::Select(crate::Selection::Toggle(1)));
+    state.apply(Intent::Select(crate::Selection::Toggle(3)));
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let damage = Cell::new([0.0f32; 4]);
+    let mut run = |ui: &mut Ui, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            reduced_motion: 1,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        mem_sys::local_reset();
+        let out = ui
+            .frame(&frame, &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        damage.set(if out.has_damage != 0 { out.damage } else { [0.0; 4] });
+        intent
+    };
+    let find = |ui: &Ui, role: Role, name: &str| {
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(role) && ui.a11y_name_of(node) == name)
+            .map(|node| node.rect)
+            .unwrap_or_else(|| panic!("no {name}"))
+    };
+    let pointer = |kind, x: f32, y: f32| pxui::Event {
+        kind,
+        x: f64::from(x),
+        y: f64::from(y),
+        ..Default::default()
+    };
+    for _ in 0..3 {
+        run(&mut ui, &[]);
+    }
+    let touches = |rect: Rect, damage: [f32; 4]| {
+        damage[2] > 0.0
+            && damage[0] < rect.x + rect.w
+            && damage[0] + damage[2] > rect.x
+            && damage[1] < rect.y + rect.h
+            && damage[1] + damage[3] > rect.y
+    };
+    let centre = |rect: Rect| (rect.x + rect.w * 0.5, rect.y + rect.h * 0.5);
+    // Press `row`, drag onto `target` and hover there, then release or cancel with Esc.
+    macro_rules! drag {
+        ($row:expr, $target:expr, $end:expr) => {{
+            let (x, y) = centre(find(&ui, Role::ListItem, $row));
+            let (tx, ty) = centre($target);
+            run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y)]);
+            run(&mut ui, &[pointer(input::wire::POINTER_PRESSED, x, y)]);
+            run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y + 8.0)]);
+            let kind = ui.carrying_ref().map(|p| p.kind.to_owned());
+            damage.set([0.0; 4]);
+            run(&mut ui, &[pointer(input::wire::POINTER_MOVED, tx, ty)]);
+            let mut repainted = touches($target, damage.get());
+            run(&mut ui, &[]);
+            repainted |= touches($target, damage.get());
+            let intent = match $end {
+                "drop" => run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)]),
+                _ => {
+                    run(&mut ui, &[pxui::Event {
+                        kind: input::wire::KEY_PRESSED,
+                        code: input::Key::Escape.code(),
+                        ..Default::default()
+                    }]);
+                    assert!(ui.carrying_ref().is_none(), "Esc cancels the carry");
+                    run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)])
+                }
+            };
+            run(&mut ui, &[]);
+            (kind, repainted, intent)
+        }};
+    }
+    let mix = find(&ui, Role::Button, "Mix");
+    let up_next = find(&ui, Role::List, "Up next queue");
+    // An unselected row carries just itself.
+    let (kind, repainted, intent) = drag!("T2", mix, "drop");
+    assert_eq!(kind.as_deref(), Some("localwave.song:2"));
+    assert!(repainted, "hovered list repaints");
+    assert_eq!(intent, Some(Intent::AddToList { song: 2, list: 7 }));
+    // A selected row carries the id the drop resolves against the whole selection.
+    let (kind, repainted, intent) = drag!("T1", up_next, "drop");
+    assert_eq!(kind.as_deref(), Some("localwave.song:1"));
+    assert!(repainted, "hovered Up next repaints");
+    assert_eq!(intent, Some(Intent::AppendSong(1)));
+    // Esc cancels; dropping on a library row does nothing.
+    let (_, _, intent) = drag!("T2", mix, "esc");
+    assert_eq!(intent, None);
+    let t0 = find(&ui, Role::ListItem, "T0");
+    let (_, _, intent) = drag!("T2", t0, "drop");
+    assert_eq!(intent, None);
+    // Warm frames during a drag allocate nothing.
+    let (x, y) = centre(find(&ui, Role::ListItem, "T2"));
+    run(&mut ui, &[pointer(input::wire::POINTER_PRESSED, x, y)]);
+    run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y + 8.0)]);
+    let (mx, my) = centre(up_next);
+    run(&mut ui, &[pointer(input::wire::POINTER_MOVED, mx, my)]);
+    for _ in 0..4 {
+        run(&mut ui, &[]);
+        assert_eq!(mem_sys::local_alloc_count(), 0, "warm frame during a drag");
+    }
+}

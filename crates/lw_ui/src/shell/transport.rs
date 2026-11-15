@@ -271,23 +271,50 @@ pub(super) fn desktop(
                     catalog.queue.as_ref().map(|queue| queue.revision),
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
                 ));
-                let panel = ui.view(
-                    "now-panel",
-                    panel_revision,
-                    Size::Px(319.0),
-                    Size::Grow,
-                    &mut |ui| now_panel(ui, player, position, catalog, p, intent),
+                // The drop target wraps the cached panel: hover and drops never rebuild its view.
+                let target = ui.node(
+                    "up-next-drop",
+                    Node {
+                        // Hit-registered so drops on its empty areas reach it.
+                        flags: CLICKABLE,
+                        w: Size::Px(319.0),
+                        h: Size::Grow,
+                        ..Node::DEFAULT
+                    },
                 );
-                ui.view_clip(
-                    &panel,
-                    Some(Rect {
-                        x: safe_left + width - 319.0,
-                        y: top,
-                        w: 319.0,
-                        h: (height - top - 72.0).max(0.0),
+                ui.within(&target, &mut |ui| {
+                    let panel = ui.view(
+                        "now-panel",
+                        panel_revision,
+                        Size::Grow,
+                        Size::Grow,
+                        &mut |ui| now_panel(ui, player, position, catalog, p, intent),
+                    );
+                    ui.view_clip(
+                        &panel,
+                        Some(Rect {
+                            x: safe_left + width - 319.0,
+                            y: top,
+                            w: 319.0,
+                            h: (height - top - 72.0).max(0.0),
+                        }),
+                    );
+                    crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
+                });
+                match songs::song_drop(ui, &target) {
+                    Some((true, song)) => *intent = Some(Intent::AppendSong(song)),
+                    Some((false, _)) => ui.draw_over(&target, move |paint, rect| {
+                        for (x, y, w, h) in [
+                            (0.0, 0.0, rect.w, 2.0),
+                            (0.0, rect.h - 2.0, rect.w, 2.0),
+                            (0.0, 0.0, 2.0, rect.h),
+                            (rect.w - 2.0, 0.0, 2.0, rect.h),
+                        ] {
+                            paint.fill(rect.x + x, rect.y + y, w, h, p.signal);
+                        }
                     }),
-                );
-                crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
+                    None => {}
+                }
             }
         });
         rule(ui, "transport-divider", false, p);

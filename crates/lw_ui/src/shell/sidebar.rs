@@ -45,10 +45,11 @@ fn side_item(
         },
     );
     let signal = ui.signal_state(&node);
+    let dropping = list.and_then(|_| super::songs::song_drop(ui, &node));
     ui.set_look(
         &node,
         Look {
-            fill: if !state.settings_visible && state.route == route {
+            fill: if dropping.is_some() || (!state.settings_visible && state.route == route) {
                 p.selected
             } else if signal.hovered {
                 p.panel
@@ -84,7 +85,9 @@ fn side_item(
             true,
         );
     });
-    if signal.clicked {
+    if let (Some(list), Some((true, song))) = (list, dropping) {
+        *intent = Some(Intent::AddToList { song, list });
+    } else if signal.clicked {
         *intent = Some(Intent::Navigate(route));
     }
     if let Some(list) = list

@@ -466,7 +466,9 @@ pub(super) fn table(
             // Keep a list-row drag alive while its source row scrolls out of the virtual window.
             if ui
                 .carrying_ref()
-                .is_some_and(|payload| payload.kind.starts_with(LIST_ROW))
+                .is_some_and(|payload| {
+                    payload.kind.starts_with(LIST_ROW) || payload.kind.starts_with(SONG_DRAG)
+                })
             {
                 ui.transfer_carry(&list);
             }
@@ -485,6 +487,17 @@ pub(super) fn table(
 
 mod row;
 use row::*;
+pub(super) use row::SONG_DRAG;
+
+/// A song drag hovering or dropped on `target`: (dropped, dragged row's song id).
+pub(super) fn song_drop(ui: &mut Ui, target: &Handle) -> Option<(bool, i64)> {
+    let (dropped, payload) = match ui.drop_target_ref(target)? {
+        pxui::DropRef::Hover(p) => (false, p),
+        pxui::DropRef::Dropped(p) => (true, p),
+    };
+    let id = payload.kind.strip_prefix(SONG_DRAG)?.parse().ok()?;
+    Some((dropped, id))
+}
 mod menu;
 pub(super) use menu::popup;
 #[cfg(test)]

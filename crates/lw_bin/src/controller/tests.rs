@@ -1010,6 +1010,8 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
     for bad in [
         Command::InsertNext(ids(&[])),
         Command::InsertNext(ids(&[1, 0])),
+        Command::Append(ids(&[])),
+        Command::Append(ids(&[2, 0])),
         Command::AddToList(0, ids(&[1])),
         Command::AddToList(1, ids(&[])),
         Command::RemoveFromList(1, ids(&[-1])),
@@ -1137,22 +1139,24 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
         },
     );
     send(2, Command::InsertNext(ids(&[4, 5])));
-    send(3, Command::AddToList(list, ids(&[1, 2, 2, 5])));
-    send(4, Command::RemoveFromList(list, ids(&[2])));
-    send(5, Command::RetryDownload(4));
+    // Dropped selections append in order, keeping duplicate occurrences.
+    send(3, Command::Append(ids(&[5, 1, 5])));
+    send(4, Command::AddToList(list, ids(&[1, 2, 2, 5])));
+    send(5, Command::RemoveFromList(list, ids(&[2])));
+    send(6, Command::RetryDownload(4));
     wait(&|shared| {
         song_state(shared, 4) == Some(FileState::CopyPending)
             || song_state(shared, 4) == Some(FileState::Copied)
     });
     // A song without a source reports a notice rather than reaching Finder.
-    send(6, Command::Reveal(1));
+    send(7, Command::Reveal(1));
     wait(&|shared| !shared.inbox.lock().unwrap().status.message.is_empty());
     close.0.inbox.lock().unwrap().closed = true;
     close.0.changed.notify_one();
     close.1.take().unwrap().join().unwrap();
     let library = open(&base, &suite).unwrap();
     let saved = library.load_player_state().unwrap();
-    assert_eq!(saved.song_ids, [1, 2, 4, 5, 3]);
+    assert_eq!(saved.song_ids, [1, 2, 4, 5, 3, 5, 1, 5]);
     assert_eq!(saved.current_index, 1);
     let members: Vec<_> = library
         .repository

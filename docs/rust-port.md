@@ -54,10 +54,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F4 | Playlist CRUD, membership and reorder | done | 72bb927 |
 | F5 | Album/artist detail headers and actions | done | 1868431 |
 | F6 | Occurrence-based multi-selection | done | 8ce3af5 |
-| F7 | Drag songs to playlists and queue | todo | — |
+| F7 | Drag songs to playlists and queue | done | HEAD |
 | F8 | Metadata editor and metadata-only deletion | todo | — |
 | F9 | Source observation and debounced rescan | done | 12c2408 + d7c9b87 |
-| F10 | Onboarding, route empty states and Share | done | HEAD |
+| F10 | Onboarding, route empty states and Share | done | 92993cf |
 | S | Sign, migrate, TestFlight and release macOS | todo | — |
 | I1 | Framework gestures and device comparison | todo | — |
 | I2 | iOS flows, physical install and shipping gates | todo | — |
@@ -354,7 +354,7 @@ device/provider behavior remain open.
   menu extras (Play, Shuffle, Duplicate, Keep offline) are not ported. Deleting a list returns to
   Songs because routes address lists by position.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
-- F7: song drops to playlists/queue. Add to queue on a selection still appends only the clicked song.
+- F7: compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
 - F8: metadata editor, transactional song/FTS updates and deletion without removing original files.
 - F9: presenters start with the lazy Files worker (first Files use), not at app launch; moved-root
   notices only trigger a rescan, bookmark re-resolution handles the new location.

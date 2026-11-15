@@ -257,7 +257,7 @@ impl App {
                 }
                 lw_ui::Intent::AppendSong(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
-                    Command::Append(id)
+                    Command::Append(targets(shell_state, player.catalog(), id))
                 }
                 lw_ui::Intent::ShuffleAll => {
                     let Some(collection) = player

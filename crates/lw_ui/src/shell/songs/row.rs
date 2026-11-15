@@ -248,6 +248,8 @@ pub(super) struct Rows<'a> {
     pub(super) viewport: Viewport,
 }
 pub(super) const LIST_ROW: &str = "localwave.list-row:";
+/// Carry kind of a row drag; the target resolves the selection from the song id.
+pub(crate) const SONG_DRAG: &str = "localwave.song:";
 
 impl Rows<'_> {
     /// Rows of a list in saved order can be dragged to reorder (not while sorted).
@@ -372,6 +374,18 @@ impl Rows<'_> {
                     },
                     State::default(),
                 );
+                if signal.held {
+                    let id = ClockLabel::integer(row.id as u64);
+                    let mut kind = [0u8; 48];
+                    kind[..SONG_DRAG.len()].copy_from_slice(SONG_DRAG.as_bytes());
+                    let len = SONG_DRAG.len() + id.bytes().len();
+                    kind[SONG_DRAG.len()..len].copy_from_slice(id.bytes());
+                    ui.carry(
+                        Some(&root),
+                        std::str::from_utf8(&kind[..len]).expect("song drag kind is ASCII"),
+                        row.title,
+                    );
+                }
                 let current = player.current_id == Some(row.id);
                 ui.within(&root, &mut |ui| {
                     ui.view("song-copy", revision, Size::Grow, Size::Grow, &mut |ui| {

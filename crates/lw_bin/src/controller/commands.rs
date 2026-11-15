@@ -39,8 +39,7 @@ impl Worker {
             self.commit_selection(ticket);
         }
         let adding = match &envelope.command {
-            Command::Append(_) => 1,
-            Command::InsertNext(songs) => songs.len(),
+            Command::Append(songs) | Command::InsertNext(songs) => songs.len(),
             _ => 0,
         };
         if adding > 0 && self.session.queue().entries().len() + adding > 1_000_000 {
@@ -228,8 +227,10 @@ impl Worker {
                 *structural = self.session.remove(occurrence);
                 Action::None
             }
-            Command::Append(song) => {
-                self.session.append(song);
+            Command::Append(songs) => {
+                for song in songs.iter() {
+                    self.session.append(*song);
+                }
                 *structural = true;
                 Action::None
             }
