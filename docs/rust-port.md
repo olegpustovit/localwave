@@ -26,6 +26,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | B2a | Keyless measurement and bounded layout cache | done | 7ad09dc |
 | B2b | Pixel Fit layout and public fast identities | done | 5426f94 |
 | B3 | Repeating retained keyframes and indicators | done | f7c573a |
+| B3a | Schedule plain-node loops through their retained owner | done | HEAD + pxui 48c55f8 |
 | B4 | Framework scrub signal for seek/volume | done | 57cb610 |
 | B5 | Framework virtual-list reveal | done | 6179982 |
 | B6 | Framework completed file-drop events | done | 042b961 |
@@ -35,7 +36,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P3 | Isolate position ticks from stable content | done | d16e6a3 |
 | P4 | Worker-prepared catalog remapping | done | 81ab1ca |
 | P5 | Single controller-poll lock | done | 7bb51ac |
-| P6 | Fix measured hot paths; pass phase gate | doing | HEAD + pxui 7556bee |
+| P6 | Fix measured hot paths; pass phase gate | doing | HEAD + pxui 48c55f8 |
 | P6a | Bind fixed renderer state once per pass | done | 89ee53a + pxui d10fb8c |
 | P6b | Worker-prepared text API and ownership | done | 8a934a3 + pxui 3231c8e |
 | P6c | Bounded song-text delivery; remove LongScroll allocations | done | d67773d |
@@ -43,7 +44,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P6e | Reuse bounded fresh-row gaps before retained runs | done | ec54614 + pxui 796ba63 |
 | P6f | Bound actual write ends when reusing retained storage | done | 962df25 + pxui 519e367 |
 | P6g | Avoid recursive native background redraws under opaque Metal | done | 6614ab5 + pxui 8a9f05b |
-| P6h | Borrow instances during retained-run compaction | done | HEAD + pxui 7556bee |
+| P6h | Borrow instances during retained-run compaction | done | 4f4ed00 + pxui 7556bee |
 | F1 | Global shortcuts from one command table | todo | — |
 | F2 | Favorite commands, menu, key and heart | todo | — |
 | F3 | Complete track menu and native reveal | todo | — |
@@ -61,12 +62,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P6h borrowed compaction instances `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+B3a plain-node animation scheduling `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
 GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
 strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
-Bundle/signature/rpath/default-stack checks and settled idle smoke pass (510.4 ms).
-Source: `/tmp/localwave-p6-borrow-performance.log`; prior P1–P6g failures remain in commit evidence.
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (501.2 ms).
+Source: `/tmp/localwave-b3-owner-performance.log`; prior P1–P6h failures remain in commit evidence.
 
 All thirteen cases have zero measured Rust allocations/new UI text layouts and pass the frame-82
 audit. LongScroll formerly exposed 202 allocations/frame and six new layouts; bounded worker
@@ -79,26 +80,26 @@ Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-
 
 | Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 627/1005/1017 | 685/2815/4054/4871 | 1092/1506/1563 | 16632/17817/18820/20874 | 0 | 0 | pass |
-| find-filters-title-descending | 542/878/958 | 562/2774/4304/5592 | 945/1325/1387 | 16645/18748/21099/22035 | 0 | 0 | pass |
-| queue-occurrences | 587/839/894 | 632/2102/3348/3654 | 1054/1392/1468 | 16631/19720/20920/29564 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 520/879/969 | 549/2295/2835/2899 | 983/1377/1446 | 16637/18641/19975/20878 | 0 | 0 | pass |
-| full-queue-playlist-editor | 682/971/1076 | 740/2334/3339/4211 | 1168/1463/1582 | 16659/19213/20150/20740 | 0 | 0 | pass |
-| albums-artwork | 625/1035/1188 | 665/1919/3188/3415 | 1220/1721/1832 | 16630/17869/20184/20604 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 487/982/1417 | 512/1064/1953/2121 | 982/1660/2142 | 16660/18716/20876/21286 | 0 | 0 | pass |
-| settings-menus-appearance | 298/520/592 | 340/1929/2579/2767 | 676/971/1162 | 16638/18081/20256/22354 | 0 | 0 | pass |
-| files-indexed-directory | 336/424/438 | 350/1308/2481/2862 | 785/990/1131 | 16638/17932/20177/20585 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 323/442/465 | 337/2207/2790/4012 | 785/1069/1107 | 16575/18882/20134/20647 | 0 | 0 | pass |
-| artists-measured-columns | 634/978/1016 | 713/2904/3995/6058 | 1103/1483/1556 | 16651/18557/19670/19988 | 0 | 0 | pass |
-| songs-playing-indicator | 785/1149/1160 | 939/3393/4143/4607 | 1272/1627/1754 | 16622/18293/19396/20272 | 0 | 0 | pass |
-| songs-long-scroll | 851/1217/1256 | 952/3664/4441/4516 | 1318/1798/1832 | 16601/19014/21008/21377 | 0 | 0 | pass |
+| songs-original | 628/891/987 | 708/3176/3774/4210 | 1068/1372/1386 | 16669/19654/21052/21802 | 0 | 0 | pass |
+| find-filters-title-descending | 576/795/929 | 631/2355/4023/4355 | 996/1210/1306 | 16602/18540/21039/22094 | 0 | 0 | pass |
+| queue-occurrences | 589/775/825 | 621/3096/3798/5331 | 1019/1262/1311 | 16592/18757/19348/20631 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 519/785/828 | 539/2183/2631/3758 | 941/1283/1289 | 16633/19316/20460/20623 | 0 | 0 | pass |
+| full-queue-playlist-editor | 654/974/981 | 724/2956/3583/3903 | 1115/1469/1472 | 16633/18275/19258/20718 | 0 | 0 | pass |
+| albums-artwork | 594/963/1147 | 632/2641/3035/3513 | 1141/1506/1759 | 16633/18470/20724/23849 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 433/814/854 | 553/2653/3879/4026 | 867/1384/1431 | 16610/18211/18669/18942 | 0 | 0 | pass |
+| settings-menus-appearance | 312/571/586 | 346/2513/3081/3289 | 789/1100/1114 | 16638/18082/18813/20849 | 0 | 0 | pass |
+| files-indexed-directory | 337/432/433 | 352/1586/2642/3052 | 767/920/947 | 16642/20231/21261/33224 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 297/398/435 | 309/1587/2942/3285 | 729/846/868 | 16666/20215/20439/21253 | 0 | 0 | pass |
+| artists-measured-columns | 629/908/935 | 698/2608/2812/2913 | 1069/1491/1497 | 16639/18604/19537/19975 | 0 | 0 | pass |
+| songs-playing-indicator | 769/1133/1180 | 913/3627/4158/4239 | 1236/1569/1641 | 16651/18240/19299/19947 | 0 | 0 | pass |
+| songs-long-scroll | 793/1197/1322 | 879/3936/4493/5069 | 1257/1649/1881 | 16635/18529/19113/19791 | 0 | 0 | pass |
 
 ### CPU profile
 
 Separate signed `--performance-check --trace-frames` runs of the five P6a follow-up cases use the same
 10,000-song, 1440×872, 182/82/100 fixture. All five fail the unchanged performance gate;
 Rank by mean thread CPU over the 100 measured frames, rather than wall time or an individual
-outlier. Profiling is opt-in. LongScroll uses the P6h trace, Settings retains P6g, and the other
+outlier. Profiling is opt-in. LongScroll uses the B3a trace, Settings retains P6g, and the other
 four rows retain their P6a trace baseline. Settings additionally required input-pump attribution
 outside the engine/output/draw phases; that work remains included in full-frame CPU.
 The ABI 1.35 CPU clock sums every engine settling pass. Existing wall-phase times remain the
@@ -113,11 +114,11 @@ Raw CPU samples are retained with their corresponding wall/phase records before 
 | song-indicators | paint 376.62 | draw 350.42 | build 300.93 |
 | waveform | draw 304.78 | paint 205.84 | build 175.21 |
 | artwork | draw 448.75 | build 281.43 | paint 190.28 |
-| long-scroll | draw 297.84 | build 275.94 | paint 264.58 |
+| long-scroll | draw 332.45 | build 283.86 | paint 265.79 |
 | settings | draw 349.73 | paint 138.97 | build 99.37 |
 
 Sources: `/tmp/localwave-p6-bindings-trace-{queue-drag,song-indicators,waveform,artwork,long-scroll}.log`.
-The LongScroll trace is `/tmp/localwave-p6-borrow-long-trace.log`; it also has zero
+The LongScroll trace is `/tmp/localwave-b3-owner-long-trace.log`; it also has zero
 warm Rust allocations/layouts and a passing frame-82 audit, while latency still fails. Settings
 uses `/tmp/localwave-p6-background-settings-clean.log`, also zero/zero with a passing audit. Full phase
 means, aggregate CPU/wall timings and failing exits are preserved in each corresponding commit. Earlier baselines remain in their corresponding commits.
@@ -226,6 +227,35 @@ P6h verification: 440 framework cases pass in 25.623 s wall (19.353 s case sum);
 209 LocalWave cases pass in 9.417 s wall (13.792 s case sum), zero skips. Five/four
 existing cases pass on the runner’s isolated contention retry. Native pixels, retained geometry,
 input, text, ownership, allocation, bundle and dependency/diff checks pass.
+
+B3a corrects the scheduling predicate for a plain node inside a kept view: its retained instance
+range and owner visibility remain meaningful even when it was not painted again this frame.
+Visible loops keep requesting frames; clipped or transparent owners do not. Root-owned nodes keep
+their existing behavior. The native regression checks every pixel at 1×/2×, one body build across
+18 changing frames, and zero warm Rust allocations; it fails on the previous implementation.
+441 framework cases pass in 26.859 s; 209 app cases pass in 14.257 s, zero skips, with six/fifteen
+existing isolated contention retries. The new native case takes 0.613 s in the full suite.
+No renderer, layout, cache-storage, ABI or application code changes are adopted.
+
+The overscan-retention experiment was **rejected** after alternating baseline/candidate runs.
+Fewer row builds traded against more retained paint and accessibility work. Phase means below
+average three 100-frame runs; frame percentiles list each run separately, never an averaged percentile.
+
+| LongScroll CPU (µs) | Baseline | Rejected candidate |
+| --- | --- | --- |
+| Build phase mean | 287.76 | 255.25 |
+| Paint phase mean | 277.19 | 296.66 |
+| Accessibility phase mean | 81.64 | 86.42 |
+| Frame p50, each run | 1387 / 1260 / 1273 | 1310 / 1281 / 1326 |
+| Frame p99, each run | 1796 / 1638 / 1651 | 1650 / 1664 / 1831 |
+
+All six runs fail the unchanged gate, with zero warm allocations/layouts and ready audits.
+Sources: `/tmp/localwave-p6-overscan-paired-{1,4,5}-baseline.log` and
+`/tmp/localwave-p6-overscan-paired-{2,3,6}-candidate.log`. The 13-case candidate and restored
+matrices, slower runs and prototype test failures remain in commit evidence. Cache warming,
+ancestor bookkeeping, short-run padding and eager hit buffers are all reverted; only the independent
+B3a scheduling correction is kept. Its clean LongScroll trace still fails: build CPU 790/1090/1336 µs,
+frame CPU 1285/1577/1886 µs and build wall maximum 6,106 µs. No timing improvement is claimed for B3a.
 
 P6 remains open: allocation/layout misses are fixed in the measured matrix, but CPU/wall latency
 still fails the full gate. Native/process allocation and real device/provider behavior remain open.
