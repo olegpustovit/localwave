@@ -61,6 +61,7 @@ impl ShellState {
                 Command::Panel => Intent::TogglePanel,
                 Command::Shortcuts => Intent::ShowShortcuts,
                 Command::Settings => Intent::ShowSettings,
+                Command::Favorite => return None,
             },
         };
         self.apply(Intent::CloseCommands);

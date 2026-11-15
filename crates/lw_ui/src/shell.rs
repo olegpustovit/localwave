@@ -354,7 +354,12 @@ fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellSta
 }
 
 /// Swift's global shortcuts. Raw scalar queries: routed key vectors allocate.
-fn global_shortcut(ui: &Ui, player: &PlayerView<'_>, position: f64) -> Option<Intent> {
+fn global_shortcut(
+    ui: &Ui,
+    player: &PlayerView<'_>,
+    catalog: &Catalog,
+    position: f64,
+) -> Option<Intent> {
     use crate::commands::Command;
     let (meta, alt) = (input::Key::Meta.code(), input::Key::Alt.code());
     let pressed = |key: u32, modifier: u32| {
@@ -374,9 +379,18 @@ fn global_shortcut(ui: &Ui, player: &PlayerView<'_>, position: f64) -> Option<In
         Command::Repeat,
         Command::AddMusic,
         Command::Panel,
+        Command::Favorite,
     ] {
         let (key, modifier) = command.key()?;
         if pressed(key, modifier) {
+            if command == Command::Favorite {
+                // No current song: the key is consumed by nothing.
+                let id = player.current_id?;
+                let on = catalog
+                    .row_index(id)
+                    .is_some_and(|i| catalog.row(i).favorite);
+                return Some(Intent::SetFavorite { song: id, on: !on });
+            }
             return Some(match command {
                 Command::PlayPause if player.playing => Intent::Pause,
                 Command::PlayPause => Intent::Play,
@@ -405,8 +419,16 @@ fn global_shortcut(ui: &Ui, player: &PlayerView<'_>, position: f64) -> Option<In
         (input::Key::ArrowRight, meta, Intent::Next),
         (input::Key::ArrowLeft, shift, Intent::Previous),
         (input::Key::ArrowRight, shift, Intent::Next),
-        (input::Key::ArrowUp, meta, Intent::Volume((player.volume + 1.0 / 12.0).min(1.0))),
-        (input::Key::ArrowDown, meta, Intent::Volume((player.volume - 1.0 / 12.0).max(0.0))),
+        (
+            input::Key::ArrowUp,
+            meta,
+            Intent::Volume((player.volume + 1.0 / 12.0).min(1.0)),
+        ),
+        (
+            input::Key::ArrowDown,
+            meta,
+            Intent::Volume((player.volume - 1.0 / 12.0).max(0.0)),
+        ),
     ] {
         if pressed(key.code(), modifier) {
             return Some(intent);
@@ -536,7 +558,7 @@ pub fn shell(
         && state.source_menu.is_none()
         && state.remove_source.is_none()
     {
-        *intent = global_shortcut(ui, player, position);
+        *intent = global_shortcut(ui, player, catalog, position);
     }
     if !state.commands_visible && !state.shortcuts_visible && !state.queue_visible {
         if ui.key_pressed_with('k' as u32, input::Key::Meta.code())

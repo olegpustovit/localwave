@@ -2408,3 +2408,246 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
         assert_eq!(tap(&mut ui, &state, &mut run, code), None);
     }
 }
+
+#[test]
+fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
+    use pxui::ui::Role;
+    let catalog = prepared(
+        (1..=2)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("Track {id}"),
+                is_favorite: (id == 1) as i64,
+                ..Default::default()
+            })
+            .collect(),
+    );
+    let mut state = ShellState::default();
+    let mut player = PlayerView {
+        initialized: true,
+        current_id: Some(1),
+        title: "Track 1",
+        ..PlayerView::default()
+    };
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run =
+        |ui: &mut Ui, state: &ShellState, player: &PlayerView<'_>, events: &[pxui::Event]| {
+            time += 0.02;
+            let frame = FrameIn {
+                width: 1440.0,
+                height: 872.0,
+                time,
+                events: events.as_ptr(),
+                event_count: events.len(),
+                ..Default::default()
+            };
+            let mut intent = None;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, player, 0.0, &catalog, state, &mut intent)
+            })
+            .unwrap();
+            intent
+        };
+    let key = |kind, code| pxui::Event {
+        kind,
+        code,
+        ..Default::default()
+    };
+    let l = 'l' as u32;
+    let off = Some(Intent::SetFavorite { song: 1, on: false });
+    run(&mut ui, &state, &player, &[]);
+    run(&mut ui, &state, &player, &[]);
+    let intent = run(
+        &mut ui,
+        &state,
+        &player,
+        &[key(input::wire::KEY_PRESSED, l)],
+    );
+    run(
+        &mut ui,
+        &state,
+        &player,
+        &[key(input::wire::KEY_RELEASED, l)],
+    );
+    assert_eq!(intent, off);
+    assert_eq!(commands::Command::Favorite.hint(), "L");
+    // The heart is a named button; the menu item reads the row's state.
+    let click = |ui: &mut Ui,
+                 state: &ShellState,
+                 player: &PlayerView<'_>,
+                 run: &mut dyn FnMut(
+        &mut Ui,
+        &ShellState,
+        &PlayerView<'_>,
+        &[pxui::Event],
+    ) -> Option<Intent>,
+                 role,
+                 name: &str| {
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(role) && ui.a11y_name_of(node) == name)
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
+        run(ui, state, player, &[])
+    };
+    assert_eq!(
+        click(
+            &mut ui,
+            &state,
+            &player,
+            &mut run,
+            Role::Button,
+            "Unfavorite current song"
+        ),
+        off
+    );
+    let group = catalog.all.as_ref().unwrap().key;
+    state.apply(Intent::SongMenu(0, 1, group, (500.0, 200.0)));
+    run(&mut ui, &state, &player, &[]);
+    assert_eq!(
+        click(
+            &mut ui,
+            &state,
+            &player,
+            &mut run,
+            Role::MenuItem,
+            "Unfavorite"
+        ),
+        off
+    );
+    state.apply(Intent::SongMenu(1, 2, group, (500.0, 200.0)));
+    run(&mut ui, &state, &player, &[]);
+    assert_eq!(
+        click(
+            &mut ui,
+            &state,
+            &player,
+            &mut run,
+            Role::MenuItem,
+            "Favorite"
+        ),
+        Some(Intent::SetFavorite { song: 2, on: true })
+    );
+    state.apply(Intent::CloseSongMenu);
+    // Nothing current: L is a no-op.
+    player.current_id = None;
+    run(&mut ui, &state, &player, &[]);
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &player,
+            &[key(input::wire::KEY_PRESSED, l)]
+        ),
+        None
+    );
+    run(
+        &mut ui,
+        &state,
+        &player,
+        &[key(input::wire::KEY_RELEASED, l)],
+    );
+    // A focused Find field types the letter instead.
+    player.current_id = Some(1);
+    state.apply(Intent::Navigate(catalog::Route::Find));
+    run(&mut ui, &state, &player, &[]);
+    let rect = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(Role::TextField))
+        .unwrap()
+        .rect;
+    let at = |kind| pxui::Event {
+        kind,
+        x: f64::from(rect.x + rect.w * 0.8),
+        y: f64::from(rect.y + rect.h * 0.5),
+        ..Default::default()
+    };
+    run(
+        &mut ui,
+        &state,
+        &player,
+        &[
+            at(input::wire::POINTER_MOVED),
+            at(input::wire::POINTER_PRESSED),
+            at(input::wire::POINTER_RELEASED),
+        ],
+    );
+    assert!(ui.text_input_focused());
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &player,
+            &[key(input::wire::KEY_PRESSED, l)]
+        ),
+        None
+    );
+}
+
+#[test]
+fn favorite_burst_runs_only_on_the_off_to_on_transition_and_respects_reduced_motion() {
+    let make = |on: i64, id: i64| {
+        prepared(
+            (1..=2)
+                .map(|n| lw_core::Song {
+                    id: Some(n),
+                    title: format!("Track {n}"),
+                    is_favorite: if n == id { on } else { 1 - on },
+                    ..Default::default()
+                })
+                .collect(),
+        )
+    };
+    for (reduced, expect_burst) in [(0, true), (1, false)] {
+        let state = ShellState::default();
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        let mut time = 0.0;
+        let mut run = |catalog: &catalog::Catalog, id: i64, seconds: f64| {
+            time += seconds;
+            let player = PlayerView {
+                initialized: true,
+                current_id: Some(id),
+                ..PlayerView::default()
+            };
+            let frame = FrameIn {
+                width: 1440.0,
+                height: 872.0,
+                time,
+                reduced_motion: reduced,
+                ..Default::default()
+            };
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, 0.0, catalog, &state, &mut None)
+            })
+            .unwrap();
+            ui.output().repaint_at.is_finite()
+        };
+        let (off, on) = (make(0, 1), make(1, 1));
+        for _ in 0..40 {
+            run(&off, 1, 0.5);
+        }
+        assert!(!run(&off, 1, 0.5), "idle heart never animates");
+        assert_eq!(
+            run(&on, 1, 0.01),
+            expect_burst,
+            "off to on starts the burst"
+        );
+        for _ in 0..4 {
+            run(&on, 1, 0.2);
+        }
+        assert!(!run(&on, 1, 0.2), "the burst settles");
+        // Switching to a song that is already a favourite is not a toggle.
+        let other = make(0, 2);
+        run(&other, 2, 0.5);
+        assert!(!run(&other, 1, 0.01), "track change never bursts");
+    }
+}

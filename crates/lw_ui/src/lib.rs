@@ -7,8 +7,8 @@ pub mod files;
 mod icons;
 pub mod motion;
 pub mod queue;
-pub mod song_text;
 mod shell;
+pub mod song_text;
 pub use shell::{ShellState, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");
@@ -35,6 +35,10 @@ pub enum Intent {
     SelectRow(usize),
     PlayRow(usize),
     AppendSong(i64),
+    SetFavorite {
+        song: i64,
+        on: bool,
+    },
     TogglePins,
     SongMenu(usize, i64, u64, (f32, f32)),
     CloseSongMenu,

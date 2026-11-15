@@ -45,6 +45,19 @@ pub(super) fn now_panel(
                 (Size::Grow, 18.2),
                 false,
             );
+            let favorite = player.current_id.map(|id| {
+                (
+                    id,
+                    catalog
+                        .row_index(id)
+                        .is_some_and(|i| catalog.row(i).favorite),
+                )
+            });
+            if favorite_button(ui, favorite, p)
+                && let Some((song, on)) = favorite
+            {
+                *intent = Some(Intent::SetFavorite { song, on: !on });
+            }
             if icon_button(
                 ui,
                 "hide-panel",
@@ -208,4 +221,148 @@ pub(super) fn now_panel(
             &mut |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, p, intent),
         );
     });
+}
+
+/// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
+fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> bool {
+    use pxui::kit::{AnimationTarget as Target, Keyframe};
+    const RAYS: [(&str, f32, f32); 6] = [
+        ("ray0", 0.0, -1.0),
+        ("ray1", 0.9, -0.5),
+        ("ray2", 0.9, 0.5),
+        ("ray3", 0.0, 1.0),
+        ("ray4", -0.9, 0.5),
+        ("ray5", -0.9, -0.5),
+    ];
+    let on = current.is_some_and(|(_, on)| on);
+    let node = ui.node(
+        "favorite",
+        Node {
+            axis: Axis::Stack,
+            flags: if current.is_some() {
+                CLICKABLE | TAB_STOP
+            } else {
+                0
+            },
+            w: Size::Px(36.0),
+            h: Size::Px(36.0),
+            role: Role::Button,
+            state: State {
+                disabled: current.is_none(),
+                ..State::default()
+            },
+            ..Node::DEFAULT
+        },
+    );
+    let signal = ui.signal_state(&node);
+    ui.a11y_name(
+        &node,
+        if on {
+            "Unfavorite current song"
+        } else {
+            "Favorite current song"
+        },
+    );
+    // Remember (song, state) so a track change never reads as a favourite toggle.
+    let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
+    let was = ui.state(&node, 0);
+    let burst = current.is_some_and(|(id, on)| on && was == id.wrapping_mul(2) + 1)
+        && !ui.tokens().reduced_motion;
+    if was != seen {
+        ui.set_state(&node, seen);
+    }
+    let color = if on { p.signal } else { p.secondary };
+    let revision = pxui::hash!((on, signal.hovered, signal.held, current.is_some()));
+    ui.within(&node, &mut |ui| {
+        let heart = ui.view("heart", revision, Size::Grow, Size::Grow, &mut |ui| {
+            let surface = ui.node(
+                "surface",
+                Node {
+                    w: Size::Grow,
+                    h: Size::Grow,
+                    ..Node::DEFAULT
+                },
+            );
+            ui.draw(&surface, move |paint, rect| {
+                let side = 20.0;
+                let area = Rect {
+                    x: rect.x + (rect.w - side) / 2.0,
+                    y: rect.y + (rect.h - side) / 2.0,
+                    w: side,
+                    h: side,
+                };
+                crate::icons::heart(paint, area, on, color);
+            });
+        });
+        let _ = heart;
+        for (key, dx, dy) in RAYS {
+            let slot = ui.node(
+                key,
+                Node {
+                    w: Size::Px(4.0),
+                    h: Size::Px(4.0),
+                    at: Some((16.0, 16.0)).into(),
+                    ..Node::DEFAULT
+                },
+            );
+            let mut ray = None;
+            ui.within(&slot, &mut |ui| {
+                ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
+                    let dot = ui.node(
+                        "dot",
+                        Node {
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.draw(&dot, move |paint, rect| {
+                        paint.fill(rect.x, rect.y, rect.w, rect.h, p.signal)
+                    });
+                }));
+            });
+            let ray = ray.unwrap();
+            let curve = crate::motion::out(crate::motion::SLOW);
+            if burst {
+                let pose = |time, opacity, k: f32, scale| {
+                    [
+                        Keyframe {
+                            time,
+                            target: Target::Opacity(opacity),
+                            curve,
+                        },
+                        Keyframe {
+                            time,
+                            target: Target::Offset(dx * 18.0 * k, dy * 18.0 * k),
+                            curve,
+                        },
+                        Keyframe {
+                            time,
+                            target: Target::Scale {
+                                x: scale,
+                                y: scale,
+                                anchor: (0.5, 0.5),
+                            },
+                            curve,
+                        },
+                    ]
+                };
+                let [a, b, c] = pose(0.0, 1.0, 0.0, 1.0);
+                let [d, e, f] = pose(crate::motion::SLOW, 0.0, 1.0, 0.25);
+                ui.animate_keys(&ray, &[a, b, c, d, e, f]);
+                ui.set_state(&ray, 1);
+            } else if ui.state(&ray, 0) == 0 {
+                ui.set_state(&ray, 1);
+                ui.animate_keys(
+                    &ray,
+                    &[Keyframe {
+                        time: 0.0,
+                        target: Target::Opacity(0.0),
+                        curve,
+                    }],
+                );
+            }
+        }
+    });
+    signal.clicked
 }

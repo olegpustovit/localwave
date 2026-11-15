@@ -223,6 +223,10 @@ impl App {
                     }
                     Command::TogglePins(ids.clone())
                 }
+                lw_ui::Intent::SetFavorite { song, on } => {
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::SetFavorite { song, on }
+                }
                 lw_ui::Intent::AppendSong(id) => {
                     shell_state.apply(lw_ui::Intent::CloseSongMenu);
                     Command::Append(id)

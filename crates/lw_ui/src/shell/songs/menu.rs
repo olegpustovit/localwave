@@ -12,10 +12,13 @@ pub(in crate::shell) fn popup(
     let present = state.collection(catalog).is_some_and(|collection| {
         collection.key == target.2 && collection.ids.get(target.0) == Some(&target.1)
     });
+    let favorite = catalog
+        .row_index(target.1)
+        .is_some_and(|index| catalog.row(index).favorite);
     let (w, h) = ui.view_size();
     let at = (
         at.0.clamp(0.0, (w - 200.0).max(0.0)),
-        at.1.clamp(0.0, (h - 72.0).max(0.0)),
+        at.1.clamp(0.0, (h - 108.0).max(0.0)),
     );
     let mut accepted = false;
     let open = ui.popup(
@@ -25,12 +28,19 @@ pub(in crate::shell) fn popup(
         false,
         at,
         200.0,
-        72.0,
+        108.0,
         "Song actions",
         &mut |ui| {
             for (label, action) in [
                 ("Play", Intent::PlayRow(target.0)),
                 ("Add to queue", Intent::AppendSong(target.1)),
+                (
+                    if favorite { "Unfavorite" } else { "Favorite" },
+                    Intent::SetFavorite {
+                        song: target.1,
+                        on: !favorite,
+                    },
+                ),
             ] {
                 let item = ui.node(
                     label,

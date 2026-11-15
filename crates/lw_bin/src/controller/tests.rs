@@ -888,3 +888,115 @@ fn offline_commands_copy_on_the_library_worker_preserve_playback_and_release_pin
         .count();
     assert_eq!(files, 1, "identical content shares a managed copy");
 }
+
+#[test]
+fn set_favorite_persists_on_the_library_worker_and_refreshes_the_catalog() {
+    use lw_core::Song;
+    assert!(
+        Command::SetFavorite { song: 0, on: true }
+            .validate()
+            .is_err()
+    );
+    let base = std::env::temp_dir().join(format!("lw-favorite-command-{}", std::process::id()));
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let shared = shared();
+    shared.inbox.lock().unwrap().native.volume = 1.0;
+    let (worker_base, owner) = (base.clone(), shared.clone());
+    let thread = std::thread::spawn(move || {
+        Worker::run(
+            move || {
+                std::fs::create_dir_all(&worker_base)?;
+                let mut library = LibraryWorker::open(
+                    &worker_base.join("library.sqlite"),
+                    lw_apple_sys::preferences::Preferences::open(Some(&format!(
+                        "localwave.favorite-command.{}",
+                        std::process::id()
+                    )))?,
+                    lw_apple_sys::preferences::AppPaths {
+                        documents: worker_base.join("Documents"),
+                        caches: worker_base.join("Caches"),
+                        temporary: worker_base.join("tmp"),
+                        test_database: None,
+                    },
+                )?;
+                library
+                    .repository
+                    .upsert_song(
+                        &Song {
+                            song_key: 1,
+                            title: "Track 1".into(),
+                            ..Default::default()
+                        },
+                        1.0,
+                    )
+                    .map_err(io::Error::other)?;
+                Ok(library)
+            },
+            owner,
+        )
+    });
+    struct Close(Arc<Shared>, Option<JoinHandle<()>>);
+    impl Drop for Close {
+        fn drop(&mut self) {
+            self.0.inbox.lock().unwrap().closed = true;
+            self.0.changed.notify_one();
+            self.1.take().unwrap().join().unwrap();
+        }
+    }
+    let _close = Close(shared.clone(), Some(thread));
+    let favorite = |shared: &Shared| {
+        shared
+            .inbox
+            .lock()
+            .unwrap()
+            .catalog
+            .as_ref()
+            .and_then(|catalog| {
+                catalog
+                    .row_index(1)
+                    .map(|index| catalog.row(index).favorite)
+            })
+    };
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    let wait = |done: &dyn Fn() -> bool| {
+        while !done() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "favorite command stalled"
+            );
+            std::thread::yield_now();
+        }
+    };
+    for (revision, song, on) in [(0, 0, false), (1, 1, true), (2, 1, false), (3, 9000, true)] {
+        let command = if revision == 0 {
+            Command::RefreshCatalog
+        } else {
+            Command::SetFavorite { song, on }
+        };
+        assert!(command.validate().is_ok() && command.changes_catalog());
+        assert!(!command.interrupts() && !command.fences_preparation());
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
+            revision,
+            preparation: 0,
+            command,
+        });
+        shared.waveform_cancelled.store(true, Ordering::SeqCst);
+        shared.changed.notify_one();
+        match revision {
+            0 => wait(&|| favorite(&shared) == Some(false)),
+            1 => wait(&|| favorite(&shared) == Some(true)),
+            2 => wait(&|| favorite(&shared) == Some(false)),
+            _ => wait(&|| {
+                let inbox = shared.inbox.lock().unwrap();
+                inbox.status.processed_command >= revision && !inbox.status.message.is_empty()
+            }),
+        }
+    }
+}

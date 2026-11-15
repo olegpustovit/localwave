@@ -74,7 +74,8 @@ impl Worker {
             command @ (Command::SaveQueue(_)
             | Command::DismissNotice
             | Command::RefreshCatalog
-            | Command::TogglePins(_)) => self.library_command(command)?,
+            | Command::TogglePins(_)
+            | Command::SetFavorite { .. }) => self.library_command(command)?,
         };
         self.action(action);
         if structural && !keep_undo {
@@ -320,6 +321,20 @@ impl Worker {
                         self.message = Arc::from(
                             "Could not change kept songs. Refresh or reconnect the source and try again.",
                         );
+                    }
+                }
+                Action::None
+            }
+            Command::SetFavorite { song, on } => {
+                match self.library.set_favorite(song, on) {
+                    Ok(()) => {
+                        self.dirty_catalog();
+                        self.message = self.empty.clone();
+                    }
+                    Err(error) => {
+                        eprintln!("LocalWave favorite: {error}");
+                        self.message =
+                            Arc::from("Could not change Favorites. Refresh and try again.");
                     }
                 }
                 Action::None

@@ -8,6 +8,27 @@ pub(crate) fn play(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     paint.triangle(at((7.0, 4.6)), at((7.0, 19.4)), at((19.4, 12.0)), color);
 }
+pub(crate) fn heart(paint: &mut Paint<'_>, rect: Rect, filled: bool, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    if filled {
+        for x in [8.2, 15.8] {
+            paint.circle(at((x, 8.8)), 4.2 * scale, Some(color), None);
+        }
+        paint.triangle(at((4.2, 10.4)), at((19.8, 10.4)), at((12.0, 20.0)), color);
+        return;
+    }
+    for side in [-1.0_f32, 1.0] {
+        let mirror = |(x, y): (f32, f32)| at((12.0 + side * (x - 12.0), y));
+        for points in [
+            [(12.0, 20.5), (6.0, 15.5), (3.0, 12.0), (3.0, 8.5)],
+            [(3.0, 8.5), (3.0, 5.5), (5.2, 4.0), (7.5, 4.0)],
+            [(7.5, 4.0), (9.5, 4.0), (11.0, 5.0), (12.0, 7.0)],
+        ] {
+            paint.cubic(points.map(mirror), 1.6 * scale, color);
+        }
+    }
+}
 pub(crate) fn offline(paint: &mut Paint<'_>, rect: Rect, kept: bool, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);

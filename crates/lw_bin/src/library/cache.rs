@@ -151,6 +151,13 @@ impl EvictionIO for Evict<'_> {
 }
 
 impl LibraryWorker {
+    /// Swift's single-column `isFavorite` write, after confirming the song still exists.
+    pub fn set_favorite(&mut self, id: i64, on: bool) -> io::Result<()> {
+        if self.repository.get_songs(&[id]).map_err(db)?.is_empty() {
+            return Err(io::Error::new(io::ErrorKind::NotFound, "Song was removed"));
+        }
+        self.repository.set_favorite(id, on).map_err(db)
+    }
     /// Swift's bulk pin toggle: persist one preference update and queue uncopied songs together.
     pub fn toggle_pins(&mut self, ids: &[i64]) -> io::Result<bool> {
         if ids.is_empty() || ids.len() > 1_000_000 {

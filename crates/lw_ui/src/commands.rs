@@ -30,6 +30,8 @@ pub enum Command {
     Panel,
     Shortcuts,
     Settings,
+    /// Shortcut-only: toggles the playing song, so the palette does not list it.
+    Favorite,
 }
 impl Command {
     pub fn label(self) -> &'static str {
@@ -44,10 +46,10 @@ impl Command {
             Self::Panel => "Minimise or restore the player",
             Self::Shortcuts => "Show keyboard shortcuts",
             Self::Settings => "Settings",
+            Self::Favorite => "Favorite current song",
         }
     }
     /// The one shortcut table: (key code, modifier key code or 0). `hint` derives from it.
-    /// Favourite (L) has no command or intent yet; F2 adds both.
     pub fn key(self) -> Option<(u32, u32)> {
         let meta = input::Key::Meta.code();
         Some(match self {
@@ -58,6 +60,7 @@ impl Command {
             Self::Panel => ('i' as u32, 0),
             Self::Shortcuts => ('?' as u32, 0),
             Self::Settings => (',' as u32, meta),
+            Self::Favorite => ('l' as u32, 0),
             _ => return None,
         })
     }
@@ -72,6 +75,7 @@ impl Command {
             (Some('s'), false) => "S",
             (Some('r'), false) => "R",
             (Some('i'), false) => "I",
+            (Some('l'), false) => "L",
             (Some('?'), false) => "?",
             (Some('o'), true) => "⌘O",
             (Some(','), true) => "⌘,",

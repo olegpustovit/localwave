@@ -626,6 +626,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
         for (label, expected) in [
             ("Play", Intent::PlayRow(0)),
             ("Add to queue", Intent::AppendSong(0)),
+            ("Favorite", Intent::SetFavorite { song: 0, on: true }),
         ] {
             let actions = ui
                 .a11y_nodes()

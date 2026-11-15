@@ -59,12 +59,19 @@ pub enum Command {
     Setting(SettingChange),
     ReadStorage,
     TogglePins(Arc<[i64]>),
+    SetFavorite {
+        song: i64,
+        on: bool,
+    },
 }
 impl Command {
     pub(super) fn changes_catalog(&self) -> bool {
         matches!(
             self,
-            Self::RefreshCatalog | Self::SaveQueue(_) | Self::TogglePins(_)
+            Self::RefreshCatalog
+                | Self::SaveQueue(_)
+                | Self::TogglePins(_)
+                | Self::SetFavorite { .. }
         )
     }
     pub(super) fn validate(&self) -> io::Result<()> {
@@ -87,6 +94,7 @@ impl Command {
             Self::Seek(seconds) => !seconds.is_finite(),
             Self::Reorder { indices, .. } => indices.len() > 1_000_000,
             Self::TogglePins(songs) => songs.is_empty() || songs.len() > 1_000_000,
+            Self::SetFavorite { song, .. } => *song <= 0,
             Self::SaveQueue(name) => name.as_str().trim().is_empty(),
             Self::Setting(change) => Settings::default().applying(*change).is_err(),
             _ => false,
@@ -107,6 +115,7 @@ impl Command {
                 | Self::SaveQueue(_)
                 | Self::ReadStorage
                 | Self::TogglePins(_)
+                | Self::SetFavorite { .. }
                 | Self::Setting(
                     SettingChange::Appearance(_)
                         | SettingChange::Signal(_)
