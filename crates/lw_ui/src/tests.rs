@@ -2284,10 +2284,11 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
     let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
+    let width = std::cell::Cell::new(1440.0_f32);
     let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
         time += 0.02;
         let frame = FrameIn {
-            width: 1440.0,
+            width: width.get(),
             height: 872.0,
             time,
             events: events.as_ptr(),
@@ -2366,6 +2367,16 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
     }
     assert_eq!(tap(&mut ui, &state, &mut run, ch('s')), None);
     run(&mut ui, &state, &[ev(input::wire::KEY_RELEASED, meta)]);
+    // Swift's Add Files (⇧⌘O) and exact-modifier ⌘ shortcuts.
+    run(&mut ui, &state, &[ev(input::wire::KEY_PRESSED, shift)]);
+    run(&mut ui, &state, &[ev(input::wire::KEY_PRESSED, meta)]);
+    assert_eq!(
+        tap(&mut ui, &state, &mut run, ch('o')),
+        Some(Intent::ChooseAudio)
+    );
+    assert_eq!(tap(&mut ui, &state, &mut run, ch('n')), None);
+    run(&mut ui, &state, &[ev(input::wire::KEY_RELEASED, meta)]);
+    run(&mut ui, &state, &[ev(input::wire::KEY_RELEASED, shift)]);
     state.apply(Intent::ShowShortcuts);
     assert_eq!(
         tap(&mut ui, &state, &mut run, input::Key::Space.code()),
@@ -2407,6 +2418,14 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
     ] {
         assert_eq!(tap(&mut ui, &state, &mut run, code), None);
     }
+    // Compact Now Playing: Esc closes it, but only with no menu or sheet owning Esc.
+    width.set(390.0);
+    state.apply(Intent::TogglePlayer);
+    run(&mut ui, &state, &[]);
+    assert_eq!(
+        tap(&mut ui, &state, &mut run, input::Key::Escape.code()),
+        Some(Intent::TogglePlayer)
+    );
 }
 
 #[test]

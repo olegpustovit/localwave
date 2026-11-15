@@ -502,17 +502,27 @@ fn global_shortcut(
 ) -> Option<Intent> {
     use crate::commands::Command;
     let (meta, alt) = (input::Key::Meta.code(), input::Key::Alt.code());
+    let (shift, ctrl) = (input::Key::Shift.code(), input::Key::Ctrl.code());
+    // Swift matches exact modifiers, so ⌘N must not also fire on ⇧⌘N.
     let pressed = |key: u32, modifier: u32| {
         let upper = char::from_u32(key).map_or(key, |c| c.to_ascii_uppercase() as u32);
+        let exact = [meta, alt, shift, ctrl]
+            .iter()
+            .all(|&m| m == modifier || !ui.key_down(m));
         if modifier == 0 {
-            ui.key_pressed(key)
-                && ![meta, alt, input::Key::Shift.code(), input::Key::Ctrl.code()]
-                    .iter()
-                    .any(|&m| ui.key_down(m))
+            ui.key_pressed(key) && exact
         } else {
-            ui.key_pressed_with(key, modifier) || ui.key_pressed_with(upper, modifier)
+            exact && (ui.key_pressed_with(key, modifier) || ui.key_pressed_with(upper, modifier))
         }
     };
+    // ⇧⌘O is Add Files; Add Folder (⌘O) stays exact above.
+    if ui.key_down(shift)
+        && !ui.key_down(alt)
+        && !ui.key_down(ctrl)
+        && (ui.key_pressed_with('o' as u32, meta) || ui.key_pressed_with('O' as u32, meta))
+    {
+        return Some(Intent::ChooseAudio);
+    }
     for command in [
         Command::PlayPause,
         Command::Shuffle,
@@ -761,6 +771,25 @@ pub fn shell(
         } else if !ui.text_input_focused() && ui.key_pressed('?') {
             *intent = Some(Intent::ShowShortcuts);
         }
+    }
+    // Swift's Esc closes the compact Now Playing panel (wide layouts keep it docked).
+    if intent.is_none()
+        && state.player_expanded
+        && !state.settings_visible
+        && !state.commands_visible
+        && !state.shortcuts_visible
+        && !state.queue_visible
+        && state.settings_menu.is_none()
+        && state.source_menu.is_none()
+        && state.remove_source.is_none()
+        && state.song_menu.is_none()
+        && state.list_menu.is_none()
+        && state.list_dialog.is_none()
+        && state.delete_list.is_none()
+        && ui.view_size().0 < compact::BREAKPOINT
+        && ui.key_pressed(input::Key::Escape.code())
+    {
+        *intent = Some(Intent::TogglePlayer);
     }
     if !state.commands_visible
         && !state.shortcuts_visible
