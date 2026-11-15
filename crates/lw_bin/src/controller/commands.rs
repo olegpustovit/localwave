@@ -286,7 +286,7 @@ impl Worker {
                         now(),
                     ) {
                         Ok(_) => {
-                            self.catalog_dirty = true;
+                            self.dirty_catalog();
                             self.metadata_id = None;
                             self.message = Arc::from("Playlist saved.");
                         }
@@ -304,7 +304,7 @@ impl Worker {
                 Action::None
             }
             Command::RefreshCatalog => {
-                self.catalog_dirty = true;
+                self.dirty_catalog();
                 self.copies_pending = true;
                 Action::None
             }
@@ -312,7 +312,7 @@ impl Worker {
                 match self.library.toggle_pins(&songs) {
                     Ok(pinned) => {
                         self.copies_pending |= pinned;
-                        self.catalog_dirty = true;
+                        self.dirty_catalog();
                         self.message = self.empty.clone();
                     }
                     Err(error) => {

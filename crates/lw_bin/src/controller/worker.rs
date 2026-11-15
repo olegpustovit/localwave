@@ -190,6 +190,13 @@ impl Worker {
                 for event in &mut events {
                     *event = inbox.events.pop_front();
                 }
+                inbox.catalog_pending |= self.catalog_dirty
+                    || self.browse_dirty
+                    || inbox.browse.is_some()
+                    || controls
+                        .iter()
+                        .flatten()
+                        .any(|command| command.command.changes_catalog());
                 let dirty = std::mem::take(&mut inbox.dirty);
                 (
                     inbox.ack.take(),
@@ -252,7 +259,9 @@ impl Worker {
                 self.saved.current_index = index;
             }
             self.retire()?;
-            self.catalog_dirty |= self.library.take_playback_file_changes();
+            if self.library.take_playback_file_changes() {
+                self.dirty_catalog();
+            }
             self.publish();
             if self.pending.is_none()
                 && self.preparation == self.shared.preparation.load(Ordering::SeqCst)
@@ -264,6 +273,7 @@ impl Worker {
                 self.load_storage();
                 let reload = std::mem::take(&mut self.catalog_dirty);
                 if std::mem::take(&mut self.browse_dirty) || reload {
+                    self.shared.inbox.lock().unwrap().catalog_pending = true;
                     match self
                         .library
                         .catalog_view(if reload { None } else { Some(&self.catalog) }, self.browse)
@@ -290,6 +300,8 @@ impl Worker {
                         }
                     }
                 }
+                self.shared.inbox.lock().unwrap().catalog_pending =
+                    self.catalog_dirty || self.browse_dirty;
                 self.publish();
                 self.load_waveform();
                 self.publish();

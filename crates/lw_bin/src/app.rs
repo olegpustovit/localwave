@@ -273,7 +273,7 @@ impl App {
             .as_mut()
             .ok_or("App graphics have already closed")?;
         let wire = encoded.encode(events);
-        let clock = frame.begin()?;
+        let clock = frame.begin(ui)?;
         gpu::configure_artwork(
             graphics,
             extent.logical.0 as f32,
@@ -338,7 +338,7 @@ impl App {
         if let Some(media) = player.media_controls() {
             media.request_artwork(&mut image_requests);
         }
-        frame.finish_build(clock, &image_requests)?;
+        frame.finish_build(clock, &image_requests, ui)?;
         artwork
             .request(image_requests)
             .map_err(|error| error.to_string())?;
@@ -349,7 +349,10 @@ impl App {
         (*frames) += 1;
         (*repaint) = ui.repaint_at();
         if perf.is_some() || ui.draw_revision() != (*revision) {
-            if graphics.draw(window, ui, frame.gpu_trace())? {
+            let drawn = graphics.draw(window, ui, frame.gpu_trace())?;
+            frame.finish_frame()?;
+            frame.audit(ui, artwork, player);
+            if drawn {
                 (*draws) += 1;
                 (*revision) = ui.draw_revision();
                 if smoke && (*draws) == 1 {
@@ -397,6 +400,7 @@ impl App {
                 .ok_or("App graphics have already closed")?
                 .can_draw()
         {
+            frame.begin_frame()?;
             self.events.clear();
             if !self.platform.pump(window, &mut self.events)? {
                 if self.perf.is_some() || (self.smoke && !self.smoke_finished) {

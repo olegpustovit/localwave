@@ -72,6 +72,7 @@ impl Controller {
             audio_session: lw_apple_sys::session::Session::open(wake)?,
             inbox: Mutex::new(Inbox {
                 catalog: None,
+                catalog_pending: true,
                 retired_catalog: None,
                 commands: VecDeque::with_capacity(32),
                 priority: None,
@@ -133,6 +134,10 @@ impl Controller {
     }
     pub fn catalog(&self) -> &lw_ui::catalog::Catalog {
         &self.catalog
+    }
+    /// Queued, building or undelivered catalog data. Used at qualification boundaries, not frames.
+    pub fn catalog_pending(&self) -> bool {
+        self.shared.inbox.lock().unwrap().has_pending_catalog()
     }
     pub fn native_snapshot(&self) -> Snapshot {
         self.native.snapshot()

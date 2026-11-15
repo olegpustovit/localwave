@@ -46,6 +46,7 @@ performance: bundle
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-drop || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artists || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-indicators || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-long-scroll || performance_result=1; \
 	  exit "$$performance_result"
 
 # iOS development builds use the shared target/ and keep the shipping Swift app installed.

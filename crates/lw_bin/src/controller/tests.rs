@@ -87,6 +87,7 @@ fn shared() -> Arc<Shared> {
         audio_session: lw_apple_sys::session::Session::open(wake).unwrap(),
         inbox: Mutex::new(Inbox {
             catalog: None,
+            catalog_pending: false,
             retired_catalog: None,
             commands: VecDeque::new(),
             priority: None,
@@ -108,6 +109,34 @@ fn shared() -> Arc<Shared> {
         preparation: AtomicU64::new(0),
         wake,
     })
+}
+#[test]
+fn catalog_readiness_covers_queued_active_and_undelivered_work_without_blocking_controls() {
+    let shared = shared();
+    let mut inbox = shared.inbox.lock().unwrap();
+    assert!(!inbox.has_pending_catalog());
+    inbox.commands.push_back(Envelope {
+        audio_notice: None,
+        revision: 1,
+        preparation: 0,
+        command: Command::Volume(0.5),
+    });
+    assert!(!inbox.has_pending_catalog());
+    inbox.commands.push_back(Envelope {
+        audio_notice: None,
+        revision: 2,
+        preparation: 0,
+        command: Command::RefreshCatalog,
+    });
+    assert!(inbox.has_pending_catalog());
+    inbox.commands.clear();
+    inbox.catalog_pending = true;
+    assert!(inbox.has_pending_catalog());
+    inbox.catalog_pending = false;
+    inbox.catalog = Some(Arc::new(Catalog::default()));
+    assert!(inbox.has_pending_catalog());
+    inbox.catalog = None;
+    assert!(!inbox.has_pending_catalog());
 }
 #[test]
 fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_preparation() {

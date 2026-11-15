@@ -8,7 +8,9 @@ impl Worker {
         }
         match self.library.enforce_cache_limit() {
             Ok(eviction) => {
-                self.catalog_dirty |= eviction.files != 0;
+                if eviction.files != 0 {
+                    self.dirty_catalog();
+                }
                 let bytes = eviction.remaining_bytes;
                 let usage = if bytes >= 1_000_000_000 {
                     format!("{:.1} GB", bytes as f64 / 1_000_000_000.0)
@@ -62,7 +64,7 @@ impl Worker {
                 self.message = Arc::from("Could not finish keeping songs offline. Try again.");
             }
         }
-        self.catalog_dirty = true;
+        self.dirty_catalog();
         true
     }
     pub(super) fn load_waveform(&mut self) {

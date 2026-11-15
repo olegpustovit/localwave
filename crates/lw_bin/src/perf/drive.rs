@@ -8,6 +8,7 @@ use pxui_sdl::app::Schedule;
 pub(crate) struct Frame {
     workload: Option<Workload>,
     index: usize,
+    started: Option<(std::time::Instant, u64)>,
     trace_frames: bool,
     indicator_song: Option<i64>,
     expected_settings_intent: Option<lw_ui::Intent>,
@@ -15,6 +16,9 @@ pub(crate) struct Frame {
     settings_themes: u8,
     waveform_seeks: i32,
     timing: super::report::FrameTiming,
+    layouts: u64,
+    warmup: Option<super::Warmup>,
+    first_row: Option<usize>,
     allocations_before: u64,
     allocations_after: u64,
     gpu: [u64; 4],
@@ -27,6 +31,7 @@ pub(crate) struct Frame {
 pub(crate) struct Build {
     interval: Option<mem_sys::profile::FrameInterval>,
     cpu_started: u64,
+    layouts: u64,
     allocations_before: u64,
     started: std::time::Instant,
 }
@@ -35,6 +40,7 @@ impl Frame {
         Self {
             workload: None,
             index,
+            started: None,
             trace_frames,
             indicator_song: None,
             expected_settings_intent: None,
@@ -42,6 +48,9 @@ impl Frame {
             settings_themes: 0,
             waveform_seeks: 0,
             timing: Default::default(),
+            layouts: 0,
+            warmup: None,
+            first_row: None,
             allocations_before: 0,
             allocations_after: 0,
             gpu: [0; 4],
@@ -50,6 +59,28 @@ impl Frame {
             requests: 0,
             artwork_updated: false,
         }
+    }
+    pub(crate) fn begin_frame(&mut self) -> Result<(), String> {
+        if self.workload.is_some() {
+            self.started = Some((
+                std::time::Instant::now(),
+                mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())?,
+            ));
+        }
+        Ok(())
+    }
+    pub(crate) fn finish_frame(&mut self) -> Result<(), String> {
+        if self.workload.is_some() {
+            let (started, cpu) = self
+                .started
+                .take()
+                .ok_or("Performance frame did not include an input pump")?;
+            self.timing.frame_wall = started.elapsed().as_micros();
+            self.timing.frame_cpu =
+                (mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())? - cpu)
+                    / 1000;
+        }
+        Ok(())
     }
     pub(crate) fn external_input(&self, events: &mut Vec<HostEvent>) {
         if matches!(self.workload, Some(Workload::Drop)) && self.index >= 2 {
@@ -98,7 +129,9 @@ impl Frame {
                 ));
                 events.push(HostEvent::Scrolled((
                     0.0,
-                    (if (self.index - 2) % 40 < 20 {
+                    (if matches!(workload, Some(Workload::LongScroll)) {
+                        -3.0
+                    } else if (self.index - 2) % 40 < 20 {
                         -1.0
                     } else {
                         1.0
@@ -137,7 +170,12 @@ impl Frame {
             input.reduced_motion = 0;
         }
     }
-    pub(crate) fn begin(&self) -> Result<Build, String> {
+    pub(crate) fn begin(&self, ui: &Ui) -> Result<Build, String> {
+        let layouts = if self.workload.is_some() {
+            ui.text_layout_count()
+        } else {
+            0
+        };
         let interval = self
             .trace_frames
             .then(|| mem_sys::profile::FrameInterval::begin(self.index as u64 + 1));
@@ -149,6 +187,7 @@ impl Frame {
         let allocations_before = self.allocations();
         Ok(Build {
             interval,
+            layouts,
             cpu_started,
             allocations_before,
             started: std::time::Instant::now(),
@@ -182,6 +221,7 @@ impl Frame {
         &mut self,
         build: Build,
         requests: &pxui::images::Request,
+        ui: &Ui,
     ) -> Result<(), String> {
         let wall = build.started.elapsed().as_micros();
         self.allocations_before = build.allocations_before;
@@ -200,6 +240,12 @@ impl Frame {
             wall,
             cpu,
             phases: [0; 7],
+            ..Default::default()
+        };
+        self.layouts = if self.workload.is_some() {
+            ui.text_layout_count() - build.layouts
+        } else {
+            0
         };
         self.requests = requests.keys().len();
         if self.trace_frames && self.workload.is_some() {
@@ -208,6 +254,37 @@ impl Frame {
             }
         }
         Ok(())
+    }
+    pub(crate) fn audit(
+        &mut self,
+        ui: &Ui,
+        artwork: &lw_bin::library::ArtworkWorker,
+        player: &lw_bin::controller::Controller,
+    ) {
+        if self.workload.is_some() && self.index + 1 == WARMUP_FRAMES {
+            self.warmup = Some(super::Warmup {
+                artwork: artwork.has_pending_work(),
+                catalog: player.catalog_pending(),
+                layouts: self.layouts,
+                requests: self.requests,
+            });
+        }
+        if self.workload == Some(Workload::LongScroll) && self.index >= WARMUP_FRAMES {
+            self.first_row = ui
+                .a11y_nodes()
+                .iter()
+                .filter(|node| {
+                    node.is_role(pxui::ui::Role::ListItem)
+                        && node.states & pxui::a11y::state::VISIBLE != 0
+                })
+                .filter_map(|node| {
+                    ui.a11y_name_of(node)
+                        .strip_prefix("Track ")
+                        .and_then(|text| text.parse::<i64>().ok())
+                })
+                .filter_map(|id| player.catalog().row_index(id))
+                .min();
+        }
     }
     pub(crate) fn check_capture(
         &mut self,
@@ -470,6 +547,22 @@ impl Perf {
             max_files_rows,
             ..
         } = self;
+        if frame.warmup.is_some() {
+            self.warmup = frame.warmup;
+        }
+        if *workload == Workload::LongScroll && counts.0 > WARMUP_FRAMES {
+            let first = frame
+                .first_row
+                .ok_or("LongScroll has no visible song rows")?
+                + 1;
+            if self.long_first == usize::MAX {
+                self.long_first = first;
+            } else if first < self.long_last {
+                return Err("LongScroll reversed its row order".into());
+            }
+            self.long_advances += usize::from(first > self.long_last);
+            self.long_last = first;
+        }
         let workload = Some(*workload);
         let frames = &counts.0;
         let trace_frames = frame.trace_frames;
@@ -480,6 +573,8 @@ impl Perf {
         let output_allocations = frame.output_allocations;
         let build_us = frame.timing.wall;
         let cpu_us = frame.timing.cpu;
+        let frame_wall = frame.timing.frame_wall;
+        let frame_cpu = frame.timing.frame_cpu;
         *waveform_seeks += frame.waveform_seeks;
         *settings_changes += frame.settings_changes;
         *settings_themes |= frame.settings_themes;
@@ -638,10 +733,13 @@ impl Perf {
                 .count();
             (*min_waveform_bars) = (*min_waveform_bars).min(bars);
             (*warm_allocations) = (*warm_allocations).max(mem_sys::local_alloc_count());
+            self.warm_layouts = self.warm_layouts.max(frame.layouts);
             (*warm_build_us) = (*warm_build_us).max(build_us);
             (*timings)[(*frames) - WARMUP_FRAMES - 1] = super::report::FrameTiming {
                 wall: build_us,
                 cpu: cpu_us,
+                frame_wall,
+                frame_cpu,
                 phases: if trace_frames {
                     ui.phase_times().map(|time| time.as_micros() as u64)
                 } else {
@@ -668,6 +766,26 @@ impl Perf {
 mod tests {
     use super::*;
 
+    #[test]
+    fn long_scroll_keeps_a_new_downward_three_row_step_without_warm_allocations() {
+        let ui = Ui::new().unwrap();
+        let mut perf = Perf::new(Workload::LongScroll, None);
+        let mut events = Vec::with_capacity(4);
+        for index in 2..WARMUP_FRAMES + MEASURED_FRAMES {
+            events.clear();
+            mem_sys::local_reset();
+            let mut frame = perf.inject(index, false);
+            frame.input(&ui, 0.0, &mut events).unwrap();
+            assert_eq!(
+                events,
+                [
+                    HostEvent::PointerMoved((650.0, 400.0)),
+                    HostEvent::Scrolled((0.0, -3.0))
+                ]
+            );
+            assert_eq!(mem_sys::local_alloc_count(), 0);
+        }
+    }
     #[test]
     fn extracted_frame_phases_preserve_native_values_and_allocate_nothing_when_warm() {
         mem_sys::set_peer(pxui::library_counter);

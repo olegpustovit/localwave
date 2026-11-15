@@ -149,6 +149,10 @@ impl Worker {
         self.session.select(ticket.entry.id, false);
         true
     }
+    pub(super) fn dirty_catalog(&mut self) {
+        self.catalog_dirty = true;
+        self.shared.inbox.lock().unwrap().catalog_pending = true;
+    }
     pub(super) fn publish_catalog(&self) {
         let previous = self
             .shared
@@ -256,6 +260,7 @@ impl Worker {
             self.status = status;
             self.status.revision += 1;
             let mut inbox = self.shared.inbox.lock().unwrap();
+            inbox.catalog_pending = self.catalog_dirty || self.browse_dirty;
             inbox.status = self.status.clone();
             drop(inbox);
             (self.shared.wake)();

@@ -12,16 +12,18 @@ const FRAME_BUILD_LIMIT_US: u128 = 1_000;
 pub struct FrameTiming {
     pub wall: u128,
     pub cpu: u64,
+    pub frame_wall: u128,
+    pub frame_cpu: u64,
     pub phases: [u64; 7],
 }
 impl FrameTiming {
     /// Called after measurement; phase durations are wall times and can include preemption.
     pub fn write_outlier(&self, frame: usize, out: &mut dyn std::io::Write) -> std::io::Result<()> {
-        if self.wall >= FRAME_BUILD_LIMIT_US {
+        if self.wall >= FRAME_BUILD_LIMIT_US || self.frame_cpu >= FRAME_BUILD_LIMIT_US as u64 {
             writeln!(
                 out,
-                "LocalWave frame outlier: frame={frame} wall_us={} cpu_us={} phase_wall_us={:?}",
-                self.wall, self.cpu, self.phases
+                "LocalWave frame outlier: frame={frame} wall_us={} cpu_us={} frame_wall_us={} frame_cpu_us={} phase_wall_us={:?}",
+                self.wall, self.cpu, self.frame_wall, self.frame_cpu, self.phases
             )?;
         }
         Ok(())
@@ -91,11 +93,16 @@ impl Perf {
         }
         let mut build_samples = (*timings).map(|sample| sample.wall);
         let mut cpu_samples = (*timings).map(|sample| sample.cpu);
+        let mut frame_samples = (*timings).map(|sample| sample.frame_wall);
+        let mut frame_cpu_samples = (*timings).map(|sample| sample.frame_cpu);
+        frame_samples.sort_unstable();
+        frame_cpu_samples.sort_unstable();
         build_samples.sort_unstable();
         cpu_samples.sort_unstable();
+        let name = workload.map_or("songs-original", Workload::name);
         println!(
-            "LocalWave performance: workload={} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us}",
-            workload.map_or("songs-original", Workload::name)
+            "LocalWave performance: workload={name} songs=10000 frames={frames} draws={draws} max_warm_rust_allocations={warm_allocations} max_warm_build_us={warm_build_us} max_measured_text_layouts={}",
+            self.warm_layouts
         );
         println!(
             "LocalWave waveform: peaks=512 min_bars={min_waveform_bars} scrub_commits={waveform_seeks}"
@@ -161,6 +168,17 @@ impl Perf {
             cpu_samples[98],
             cpu_samples[99]
         );
+        println!(
+            "LocalWave frame timing: wall_us_p50={} wall_us_p95={} wall_us_p99={} wall_us_max={} cpu_us_p50={} cpu_us_p95={} cpu_us_p99={} cpu_us_max={}",
+            frame_samples[49],
+            frame_samples[94],
+            frame_samples[98],
+            frame_samples[99],
+            frame_cpu_samples[49],
+            frame_cpu_samples[94],
+            frame_cpu_samples[98],
+            frame_cpu_samples[99]
+        );
         if matches!(workload, Some(Workload::Artwork)) {
             println!(
                 "LocalWave artwork: texture_bytes={artwork_bytes} min_image_quads={min_artwork_quads} max_warm_requests={warm_artwork_requests}"
@@ -186,9 +204,36 @@ impl Perf {
                 phase_samples[6][49]
             );
         }
+        if let Some(warmup) = self.warmup {
+            println!(
+                "LocalWave warm-up: frame={WARMUP_FRAMES} pending_artwork={} catalog_in_flight={} text_layouts={} requests={} ready={}",
+                warmup.artwork,
+                warmup.catalog,
+                warmup.layouts,
+                warmup.requests,
+                warmup.ready()
+            );
+        } else {
+            println!("LocalWave warm-up: boundary was not observed");
+        }
+        if workload == Some(Workload::LongScroll) {
+            println!(
+                "LocalWave long scroll: first_row={} last_row={} advancing_frames={}",
+                self.long_first, self.long_last, self.long_advances
+            );
+            if self.long_first == usize::MAX
+                || self.long_last < self.long_first + 250
+                || self.long_advances < 90
+            {
+                return Err("LongScroll did not visit new rows monotonically".into());
+            }
+        }
         if (*draws) != WARMUP_FRAMES + MEASURED_FRAMES
             || (*warm_allocations) != 0
             || (*warm_build_us) >= FRAME_BUILD_LIMIT_US
+            || cpu_samples[98] >= FRAME_BUILD_LIMIT_US as u64
+            || frame_cpu_samples[98] >= FRAME_BUILD_LIMIT_US as u64
+            || !self.warmup.is_some_and(super::Warmup::ready)
         {
             return Err("Warm frame performance budget exceeded".into());
         }
@@ -201,6 +246,61 @@ mod tests {
     use super::*;
 
     #[test]
+    fn reports_gate_both_cpu_spans_wall_max_and_observed_cold_work() {
+        let mut perf = Perf::new(Workload::Songs, None);
+        perf.warmup = Some(super::super::Warmup::default());
+        let counts = (
+            WARMUP_FRAMES + MEASURED_FRAMES,
+            WARMUP_FRAMES + MEASURED_FRAMES,
+        );
+        assert!(perf.report(false, counts, 0).is_ok());
+        for frame_span in [false, true] {
+            for sample in &mut perf.timings {
+                if frame_span {
+                    sample.frame_cpu = 999;
+                } else {
+                    sample.cpu = 999;
+                }
+            }
+            assert!(perf.report(false, counts, 0).is_ok());
+            for sample in &mut perf.timings[98..] {
+                if frame_span {
+                    sample.frame_cpu = 1000;
+                } else {
+                    sample.cpu = 1000;
+                }
+            }
+            assert!(perf.report(false, counts, 0).is_err());
+            perf.timings.fill(Default::default());
+        }
+        perf.warm_build_us = 1000;
+        assert!(perf.report(false, counts, 0).is_err());
+        perf.warm_build_us = 0;
+        for cold in [
+            super::super::Warmup {
+                artwork: true,
+                ..Default::default()
+            },
+            super::super::Warmup {
+                catalog: true,
+                ..Default::default()
+            },
+            super::super::Warmup {
+                layouts: 1,
+                ..Default::default()
+            },
+            super::super::Warmup {
+                requests: 1,
+                ..Default::default()
+            },
+        ] {
+            perf.warmup = Some(cold);
+            assert!(perf.report(false, counts, 0).is_err());
+        }
+        perf.warmup = None;
+        assert!(perf.report(false, counts, 0).is_err());
+    }
+    #[test]
     fn outliers_keep_frame_cpu_and_phases_together_at_the_exact_gate_boundary() {
         let mut output = Vec::new();
         for (index, sample) in [
@@ -208,16 +308,19 @@ mod tests {
                 wall: 999,
                 cpu: 200,
                 phases: [9; 7],
+                ..Default::default()
             },
             FrameTiming {
                 wall: 1000,
                 cpu: 300,
                 phases: [1, 2, 3, 4, 5, 6, 7],
+                ..Default::default()
             },
             FrameTiming {
                 wall: 1500,
                 cpu: 400,
                 phases: [7, 6, 5, 4, 3, 2, 1],
+                ..Default::default()
             },
         ]
         .iter()
@@ -227,7 +330,7 @@ mod tests {
         }
         assert_eq!(
             String::from_utf8(output).unwrap(),
-            "LocalWave frame outlier: frame=84 wall_us=1000 cpu_us=300 phase_wall_us=[1, 2, 3, 4, 5, 6, 7]\nLocalWave frame outlier: frame=85 wall_us=1500 cpu_us=400 phase_wall_us=[7, 6, 5, 4, 3, 2, 1]\n"
+            "LocalWave frame outlier: frame=84 wall_us=1000 cpu_us=300 frame_wall_us=0 frame_cpu_us=0 phase_wall_us=[1, 2, 3, 4, 5, 6, 7]\nLocalWave frame outlier: frame=85 wall_us=1500 cpu_us=400 frame_wall_us=0 frame_cpu_us=0 phase_wall_us=[7, 6, 5, 4, 3, 2, 1]\n"
         );
     }
 }

@@ -248,7 +248,8 @@ pub(crate) fn prepare(
 }
 
 pub(crate) fn configure_ui(ui: &mut pxui::Ui, workload: Option<Workload>) {
-    if matches!(workload, Some(Workload::QueueDrag))
+    if matches!(workload, Some(Workload::LongScroll))
+        || matches!(workload, Some(Workload::QueueDrag))
         || matches!(workload, Some(Workload::Artists))
         || matches!(workload, Some(Workload::SongIndicators))
     {

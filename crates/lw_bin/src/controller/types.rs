@@ -61,6 +61,12 @@ pub enum Command {
     TogglePins(Arc<[i64]>),
 }
 impl Command {
+    pub(super) fn changes_catalog(&self) -> bool {
+        matches!(
+            self,
+            Self::RefreshCatalog | Self::SaveQueue(_) | Self::TogglePins(_)
+        )
+    }
     pub(super) fn validate(&self) -> io::Result<()> {
         let invalid = match self {
             Self::Configure {

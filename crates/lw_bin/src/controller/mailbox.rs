@@ -55,6 +55,7 @@ pub(super) struct Envelope {
 }
 pub(super) struct Inbox {
     pub(super) catalog: Option<Arc<lw_ui::catalog::Catalog>>,
+    pub(super) catalog_pending: bool,
     pub(super) retired_catalog: Option<Arc<lw_ui::catalog::Catalog>>,
     pub(super) commands: VecDeque<Envelope>,
     pub(super) priority: Option<Envelope>,
@@ -71,6 +72,16 @@ pub(super) struct Inbox {
     pub(super) stopped: bool,
 }
 impl Inbox {
+    pub(super) fn has_pending_catalog(&self) -> bool {
+        self.catalog_pending
+            || self.catalog.is_some()
+            || self.browse.is_some()
+            || self
+                .commands
+                .iter()
+                .any(|command| command.command.changes_catalog())
+    }
+
     pub(super) fn update_native(
         &mut self,
         batch: &[Option<Event>],

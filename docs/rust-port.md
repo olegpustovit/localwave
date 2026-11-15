@@ -29,8 +29,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | B4 | Framework scrub signal for seek/volume | done | 57cb610 |
 | B5 | Framework virtual-list reveal | done | 6179982 |
 | B6 | Framework completed file-drop events | done | 042b961 |
-| B7 | Move profiling/lifetime checks; close boundary | done | HEAD |
-| P1 | End-to-end timing and LongScroll workload | todo | — |
+| B7 | Move profiling/lifetime checks; close boundary | done | 325d54a |
+| P1 | End-to-end timing and LongScroll workload | done | HEAD |
 | P2 | Profile top frame costs | todo | — |
 | P3 | Isolate position ticks from stable content | todo | — |
 | P4 | Worker-prepared catalog remapping | todo | — |
@@ -53,28 +53,38 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-B7 `make performance`: twelve signed workloads, 10,000 songs, 1440×872,
-182 frames / 82 warm-up / 100 measured, both Rust counters. Bundle signature/dependency/default-stack
-checks and settled idle smoke pass (500.5 ms). Source: `/tmp/localwave-b7-performance.log`.
-12 strict 1,000 µs wall maxima fail, so `make performance` returns nonzero. The full latency
-gate remains unmet; no causal speedup is claimed. Native/process allocations remain unqualified.
-Waveform scrubbing retains 200 bars and exactly nine release commits; the indicator validates
-58 visible playing / 34 paused / 57 changing frames. Previous measurements remain in git history.
+P1 `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
+GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
+strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (502.0 ms).
+Source: `/tmp/localwave-p1-performance-final.log`; prior failures remain in commit evidence.
 
-| Workload | CPU p50/p99/max µs | Wall p50/p95/p99/max µs | Warm Rust allocations |
-| --- | --- | --- | --- |
-| songs-original | 743/962/1026 | 798/2024/2718/2822 | 0 |
-| find-filters-title-descending | 675/837/867 | 712/966/1602/3741 | 0 |
-| queue-occurrences | 655/833/840 | 706/1130/1838/2105 | 0 |
-| queue-carry-scroll-cancel | 533/891/910 | 572/943/1377/1639 | 0 |
-| full-queue-playlist-editor | 681/1057/1328 | 764/1292/1731/2236 | 0 |
-| albums-artwork | 606/1074/1109 | 637/1442/1666/2489 | 0 |
-| waveform-scrub-and-scroll | 463/895/971 | 489/1082/1388/1526 | 0 |
-| settings-menus-appearance | 339/592/637 | 365/763/2058/2814 | 0 |
-| files-indexed-directory | 362/462/464 | 398/875/2057/2836 | 0 |
-| external-drop-hover-and-cancel | 297/382/408 | 311/442/1350/1354 | 0 |
-| artists-measured-columns | 792/1015/1077 | 841/1268/1937/2132 | 0 |
-| songs-playing-indicator | 878/1090/1093 | 919/1659/2511/3114 | 0 |
+The original twelve cases have zero measured Rust allocations and pass the frame-82 audit.
+LongScroll exposes 202 allocations/frame and six new text layouts at frame 82 and during measurement;
+its audit fails. It advances rows 240→537 in all 100 measured frames, without revisiting a wheel cycle.
+No additional warm-up or pre-shaping hides this cold work. Its accessibility tree is consumed to
+verify row order. End-to-end CPU exposes work omitted by build-only timing; wall spans are recorded
+without attributing their gaps. Native/process allocations and physical-device behavior remain open.
+Waveform retains 200 bars/nine release seeks; the indicator validates 58 playing/34 paused/57 changes.
+
+Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-miss shaping work.
+
+| Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| songs-original | 715/939/965 | 754/1887/2653/2691 | 1139/1673/1720 | 16643/18677/19162/20215 | 0 | 0 | pass |
+| find-filters-title-descending | 747/937/969 | 811/1640/3477/3556 | 1312/1577/1682 | 16680/19167/19898/20282 | 0 | 0 | pass |
+| queue-occurrences | 674/864/908 | 735/1382/2365/2966 | 1174/1533/1545 | 16649/18699/19123/19299 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 363/817/838 | 374/954/1435/1649 | 861/1336/1361 | 16657/18947/19640/33296 | 0 | 0 | pass |
+| full-queue-playlist-editor | 643/976/1100 | 759/1854/2182/2712 | 1122/1450/1460 | 16639/17707/18308/18668 | 0 | 0 | pass |
+| albums-artwork | 648/1133/1144 | 739/1919/2712/3185 | 1305/1958/1980 | 16601/18920/19153/19230 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 468/953/1054 | 494/1598/2798/11077 | 895/1442/1544 | 16664/18447/18957/19117 | 0 | 0 | pass |
+| settings-menus-appearance | 308/583/588 | 353/1067/1497/1840 | 798/2740/2849 | 16618/18142/18870/19816 | 0 | 0 | pass |
+| files-indexed-directory | 309/396/399 | 326/1633/1849/2062 | 722/827/853 | 16637/18412/18671/19065 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 291/370/392 | 307/1032/1430/1672 | 718/849/858 | 16646/18652/18928/21060 | 0 | 0 | pass |
+| artists-measured-columns | 676/952/1054 | 752/2295/2636/2986 | 1112/1561/1632 | 16663/18222/18872/21327 | 0 | 0 | pass |
+| songs-playing-indicator | 850/1146/1198 | 944/2337/2840/2847 | 1310/1693/1795 | 16606/18246/19297/19705 | 0 | 0 | pass |
+| songs-long-scroll | 1182/1409/1510 | 1327/2745/3479/3769 | 1727/2009/2029 | 16606/18087/18783/19012 | 202 | 6 | fail (6 layouts) |
 
 ## Open qualification
 
@@ -88,7 +98,9 @@ Waveform scrubbing retains 200 bars and exactly nine release commits; the indica
 
 ## Known gaps
 
-- Performance P1–P6 precedes new feature work.
+- Performance P2–P6 precedes new feature work.
+  LongScroll now exposes cold text shaping and 202 measured Rust allocations/frame; its warm-up
+  audit fails. Twelve visited-row workloads remain zero. End-to-end CPU also exceeds the new gate.
   The full strict latency gate still fails; cold shaping and native memory need evidence.
   A text/core edit check took 1.60 s, exceeding pxui's 1 s warm-edit target.
   P3 still needs to remove stable metadata/state string hashing and position-driven rebuilds.

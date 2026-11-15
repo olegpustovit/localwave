@@ -42,6 +42,7 @@ const READY_BYTE_LIMIT: usize = 8 * 1024 * 1024;
 
 struct Mailbox {
     request: Option<Request>,
+    pending: usize,
     cancelled: bool,
     results: VecDeque<Arc<ArtworkReady>>,
     retired: Batch,
@@ -65,6 +66,7 @@ impl ArtworkWorker {
         let shared = Arc::new(Shared {
             mailbox: Mutex::new(Mailbox {
                 request: None,
+                pending: 0,
                 cancelled: false,
                 results: VecDeque::with_capacity(REQUEST_CAPACITY),
                 retired: [const { None }; REQUEST_CAPACITY],
@@ -114,6 +116,7 @@ impl ArtworkWorker {
                                 pending = request;
                                 next = 0;
                             }
+                            inbox.pending = pending.keys().len().saturating_sub(next);
                             if inbox.retired.iter().any(Option::is_some) {
                                 let retired = std::mem::replace(
                                     &mut inbox.retired,
@@ -178,6 +181,7 @@ impl ArtworkWorker {
                         thumbnail,
                     });
                     let mut inbox = owner.mailbox.lock().unwrap();
+                    inbox.pending = pending.keys().len().saturating_sub(next);
                     if inbox.closed
                         || inbox.cancelled
                         || inbox
@@ -236,6 +240,16 @@ impl ArtworkWorker {
         drop(inbox);
         self.shared.changed.notify_one();
         true
+    }
+    /// Queued, decoding or undelivered artwork; qualification reads this only at its warm boundary.
+    pub fn has_pending_work(&self) -> bool {
+        let inbox = self.shared.mailbox.lock().unwrap();
+        inbox.pending != 0
+            || !inbox.results.is_empty()
+            || inbox
+                .request
+                .as_ref()
+                .is_some_and(|request| !request.keys().is_empty())
     }
     pub fn ready(&self) -> Option<&ArtworkReady> {
         self.ready_images().last()
@@ -416,6 +430,10 @@ mod tests {
             assert!(request.insert(id, fixture.to_str().unwrap(), 160));
         }
         worker.request(request).unwrap();
+        assert!(
+            worker.has_pending_work(),
+            "queued or decoded-but-undelivered results must remain pending"
+        );
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
         loop {
             let inbox = worker.shared.mailbox.lock().unwrap();
@@ -437,7 +455,15 @@ mod tests {
             std::thread::yield_now();
         }
         mem_sys::local_reset();
+        assert!(
+            worker.has_pending_work(),
+            "a full undelivered batch is still cold work"
+        );
         assert!(worker.poll());
+        assert!(
+            !worker.has_pending_work(),
+            "the final delivery drains pending decode work"
+        );
         assert_eq!(worker.ready_images().count(), REQUEST_CAPACITY);
         assert_eq!(
             mem_sys::local_alloc_count(),

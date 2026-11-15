@@ -17,6 +17,7 @@ pub(super) type FrameTrace = (usize, [usize; 8], u64, u64, u64, [u64; 4], u64);
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Workload {
     Songs,
+    LongScroll,
     SongIndicators,
     Artists,
     Drop,
@@ -41,6 +42,7 @@ impl Workload {
     pub fn name(self) -> &'static str {
         match self {
             Self::Songs => "songs-original",
+            Self::LongScroll => "songs-long-scroll",
             Self::SongIndicators => "songs-playing-indicator",
             Self::Artists => "artists-measured-columns",
             Self::Drop => "external-drop-hover-and-cancel",
@@ -64,6 +66,7 @@ impl Workload {
                     enabled = true;
                     continue;
                 }
+                "--performance-long-scroll" => Self::LongScroll,
                 "--performance-song-indicators" => Self::SongIndicators,
                 "--performance-artists" => Self::Artists,
                 "--performance-drop" => Self::Drop,
@@ -101,8 +104,25 @@ impl Workload {
 const WARMUP_FRAMES: usize = 82;
 const MEASURED_FRAMES: usize = 100;
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Warmup {
+    artwork: bool,
+    catalog: bool,
+    layouts: u64,
+    requests: usize,
+}
+impl Warmup {
+    fn ready(self) -> bool {
+        !self.artwork && !self.catalog && self.layouts == 0 && self.requests == 0
+    }
+}
+
 pub(crate) struct Perf {
     workload: Workload,
+    warmup: Option<Warmup>,
+    long_first: usize,
+    long_last: usize,
+    long_advances: usize,
     indicator_song: Option<i64>,
     waveform_seeks: i32,
     settings_changes: usize,
@@ -118,6 +138,7 @@ pub(crate) struct Perf {
     indicator_previous: Option<[u32; 3]>,
     drop_overlay_frames: usize,
     warm_allocations: u64,
+    warm_layouts: u64,
     warm_build_us: u128,
     timings: [report::FrameTiming; MEASURED_FRAMES],
     frame_trace: [FrameTrace; WARMUP_FRAMES + MEASURED_FRAMES],
@@ -145,6 +166,10 @@ impl Perf {
         let (min_files_rows, max_files_rows) = (usize::MAX, 0usize);
         Self {
             workload,
+            warmup: None,
+            long_first: usize::MAX,
+            long_last: 0,
+            long_advances: 0,
             indicator_song,
             waveform_seeks,
             settings_changes,
@@ -160,6 +185,7 @@ impl Perf {
             indicator_previous,
             drop_overlay_frames,
             warm_allocations,
+            warm_layouts: 0,
             warm_build_us,
             timings,
             frame_trace,
@@ -179,6 +205,7 @@ mod tests {
     fn workload_reports_and_queue_fixtures_match_the_signed_matrix() {
         for (workload, name, queue) in [
             (Workload::Songs, "songs-original", false),
+            (Workload::LongScroll, "songs-long-scroll", false),
             (Workload::SongIndicators, "songs-playing-indicator", false),
             (Workload::Artists, "artists-measured-columns", false),
             (Workload::Drop, "external-drop-hover-and-cancel", false),
@@ -213,6 +240,7 @@ mod tests {
             Ok(Some(Workload::Songs))
         );
         let modes = [
+            ("--performance-long-scroll", Workload::LongScroll),
             ("--performance-song-indicators", Workload::SongIndicators),
             ("--performance-artists", Workload::Artists),
             ("--performance-drop", Workload::Drop),
