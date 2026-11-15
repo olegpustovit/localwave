@@ -35,8 +35,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | P3 | Isolate position ticks from stable content | done | d16e6a3 |
 | P4 | Worker-prepared catalog remapping | done | 81ab1ca |
 | P5 | Single controller-poll lock | done | 7bb51ac |
-| P6 | Fix measured hot paths; pass phase gate | doing | — |
-| P6a | Bind fixed renderer state once per pass | done | HEAD + pxui d10fb8c |
+| P6 | Fix measured hot paths; pass phase gate | doing | HEAD + pxui a7be2aa |
+| P6a | Bind fixed renderer state once per pass | done | 89ee53a + pxui d10fb8c |
 | F1 | Global shortcuts from one command table | todo | — |
 | F2 | Favorite commands, menu, key and heart | todo | — |
 | F3 | Complete track menu and native reveal | todo | — |
@@ -54,12 +54,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-P6a `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
+P6 text-cost checkpoint `make performance`: thirteen signed workloads, 10,000 songs, 1440×872,
 182 frames / 82 warm-up / 100 measured, both Rust counters. Frame spans cover input pump through
 GPU draw return; build spans retain their earlier boundary. CPU p99 is gated for both; the existing
 strict 1,000 µs build wall maximum is unchanged. All thirteen runs fail (make exits nonzero).
-Bundle/signature/rpath/default-stack checks and settled idle smoke pass (503.2 ms).
-Source: `/tmp/localwave-p6-bindings-performance.log`; prior P1–P5 failures remain in commit evidence.
+Bundle/signature/rpath/default-stack checks and settled idle smoke pass (504.2 ms).
+Source: `/tmp/localwave-p6-text-costs-performance.log`; prior P1–P6a failures remain in commit evidence.
 
 The original twelve cases have zero measured Rust allocations and pass the frame-82 audit.
 LongScroll still exposes 202 allocations/frame and six new text layouts at frame 82 and during
@@ -72,19 +72,19 @@ Times are µs; CPU is p50/p99/max, wall is p50/p95/p99/max. Layouts count cache-
 
 | Workload | Build CPU | Build wall | Frame CPU | Frame wall | Alloc max | Layouts max | Frame 82 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 747/1027/1056 | 834/3470/4645/5313 | 1233/1646/1681 | 16635/18718/19863/20420 | 0 | 0 | pass |
-| find-filters-title-descending | 676/874/893 | 742/2822/3312/4328 | 1108/1322/1373 | 16679/18007/19868/20497 | 0 | 0 | pass |
-| queue-occurrences | 616/817/898 | 649/1616/2640/3886 | 1088/1369/45145 | 16666/19329/27466/75827 | 0 | 0 | pass |
-| queue-carry-scroll-cancel | 531/993/1028 | 576/2258/3819/4529 | 983/1485/1507 | 16644/18342/20559/20605 | 0 | 0 | pass |
-| full-queue-playlist-editor | 711/1081/1107 | 831/2867/3583/3721 | 1241/1586/1631 | 16627/17904/18732/18755 | 0 | 0 | pass |
-| albums-artwork | 622/1072/1111 | 644/3158/3620/3903 | 1196/1672/1931 | 16645/18692/19690/19811 | 0 | 0 | pass |
-| waveform-scrub-and-scroll | 339/946/1093 | 492/2579/3228/4039 | 836/1482/1623 | 16659/18250/20147/21057 | 0 | 0 | pass |
-| settings-menus-appearance | 288/531/546 | 315/1489/2849/4387 | 685/2484/2512 | 16657/19682/20449/20776 | 0 | 0 | pass |
-| files-indexed-directory | 333/559/588 | 347/817/3143/3601 | 766/1120/1137 | 16644/17901/20297/20495 | 0 | 0 | pass |
-| external-drop-hover-and-cancel | 296/400/419 | 314/836/1246/1273 | 753/973/1019 | 16662/18976/20420/20692 | 0 | 0 | pass |
-| artists-measured-columns | 712/1031/1087 | 793/3514/3989/4118 | 1164/1571/1657 | 16621/19085/20505/20621 | 0 | 0 | pass |
-| songs-playing-indicator | 806/1098/1269 | 888/3457/3904/4719 | 1239/1653/1703 | 16655/18262/20507/20846 | 0 | 0 | pass |
-| songs-long-scroll | 1066/1268/1348 | 1128/3827/4657/4819 | 1510/1745/1790 | 16654/18094/20297/24549 | 202 | 6 | fail (6 layouts) |
+| songs-original | 765/1028/1088 | 875/2731/4072/4513 | 1218/1588/1737 | 16611/18540/22534/33835 | 0 | 0 | pass |
+| find-filters-title-descending | 649/864/972 | 706/3237/4299/4553 | 1071/1342/1421 | 16656/18578/20119/21263 | 0 | 0 | pass |
+| queue-occurrences | 677/884/886 | 736/3287/3818/4158 | 1144/1436/1442 | 16654/18013/18635/18697 | 0 | 0 | pass |
+| queue-carry-scroll-cancel | 522/912/916 | 543/1382/2035/4182 | 988/1468/1549 | 16652/19078/19737/22164 | 0 | 0 | pass |
+| full-queue-playlist-editor | 734/1121/1149 | 903/3716/4412/4854 | 1257/1732/1760 | 16560/18119/18954/23460 | 0 | 0 | pass |
+| albums-artwork | 611/1142/1282 | 664/2140/3585/3919 | 1186/1801/2051 | 16676/18983/19984/20297 | 0 | 0 | pass |
+| waveform-scrub-and-scroll | 507/944/948 | 616/2951/3340/3843 | 1047/1427/1464 | 16620/18239/20195/20522 | 0 | 0 | pass |
+| settings-menus-appearance | 317/529/565 | 338/693/1625/1817 | 792/2762/2905 | 16618/17408/18029/19734 | 0 | 0 | pass |
+| files-indexed-directory | 328/451/465 | 340/1692/3001/3403 | 779/959/1348 | 16628/17337/18386/18439 | 0 | 0 | pass |
+| external-drop-hover-and-cancel | 278/361/388 | 298/1937/2477/3230 | 693/858/868 | 16576/18968/19934/20180 | 0 | 0 | pass |
+| artists-measured-columns | 684/1007/1099 | 775/2497/3681/3847 | 1128/1482/1666 | 16640/18450/19987/20354 | 0 | 0 | pass |
+| songs-playing-indicator | 870/1222/1358 | 1072/3918/4179/4322 | 1314/1853/1946 | 16637/17995/19921/19921 | 0 | 0 | pass |
+| songs-long-scroll | 1082/1438/1560 | 1175/2210/4443/5098 | 1529/1934/2046 | 16649/18627/20478/23300 | 202 | 6 | fail (6 layouts) |
 
 ### CPU profile
 
@@ -128,9 +128,17 @@ Sources: `/tmp/localwave-p6-bindings-{baseline,final}-images.log`. The full-suit
 The 206-case LocalWave suite, dependency gate and signed iOS simulator build also pass;
 iOS was built only. Strict renderer Clippy still reports existing warnings; its scoped check passes.
 
-P6 remains open after the binding fix: paint/text work still includes LongScroll's fresh layouts
-and allocations. The strict latency and cold-work failures remain open; these changes and CPU percentiles
-do not replace the signed workload gate.
+The current checkpoint adds fast measurement regressions without production changes. A 100-row,
+20-sample cached-glyph case verifies identical instance bytes and zero warm Rust allocations.
+Separate 64-label tests measure first layouts and assert unchanged metrics/no allocations on hits:
+Pragmasevka title layouts averaged 7.66 µs with 1,611 total allocations; tabular-number layouts
+averaged 3.73 µs with 2,359. These fixture measurements do not represent Host Grotesk/Geist Mono
+frame totals. All 239 core/text cases and 206 LocalWave cases pass within their budgets.
+
+The P6a CPU phase profile above still applies to the unchanged production code.
+
+P6 remains open: fresh text shaping/layout allocations and latency still fail the full gate.
+The microbenchmarks, cached-hit checks and CPU percentiles do not replace that gate.
 
 ## Open qualification
 
