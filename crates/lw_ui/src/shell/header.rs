@@ -254,14 +254,19 @@ pub(super) fn find_tokens(
             ui.within(&flow, &mut |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
-                    let chip_w = (ui.text_width(Some(13), token) + 24.0).min(width);
                     let chip = ui.node(
                         token,
                         Node {
                             flags: CLICKABLE | TAB_STOP | CLIP,
                             role: Role::Toggle,
-                            w: Size::Px(chip_w),
+                            w: Size::Fit,
+                            max_w: width,
                             h: Size::Px(32.0),
+                            padding: Edges {
+                                l: 12.0,
+                                r: 12.0,
+                                ..Edges::ZERO
+                            },
                             look: Look {
                                 fill: if selected { p.ink } else { p.panel },
                                 ..Look::NONE
@@ -285,12 +290,8 @@ pub(super) fn find_tokens(
                             "label",
                             Node {
                                 flags: FIT_TEXT,
-                                w: Size::Grow,
+                                w: Size::Fit,
                                 h: Size::Grow,
-                                inset: Edges {
-                                    l: 12.0,
-                                    ..Edges::ZERO
-                                },
                                 look: Look {
                                     text: if selected { p.paper } else { p.secondary },
                                     font: Font {
