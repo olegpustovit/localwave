@@ -309,6 +309,36 @@ impl App {
                 lw_ui::Intent::ClearQueue => Command::ClearUpcoming,
                 lw_ui::Intent::UndoQueue => Command::UndoClear,
                 lw_ui::Intent::SaveQueue(name) => Command::SaveQueue(name),
+                lw_ui::Intent::CreateList { name, song } => Command::CreateList(
+                    name,
+                    song.map_or_else(
+                        || std::sync::Arc::from([]),
+                        |song| targets(shell_state, player.catalog(), song),
+                    ),
+                ),
+                lw_ui::Intent::RenameList { list, name } => Command::RenameList(list, name),
+                lw_ui::Intent::DeleteList(list) => Command::DeleteList(list),
+                lw_ui::Intent::MoveListRow { from, to } => {
+                    let Some((list, ids)) =
+                        shell_state
+                            .collection(player.catalog())
+                            .and_then(|collection| match &*collection.context {
+                                lw_core::context::PlaybackContext::Playlist { id, .. } => {
+                                    Some((*id, &collection.ids))
+                                }
+                                _ => None,
+                            })
+                    else {
+                        return Ok(Some(Schedule::NextFrame));
+                    };
+                    if from >= ids.len() || to >= ids.len() {
+                        return Ok(Some(Schedule::NextFrame));
+                    }
+                    let mut order = ids.to_vec();
+                    let moved = order.remove(from);
+                    order.insert(to, moved);
+                    Command::ReorderList(list, order.into())
+                }
                 lw_ui::Intent::SeekFraction(fraction) => Command::Seek(fraction * seek_duration),
                 lw_ui::Intent::Navigate(_)
                 | lw_ui::Intent::SongMenu(_, _, _, _)
@@ -332,6 +362,12 @@ impl App {
                 | lw_ui::Intent::ShowQueue
                 | lw_ui::Intent::CloseQueue
                 | lw_ui::Intent::NamePlaylist
+                | lw_ui::Intent::NewList(_)
+                | lw_ui::Intent::RenameListDialog(..)
+                | lw_ui::Intent::ListMenu(..)
+                | lw_ui::Intent::CloseListMenu
+                | lw_ui::Intent::ConfirmDeleteList(_)
+                | lw_ui::Intent::CloseDeleteList
                 | lw_ui::Intent::EditPlaylistName(_)
                 | lw_ui::Intent::PlaylistNameTooLong
                 | lw_ui::Intent::CancelPlaylistName => {
@@ -370,8 +406,21 @@ impl App {
         };
         (*command_error) = match result {
             Ok(_) => {
-                if matches!(intent, lw_ui::Intent::SaveQueue(_)) {
-                    shell_state.apply(lw_ui::Intent::CancelPlaylistName);
+                match intent {
+                    lw_ui::Intent::SaveQueue(_)
+                    | lw_ui::Intent::CreateList { .. }
+                    | lw_ui::Intent::RenameList { .. } => {
+                        shell_state.apply(lw_ui::Intent::CancelPlaylistName);
+                    }
+                    lw_ui::Intent::DeleteList(_) => {
+                        shell_state.apply(lw_ui::Intent::CloseDeleteList);
+                        // Routes address lists by position, which the deletion shifts.
+                        if matches!(shell_state.route, lw_ui::catalog::Route::Collection(_)) {
+                            shell_state
+                                .apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Songs));
+                        }
+                    }
+                    _ => {}
                 }
                 None
             }
@@ -422,10 +471,22 @@ mod tests {
         state.apply(Intent::Navigate(lw_ui::catalog::Route::Songs));
         assert_eq!(&*super::targets(&state, &catalog, 2), &[2]);
         state.apply(Intent::Select(Selection::Toggle(0)));
-        assert_eq!(&*super::targets(&state, &catalog, 2), &[2], "one row is not a group");
+        assert_eq!(
+            &*super::targets(&state, &catalog, 2),
+            &[2],
+            "one row is not a group"
+        );
         state.apply(Intent::Select(Selection::Toggle(2)));
-        let group = super::targets(&state, &catalog, state.selected_song_ids(&catalog).next().unwrap());
+        let group = super::targets(
+            &state,
+            &catalog,
+            state.selected_song_ids(&catalog).next().unwrap(),
+        );
         assert_eq!(group.len(), 2);
-        assert_eq!(&*super::targets(&state, &catalog, 99), &[99], "outside the selection");
+        assert_eq!(
+            &*super::targets(&state, &catalog, 99),
+            &[99],
+            "outside the selection"
+        );
     }
 }

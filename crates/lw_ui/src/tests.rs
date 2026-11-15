@@ -2353,7 +2353,7 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
     for (code, expected) in [
         (ch('o'), Intent::ChooseFolder),
         (ch('f'), Intent::Navigate(Route::Find)),
-        (ch('n'), Intent::NamePlaylist),
+        (ch('n'), Intent::NewList(None)),
         (ch('1'), Intent::Navigate(Route::Albums)),
         (ch('2'), Intent::Navigate(Route::Artists)),
         (ch('3'), Intent::Navigate(Route::Songs)),

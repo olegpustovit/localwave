@@ -374,7 +374,7 @@ pub(super) fn table(
                 offset: 0.0,
                 height: 0.0,
             };
-            ui.section_list_measured(
+            let list = ui.section_list_measured(
                 "songs",
                 &SectionList {
                     count: if collection.rows.is_empty() && !find {
@@ -454,6 +454,13 @@ pub(super) fn table(
                     }
                 },
             );
+            // Keep a list-row drag alive while its source row scrolls out of the virtual window.
+            if ui
+                .carrying_ref()
+                .is_some_and(|payload| payload.kind.starts_with(LIST_ROW))
+            {
+                ui.transfer_carry(&list);
+            }
         });
     });
     state.song_window.set(crate::song_text::Window::new(

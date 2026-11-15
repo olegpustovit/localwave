@@ -244,7 +244,14 @@ fn button(ui: &mut Ui, key: &str, label: &str, width: f32, enabled: bool, p: Pal
     );
     button
 }
-fn action(ui: &mut Ui, key: &str, label: &str, width: f32, enabled: bool, p: Palette) -> bool {
+pub(super) fn action(
+    ui: &mut Ui,
+    key: &str,
+    label: &str,
+    width: f32,
+    enabled: bool,
+    p: Palette,
+) -> bool {
     let button = button(ui, key, label, width, enabled, p);
     ui.signal_state(&button).clicked && enabled
 }

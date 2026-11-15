@@ -51,7 +51,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F1 | Global shortcuts from one command table | done | af4b2e8 |
 | F2 | Favorite commands, menu, key and heart | done | 504bf9f |
 | F3 | Complete track menu and native reveal | done | 3a56ba9 |
-| F4 | Playlist CRUD, membership and reorder | todo | — |
+| F4 | Playlist CRUD, membership and reorder | done | HEAD |
 | F5 | Album/artist detail headers and actions | done | 1868431 |
 | F6 | Occurrence-based multi-selection | done | 8ce3af5 |
 | F7 | Drag songs to playlists and queue | todo | — |
@@ -347,9 +347,12 @@ device/provider behavior remain open.
   Real FSEvents delivery is on demand only: this host's fseventsd ran at ~100% CPU with 5 GB
   resident and delivered in 2 of 6 standalone probes, with stream start taking 53 ms–5.3 s. iOS
   keeps an NSFilePresenter, unqualified until I2.
-- F3: "New list…" (needs F4's name dialog for arbitrary songs), the submenu chevron and group dividers are
-  absent; Share… is F10. Long playlist lists rely on the popup's 288-point max height (unverified past 8).
-- F4: create/rename/delete playlists, membership editing and drag reorder; preserve active playback.
+- F3: the submenu chevron and group dividers are absent; Share… is F10.
+- F4: the compact (narrow) layout has no New list button or list menu (⌘N and the track menu work);
+  the sidebar list menu opens on secondary press only (no visible actions button); renaming the
+  playing list leaves its queue context label stale until playback is reconfigured; Swift's list
+  menu extras (Play, Shuffle, Duplicate, Keep offline) are not ported. Deleting a list returns to
+  Songs because routes address lists by position.
 - F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
 - F7: song drops to playlists/queue. Add to queue on a selection still appends only the clicked song.
 - F8: metadata editor, transactional song/FTS updates and deletion without removing original files.

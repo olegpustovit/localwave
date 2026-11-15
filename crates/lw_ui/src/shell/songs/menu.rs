@@ -21,7 +21,7 @@ pub(in crate::shell) fn popup(
             _ => None,
         });
     let routes = catalog.byline_routes(target.1);
-    // Swift's LWTrackMenu order. Share is F10; New list… needs F4's dialog.
+    // Swift's LWTrackMenu order. Share is F10.
     let mut items: [Option<(&'static str, bool, Intent)>; 12] = [None; 12];
     let mut count = 0;
     for entry in [
@@ -80,7 +80,7 @@ pub(in crate::shell) fn popup(
             _ => false,
         })
         .count();
-    let rows = if lists { others.max(1) } else { count };
+    let rows = if lists { others.max(1) + 1 } else { count };
     let height = rows as f32 * 36.0;
     let (w, h) = ui.view_size();
     let at = (
@@ -100,6 +100,12 @@ pub(in crate::shell) fn popup(
         &mut |ui| {
             if lists {
                 {
+                    let item = ui.node("new-list", item_node(present, p));
+                    ui.text(&item, "New list…");
+                    if present && ui.signal_state(&item).clicked {
+                        *intent = Some(Intent::NewList(Some(target.1)));
+                        accepted = true;
+                    }
                     if others == 0 {
                         let item = ui.node("none", item_node(false, p));
                         ui.text(&item, "No other lists");

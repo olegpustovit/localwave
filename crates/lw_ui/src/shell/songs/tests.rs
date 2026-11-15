@@ -1122,7 +1122,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
             .iter()
             .map(|item| item.0.as_str())
             .collect::<Vec<_>>(),
-        ["Morning", "Night"]
+        ["New list…", "Morning", "Night"]
     );
     activate(&mut ui, "Night");
     run(&mut ui, &state, &mut frame, &mut intent);
@@ -1164,7 +1164,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
             .iter()
             .map(|item| item.0.as_str())
             .collect::<Vec<_>>(),
-        ["Night"]
+        ["New list…", "Night"]
     );
     state.apply(Intent::CloseSongMenu);
     // Secondary click on a row opens the menu at the pointer.
@@ -1225,6 +1225,294 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         run(&mut ui, &state, &mut frame, &mut intent);
         if cycle >= 3 {
             assert_eq!(mem_sys::local_alloc_count(), 0, "warm track menu");
+        }
+    }
+}
+
+#[test]
+fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
+    use lw_core::context::PlaybackContext;
+    mem_sys::set_peer(pxui::library_counter);
+    let mut catalog = titled(4);
+    let list = |id: i64| PlaybackContext::Playlist {
+        id,
+        name: String::new(),
+    };
+    catalog.add_collection("Mix", vec![0, 1, 2], list(7));
+    for n in 0..20 {
+        catalog.add_collection(&format!("List {n}"), vec![3], list(100 + n));
+    }
+    let all = catalog.all.as_ref().unwrap().key;
+    let player = PlayerView::default();
+    let mut state = ShellState::default();
+    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let mut time = 0.0;
+    let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
+        time += 0.02;
+        let frame = FrameIn {
+            width: 1440.0,
+            height: 872.0,
+            time,
+            reduced_motion: 1,
+            events: events.as_ptr(),
+            event_count: events.len(),
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
+        intent
+    };
+    let find = |ui: &Ui, role: Role, name: &str| {
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(role) && ui.a11y_name_of(node) == name)
+            .map(|node| (node.id, node.rect))
+    };
+    let activate = |ui: &mut Ui, role: Role, name: &str| {
+        let (id, _) = find(ui, role, name).unwrap_or_else(|| panic!("no {name}"));
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
+    };
+    let pointer = |kind, x: f32, y: f32, code| pxui::Event {
+        kind,
+        code,
+        x: f64::from(x),
+        y: f64::from(y),
+        ..Default::default()
+    };
+    run(&mut ui, &state, &[]);
+    // Sidebar button: dialog, then Create is refused until the name is non-blank.
+    activate(&mut ui, Role::Button, "New list");
+    assert_eq!(run(&mut ui, &state, &[]), Some(Intent::NewList(None)));
+    state.apply(Intent::NewList(None));
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::Button, "Create");
+    assert_eq!(run(&mut ui, &state, &[]), None, "blank name");
+    let name = Query::new("  Road trip  ").unwrap();
+    state.apply(Intent::EditPlaylistName(name));
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::Button, "Create");
+    assert_eq!(
+        run(&mut ui, &state, &[]),
+        Some(Intent::CreateList { name, song: None })
+    );
+    activate(&mut ui, Role::Button, "Cancel");
+    assert_eq!(run(&mut ui, &state, &[]), Some(Intent::CancelPlaylistName));
+    state.apply(Intent::CancelPlaylistName);
+    run(&mut ui, &state, &[]);
+    assert!(find(&ui, Role::Button, "Create").is_none());
+
+    // Track menu: New list… carries the song; every list is reachable by scrolling the panel.
+    state.apply(Intent::SongMenu(1, 1, all, (500.0, 200.0)));
+    state.apply(Intent::SongMenuLists);
+    run(&mut ui, &state, &[]);
+    let (_, first) = find(&ui, Role::MenuItem, "New list…").unwrap();
+    let bottom = first.y + 8.0 * 36.0 + 2.0;
+    let last = |ui: &Ui| find(ui, Role::MenuItem, "List 19").map(|item| item.1);
+    assert!(
+        last(&ui).is_none_or(|rect| rect.y >= bottom),
+        "starts below the fold"
+    );
+    let wheel = |y| pxui::Event {
+        kind: input::wire::SCROLLED,
+        x: f64::from(first.x + 20.0),
+        y,
+        ..Default::default()
+    };
+    let mut reached = None;
+    for _ in 0..40 {
+        run(
+            &mut ui,
+            &state,
+            &[
+                pointer(
+                    input::wire::POINTER_MOVED,
+                    first.x + 20.0,
+                    first.y + 40.0,
+                    0,
+                ),
+                wheel(-60.0),
+            ],
+        );
+        reached = last(&ui).filter(|rect| rect.y + rect.h <= bottom && rect.y >= first.y);
+        if reached.is_some() {
+            break;
+        }
+    }
+    reached.expect("the last list scrolls into the panel");
+    for _ in 0..30 {
+        run(&mut ui, &state, &[]);
+    }
+    let rect = last(&ui).unwrap();
+    let (x, y) = (rect.x + 20.0, rect.y + rect.h * 0.5);
+    let click = [
+        pointer(input::wire::POINTER_MOVED, x, y, 0),
+        pointer(input::wire::POINTER_PRESSED, x, y, 0),
+        pointer(input::wire::POINTER_RELEASED, x, y, 0),
+    ];
+    run(&mut ui, &state, &click[..1]);
+    run(&mut ui, &state, &click[1..2]);
+    assert_eq!(
+        run(&mut ui, &state, &click[2..]),
+        Some(Intent::AddToList { song: 1, list: 119 })
+    );
+    // Back up to New list… with the same panel.
+    for _ in 0..40 {
+        run(
+            &mut ui,
+            &state,
+            &[
+                pointer(
+                    input::wire::POINTER_MOVED,
+                    first.x + 20.0,
+                    first.y + 40.0,
+                    0,
+                ),
+                wheel(60.0),
+            ],
+        );
+    }
+    activate(&mut ui, Role::MenuItem, "New list…");
+    assert_eq!(run(&mut ui, &state, &[]), Some(Intent::NewList(Some(1))));
+    state.apply(Intent::NewList(Some(1)));
+    state.apply(Intent::EditPlaylistName(name));
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::Button, "Create");
+    assert_eq!(
+        run(&mut ui, &state, &[]),
+        Some(Intent::CreateList {
+            name,
+            song: Some(1)
+        })
+    );
+    state.apply(Intent::CancelPlaylistName);
+
+    // Sidebar list menu: secondary press, Rename prefilled, Delete behind a confirmation.
+    run(&mut ui, &state, &[]);
+    let (_, row) = find(&ui, Role::Button, "Mix").unwrap();
+    let (x, y) = (row.x + 10.0, row.y + 10.0);
+    let secondary = [
+        pointer(input::wire::POINTER_MOVED, x, y, 0),
+        pointer(input::wire::POINTER_PRESSED, x, y, 1),
+    ];
+    run(&mut ui, &state, &secondary[..1]);
+    let opened = run(&mut ui, &state, &secondary[1..]);
+    assert!(matches!(opened, Some(Intent::ListMenu(7, _))), "{opened:?}");
+    state.apply(opened.unwrap());
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::MenuItem, "Rename…");
+    let rename = Intent::RenameListDialog(7, Query::new("Mix").unwrap());
+    assert_eq!(run(&mut ui, &state, &[]), Some(rename));
+    state.apply(rename);
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::Button, "Save");
+    assert_eq!(
+        run(&mut ui, &state, &[]),
+        Some(Intent::RenameList {
+            list: 7,
+            name: Query::new("Mix").unwrap()
+        })
+    );
+    state.apply(Intent::CancelPlaylistName);
+    state.apply(Intent::ListMenu(7, (300.0, 300.0)));
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::MenuItem, "Delete list");
+    assert_eq!(
+        run(&mut ui, &state, &[]),
+        Some(Intent::ConfirmDeleteList(7))
+    );
+    state.apply(Intent::ConfirmDeleteList(7));
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::Button, "Cancel");
+    assert_eq!(run(&mut ui, &state, &[]), Some(Intent::CloseDeleteList));
+    run(&mut ui, &state, &[]);
+    activate(&mut ui, Role::Button, "Delete List");
+    assert_eq!(run(&mut ui, &state, &[]), Some(Intent::DeleteList(7)));
+    state.apply(Intent::CloseDeleteList);
+
+    // Drag reorder in the list route emits the new position; sorted views offer no grips.
+    let slot = catalog
+        .collections
+        .iter()
+        .position(|group| matches!(&*group.context, PlaybackContext::Playlist { id: 7, .. }))
+        .unwrap();
+    state.apply(Intent::Navigate(Route::Collection(slot)));
+    for _ in 0..3 {
+        run(&mut ui, &state, &[]);
+    }
+    let grips: Vec<_> = ui
+        .a11y_nodes()
+        .iter()
+        .filter(|node| ui.a11y_name_of(node) == "Reorder track")
+        .map(|node| node.rect)
+        .collect();
+    assert_eq!(grips.len(), 3);
+    let (from, to) = (grips[0], grips[2]);
+    let (x, y0, y1) = (from.x + 10.0, from.y + 10.0, to.y + to.h * 0.8);
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &[pointer(input::wire::POINTER_MOVED, x, y0, 0)]
+        ),
+        None
+    );
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &[pointer(input::wire::POINTER_PRESSED, x, y0, 0)]
+        ),
+        None
+    );
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &[pointer(input::wire::POINTER_MOVED, x, y1, 0)]
+        ),
+        None
+    );
+    assert_eq!(run(&mut ui, &state, &[]), None);
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &[pointer(input::wire::POINTER_RELEASED, x, y1, 0)]
+        ),
+        Some(Intent::MoveListRow { from: 0, to: 2 })
+    );
+    state.apply(Intent::Sort(crate::browse::Sort::Title));
+    for _ in 0..3 {
+        run(&mut ui, &state, &[]);
+    }
+    assert!(find(&ui, Role::Button, "Reorder track").is_none());
+    state.apply(Intent::Navigate(Route::Songs));
+
+    // Warm frames with each dialog open allocate nothing.
+    for cycle in 0..8 {
+        mem_sys::local_reset();
+        for open in [
+            Intent::NewList(None),
+            Intent::ListMenu(7, (300.0, 300.0)),
+            Intent::ConfirmDeleteList(7),
+        ] {
+            state.apply(open);
+            run(&mut ui, &state, &[]);
+            state.apply(Intent::CancelPlaylistName);
+            state.apply(Intent::CloseListMenu);
+            state.apply(Intent::CloseDeleteList);
+            run(&mut ui, &state, &[]);
+        }
+        if cycle >= 3 {
+            assert_eq!(mem_sys::local_alloc_count(), 0, "warm list dialogs");
         }
     }
 }

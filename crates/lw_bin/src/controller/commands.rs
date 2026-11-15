@@ -87,6 +87,10 @@ impl Worker {
             | Command::SetFavorite { .. }
             | Command::AddToList(..)
             | Command::RemoveFromList(..)
+            | Command::CreateList(..)
+            | Command::RenameList(..)
+            | Command::DeleteList(_)
+            | Command::ReorderList(..)
             | Command::RetryDownload(_)
             | Command::Reveal(_)) => self.library_command(command)?,
         };
@@ -373,6 +377,30 @@ impl Worker {
             Command::RemoveFromList(list, songs) => {
                 let result = self.library.remove_from_list(list, &songs);
                 self.list_result(result, "remove from the list", "")
+            }
+            Command::CreateList(name, songs) => {
+                let result = self.library.create_list(name.as_str(), &songs, now());
+                self.list_result(result, "create the list", "")
+            }
+            Command::RenameList(list, name) => {
+                let result = self.library.rename_list(list, name.as_str(), now());
+                self.list_result(result, "rename the list", "")
+            }
+            Command::DeleteList(list) => {
+                let result = self.library.delete_list(list);
+                if result.is_ok()
+                    && matches!(&*self.context, PlaybackContext::Playlist { id, .. } if *id == list)
+                {
+                    // Playback keeps running; only its origin label falls back, as for an unknown context.
+                    self.context = Arc::new(PlaybackContext::Library);
+                    self.saved.context_data = None;
+                    self.library.save_player_state(&self.saved)?;
+                }
+                self.list_result(result, "delete the list", "")
+            }
+            Command::ReorderList(list, order) => {
+                let result = self.library.reorder_list(list, &order);
+                self.list_result(result, "reorder the list", "")
             }
             Command::RetryDownload(song) => {
                 match self.library.retry_download(song) {

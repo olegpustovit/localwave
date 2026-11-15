@@ -110,7 +110,30 @@ pub enum Intent {
     UndoQueue,
     ShowQueue,
     CloseQueue,
+    /// Save the queue as a list (queue sheet).
     NamePlaylist,
+    /// Open the standalone name dialog for an empty list, or one holding the menu's song(s).
+    NewList(Option<i64>),
+    /// Open the name dialog prefilled to rename a list.
+    RenameListDialog(i64, browse::Query),
+    CreateList {
+        name: browse::Query,
+        song: Option<i64>,
+    },
+    RenameList {
+        list: i64,
+        name: browse::Query,
+    },
+    ListMenu(i64, (f32, f32)),
+    CloseListMenu,
+    ConfirmDeleteList(i64),
+    CloseDeleteList,
+    DeleteList(i64),
+    /// Move a row of the displayed list to this final position (drag reorder).
+    MoveListRow {
+        from: usize,
+        to: usize,
+    },
     EditPlaylistName(browse::Query),
     PlaylistNameTooLong,
     CancelPlaylistName,
@@ -132,6 +155,13 @@ pub enum Intent {
     ReconnectSource(files::Target),
     ConfirmRemoveSource(files::Target),
     CloseRemoveSource,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ListDialog {
+    /// New list, optionally holding the track menu's song (and its selection).
+    New(Option<i64>),
+    Rename(i64),
 }
 
 /// Stable player data. Advance revision when these facts change; position is a separate shell input.

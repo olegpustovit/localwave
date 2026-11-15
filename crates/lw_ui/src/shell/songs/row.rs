@@ -247,7 +247,57 @@ pub(super) struct Rows<'a> {
     pub(super) entry: &'a crate::motion::Page,
     pub(super) viewport: Viewport,
 }
+pub(super) const LIST_ROW: &str = "localwave.list-row:";
+
 impl Rows<'_> {
+    /// Rows of a list in saved order can be dragged to reorder (not while sorted).
+    pub(super) fn reorderable(&self) -> bool {
+        matches!(self.state.route, Route::Collection(_))
+            && matches!(
+                &*self.collection.context,
+                lw_core::context::PlaybackContext::Playlist { .. }
+            )
+            && self.state.sort == Sort::Original
+            && self.state.ascending
+    }
+    fn drop_target(&self, ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
+        let p = self.p;
+        let Some(drop) = ui.drop_target_ref(visual).and_then(|drop| {
+            let (dropped, payload) = match drop {
+                pxui::DropRef::Hover(p) => (false, p),
+                pxui::DropRef::Dropped(p) => (true, p),
+            };
+            payload
+                .kind
+                .strip_prefix(LIST_ROW)?
+                .parse::<usize>()
+                .ok()
+                .map(|from| (dropped, from))
+        }) else {
+            return;
+        };
+        let (dropped, from) = drop;
+        let after =
+            ui.signal_state(visual).pointer.1 >= ui.rect(visual).y + ui.rect(visual).h * 0.5;
+        let before = index + usize::from(after);
+        // Final position once the dragged row leaves its slot.
+        let to = if from < before { before - 1 } else { before };
+        if to == from {
+            return;
+        }
+        ui.draw_over(visual, move |paint, rect| {
+            paint.fill(
+                rect.x,
+                if after { rect.y + rect.h - 2.0 } else { rect.y },
+                rect.w,
+                2.0,
+                p.ink,
+            );
+        });
+        if dropped {
+            *intent = Some(Intent::MoveListRow { from, to });
+        }
+    }
     pub(super) fn row(
         &self,
         ui: &mut Ui,
@@ -268,6 +318,7 @@ impl Rows<'_> {
             viewport,
         } = *self;
         let row = catalog.row(collection.rows[index]);
+        let reorder = self.reorderable() && widths[Column::Number as usize] >= 32.0;
         let current = player.current_id == Some(row.id);
         let marked = state.is_marked(index);
         let revision = pxui::hash!((revision, current, marked));
@@ -472,6 +523,46 @@ impl Rows<'_> {
                             (at.x, at.y + at.h),
                         ));
                     }
+                    if reorder {
+                        let grip = ui.node(
+                            "reorder-listed",
+                            Node {
+                                flags: CLICKABLE | TAB_STOP,
+                                role: Role::Button,
+                                w: Size::Px(24.0),
+                                h: Size::Px(layout.height),
+                                at: Some((2.0, 0.0)).into(),
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.a11y_name(&grip, "Reorder track");
+                        ui.draw(&grip, move |paint, rect| {
+                            for x in [8.0, 12.0] {
+                                for y in [-4.0, 0.0, 4.0] {
+                                    paint.fill(
+                                        rect.x + x,
+                                        rect.y + rect.h * 0.5 + y,
+                                        2.0,
+                                        2.0,
+                                        p.secondary,
+                                    );
+                                }
+                            }
+                        });
+                        let signal = ui.signal_state(&grip);
+                        if signal.held || signal.clicked {
+                            let id = ClockLabel::integer(index as u64);
+                            let mut kind = [0u8; 48];
+                            kind[..LIST_ROW.len()].copy_from_slice(LIST_ROW.as_bytes());
+                            let len = LIST_ROW.len() + id.bytes().len();
+                            kind[LIST_ROW.len()..len].copy_from_slice(id.bytes());
+                            ui.carry(
+                                if signal.clicked { None } else { Some(&grip) },
+                                std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
+                                row.title,
+                            );
+                        }
+                    }
                 });
                 let last = index + 1 == collection.rows.len();
                 ui.draw_over(&root, move |paint, rect| {
@@ -506,6 +597,9 @@ impl Rows<'_> {
                 }
                 if signal.double_clicked {
                     *intent = Some(Intent::PlayRow(index));
+                }
+                if reorder {
+                    self.drop_target(ui, &root, index, intent);
                 }
             },
         );

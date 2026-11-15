@@ -11,6 +11,21 @@ pub(super) fn side_row(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    side_item(ui, key, label, route, None, state, p, intent)
+}
+
+/// A sidebar row; a `list` id adds Swift's list menu on secondary press.
+#[allow(clippy::too_many_arguments)]
+fn side_item(
+    ui: &mut Ui,
+    key: &str,
+    label: (&str, &str),
+    route: Route,
+    list: Option<i64>,
+    state: &ShellState,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
     let (title, count) = label;
     let node = ui.node(
         key,
@@ -71,6 +86,12 @@ pub(super) fn side_row(
     });
     if signal.clicked {
         *intent = Some(Intent::Navigate(route));
+    }
+    if let Some(list) = list
+        && signal.pressed
+        && signal.button == Some(1)
+    {
+        *intent = Some(Intent::ListMenu(list, signal.pointer));
     }
 }
 pub(super) fn sidebar(
@@ -150,6 +171,33 @@ pub(super) fn sidebar(
             (Size::Grow, 30.0),
             false,
         );
+        let new_list = ui.node(
+            "new-list",
+            Node {
+                flags: CLICKABLE | TAB_STOP,
+                role: Role::Button,
+                w: Size::Grow,
+                h: Size::Px(32.0),
+                padding: Edges {
+                    l: 8.0,
+                    ..Edges::ZERO
+                },
+                look: Look {
+                    text: p.secondary,
+                    font: Font {
+                        size: 14,
+                        ..Font::BODY
+                    },
+                    ..Look::NONE
+                },
+                ..Node::DEFAULT
+            },
+        );
+        ui.text(&new_list, "+ New list");
+        ui.a11y_name(&new_list, "New list");
+        if ui.signal_state(&new_list).clicked {
+            *intent = Some(Intent::NewList(None));
+        }
         ui.grid_list(
             "collections",
             catalog.collections.len(),
@@ -157,11 +205,16 @@ pub(super) fn sidebar(
             32.0,
             &mut |ui, index| {
                 let collection = &catalog.collections[index];
-                side_row(
+                let list = match &*collection.context {
+                    lw_core::context::PlaybackContext::Playlist { id, .. } => Some(*id),
+                    _ => None,
+                };
+                side_item(
                     ui,
                     "collection",
                     (&collection.title, &collection.count),
                     Route::Collection(index),
+                    list,
                     state,
                     p,
                     intent,

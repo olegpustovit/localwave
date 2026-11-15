@@ -162,6 +162,33 @@ impl LibraryWorker {
     pub fn add_to_list(&mut self, list: i64, ids: &[i64]) -> io::Result<()> {
         self.repository.add_playlist_songs(list, ids).map_err(db)
     }
+    /// Create a list (empty, or with `ids` in one transaction).
+    pub fn create_list(&mut self, name: &str, ids: &[i64], now: f64) -> io::Result<()> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        self.repository
+            .create_playlist_with_songs(name, ids, now)
+            .map(drop)
+            .map_err(db)
+    }
+    pub fn rename_list(&mut self, list: i64, name: &str, now: f64) -> io::Result<()> {
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        self.repository
+            .rename_playlist(list, name, now)
+            .map(drop)
+            .map_err(db)
+    }
+    pub fn delete_list(&mut self, list: i64) -> io::Result<()> {
+        self.repository.delete_playlist(list).map_err(db)
+    }
+    pub fn reorder_list(&mut self, list: i64, order: &[i64]) -> io::Result<()> {
+        self.repository.reorder_playlist(list, order).map_err(db)
+    }
     pub fn remove_from_list(&mut self, list: i64, ids: &[i64]) -> io::Result<()> {
         self.repository.remove_playlist_songs(list, ids).map_err(db)
     }

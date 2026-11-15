@@ -1232,3 +1232,185 @@ fn reveal_resolves_the_source_grant_on_the_worker_and_rejects_missing_files() {
     library.reveal_song(here, 1.0).unwrap();
     let _ = std::fs::remove_dir_all(&base);
 }
+
+#[test]
+fn list_commands_validate_persist_and_deleting_the_playing_list_falls_back_to_library() {
+    use lw_core::Song;
+    use lw_core::context::PlaybackContext;
+    let ids = |values: &[i64]| Arc::<[i64]>::from(values);
+    let name = |text: &str| lw_ui::browse::Query::new(text).unwrap();
+    for bad in [
+        Command::CreateList(name(" \t"), ids(&[])),
+        Command::CreateList(name("A"), ids(&[0])),
+        Command::RenameList(1, name("")),
+        Command::RenameList(0, name("A")),
+        Command::DeleteList(0),
+        Command::ReorderList(1, ids(&[])),
+        Command::ReorderList(1, ids(&[1, -2])),
+    ] {
+        assert!(bad.validate().is_err());
+    }
+    let oversize = "x".repeat(lw_ui::browse::MAX_QUERY_BYTES + 1);
+    assert!(
+        lw_ui::browse::Query::new(&oversize).is_none(),
+        "oversize names never reach a command"
+    );
+    for good in [
+        Command::CreateList(name(" Mix "), ids(&[])),
+        Command::CreateList(name("Mix"), ids(&[1, 2])),
+        Command::RenameList(1, name("B")),
+        Command::DeleteList(1),
+        Command::ReorderList(1, ids(&[2, 1])),
+    ] {
+        assert!(good.validate().is_ok() && good.changes_catalog());
+        assert!(!good.fences_preparation() && !good.interrupts());
+    }
+
+    let base = std::env::temp_dir().join(format!("lw-list-command-{}", std::process::id()));
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(base.clone());
+    let suite = format!("localwave.list-command.{}", std::process::id());
+    let open = |base: &std::path::Path, suite: &str| -> io::Result<LibraryWorker> {
+        std::fs::create_dir_all(base)?;
+        LibraryWorker::open(
+            &base.join("library.sqlite"),
+            lw_apple_sys::preferences::Preferences::open(Some(suite))?,
+            lw_apple_sys::preferences::AppPaths {
+                documents: base.join("Documents"),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+        )
+    };
+    let shared = shared();
+    shared.inbox.lock().unwrap().native.volume = 1.0;
+    let (worker_base, worker_suite, owner) = (base.clone(), suite.clone(), shared.clone());
+    let thread = std::thread::spawn(move || {
+        Worker::run(
+            move || {
+                let mut library = open(&worker_base, &worker_suite)?;
+                for id in 1..=3 {
+                    library
+                        .repository
+                        .upsert_song(
+                            &Song {
+                                song_key: id,
+                                title: format!("Track {id}"),
+                                ..Default::default()
+                            },
+                            1.0,
+                        )
+                        .map_err(io::Error::other)?;
+                }
+                Ok(library)
+            },
+            owner,
+        )
+    });
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    let wait = |done: &dyn Fn(&Shared) -> bool| {
+        while !done(&shared) {
+            assert!(std::time::Instant::now() < deadline, "list command stalled");
+            std::thread::yield_now();
+        }
+    };
+    let send = |revision: u64, command: Command| {
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
+            revision,
+            preparation: 0,
+            command,
+        });
+        shared.changed.notify_one();
+        wait(&|shared| shared.inbox.lock().unwrap().status.processed_command >= revision);
+    };
+    let titles = |shared: &Shared| -> Vec<(String, usize)> {
+        shared
+            .inbox
+            .lock()
+            .unwrap()
+            .catalog
+            .as_ref()
+            .map(|catalog| {
+                catalog
+                    .collections
+                    .iter()
+                    .filter(|c| matches!(&*c.context, PlaybackContext::Playlist { .. }))
+                    .map(|c| (c.title.clone(), c.ids.len()))
+                    .collect()
+            })
+            .unwrap_or_default()
+    };
+    send(1, Command::CreateList(name("  Empty  "), ids(&[])));
+    send(2, Command::CreateList(name("Mix"), ids(&[3, 1, 2])));
+    wait(&|shared| titles(shared) == [("Empty".into(), 0), ("Mix".into(), 3)]);
+    send(3, Command::RenameList(2, name(" Night ")));
+    send(4, Command::ReorderList(2, ids(&[2, 3, 1])));
+    send(5, Command::RenameList(2, name("   "))); // rejected before the worker
+    wait(&|shared| titles(shared)[1].0 == "Night");
+    wait(&|shared| {
+        let inbox = shared.inbox.lock().unwrap();
+        inbox.catalog.as_ref().is_some_and(|catalog| {
+            catalog
+                .collections
+                .iter()
+                .any(|c| c.title == "Night" && *c.ids == [2, 3, 1])
+        })
+    });
+    // Play from the list, then delete it: the queue and cursor stay, the origin is Library.
+    send(
+        6,
+        Command::Configure {
+            songs: ids(&[2, 3, 1]),
+            start: 1,
+            autoplay: false,
+            context: Some(Arc::new(PlaybackContext::Playlist {
+                id: 2,
+                name: "Night".into(),
+            })),
+        },
+    );
+    wait(&|shared| {
+        matches!(
+            &*shared.inbox.lock().unwrap().status.context,
+            PlaybackContext::Playlist { id: 2, .. }
+        )
+    });
+    send(7, Command::DeleteList(2));
+    wait(&|shared| {
+        matches!(
+            &*shared.inbox.lock().unwrap().status.context,
+            PlaybackContext::Library
+        )
+    });
+    wait(&|shared| titles(shared) == [("Empty".into(), 0)]);
+    {
+        let inbox = shared.inbox.lock().unwrap();
+        assert_eq!(
+            (inbox.status.queue_len, inbox.status.current_index),
+            (3, Some(1)),
+            "deleting the list keeps the queue and cursor"
+        );
+    }
+    shared.inbox.lock().unwrap().closed = true;
+    shared.changed.notify_one();
+    thread.join().unwrap();
+    let library = open(&base, &suite).unwrap();
+    let saved = library.load_player_state().unwrap();
+    assert_eq!(saved.song_ids, [2, 3, 1]);
+    assert_eq!(
+        library.playback_context(saved.context_data.as_deref()),
+        PlaybackContext::Library
+    );
+    let lists = library.repository.playlists().unwrap();
+    assert_eq!(
+        lists.iter().map(|l| l.name.as_str()).collect::<Vec<_>>(),
+        ["Empty"]
+    );
+}

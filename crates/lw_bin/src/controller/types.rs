@@ -68,6 +68,12 @@ pub enum Command {
     InsertNext(Arc<[i64]>),
     AddToList(i64, Arc<[i64]>),
     RemoveFromList(i64, Arc<[i64]>),
+    /// A new list, holding `songs` when given (the track menu's New list...).
+    CreateList(lw_ui::browse::Query, Arc<[i64]>),
+    RenameList(i64, lw_ui::browse::Query),
+    /// Playback that came from the list continues and falls back to the Library context.
+    DeleteList(i64),
+    ReorderList(i64, Arc<[i64]>),
     RetryDownload(i64),
     /// Show the song's file in Finder through its source grant.
     Reveal(i64),
@@ -82,6 +88,10 @@ impl Command {
                 | Self::SetFavorite { .. }
                 | Self::AddToList(..)
                 | Self::RemoveFromList(..)
+                | Self::CreateList(..)
+                | Self::RenameList(..)
+                | Self::DeleteList(_)
+                | Self::ReorderList(..)
                 | Self::RetryDownload(_)
         )
     }
@@ -110,6 +120,12 @@ impl Command {
             Self::AddToList(list, songs) | Self::RemoveFromList(list, songs) => {
                 *list <= 0 || bad_ids(songs)
             }
+            Self::CreateList(name, songs) => {
+                name.as_str().trim().is_empty() || (!songs.is_empty() && bad_ids(songs))
+            }
+            Self::RenameList(list, name) => *list <= 0 || name.as_str().trim().is_empty(),
+            Self::DeleteList(list) => *list <= 0,
+            Self::ReorderList(list, order) => *list <= 0 || bad_ids(order),
             Self::RetryDownload(song) | Self::Reveal(song) => *song <= 0,
             Self::SaveQueue(name) => name.as_str().trim().is_empty(),
             Self::Setting(change) => Settings::default().applying(*change).is_err(),
@@ -134,6 +150,10 @@ impl Command {
                 | Self::SetFavorite { .. }
                 | Self::AddToList(..)
                 | Self::RemoveFromList(..)
+                | Self::CreateList(..)
+                | Self::RenameList(..)
+                | Self::DeleteList(_)
+                | Self::ReorderList(..)
                 | Self::RetryDownload(_)
                 | Self::Reveal(_)
                 | Self::Setting(

@@ -43,6 +43,9 @@ pub struct ShellState {
     player_expanded: bool,
     queue_visible: bool,
     playlist_editing: bool,
+    list_dialog: Option<crate::ListDialog>,
+    list_menu: Option<(i64, (f32, f32))>,
+    delete_list: Option<i64>,
     playlist_name: Query,
     playlist_name_too_long: bool,
     top_inset: f32,
@@ -80,6 +83,9 @@ impl Default for ShellState {
             player_expanded: false,
             queue_visible: false,
             playlist_editing: false,
+            list_dialog: None,
+            list_menu: None,
+            delete_list: None,
             playlist_name: Query::default(),
             playlist_name_too_long: false,
             top_inset: 0.0,
@@ -103,6 +109,16 @@ impl Default for ShellState {
     }
 }
 impl ShellState {
+    fn open_list_dialog(&mut self, dialog: crate::ListDialog, name: Query) {
+        self.list_dialog = Some(dialog);
+        self.playlist_name = name;
+        self.playlist_name_too_long = false;
+        (self.song_menu, self.list_menu, self.source_menu) = (None, None, None);
+        self.song_lists = false;
+        self.settings_menu = None;
+        self.commands_visible = false;
+        self.shortcuts_visible = false;
+    }
     pub fn song_text_window(&self, catalog: &Catalog) -> Option<crate::song_text::Window> {
         self.song_window.get().filter(|window| {
             !self.settings_visible
@@ -348,12 +364,35 @@ impl ShellState {
                 self.playlist_editing = false;
             }
             Intent::NamePlaylist => self.playlist_editing = true,
+            Intent::NewList(song) => {
+                self.open_list_dialog(crate::ListDialog::New(song), Query::default())
+            }
+            Intent::RenameListDialog(list, name) => {
+                self.open_list_dialog(crate::ListDialog::Rename(list), name)
+            }
+            Intent::ListMenu(list, at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.list_menu = Some((list, at));
+                    self.song_menu = None;
+                    self.source_menu = None;
+                    self.settings_menu = None;
+                }
+            }
+            Intent::CloseListMenu => self.list_menu = None,
+            Intent::ConfirmDeleteList(list) => {
+                self.delete_list = Some(list);
+                self.list_menu = None;
+            }
+            Intent::CloseDeleteList => self.delete_list = None,
             Intent::EditPlaylistName(name) => {
                 self.playlist_name = name;
                 self.playlist_name_too_long = false;
             }
             Intent::PlaylistNameTooLong => self.playlist_name_too_long = true,
-            Intent::CancelPlaylistName => self.playlist_editing = false,
+            Intent::CancelPlaylistName => {
+                self.playlist_editing = false;
+                self.list_dialog = None;
+            }
             Intent::Search(query) => {
                 self.query = query;
                 self.clear_selection();
@@ -501,7 +540,7 @@ fn global_shortcut(
     }
     for (key, modifier, intent) in [
         ('f', meta, Intent::Navigate(Route::Find)),
-        ('n', meta, Intent::NamePlaylist),
+        ('n', meta, Intent::NewList(None)),
         ('1', meta, Intent::Navigate(Route::Albums)),
         ('2', meta, Intent::Navigate(Route::Artists)),
         ('3', meta, Intent::Navigate(Route::Songs)),
@@ -615,6 +654,15 @@ pub fn shell(
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, p, intent);
     }
+    if let Some((list, at)) = state.list_menu {
+        lists::menu(ui, catalog, list, at, p, intent);
+    }
+    if let Some(list) = state.delete_list {
+        lists::confirm_delete(ui, catalog, list, p, intent);
+    }
+    if let Some(dialog) = state.list_dialog {
+        lists::name_dialog(ui, state, dialog, p, intent);
+    }
     let root = if ui.view_size().0 < compact::BREAKPOINT {
         state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, p, intent)
@@ -664,6 +712,8 @@ pub fn shell(
         && !state.queue_visible
         && !state.settings_visible
         && state.song_menu.is_none()
+        && state.list_dialog.is_none()
+        && state.delete_list.is_none()
         && ui.key_pressed(input::Key::Enter)
         && !input_was_focused
         && !ui.text_input_focused()
@@ -686,6 +736,9 @@ pub fn shell(
         && !state.queue_visible
         && !state.settings_visible
         && !state.playlist_editing
+        && state.list_dialog.is_none()
+        && state.list_menu.is_none()
+        && state.delete_list.is_none()
         && state.song_menu.is_none()
         && state.source_menu.is_none()
         && state.remove_source.is_none()
@@ -723,6 +776,7 @@ use kit::*;
 mod sidebar;
 use sidebar::*;
 mod header;
+mod lists;
 use header::*;
 mod now;
 use now::*;
