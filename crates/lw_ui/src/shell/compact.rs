@@ -5,6 +5,7 @@
 //! typed input and consumes intents. Never add app-owned recognizers to fix routing.
 //!
 use super::*;
+use pxui::GestureOpts;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
@@ -508,16 +509,26 @@ fn songs(
         line(ui, "empty", "No songs here yet.", 14.0, p.secondary);
         return;
     }
-    ui.grid_list(
+    let list = ui.grid_list(
         "compact-songs",
         collection.rows.len(),
         width,
         64.0,
         &mut |ui, index| {
             let row = catalog.row(collection.rows[index]);
-            let node = ui.node(
-                "song",
+            let cell = ui.node(
+                "swipe-row",
                 Node {
+                    axis: Axis::Stack,
+                    w: Size::Grow,
+                    h: Size::Grow,
+                    flags: CLIP,
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&cell, &mut |ui| {
+                let selected = state.selected == Some(index);
+                let row_node = Node {
                     axis: Axis::Row,
                     align: Align::Center,
                     gap: 12.0,
@@ -531,66 +542,215 @@ fn songs(
                         ..Edges::ZERO
                     },
                     look: Look {
-                        fill: if state.selected == Some(index) {
-                            p.selected
-                        } else {
-                            p.paper
-                        },
+                        fill: if selected { p.selected } else { p.paper },
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
-                },
-            );
-            ui.a11y_name(&node, row.title);
-            ui.within(&node, &mut |ui| {
-                artwork(ui, catalog, player, Some(collection.rows[index]), 44.0, p);
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, p.paper);
-                ui.within(&labels, &mut |ui| {
-                    line(
-                        ui,
-                        "title",
-                        row.title,
-                        15.0,
-                        if player.current_id == Some(row.id) {
-                            p.signal
-                        } else {
-                            p.ink
+                };
+                let node = ui.node("song", row_node);
+                // Touch only: a mouse never starts a gesture, so desktop rows read rest.
+                let g = ui.gesture(
+                    &node,
+                    GestureOpts {
+                        long_press: true,
+                        row_swipe: Some(2.0 * SWIPE_ACTION),
+                        ..Default::default()
+                    },
+                );
+                let active = g.swiping || g.swipe_open;
+                match state.open_swipe.get() {
+                    Some((open, other)) if active && open != index => {
+                        ui.close_swipe(&other);
+                        state.open_swipe.set(Some((index, node)));
+                    }
+                    Some((open, _)) if open == index && active => {
+                        state.open_swipe.set(Some((index, node)));
+                    }
+                    Some((open, _)) if open == index && g.swipe == 0.0 => {
+                        state.open_swipe.set(None)
+                    }
+                    None if active => state.open_swipe.set(Some((index, node))),
+                    _ => {}
+                }
+                if g.swipe != 0.0 {
+                    // `swipe` is already mirrored for right-to-left, so it is the row's own x offset.
+                    ui.set_node_layout(
+                        &node,
+                        &Node {
+                            w: Size::Px(width),
+                            h: Size::Px(64.0),
+                            at: Some((g.swipe, 0.0)).into(),
+                            ..row_node
                         },
                     );
-                    line(ui, "artist", row.artist, 12.0, p.secondary);
+                }
+                if g.highlighted {
+                    ui.set_look(
+                        &node,
+                        Look {
+                            fill: p.selected,
+                            ..row_node.look
+                        },
+                        State::default(),
+                    );
+                }
+                ui.a11y_name(&node, row.title);
+                ui.within(&node, &mut |ui| {
+                    artwork(ui, catalog, player, Some(collection.rows[index]), 44.0, p);
+                    let labels =
+                        container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, p.paper);
+                    ui.within(&labels, &mut |ui| {
+                        line(
+                            ui,
+                            "title",
+                            row.title,
+                            15.0,
+                            if player.current_id == Some(row.id) {
+                                p.signal
+                            } else {
+                                p.ink
+                            },
+                        );
+                        line(ui, "artist", row.artist, 12.0, p.secondary);
+                    });
+                    text(
+                        ui,
+                        "duration",
+                        row.duration,
+                        12,
+                        p.secondary,
+                        (Size::Px(40.0), 18.0),
+                        true,
+                    );
+                    if icon_button(
+                        ui,
+                        "actions",
+                        row.actions_label,
+                        Icon::Queue,
+                        (44.0, 44.0),
+                        false,
+                        p,
+                    ) {
+                        let rect = ui.rect(&node);
+                        *intent = Some(Intent::SongMenu(
+                            index,
+                            row.id,
+                            collection.key,
+                            (rect.x + rect.w - 44.0, rect.y),
+                        ));
+                    }
                 });
-                text(
-                    ui,
-                    "duration",
-                    row.duration,
-                    12,
-                    p.secondary,
-                    (Size::Px(40.0), 18.0),
-                    true,
-                );
-                if icon_button(
-                    ui,
-                    "actions",
-                    row.actions_label,
-                    Icon::Queue,
-                    (44.0, 44.0),
-                    false,
-                    p,
-                ) {
+                if g.swipe != 0.0 {
+                    let strip = ui.node(
+                        "swipe-actions",
+                        Node {
+                            axis: Axis::Row,
+                            justify: Justify::End,
+                            z: -1,
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&strip, &mut |ui| {
+                        for (key, label, action) in [
+                            ("play-next", "Play next", Intent::PlayNext(row.id)),
+                            (
+                                "favorite",
+                                if row.favorite {
+                                    "Unfavorite"
+                                } else {
+                                    "Favorite"
+                                },
+                                Intent::SetFavorite {
+                                    song: row.id,
+                                    on: !row.favorite,
+                                },
+                            ),
+                        ] {
+                            if swipe_action(ui, key, label, p) {
+                                *intent = Some(action);
+                                ui.close_swipe(&node);
+                            }
+                        }
+                    });
+                }
+                if g.long_pressed && intent.is_none() {
                     let rect = ui.rect(&node);
                     *intent = Some(Intent::SongMenu(
                         index,
                         row.id,
                         collection.key,
-                        (rect.x + rect.w - 44.0, rect.y),
+                        (rect.x + rect.w * 0.5 - 100.0, rect.y + rect.h),
                     ));
                 }
+                if ui.signal_state(&node).clicked && intent.is_none() {
+                    if g.swipe_open {
+                        ui.close_swipe(&node);
+                    } else {
+                        *intent = Some(Intent::PlayRow(index));
+                    }
+                }
             });
-            if ui.signal_state(&node).clicked && intent.is_none() {
-                *intent = Some(Intent::PlayRow(index));
-            }
         },
     );
+    let pull = ui.gesture(
+        &list,
+        GestureOpts {
+            refresh: Some(60.0),
+            ..Default::default()
+        },
+    );
+    // `refreshing` holds from release until `end_refresh`, so its first frame starts the load; it can
+    // read once more after the end, which `refresh_ending` keeps from starting another.
+    if !pull.refreshing {
+        state.refresh_ending.set(false);
+        state.refresh_wait.set(None);
+    } else if let Some((epoch, since)) = state.refresh_wait.get() {
+        // Ends on the next catalog delivery; the deadline keeps a refresh that changed nothing from holding.
+        if epoch != state.refresh_epoch || ui.now() - since > 5.0 {
+            ui.end_refresh(&list);
+            state.refresh_wait.set(None);
+            state.refresh_ending.set(true);
+        } else {
+            ui.repaint_after((5.0 - (ui.now() - since)).max(0.0));
+        }
+    } else if !state.refresh_ending.get() {
+        state
+            .refresh_wait
+            .set(Some((state.refresh_epoch, ui.now())));
+        if intent.is_none() {
+            *intent = Some(Intent::RefreshLibrary);
+        }
+    }
+}
+
+/// Width of one revealed row action; two reveal per swipe.
+const SWIPE_ACTION: f32 = 76.0;
+
+fn swipe_action(ui: &mut Ui, key: &str, label: &'static str, p: Palette) -> bool {
+    let node = ui.node(
+        key,
+        Node {
+            flags: CLICKABLE | TAB_STOP,
+            role: Role::Button,
+            w: Size::Px(SWIPE_ACTION),
+            h: Size::Grow,
+            align: Align::Center,
+            justify: Justify::Center,
+            look: Look {
+                fill: p.ink,
+                text: p.paper,
+                ..Look::NONE
+            },
+            ..Node::DEFAULT
+        },
+    );
+    ui.within(&node, &mut |ui| {
+        text(ui, "label", label, 13, p.paper, (Size::Fit, 18.2), false);
+    });
+    ui.a11y_name(&node, label);
+    ui.signal_state(&node).clicked
 }
 
 pub(super) fn collections(
@@ -1399,6 +1559,271 @@ mod tests {
                         "Find focus/Done/shortcut frame {tick}"
                     );
                 }
+            }
+        }
+    }
+
+    /// One finger event (`phase` 0 down, 1 move, 2 up) then a frame at `time`.
+    fn finger(
+        ui: &mut Ui,
+        c: &Catalog,
+        state: &ShellState,
+        phase: u32,
+        at: (f32, f32),
+        time: f64,
+    ) -> Option<Intent> {
+        let touch = pxui::Touch {
+            device: u64::MAX,
+            finger: 3,
+            x: f64::from(at.0),
+            y: f64::from(at.1),
+            time,
+            pressure: 1.0,
+            phase,
+        };
+        let event = pxui::Event {
+            kind: pxui::Event::TOUCH,
+            text: pxui::Str {
+                ptr: (&touch as *const pxui::Touch).cast(),
+                len: core::mem::size_of::<pxui::Touch>(),
+            },
+            ..Default::default()
+        };
+        let player = PlayerView {
+            initialized: true,
+            ..Default::default()
+        };
+        let mut intent = None;
+        ui.frame(
+            &FrameIn {
+                width: 390.0,
+                height: 844.0,
+                time,
+                events: &event,
+                event_count: 1,
+                environment: pxui::Environment {
+                    safe_area: [59.0, 0.0, 34.0, 0.0],
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            &mut |ui| shell(ui, &player, 0.0, c, state, &mut intent),
+        )
+        .unwrap();
+        intent
+    }
+    fn idle(ui: &mut Ui, c: &Catalog, state: &ShellState, time: f64) -> Option<Intent> {
+        let player = PlayerView {
+            initialized: true,
+            ..Default::default()
+        };
+        frame(ui, c, state, &player, 0.0, 390.0, time)
+    }
+    fn rect_of(ui: &Ui, role: Role, name: &str) -> pxui::geom::Rect {
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(role) && ui.a11y_name_of(node) == name)
+            .unwrap_or_else(|| panic!("missing {name}"))
+            .rect
+    }
+    fn centre(r: pxui::geom::Rect) -> (f32, f32) {
+        (r.x + r.w / 2.0, r.y + r.h / 2.0)
+    }
+    /// Drag the row left to reveal its actions and let the spring settle; returns the clock.
+    fn open_row(ui: &mut Ui, c: &Catalog, state: &ShellState, name: &str, mut t: f64) -> f64 {
+        let (x, y) = {
+            let r = rect_of(ui, Role::ListItem, name);
+            (r.x + 250.0, r.y + r.h / 2.0)
+        };
+        assert_eq!(finger(ui, c, state, 0, (x, y), t), None);
+        for (step, dx) in [8.0, 60.0, 120.0].into_iter().enumerate() {
+            t += 0.016;
+            assert_eq!(finger(ui, c, state, 1, (x - dx, y), t), None, "step {step}");
+        }
+        t += 0.4;
+        assert_eq!(
+            finger(ui, c, state, 2, (x - 120.0, y), t),
+            None,
+            "a swipe is not a tap"
+        );
+        for _ in 0..4 {
+            t += 0.5;
+            idle(ui, c, state, t);
+        }
+        t
+    }
+
+    #[test]
+    fn touch_swipe_actions_emit_intents_close_and_never_tap_through() {
+        mem_sys::set_peer(pxui::library_counter);
+        let c = catalog(30);
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let state = ShellState::default();
+        let mut t = 1.0;
+        idle(&mut ui, &c, &state, t);
+        for round in 0..4 {
+            mem_sys::local_reset();
+            let resting = rect_of(&ui, Role::ListItem, "Track 00000").x;
+            t = open_row(&mut ui, &c, &state, "Track 00000", t + 1.0);
+            let shifted = rect_of(&ui, Role::ListItem, "Track 00000").x;
+            assert!(
+                shifted <= resting - 100.0,
+                "row shows its actions: {resting} -> {shifted}"
+            );
+            // A tap on an action emits its intent and closes the row.
+            let (x, y) = centre(rect_of(&ui, Role::Button, "Play next"));
+            t += 0.1;
+            finger(&mut ui, &c, &state, 0, (x, y), t);
+            t += 0.05;
+            let intent = finger(&mut ui, &c, &state, 2, (x, y), t);
+            assert_eq!(intent, Some(Intent::PlayNext(0)));
+            for _ in 0..4 {
+                t += 0.5;
+                idle(&mut ui, &c, &state, t);
+            }
+            assert_eq!(
+                rect_of(&ui, Role::ListItem, "Track 00000").x,
+                resting,
+                "closed after the action"
+            );
+            t = open_row(&mut ui, &c, &state, "Track 00000", t + 0.5);
+            let (x, y) = centre(rect_of(&ui, Role::Button, "Favorite"));
+            t += 0.1;
+            finger(&mut ui, &c, &state, 0, (x, y), t);
+            t += 0.05;
+            assert_eq!(
+                finger(&mut ui, &c, &state, 2, (x, y), t),
+                Some(Intent::SetFavorite { song: 0, on: true })
+            );
+            for _ in 0..4 {
+                t += 0.5;
+                idle(&mut ui, &c, &state, t);
+            }
+            // Swiping another row closes the open one.
+            t = open_row(&mut ui, &c, &state, "Track 00000", t + 0.5);
+            t = open_row(&mut ui, &c, &state, "Track 00001", t + 0.5);
+            assert_eq!(
+                rect_of(&ui, Role::ListItem, "Track 00000").x,
+                resting,
+                "first row closed"
+            );
+            assert!(rect_of(&ui, Role::ListItem, "Track 00001").x < resting - 100.0);
+            // Tapping an open row closes it instead of playing.
+            let r = rect_of(&ui, Role::ListItem, "Track 00001");
+            finger(&mut ui, &c, &state, 0, (100.0, r.y + 30.0), t + 0.1);
+            assert_eq!(
+                finger(&mut ui, &c, &state, 2, (100.0, r.y + 30.0), t + 0.15),
+                None
+            );
+            t += 0.15;
+            for _ in 0..4 {
+                t += 0.5;
+                idle(&mut ui, &c, &state, t);
+            }
+            assert_eq!(rect_of(&ui, Role::ListItem, "Track 00001").x, resting);
+            if round >= 2 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "warm swipe round {round}");
+            }
+        }
+    }
+
+    #[test]
+    fn touch_long_press_opens_the_track_menu_without_a_tap() {
+        mem_sys::set_peer(pxui::library_counter);
+        let c = catalog(30);
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = ShellState::default();
+        let mut t = 1.0;
+        idle(&mut ui, &c, &state, t);
+        for round in 0..4 {
+            mem_sys::local_reset();
+            let r = rect_of(&ui, Role::ListItem, "Track 00002");
+            let at = (r.x + 120.0, r.y + r.h / 2.0);
+            t += 1.0;
+            assert_eq!(finger(&mut ui, &c, &state, 0, at, t), None);
+            assert_eq!(idle(&mut ui, &c, &state, t + 0.2), None);
+            let opened = idle(&mut ui, &c, &state, t + 0.6);
+            assert!(
+                matches!(opened, Some(Intent::SongMenu(2, 2, _, _))),
+                "{opened:?}"
+            );
+            state.apply(opened.unwrap());
+            // Lifting the finger after the long press must not play the row.
+            assert_eq!(finger(&mut ui, &c, &state, 2, at, t + 0.7), None);
+            idle(&mut ui, &c, &state, t + 0.8);
+            rect_of(&ui, Role::MenuItem, "Play next");
+            let behind = rect_of(&ui, Role::ListItem, "Track 00002");
+            assert_eq!(
+                (behind.x, behind.y),
+                (r.x, r.y),
+                "the blurred backdrop leaves the page in place"
+            );
+            state.apply(Intent::CloseSongMenu);
+            idle(&mut ui, &c, &state, t + 1.0);
+            t += 1.0;
+            if round >= 2 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm long-press round {round}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn touch_pull_to_refresh_asks_once_and_ends_with_the_next_catalog() {
+        mem_sys::set_peer(pxui::library_counter);
+        let c = catalog(30);
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = ShellState::default();
+        let mut t = 1.0;
+        idle(&mut ui, &c, &state, t);
+        let mut asked = 0;
+        for round in 0..4 {
+            mem_sys::local_reset();
+            t += 1.0;
+            let y = rect_of(&ui, Role::ListItem, "Track 00000").y + 20.0;
+            finger(&mut ui, &c, &state, 0, (200.0, y), t);
+            for (i, dy) in [10.0, 60.0, 140.0, 200.0].into_iter().enumerate() {
+                asked += usize::from(
+                    finger(
+                        &mut ui,
+                        &c,
+                        &state,
+                        1,
+                        (200.0, y + dy),
+                        t + 0.016 * (i + 1) as f64,
+                    ) == Some(Intent::RefreshLibrary),
+                );
+            }
+            t += 0.5;
+            asked += usize::from(
+                finger(&mut ui, &c, &state, 2, (200.0, y + 200.0), t)
+                    == Some(Intent::RefreshLibrary),
+            );
+            for _ in 0..3 {
+                t += 0.3;
+                asked += usize::from(idle(&mut ui, &c, &state, t) == Some(Intent::RefreshLibrary));
+            }
+            assert_eq!(asked, round + 1, "one refresh per pull");
+            assert!(state.refresh_wait.get().is_some(), "held while loading");
+            // A delivered catalog ends the hold.
+            state.refresh_epoch += 1;
+            for _ in 0..4 {
+                t += 0.5;
+                idle(&mut ui, &c, &state, t);
+            }
+            assert!(state.refresh_wait.get().is_none(), "ended with the catalog");
+            if round >= 2 {
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm refresh round {round}"
+                );
             }
         }
     }

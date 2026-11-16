@@ -29,6 +29,12 @@ mod settings;
 mod songs;
 
 pub struct ShellState {
+    /// The compact song row whose swipe actions are showing, so swiping another closes it.
+    open_swipe: std::cell::Cell<Option<(usize, pxui::Handle)>>,
+    /// Bumped by every catalog delivery; a pull to refresh ends when it moves past the value it saw.
+    refresh_epoch: u64,
+    refresh_wait: std::cell::Cell<Option<(u64, f64)>>,
+    refresh_ending: std::cell::Cell<bool>,
     song_window: std::cell::Cell<Option<crate::song_text::Window>>,
     /// Set by an arrow-key move; the song list reveals the cursor row once, like AppKit `scrollRowToVisible`.
     reveal_selected: std::cell::Cell<bool>,
@@ -76,6 +82,10 @@ pub struct ShellState {
 impl Default for ShellState {
     fn default() -> Self {
         Self {
+            open_swipe: std::cell::Cell::new(None),
+            refresh_epoch: 0,
+            refresh_wait: std::cell::Cell::new(None),
+            refresh_ending: std::cell::Cell::new(false),
             song_window: std::cell::Cell::new(None),
             reveal_selected: std::cell::Cell::new(false),
             route: Route::Songs,
@@ -233,6 +243,7 @@ impl ShellState {
         })
     }
     pub fn refresh(&mut self, previous: &Catalog, next: &Catalog) {
+        self.refresh_epoch = self.refresh_epoch.wrapping_add(1);
         let same_commands = match (&previous.commands, &next.commands) {
             (Some(a), Some(b)) => std::sync::Arc::ptr_eq(a, b),
             (None, None) => true,
@@ -500,7 +511,11 @@ impl ShellState {
 fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellState) -> u64 {
     pxui::hash!((
         state.revision,
-        state.selection_revision,
+        (
+            state.selection_revision,
+            // A held pull to refresh must see the delivery that ends it even when the library is unchanged.
+            state.refresh_wait.get().map_or(0, |_| state.refresh_epoch),
+        ),
         (
             std::sync::Arc::as_ptr(&catalog.library) as usize,
             catalog.all.is_some()
@@ -783,6 +798,29 @@ pub fn shell(
     } else {
         desktop(ui, player, position, catalog, state, p, intent)
     };
+    // Swift's long-press menu blurs the page behind it on a phone.
+    if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
+        let scrim = ui.view("song-menu-backdrop", 0, Size::Grow, Size::Grow, &mut |ui| {
+            ui.node(
+                "scrim",
+                Node {
+                    w: Size::Grow,
+                    h: Size::Grow,
+                    look: Look {
+                        fill: Rgba {
+                            r: 10,
+                            g: 10,
+                            b: 10,
+                            a: 64,
+                        },
+                        ..Look::NONE
+                    },
+                    ..Node::DEFAULT
+                },
+            );
+        });
+        ui.view_backdrop_blur(&scrim, 14.0);
+    }
     // Swift's scrims: 0.28 behind the palette and help, 0.32 behind the queue sheet.
     let dim = if state.queue_visible {
         82
