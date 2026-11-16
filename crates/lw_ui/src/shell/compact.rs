@@ -1874,6 +1874,18 @@ mod tests {
             idle(&mut ui, &c, &state, t + 1.0 + f64::from(step));
         }
         assert!(has(&ui, Role::ListItem, "M24"), "dragged to M");
+        // A finger drag over the rail follows the finger too (pxui touch_drag), not the rows' swipe or scroll.
+        t += 5.0;
+        let (fx, fy) = centre(rect_of(&ui, Role::Button, "A"));
+        let (_, ty) = centre(rect_of(&ui, Role::Button, "T"));
+        finger(&mut ui, &c, &state, 0, (fx, fy), t);
+        finger(&mut ui, &c, &state, 1, (fx, (fy + ty) / 2.0), t + 0.05);
+        finger(&mut ui, &c, &state, 1, (fx, ty), t + 0.1);
+        finger(&mut ui, &c, &state, 2, (fx, ty), t + 0.15);
+        for step in 1..4 {
+            idle(&mut ui, &c, &state, t + 1.0 + f64::from(step));
+        }
+        assert!(has(&ui, Role::ListItem, "T38"), "finger dragged to T");
         mem_sys::local_reset();
         for step in 0..6 {
             idle(&mut ui, &c, &state, t + 10.0 + f64::from(step));

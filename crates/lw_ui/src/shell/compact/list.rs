@@ -455,11 +455,12 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection, p: Palette) {
                     text(ui, "letter", letter, 11, p.secondary, (Size::Fit, RAIL_STEP), false);
                 });
                 ui.a11y_name(&node, letter);
+                // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
+                ui.gesture(&node, GestureOpts { touch_drag: true, ..Default::default() });
                 let signal = ui.signal_state(&node);
                 if signal.held {
                     dragging = true;
-                    // The press holds while the pointer drags over the index, so the letter under it comes from its y
-                    // (touch has no press-and-drag signal in pxui; a touch tap jumps through `clicked`).
+                    // The press holds while the pointer or finger drags over the index; the letter comes from its y.
                     let under = (((signal.pointer.1 - top) / RAIL_STEP).max(0.0) as usize)
                         .min(collection.sections.len() - 1);
                     if ui.state(&rail, -1) != under as i64 {
