@@ -71,6 +71,8 @@ pub(super) fn songs(
         Route::Collection(_) => collection_lead_height(),
         _ => 0.0,
     };
+    // Swift's Find "Play results" / "Keep results offline" keys close the song list (one 56 pt row here).
+    let find_keys = state.route == Route::Find;
     let stack = ui.node(
         "songs-stack",
         Node {
@@ -84,7 +86,7 @@ pub(super) fn songs(
         let list = ui.section_list(
             "compact-songs",
             &SectionList {
-                count: collection.rows.len(),
+                count: collection.rows.len() + usize::from(find_keys),
                 row_height: ROW,
                 leading_height: lead,
                 header_height: 0.0,
@@ -101,6 +103,9 @@ pub(super) fn songs(
                     }
                 }
                 SectionPart::Header => {}
+                SectionPart::Row(index) if index == collection.rows.len() => {
+                    find_result_keys(ui, catalog, p, intent)
+                }
                 SectionPart::Row(index) => row(ui, &cx, index, intent),
             },
         );
@@ -682,6 +687,20 @@ fn titles(ui: &mut Ui, title: &str, summary: &str, p: Palette) {
         detail::line(ui, "name", title, (32.0, 33.6, 500, -1.12), p.ink, 0);
         spacer(ui, "gap", 4.0);
         detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), p.secondary, 0);
+    });
+}
+
+fn find_result_keys(ui: &mut Ui, catalog: &Catalog, p: Palette, intent: &mut Option<Intent>) {
+    let kept = catalog.view.as_ref().and_then(|view| view.find.as_ref()).is_some_and(|find| find.pinned);
+    let keys = ui.node("find-keys", Node { axis: Axis::Row, gap: 8.0, w: Size::Grow, h: Size::Px(ROW), padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::DEFAULT });
+    ui.within(&keys, &mut |ui| {
+        if key(ui, "play-results", "Play results", Icon::Play, false, p) {
+            *intent = Some(Intent::PlayRow(0));
+        }
+        let (label, icon) = if kept { ("Kept offline", Icon::Check) } else { ("Keep results offline", Icon::Down) };
+        if key(ui, "keep-results-offline", label, icon, false, p) {
+            *intent = Some(Intent::TogglePins);
+        }
     });
 }
 

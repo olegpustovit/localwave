@@ -1502,6 +1502,65 @@ mod tests {
     }
 
     #[test]
+    fn phone_find_results_close_with_play_and_keep_offline_keys_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        for (kept, label, expected) in [
+            (false, "Keep results offline", Intent::TogglePins),
+            (true, "Kept offline", Intent::TogglePins),
+        ] {
+            let mut catalog = catalog(3);
+            if kept {
+                catalog.prepare_pins(&mut |_| true);
+                catalog.prepare_tables().unwrap();
+            }
+            let mut state = songs_state();
+            state.apply(Intent::Navigate(Route::Find));
+            state.apply(Intent::Search(Query::new("Track").unwrap()));
+            catalog.project(state.request(&catalog).unwrap(), (0..3).collect());
+            let player = PlayerView::default();
+            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            for tick in 0..6 {
+                mem_sys::local_reset();
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, f64::from(tick));
+                if tick >= 3 {
+                    assert_eq!(mem_sys::local_alloc_count(), 0, "frame {tick}");
+                }
+            }
+            for (name, want) in [("Play results", Intent::PlayRow(0)), (label, expected)] {
+                let rect = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
+                    .unwrap_or_else(|| panic!("missing {name}"))
+                    .rect;
+                let press = pxui::Event {
+                    kind: pxui::Event::POINTER_PRESSED,
+                    x: f64::from(rect.x + rect.w * 0.5),
+                    y: f64::from(rect.y + rect.h * 0.5),
+                    ..Default::default()
+                };
+                let events = [press, pxui::Event { kind: pxui::Event::POINTER_RELEASED, ..press }];
+                let mut intent = None;
+                ui.frame(
+                    &FrameIn {
+                        width: 390.0,
+                        height: 844.0,
+                        time: 10.0,
+                        events: events.as_ptr(),
+                        event_count: 2,
+                        environment: pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() },
+                        ..Default::default()
+                    },
+                    &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
+                )
+                .unwrap();
+                assert_eq!(intent, Some(want), "{name}");
+            }
+        }
+    }
+
+    #[test]
     fn find_done_dismisses_input_without_playing_the_selected_song() {
         mem_sys::set_peer(pxui::library_counter);
         let mut catalog = catalog(20);

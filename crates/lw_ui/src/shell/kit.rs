@@ -170,6 +170,7 @@ pub(super) enum Icon {
     More,
     Settings,
     Back,
+    Check,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -259,6 +260,10 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         Icon::Back => {
             paint.line((x + 12.0, y + 4.0), (x + 6.0, y + 10.0), color);
             paint.line((x + 6.0, y + 10.0), (x + 12.0, y + 16.0), color);
+        }
+        Icon::Check => {
+            paint.line((x + 4.0, y + 10.0), (x + 8.0, y + 14.0), color);
+            paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), color);
         }
         Icon::Down => {
             paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), color);
