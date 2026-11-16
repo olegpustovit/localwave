@@ -356,7 +356,11 @@ pub(super) fn desktop(
         rule(ui, "transport-divider", false, p);
         ui.view(
             "transport",
-            crate::hash((player.revision, position.to_bits(), panel)),
+            crate::hash((
+                (player.revision, position.to_bits(), panel),
+                (player.playing, player.shuffled, player.repeat as u8),
+                (player.duration.to_bits(), width.to_bits()),
+            )),
             Size::Grow,
             Size::Px(71.0),
             &mut |ui| transport(ui, player, position, panel, p, intent),

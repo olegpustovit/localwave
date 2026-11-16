@@ -322,7 +322,9 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
     mem_sys::set_peer(pxui::library_counter);
     let catalog = catalog(1);
     for scale in [1.0, 2.0] {
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        // Counts rebuilt views, and a verify pass rebuilds every kept view.
+        ui.verify_views(false);
         let mut frame = FrameIn {
             width: 100.0,
             height: 100.0,
@@ -440,7 +442,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         playing: true,
         ..Default::default()
     };
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
