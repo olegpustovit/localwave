@@ -196,9 +196,10 @@ pub(super) fn view(
             );
             return;
         }
+        let revision = library_revision(player, catalog, state);
         ui.view(
             "compact-library",
-            library_revision(player, catalog, state),
+            revision,
             Size::Grow,
             Size::Grow,
             &mut |ui| {
@@ -347,53 +348,61 @@ pub(super) fn view(
                         rule(ui, "tabs-divider", false, p);
                     }
                 }
-                let body = container(
-                    ui,
+                let content = ui.view(
                     "compact-content",
-                    Axis::Column,
+                    revision,
                     Size::Grow,
                     Size::Grow,
-                    p.paper,
-                );
-                let route_key = crate::hash((
-                    state.route,
-                    state.settings_visible,
-                    if state.route == Route::Find {
-                        state.query_revision
-                    } else {
-                        0
+                    &mut |ui| {
+                        let body = container(
+                            ui,
+                            "compact-content",
+                            Axis::Column,
+                            Size::Grow,
+                            Size::Grow,
+                            p.paper,
+                        );
+                        let route_key = crate::hash((
+                            state.route,
+                            state.settings_visible,
+                            if state.route == Route::Find {
+                                state.query_revision
+                            } else {
+                                0
+                            },
+                        ));
+                        ui.within(&body, &mut |ui| {
+                            let page = ui.node_keyed(
+                                int_key(body.box_key, route_key as i64),
+                                Node {
+                                    w: Size::Grow,
+                                    h: Size::Grow,
+                                    ..Node::DEFAULT
+                                },
+                            );
+                            ui.within(&page, &mut |ui| {
+                                if state.settings_visible {
+                                    settings::view(ui, player, state, width, p, intent);
+                                } else {
+                                    match state.route {
+                                        Route::Files => files::view(ui, player, state, width, p, intent),
+                                        Route::Albums => {
+                                            albums::gallery(ui, catalog, state, player, width, p, intent)
+                                        }
+                                        Route::Artists => {
+                                            groups(ui, catalog, player, true, width, p, intent)
+                                        }
+                                        Route::Lists => collections(ui, catalog, player, width, p, intent),
+                                        _ => list::songs(ui, catalog, state, player, width, p, intent),
+                                    }
+                                }
+                            });
+                        });
                     },
-                ));
-                ui.within(&body, &mut |ui| {
-                    let page = ui.node_keyed(
-                        int_key(body.box_key, route_key as i64),
-                        Node {
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
-                    ui.within(&page, &mut |ui| {
-                        if state.settings_visible {
-                            settings::view(ui, player, state, width, p, intent);
-                        } else {
-                            match state.route {
-                                Route::Files => files::view(ui, player, state, width, p, intent),
-                                Route::Albums => {
-                                    albums::gallery(ui, catalog, state, player, width, p, intent)
-                                }
-                                Route::Artists => {
-                                    groups(ui, catalog, player, true, width, p, intent)
-                                }
-                                Route::Lists => collections(ui, catalog, player, width, p, intent),
-                                _ => list::songs(ui, catalog, state, player, width, p, intent),
-                            }
-                        }
-                    });
-                });
+                );
                 crate::motion::enter(
                     ui,
-                    &body,
+                    &content,
                     state.entry_revision,
                     (24.0, 0.0),
                     crate::motion::BASE,
@@ -1035,7 +1044,7 @@ mod tests {
     #[test]
     fn compact_navigation_player_and_resize_preserve_domain_state() {
         let catalog = catalog(100);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Album(0)));
@@ -1140,7 +1149,7 @@ mod tests {
     fn phone_select_mode_marks_rows_and_the_bar_acts_on_them_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = catalog(40);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Album(0)));
@@ -1217,7 +1226,7 @@ mod tests {
             );
             catalog
         };
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let player = PlayerView::default();
         let mut time = 0.0;
@@ -1255,7 +1264,7 @@ mod tests {
             catalog.add_collection("Other", vec![2], lw_core::context::PlaybackContext::Playlist { id: 8, name: "Other".into() });
             catalog
         };
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let player = PlayerView::default();
         let (mut time, mut state) = (0.0, songs_state());
@@ -1327,7 +1336,7 @@ mod tests {
             state
         }), ("find", find_state)] {
             let mut state = state;
-            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             let mut time = 0.0;
             for _ in 0..3 {
@@ -1367,7 +1376,7 @@ mod tests {
             catalog.add_collection("Mix", vec![0, 1], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
             catalog
         };
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let player = PlayerView::default();
         let (mut time, mut state) = (0.0, songs_state());
@@ -1415,7 +1424,7 @@ mod tests {
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Collection(c.collections.len() - 1)));
         state.apply(Intent::SelectMode(true));
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut t = 1.0;
         for _ in 0..3 {
@@ -1456,7 +1465,7 @@ mod tests {
     #[test]
     fn expanded_player_has_swift_structure_and_its_controls_emit_intents() {
         let catalog = catalog(10);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         let info = crate::now_info::NowInfo { summary: "flac 96/24".into(), ..Default::default() };
@@ -1502,7 +1511,7 @@ mod tests {
     fn compact_ten_thousand_songs_virtualize_and_resize_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = catalog(10_000);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let state = songs_state();
         let player = PlayerView {
@@ -1716,7 +1725,8 @@ mod tests {
                     );
                 }
                 assert_eq!(intent, None);
-                if route == Route::Files {
+                // The first frame of a page is mid-entrance, offset by the slide-in.
+                if route == Route::Files && tick > 0 {
                     for label in ["Back", "Play folder", "Folder options"] {
                         let node = ui
                             .a11y_nodes()
@@ -1817,7 +1827,7 @@ mod tests {
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Find));
         let player = PlayerView::default();
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         for tick in 0..6 {
             mem_sys::local_reset();
@@ -1865,7 +1875,7 @@ mod tests {
             state.apply(Intent::Search(Query::new("Track").unwrap()));
             catalog.project(state.request(&catalog).unwrap(), (0..3).collect());
             let player = PlayerView::default();
-            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             for tick in 0..6 {
                 mem_sys::local_reset();
@@ -1918,7 +1928,7 @@ mod tests {
         catalog.project(state.request(&catalog).unwrap(), (0..20).collect());
         let player = PlayerView::default();
         for width in [320.0, 390.0, 1000.0] {
-            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             frame(&mut ui, &catalog, &state, &player, 0.0, width, 0.0);
             frame(&mut ui, &catalog, &state, &player, 0.0, width, 1.0);
@@ -2126,6 +2136,9 @@ mod tests {
         let state = songs_state();
         let mut t = 1.0;
         idle(&mut ui, &c, &state, t);
+        // The page's slide-in finishes before rows are measured.
+        t += 1.0;
+        idle(&mut ui, &c, &state, t);
         for round in 0..4 {
             mem_sys::local_reset();
             let resting = rect_of(&ui, Role::ListItem, "Track 00000").x;
@@ -2186,7 +2199,7 @@ mod tests {
         );
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Collection(c.collections.len() - 1)));
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut t = 1.0;
         idle(&mut ui, &c, &state, t);
@@ -2224,7 +2237,7 @@ mod tests {
     fn songs_page_has_swift_header_tab_order_and_a_working_alphabet_index() {
         mem_sys::set_peer(pxui::library_counter);
         let c = lettered(52);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let state = songs_state();
         let mut t = 1.0;
@@ -2320,7 +2333,7 @@ mod tests {
     fn artist_page_has_back_summary_play_shuffle_album_cards_and_songs() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(30);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Artist(0)));
@@ -2367,7 +2380,7 @@ mod tests {
         let mut t = 1.0;
         for (route, parent, link) in routes {
             // A fresh Ui per page: a new state restarts the revision the retained library view keys on.
-            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             let mut state = songs_state();
             state.apply(Intent::Navigate(route));
@@ -2451,7 +2464,7 @@ mod tests {
     fn queue_sheet_dismisses_by_dragging_down_and_springs_back_when_short() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(10);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::ShowQueue);
@@ -2491,6 +2504,9 @@ mod tests {
         ui.set_a11y(true);
         let mut state = songs_state();
         let mut t = 1.0;
+        idle(&mut ui, &c, &state, t);
+        // The page's slide-in finishes before rows are measured.
+        t += 1.0;
         idle(&mut ui, &c, &state, t);
         for round in 0..4 {
             mem_sys::local_reset();

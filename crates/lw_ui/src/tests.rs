@@ -1142,11 +1142,14 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
     }
     for width in [1440.0, 960.0, 650.0, 390.0, 320.0] {
         frame.width = width;
-        frame.time += 0.01;
-        ui.frame(&frame, &mut |ui| {
-            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
-        })
-        .unwrap();
+        // A layout switch starts its slide-in on the first frame; the second one is settled.
+        for _ in 0..2 {
+            frame.time += 1.0;
+            ui.frame(&frame, &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
+            })
+            .unwrap();
+        }
         let chips: Vec<_> = ui
             .a11y_nodes()
             .iter()
