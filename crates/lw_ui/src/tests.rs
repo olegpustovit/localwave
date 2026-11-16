@@ -181,9 +181,6 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                         let a = ui.node(
                             "line-box",
                             pxui::ui::Node {
-                                role: pxui::ui::Role::Label,
-                                w: pxui::ui::Size::Px(200.0),
-                                h: pxui::ui::Size::Px(line),
                                 at: Some((20.0, 20.0)).into(),
                                 look: pxui::ui::Look {
                                     text: pxui::geom::Rgba {
@@ -194,17 +191,15 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                                     },
                                     ..pxui::ui::Look::NONE
                                 },
-                                ..pxui::ui::Node::DEFAULT
+                                ..pxui::ui::Node::column().w_px(200.0).h_px(line).role(pxui::ui::Role::Label)
                             },
                         );
                         ui.text_line_box(&a, "Ag01", &style, &[]).unwrap();
                         let b = ui.node(
                             "reference",
                             pxui::ui::Node {
-                                w: pxui::ui::Size::Px(200.0),
-                                h: pxui::ui::Size::Px(line),
                                 at: Some((20.0, 20.0)).into(),
-                                ..pxui::ui::Node::DEFAULT
+                                ..pxui::ui::Node::column().w_px(200.0).h_px(line)
                             },
                         );
                         ui.draw(&b, move |paint, rect| {

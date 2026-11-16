@@ -38,20 +38,13 @@ fn side_item(
         Go::Source(_) => (None, None),
     };
     let selected = !state.settings_visible && route.is_some_and(|route| state.route == route);
-    let spec = Node {
-            flags: CLICKABLE | TAB_STOP,
-            axis: Axis::Row,
-            w: Size::Grow,
-            h: Size::Px(32.0),
-            role: Role::Button,
-            padding: Edges {
-                l: 8.0,
-                r: 8.0,
-                ..Edges::ZERO
-            },
-            align: Align::Center,
-            ..Node::DEFAULT
-    };
+    let spec = Node::row()
+        .w(Size::Grow)
+        .h_px(32.0)
+        .pad_x(8.0)
+        .align(Align::Center)
+        .role(Role::Button)
+        .flags(Flags::CLICKABLE | Flags::TAB_STOP);
     let node = if id == 0 {
         ui.node(key, spec)
     } else {
@@ -125,13 +118,9 @@ fn add_row(ui: &mut Ui, key: &str, title: &str, name: &str) -> bool {
     let row = ui.node(
         key,
         Node {
-            flags: CLICKABLE | TAB_STOP,
-            role: Role::Button,
-            w: Size::Grow,
-            h: Size::Px(32.0),
             padding: Edges { l: 8.0, ..Edges::ZERO },
             look: Look { text: ui.color(SECONDARY), font: Font { size: 14, ..Font::BODY }, ..Look::NONE },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(32.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
         },
     );
     ui.text(&row, title);
@@ -146,24 +135,18 @@ pub(super) fn sidebar(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let root = ui.node(
-        "sidebar-content",
-        Node { w: Size::Grow, h: Size::Grow, padding: Edges::all(10.0), ..Node::DEFAULT },
-    );
+    let root = ui.node("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0));
     ui.within(&root, &mut |ui| {
         spacer(ui, "sidebar-top", 28.0);
         let search = ui.node(
             "search",
-            Node {
-                flags: CLICKABLE | TAB_STOP,
-                axis: Axis::Row,
-                role: Role::Button,
-                w: Size::Grow,
-                h: Size::Px(34.0),
-                padding: Edges { l: 10.0, r: 10.0, ..Edges::ZERO },
-                align: Align::Center,
-                ..Node::DEFAULT
-            },
+            Node::row()
+                .w(Size::Grow)
+                .h_px(34.0)
+                .pad_x(10.0)
+                .align(Align::Center)
+                .role(Role::Button)
+                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
         );
         let signal = ui.signal_state(&search);
         ui.set_look(&search, Look { fill: if signal.hovered { ui.color(SELECTED) } else { ui.color(PANEL) }, ..Look::NONE }, State::default());
@@ -220,7 +203,7 @@ pub(super) fn sidebar(
         });
         let footer = ui.node(
             "offline",
-            Node { axis: Axis::Row, w: Size::Grow, h: Size::Px(30.0), padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::DEFAULT },
+            Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
         );
         ui.within(&footer, &mut |ui| {
             text(ui, "label", "Offline", 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
@@ -229,12 +212,9 @@ pub(super) fn sidebar(
         let meter = ui.node(
             "offline-meter",
             Node {
-                axis: Axis::Row,
-                w: Size::Grow,
-                h: Size::Px(4.0),
                 margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
                 look: Look { fill: ui.color(LINE), ..Look::NONE },
-                ..Node::DEFAULT
+                ..Node::row().w(Size::Grow).h_px(4.0)
             },
         );
         ui.within(&meter, &mut |ui| {
@@ -243,13 +223,8 @@ pub(super) fn sidebar(
         let shortcuts = ui.node(
             "shortcuts",
             Node {
-                flags: CLICKABLE | TAB_STOP,
-                role: Role::Button,
-                axis: Axis::Row,
-                w: Size::Grow,
-                h: Size::Px(28.0),
                 padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },
-                ..Node::DEFAULT
+                ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
             },
         );
         ui.a11y_name(&shortcuts, "Keyboard shortcuts");

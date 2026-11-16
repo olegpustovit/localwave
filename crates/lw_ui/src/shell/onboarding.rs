@@ -38,10 +38,8 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
                 let outer = ui.node(
                     "onboarding-outer",
                     Node {
-                        w: Size::Grow,
-                        h: Size::Grow,
                         padding: Edges { l: 16.0, r: 16.0, t: 16.0 + top_inset, b: 34.0 },
-                        ..Node::DEFAULT
+                        ..Node::column().w(Size::Grow).h(Size::Grow)
                     },
                 );
                 ui.within(&outer, &mut |ui| {
@@ -59,13 +57,8 @@ fn underlined(ui: &mut Ui, key: &str, label: &'static str) -> bool {
     let link = ui.node(
         key,
         Node {
-            axis: Axis::Column,
-            flags: CLICKABLE | TAB_STOP,
-            role: Role::Button,
-            w: Size::Fit,
-            h: Size::Px(44.0),
             justify: Justify::Center,
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
         },
     );
     ui.a11y_name(&link, label);
@@ -79,7 +72,7 @@ fn underlined(ui: &mut Ui, key: &str, label: &'static str) -> bool {
 /// Returns true when the Google Drive disclosure was toggled.
 fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
-    let page = ui.node("onboarding-column", Node { w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
+    let page = ui.node("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow));
     ui.within(&page, &mut |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
@@ -132,15 +125,13 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
         let choose = ui.node(
             "choose-folder",
             Node {
-                axis: Axis::Row,
-                align: Align::Center,
-                justify: Justify::Center,
-                flags: CLICKABLE | TAB_STOP,
-                role: Role::Button,
-                w: Size::Grow,
-                h: Size::Px(52.0),
                 look: Look { fill: ui.color(INK), ..Look::NONE },
-                ..Node::DEFAULT
+                ..Node::row()
+                    .w(Size::Grow)
+                    .h_px(52.0)
+                    .center()
+                    .role(Role::Button)
+                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
             },
         );
         ui.a11y_name(&choose, "Choose a folder");
@@ -172,11 +163,8 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
     let frame = ui.node(
         "drive-frame",
         Node {
-            w: Size::Grow,
-            h: Size::Fit,
-            padding: Edges { l: 1.0, r: 1.0, t: 1.0, b: 1.0 },
             look: Look { fill: ui.color(LINE), ..Look::NONE },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h(Size::Fit).pad(1.0)
         },
     );
     let mut clicked = false;
@@ -184,28 +172,18 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
         let inner = ui.node(
             "drive-inner",
             Node {
-                w: Size::Grow,
-                h: Size::Fit,
-                padding: Edges { l: 14.0, r: 14.0, t: 14.0, b: 14.0 },
                 look: Look { fill: ui.color(PAPER), ..Look::NONE },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
             },
         );
         ui.within(&inner, &mut |ui| {
             let header = ui.node(
                 "drive-toggle",
-                Node {
-                    axis: Axis::Row,
-                    flags: CLICKABLE | TAB_STOP,
-                    role: Role::Button,
-                    w: Size::Grow,
-                    h: Size::Px(19.5),
-                    ..Node::DEFAULT
-                },
+                Node::row().w(Size::Grow).h_px(19.5).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
             );
             ui.a11y_name(&header, "Google Drive not in the list?");
             ui.within(&header, &mut |ui| {
-                let marker = ui.node("marker", Node { w: Size::Px(40.0 / 3.0), h: Size::Px(19.5), ..Node::DEFAULT });
+                let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
                 let ink = ui.color(INK);
                 ui.draw(&marker, move |paint, rect| {
                     // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
@@ -253,10 +231,8 @@ pub(super) fn empty_library(
     let page = ui.node(
         "empty-library-inset",
         Node {
-            w: Size::Grow,
-            h: Size::Fit,
             padding: Edges { l: inset, r: inset, t: 24.0, ..Edges::ZERO },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h(Size::Fit)
         },
     );
     ui.within(&page, &mut |ui| {

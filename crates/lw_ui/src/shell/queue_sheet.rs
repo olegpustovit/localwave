@@ -13,10 +13,6 @@ pub(super) fn queue_action(
     let button = ui.node(
         key,
         Node {
-            flags: CLICKABLE | TAB_STOP | FIT_TEXT,
-            role: Role::Button,
-            w: Size::Px(width),
-            h: Size::Px(28.0),
             look: Look {
                 text: ui.color(SECONDARY),
                 font: Font {
@@ -25,7 +21,11 @@ pub(super) fn queue_action(
                 },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column()
+                .w_px(width)
+                .h_px(28.0)
+                .role(Role::Button)
+                .flags(Flags::CLICKABLE | Flags::TAB_STOP | Flags::FIT_TEXT)
         },
     );
     ui.text(&button, label);
@@ -121,16 +121,15 @@ pub(super) fn queue_sheet(
         "Playback queue",
         &mut |ui| {
             let sheet_node = Node {
-                flags: BLOCKING | CLIP | CLICKABLE,
-                axis: Axis::Column,
-                role: Role::Dialog,
-                w: Size::Px(width),
-                h: Size::Px(height),
                 look: Look {
                     fill: ui.color(PAPER),
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::column()
+                    .w_px(width)
+                    .h_px(height)
+                    .role(Role::Dialog)
+                    .flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
             };
             let sheet = ui.node("queue-sheet", sheet_node);
             let drag = ui.gesture(
@@ -168,30 +167,24 @@ pub(super) fn queue_sheet(
                 let header = ui.node(
                     "full-queue-header",
                     Node {
-                        axis: Axis::Row,
-                        w: Size::Grow,
-                        h: Size::Px(66.2),
                         padding: Edges {
                             l: 16.0,
                             r: 6.0,
                             t: 12.0,
                             b: 8.0,
                         },
-                        ..Node::DEFAULT
+                        ..Node::row().w(Size::Grow).h_px(66.2)
                     },
                 );
                 ui.within(&header, &mut |ui| {
                     // Swift reaches Save as list from this header's context menu and an a11y action.
                     let titles = ui.node(
                         "queue-titles",
-                        Node {
-                            flags: CLICKABLE | TAB_STOP,
-                            axis: Axis::Column,
-                            role: Role::Button,
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
+                        Node::column()
+                            .w(Size::Grow)
+                            .h(Size::Grow)
+                            .role(Role::Button)
+                            .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                     );
                     ui.a11y_name(&titles, "Save queue as playlist");
                     let signal = ui.signal_state(&titles);
@@ -369,17 +362,13 @@ pub(super) fn queue_sheet(
                 let label = ui.node(
                     "up-next-label",
                     Node {
-                        axis: Axis::Row,
-                        w: Size::Grow,
-                        h: Size::Px(46.2),
-                        gap: 4.0,
                         padding: Edges {
                             l: 16.0,
                             t: 20.0,
                             b: 8.0,
                             ..Edges::ZERO
                         },
-                        ..Node::DEFAULT
+                        ..Node::row().w(Size::Grow).h_px(46.2).gap(4.0)
                     },
                 );
                 ui.within(&label, &mut |ui| {
@@ -406,16 +395,11 @@ pub(super) fn queue_sheet(
                     let empty = ui.node(
                         "queue-empty",
                         Node {
-                            axis: Axis::Row,
-                            align: Align::Center,
-                            w: Size::Grow,
-                            h: Size::Px(96.0),
-                            gap: 8.0,
                             padding: Edges {
                                 l: 26.0,
                                 ..Edges::ZERO
                             },
-                            ..Node::DEFAULT
+                            ..Node::row().w(Size::Grow).h_px(96.0).gap(8.0).align(Align::Center)
                         },
                     );
                     ui.within(&empty, &mut |ui| {
@@ -444,19 +428,7 @@ pub(super) fn queue_sheet(
                         width.to_bits(),
                         player.artwork.map_or(0, crate::artwork::Images::revision),
                     ));
-                    let rows = ui.node(
-                        "full-queue-body",
-                        Node {
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            padding: Edges {
-                                l: 10.0,
-                                r: 10.0,
-                                ..Edges::ZERO
-                            },
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let rows = ui.node("full-queue-body", Node::column().w(Size::Grow).h(Size::Grow).pad_x(10.0));
                     ui.within(&rows, &mut |ui| {
                         ui.view(
                             "full-queue-rows",
@@ -478,17 +450,16 @@ pub(super) fn queue_sheet(
                     let clear = ui.node(
                         "clear",
                         Node {
-                            flags: CLICKABLE | TAB_STOP,
-                            axis: Axis::Row,
-                            align: Align::Center,
-                            role: Role::Button,
-                            w: Size::Grow,
-                            h: Size::Px(52.0),
                             padding: Edges {
                                 l: 26.0,
                                 ..Edges::ZERO
                             },
-                            ..Node::DEFAULT
+                            ..Node::row()
+                                .w(Size::Grow)
+                                .h_px(52.0)
+                                .align(Align::Center)
+                                .role(Role::Button)
+                                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
                         },
                     );
                     ui.a11y_name(&clear, "Clear up next");
@@ -526,18 +497,12 @@ fn now_row(
     let row = ui.node(
         "queue-now",
         Node {
-            axis: Axis::Row,
-            align: Align::Center,
-            w: Size::Grow,
-            h: Size::Px(56.0),
-            gap: 10.0,
             padding: Edges {
                 l: 24.0,
                 r: 16.0,
                 ..Edges::ZERO
             },
-            role: Role::ListItem,
-            ..Node::DEFAULT
+            ..Node::row().w(Size::Grow).h_px(56.0).gap(10.0).align(Align::Center).role(Role::ListItem)
         },
     );
     ui.a11y_name(&row, song.title);
@@ -551,15 +516,7 @@ fn now_row(
             ui.color(kit::PANEL),
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
-        let titles = ui.node(
-            "now-titles",
-            Node {
-                axis: Axis::Column,
-                w: Size::Px((width - 134.0).max(0.0)),
-                h: Size::Fit,
-                ..Node::DEFAULT
-            },
-        );
+        let titles = ui.node("now-titles", Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit));
         ui.within(&titles, &mut |ui| {
             text(
                 ui,
@@ -592,14 +549,7 @@ fn now_row(
                 );
             });
         });
-        let bars = ui.node(
-            "now-bars",
-            Node {
-                w: Size::Px(14.0),
-                h: Size::Px(11.0),
-                ..Node::DEFAULT
-            },
-        );
+        let bars = ui.node("now-bars", Node::column().w_px(14.0).h_px(11.0));
         ui.within(&bars, &mut |ui| {
             ui.view(
                 "equalizer-view",
@@ -724,36 +674,33 @@ pub(super) fn queue_rows(
                     entry.id as i64,
                 ),
                 Node {
-                    w: Size::Grow,
-                    h: Size::Px(m.row),
-                    axis: Axis::Row,
-                    align: Align::Center,
-                    gap: m.gap,
                     padding: Edges {
                         l: m.lead,
                         r: m.trail,
                         ..Edges::ZERO
                     },
-                    flags: CLICKABLE,
-                    role: Role::ListItem,
                     look: Look {
                         fill: ui.color(PAPER),
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::row()
+                        .w(Size::Grow)
+                        .h_px(m.row)
+                        .gap(m.gap)
+                        .align(Align::Center)
+                        .role(Role::ListItem)
+                        .flags(Flags::CLICKABLE)
                 },
             );
             ui.a11y_name(&item, title);
             ui.within(&item, &mut |ui| {
                 let grip = ui.node(
                     "reorder-queued",
-                    Node {
-                        flags: CLICKABLE | TAB_STOP,
-                        role: Role::Button,
-                        w: Size::Px(m.grip),
-                        h: Size::Px(m.row),
-                        ..Node::DEFAULT
-                    },
+                    Node::column()
+                        .w_px(m.grip)
+                        .h_px(m.row)
+                        .role(Role::Button)
+                        .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                 );
                 ui.a11y_name(&grip, "Reorder queued track");
                 ui.draw(&grip, move |paint, rect| {
@@ -791,16 +738,16 @@ pub(super) fn queue_rows(
                 let play = ui.node(
                     "play-queued",
                     Node {
-                        flags: CLICKABLE | TAB_STOP,
-                        role: Role::Button,
-                        w: Size::Grow,
-                        h: Size::Grow,
                         padding: Edges {
                             l: 10.0 - m.gap,
                             t: (m.row - m.title_line - m.artist_line) / 2.0,
                             ..Edges::ZERO
                         },
-                        ..Node::DEFAULT
+                        ..Node::column()
+                            .w(Size::Grow)
+                            .h(Size::Grow)
+                            .role(Role::Button)
+                            .flags(Flags::CLICKABLE | Flags::TAB_STOP)
                     },
                 );
                 ui.a11y_name(&play, title);
@@ -834,14 +781,12 @@ pub(super) fn queue_rows(
                     let at = ui.node(
                         "availability-position",
                         Node {
-                            w: Size::Px(10.0 + 2.0 * m.glyph),
-                            h: Size::Px(10.0),
                             padding: Edges {
                                 l: m.glyph,
                                 r: m.glyph,
                                 ..Edges::ZERO
                             },
-                            ..Node::DEFAULT
+                            ..Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0)
                         },
                     );
                     ui.within(&at, &mut |ui| {

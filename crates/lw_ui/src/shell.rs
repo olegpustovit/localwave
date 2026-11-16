@@ -934,8 +934,6 @@ pub fn shell(
             ui.node(
                 "scrim",
                 Node {
-                    w: Size::Grow,
-                    h: Size::Grow,
                     look: Look {
                         fill: Rgba {
                             r: 10,
@@ -945,7 +943,7 @@ pub fn shell(
                         },
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column().w(Size::Grow).h(Size::Grow)
                 },
             );
         });

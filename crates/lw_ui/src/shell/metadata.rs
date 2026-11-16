@@ -25,15 +25,11 @@ pub(super) fn editor(
         let body = ui.node(
             "metadata-body",
             Node {
-                w: Size::Grow,
-                h: Size::Fit,
-                padding: Edges::all(20.0),
-                gap: 4.0,
                 look: Look {
                     fill: ui.color(PAPER),
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Fit).gap(4.0).pad(20.0)
             },
         );
         ui.within(&body, &mut |ui| {
@@ -122,15 +118,11 @@ pub(super) fn confirm_delete(
         let body = ui.node(
             "delete-song-body",
             Node {
-                w: Size::Grow,
-                h: Size::Fit,
-                padding: Edges::all(20.0),
-                gap: 12.0,
                 look: Look {
                     fill: ui.color(PAPER),
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
         );
         ui.within(&body, &mut |ui| {

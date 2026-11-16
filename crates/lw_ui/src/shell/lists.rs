@@ -50,18 +50,9 @@ pub(super) fn menu(
                 let item = ui.node(
                     label,
                     Node {
-                        flags: if present { CLICKABLE | TAB_STOP } else { 0 },
-                        role: Role::MenuItem,
                         state: State {
                             disabled: !present,
                             ..State::default()
-                        },
-                        w: Size::Grow,
-                        h: Size::Px(36.0),
-                        padding: Edges {
-                            l: 12.0,
-                            r: 12.0,
-                            ..Edges::ZERO
                         },
                         look: Look {
                             text: color,
@@ -71,7 +62,12 @@ pub(super) fn menu(
                             },
                             ..Look::NONE
                         },
-                        ..Node::DEFAULT
+                        ..Node::column()
+                            .w(Size::Grow)
+                            .h_px(36.0)
+                            .pad_x(12.0)
+                            .role(Role::MenuItem)
+                            .flags(if present { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
                     },
                 );
                 ui.text(&item, label);
@@ -103,15 +99,11 @@ pub(super) fn confirm_delete(
         let body = ui.node(
             "delete-list-body",
             Node {
-                w: Size::Grow,
-                h: Size::Fit,
-                padding: Edges::all(20.0),
-                gap: 12.0,
                 look: Look {
                     fill: ui.color(PAPER),
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
         );
         ui.within(&body, &mut |ui| {
@@ -188,15 +180,11 @@ pub(super) fn name_dialog(
         let body = ui.node(
             "list-name-body",
             Node {
-                w: Size::Grow,
-                h: Size::Fit,
-                padding: Edges::all(20.0),
-                gap: 12.0,
                 look: Look {
                     fill: ui.color(PAPER),
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
         );
         ui.within(&body, &mut |ui| {

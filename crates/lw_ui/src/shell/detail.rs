@@ -66,25 +66,24 @@ pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f
         + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
 }
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
-    let row = ui.node("back-row", Node { w: Size::Grow, h: Size::Px(BACK), ..Node::DEFAULT });
+    let row = ui.node("back-row", Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
         let button = ui.node(
             "back",
             Node {
-                flags: CLICKABLE | TAB_STOP,
-                role: Role::Button,
-                axis: Axis::Row,
-                align: Align::End,
-                gap: 4.0,
-                w: Size::Px(96.0),
-                h: Size::Px(BACK),
                 padding: Edges { l: 26.0, ..Edges::ZERO },
-                ..Node::DEFAULT
+                ..Node::row()
+                    .w_px(96.0)
+                    .h_px(BACK)
+                    .gap(4.0)
+                    .align(Align::End)
+                    .role(Role::Button)
+                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
             },
         );
         ui.a11y_name(&button, "Back");
         ui.within(&button, &mut |ui| {
-            let glyph = ui.node("icon", Node { w: Size::Px(20.0), h: Size::Px(20.0), ..Node::DEFAULT });
+            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(SECONDARY);
             ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
             text(ui, "label", "Back", 14, ui.color(SECONDARY), (Size::Fit, 19.6), false);
@@ -106,18 +105,18 @@ pub(super) fn line(
         key,
         Node {
             flags,
-            role: if flags == 0 {
-                Role::Label
-            } else {
-                Role::Button
-            },
-            w: Size::Grow,
-            h: Size::Px(line_height),
             look: Look {
                 text: color,
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column()
+                .w(Size::Grow)
+                .h_px(line_height)
+                .role(if flags == 0 {
+                    Role::Label
+                } else {
+                    Role::Button
+                })
         },
     );
     ui.text_line_box(
@@ -180,22 +179,22 @@ pub(super) fn header(
                     "detail-header",
                     Node {
                         axis: if row { Axis::Row } else { Axis::Column },
-                        align: if row { Align::End } else { Align::Start },
-                        gap: if album {
-                            if row { 32.0 } else { 24.0 }
-                        } else if row {
-                            24.0
-                        } else {
-                            20.0
-                        },
-                        w: Size::Grow,
-                        h: Size::Px(body_height(width, route, folder)),
                         padding: if album {
                             Edges { l: 32.0, r: 32.0, t: 8.0, b: 24.0 }
                         } else {
                             Edges { l: 32.0, r: 32.0, t: 28.0, b: 18.0 }
                         },
-                        ..Node::DEFAULT
+                        ..Node::column()
+                            .w(Size::Grow)
+                            .h_px(body_height(width, route, folder))
+                            .gap(if album {
+                                if row { 32.0 } else { 24.0 }
+                            } else if row {
+                                24.0
+                            } else {
+                                20.0
+                            })
+                            .align(if row { Align::End } else { Align::Start })
                     },
                 );
                 ui.within(&root, &mut |ui| {
@@ -228,12 +227,9 @@ fn header_body(
     }
     let meta = ui.node(
         "meta",
-        Node {
-            axis: Axis::Column,
-            w: Size::Grow,
-            h: Size::Px(if album { ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 } } else { ARTIST_META }),
-            ..Node::DEFAULT
-        },
+        Node::column()
+            .w(Size::Grow)
+            .h_px(if album { ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 } } else { ARTIST_META }),
     );
     ui.within(&meta, &mut |ui| {
         if !album {
@@ -283,12 +279,12 @@ fn header_body(
         }
         if let Some(target) = &group.folder {
             spacer(ui, "folder-gap", 4.0);
-            let row = ui.node("folder", Node { axis: Axis::Row, gap: 4.0, w: Size::Grow, h: Size::Px(18.2), ..Node::DEFAULT });
+            let row = ui.node("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0));
             ui.within(&row, &mut |ui| {
                 text(ui, "caption", "Folder:", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
                 let link = ui.node(
                     "link",
-                    Node { axis: Axis::Column, flags: CLICKABLE | TAB_STOP, role: Role::Button, w: Size::Fit, h: Size::Px(18.2), ..Node::DEFAULT },
+                    Node::column().w(Size::Fit).h_px(18.2).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                 );
                 ui.a11y_name(&link, &target.label);
                 ui.within(&link, &mut |ui| {
@@ -319,7 +315,7 @@ fn keys(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let row = ui.node("buttons", Node { axis: Axis::Row, gap: 8.0, w: Size::Px(width), h: Size::Px(KEYS), ..Node::DEFAULT });
+    let row = ui.node("buttons", Node::row().w_px(width).h_px(KEYS).gap(8.0));
     ui.within(&row, &mut |ui| {
         let enabled = !group.ids.is_empty();
         if key(ui, "play", "Play", Icon::Play, true) && enabled {
@@ -347,26 +343,22 @@ fn album_grid(
     let grid = ui.node(
         "album-grid",
         Node {
-            axis: Axis::Column,
-            gap: ROW_GAP,
-            w: Size::Grow,
-            h: Size::Px(grid_height(width, cards.len())),
             padding: Edges { l: 32.0, r: 32.0, b: 40.0, ..Edges::ZERO },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(grid_height(width, cards.len())).gap(ROW_GAP)
         },
     );
     ui.within(&grid, &mut |ui| {
         for (line_index, chunk) in cards.chunks(columns).enumerate() {
             let cards_row = ui.node_keyed(
                 int_key(grid.box_key, line_index as i64),
-                Node { axis: Axis::Row, gap: CARD_GAP, w: Size::Grow, h: Size::Px(card_height(cell)), ..Node::DEFAULT },
+                Node::row().w(Size::Grow).h_px(card_height(cell)).gap(CARD_GAP),
             );
             ui.within(&cards_row, &mut |ui| {
                 for &index in chunk {
                     let group = &catalog.albums[index];
                     let card = ui.node_keyed(
                         int_key(cards_row.box_key, index as i64),
-                        Node { flags: CLICKABLE | TAB_STOP, role: Role::Button, w: Size::Px(cell), h: Size::Grow, ..Node::DEFAULT },
+                        Node::column().w_px(cell).h(Size::Grow).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                     );
                     ui.a11y_name(&card, &group.title);
                     ui.within(&card, &mut |ui| {

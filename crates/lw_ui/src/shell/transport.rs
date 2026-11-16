@@ -18,11 +18,6 @@ pub(super) fn transport(
     let root = ui.node(
         "transport-content",
         Node {
-            axis: Axis::Row,
-            align: Align::Center,
-            w: Size::Grow,
-            h: Size::Grow,
-            gap: if narrow { 4.0 } else { 16.0 },
             padding: Edges {
                 r: if narrow { 8.0 } else { 20.0 },
                 ..Edges::ZERO
@@ -31,20 +26,11 @@ pub(super) fn transport(
                 fill: ui.color(PANEL),
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::row().w(Size::Grow).h(Size::Grow).gap(if narrow { 4.0 } else { 16.0 }).align(Align::Center)
         },
     );
     ui.within(&root, &mut |ui| {
-        let keys = ui.node(
-            "keys",
-            Node {
-                axis: Axis::Row,
-                gap: 2.0,
-                w: Size::Px(if narrow { 138.0 } else { 210.0 }),
-                h: Size::Px(71.0),
-                ..Node::DEFAULT
-            },
-        );
+        let keys = ui.node("keys", Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0));
         ui.within(&keys, &mut |ui| {
             if icon_button(
                 ui,
@@ -90,16 +76,11 @@ pub(super) fn transport(
         let modes = ui.node(
             "modes",
             Node {
-                axis: Axis::Row,
-                gap: 2.0,
-                padding: Edges::all(2.0),
-                w: Size::Px(if panel { 140.0 } else { 186.0 }),
-                h: Size::Px(44.0),
                 look: Look {
                     fill: ui.color(PANEL),
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0)
             },
         );
         ui.within(&modes, &mut |ui| {
@@ -118,15 +99,7 @@ pub(super) fn transport(
             ) {
                 *intent = Some(Intent::Shuffle);
             }
-            let again = ui.node(
-                "repeat-key",
-                Node {
-                    axis: Axis::Stack,
-                    w: Size::Px(44.0),
-                    h: Size::Px(40.0),
-                    ..Node::DEFAULT
-                },
-            );
+            let again = ui.node("repeat-key", Node::stack().w_px(44.0).h_px(40.0));
             ui.within(&again, &mut |ui| {
                 if icon_button(
                     ui,
@@ -148,9 +121,7 @@ pub(super) fn transport(
                         "repeat-one",
                         Node {
                             at: Some((31.0, 25.0)).into(),
-                            w: Size::Px(8.0),
-                            h: Size::Px(12.0),
-                            ..Node::DEFAULT
+                            ..Node::column().w_px(8.0).h_px(12.0)
                         },
                     );
                     ui.within(&badge, &mut |ui| {
@@ -208,9 +179,6 @@ pub(super) fn desktop(
     let root = ui.node(
         "shell",
         Node {
-            axis: Axis::Column,
-            w: Size::Grow,
-            h: Size::Grow,
             padding: Edges {
                 l: safe_left,
                 r: safe_right,
@@ -221,7 +189,7 @@ pub(super) fn desktop(
                 fill: ui.color(PAPER),
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h(Size::Grow)
         },
     );
     ui.set_role(&root, Role::Window, 0);
@@ -271,11 +239,7 @@ pub(super) fn desktop(
                     };
                     let route = ui.node_keyed(
                         int_key(Ui::key_of(0, "localwave-library-route"), route_key as i64),
-                        Node {
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
+                        Node::column().w(Size::Grow).h(Size::Grow),
                     );
                     ui.within(&route, &mut |ui| {
                         if state.settings_visible {
@@ -319,9 +283,7 @@ pub(super) fn desktop(
                     Node {
                         // Hit-registered so drops on its empty areas reach it.
                         flags: CLICKABLE,
-                        w: Size::Px(319.0),
-                        h: Size::Grow,
-                        ..Node::DEFAULT
+                        ..Node::column().w_px(319.0).h(Size::Grow)
                     },
                 );
                 ui.within(&target, &mut |ui| {
@@ -404,15 +366,13 @@ pub(super) fn seek(
     let scrubber = scrub.node;
     ui.set_node_layout(
         &scrubber,
-        &Node {
-            w: Size::Grow,
-            h: Size::Px(if ui.view_size().0 < compact::BREAKPOINT {
+        &Node::column()
+            .w(Size::Grow)
+            .h_px(if ui.view_size().0 < compact::BREAKPOINT {
                 56.0
             } else {
                 40.0
             }),
-            ..Node::DEFAULT
-        },
     );
     let fraction = if let Some(preview) = scrub.preview {
         preview / upper

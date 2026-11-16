@@ -108,8 +108,6 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
     let editor = ui.part(
         pxui::Part::EDITOR,
         Node {
-            w: Size::Grow,
-            h: Size::Px(height),
             inset: Edges {
                 l: if find { 0.0 } else { 2.0 },
                 r: if find { 0.0 } else { 2.0 },
@@ -120,7 +118,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
                 font,
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(height)
         },
     );
     let value = pxui::bodies::text_of(&c.value);
@@ -138,12 +136,8 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
         let placeholder = ui.node(
             "prompt",
             Node {
-                axis: Axis::Row,
-                align: Align::Center,
                 at: Some((if find { 0.0 } else { 20.0 }, 0.0)).into(),
-                w: Size::Px(room.max(1.0)),
-                h: Size::Px(height),
-                ..Node::DEFAULT
+                ..Node::row().w_px(room.max(1.0)).h_px(height).align(Align::Center)
             },
         );
         let style = pxui::TextStyle {
@@ -159,14 +153,12 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
             let line = ui.node(
                 "line",
                 Node {
-                    w: Size::Grow,
-                    h: Size::Px(size as f32 * 1.4),
                     look: Look {
                         text: if find { ui.color(TERTIARY) } else { ui.color(SECONDARY) },
                         font,
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column().w(Size::Grow).h_px(size as f32 * 1.4)
                 },
             );
             ui.text_line_box(&line, hint, &style, &[]).unwrap();
@@ -209,17 +201,12 @@ fn overlay(
             let card = ui.node(
                 "card",
                 Node {
-                    flags: BLOCKING | CLIP,
-                    axis: Axis::Column,
-                    role: Role::Dialog,
-                    w: Size::Px(width),
-                    h: height,
                     max_h: max_height,
                     look: Look {
                         fill: ui.color(PAPER),
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP)
                 },
             );
             ui.set_role(&card, Role::Dialog, pxui::a11y::state::MODAL);
@@ -311,28 +298,20 @@ pub(super) fn palette_view(
                 };
                 let row = ui.node_keyed(
                     int_key(Ui::key_of(0, "localwave-command-row"), item.key as i64),
-                    Node {
-                        axis: Axis::Column,
-                        w: Size::Grow,
-                        h: Size::Fit,
-                        ..Node::DEFAULT
-                    },
+                    Node::column().w(Size::Grow).h(Size::Fit),
                 );
                 ui.within(&row, &mut |ui| {
                     if index == 0 || items[index - 1].group != item.group {
                         let header = ui.node(
                             "group",
                             Node {
-                                axis: Axis::Column,
-                                w: Size::Grow,
-                                h: Size::Fit,
                                 padding: Edges {
                                     l: 12.0,
                                     r: 12.0,
                                     t: 10.0,
                                     b: 4.0,
                                 },
-                                ..Node::DEFAULT
+                                ..Node::column().w(Size::Grow).h(Size::Fit)
                             },
                         );
                         ui.within(&header, &mut |ui| {
@@ -353,12 +332,9 @@ pub(super) fn palette_view(
             ui.set_node_layout(
                 &list,
                 &Node {
-                    w: Size::Grow,
-                    h: Size::Fit,
                     min_h: 60.0,
                     max_h: result_limit,
-                    padding: Edges::all(6.0),
-                    ..Node::DEFAULT
+                    ..Node::column().w(Size::Grow).h(Size::Fit).pad(6.0)
                 },
             );
             let prior_selection = ui.state(&list, -1);
@@ -383,18 +359,6 @@ fn result_row(
     let row = ui.node(
         "item",
         Node {
-            flags: CLICKABLE,
-            axis: Axis::Row,
-            w: Size::Grow,
-            h: Size::Px(44.0),
-            role: Role::Button,
-            padding: Edges {
-                l: 12.0,
-                r: 12.0,
-                ..Edges::ZERO
-            },
-            gap: 12.0,
-            align: Align::Center,
             look: Look {
                 fill: if selected {
                     ui.color(SELECTED)
@@ -403,7 +367,14 @@ fn result_row(
                 },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::row()
+                .w(Size::Grow)
+                .h_px(44.0)
+                .gap(12.0)
+                .pad_x(12.0)
+                .align(Align::Center)
+                .role(Role::Button)
+                .flags(Flags::CLICKABLE)
         },
     );
     ui.set_role(
@@ -551,22 +522,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
         intent,
         &mut |ui, _| {
             ui.scroll_view("shortcuts", Size::Grow, Size::Grow, &mut |ui| {
-                let body = ui.node(
-                    "body",
-                    Node {
-                        axis: Axis::Column,
-                        w: Size::Grow,
-                        h: Size::Fit,
-                        gap: 12.0,
-                        padding: Edges {
-                            l: 24.0,
-                            r: 24.0,
-                            t: 22.0,
-                            b: 22.0,
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
+                let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
                     text(
                         ui,
@@ -577,40 +533,22 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                         (Size::Grow, 25.2),
                         false,
                     );
-                    let rows = ui.node(
-                        "rows",
-                        Node {
-                            axis: Axis::Column,
-                            w: Size::Grow,
-                            h: Size::Fit,
-                            gap: 8.0,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let rows = ui.node("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0));
                     ui.within(&rows, &mut |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node_keyed(
                                 int_key(body.box_key, index as i64),
-                                Node {
-                                    axis: Axis::Row,
-                                    w: Size::Grow,
-                                    h: Size::Px(heights[index]),
-                                    gap: 16.0,
-                                    ..Node::DEFAULT
-                                },
+                                Node::row().w(Size::Grow).h_px(heights[index]).gap(16.0),
                             );
                             ui.within(&row, &mut |ui| {
                                 let node = ui.node(
                                     "label",
                                     Node {
-                                        w: Size::Px(half),
-                                        h: Size::Px(heights[index]),
-                                        role: Role::Label,
                                         look: Look {
                                             text: ui.color(INK),
                                             ..Look::NONE
                                         },
-                                        ..Node::DEFAULT
+                                        ..Node::column().w_px(half).h_px(heights[index]).role(Role::Label)
                                     },
                                 );
                                 ui.text_line_box(&node, label, &style, &[]).unwrap();

@@ -29,15 +29,12 @@ fn label(
     let node = ui.node(
         key,
         Node {
-            role,
-            w: Size::Px(rect.w.max(0.0)),
-            h: Size::Px(rect.h),
             at: Some((rect.x, rect.y)).into(),
             look: Look {
                 text: color,
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(role)
         },
     );
     ui.text_line_box(&node, value, &style, &[]).unwrap();
@@ -181,13 +178,11 @@ fn heading(
     let root = ui.node(
         "song-columns",
         Node {
-            w: Size::Grow,
-            h: Size::Px(layout.height),
             look: Look {
                 fill: ui.color(PAPER),
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(layout.height)
         },
     );
     ui.within(&root, &mut |ui| {
@@ -204,24 +199,24 @@ fn heading(
                 let button = ui.node(
                     column.title(),
                     Node {
-                        flags: if column.sort().is_some() {
-                            CLICKABLE | TAB_STOP
-                        } else {
-                            0
-                        },
-                        role: if column.sort().is_some() {
-                            Role::Button
-                        } else {
-                            Role::Label
-                        },
-                        w: Size::Px(available),
-                        h: Size::Px(height),
                         at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
                         look: Look {
                             text: ui.color(SECONDARY),
                             ..Look::NONE
                         },
-                        ..Node::DEFAULT
+                        ..Node::column()
+                            .w_px(available)
+                            .h_px(height)
+                            .role(if column.sort().is_some() {
+                                Role::Button
+                            } else {
+                                Role::Label
+                            })
+                            .flags(if column.sort().is_some() {
+                                Flags::CLICKABLE | Flags::TAB_STOP
+                            } else {
+                                Flags::NONE
+                            })
                     },
                 );
                 let value = heading_value(column, applied);
@@ -354,14 +349,7 @@ pub(super) fn table(
     if find {
         header_view(ui, catalog, state, width, intent);
     }
-    let scope = ui.node(
-        "song-results-scope",
-        Node {
-            w: Size::Grow,
-            h: Size::Grow,
-            ..Node::DEFAULT
-        },
-    );
+    let scope = ui.node("song-results-scope", Node::column().w(Size::Grow).h(Size::Grow));
     let (mut first, mut end) = (usize::MAX, 0);
     ui.within(&scope, &mut |ui| {
         let results = ui.node_keyed(
@@ -369,11 +357,7 @@ pub(super) fn table(
                 scope.box_key,
                 if find { state.query_revision as i64 } else { 0 },
             ),
-            Node {
-                w: Size::Grow,
-                h: Size::Grow,
-                ..Node::DEFAULT
-            },
+            Node::column().w(Size::Grow).h(Size::Grow),
         );
         ui.within(&results, &mut |ui| {
             let list_key = Ui::key_of(results.box_key, "songs");
@@ -413,15 +397,7 @@ pub(super) fn table(
                         heading(ui, widths, applied, heading_layout, intent);
                     }
                     SectionPart::Row(_) if placeholder => {
-                        let empty = ui.node(
-                            "empty",
-                            Node {
-                                w: Size::Grow,
-                                h: Size::Px(83.6),
-                                padding: Edges::all(32.0),
-                                ..Node::DEFAULT
-                            },
-                        );
+                        let empty = ui.node("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0));
                         ui.within(&empty, &mut |ui| {
                             text(
                                 ui,
@@ -445,11 +421,7 @@ pub(super) fn table(
                         end = end.max(index + 1);
                         let identity = ui.node_keyed(
                             int_key(list_key, collection.row_keys[index]),
-                            Node {
-                                w: Size::Grow,
-                                h: Size::Fit,
-                                ..Node::DEFAULT
-                            },
+                            Node::column().w(Size::Grow).h(Size::Fit),
                         );
                         ui.within(&identity, &mut |ui| {
                             Rows {

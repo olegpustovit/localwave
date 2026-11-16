@@ -158,8 +158,6 @@ pub(super) fn header(
             ui.node(
                 "heading-divider",
                 Node {
-                    w: Size::Px(width),
-                    h: Size::Px(1.0),
                     margin: Edges {
                         l: -32.0,
                         r: -32.0,
@@ -169,7 +167,7 @@ pub(super) fn header(
                         fill: ui.color(LINE),
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column().w_px(width).h_px(1.0)
                 },
             );
             spacer(ui, "album-header-bottom", 1.0);
@@ -209,16 +207,13 @@ pub(super) fn compact_find(
         let root = ui.node(
             "compact-find",
             Node {
-                axis: Axis::Column,
-                w: Size::Grow,
-                h: Size::Fit,
                 padding: Edges {
                     l: 16.0,
                     r: 16.0,
                     t: 20.0,
                     b: 0.0,
                 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Fit)
             },
         );
         ui.within(&root, &mut |ui| {
@@ -346,18 +341,15 @@ fn hint(ui: &mut Ui, width: f32) {
     let node = ui.node(
         "hint",
         Node {
-            w: Size::Grow,
-            h: Size::Px(height),
             margin: Edges {
                 t: 28.0, // 40 less find_tokens' 12 pt tail
                 ..Edges::ZERO
             },
-            role: Role::Paragraph,
             look: Look {
                 text: ui.color(SECONDARY),
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(height).role(Role::Paragraph)
         },
     );
     ui.text_line_box(&node, TEXT, &style, &spans).unwrap();
@@ -429,21 +421,17 @@ pub(super) fn find_tokens(
                     let chip = ui.node(
                         token,
                         Node {
-                            flags: CLICKABLE | TAB_STOP | CLIP,
-                            role: Role::Toggle,
-                            w: Size::Fit,
                             max_w: width,
-                            h: Size::Px(32.0),
-                            padding: Edges {
-                                l: 12.0,
-                                r: 12.0,
-                                ..Edges::ZERO
-                            },
                             look: Look {
                                 fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
                                 ..Look::NONE
                             },
-                            ..Node::DEFAULT
+                            ..Node::column()
+                                .w(Size::Fit)
+                                .h_px(32.0)
+                                .pad_x(12.0)
+                                .role(Role::Toggle)
+                                .flags(Flags::CLICKABLE | Flags::TAB_STOP | Flags::CLIP)
                         },
                     );
                     ui.set_role(
@@ -461,9 +449,6 @@ pub(super) fn find_tokens(
                         let label = ui.node(
                             "label",
                             Node {
-                                flags: FIT_TEXT,
-                                w: Size::Fit,
-                                h: Size::Grow,
                                 look: Look {
                                     text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
                                     font: Font {
@@ -472,7 +457,7 @@ pub(super) fn find_tokens(
                                     },
                                     ..Look::NONE
                                 },
-                                ..Node::DEFAULT
+                                ..Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT)
                             },
                         );
                         ui.text(&label, token);

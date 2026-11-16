@@ -66,14 +66,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &str, digits: &[u8], height: f32, 
     buffer[..copied].copy_from_slice(&digits[..copied]);
     let unit = height / 7.0;
     let columns = shown * 6 - 1;
-    let node = ui.node(
-        key,
-        Node {
-            w: Size::Px((columns as f32 - 0.22) * unit),
-            h: Size::Px(height),
-            ..Node::DEFAULT
-        },
-    );
+    let node = ui.node(key, Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height));
     ui.draw(&node, move |paint, rect| {
         for (index, digit) in buffer[..shown].iter().enumerate() {
             let x = rect.x + index as f32 * 6.0 * unit;
@@ -108,26 +101,14 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         - 1;
     let clock = ui.node(
         "matrix-clock",
-        Node {
-            w: Size::Px((columns as f32 - 0.22) * unit),
-            h: Size::Px(height),
-            role: Role::Label,
-            ..Node::DEFAULT
-        },
+        Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height).role(Role::Label),
     );
     ui.a11y_name(&clock, "Elapsed time");
     ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0);
     let old = ui.state(&clock, seconds as i64) as u64;
     ui.set_state(&clock, seconds as i64);
     ui.within(&clock, &mut |ui| {
-        let previous = ui.node(
-            "previous",
-            Node {
-                w: Size::Px(0.0),
-                h: Size::Px(0.0),
-                ..Node::DEFAULT
-            },
-        );
+        let previous = ui.node("previous", Node::column().w_px(0.0).h_px(0.0));
         if old != seconds {
             ui.set_state(&previous, old as i64);
         }
@@ -137,15 +118,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
             ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {
-                let stack = ui.node(
-                    "row",
-                    Node {
-                        axis: Axis::Stack,
-                        w: Size::Grow,
-                        h: Size::Grow,
-                        ..Node::DEFAULT
-                    },
-                );
+                let stack = ui.node("row", Node::stack().w(Size::Grow).h(Size::Grow));
                 ui.within(&stack, &mut |ui| {
                     for changing in [false, true] {
                         let visual = ui.view(
@@ -154,14 +127,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                             Size::Grow,
                             Size::Grow,
                             &mut |ui| {
-                                let cells = ui.node(
-                                    "cells",
-                                    Node {
-                                        w: Size::Grow,
-                                        h: Size::Grow,
-                                        ..Node::DEFAULT
-                                    },
-                                );
+                                let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
                                 ui.draw(&cells, move |paint, rect| {
                                     let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
                                     let mut x = rect.x;

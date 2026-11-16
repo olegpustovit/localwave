@@ -25,13 +25,11 @@ fn background(ui: &mut Ui, key: &str, color: Rgba, shown: bool, immediate: bool)
         ui.node(
             "fill",
             Node {
-                w: Size::Grow,
-                h: Size::Grow,
                 look: Look {
                     fill: color,
                     ..Look::NONE
                 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Grow)
             },
         );
     });
@@ -75,11 +73,6 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let root = ui.node(
         key,
         Node {
-            flags: if enabled { CLICKABLE | TAB_STOP } else { 0 },
-            role: Role::Button,
-            axis: Axis::Stack,
-            w: Size::Px(20.0 + icon_size + 6.0 + label_width),
-            h: Size::Px(30.0),
             state: State {
                 disabled: !enabled,
                 ..State::default()
@@ -88,7 +81,11 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
                 fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::stack()
+                .w_px(20.0 + icon_size + 6.0 + label_width)
+                .h_px(30.0)
+                .role(Role::Button)
+                .flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
         },
     );
     ui.a11y_name(&root, label);
@@ -119,30 +116,11 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
         ui.view("action-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
             let row = ui.node(
                 "content",
-                Node {
-                    axis: Axis::Row,
-                    align: Align::Center,
-                    gap: 6.0,
-                    w: Size::Grow,
-                    h: Size::Grow,
-                    padding: Edges {
-                        l: 10.0,
-                        r: 10.0,
-                        ..Edges::ZERO
-                    },
-                    ..Node::DEFAULT
-                },
+                Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center),
             );
             ui.within(&row, &mut |ui| {
                 let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
-                let icon = ui.node(
-                    "icon",
-                    Node {
-                        w: Size::Px(icon_size),
-                        h: Size::Px(icon_size),
-                        ..Node::DEFAULT
-                    },
-                );
+                let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
                 ui.draw(&icon, move |paint, rect| match action {
                     Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
                     Action::Shuffle => crate::icons::shuffle(paint, rect, color),
@@ -174,26 +152,9 @@ pub(super) fn toolbar(
     let summary = collection
         .and(catalog.view.as_ref())
         .and_then(|view| view.find.as_ref());
-    let tools = ui.node(
-        "find-tools",
-        Node {
-            axis: Axis::Column,
-            w: Size::Grow,
-            h: Size::Px(45.0),
-            ..Node::DEFAULT
-        },
-    );
+    let tools = ui.node("find-tools", Node::column().w(Size::Grow).h_px(45.0));
     ui.within(&tools, &mut |ui| {
-        let row = ui.node(
-            "buttons",
-            Node {
-                axis: Axis::Row,
-                gap: 8.0,
-                w: Size::Grow,
-                h: Size::Px(30.0),
-                ..Node::DEFAULT
-            },
-        );
+        let row = ui.node("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
         ui.within(&row, &mut |ui| {
             if button(
                 ui,
@@ -266,19 +227,7 @@ mod tests {
         state: &ShellState,
         intent: &mut Option<Intent>,
     ) -> Handle {
-        let root = ui.node(
-            "root",
-            Node {
-                w: Size::Px(400.0),
-                h: Size::Px(45.0),
-                padding: Edges {
-                    l: 32.0,
-                    r: 32.0,
-                    ..Edges::ZERO
-                },
-                ..Node::DEFAULT
-            },
-        );
+        let root = ui.node("root", Node::column().w_px(400.0).h_px(45.0).pad_x(32.0));
         ui.within(&root, &mut |ui| {
             toolbar(ui, catalog, state, intent)
         });

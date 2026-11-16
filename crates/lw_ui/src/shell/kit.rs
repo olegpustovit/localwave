@@ -56,10 +56,8 @@ pub(super) fn container(
         key,
         Node {
             axis,
-            w,
-            h,
             look: Look { fill, ..Look::NONE },
-            ..Node::DEFAULT
+            ..Node::column().w(w).h(h)
         },
     )
 }
@@ -83,10 +81,6 @@ pub(super) fn text(
     let node = ui.node(
         key,
         Node {
-            flags: FIT_TEXT | FIT_TEXT_PIXEL,
-            w: dimensions.0,
-            h: Size::Px(dimensions.1),
-            role: Role::Label,
             look: Look {
                 text: color,
                 font: Font {
@@ -96,7 +90,11 @@ pub(super) fn text(
                 },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column()
+                .w(dimensions.0)
+                .h_px(dimensions.1)
+                .role(Role::Label)
+                .flags(Flags::FIT_TEXT | Flags::FIT_TEXT_PIXEL)
         },
     );
     ui.text_line_box(&node, value, &style, &[]).unwrap();
@@ -275,13 +273,11 @@ pub(super) fn icon_button(
 ) -> bool {
     let node = ui.node(
         key,
-        Node {
-            flags: CLICKABLE | TAB_STOP,
-            w: Size::Px(dimensions.0),
-            h: Size::Px(dimensions.1),
-            role: Role::Button,
-            ..Node::DEFAULT
-        },
+        Node::column()
+            .w_px(dimensions.0)
+            .h_px(dimensions.1)
+            .role(Role::Button)
+            .flags(Flags::CLICKABLE | Flags::TAB_STOP),
     );
     let signal = ui.signal_state(&node);
     ui.a11y_name(&node, label);
@@ -298,14 +294,7 @@ pub(super) fn icon_button(
     let revision = crate::hash((icon as u8, inverse, signal.hovered, signal.held));
     ui.within(&node, &mut |ui| {
         let visual = ui.view("visual", revision, Size::Grow, Size::Grow, &mut |ui| {
-            let surface = ui.node(
-                "surface",
-                Node {
-                    w: Size::Grow,
-                    h: Size::Grow,
-                    ..Node::DEFAULT
-                },
-            );
+            let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
             ui.set_look(
                 &surface,
                 Look { fill, ..Look::NONE },

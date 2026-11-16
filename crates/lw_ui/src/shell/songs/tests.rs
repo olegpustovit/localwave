@@ -185,14 +185,7 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                     ..Default::default()
                 },
                 &mut |ui| {
-                    let component = ui.node(
-                        "component",
-                        Node {
-                            w: Size::Px(width),
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let component = ui.node("component", Node::column().w_px(width).h(Size::Grow));
                     ui.within(&component, &mut |ui| {
                         let layout = heading_layout(ui, &catalog, columns, None);
                         root = Some(heading(ui, columns, None, layout, &mut None));
@@ -903,11 +896,7 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                         );
                         let root = ui.node_keyed(
                             int_key(91, position as i64),
-                            Node {
-                                w: Size::Px(width),
-                                h: Size::Px(layout.height),
-                                ..Node::DEFAULT
-                            },
+                            Node::column().w_px(width).h_px(layout.height),
                         );
                         ui.within(&root, &mut |ui| {
                             let mut digits = [0u8; 24];

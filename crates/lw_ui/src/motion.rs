@@ -108,23 +108,9 @@ pub(crate) struct Page {
 }
 impl Page {
     pub fn new(ui: &mut pxui::Ui, generation: u64) -> Self {
-        use pxui::ui::{Node, Size};
-        let marker = ui.node(
-            "entry-generation",
-            Node {
-                w: Size::Px(0.0),
-                h: Size::Px(0.0),
-                ..Node::DEFAULT
-            },
-        );
-        let clock = ui.node(
-            "entry-start",
-            Node {
-                w: Size::Px(0.0),
-                h: Size::Px(0.0),
-                ..Node::DEFAULT
-            },
-        );
+        use pxui::ui::Node;
+        let marker = ui.node("entry-generation", Node::column().w_px(0.0).h_px(0.0));
+        let clock = ui.node("entry-start", Node::column().w_px(0.0).h_px(0.0));
         let now = ui.now();
         if ui.state(&marker, i64::MIN) != generation as i64 {
             ui.set_state(&marker, generation as i64);

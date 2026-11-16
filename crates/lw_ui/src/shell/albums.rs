@@ -14,16 +14,7 @@ pub(super) fn toolbar(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
-    let row = ui.node(
-        "album-tools",
-        Node {
-            axis: Axis::Row,
-            gap: 8.0,
-            w: Size::Grow,
-            h: Size::Px(30.0),
-            ..Node::DEFAULT
-        },
-    );
+    let row = ui.node("album-tools", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
     ui.within(&row, &mut |ui| {
         for (value, title) in [
             (AlbumSort::Artist, "Artist"),
@@ -34,22 +25,17 @@ pub(super) fn toolbar(
             let button = ui.node(
                 title,
                 Node {
-                    flags: CLICKABLE | TAB_STOP,
-                    role: Role::Button,
-                    w: Size::Fit,
-                    h: Size::Px(30.0),
-                    align: Align::Center,
-                    justify: Justify::Center,
-                    padding: Edges {
-                        l: 10.0,
-                        r: 10.0,
-                        ..Edges::ZERO
-                    },
                     look: Look {
                         fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column()
+                        .w(Size::Fit)
+                        .h_px(30.0)
+                        .pad_x(10.0)
+                        .center()
+                        .role(Role::Button)
+                        .flags(Flags::CLICKABLE | Flags::TAB_STOP)
                 },
             );
             ui.a11y_name(&button, title);
@@ -95,39 +81,27 @@ pub(super) fn toolbar(
         let button = ui.node(
             "shuffle-all",
             Node {
-                axis: Axis::Row,
-                align: Align::Center,
-                gap: 6.0,
-                flags: if catalog.is_empty() {
-                    0
-                } else {
-                    CLICKABLE | TAB_STOP
-                },
                 state: State {
                     disabled: catalog.is_empty(),
                     ..State::default()
                 },
-                role: Role::Button,
-                w: Size::Fit,
-                h: Size::Px(30.0),
-                padding: Edges {
-                    l: 10.0,
-                    r: 10.0,
-                    ..Edges::ZERO
-                },
-                ..Node::DEFAULT
+                ..Node::row()
+                    .w(Size::Fit)
+                    .h_px(30.0)
+                    .gap(6.0)
+                    .pad_x(10.0)
+                    .align(Align::Center)
+                    .role(Role::Button)
+                    .flags(if catalog.is_empty() {
+                        Flags::NONE
+                    } else {
+                        Flags::CLICKABLE | Flags::TAB_STOP
+                    })
             },
         );
         ui.a11y_name(&button, "Shuffle all");
         ui.within(&button, &mut |ui| {
-            let icon = ui.node(
-                "icon",
-                Node {
-                    w: Size::Px(16.0),
-                    h: Size::Px(16.0),
-                    ..Node::DEFAULT
-                },
-            );
+            let icon = ui.node("icon", Node::column().w_px(16.0).h_px(16.0));
             ui.draw(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
@@ -198,30 +172,9 @@ pub(super) fn gallery(
             }
             SectionPart::Header => {}
             SectionPart::Row(line) => {
-                let inset = ui.node(
-                    "gallery-inset",
-                    Node {
-                        w: Size::Grow,
-                        h: Size::Grow,
-                        padding: Edges {
-                            l: inset,
-                            r: inset,
-                            ..Edges::ZERO
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
+                let inset = ui.node("gallery-inset", Node::column().w(Size::Grow).h(Size::Grow).pad_x(inset));
                 ui.within(&inset, &mut |ui| {
-                    let row = ui.node(
-                        "group-row",
-                        Node {
-                            axis: Axis::Row,
-                            gap,
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let row = ui.node("group-row", Node::row().w(Size::Grow).h(Size::Grow).gap(gap));
                     ui.within(&row, &mut |ui| {
                         for (column, index) in order
                             .iter()
@@ -232,11 +185,7 @@ pub(super) fn gallery(
                         {
                             let holder = ui.node_keyed(
                                 int_key(row.box_key, index as i64),
-                                Node {
-                                    w: Size::Px(cell),
-                                    h: Size::Px(card_height),
-                                    ..Node::DEFAULT
-                                },
+                                Node::column().w_px(cell).h_px(card_height),
                             );
                             ui.within(&holder, &mut |ui| {
                                 let group = &groups[index];
@@ -249,12 +198,12 @@ pub(super) fn gallery(
                                         let node = ui.node(
                                             "group",
                                             Node {
-                                                flags: CLICKABLE | TAB_STOP,
-                                                w: Size::Grow,
-                                                h: Size::Grow,
-                                                role: Role::Button,
                                                 padding: Edges::ZERO,
-                                                ..Node::DEFAULT
+                                                ..Node::column()
+                                                    .w(Size::Grow)
+                                                    .h(Size::Grow)
+                                                    .role(Role::Button)
+                                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
                                             },
                                         );
                                         ui.a11y_name(&node, &group.title);

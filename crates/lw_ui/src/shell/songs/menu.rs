@@ -174,18 +174,9 @@ pub(in crate::shell) fn popup(
 
 pub(in crate::shell) fn item_node(ui: &Ui, enabled: bool) -> Node {
     Node {
-        flags: if enabled { CLICKABLE | TAB_STOP } else { 0 },
-        role: Role::MenuItem,
         state: State {
             disabled: !enabled,
             ..State::default()
-        },
-        w: Size::Grow,
-        h: Size::Px(36.0),
-        padding: Edges {
-            l: 12.0,
-            r: 12.0,
-            ..Edges::ZERO
         },
         look: Look {
             text: ui.color(INK),
@@ -195,7 +186,12 @@ pub(in crate::shell) fn item_node(ui: &Ui, enabled: bool) -> Node {
             },
             ..Look::NONE
         },
-        ..Node::DEFAULT
+        ..Node::column()
+            .w(Size::Grow)
+            .h_px(36.0)
+            .pad_x(12.0)
+            .role(Role::MenuItem)
+            .flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
     }
 }
 

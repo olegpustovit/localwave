@@ -16,12 +16,6 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool) -> bool {
     let node = ui.node(
         key,
         Node {
-            flags: CLICKABLE | TAB_STOP,
-            role: Role::Button,
-            w: Size::Grow,
-            h: Size::Px(44.0),
-            align: Align::Center,
-            justify: Justify::Center,
             look: Look {
                 fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                 text: ui.color(INK),
@@ -31,7 +25,12 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool) -> bool {
                 },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column()
+                .w(Size::Grow)
+                .h_px(44.0)
+                .center()
+                .role(Role::Button)
+                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
         },
     );
     ui.within(&node, &mut |ui| {
@@ -54,27 +53,11 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool) -> bool {
 fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool {
     let node = ui.node(
         label,
-        Node {
-            flags: CLICKABLE | TAB_STOP,
-            role: Role::Button,
-            w: Size::Fit,
-            h: Size::Px(44.0),
-            ..Node::DEFAULT
-        },
+        Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
     );
     let ink = if active { ui.color(INK) } else { ui.color(SECONDARY) };
     ui.within(&node, &mut |ui| {
-        let content = ui.node(
-            "content",
-            Node {
-                axis: Axis::Row,
-                align: Align::Center,
-                gap: 6.0,
-                w: Size::Fit,
-                h: Size::Px(42.0),
-                ..Node::DEFAULT
-            },
-        );
+        let content = ui.node("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center));
         ui.within(&content, &mut |ui| {
             text(ui, "label", label, 15, ink, (Size::Fit, 21.0), false);
             text(ui, "count", count, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
@@ -94,14 +77,11 @@ fn line(ui: &mut Ui, key: &str, value: &str, size: f32, color: Rgba) {
     let node = ui.node(
         key,
         Node {
-            role: Role::Label,
-            w: Size::Grow,
-            h: Size::Px(size * 1.4),
             look: Look {
                 text: color,
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(size * 1.4).role(Role::Label)
         },
     );
     ui.text_line_box(
@@ -163,9 +143,6 @@ pub(super) fn view(
     let root = ui.node(
         "compact-shell",
         Node {
-            role: Role::Window,
-            w: Size::Grow,
-            h: Size::Grow,
             padding: Edges {
                 t: top.max(state.top_inset),
                 r: right,
@@ -176,7 +153,7 @@ pub(super) fn view(
                 fill: ui.color(PAPER),
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Window)
         },
     );
     ui.a11y_name(&root, "LocalWave");
@@ -211,10 +188,6 @@ pub(super) fn view(
                     let head = ui.node(
                         "compact-heading",
                         Node {
-                            axis: Axis::Row,
-                            align: if library { Align::Start } else { Align::Center },
-                            w: Size::Grow,
-                            h: Size::Px(if picking { 54.0 } else if library { 50.0 } else { 64.0 }),
                             padding: if picking { Edges::ZERO } else { Edges {
                                 l: 16.0,
                                 r: if library { 6.0 } else { 16.0 },
@@ -223,7 +196,10 @@ pub(super) fn view(
                                 b: if library { 0.0 } else { 10.0 },
                                 ..Edges::ZERO
                             } },
-                            ..Node::DEFAULT
+                            ..Node::row()
+                                .w(Size::Grow)
+                                .h_px(if picking { 54.0 } else if library { 50.0 } else { 64.0 })
+                                .align(if library { Align::Start } else { Align::Center })
                         },
                     );
                     ui.within(&head, &mut |ui| {
@@ -235,13 +211,11 @@ pub(super) fn view(
                             // Swift's header gear; Settings stays one tap away.
                             let settings = ui.node(
                                 "settings",
-                                Node {
-                                    flags: CLICKABLE | TAB_STOP,
-                                    role: Role::Button,
-                                    w: Size::Px(44.0),
-                                    h: Size::Px(44.0),
-                                    ..Node::DEFAULT
-                                },
+                                Node::column()
+                                    .w_px(44.0)
+                                    .h_px(44.0)
+                                    .role(Role::Button)
+                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                             );
                             ui.a11y_name(&settings, "Settings");
                             let color = ui.color(INK);
@@ -269,18 +243,13 @@ pub(super) fn view(
                         let hero = ui.node(
                             "library-summary",
                             Node {
-                                axis: Axis::Row,
-                                align: Align::End,
-                                gap: 10.0,
-                                w: Size::Grow,
-                                h: Size::Px(60.0),
                                 padding: Edges {
                                     l: 16.0,
                                     r: 16.0,
                                     b: 14.0,
                                     ..Edges::ZERO
                                 },
-                                ..Node::DEFAULT
+                                ..Node::row().w(Size::Grow).h_px(60.0).gap(10.0).align(Align::End)
                             },
                         );
                         ui.within(&hero, &mut |ui| {
@@ -290,13 +259,7 @@ pub(super) fn view(
                             container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
                             let totals = ui.node(
                                 "library-size",
-                                Node {
-                                    axis: Axis::Column,
-                                    align: Align::End,
-                                    w: Size::Fit,
-                                    h: Size::Fit,
-                                    ..Node::DEFAULT
-                                },
+                                Node::column().w(Size::Fit).h(Size::Fit).align(Align::End),
                             );
                             ui.within(&totals, &mut |ui| {
                                 text(ui, "albums", &catalog.totals_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
@@ -305,19 +268,7 @@ pub(super) fn view(
                         });
                         let tabs = ui.node(
                             "library-tabs",
-                            Node {
-                                axis: Axis::Row,
-                                align: Align::Center,
-                                gap: 20.0,
-                                w: Size::Grow,
-                                h: Size::Px(44.0),
-                                padding: Edges {
-                                    l: 16.0,
-                                    r: 16.0,
-                                    ..Edges::ZERO
-                                },
-                                ..Node::DEFAULT
-                            },
+                            Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
                         ui.set_role(&tabs, Role::Group, 0);
                         ui.a11y_name(&tabs, "Library view");
@@ -371,11 +322,7 @@ pub(super) fn view(
                         ui.within(&body, &mut |ui| {
                             let page = ui.node_keyed(
                                 int_key(body.box_key, route_key as i64),
-                                Node {
-                                    w: Size::Grow,
-                                    h: Size::Grow,
-                                    ..Node::DEFAULT
-                                },
+                                Node::column().w(Size::Grow).h(Size::Grow),
                             );
                             ui.within(&page, &mut |ui| {
                                 if state.settings_visible {
@@ -459,32 +406,23 @@ fn mini(
     let root = ui.node(
         "mini-player",
         Node {
-            axis: Axis::Row,
-            align: Align::Center,
-            w: Size::Grow,
-            h: Size::Px(64.0),
-            padding: Edges::all(8.0),
-            gap: 8.0,
             look: Look {
                 fill: ui.color(PANEL),
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center)
         },
     );
     ui.within(&root, &mut |ui| {
         let open = ui.node(
             "open-player",
-            Node {
-                axis: Axis::Row,
-                align: Align::Center,
-                gap: 10.0,
-                flags: CLICKABLE | TAB_STOP,
-                role: Role::Button,
-                w: Size::Grow,
-                h: Size::Px(48.0),
-                ..Node::DEFAULT
-            },
+            Node::row()
+                .w(Size::Grow)
+                .h_px(48.0)
+                .gap(10.0)
+                .align(Align::Center)
+                .role(Role::Button)
+                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
         );
         ui.a11y_name(&open, "Open Now Playing");
         ui.within(&open, &mut |ui| {
@@ -579,21 +517,14 @@ fn groups(
             let group = &groups[index];
             let node = ui.node(
                 "group",
-                Node {
-                    role: Role::Button,
-                    flags: CLICKABLE | TAB_STOP,
-                    axis: Axis::Row,
-                    align: Align::Center,
-                    gap: 12.0,
-                    w: Size::Grow,
-                    h: Size::Grow,
-                    padding: Edges {
-                        l: 16.0,
-                        r: 16.0,
-                        ..Edges::ZERO
-                    },
-                    ..Node::DEFAULT
-                },
+                Node::row()
+                    .w(Size::Grow)
+                    .h(Size::Grow)
+                    .gap(12.0)
+                    .pad_x(16.0)
+                    .align(Align::Center)
+                    .role(Role::Button)
+                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
             );
             ui.a11y_name(&node, &group.title);
             ui.within(&node, &mut |ui| {
@@ -627,31 +558,22 @@ fn mode_key(
     let node = ui.node(
         key,
         Node {
-            axis: Axis::Row,
-            flags: CLICKABLE | TAB_STOP,
-            role: Role::Button,
-            align: Align::Center,
-            justify: Justify::Center,
-            gap: 6.0,
-            w: Size::Grow,
-            h: Size::Px(44.0),
             look: Look {
                 fill: if active { ui.color(INK) } else { ui.color(KEY) },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::row()
+                .w(Size::Grow)
+                .h_px(44.0)
+                .gap(6.0)
+                .center()
+                .role(Role::Button)
+                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
         },
     );
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
     ui.within(&node, &mut |ui| {
-        let glyph = ui.node(
-            "icon",
-            Node {
-                w: Size::Px(20.0),
-                h: Size::Px(20.0),
-                ..Node::DEFAULT
-            },
-        );
+        let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
         ui.draw(&glyph, move |paint, rect| {
             kit::paint_icon(paint, icon, rect.x, rect.y, color)
         });
@@ -673,14 +595,11 @@ fn expanded(
 ) {
     use lw_core::queue::RepeatMode;
     let root_node = Node {
-        flags: CLICKABLE,
-        w: Size::Grow,
-        h: Size::Grow,
         look: Look {
             fill: ui.color(PAPER),
             ..Look::NONE
         },
-        ..Node::DEFAULT
+        ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
     };
     let root = ui.node("expanded-player", root_node);
     // Drag down to dismiss (UIKit sheet thresholds); the button below stays the alternative.
@@ -712,17 +631,7 @@ fn expanded(
     let region = (size.1 - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0)).max(124.0);
     let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
     ui.within(&root, &mut |ui| {
-        let head = ui.node(
-            "now-heading",
-            Node {
-                axis: Axis::Row,
-                align: Align::Center,
-                w: Size::Grow,
-                h: Size::Px(48.0),
-                padding: Edges { l: 6.0, r: 6.0, ..Edges::ZERO },
-                ..Node::DEFAULT
-            },
-        );
+        let head = ui.node("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center));
         ui.within(&head, &mut |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
@@ -730,19 +639,7 @@ fn expanded(
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
-            let from = ui.node(
-                "playing-from",
-                Node {
-                    axis: Axis::Row,
-                    align: Align::Center,
-                    justify: Justify::Center,
-                    gap: 4.0,
-                    w: Size::Grow,
-                    h: Size::Px(44.0),
-                    role: Role::Label,
-                    ..Node::DEFAULT
-                },
-            );
+            let from = ui.node("playing-from", Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label));
             ui.within(&from, &mut |ui| {
                 text(ui, "prefix", "Playing from", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
                 text(ui, "source", player.context, 13, ui.color(INK), (Size::Fit, 18.2), false);
@@ -752,12 +649,9 @@ fn expanded(
         let region_box = ui.node(
             "artwork-region",
             Node {
-                axis: Axis::Row,
                 justify: Justify::Center,
-                w: Size::Grow,
-                h: Size::Px(region),
                 padding: Edges { t: 4.0, ..Edges::ZERO },
-                ..Node::DEFAULT
+                ..Node::row().w(Size::Grow).h_px(region)
             },
         );
         ui.within(&region_box, &mut |ui| {
@@ -772,35 +666,20 @@ fn expanded(
         let body = ui.node(
             "now-body",
             Node {
-                w: Size::Grow,
-                h: Size::Grow,
                 padding: Edges { l: 16.0, r: 16.0, t: 16.0, b: 10.0 },
-                ..Node::DEFAULT
+                ..Node::column().w(Size::Grow).h(Size::Grow)
             },
         );
         ui.within(&body, &mut |ui| {
-            let info = ui.node(
-                "title-row",
-                Node {
-                    axis: Axis::Row,
-                    align: Align::Start,
-                    gap: 12.0,
-                    w: Size::Grow,
-                    h: Size::Px(50.6),
-                    ..Node::DEFAULT
-                },
-            );
+            let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
             ui.within(&info, &mut |ui| {
                 let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                 ui.within(&names, &mut |ui| {
                     let title = ui.node(
                         "title",
                         Node {
-                            role: Role::Label,
-                            w: Size::Grow,
-                            h: Size::Px(27.6),
                             look: Look { text: ui.color(INK), ..Look::NONE },
-                            ..Node::DEFAULT
+                            ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
                         },
                     );
                     ui.text_line_box(
@@ -829,29 +708,15 @@ fn expanded(
                 }
             });
             spacer(ui, "clock-gap", 14.0);
-            let clock = ui.node(
-                "clock",
-                Node {
-                    axis: Axis::Row,
-                    align: Align::End,
-                    w: Size::Grow,
-                    h: Size::Px(72.0),
-                    ..Node::DEFAULT
-                },
-            );
+            let clock = ui.node("clock", Node::row().w(Size::Grow).h_px(72.0).align(Align::End));
             ui.within(&clock, &mut |ui| {
                 matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
                 ui.box_("flex", BoxOpts::default().w(Size::Grow));
                 let side = ui.node(
                     "clock-side",
                     Node {
-                        axis: Axis::Column,
-                        align: Align::End,
-                        gap: 2.0,
-                        w: Size::Px(80.0),
-                        h: Size::Fit,
                         padding: Edges { b: 2.0, ..Edges::ZERO },
-                        ..Node::DEFAULT
+                        ..Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End)
                     },
                 );
                 ui.within(&side, &mut |ui| {
@@ -882,13 +747,8 @@ fn expanded(
             let modes = ui.node(
                 "modes",
                 Node {
-                    axis: Axis::Row,
-                    gap: 2.0,
-                    padding: Edges::all(2.0),
-                    w: Size::Grow,
-                    h: Size::Px(48.0),
                     look: Look { fill: ui.color(PANEL), ..Look::NONE },
-                    ..Node::DEFAULT
+                    ..Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0)
                 },
             );
             ui.within(&modes, &mut |ui| {
@@ -940,13 +800,9 @@ fn expanded(
         let keys = ui.node(
             "keys",
             Node {
-                axis: Axis::Row,
-                gap: 2.0,
                 padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
-                w: Size::Grow,
-                h: Size::Px(86.0),
                 look: Look { fill: ui.color(SELECTED), ..Look::NONE },
-                ..Node::DEFAULT
+                ..Node::row().w(Size::Grow).h_px(86.0).gap(2.0)
             },
         );
         ui.within(&keys, &mut |ui| {

@@ -9,15 +9,12 @@ fn label(ui: &mut Ui, key: &str, value: &str, rect: Rect, style: pxui::TextStyle
     let node = ui.node(
         key,
         Node {
-            role: Role::Label,
-            w: Size::Px(rect.w.max(0.0)),
-            h: Size::Px(rect.h),
             at: Some((rect.x, rect.y)).into(),
             look: Look {
                 text: color,
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(Role::Label)
         },
     );
     ui.text_line_box(&node, value, &style, &[]).unwrap();
@@ -70,19 +67,7 @@ pub(super) fn table(
     }
     let Some(table) = &catalog.artist_table else {
         header_view(ui, catalog, state, width, intent);
-        let inset = ui.node(
-            "artists-loading-inset",
-            Node {
-                w: Size::Grow,
-                h: Size::Fit,
-                padding: Edges {
-                    l: 32.0,
-                    r: 32.0,
-                    ..Edges::ZERO
-                },
-                ..Node::DEFAULT
-            },
-        );
+        let inset = ui.node("artists-loading-inset", Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0));
         ui.within(&inset, &mut |ui| {
             text(
                 ui,
@@ -143,13 +128,11 @@ pub(super) fn table(
                 let head = ui.node(
                     "artist-columns",
                     Node {
-                        w: Size::Grow,
-                        h: Size::Px(heading_height),
                         look: Look {
                             fill: ui.color(PAPER),
                             ..Look::NONE
                         },
-                        ..Node::DEFAULT
+                        ..Node::column().w(Size::Grow).h_px(heading_height)
                     },
                 );
                 ui.within(&head, &mut |ui| {
@@ -211,13 +194,11 @@ pub(super) fn table(
                     &mut |ui| {
                         let row = ui.node(
                             "artist",
-                            Node {
-                                flags: CLICKABLE | TAB_STOP,
-                                role: Role::Button,
-                                w: Size::Grow,
-                                h: Size::Px(row_height),
-                                ..Node::DEFAULT
-                            },
+                            Node::column()
+                                .w(Size::Grow)
+                                .h_px(row_height)
+                                .role(Role::Button)
+                                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                         );
                         ui.a11y_name(&row, name);
                         let signal = ui.signal_state(&row);
@@ -258,14 +239,12 @@ pub(super) fn table(
                             let art = ui.node(
                                 "artist-artwork",
                                 Node {
-                                    w: Size::Px(28.0),
-                                    h: Size::Px(28.0),
                                     at: Some((32.0, top)).into(),
                                     look: Look {
                                         fill: ui.color(PANEL),
                                         ..Look::NONE
                                     },
-                                    ..Node::DEFAULT
+                                    ..Node::column().w_px(28.0).h_px(28.0)
                                 },
                             );
                             paint_artwork(

@@ -11,24 +11,9 @@ pub(super) struct Viewport {
 
 pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64) {
     use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
-    let root = ui.node(
-        "equalizer",
-        Node {
-            w: Size::Px(14.0),
-            h: Size::Px(11.0),
-            role: Role::Image,
-            ..Node::DEFAULT
-        },
-    );
+    let root = ui.node("equalizer", Node::column().w_px(14.0).h_px(11.0).role(Role::Image));
     ui.a11y_name(&root, if playing { "Playing" } else { "Paused" });
-    let song = ui.node(
-        "equalizer-song",
-        Node {
-            w: Size::Px(0.0),
-            h: Size::Px(0.0),
-            ..Node::DEFAULT
-        },
-    );
+    let song = ui.node("equalizer-song", Node::column().w_px(0.0).h_px(0.0));
     let active = playing && visible && !ui.tokens().reduced_motion;
     let changed = ui.state(&root, -1) != i64::from(active) || ui.state(&song, i64::MIN) != id;
     ui.set_state(&root, i64::from(active));
@@ -38,22 +23,13 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
             let position = ui.node(
                 key,
                 Node {
-                    w: Size::Px(2.0),
-                    h: Size::Px(11.0),
                     at: Some((index as f32 * 4.0, 0.0)).into(),
-                    ..Node::DEFAULT
+                    ..Node::column().w_px(2.0).h_px(11.0)
                 },
             );
             ui.within(&position, &mut |ui| {
                 let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let fill = ui.node(
-                        "fill",
-                        Node {
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.draw(&fill, move |paint, rect| {
                         paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, accent)
@@ -115,16 +91,7 @@ pub(in crate::shell) fn glyph(
     visible: bool,
 ) {
     use lw_core::{FileAvailability, FileState};
-    let root = ui.node(
-        "availability",
-        Node {
-            axis: Axis::Stack,
-            w: Size::Px(10.0),
-            h: Size::Px(10.0),
-            role: Role::Image,
-            ..Node::DEFAULT
-        },
-    );
+    let root = ui.node("availability", Node::stack().w_px(10.0).h_px(10.0).role(Role::Image));
     let label = match state {
         FileState::CopyPending => "Preparing offline copy",
         FileState::Failed => "File unavailable — retry",
@@ -183,14 +150,7 @@ pub(in crate::shell) fn glyph(
         ui.within(&root, &mut |ui| {
             for (index, key) in ["left", "right"].into_iter().enumerate() {
                 let half = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let fill = ui.node(
-                        "fill",
-                        Node {
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.draw(&fill, move |paint, rect| {
                         paint.fill_fractional(
@@ -362,13 +322,11 @@ impl Rows<'_> {
                 let row = catalog.row(collection.rows[index]);
                 let root = ui.node(
                     "song",
-                    Node {
-                        flags: CLICKABLE | TAB_STOP,
-                        role: Role::ListItem,
-                        w: Size::Grow,
-                        h: Size::Px(layout.height),
-                        ..Node::DEFAULT
-                    },
+                    Node::column()
+                        .w(Size::Grow)
+                        .h_px(layout.height)
+                        .role(Role::ListItem)
+                        .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                 );
                 ui.a11y_name(&root, row.title);
                 let signal = ui.signal_state(&root);
@@ -451,10 +409,8 @@ impl Rows<'_> {
                         let at = ui.node(
                             "equalizer-position",
                             Node {
-                                w: Size::Px(14.0),
-                                h: Size::Px(11.0),
                                 at: Some((32.0, layout.y(11.0))).into(),
-                                ..Node::DEFAULT
+                                ..Node::column().w_px(14.0).h_px(11.0)
                             },
                         );
                         ui.within(&at, &mut |ui| {
@@ -472,10 +428,8 @@ impl Rows<'_> {
                         let at = ui.node(
                             "availability-position",
                             Node {
-                                w: Size::Px(10.0),
-                                h: Size::Px(10.0),
                                 at: Some((x, layout.y(10.0))).into(),
-                                ..Node::DEFAULT
+                                ..Node::column().w_px(10.0).h_px(10.0)
                             },
                         );
                         ui.within(&at, &mut |ui| {
@@ -522,12 +476,12 @@ impl Rows<'_> {
                     let more = ui.node(
                         "actions",
                         Node {
-                            flags: CLICKABLE | TAB_STOP,
-                            role: Role::Button,
-                            w: Size::Px(32.0),
-                            h: Size::Px(32.0),
                             at: Some((x, (layout.height - 32.0) * 0.5)).into(),
-                            ..Node::DEFAULT
+                            ..Node::column()
+                                .w_px(32.0)
+                                .h_px(32.0)
+                                .role(Role::Button)
+                                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
                         },
                     );
                     ui.a11y_name(&more, row.actions_label);
@@ -554,12 +508,12 @@ impl Rows<'_> {
                         let grip = ui.node(
                             "reorder-listed",
                             Node {
-                                flags: CLICKABLE | TAB_STOP,
-                                role: Role::Button,
-                                w: Size::Px(24.0),
-                                h: Size::Px(layout.height),
                                 at: Some((2.0, 0.0)).into(),
-                                ..Node::DEFAULT
+                                ..Node::column()
+                                    .w_px(24.0)
+                                    .h_px(layout.height)
+                                    .role(Role::Button)
+                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
                             },
                         );
                         ui.a11y_name(&grip, "Reorder track");

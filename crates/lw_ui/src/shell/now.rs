@@ -13,28 +13,17 @@ pub(super) fn now_panel(
     let root = ui.node(
         "now",
         Node {
-            w: Size::Grow,
-            h: Size::Grow,
             padding: Edges {
                 l: 20.0,
                 r: 20.0,
                 t: 8.0,
                 b: 0.0,
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h(Size::Grow)
         },
     );
     ui.within(&root, &mut |ui| {
-        let head = ui.node(
-            "header",
-            Node {
-                axis: Axis::Row,
-                align: Align::Center,
-                w: Size::Px(289.0),
-                h: Size::Px(36.0),
-                ..Node::DEFAULT
-            },
-        );
+        let head = ui.node("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center));
         ui.within(&head, &mut |ui| {
             text(
                 ui,
@@ -87,15 +76,7 @@ pub(super) fn now_panel(
             )
         });
         // Swift's heart sits at the end of the title row, level with the title.
-        let title_row = ui.node(
-            "title-row",
-            Node {
-                axis: Axis::Row,
-                w: Size::Grow,
-                h: Size::Fit,
-                ..Node::DEFAULT
-            },
-        );
+        let title_row = ui.node("title-row", Node::row().w(Size::Grow).h(Size::Fit));
         ui.within(&title_row, &mut |ui| {
             let information_revision = crate::hash((
                 player.revision,
@@ -110,15 +91,12 @@ pub(super) fn now_panel(
                     let title = ui.node(
                         "current-track",
                         Node {
-                            w: Size::Grow,
-                            h: Size::Fit,
                             min_h: 22.8,
-                            role: Role::Label,
                             look: Look {
                                 text: ui.color(INK),
                                 ..Look::NONE
                             },
-                            ..Node::DEFAULT
+                            ..Node::column().w(Size::Grow).h(Size::Fit).role(Role::Label)
                         },
                     );
                     let value = if !player.initialized {
@@ -178,16 +156,7 @@ pub(super) fn now_panel(
             Size::Grow,
             Size::Px(43.0),
             &mut |ui| {
-                let clock = ui.node(
-                    "clock",
-                    Node {
-                        axis: Axis::Row,
-                        align: Align::End,
-                        w: Size::Grow,
-                        h: Size::Px(43.0),
-                        ..Node::DEFAULT
-                    },
-                );
+                let clock = ui.node("clock", Node::row().w(Size::Grow).h_px(43.0).align(Align::End));
                 ui.within(&clock, &mut |ui| {
                     matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
                     ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
@@ -257,20 +226,19 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     let node = ui.node(
         "favorite",
         Node {
-            axis: Axis::Stack,
-            flags: if current.is_some() {
-                CLICKABLE | TAB_STOP
-            } else {
-                0
-            },
-            w: Size::Px(36.0),
-            h: Size::Px(28.0),
-            role: Role::Button,
             state: State {
                 disabled: current.is_none(),
                 ..State::default()
             },
-            ..Node::DEFAULT
+            ..Node::stack()
+                .w_px(36.0)
+                .h_px(28.0)
+                .role(Role::Button)
+                .flags(if current.is_some() {
+                    Flags::CLICKABLE | Flags::TAB_STOP
+                } else {
+                    Flags::NONE
+                })
         },
     );
     let signal = ui.signal_state(&node);
@@ -294,14 +262,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     let revision = crate::hash((on, signal.hovered, signal.held, current.is_some()));
     ui.within(&node, &mut |ui| {
         let heart = ui.view("heart", revision, Size::Grow, Size::Grow, &mut |ui| {
-            let surface = ui.node(
-                "surface",
-                Node {
-                    w: Size::Grow,
-                    h: Size::Grow,
-                    ..Node::DEFAULT
-                },
-            );
+            let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
             ui.draw(&surface, move |paint, rect| {
                 let side = 20.0;
                 let area = Rect {
@@ -318,23 +279,14 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
             let slot = ui.node(
                 key,
                 Node {
-                    w: Size::Px(4.0),
-                    h: Size::Px(4.0),
                     at: Some((16.0, 12.0)).into(),
-                    ..Node::DEFAULT
+                    ..Node::column().w_px(4.0).h_px(4.0)
                 },
             );
             let mut ray = None;
             ui.within(&slot, &mut |ui| {
                 ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let dot = ui.node(
-                        "dot",
-                        Node {
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let dot = ui.node("dot", Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.draw(&dot, move |paint, rect| {
                         paint.fill(rect.x, rect.y, rect.w, rect.h, accent)
@@ -402,16 +354,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
         Size::Grow,
         Size::Px(79.2),
         &mut |ui| {
-            let column = ui.node(
-                "rows",
-                Node {
-                    axis: Axis::Column,
-                    w: Size::Grow,
-                    h: Size::Fit,
-                    gap: 4.0,
-                    ..Node::DEFAULT
-                },
-            );
+            let column = ui.node("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0));
             ui.within(&column, &mut |ui| {
                 for (key, label, value, ink) in [
                     ("format", "Format", &info.format, ui.color(SECONDARY)),
@@ -419,17 +362,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                     ("file", "File", &info.file, ui.color(INK)),
                     ("plays", "Plays", &info.plays, ui.color(SECONDARY)),
                 ] {
-                    let row = ui.node(
-                        key,
-                        Node {
-                            axis: Axis::Row,
-                            w: Size::Grow,
-                            h: Size::Px(16.8),
-                            gap: 8.0,
-                            role: Role::Label,
-                            ..Node::DEFAULT
-                        },
-                    );
+                    let row = ui.node(key, Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
                     ui.within(&row, &mut |ui| {
                         text(
                             ui,

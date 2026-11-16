@@ -13,10 +13,6 @@ fn back(ui: &mut Ui, name: &str) -> bool {
     let button = ui.node(
         name,
         Node {
-            flags: CLICKABLE | FOCUSABLE,
-            role: Role::Button,
-            w: Size::Grow,
-            h: Size::Px(44.0),
             look: Look {
                 text: ui.color(SECONDARY),
                 font: Font {
@@ -25,7 +21,7 @@ fn back(ui: &mut Ui, name: &str) -> bool {
                 },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
         },
     );
     ui.text(&button, name);
@@ -59,14 +55,11 @@ pub(super) fn paragraph(
     let node = ui.node(
         key,
         Node {
-            w: Size::Grow,
-            h: Size::Px(metrics.height.max(style.line_height)),
-            role: Role::Paragraph,
             look: Look {
                 text: color,
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h_px(metrics.height.max(style.line_height)).role(Role::Paragraph)
         },
     );
     ui.text_line_box(&node, value, &style, &[]).unwrap();
@@ -123,31 +116,26 @@ fn row(
         key,
         Node {
             axis: if stacked { Axis::Column } else { Axis::Row },
-            align: if stacked { Align::Start } else { Align::Center },
-            flags: if toggle.is_some() {
-                CLICKABLE | FOCUSABLE
-            } else if menu.is_some() || tap {
-                CLICKABLE | FOCUSABLE
-            } else {
-                0
-            },
-            role: if toggle.is_some() {
-                Role::Toggle
-            } else if tap {
-                Role::Button
-            } else {
-                Role::Group
-            },
-            w: Size::Grow,
-            h: Size::Px(row_height),
-            padding: Edges {
-                l: 16.0,
-                r: 16.0,
-                t: 0.0,
-                b: 0.0,
-            },
-            gap: 8.0,
-            ..Node::DEFAULT
+            ..Node::column()
+                .w(Size::Grow)
+                .h_px(row_height)
+                .gap(8.0)
+                .pad_x(16.0)
+                .align(if stacked { Align::Start } else { Align::Center })
+                .role(if toggle.is_some() {
+                    Role::Toggle
+                } else if tap {
+                    Role::Button
+                } else {
+                    Role::Group
+                })
+                .flags(if toggle.is_some() {
+                    Flags::CLICKABLE | Flags::FOCUSABLE
+                } else if menu.is_some() || tap {
+                    Flags::CLICKABLE | Flags::FOCUSABLE
+                } else {
+                    Flags::NONE
+                })
         },
     );
     ui.a11y_name(&node, title);
@@ -165,14 +153,14 @@ fn row(
         let labels = ui.node(
             "labels",
             Node {
-                w: Size::Grow,
-                h: if stacked {
-                    Size::Px(label_height)
-                } else {
-                    Size::Grow
-                },
                 justify: Justify::Center,
-                ..Node::DEFAULT
+                ..Node::column()
+                    .w(Size::Grow)
+                    .h(if stacked {
+                        Size::Px(label_height)
+                    } else {
+                        Size::Grow
+                    })
             },
         );
         ui.within(&labels, &mut |ui| {
@@ -181,14 +169,11 @@ fn row(
                 let label = ui.node(
                     "detail",
                     Node {
-                        w: Size::Grow,
-                        h: Size::Px(detail_height),
-                        role: Role::Label,
                         look: Look {
                             text: ui.color(SECONDARY),
                             ..Look::NONE
                         },
-                        ..Node::DEFAULT
+                        ..Node::column().w(Size::Grow).h_px(detail_height).role(Role::Label)
                     },
                 );
                 ui.text_line_box(&label, detail, &label_style, &[]).unwrap();
@@ -198,27 +183,23 @@ fn row(
             let track = ui.node(
                 "switch",
                 Node {
-                    w: Size::Px(48.0),
-                    h: Size::Px(28.0),
                     look: Look {
                         fill: if on { ui.color(INK) } else { ui.color(LINE) },
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column().w_px(48.0).h_px(28.0)
                 },
             );
             ui.within(&track, &mut |ui| {
                 ui.node(
                     "knob",
                     Node {
-                        w: Size::Px(22.0),
-                        h: Size::Px(22.0),
                         at: Some((if on { 23.0 } else { 3.0 }, 3.0)).into(),
                         look: Look {
                             fill: ui.color(PAPER),
                             ..Look::NONE
                         },
-                        ..Node::DEFAULT
+                        ..Node::column().w_px(22.0).h_px(22.0)
                     },
                 );
             });
@@ -257,16 +238,7 @@ fn option(
     let button = ui.node(
         label,
         Node {
-            flags: CLICKABLE | FOCUSABLE | FIT_TEXT,
-            role: Role::Toggle,
-            w: Size::Grow,
-            h: Size::Px(28.0),
             min_w: 40.0,
-            padding: Edges {
-                l: 8.0,
-                r: 8.0,
-                ..Edges::ZERO
-            },
             look: Look {
                 fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
                 text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
@@ -276,7 +248,12 @@ fn option(
                 },
                 ..Look::NONE
             },
-            ..Node::DEFAULT
+            ..Node::column()
+                .w(Size::Grow)
+                .h_px(28.0)
+                .pad_x(8.0)
+                .role(Role::Toggle)
+                .flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
         },
     );
     ui.text(&button, label);
@@ -307,15 +284,12 @@ pub(super) fn view(
     let page = ui.node(
         "settings-page",
         Node {
-            flags: SCROLL | CLIP,
-            w: Size::Grow,
-            h: Size::Grow,
             padding: Edges {
                 t: 10.0,
                 b: 24.0,
                 ..Edges::ZERO
             },
-            ..Node::DEFAULT
+            ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP)
         },
     );
     ui.set_role(&page, Role::Group, 0);
@@ -332,7 +306,7 @@ pub(super) fn view(
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
-        let title = ui.node("settings-title", Node { role: Role::Heading, w: Size::Grow, h: Size::Px(56.0), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
+        let title = ui.node("settings-title", Node::column().w(Size::Grow).h_px(56.0).pad_x(16.0).role(Role::Heading));
         ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -1.12), ui.color(INK), 0); });
         ui.a11y_name(&title, heading);
         if state.privacy_visible {
@@ -342,7 +316,7 @@ pub(super) fn view(
                 ("Files and iCloud Drive", "Files you select from iCloud Drive or another provider may need downloading through that provider. LocalWave does not receive your Apple Account password."),
                 ("Removing your data", "Removing a library entry removes its database record; cached audio or artwork may remain. Removing LocalWave’s local app data erases its library and logs. Your original files stay where they are."),
             ] {
-                let section = ui.node(title, Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, ..Node::DEFAULT });
+                let section = ui.node(title, Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0));
                 ui.within(&section, &mut |ui| {
                     text(ui, "heading", title, 18, ui.color(INK), (Size::Grow, 26.0), false);
                     paragraph(ui, title, body, width - 32.0, 14.0, ui.color(SECONDARY));
@@ -363,19 +337,19 @@ pub(super) fn view(
         row(ui, "no-network", ("Simulate no network", "Prototype only — shows skipped songs and failed downloads"), width, (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         row(ui, "cache", ("Offline space", cache_detail), width, (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
-            let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(174.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::DEFAULT });
+            let group = ui.node("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) });
             ui.within(&group, &mut |ui| { for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
                 option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
             }});
         });
         row(ui, "appearance", ("Appearance", ""), width, (None, Some(SettingsMenu::Appearance), false), intent, &mut |ui, intent| {
-            let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(204.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::DEFAULT });
+            let group = ui.node("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) });
             ui.within(&group, &mut |ui| { for (value, label, name) in [(Appearance::System, "System", "Use system appearance"), (Appearance::Light, "Light", "Use light appearance"), (Appearance::Dark, "Dark", "Use dark appearance")] {
                 option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
             }});
         });
         row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), width, (None, None, true), intent, &mut |ui, _| {
-            let glyph = ui.node("chevron", Node { w: Size::Px(18.0), h: Size::Px(18.0), ..Node::DEFAULT });
+            let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
             let color = ui.color(INK);
             ui.draw(&glyph, move |paint, rect| {
                 for step in 0..6 {
@@ -385,7 +359,7 @@ pub(super) fn view(
                 }
             });
         });
-        let footer = ui.node("settings-footer", Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, ..Node::DEFAULT });
+        let footer = ui.node("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0));
         ui.within(&footer, &mut |ui| {
             paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, ui.color(SECONDARY));
             if back(ui, "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
@@ -464,15 +438,6 @@ pub(super) fn popup(
                 let node = ui.node(
                     label,
                     Node {
-                        flags: CLICKABLE | FOCUSABLE,
-                        role: Role::Toggle,
-                        w: Size::Grow,
-                        h: Size::Px(36.0),
-                        padding: Edges {
-                            l: 12.0,
-                            r: 12.0,
-                            ..Edges::ZERO
-                        },
                         look: Look {
                             fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                             text: ui.color(INK),
@@ -482,7 +447,12 @@ pub(super) fn popup(
                             },
                             ..Look::NONE
                         },
-                        ..Node::DEFAULT
+                        ..Node::column()
+                            .w(Size::Grow)
+                            .h_px(36.0)
+                            .pad_x(12.0)
+                            .role(Role::Toggle)
+                            .flags(Flags::CLICKABLE | Flags::FOCUSABLE)
                     },
                 );
                 ui.text(&node, label);

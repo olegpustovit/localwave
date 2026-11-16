@@ -68,14 +68,7 @@ pub(super) fn draw(
         )
     });
     let (rects, height) = positions(width, sizes);
-    let root = ui.node(
-        "byline",
-        Node {
-            w: Size::Px(width),
-            h: Size::Px(height),
-            ..Node::DEFAULT
-        },
-    );
+    let root = ui.node("byline", Node::column().w_px(width).h_px(height));
     ui.within(&root, &mut |ui| {
         for index in [0, 2, 4] {
             let rect = rects[index];
@@ -83,10 +76,6 @@ pub(super) fn draw(
             let node = ui.node(
                 ["artist", "space-one", "separator", "space-two", "album"][index],
                 Node {
-                    flags: if link { CLICKABLE | TAB_STOP } else { 0 },
-                    role: if link { Role::Button } else { Role::Label },
-                    w: Size::Px(rect.w),
-                    h: Size::Px(rect.h),
                     at: Some((rect.x, rect.y)).into(),
                     inset: Edges {
                         t: if link { 2.0 } else { 0.0 },
@@ -96,7 +85,11 @@ pub(super) fn draw(
                         text: ui.color(SECONDARY),
                         ..Look::NONE
                     },
-                    ..Node::DEFAULT
+                    ..Node::column()
+                        .w_px(rect.w)
+                        .h_px(rect.h)
+                        .role(if link { Role::Button } else { Role::Label })
+                        .flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
                 },
             );
             ui.text_line_box(&node, values[index], &styles[index], &[])
