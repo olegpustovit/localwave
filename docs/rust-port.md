@@ -136,9 +136,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.24 | Docs: ffi.rs (4) | todo |  |
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
-| DX7.1 | Generated layout manifest; C static asserts | todo |  |
+| DX7.1 | Generated layout manifest; C static asserts | done | HEAD + pxui 8b4dcae |
 | DX7.2 | Size-prefix negative table | todo |  |
-| DX7.3 | ABI policy in docs/abi.md | done | HEAD + pxui e387123 |
+| DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | todo |  |
+| DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | todo |  |
 | DX7.6 | Reserved surface id | todo |  |
