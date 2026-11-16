@@ -67,7 +67,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.2 | Allocation tripwire: warm_scope/take_reports | done | f126022 + pxui 53d48ba |
 | DX0.3 | Measured uncovered workloads (PERF) | todo |  |
 | DX0.4 | cargo t --doc in the runner | todo |  |
-| DX0.5 | Gate: author-shim rule | done | HEAD + pxui 2e6a4ec |
+| DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | todo |  |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | todo |  |
@@ -110,7 +110,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
 | DX5.5 | Reusable layout storage for fresh shapes | todo |  |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
-| DX6.1 | Public API documentation section; ABI text only in docs/abi.md | todo |  |
+| DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | HEAD + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | todo |  |
 | DX6.4 | Docs: model and frame | todo |  |
