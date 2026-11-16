@@ -2,14 +2,14 @@
 # Capture 1440x872 goldens: Swift reference fixture (iOS simulator canvas, DEBUG capture hook) and the
 # Rust app (--reference-screen, real window via screencapture: pxui_host has no pixel readback).
 # MOBILE=1: 390x778 canvas (Swift without LOCALWAVE_REFERENCE_DESKTOP; Rust compact window), default OUTDIR /tmp/localwave-goldens-mobile.
-# Usage: tools/reference-goldens.sh [OUTDIR]; SKIP_BUILD=1 reuses builds, SKIP_SWIFT=1 skips the Swift captures, ONLY="a b" limits the Rust screens. Then tools/compare-goldens.py OUTDIR.
+# Usage: tools/reference-goldens.sh [OUTDIR]; SKIP_BUILD=1 reuses builds, SKIP_SWIFT=1 skips the Swift captures, SWIFT_ONLY="a b" limits them, ONLY="a b" limits the Rust screens. Then tools/compare-goldens.py OUTDIR.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 if [ -n "${MOBILE:-}" ]; then OUT=${1:-/tmp/localwave-goldens-mobile}; W=390 H=778 DESKTOP=; else OUT=${1:-/tmp/localwave-goldens}; W=1440 H=872 DESKTOP=1; fi
 SIM=${SIMULATOR:-booted}
 BUNDLE=com.olegpustovit.localwave
 # Swift screens; add (picker sheet) and track (anchored popup never paints in the Rust capture) are captured, not compared.
-SWIFT_SCREENS="songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue add folder track onboarding"
+SWIFT_SCREENS=${SWIFT_ONLY:-"songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue add folder track onboarding"}
 RUST_SCREENS=${ONLY:-"songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue folder onboarding"}
 mkdir -p "$OUT/reference" "$OUT/rust"
 

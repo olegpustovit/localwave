@@ -142,7 +142,7 @@ struct MainTabView: View {
                 case "artists": section = "Artists"
                 case "album": section = "Albums"; playbackDestination = .album(name: "Field Recordings 04", artist: "Halden Marsh")
                 case "artist": section = "Artists"; playbackDestination = .artist("Juno Abara")
-                case "list": if let list = lists.first, let id = list.id { section = "List:\(id)" }
+                case "list": if let list = lists.first, let id = list.id { section = "Albums"; playbackDestination = .playlist(id: id, name: list.name) }
                 case "favorites": section = "Favorites"
                 case "find-results":
                     navigation.replace(LWRootNavigationFrame(section: "Find", query: "cloud"))
