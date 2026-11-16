@@ -81,9 +81,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
 | DX1.3 | Key type; row/column/stack shims | done | f3b89c5 + pxui 64f2bba |
 | DX1.4 | label and label_fmt | done | 25544b5 + pxui 8c3116b |
-| DX1.5 | Response and pressable | done | HEAD + pxui ac973af |
+| DX1.5 | Response and pressable | done | 19cb7d8 + pxui ac973af |
 | DX1.6 | view_of and hash_of | done | aebb68e + pxui 5e63962 |
-| DX1.7 | local_bool/local_i64/local_f32 | todo |  |
+| DX1.7 | local_bool/local_i64/local_f32 | done | HEAD + pxui 770760a |
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
