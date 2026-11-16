@@ -239,15 +239,15 @@ pub(super) fn desktop(
         spacer(ui, "titlebar-clearance", top);
         let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, p.paper);
         ui.within(&work, &mut |ui| {
-            // A carry hovering a list row highlights it and a drop reads once; the engine does not say
-            // which row, so the sidebar rebuilds on every frame of a carry and the one after it.
-            let carrying = if ui.carrying_ref().is_some() {
-                state.carried.set(true);
-                (1u8, ui.frame_index())
+            // A carry hovering a list row or a queue gap highlights it and a drop reads once; the engine
+            // does not say which, so the views showing drop targets rebuild on every frame of a carry
+            // and the one after it.
+            let carry = if ui.carrying_ref().is_some() {
+                crate::hash((1u8, ui.frame_index()))
             } else {
-                (u8::from(state.carried.replace(false)) * 2, 0)
+                u64::from(state.carried.get()) * 2
             };
-            let revision = crate::hash((state.revision, catalog.all.is_some(), carrying));
+            let revision = crate::hash((state.revision, catalog.all.is_some(), carry));
             ui.view(
                 "sidebar",
                 revision,
@@ -310,7 +310,7 @@ pub(super) fn desktop(
             if panel {
                 rule(ui, "panel-divider", true, p);
                 let panel_revision = crate::hash((
-                    (player.revision, position.to_bits()),
+                    (player.revision, position.to_bits(), carry),
                     player.artwork.map_or(0, crate::artwork::Images::revision),
                     catalog.queue.as_ref().map(|queue| queue.revision),
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -332,7 +332,7 @@ pub(super) fn desktop(
                         panel_revision,
                         Size::Grow,
                         Size::Grow,
-                        &mut |ui| now_panel(ui, player, position, catalog, p, intent),
+                        &mut |ui| now_panel(ui, player, position, catalog, carry, p, intent),
                     );
                     ui.view_clip(
                         &panel,
@@ -374,6 +374,8 @@ pub(super) fn desktop(
             &mut |ui| transport(ui, player, position, panel, p, intent),
         );
     });
+    // A carry a row starts mid-build shows from the next frame; one that ended shows its last view once.
+    state.carried.set(ui.carrying_ref().is_some());
     root
 }
 

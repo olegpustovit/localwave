@@ -790,7 +790,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
     )));
     let mut state = ShellState::default();
     state.apply(Intent::SelectRow(0));
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut player = PlayerView {
         waveform: Some(&[0.5; 512]),

@@ -7,6 +7,7 @@ pub(super) fn now_panel(
     player: &PlayerView<'_>,
     position: f64,
     catalog: &Catalog,
+    carry: u64,
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
@@ -230,6 +231,7 @@ pub(super) fn now_panel(
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,
             player.artwork.map_or(0, crate::artwork::Images::revision),
+            carry,
         ));
         ui.view(
             "up-next",

@@ -75,7 +75,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | done | HEAD |
 | DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | HEAD |
 | DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | blocked | DX0.7g: heart draw segments of a nested view differ only with a11y on |
-| DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | todo |  |
+| DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | done | HEAD |
 | DX0.7g | pxui verify_views: replay transitions started in a body and nested-view draw segments under a11y (blocks DX0.7b/e) | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
