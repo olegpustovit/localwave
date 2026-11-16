@@ -70,7 +70,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
-| DX1.1 | const fn builders on Node, Look, Edges, Font | done | HEAD + pxui 86c1601 |
+| DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | todo |  |
 | DX1.3 | Key type; row/column/stack shims | todo |  |
 | DX1.4 | label and label_fmt | todo |  |
@@ -138,7 +138,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
-| DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | todo |  |
+| DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | HEAD + pxui 61e0cf6 |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | todo |  |
