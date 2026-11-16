@@ -31,7 +31,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, p: Palette, intent: &mut Option<
     ui.within(&root, &mut |ui| {
         ui.view(
             "onboarding-page",
-            pxui::hash!((column.to_bits(), top_inset.to_bits(), drive)),
+            crate::hash((column.to_bits(), top_inset.to_bits(), drive)),
             Size::Grow,
             Size::Grow,
             &mut |ui| {

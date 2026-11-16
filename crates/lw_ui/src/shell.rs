@@ -628,7 +628,7 @@ impl ShellState {
 }
 
 fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellState) -> u64 {
-    pxui::hash!((
+    crate::hash((
         state.revision,
         (
             state.selection_revision,

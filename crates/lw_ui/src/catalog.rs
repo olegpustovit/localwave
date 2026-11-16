@@ -532,8 +532,8 @@ impl Library {
         context: PlaybackContext,
     ) -> Collection {
         let key = match &context {
-            PlaybackContext::Playlist { id, .. } => pxui::hash!((true, id)),
-            context => pxui::hash!((false, context)),
+            PlaybackContext::Playlist { id, .. } => crate::hash((true, id)),
+            context => crate::hash((false, context)),
         };
         let mut occurrences = HashMap::new();
         let row_keys = rows

@@ -343,7 +343,7 @@ pub(super) fn table(
         state.route,
     );
     let heading_layout = heading_layout(ui, catalog, widths, applied);
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         widths.map(f32::to_bits),

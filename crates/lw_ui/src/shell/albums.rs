@@ -162,7 +162,7 @@ pub(super) fn gallery(
         onboarding::empty_library(ui, catalog, state, width, p, intent);
         return;
     }
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         player.current_id,
         player.artwork.map_or(0, crate::artwork::Images::revision),

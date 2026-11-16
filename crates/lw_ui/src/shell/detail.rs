@@ -159,7 +159,7 @@ pub(super) fn header(
     // Albums are small; the artist page has no kept state.
     let folder = group.folder.is_some();
     let kept = album && !group.rows.is_empty() && group.rows.iter().all(|&row| catalog.row(row).pinned);
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         width.to_bits(),

@@ -355,7 +355,7 @@ pub(super) fn view(
                     Size::Grow,
                     p.paper,
                 );
-                let route_key = pxui::hash!((
+                let route_key = crate::hash((
                     state.route,
                     state.settings_visible,
                     if state.route == Route::Find {

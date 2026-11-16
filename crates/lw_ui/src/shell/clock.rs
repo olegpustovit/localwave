@@ -173,7 +173,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
             ui.set_state(&previous, old as i64);
         }
         let before = label(ui.state(&previous, seconds as i64) as u64);
-        let revision = pxui::hash!((shown.bytes(), before.bytes()));
+        let revision = crate::hash((shown.bytes(), before.bytes()));
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
             ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {

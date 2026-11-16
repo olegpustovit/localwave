@@ -335,7 +335,7 @@ impl Rows<'_> {
         let reorder = self.reorderable() && widths[Column::Number as usize] >= 32.0;
         let current = player.current_id == Some(row.id);
         let marked = state.is_marked(index);
-        let revision = pxui::hash!((revision, current, marked));
+        let revision = crate::hash((revision, current, marked));
         let layout = row_layout(
             ui,
             catalog,
@@ -349,7 +349,7 @@ impl Rows<'_> {
         let visible = y + 11.0 > (viewport.leading - viewport.offset).max(0.0) + viewport.heading
             && y < viewport.height;
         let visual_revision = if current || row.state == lw_core::FileState::CopyPending {
-            pxui::hash!((revision, current && player.playing, visible))
+            crate::hash((revision, current && player.playing, visible))
         } else {
             revision
         };

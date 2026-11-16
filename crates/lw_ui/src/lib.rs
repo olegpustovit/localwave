@@ -10,6 +10,10 @@ pub mod now_info;
 pub mod queue;
 mod shell;
 pub mod song_text;
+
+/// pxui's deterministic fast hash of one value (a revision or identity key; not a DoS-resistant map hash).
+#[inline]
+pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 { pxui::hash(|state| value.hash(state)) }
 pub use shell::{ShellState, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");

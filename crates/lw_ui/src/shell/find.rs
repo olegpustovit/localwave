@@ -115,7 +115,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> 
             before != i64::from(selected),
         );
         background(ui, "press", p.panel, signal.held, false);
-        let revision = pxui::hash!((label, selected));
+        let revision = crate::hash((label, selected));
         ui.view("action-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
             let row = ui.node(
                 "content",

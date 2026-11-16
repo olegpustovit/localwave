@@ -259,9 +259,9 @@ pub(super) fn desktop(
                         .collection(state.route)
                         .filter(|_| state.route != Route::Find)
                     {
-                        pxui::hash!((true, group.key))
+                        crate::hash((true, group.key))
                     } else {
-                        pxui::hash!((false, state.route))
+                        crate::hash((false, state.route))
                     };
                     let route = ui.node_keyed(
                         int_key(Ui::key_of(0, "localwave-library-route"), route_key as i64),
@@ -301,7 +301,7 @@ pub(super) fn desktop(
             );
             if panel {
                 rule(ui, "panel-divider", true, p);
-                let panel_revision = pxui::hash!((
+                let panel_revision = crate::hash((
                     (player.revision, position.to_bits()),
                     player.artwork.map_or(0, crate::artwork::Images::revision),
                     catalog.queue.as_ref().map(|queue| queue.revision),
@@ -356,7 +356,7 @@ pub(super) fn desktop(
         rule(ui, "transport-divider", false, p);
         ui.view(
             "transport",
-            pxui::hash!((player.revision, position.to_bits(), panel)),
+            crate::hash((player.revision, position.to_bits(), panel)),
             Size::Grow,
             Size::Px(71.0),
             &mut |ui| transport(ui, player, position, panel, p, intent),

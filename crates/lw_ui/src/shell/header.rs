@@ -196,7 +196,7 @@ pub(super) fn compact_find(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         (state.selecting, state.selection_revision),
         theme.map_or(0, |t| t as *const pxui::Theme as usize),
@@ -398,7 +398,7 @@ pub(super) fn header_view(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         catalog
@@ -444,7 +444,7 @@ pub(super) fn find_tokens(
     intent: &mut Option<Intent>,
 ) {
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
-    let revision = pxui::hash!((state.query_revision, width.to_bits()));
+    let revision = crate::hash((state.query_revision, width.to_bits()));
     ui.view(
         "find-tokens",
         revision,

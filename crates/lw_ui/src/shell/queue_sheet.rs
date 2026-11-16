@@ -442,7 +442,7 @@ pub(super) fn queue_sheet(
                         }
                     });
                 } else {
-                    let revision = pxui::hash!((
+                    let revision = crate::hash((
                         queue.map(|queue| queue.revision),
                         std::sync::Arc::as_ptr(&catalog.library) as usize,
                         width.to_bits(),
@@ -609,7 +609,7 @@ fn now_row(
         ui.within(&bars, &mut |ui| {
             ui.view(
                 "equalizer-view",
-                pxui::hash!((player.playing, song.id)),
+                crate::hash((player.playing, song.id)),
                 Size::Grow,
                 Size::Grow,
                 &mut |ui| super::songs::row::equalizer(ui, player.playing, true, song.id, p),

@@ -110,7 +110,7 @@ impl Window {
                     let record = text.prepare(value, &style, available.max(0.01), &[])?;
                     let width = record.metrics().width;
                     records[next] = Some((
-                        pxui::hash!((column as u8, current, available.max(0.01).to_bits(), value)),
+                        crate::hash((column as u8, current, available.max(0.01).to_bits(), value)),
                         record,
                     ));
                     next += 1;
@@ -121,7 +121,7 @@ impl Window {
                 width = (width * self.density).ceil() / self.density;
             }
             records[next] = Some((
-                pxui::hash!((column as u8, current, width.to_bits(), value)),
+                crate::hash((column as u8, current, width.to_bits(), value)),
                 text.prepare(value, &style, width, &[])?,
             ));
             next += 1;

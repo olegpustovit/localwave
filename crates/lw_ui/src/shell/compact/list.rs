@@ -604,7 +604,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         .artist_albums
         .get(artist)
         .map_or(&[][..], Vec::as_slice);
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         width.to_bits(),
@@ -998,7 +998,7 @@ fn album_lead_height() -> f32 {
 }
 fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     let Cx { catalog, collection, state, player, width, p, .. } = *cx;
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         width.to_bits(),
@@ -1043,7 +1043,7 @@ fn collection_lead_height() -> f32 {
 }
 fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     let Cx { catalog, collection, state, p, .. } = *cx;
-    let revision = pxui::hash!((
+    let revision = crate::hash((
         state.revision,
         collection.key,
         std::sync::Arc::as_ptr(&catalog.library) as usize,

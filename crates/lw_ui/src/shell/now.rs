@@ -97,7 +97,7 @@ pub(super) fn now_panel(
             },
         );
         ui.within(&title_row, &mut |ui| {
-            let information_revision = pxui::hash!((
+            let information_revision = crate::hash((
                 player.revision,
                 std::sync::Arc::as_ptr(&catalog.library) as usize,
             ));
@@ -174,7 +174,7 @@ pub(super) fn now_panel(
         spacer(ui, "title-clock-gap", 14.0);
         let clock_group = ui.view(
             "playback-clock",
-            pxui::hash!((player.revision, position.to_bits())),
+            crate::hash((player.revision, position.to_bits())),
             Size::Grow,
             Size::Px(43.0),
             &mut |ui| {
@@ -226,7 +226,7 @@ pub(super) fn now_panel(
         }
         spacer(ui, "queue-gap", 14.0);
         rule(ui, "queue-divider", false, p);
-        let queue_revision = pxui::hash!((
+        let queue_revision = crate::hash((
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,
             player.artwork.map_or(0, crate::artwork::Images::revision),
@@ -290,7 +290,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Pale
         ui.set_state(&node, seen);
     }
     let color = if on { p.signal } else { p.secondary };
-    let revision = pxui::hash!((on, signal.hovered, signal.held, current.is_some()));
+    let revision = crate::hash((on, signal.hovered, signal.held, current.is_some()));
     ui.within(&node, &mut |ui| {
         let heart = ui.view("heart", revision, Size::Grow, Size::Grow, &mut |ui| {
             let surface = ui.node(
@@ -393,7 +393,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>, p: Palette) {
     spacer(ui, "metadata-gap", 14.0);
     rule(ui, "metadata-divider", false, p);
     spacer(ui, "metadata-top", 13.0);
-    let revision = pxui::hash!((info as *const crate::now_info::NowInfo as usize));
+    let revision = crate::hash(info as *const crate::now_info::NowInfo as usize);
     ui.view(
         "now-metadata",
         revision,

@@ -119,7 +119,7 @@ impl Item {
         artwork: Option<usize>,
         action: Action,
     ) -> Self {
-        let key = pxui::hash!((group, label, hint, action));
+        let key = crate::hash((group, label, hint, action));
         Self {
             key,
             group,
