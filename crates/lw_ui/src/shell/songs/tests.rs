@@ -2053,7 +2053,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     state.apply(Intent::Navigate(Route::Songs));
     state.apply(Intent::Select(crate::Selection::Toggle(1)));
     state.apply(Intent::Select(crate::Selection::Toggle(3)));
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let damage = Cell::new([0.0f32; 4]);

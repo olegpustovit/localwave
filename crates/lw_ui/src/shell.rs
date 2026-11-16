@@ -38,6 +38,8 @@ pub struct ShellState {
     refresh_wait: std::cell::Cell<Option<(u64, f64)>>,
     refresh_ending: std::cell::Cell<bool>,
     song_window: std::cell::Cell<Option<crate::song_text::Window>>,
+    /// A carry was in flight the last frame, so the sidebar rebuilds once more when it ends.
+    carried: std::cell::Cell<bool>,
     /// Set by an arrow-key move; the song list reveals the cursor row once, like AppKit `scrollRowToVisible`.
     reveal_selected: std::cell::Cell<bool>,
     pub route: Route,
@@ -99,6 +101,7 @@ impl Default for ShellState {
             refresh_wait: std::cell::Cell::new(None),
             refresh_ending: std::cell::Cell::new(false),
             song_window: std::cell::Cell::new(None),
+            carried: std::cell::Cell::new(false),
             reveal_selected: std::cell::Cell::new(false),
             route: Route::Songs,
             selected: None,

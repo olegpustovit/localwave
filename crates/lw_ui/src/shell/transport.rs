@@ -239,7 +239,15 @@ pub(super) fn desktop(
         spacer(ui, "titlebar-clearance", top);
         let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, p.paper);
         ui.within(&work, &mut |ui| {
-            let revision = state.revision.wrapping_mul(2) | catalog.all.is_some() as u64;
+            // A carry hovering a list row highlights it and a drop reads once; the engine does not say
+            // which row, so the sidebar rebuilds on every frame of a carry and the one after it.
+            let carrying = if ui.carrying_ref().is_some() {
+                state.carried.set(true);
+                (1u8, ui.frame_index())
+            } else {
+                (u8::from(state.carried.replace(false)) * 2, 0)
+            };
+            let revision = crate::hash((state.revision, catalog.all.is_some(), carrying));
             ui.view(
                 "sidebar",
                 revision,

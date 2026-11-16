@@ -29,7 +29,9 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
         ..Default::default()
     };
     for width in [1440.0, 390.0] {
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+        // Counts rebuilt views, and a verify pass rebuilds every kept view.
+        ui.verify_views(false);
         ui.set_a11y(true);
         let mut frame = FrameIn {
             width,
@@ -1878,7 +1880,7 @@ fn shell_themes_and_warm_build_allocate_nothing() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = prepared(Vec::new());
     let state = ShellState::default();
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     for theme in [LIGHT, DARK] {
         ui.set_theme(&ThemeSource {
@@ -1920,6 +1922,9 @@ fn shell_themes_and_warm_build_allocate_nothing() {
                     width: 1440.0,
                     height: 872.0,
                     time: frame as f64,
+                    // A theme swap's colour transition is mid-flight in the kept build, which a verify rebuild
+                    // cannot repeat; this test checks allocations, not the transition.
+                    reduced_motion: 1,
                     ..FrameIn::default()
                 },
                 &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
@@ -1946,6 +1951,7 @@ fn shell_themes_and_warm_build_allocate_nothing() {
                     width: 1440.0,
                     height: 872.0,
                     time: frame as f64,
+                    reduced_motion: 1,
                     ..FrameIn::default()
                 },
                 &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
