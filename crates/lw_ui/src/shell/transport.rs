@@ -66,9 +66,9 @@ pub(super) fn transport(
             });
             let elapsed = position.max(0.0) as u64;
             let remaining = (player.duration - position).max(0.0) as u64;
-            small_clock(ui, "elapsed", elapsed, false, 44.0, ui.color(SECONDARY));
+            small_clock(ui, "elapsed", elapsed, false, 44.0, SECONDARY);
             seek(ui, player, position, intent);
-            small_clock(ui, "remaining", remaining, true, 50.0, ui.color(SECONDARY));
+            small_clock(ui, "remaining", remaining, true, 50.0, SECONDARY);
             // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
             // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
             ui.row(

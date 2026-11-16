@@ -719,7 +719,7 @@ fn expanded(
                                 (player.duration - position).max(0.0) as u64,
                                 true,
                                 50.0,
-                                ui.color(SECONDARY),
+                                SECONDARY,
                             );
                         },
                     );
@@ -728,10 +728,10 @@ fn expanded(
                 seek(ui, player, position, intent);
                 let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), ui.color(PAPER));
                 ui.within(&times, &mut |ui| {
-                    let start = small_clock(ui, "start", 0, false, 40.0, ui.color(SECONDARY));
+                    let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
                     ui.a11y_name(&start, "Start time");
                     ui.box_("flex", BoxOpts::default().w(Size::Grow));
-                    let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, ui.color(SECONDARY));
+                    let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, SECONDARY);
                     ui.a11y_name(&total, "Duration");
                 });
                 spacer(ui, "modes-gap", 14.0);

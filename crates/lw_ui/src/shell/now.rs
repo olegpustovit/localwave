@@ -162,7 +162,7 @@ pub(super) fn now_panel(
                             (player.duration - position).max(0.0) as u64,
                             true,
                             50.0,
-                            ui.color(SECONDARY),
+                            SECONDARY,
                         );
                     });
                 },

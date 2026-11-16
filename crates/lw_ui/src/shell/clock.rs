@@ -15,7 +15,7 @@ pub(super) fn small_clock(
     seconds: u64,
     remaining: bool,
     width: f32,
-    color: Rgba,
+    color: pxui::theme::ColorToken,
 ) -> Handle {
     let node = container(
         ui,
@@ -38,10 +38,10 @@ pub(super) fn small_clock(
     let mut buffer = [0u8; 24];
     let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));
     let len = text.len();
+    const CLOCK: pxui::Label = pxui::Label::BODY.font(1).size(12.0);
     ui.draw(&node, move |paint, rect| {
-        let style = pxui::TextStyle { font: 1, size_points: 12.0, ..pxui::TextStyle::default() };
         let text = std::str::from_utf8(&buffer[..len]).unwrap_or("");
-        paint.text_chars((rect.x, rect.y + 4.0), &style, Some(color), text);
+        paint.text_chars((rect.x, rect.y + 4.0), &CLOCK.color(color), text);
     });
     node
 }
