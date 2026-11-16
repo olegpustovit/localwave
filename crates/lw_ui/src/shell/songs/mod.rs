@@ -323,7 +323,14 @@ pub(super) fn table(
     let numbered = matches!(state.route, Route::Album(_));
     let detail = matches!(state.route, Route::Album(_) | Route::Artist(_));
     let leading = if detail {
-        super::detail::height(width, state.route)
+        super::detail::height(
+            width,
+            state.route,
+            match state.route {
+                Route::Artist(index) => catalog.artist_albums.get(index).map_or(0, Vec::len),
+                _ => 0,
+            },
+        )
     } else {
         105.6
     };

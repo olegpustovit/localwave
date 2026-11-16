@@ -773,7 +773,7 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
     matches!(&*cx.collection.context, lw_core::context::PlaybackContext::Album { .. })
         .then(|| !cx.collection.rows.is_empty() && cx.collection.rows.iter().all(|&row| cx.catalog.row(row).pinned))
 }
-fn offline_key(ui: &mut Ui, kept: bool, p: Palette) -> bool {
+pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool, p: Palette) -> bool {
     let label = if kept { "Kept offline" } else { "Keep offline" };
     let node = ui.node(
         "keep-offline",

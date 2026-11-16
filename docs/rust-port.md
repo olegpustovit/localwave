@@ -391,7 +391,8 @@ device/provider behavior remain open.
   the add-music sheet is two header buttons plus Refresh folders, the folder page keeps Rust-only Import folder and
   Folder options buttons (Rescan, Reconnect, Remove live in the options menu), the compact folder page reuses the
   table without Kind/Size and honours Show non-audio files only there, and button labels are left-aligned.
-- F5: album format/folder lines, artist album grid and responsive big play keys remain Swift-only.
+- F5: album format/folder lines remain Swift-only (the artist album grid, 40 pt Back row and 52 pt Play/Shuffle/Keep offline keys are ported).
+- Desktop parity: Folders now has only Swift's "+" (Add music sheet; Rescan is Settings' "Rescan all sources", now on desktop too); Rust's artist song order is library order, Swift's is track order; Find results is Swift's separate "Search / “query” / N songs" page, Rust keeps the in-page field and chips.
 - F7: a song carry cannot edge-scroll Up next (pxui edge-scrolls only the carry's owner; queue
   occurrence carries transfer, song carries do not). Compact layouts have no Up next panel to drop on (the modal queue sheet hides the rows); the Up next target is the whole right panel with a signal outline; only song rows start a song drag (not albums, artists or Find rows); a list drop is AddToList with no confirmation notice.
 - F8: the editor omits disc number (kept untouched) and has no compact-layout scrolling; Delete Album
@@ -421,8 +422,11 @@ device/provider behavior remain open.
   compare (add: native picker; track: the anchored song-menu popup never paints in the capture). Latest (pxui 4dff60c,
   after sidebar/palette/Now/queue/Files/onboarding parity): mean abs diff 2.25-23.17, 2.1-15.6% of pixels over 24
   (onboarding 2.25, queue 2.59, find 6.24, artists 6.39, now 7.20, songs 8.52, commands 11.56, settings 14.73, folders
-  23.17). Remaining: Files card spacing/fixture paths, settings layout, artist page album grid, demo library; the rest is
-  spacing and per-glyph antialiasing (CoreText-matching raster, see D).
+  23.17). Desktop parity step (docked Now panel on Folders/Settings, artist album grid + Back/play keys, Folders "+" and centred
+  card buttons, Settings rescan row): folders 23.2 -> 8.9, artist 15.6 -> 7.0, folder 15.5 -> 9.9, settings 14.7 -> 8.1, album 9.9 -> 7.9
+  (commands 11.5 and find-results 10.8 unchanged: the palette card sits 32 pt high only because the capture window includes the titlebar inset,
+  find-results is Swift's separate results page). Remaining: Files fixture paths/"Music" DEBUG names, artist song order, album
+  format/folder lines, find-results page, demo library; the rest is spacing and per-glyph antialiasing (CoreText-matching raster, see D).
 - I2 mobile goldens: `MOBILE=1 tools/reference-goldens.sh && tools/compare-goldens.py /tmp/localwave-goldens-mobile` (Swift canvas 390×778 without
   LOCALWAVE_REFERENCE_DESKTOP; Rust: macOS window at 390×778 via LOCALWAVE_REFERENCE_MOBILE=1, which renders the compact layout; same
   titlebar crop; 17 screens, add/track skipped). Latest: mean abs diff 7.6-41.2 (onboarding 7.6, find 11.5, queue 16.6, find-results 18.5,

@@ -363,7 +363,7 @@ pub(super) fn view(
         if compact {
             row(ui, "show-non-audio", ("Show non-audio files", "Covers, logs and text in folders"), (width, p), (Some((settings.show_non_audio, Change::ToggleShowNonAudio)), None, false), intent, &mut |_, _| {});
         }
-        row(ui, "no-network", ("Simulate no network", "Shows skipped songs and failed downloads"), (width, p), (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
+        row(ui, "no-network", ("Simulate no network", "Prototype only — shows skipped songs and failed downloads"), (width, p), (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         row(ui, "cache", ("Offline space", cache_detail), (width, p), (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
             let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(174.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
@@ -377,23 +377,20 @@ pub(super) fn view(
                 option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), p, intent);
             }});
         });
-        if compact {
-            row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), (width, p), (None, None, true), intent, &mut |ui, _| {
-                let glyph = ui.node("chevron", Node { w: Size::Px(18.0), h: Size::Px(18.0), ..Node::DEFAULT });
-                let color = p.ink;
-                ui.draw(&glyph, move |paint, rect| {
-                    for step in 0..6 {
-                        let step = step as f32 * 1.5;
-                        paint.fill(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5, color);
-                        paint.fill(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5, color);
-                    }
-                });
+        row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), (width, p), (None, None, true), intent, &mut |ui, _| {
+            let glyph = ui.node("chevron", Node { w: Size::Px(18.0), h: Size::Px(18.0), ..Node::DEFAULT });
+            let color = p.ink;
+            ui.draw(&glyph, move |paint, rect| {
+                for step in 0..6 {
+                    let step = step as f32 * 1.5;
+                    paint.fill(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5, color);
+                    paint.fill(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5, color);
+                }
             });
-        }
+        });
         let footer = ui.node("settings-footer", Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, ..Node::DEFAULT });
         ui.within(&footer, &mut |ui| {
-            paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed.", width - 32.0, 14.0, p.secondary);
-            paragraph(ui, "local-info", "Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, p.secondary);
+            paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, p.secondary);
             if back(ui, "About & Privacy", p) { *intent = Some(Intent::ShowPrivacy); }
             paragraph(ui, "cache-usage", if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, width - 32.0, 14.0, p.secondary);
             if !player.settings_message.is_empty() { text(ui, "settings-message", player.settings_message, 14, p.signal, (Size::Grow, 42.0), false); }
@@ -869,5 +866,22 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact settings allocate");
             }
         }
+    }
+
+    #[test]
+    fn desktop_settings_keep_rescan_and_hide_the_phone_only_row() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = ShellState::default();
+        state.apply(Intent::ShowSettings);
+        let player = PlayerView { initialized: true, ..Default::default() };
+        let mut frame = FrameIn { width: 1440.0, height: 872.0, ..Default::default() };
+        for _ in 0..3 {
+            build(&mut ui, &state, &player, 0.0, &frame);
+        }
+        assert!(!ui.a11y_nodes().iter().any(|n| ui.a11y_name_of(n) == "Show non-audio files"));
+        let at = point(&ui, "Rescan all sources");
+        assert_eq!(click(&mut ui, &state, &player, &mut frame, at, 0), Some(Intent::Files(crate::files::Request::Roots)));
     }
 }

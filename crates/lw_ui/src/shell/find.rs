@@ -14,8 +14,6 @@ use super::*;
 #[derive(Clone, Copy)]
 pub(super) enum Action {
     Play,
-    /// Detail pages: "Play" and "Shuffle" in the same toolbar style.
-    Start,
     /// Folder pages: "Play folder".
     Folder,
     Shuffle,
@@ -55,7 +53,6 @@ fn background(ui: &mut Ui, key: &str, color: Rgba, shown: bool, immediate: bool)
 pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> bool {
     let (key, label, icon_size, selected) = match action {
         Action::Play => ("play-all", "Play all", 16.0, false),
-        Action::Start => ("play", "Play", 16.0, false),
         Action::Folder => ("play-folder", "Play folder", 16.0, false),
         Action::Shuffle => ("shuffle", "Shuffle", 16.0, false),
         Action::Offline(kept) => (
@@ -147,7 +144,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> 
                     },
                 );
                 ui.draw(&icon, move |paint, rect| match action {
-                    Action::Play | Action::Start | Action::Folder => crate::icons::play(paint, rect, color),
+                    Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
                     Action::Shuffle => crate::icons::shuffle(paint, rect, color),
                     Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
                 });

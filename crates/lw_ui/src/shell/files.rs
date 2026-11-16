@@ -228,31 +228,21 @@ fn sized_button(ui: &mut Ui, key: &str, label: &str, width: f32, height: f32, en
         Node {
             flags: if enabled { CLICKABLE | FOCUSABLE } else { 0 },
             role: Role::Button,
+            axis: Axis::Row,
+            align: Align::Center,
+            justify: Justify::Center,
             w: Size::Px(width),
             h: Size::Px(height),
-            look: Look {
-                fill: p.panel,
-                text: if enabled { p.ink } else { p.secondary },
-                font: Font {
-                    size: 13,
-                    ..Font::BODY
-                },
-                ..Look::NONE
-            },
+            look: Look { fill: p.panel, ..Look::NONE },
             ..Node::DEFAULT
         },
     );
-    ui.text(&button, label);
     ui.a11y_name(&button, label);
-    ui.set_role(
-        &button,
-        Role::Button,
-        if enabled {
-            pxui::a11y::state::ENABLED
-        } else {
-            0
-        },
-    );
+    ui.set_role(&button, Role::Button, if enabled { pxui::a11y::state::ENABLED } else { 0 });
+    ui.within(&button, &mut |ui| {
+        let copy = text(ui, "label", label, 13, if enabled { p.ink } else { p.secondary }, (Size::Fit, 18.2), false);
+        ui.set_role(&copy, Role::Unknown, 0);
+    });
     button
 }
 pub(super) fn action(
@@ -393,31 +383,19 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
     ui.within(&heading, &mut |ui| {
         let titles = ui.node("files-titles", Node { w: Size::Grow, h: Size::Fit, gap: 4.0, ..Node::DEFAULT });
         ui.within(&titles, &mut |ui| {
-            text(ui, "title", "Folders", 32, p.ink, (Size::Grow, 44.0), false);
+            text(ui, "title", "Folders", 32, p.ink, (Size::Grow, if compact { 44.0 } else { 33.6 }), false);
             text(ui, "files-detail", &files.source_count, 13, p.secondary, (Size::Grow, 18.2), false);
         });
-        if compact {
-            // Swift's "+" opens an Add music sheet; its two choices are the picker intents.
-            let add = ui.node("add-music", Node { flags: if enabled { CLICKABLE | FOCUSABLE } else { 0 }, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
-            ui.a11y_name(&add, "Add music");
-            let color = p.ink;
-            ui.draw(&add, move |paint, rect| {
-                paint.fill(rect.x + 10.0, rect.y + 21.25, 24.0, 1.5, color);
-                paint.fill(rect.x + 21.25, rect.y + 10.0, 1.5, 24.0, color);
-            });
-            if enabled && ui.signal_state(&add).clicked {
-                *intent = Some(Intent::ShowAddMusic);
-            }
-        } else {
-            if action(ui, "add-folder", "Add folder", 110.0, enabled, p) {
-                *intent = Some(Intent::ChooseFolder);
-            }
-            if action(ui, "add-audio", "Add audio files", 130.0, enabled, p) {
-                *intent = Some(Intent::ChooseAudio);
-            }
-            if action(ui, "refresh", "Refresh folders", 130.0, files.account.is_some(), p) {
-                *intent = Some(Intent::Files(Request::Roots));
-            }
+        // Swift's "+" opens an Add music sheet; its two choices are the picker intents.
+        let add = ui.node("add-music", Node { flags: if enabled { CLICKABLE | FOCUSABLE } else { 0 }, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
+        ui.a11y_name(&add, "Add music");
+        let color = p.ink;
+        ui.draw(&add, move |paint, rect| {
+            paint.fill(rect.x + 10.0, rect.y + 21.25, 24.0, 1.5, color);
+            paint.fill(rect.x + 21.25, rect.y + 10.0, 1.5, 24.0, color);
+        });
+        if enabled && ui.signal_state(&add).clicked {
+            *intent = Some(Intent::ShowAddMusic);
         }
     });
     status(ui, files, width, compact, p, intent);
@@ -1150,19 +1128,8 @@ mod tests {
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
         assert_eq!(
-            click(&mut ui, &files, &catalog, &state, &mut time, "Add folder"),
-            Some(Intent::ChooseFolder)
-        );
-        assert_eq!(
-            click(
-                &mut ui,
-                &files,
-                &catalog,
-                &state,
-                &mut time,
-                "Add audio files"
-            ),
-            Some(Intent::ChooseAudio)
+            click(&mut ui, &files, &catalog, &state, &mut time, "Add music"),
+            Some(Intent::ShowAddMusic)
         );
         let target = Target {
             user: 42,

@@ -202,9 +202,7 @@ pub(super) fn desktop(
     let width = (width - safe_left - safe_right).max(1.0);
     let height = (height - safe_bottom).max(1.0);
     let top = state.top_inset.max(safe_top);
-    let panel = !state.settings_visible
-        && state.route != Route::Files
-        && state.panel_visible
+    let panel = state.panel_visible
         && width >= 900.0
         && height - top >= 640.0;
     let sidebar_width = if width >= 900.0 { 231.0 } else { 180.0 };
