@@ -213,11 +213,13 @@ pub(super) fn view(
                             axis: Axis::Row,
                             align: if library { Align::Start } else { Align::Center },
                             w: Size::Grow,
-                            h: Size::Px(if library { 54.0 } else { 64.0 }),
+                            h: Size::Px(if library { 50.0 } else { 64.0 }),
                             padding: Edges {
                                 l: 16.0,
                                 r: if library { 6.0 } else { 16.0 },
-                                t: if library { 10.0 } else { 0.0 },
+                                // Swift's compact header: 10 pt pad with the glyph cap 4 pt higher than a 33.6 box; Lists centres in 54.
+                                t: if library { 6.0 } else { 0.0 },
+                                b: if library { 0.0 } else { 10.0 },
                                 ..Edges::ZERO
                             },
                             ..Node::DEFAULT

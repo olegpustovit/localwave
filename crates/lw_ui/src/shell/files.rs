@@ -348,7 +348,7 @@ pub(super) fn view(
             flags: if directory.is_none() { SCROLL | CLIP } else { 0 },
             w: Size::Grow,
             h: Size::Grow,
-            padding: Edges { l: inset, r: inset, t: if directory.is_none() { 10.0 } else { 0.0 }, b: 12.0 },
+            padding: Edges { l: inset, r: inset, t: if directory.is_none() { if compact { 6.0 } else { 10.0 } } else { 0.0 }, b: 12.0 },
             ..Node::DEFAULT
         },
     );
