@@ -416,6 +416,21 @@ impl LibraryRepository {
         Ok(songs)
     }
 
+    /// Swift's album "Folder" target for each song id: its source, the indexed parent directory's
+    /// pathId and that directory's source-relative path (None when the parent is the source root or
+    /// is not indexed). Songs without an indexed file row are omitted.
+    pub fn song_folders(&self, ids: &[i64]) -> Result<Vec<(i64, i64, i64, Option<String>)>> {
+        let mut found = Vec::with_capacity(ids.len());
+        for chunk in ids.chunks(500) {
+            let list: Vec<String> = chunk.iter().map(i64::to_string).collect();
+            self.db.query(&format!("SELECT s.id,s.sourceId,f.parentPathId,d.relativePath FROM songs s JOIN source_paths f ON f.sourceId=s.sourceId AND f.relativePath=s.relativePath AND f.isDirectory=0 LEFT JOIN source_paths d ON d.sourceId=f.sourceId AND d.pathId=f.parentPathId AND d.isDirectory=1 WHERE f.parentPathId IS NOT NULL AND s.id IN ({})", list.join(",")), &[], &mut |row| {
+                found.push((required(row.integer(0)?)?, required(row.integer(1)?)?, required(row.integer(2)?)?, row.text(3)?.map(str::to_owned)));
+                Ok(())
+            })?;
+        }
+        Ok(found)
+    }
+
     pub fn source_path(&self, source_id: i64, relative_path: &str) -> Result<Option<SourcePath>> {
         path(&self.db, source_id, relative_path)
     }

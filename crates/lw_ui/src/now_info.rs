@@ -16,7 +16,7 @@ pub struct NowInfo {
 }
 
 /// Swift's `%g` for the sample-rate values it prints (at most four decimals).
-fn general(value: f64) -> String {
+pub(crate) fn general(value: f64) -> String {
     let text = format!("{value:.4}");
     text.trim_end_matches('0').trim_end_matches('.').to_string()
 }

@@ -2,7 +2,8 @@
 //! metadata block (stacked under 696 points). Summaries are prepared with the collection; frames
 //! only borrow strings. Both pages lead with Swift's 40-point Back row and 52-point Play/Shuffle
 //! (+ Keep offline on albums) keys; the artist page adds its album grid (180-point cards, 20/28-point
-//! gaps, prepared per artist) before the scoped song table. Not yet ported: album format/folder lines.
+//! gaps, prepared per artist) before the scoped song table. Albums add Swift's mono format line after the
+//! summary and, once the library worker resolved it, an underlined "Folder:" link that opens that Files folder.
 use super::compact::list::{key, offline_key};
 use super::*;
 use lw_core::context::PlaybackContext;
@@ -10,6 +11,8 @@ use lw_core::context::PlaybackContext;
 const BACK: f32 = 40.0;
 const KEYS: f32 = 52.0;
 const ALBUM_META: f32 = 18.2 + 40.8 + 6.0 + 25.2 + 12.0 + 18.2 + 20.0 + KEYS;
+/// Swift's "Folder:" line (4 pt gap + 18.2 pt line) when the album's source folder is known.
+const FOLDER: f32 = 4.0 + 18.2;
 const ARTIST_META: f32 = 6.0 + 18.2 + 48.0 + 6.0 + 19.6;
 const ARTIST_KEYS: f32 = 300.0;
 const ALBUM_KEYS: f32 = 3.0 * 114.0 + 16.0;
@@ -50,16 +53,16 @@ fn grid_height(width: f32, albums: usize) -> f32 {
     }
 }
 /// Height of the header body under the Back row: artwork/title block with its padding.
-fn body_height(width: f32, route: Route) -> f32 {
+fn body_height(width: f32, route: Route, folder: bool) -> f32 {
     match route {
         Route::Album(_) if wide(width) => 8.0 + 240.0 + 24.0,
-        Route::Album(_) => 8.0 + art_size(width) + 24.0 + ALBUM_META + 24.0,
+        Route::Album(_) => 8.0 + art_size(width) + 24.0 + ALBUM_META + if folder { FOLDER } else { 0.0 } + 24.0,
         _ => 28.0 + ARTIST_META + if stacked(width) { 20.0 + KEYS } else { 0.0 } + 18.0,
     }
 }
 /// Fixed leading height of the section list for a detail route (`albums`: the artist's album cards).
-pub(super) fn height(width: f32, route: Route, albums: usize) -> f32 {
-    BACK + body_height(width, route)
+pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f32 {
+    BACK + body_height(width, route, folder)
         + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
 }
 fn back_row(ui: &mut Ui, parent: Route, p: Palette, intent: &mut Option<Intent>) {
@@ -154,19 +157,21 @@ pub(super) fn header(
         _ => &[],
     };
     // Albums are small; the artist page has no kept state.
+    let folder = group.folder.is_some();
     let kept = album && !group.rows.is_empty() && group.rows.iter().all(|&row| catalog.row(row).pinned);
     let revision = pxui::hash!((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         width.to_bits(),
         kept,
+        folder,
         player.artwork.map_or(0, crate::artwork::Images::revision),
     ));
     ui.view(
         "page-heading",
         revision,
         Size::Grow,
-        Size::Px(height(width, route, cards.len())),
+        Size::Px(height(width, route, cards.len(), folder)),
         &mut |ui| {
             let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, p.paper);
             ui.within(&column, &mut |ui| {
@@ -185,7 +190,7 @@ pub(super) fn header(
                             20.0
                         },
                         w: Size::Grow,
-                        h: Size::Px(body_height(width, route)),
+                        h: Size::Px(body_height(width, route, folder)),
                         padding: if album {
                             Edges { l: 32.0, r: 32.0, t: 8.0, b: 24.0 }
                         } else {
@@ -228,7 +233,7 @@ fn header_body(
         Node {
             axis: Axis::Column,
             w: Size::Grow,
-            h: Size::Px(if album { ALBUM_META } else { ARTIST_META }),
+            h: Size::Px(if album { ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 } } else { ARTIST_META }),
             ..Node::DEFAULT
         },
     );
@@ -261,14 +266,42 @@ fn header_body(
             }
         }
         spacer(ui, "summary-gap", if album { 12.0 } else { 6.0 });
-        line(
-            ui,
-            "summary",
-            &group.summary,
-            if album { (13.0, 18.2, 400, 0.0) } else { (14.0, 19.6, 400, 0.0) },
-            p.secondary,
-            0,
-        );
+        if album && !group.format.is_empty() {
+            // Swift: "2019 · 8 songs · 37 min · " in the text face, then the format in mono.
+            let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), p.paper);
+            ui.within(&row, &mut |ui| {
+                text(ui, "lead", &group.lead, 13, p.secondary, (Size::Fit, 18.2), false);
+                text(ui, "format", &group.format, 12, p.secondary, (Size::Grow, 16.8), true);
+            });
+        } else {
+            line(
+                ui,
+                "summary",
+                &group.summary,
+                if album { (13.0, 18.2, 400, 0.0) } else { (14.0, 19.6, 400, 0.0) },
+                p.secondary,
+                0,
+            );
+        }
+        if let Some(target) = &group.folder {
+            spacer(ui, "folder-gap", 4.0);
+            let row = ui.node("folder", Node { axis: Axis::Row, gap: 4.0, w: Size::Grow, h: Size::Px(18.2), ..Node::DEFAULT });
+            ui.within(&row, &mut |ui| {
+                text(ui, "caption", "Folder:", 13, p.secondary, (Size::Fit, 18.2), false);
+                let link = ui.node(
+                    "link",
+                    Node { axis: Axis::Column, flags: CLICKABLE | TAB_STOP, role: Role::Button, w: Size::Fit, h: Size::Px(18.2), ..Node::DEFAULT },
+                );
+                ui.a11y_name(&link, &target.label);
+                ui.within(&link, &mut |ui| {
+                    text(ui, "label", &target.label, 13, p.ink, (Size::Fit, 17.2), false);
+                    container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), p.ink);
+                });
+                if ui.signal_state(&link).clicked {
+                    *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
+                }
+            });
+        }
         if album {
             spacer(ui, "buttons-gap", 20.0);
             keys(ui, group, true, kept, ALBUM_KEYS.min((width - 64.0).max(1.0)), p, intent);

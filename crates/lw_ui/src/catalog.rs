@@ -68,6 +68,8 @@ struct StoredRow {
     seconds: Option<f64>,
     release_year: Option<i64>,
     has_format: bool,
+    sample_rate: Option<f64>,
+    bit_depth: Option<i64>,
     cover_art: usize,
     file_size: u64,
 }
@@ -82,6 +84,13 @@ pub struct SourceRow {
 }
 
 #[derive(Clone)]
+pub struct AlbumFolder {
+    /// "iCloud Drive / Halden Marsh/Field Recordings 04".
+    pub label: String,
+    pub location: crate::files::Location,
+}
+
+#[derive(Clone)]
 pub struct Collection {
     pub key: u64,
     pub title: String,
@@ -89,6 +98,11 @@ pub struct Collection {
     pub count: String,
     /// Swift's album/artist detail line, prepared with the collection; empty elsewhere.
     pub summary: String,
+    /// Albums: `summary` + " · " and Swift's "flac · 44.1 kHz · 16 bit" (first track); empty when unknown.
+    pub lead: String,
+    pub format: String,
+    /// Albums: the source folder of the first track, prepared on the library worker.
+    pub folder: Option<AlbumFolder>,
     pub rows: Vec<usize>,
     pub row_keys: Vec<i64>,
     pub ids: Arc<[i64]>,
@@ -274,6 +288,8 @@ impl Library {
                 seconds: seconds_value,
                 release_year: song.release_year,
                 has_format,
+                sample_rate: song.sample_rate,
+                bit_depth: song.bit_depth,
                 cover_art,
                 file_size: song.file_size.unwrap_or(0).max(0) as u64,
             });
@@ -533,7 +549,9 @@ impl Library {
         let seconds = || {
             rows.iter()
                 .filter_map(|index| self.rows[*index].seconds)
+                // `+ 0.0` turns an empty sum's -0.0 into 0.0 ("-0 min").
                 .sum::<f64>()
+                + 0.0
         };
         let summary = match &context {
             PlaybackContext::Album { .. } => format!(
@@ -570,6 +588,23 @@ impl Library {
             }
             _ => String::new(),
         };
+        let format = match (&context, rows.first().map(|index| &self.rows[*index])) {
+            (PlaybackContext::Album { .. }, Some(first)) => {
+                let mut parts = Vec::with_capacity(3);
+                if first.has_format {
+                    parts.push(self.row(rows[0]).format.to_lowercase());
+                }
+                if let Some(rate) = first.sample_rate {
+                    parts.push(format!("{} kHz", crate::now_info::general(rate / 1000.0)));
+                }
+                if let Some(bits) = first.bit_depth {
+                    parts.push(format!("{bits} bit"));
+                }
+                parts.join(" · ")
+            }
+            _ => String::new(),
+        };
+        let lead = if format.is_empty() { String::new() } else { format!("{summary} · ") };
         let mut sections = Vec::new();
         let mut seen = 0u32;
         for (position, index) in rows.iter().enumerate() {
@@ -591,6 +626,9 @@ impl Library {
         Collection {
             key,
             summary,
+            lead,
+            format,
+            folder: None,
             sections,
             row_keys,
             title: title.into(),
@@ -1084,6 +1122,22 @@ mod tests {
             .map(|row| library.rows[*row].id)
             .collect();
         assert_eq!(ids, [1, 2, 3]);
+    }
+    #[test]
+    fn album_collection_prepares_swift_format_line_from_the_first_track() {
+        let library = super::Library::new(vec![Song {
+            id: Some(1),
+            artist: "A".into(),
+            album: "B".into(),
+            file_extension: Some("FLAC".into()),
+            sample_rate: Some(44100.0),
+            bit_depth: Some(16),
+            ..Default::default()
+        }, Song { id: Some(2), artist: "A".into(), album: "C".into(), ..Default::default() }]);
+        let by_title = |title: &str| library.albums.iter().find(|album| album.title == title).unwrap();
+        assert_eq!(by_title("B").format, "flac · 44.1 kHz · 16 bit");
+        assert_eq!(by_title("B").lead, "1 songs · 0 min · ");
+        assert!(by_title("C").format.is_empty() && by_title("C").lead.is_empty());
     }
     #[test]
     fn table_font_widths_match_coretext_reference_faces_and_weights() {

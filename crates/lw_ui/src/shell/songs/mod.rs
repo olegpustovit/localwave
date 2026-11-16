@@ -330,6 +330,7 @@ pub(super) fn table(
                 Route::Artist(index) => catalog.artist_albums.get(index).map_or(0, Vec::len),
                 _ => 0,
             },
+            state.collection(catalog).is_some_and(|group| group.folder.is_some()),
         )
     } else {
         105.6

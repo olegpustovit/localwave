@@ -45,6 +45,32 @@ fn indexed_source_song_projection_excludes_other_sources_directories_and_stale_p
 }
 
 #[test]
+fn song_folders_report_the_indexed_parent_directory_and_skip_unindexed_songs() {
+    let mut repo = LibraryRepository::open(":memory:").unwrap();
+    let id = source(&repo, 1, "/Music").id.unwrap();
+    let mut ids = Vec::new();
+    for (key, path) in [(1, "A/B/x.flac"), (2, "root.flac"), (3, "gone.flac")] {
+        let saved = repo
+            .upsert_song(&Song { song_key: key, source_id: Some(id), relative_path: Some(path.into()), ..Default::default() }, 1.0)
+            .unwrap();
+        ids.push(saved.id.unwrap());
+    }
+    let path = |path_id, parent, relative: &str, directory| SourcePath {
+        source_id: id,
+        path_id,
+        parent_path_id: Some(parent),
+        name: relative.rsplit('/').next().unwrap().into(),
+        relative_path: relative.into(),
+        is_directory: directory,
+        ..Default::default()
+    };
+    repo.upsert_source_paths(&[path(20, 1, "A/B", true), path(21, 20, "A/B/x.flac", false), path(22, 1, "root.flac", false)]).unwrap();
+    let mut found = repo.song_folders(&ids).unwrap();
+    found.sort();
+    assert_eq!(found, [(ids[0], id, 20, Some("A/B".into())), (ids[1], id, 1, None)]);
+}
+
+#[test]
 fn resolved_source_access_migrates_legacy_locations_atomically_and_rejects_conflicts() {
     let mut repo = LibraryRepository::open(":memory:").unwrap();
     let original = source(&repo, 1, "/original");

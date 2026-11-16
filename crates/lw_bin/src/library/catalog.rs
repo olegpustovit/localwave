@@ -15,7 +15,7 @@ use super::LibraryWorker;
 use lw_apple_sys::collation::Key;
 use lw_core::{LibraryRepository, context::PlaybackContext};
 use lw_ui::browse::{Request, Scope, Sort};
-use lw_ui::catalog::{Catalog, SourceRow};
+use lw_ui::catalog::{AlbumFolder, Catalog, SourceRow};
 use lw_ui::files::Location;
 use std::cmp::Ordering;
 use std::io;
@@ -32,18 +32,49 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
     let library = std::sync::Arc::make_mut(&mut catalog.library);
     library.set_source_count(source_count);
     if let Some(user) = user {
+        let mut source_roots = std::collections::HashMap::new();
         for source in repository.sources(user.id)? {
             let Some(id) = source.id else { continue };
             let name = lw_apple_sys::preferences::file_path(&source.dir_path)
                 .ok()
                 .and_then(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()))
                 .unwrap_or_else(|| "Music folder".into());
+            source_roots.insert(id, (source.path_id, name.clone()));
             library.source_rows.push(SourceRow {
                 location: Location { user: user.id, source: id, parent: None },
                 name,
                 count: source.total_paths.map(|count| count.to_string()).unwrap_or_default(),
                 reconnect: source.sync_error.is_some(),
             });
+        }
+        // Swift's album "Folder" link: the first track's indexed parent directory (one query).
+        let firsts: Vec<i64> = library
+            .albums
+            .iter()
+            .filter_map(|album| album.rows.first().map(|row| library.row(*row).id))
+            .collect();
+        let folders: std::collections::HashMap<_, _> = repository
+            .song_folders(&firsts)?
+            .into_iter()
+            .map(|(song, source, parent, relative)| (song, (source, parent, relative)))
+            .collect();
+        let mut targets = Vec::with_capacity(library.albums.len());
+        for album in &library.albums {
+            let first = album.rows.first().map(|row| library.row(*row).id);
+            targets.push(first.and_then(|id| folders.get(&id)).and_then(|(source, parent, relative)| {
+                let (root, name) = source_roots.get(source)?;
+                let at_root = parent == root || relative.as_deref().is_none_or(str::is_empty);
+                Some(AlbumFolder {
+                    label: match relative.as_deref().filter(|_| !at_root) {
+                        Some(relative) => format!("{name} / {relative}"),
+                        None => name.clone(),
+                    },
+                    location: Location { user: user.id, source: *source, parent: (!at_root).then_some(*parent) },
+                })
+            }));
+        }
+        for (album, target) in library.albums.iter_mut().zip(targets) {
+            album.folder = target;
         }
     }
     for list in repository.playlists()? {
