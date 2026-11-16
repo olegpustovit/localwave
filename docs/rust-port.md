@@ -64,7 +64,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | I2 | iOS flows, physical install and shipping gates | doing | Compact flows on simulator/macOS (swipe, long press, refresh, Now player, sheets, Select, menus, Files); 390×778 goldens; `make ios-build` passes; physical install, 120 Hz and device qualification pending |
 | D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |
 | DX0.1 | DX phase rows and ordering | done | aec5dce |
-| DX0.2 | Allocation tripwire: warm_scope/take_reports | todo |  |
+| DX0.2 | Allocation tripwire: warm_scope/take_reports | done | HEAD + pxui 53d48ba |
 | DX0.3 | Measured uncovered workloads (PERF) | todo |  |
 | DX0.4 | cargo t --doc in the runner | todo |  |
 | DX0.5 | Gate: author-shim rule | todo |  |
@@ -111,7 +111,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.5 | Reusable layout storage for fresh shapes | todo |  |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | todo |  |
-| DX6.2 | One item per line in pxui and pxui_types | done | HEAD + pxui 08d4efd |
+| DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | todo |  |
 | DX6.4 | Docs: model and frame | todo |  |
 | DX6.5 | Docs: nodes and state | todo |  |
