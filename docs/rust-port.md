@@ -80,7 +80,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
 | DX1.3 | Key type; row/column/stack shims | done | f3b89c5 + pxui 64f2bba |
-| DX1.4 | label and label_fmt | todo |  |
+| DX1.4 | label and label_fmt | done | HEAD + pxui 8c3116b |
 | DX1.5 | Response and pressable | todo |  |
 | DX1.6 | view_of and hash_of | todo |  |
 | DX1.7 | local_bool/local_i64/local_f32 | todo |  |
