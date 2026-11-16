@@ -195,18 +195,15 @@ pub(super) fn now_panel(
         }
         spacer(ui, "queue-gap", 14.0);
         rule(ui, "queue-divider", false);
-        let queue_revision = crate::hash((
-            catalog.queue.as_ref().map(|queue| queue.revision),
-            std::sync::Arc::as_ptr(&catalog.library) as usize,
-            player.artwork.map_or(0, crate::artwork::Images::revision),
-            carry,
-        ));
-        ui.view(
+        ui.view_of(
             "up-next",
-            queue_revision,
-            Size::Grow,
-            Size::Grow,
-            &mut |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, intent),
+            &(
+                catalog.queue.as_ref().map(|queue| queue.revision),
+                std::sync::Arc::as_ptr(&catalog.library) as usize,
+                player.artwork.map_or(0, crate::artwork::Images::revision),
+                carry,
+            ),
+            |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, intent),
         );
     });
 }
@@ -259,9 +256,8 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         ui.set_state(&node, seen);
     }
     let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
-    let revision = crate::hash((on, signal.hovered, signal.held, current.is_some()));
     ui.within(&node, &mut |ui| {
-        let heart = ui.view("heart", revision, Size::Grow, Size::Grow, &mut |ui| {
+        let heart = ui.view_of("heart", &(on, signal.hovered, signal.held, current.is_some()), |ui| {
             let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
             ui.draw(&surface, move |paint, rect| {
                 let side = 20.0;

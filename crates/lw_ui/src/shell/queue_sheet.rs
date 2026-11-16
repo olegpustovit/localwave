@@ -422,20 +422,17 @@ pub(super) fn queue_sheet(
                         }
                     });
                 } else {
-                    let revision = crate::hash((
-                        queue.map(|queue| queue.revision),
-                        std::sync::Arc::as_ptr(&catalog.library) as usize,
-                        width.to_bits(),
-                        player.artwork.map_or(0, crate::artwork::Images::revision),
-                    ));
                     let rows = ui.node("full-queue-body", Node::column().w(Size::Grow).h(Size::Grow).pad_x(10.0));
                     ui.within(&rows, &mut |ui| {
-                        ui.view(
+                        ui.view_of(
                             "full-queue-rows",
-                            revision,
-                            Size::Grow,
-                            Size::Grow,
-                            &mut |ui| {
+                            &(
+                                queue.map(|queue| queue.revision),
+                                std::sync::Arc::as_ptr(&catalog.library) as usize,
+                                width.to_bits(),
+                                player.artwork.map_or(0, crate::artwork::Images::revision),
+                            ),
+                            |ui| {
                                 queue_rows(
                                     ui,
                                     catalog,
@@ -551,12 +548,10 @@ fn now_row(
         });
         let bars = ui.node("now-bars", Node::column().w_px(14.0).h_px(11.0));
         ui.within(&bars, &mut |ui| {
-            ui.view(
+            ui.view_of(
                 "equalizer-view",
-                crate::hash((player.playing, song.id)),
-                Size::Grow,
-                Size::Grow,
-                &mut |ui| super::songs::row::equalizer(ui, player.playing, true, song.id),
+                &(player.playing, song.id),
+                |ui| super::songs::row::equalizer(ui, player.playing, true, song.id),
             );
         });
         spacer(ui, "now-trail", 14.0);

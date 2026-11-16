@@ -29,12 +29,10 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
     // The disclosure state lives on the root so the retained page rebuilds when it flips.
     let drive = ui.state(&root, 0) != 0;
     ui.within(&root, &mut |ui| {
-        ui.view(
+        ui.view_of(
             "onboarding-page",
-            crate::hash((column.to_bits(), top_inset.to_bits(), drive)),
-            Size::Grow,
-            Size::Grow,
-            &mut |ui| {
+            &(column.to_bits(), top_inset.to_bits(), drive),
+            |ui| {
                 let outer = ui.node(
                     "onboarding-outer",
                     Node {

@@ -291,9 +291,8 @@ pub(super) fn icon_button(
         Rgba::default()
     };
     let color = ui.color(if inverse { PAPER } else { INK });
-    let revision = crate::hash((icon as u8, inverse, signal.hovered, signal.held));
     ui.within(&node, &mut |ui| {
-        let visual = ui.view("visual", revision, Size::Grow, Size::Grow, &mut |ui| {
+        let visual = ui.view_of("visual", &(icon as u8, inverse, signal.hovered, signal.held), |ui| {
             let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
             ui.set_look(
                 &surface,

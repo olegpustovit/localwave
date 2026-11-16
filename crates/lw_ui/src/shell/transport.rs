@@ -271,12 +271,6 @@ pub(super) fn desktop(
             );
             if panel {
                 rule(ui, "panel-divider", true);
-                let panel_revision = crate::hash((
-                    (player.revision, position.to_bits(), carry),
-                    player.artwork.map_or(0, crate::artwork::Images::revision),
-                    catalog.queue.as_ref().map(|queue| queue.revision),
-                    std::sync::Arc::as_ptr(&catalog.library) as usize,
-                ));
                 // The drop target wraps the cached panel: hover and drops never rebuild its view.
                 let target = ui.node(
                     "up-next-drop",
@@ -287,12 +281,15 @@ pub(super) fn desktop(
                     },
                 );
                 ui.within(&target, &mut |ui| {
-                    let panel = ui.view(
+                    let panel = ui.view_of(
                         "now-panel",
-                        panel_revision,
-                        Size::Grow,
-                        Size::Grow,
-                        &mut |ui| now_panel(ui, player, position, catalog, carry, intent),
+                        &(
+                            (player.revision, position.to_bits(), carry),
+                            player.artwork.map_or(0, crate::artwork::Images::revision),
+                            catalog.queue.as_ref().map(|queue| queue.revision),
+                            std::sync::Arc::as_ptr(&catalog.library) as usize,
+                        ),
+                        |ui| now_panel(ui, player, position, catalog, carry, intent),
                     );
                     ui.view_clip(
                         &panel,

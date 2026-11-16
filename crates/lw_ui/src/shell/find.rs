@@ -112,8 +112,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             before != i64::from(selected),
         );
         background(ui, "press", ui.color(PANEL), signal.held, false);
-        let revision = crate::hash((label, selected));
-        ui.view("action-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
+        ui.view_of("action-copy", &(label, selected), |ui| {
             let row = ui.node(
                 "content",
                 Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center),
