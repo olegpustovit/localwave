@@ -112,7 +112,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
-| DX6.3 | gate -- docs with shrinking allowlist | todo |  |
+| DX6.3 | gate -- docs with shrinking allowlist | done | HEAD + pxui 74a81f8 |
 | DX6.4 | Docs: model and frame | todo |  |
 | DX6.5 | Docs: nodes and state | todo |  |
 | DX6.6 | Docs: views, overlays, animation | todo |  |
