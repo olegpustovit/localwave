@@ -68,7 +68,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.3 | Measured uncovered workloads (PERF) | todo |  |
 | DX0.4 | cargo t --doc in the runner | done | 8ef0591 + pxui 4804a4f |
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
-| DX0.6 | abi_bench page for authoring helpers | todo |  |
+| DX0.6 | abi_bench page for authoring helpers | done | HEAD + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | todo |  |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | todo |  |
@@ -137,7 +137,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
-| DX7.2 | Size-prefix negative table | done | HEAD + pxui 7a15162 |
+| DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
 | DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | todo |  |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
