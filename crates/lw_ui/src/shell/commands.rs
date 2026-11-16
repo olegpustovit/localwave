@@ -79,11 +79,24 @@ impl ShellState {
 }
 
 pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
+    // One registered body serves the palette (20 pt, 59 pt tall) and Swift's phone Find field (26 pt medium, 56 pt).
+    let find = pxui::bodies::text_of(&c.label) == "Find songs";
+    let (size, height, inset, hint) = if find {
+        (26, 56.0, 0.0, "Songs, albums, folders")
+    } else {
+        (20, 59.0, 18.0, "Search songs, folders, or type a command")
+    };
+    let font = Font {
+        size,
+        weight: if find { 500 } else { 400 },
+        tracking: if find { -0.52 } else { 0.0 },
+        ..Font::BODY
+    };
     let mut layout = ui.node_layout(&c.row);
-    layout.h = Size::Px(59.0);
+    layout.h = Size::Px(height);
     layout.padding = Edges {
-        l: 18.0,
-        r: 18.0,
+        l: inset,
+        r: inset,
         ..Edges::ZERO
     };
     ui.set_node_layout(&c.row, &layout);
@@ -96,18 +109,15 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
         pxui::Part::EDITOR,
         Node {
             w: Size::Grow,
-            h: Size::Px(59.0),
+            h: Size::Px(height),
             inset: Edges {
-                l: 2.0,
-                r: 2.0,
+                l: if find { 0.0 } else { 2.0 },
+                r: if find { 0.0 } else { 2.0 },
                 ..Edges::ZERO
             },
             look: Look {
                 text: ui.tokens().foreground,
-                font: Font {
-                    size: 20,
-                    ..Font::BODY
-                },
+                font,
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -118,29 +128,56 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
         ui.text(&editor, value);
     }
     if value.is_empty() {
+        let p = palette(ui);
+        // Ellipsize to the field: the palette card is (view - 32) clamped to 600 and the phone Find row is view - 32 - 44.
+        let view = ui.content_rect().w;
+        let room = if find {
+            view - 32.0 - 44.0 + 10.0
+        } else {
+            (view - 32.0).clamp(0.0, 600.0) - 40.0
+        };
         let placeholder = ui.node(
             "prompt",
             Node {
-                at: Some((20.0, 0.0)).into(),
-                w: Size::Grow,
-                h: Size::Px(59.0),
-                look: Look {
-                    text: palette(ui).secondary,
-                    font: Font {
-                        size: 20,
-                        ..Font::BODY
-                    },
-                    ..Look::NONE
-                },
+                axis: Axis::Row,
+                align: Align::Center,
+                at: Some((if find { 0.0 } else { 20.0 }, 0.0)).into(),
+                w: Size::Px(room.max(1.0)),
+                h: Size::Px(height),
                 ..Node::DEFAULT
             },
         );
-        ui.text(&placeholder, "Search songs, folders, or type a command");
+        let style = pxui::TextStyle {
+            size_points: size as f32,
+            line_height: size as f32 * 1.4,
+            weight: font.weight,
+            tracking: font.tracking,
+            max_lines: 1,
+            ellipsis: pxui::TextStyle::ELLIPSIS_END,
+            ..Default::default()
+        };
+        ui.within(&placeholder, &mut |ui| {
+            let line = ui.node(
+                "line",
+                Node {
+                    w: Size::Grow,
+                    h: Size::Px(size as f32 * 1.4),
+                    look: Look {
+                        text: if find { p.tertiary } else { p.secondary },
+                        font,
+                        ..Look::NONE
+                    },
+                    ..Node::DEFAULT
+                },
+            );
+            ui.text_line_box(&line, hint, &style, &[]).unwrap();
+        });
     }
 }
 
 fn overlay(
     ui: &mut Ui,
+    inset: f32,
     label: &str,
     dimensions: (f32, Size),
     p: Palette,
@@ -150,7 +187,13 @@ fn overlay(
 ) {
     let (width, height) = dimensions;
     let content = ui.content_rect();
-    let top = (content.h * 0.12).min(96.0);
+    // Swift's 12% is of the window below the status inset (phone only; desktop windows keep content-rect math).
+    let inset = if content.w < super::compact::BREAKPOINT {
+        inset
+    } else {
+        0.0
+    };
+    let top = inset + ((content.h - inset) * 0.12).min(96.0);
     let width = width.min(content.w);
     let max_height = (content.h - top - 16.0).max(0.0);
     // The popup is just the card: a full-view popup would paint its own sheet fill over the page.
@@ -209,6 +252,7 @@ pub(super) fn palette_view(
     let result_limit = 420.0_f32.min((height - 176.0).max(60.0));
     overlay(
         ui,
+        state.top_inset,
         "Search and commands",
         ((width - 32.0).clamp(0.0, 600.0), Size::Fit),
         p,
@@ -250,71 +294,66 @@ pub(super) fn palette_view(
             {
                 *intent = Some(Intent::ActivateCommand(item.key));
             }
-            let list = ui.list_measured(
-                "results",
-                items.len().max(1),
-                ui.row_height() as f32,
-                &mut |ui, index| {
-                    let Some(item) = items.get(index) else {
-                        text(
-                            ui,
-                            "empty",
-                            if state.command_too_long {
-                                "Search text is too long. Shorten it."
-                            } else if results.is_some() {
-                                "No matches."
-                            } else {
-                                "Searching…"
-                            },
-                            14,
-                            p.secondary,
-                            (Size::Grow, 48.0),
-                            false,
-                        );
-                        return;
-                    };
-                    let row = ui.node_keyed(
-                        int_key(Ui::key_of(0, "localwave-command-row"), item.key as i64),
-                        Node {
-                            axis: Axis::Column,
-                            w: Size::Grow,
-                            h: Size::Fit,
-                            ..Node::DEFAULT
+            let list = ui.list_measured("results", items.len().max(1), 44.0, &mut |ui, index| {
+                let Some(item) = items.get(index) else {
+                    text(
+                        ui,
+                        "empty",
+                        if state.command_too_long {
+                            "Search text is too long. Shorten it."
+                        } else if results.is_some() {
+                            "No matches."
+                        } else {
+                            "Searching…"
                         },
+                        14,
+                        p.secondary,
+                        (Size::Grow, 48.0),
+                        false,
                     );
-                    ui.within(&row, &mut |ui| {
-                        if index == 0 || items[index - 1].group != item.group {
-                            let header = ui.node(
-                                "group",
-                                Node {
-                                    axis: Axis::Column,
-                                    w: Size::Grow,
-                                    h: Size::Fit,
-                                    padding: Edges {
-                                        l: 12.0,
-                                        r: 12.0,
-                                        t: 10.0,
-                                        b: 4.0,
-                                    },
-                                    ..Node::DEFAULT
+                    return;
+                };
+                let row = ui.node_keyed(
+                    int_key(Ui::key_of(0, "localwave-command-row"), item.key as i64),
+                    Node {
+                        axis: Axis::Column,
+                        w: Size::Grow,
+                        h: Size::Fit,
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.within(&row, &mut |ui| {
+                    if index == 0 || items[index - 1].group != item.group {
+                        let header = ui.node(
+                            "group",
+                            Node {
+                                axis: Axis::Column,
+                                w: Size::Grow,
+                                h: Size::Fit,
+                                padding: Edges {
+                                    l: 12.0,
+                                    r: 12.0,
+                                    t: 10.0,
+                                    b: 4.0,
                                 },
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.within(&header, &mut |ui| {
+                            text(
+                                ui,
+                                "name",
+                                item.group,
+                                12,
+                                p.secondary,
+                                (Size::Grow, 16.8),
+                                false,
                             );
-                            ui.within(&header, &mut |ui| {
-                                text(
-                                    ui,
-                                    "name",
-                                    item.group,
-                                    12,
-                                    p.secondary,
-                                    (Size::Grow, 16.8),
-                                    false,
-                                );
-                            });
-                        }
-                        result_row(ui, player, catalog, item, index == selected, p, intent);
-                    });
-                },
-            );
+                        });
+                    }
+                    result_row(ui, player, catalog, item, index == selected, p, intent);
+                });
+            });
             ui.set_node_layout(
                 &list,
                 &Node {
@@ -352,13 +391,12 @@ fn result_row(
             flags: CLICKABLE,
             axis: Axis::Row,
             w: Size::Grow,
-            h: Size::Fit,
+            h: Size::Px(44.0),
             role: Role::Button,
             padding: Edges {
                 l: 12.0,
                 r: 12.0,
-                t: 8.0,
-                b: 8.0,
+                ..Edges::ZERO
             },
             gap: 12.0,
             align: Align::Center,
@@ -473,7 +511,7 @@ fn result_row(
     });
 }
 
-pub(super) fn shortcuts(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) {
+pub(super) fn shortcuts(ui: &mut Ui, inset: f32, p: Palette, intent: &mut Option<Intent>) {
     const ROWS: [(&str, &str); 12] = [
         ("Play / pause", "Space"),
         ("Seek 5 s · 30 s", "← →  ·  ⌥← ⌥→"),
@@ -489,12 +527,29 @@ pub(super) fn shortcuts(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) {
         ("Close panels", "Esc"),
     ];
     let (width, height) = ui.view_size();
-    let body_height: f32 = 44.0 + 25.2 + 12.0 + 12.0 * 19.6 + 11.0 * 8.0;
+    let card = (width - 32.0).clamp(0.0, 520.0);
+    // Swift's Grid gives label and key columns equal halves; labels wrap inside theirs (phone).
+    let half = ((card - 48.0 - 16.0) * 0.5).max(1.0);
+    let style = pxui::TextStyle {
+        size_points: 14.0,
+        line_height: 19.6,
+        wrap: pxui::TextStyle::WRAP_WORD_SPACES,
+        ..Default::default()
+    };
+    let mut heights = [19.6_f32; ROWS.len()];
+    for (height, (label, _)) in heights.iter_mut().zip(ROWS) {
+        *height = ui
+            .text_service()
+            .measure(label, &style, half)
+            .map_or(19.6, |m| m.height.max(19.6));
+    }
+    let body_height: f32 = 44.0 + 25.2 + 12.0 + heights.iter().sum::<f32>() + 11.0 * 8.0;
     overlay(
         ui,
+        inset,
         "Keyboard shortcuts",
         (
-            (width - 32.0).clamp(0.0, 520.0),
+            card,
             Size::Px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))),
         ),
         p,
@@ -508,7 +563,7 @@ pub(super) fn shortcuts(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) {
                         axis: Axis::Column,
                         w: Size::Grow,
                         h: Size::Fit,
-                        gap: 8.0,
+                        gap: 12.0,
                         padding: Edges {
                             l: 24.0,
                             r: 24.0,
@@ -528,23 +583,48 @@ pub(super) fn shortcuts(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) {
                         (Size::Grow, 25.2),
                         false,
                     );
-                    spacer(ui, "title-gap", 4.0);
-                    for (index, (label, key)) in ROWS.iter().enumerate() {
-                        let row = ui.node_keyed(
-                            int_key(body.box_key, index as i64),
-                            Node {
-                                axis: Axis::Row,
-                                w: Size::Grow,
-                                h: Size::Px(19.6),
-                                gap: 16.0,
-                                ..Node::DEFAULT
-                            },
-                        );
-                        ui.within(&row, &mut |ui| {
-                            text(ui, "label", label, 14, p.ink, (Size::Grow, 19.6), false);
-                            text(ui, "key", key, 12, p.secondary, (Size::Fit, 16.8), true);
-                        });
-                    }
+                    let rows = ui.node(
+                        "rows",
+                        Node {
+                            axis: Axis::Column,
+                            w: Size::Grow,
+                            h: Size::Fit,
+                            gap: 8.0,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&rows, &mut |ui| {
+                        for (index, (label, key)) in ROWS.iter().enumerate() {
+                            let row = ui.node_keyed(
+                                int_key(body.box_key, index as i64),
+                                Node {
+                                    axis: Axis::Row,
+                                    w: Size::Grow,
+                                    h: Size::Px(heights[index]),
+                                    gap: 16.0,
+                                    ..Node::DEFAULT
+                                },
+                            );
+                            ui.within(&row, &mut |ui| {
+                                let node = ui.node(
+                                    "label",
+                                    Node {
+                                        w: Size::Px(half),
+                                        h: Size::Px(heights[index]),
+                                        role: Role::Label,
+                                        look: Look {
+                                            text: p.ink,
+                                            ..Look::NONE
+                                        },
+                                        ..Node::DEFAULT
+                                    },
+                                );
+                                ui.text_line_box(&node, label, &style, &[]).unwrap();
+                                ui.box_("fill", BoxOpts::default().w(Size::Grow));
+                                text(ui, "key", key, 12, p.secondary, (Size::Fit, 16.8), true);
+                            });
+                        }
+                    });
                 });
             });
         },
@@ -620,6 +700,45 @@ mod tests {
             state.apply(intent);
         }
         intent
+    }
+
+    #[test]
+    fn phone_shortcuts_wrap_labels_in_the_left_half() {
+        let mut ui = Ui::create(
+            pxui::Platform::Apple,
+            Some(18),
+            &[crate::FONT, crate::MONO],
+        );
+        ui.set_a11y(true);
+        let catalog = Catalog::new(Vec::new());
+        let state = ShellState {
+            shortcuts_visible: true,
+            ..ShellState::default()
+        };
+        for tick in 0..4 {
+            let mut intent = None;
+            ui.frame(
+                &FrameIn {
+                    width: 390.0,
+                    height: 778.0,
+                    time: f64::from(tick),
+                    reduced_motion: 1,
+                    ..Default::default()
+                },
+                &mut |ui| shell(ui, &PlayerView::default(), 0.0, &catalog, &state, &mut intent),
+            )
+            .unwrap();
+        }
+        let height = |name: &str| {
+            ui.a11y_nodes()
+                .iter()
+                .find(|node| ui.a11y_name_of(node) == name)
+                .unwrap_or_else(|| panic!("missing {name}"))
+                .rect
+                .h
+        };
+        assert_eq!(height("Play / pause"), 19.6);
+        assert_eq!(height("Search and commands"), 39.2);
     }
 
     #[test]

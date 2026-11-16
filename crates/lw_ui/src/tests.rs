@@ -1140,7 +1140,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
             );
         }
     }
-    for width in [1440.0, 960.0, 650.0, 390.0] {
+    for width in [1440.0, 960.0, 650.0, 390.0, 320.0] {
         frame.width = width;
         frame.time += 0.01;
         ui.frame(&frame, &mut |ui| {
@@ -1177,11 +1177,10 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
             }
         }
         if width == 390.0 {
-            assert!(
-                chips[4].rect.y > chips[0].rect.y,
-                "{width} {:?}",
-                chips.iter().map(|c| c.rect).collect::<Vec<_>>()
-            );
+            // The phone header has 16 pt gutters (Swift): all five chips fit one row.
+            assert!(chips.iter().all(|c| c.rect.y == chips[0].rect.y));
+        } else if width == 320.0 {
+            assert!(chips[4].rect.y > chips[0].rect.y, "{width} wraps");
             assert_eq!(chips[4].rect.y - chips[0].rect.y, 38.0, "6pt row gap");
         } else if width == 1440.0 {
             assert!(

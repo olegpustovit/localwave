@@ -174,6 +174,203 @@ pub(super) fn header(
     });
 }
 
+/// Swift's compact Find header: caption, 26 pt query field with an ink rule, filter chips, then
+/// either the usage hint or the "Songs N" section label (with Play/Keep offline beneath).
+pub(super) fn compact_find(
+    ui: &mut Ui,
+    catalog: &Catalog,
+    state: &ShellState,
+    theme: Option<&pxui::Theme>,
+    width: f32,
+    p: Palette,
+    intent: &mut Option<Intent>,
+) {
+    let revision = pxui::hash!((
+        state.revision,
+        theme.map_or(0, |t| t as *const pxui::Theme as usize),
+        std::sync::Arc::as_ptr(&catalog.library) as usize,
+        catalog
+            .view
+            .as_ref()
+            .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
+    ));
+    ui.view("page-heading", revision, Size::Grow, Size::Fit, &mut |ui| {
+        let root = ui.node(
+            "compact-find",
+            Node {
+                axis: Axis::Column,
+                w: Size::Grow,
+                h: Size::Fit,
+                padding: Edges {
+                    l: 16.0,
+                    r: 16.0,
+                    t: 20.0,
+                    b: 0.0,
+                },
+                ..Node::DEFAULT
+            },
+        );
+        ui.within(&root, &mut |ui| {
+            text(
+                ui,
+                "caption",
+                "Find",
+                13,
+                p.secondary,
+                (Size::Grow, 21.0),
+                false,
+            );
+            ui.view(
+                "find-query",
+                state.query_revision,
+                Size::Grow,
+                Size::Px(56.0),
+                &mut |ui| {
+                    let row = ui.node(
+                        "query-row",
+                        Node {
+                            axis: Axis::Row,
+                            align: Align::Center,
+                            w: Size::Grow,
+                            h: Size::Grow,
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.within(&row, &mut |ui| {
+                        let field = ui.box_(
+                            "query-field",
+                            BoxOpts::default().w(Size::Grow).h(Size::Grow),
+                        );
+                        ui.within(&field, &mut |ui| {
+                            let mut edit = |ui: &mut Ui| {
+                                if let Some(value) = ui.text_field_with_options(
+                                    "Find songs",
+                                    state.query.as_str(),
+                                    pxui::TextInputOptions {
+                                        action: pxui::TextInputOptions::DONE,
+                                        ..pxui::TextInputOptions::SEARCH_FIELD
+                                    },
+                                ) {
+                                    *intent = Some(
+                                        Query::new(value)
+                                            .map_or(Intent::SearchTooLong, Intent::Search),
+                                    );
+                                }
+                            };
+                            match theme {
+                                Some(theme) => ui.themed(theme, &mut edit),
+                                None => edit(ui),
+                            }
+                        });
+                        // Swift offsets the 44 pt target 10 pt past the gutter.
+                        let clear = ui.node(
+                            "clear-slot",
+                            Node {
+                                w: Size::Px(44.0),
+                                h: Size::Px(44.0),
+                                margin: Edges {
+                                    r: -10.0,
+                                    ..Edges::ZERO
+                                },
+                                align: Align::Center,
+                                ..Node::DEFAULT
+                            },
+                        );
+                        ui.within(&clear, &mut |ui| {
+                            if icon_button(
+                                ui,
+                                "clear-query",
+                                "Clear search",
+                                Icon::Clear,
+                                (44.0, 44.0),
+                                false,
+                                // Swift's clear glyph has no resting plate.
+                                Palette {
+                                    key: Rgba::default(),
+                                    ..p
+                                },
+                            ) {
+                                *intent = Some(Intent::Search(Query::default()));
+                            }
+                        });
+                    });
+                },
+            );
+            container(
+                ui,
+                "query-rule",
+                Axis::Column,
+                Size::Grow,
+                Size::Px(1.5),
+                p.ink,
+            );
+            spacer(ui, "tokens-gap", 12.0);
+            find_tokens(ui, state, (width - 32.0).max(1.0), p, intent);
+            if state.query.as_str().trim().is_empty() {
+                hint(ui, (width - 32.0).max(1.0), p);
+            } else if let Some(summary) = state
+                .collection(catalog)
+                .and(catalog.view.as_ref())
+                .and_then(|view| view.find.as_ref())
+            {
+                spacer(ui, "songs-gap", 20.0);
+                detail::line(
+                    ui,
+                    "songs-label",
+                    &summary.label,
+                    (13.0, 18.2, 500, 0.0),
+                    p.secondary,
+                    0,
+                );
+                spacer(ui, "songs-gap-bottom", 8.0);
+            }
+        });
+    });
+}
+
+/// "Search spans every source..." with Swift's bold filter examples, wrapped to the page width.
+fn hint(ui: &mut Ui, width: f32, p: Palette) {
+    const TEXT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
+    let bold = |word: &str| {
+        let start = TEXT.find(word).unwrap_or(0) as u32;
+        pxui::TextSpan {
+            start,
+            end: start + word.len() as u32,
+            weight: 700,
+            ..Default::default()
+        }
+    };
+    let spans = [bold("flac"), bold("cloud")];
+    let style = pxui::TextStyle {
+        size_points: 14.0,
+        line_height: 19.6,
+        wrap: pxui::TextStyle::WRAP_WORD,
+        ..Default::default()
+    };
+    let height = ui
+        .text_service()
+        .measure_spans(TEXT, &style, width, &spans)
+        .map_or(19.6, |m| m.height.max(19.6));
+    let node = ui.node(
+        "hint",
+        Node {
+            w: Size::Grow,
+            h: Size::Px(height),
+            margin: Edges {
+                t: 28.0, // 40 less find_tokens' 12 pt tail
+                ..Edges::ZERO
+            },
+            role: Role::Paragraph,
+            look: Look {
+                text: p.secondary,
+                ..Look::NONE
+            },
+            ..Node::DEFAULT
+        },
+    );
+    ui.text_line_box(&node, TEXT, &style, &spans).unwrap();
+}
+
 pub(super) fn header_view(
     ui: &mut Ui,
     catalog: &Catalog,

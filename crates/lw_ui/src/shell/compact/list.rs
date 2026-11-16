@@ -35,7 +35,7 @@ pub(super) fn songs(
     intent: &mut Option<Intent>,
 ) {
     if state.route == Route::Find {
-        header_view(ui, catalog, state, width, p, intent);
+        compact_find(ui, catalog, state, player.command_theme, width, p, intent);
     }
     // Swift's compact Songs is always title-sorted; the worker projects it.
     if state.route == Route::Songs && state.sort == Sort::Original && intent.is_none() {

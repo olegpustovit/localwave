@@ -1464,6 +1464,44 @@ mod tests {
     }
 
     #[test]
+    fn phone_find_leads_with_swift_caption_field_chips_and_hint_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = catalog(20);
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Find));
+        let player = PlayerView::default();
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        for tick in 0..6 {
+            mem_sys::local_reset();
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, f64::from(tick));
+            if tick >= 3 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "frame {tick}");
+            }
+        }
+        let rect_of = |role: Role, name: &str| {
+            ui.a11y_nodes()
+                .iter()
+                .find(|node| node.is_role(role) && ui.a11y_name_of(node) == name)
+                .unwrap_or_else(|| panic!("missing {name}"))
+                .rect
+        };
+        let caption = rect_of(Role::Label, "Find");
+        let chip = rect_of(Role::Toggle, "flac");
+        let clear = rect_of(Role::Button, "Clear search");
+        assert_eq!((chip.h, clear.w, clear.h), (32.0, 44.0, 44.0));
+        // 20 pt top pad, 21 pt caption, 56 pt field, 1.5 pt rule, 12 pt gap.
+        assert_eq!(chip.y - caption.y, 21.0 + 56.0 + 1.5 + 12.0);
+        assert!(chip.x == 16.0 && clear.x + clear.w > 390.0 - 16.0);
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| node.is_role(Role::Paragraph)),
+            "usage hint"
+        );
+    }
+
+    #[test]
     fn find_done_dismisses_input_without_playing_the_selected_song() {
         mem_sys::set_peer(pxui::library_counter);
         let mut catalog = catalog(20);

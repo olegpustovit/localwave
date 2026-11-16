@@ -611,6 +611,8 @@ pub struct Catalog {
 pub struct FindSummary {
     pub title: String,
     pub summary: String,
+    /// Phone section label ("Songs 30").
+    pub label: String,
     pub eligible: Arc<[i64]>,
     pub pinned: bool,
 }
@@ -633,6 +635,7 @@ impl FindSummary {
         Self {
             title: format!("“{raw}”"),
             summary,
+            label: format!("Songs {count}"),
             eligible,
             pinned,
         }

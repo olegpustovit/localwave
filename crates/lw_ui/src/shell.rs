@@ -750,7 +750,7 @@ pub fn shell(
     if state.commands_visible {
         commands::palette_view(ui, player, catalog, state, p, intent);
     } else if state.shortcuts_visible {
-        commands::shortcuts(ui, p, intent);
+        commands::shortcuts(ui, state.top_inset, p, intent);
     }
     if state.queue_visible {
         queue_sheet(ui, player, catalog, state, p, intent);
