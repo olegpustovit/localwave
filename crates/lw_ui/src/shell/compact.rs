@@ -461,14 +461,14 @@ fn mini(
         if ui.signal_state(&open).clicked {
             *intent = Some(Intent::TogglePlayer);
         }
-        play(ui, player, 44.0, p, intent);
+        play(ui, player, (44.0, 44.0), p, intent);
         if icon_button(ui, "next", "Next", Icon::Next, (44.0, 44.0), false, p) {
             *intent = Some(Intent::Next);
         }
     });
 }
 
-fn play(ui: &mut Ui, player: &PlayerView<'_>, size: f32, p: Palette, intent: &mut Option<Intent>) {
+fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), p: Palette, intent: &mut Option<Intent>) {
     if icon_button(
         ui,
         "play",
@@ -478,7 +478,7 @@ fn play(ui: &mut Ui, player: &PlayerView<'_>, size: f32, p: Palette, intent: &mu
         } else {
             Icon::Play
         },
-        (size, size),
+        size,
         true,
         p,
     ) {
@@ -827,6 +827,53 @@ fn groups(
     );
 }
 
+/// Swift's `WaveModeKeys` (compact): icon + label key on a light fill, ink when active.
+fn mode_key(
+    ui: &mut Ui,
+    key: &str,
+    label: &str,
+    icon: Icon,
+    active: bool,
+    p: Palette,
+    mut inner: impl FnMut(&mut Ui),
+) -> bool {
+    let node = ui.node(
+        key,
+        Node {
+            axis: Axis::Row,
+            flags: CLICKABLE | TAB_STOP,
+            role: Role::Button,
+            align: Align::Center,
+            justify: Justify::Center,
+            gap: 6.0,
+            w: Size::Grow,
+            h: Size::Px(44.0),
+            look: Look {
+                fill: if active { p.ink } else { p.key },
+                ..Look::NONE
+            },
+            ..Node::DEFAULT
+        },
+    );
+    let color = if active { p.paper } else { p.ink };
+    ui.within(&node, &mut |ui| {
+        let glyph = ui.node(
+            "icon",
+            Node {
+                w: Size::Px(20.0),
+                h: Size::Px(20.0),
+                ..Node::DEFAULT
+            },
+        );
+        ui.draw(&glyph, move |paint, rect| {
+            kit::paint_icon(paint, icon, rect.x, rect.y, color)
+        });
+        inner(ui);
+    });
+    ui.a11y_name(&node, label);
+    ui.signal_state(&node).clicked
+}
+
 #[allow(clippy::too_many_arguments)] // Keep ticking position separate from stable player data.
 fn expanded(
     ui: &mut Ui,
@@ -838,168 +885,276 @@ fn expanded(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
+    use lw_core::queue::RepeatMode;
     let root = ui.node(
         "expanded-player",
         Node {
-            flags: SCROLL | CLIP,
             w: Size::Grow,
             h: Size::Grow,
-            padding: Edges {
-                l: 24.0,
-                r: 24.0,
-                ..Edges::ZERO
+            look: Look {
+                fill: p.paper,
+                ..Look::NONE
             },
             ..Node::DEFAULT
         },
     );
+    let favorite = player
+        .current_id
+        .map(|id| (id, catalog.row_index(id).is_some_and(|i| catalog.row(i).favorite)));
+    // Swift `artworkRegionHeight`: what the fixed rows leave, never below 124.
+    let region = (size.1 - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0)).max(124.0);
+    let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
     ui.within(&root, &mut |ui| {
-        let head = container(
-            ui,
+        let head = ui.node(
             "now-heading",
-            Axis::Row,
-            Size::Grow,
-            Size::Px(52.0),
-            p.paper,
+            Node {
+                axis: Axis::Row,
+                align: Align::Center,
+                w: Size::Grow,
+                h: Size::Px(48.0),
+                padding: Edges { l: 6.0, r: 6.0, ..Edges::ZERO },
+                ..Node::DEFAULT
+            },
         );
         ui.within(&head, &mut |ui| {
-            line(ui, "heading", "Now playing", 16.0, p.secondary);
-            if icon_button(
-                ui,
-                "close-player",
-                "Close Now Playing",
-                Icon::Clear,
-                (44.0, 44.0),
-                false,
-                p,
-            ) {
-                *intent = Some(Intent::TogglePlayer);
-            }
+            let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), p.paper);
+            ui.within(&left, &mut |ui| {
+                if icon_button(ui, "close-player", "Close now playing", Icon::Down, (44.0, 44.0), false, p) {
+                    *intent = Some(Intent::TogglePlayer);
+                }
+            });
+            let from = ui.node(
+                "playing-from",
+                Node {
+                    axis: Axis::Row,
+                    align: Align::Center,
+                    justify: Justify::Center,
+                    gap: 4.0,
+                    w: Size::Grow,
+                    h: Size::Px(44.0),
+                    role: Role::Label,
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&from, &mut |ui| {
+                text(ui, "prefix", "Playing from", 13, p.secondary, (Size::Fit, 18.2), false);
+                text(ui, "source", player.context, 13, p.ink, (Size::Fit, 18.2), false);
+            });
+            container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), p.paper);
         });
-        let art_size = (size.0 - 48.0).min((size.1 * 0.40).max(120.0)).max(1.0);
-        artwork(
-            ui,
-            catalog,
-            player,
-            player.current_id.and_then(|id| catalog.row_index(id)),
-            art_size,
-            p,
-        );
-        spacer(ui, "art-gap", 18.0);
-        line(
-            ui,
-            "title",
-            if player.title.is_empty() {
-                "Nothing playing"
-            } else {
-                player.title
+        let region_box = ui.node(
+            "artwork-region",
+            Node {
+                axis: Axis::Row,
+                justify: Justify::Center,
+                w: Size::Grow,
+                h: Size::Px(region),
+                padding: Edges { t: 4.0, ..Edges::ZERO },
+                ..Node::DEFAULT
             },
-            24.0,
-            p.ink,
         );
-        byline::draw(ui, player, catalog, (size.0 - 48.0).max(1.0), p, intent);
-        spacer(ui, "clock-gap", 18.0);
-        let clock = container(ui, "clock", Axis::Row, Size::Grow, Size::Px(43.0), p.paper);
-        ui.within(&clock, &mut |ui| {
-            matrix_clock(ui, position.max(0.0) as u64, p.ink);
-            ui.box_("flex", BoxOpts::default().w(Size::Grow));
-            small_clock(
+        ui.within(&region_box, &mut |ui| {
+            artwork(
                 ui,
-                "remaining",
-                (player.duration - position).max(0.0) as u64,
-                true,
-                50.0,
-                p.secondary,
+                catalog,
+                player,
+                player.current_id.and_then(|id| catalog.row_index(id)),
+                art_size,
+                p,
             );
         });
-        seek(ui, player, position, p, intent);
+        let body = ui.node(
+            "now-body",
+            Node {
+                w: Size::Grow,
+                h: Size::Grow,
+                padding: Edges { l: 16.0, r: 16.0, t: 16.0, b: 10.0 },
+                ..Node::DEFAULT
+            },
+        );
+        ui.within(&body, &mut |ui| {
+            let info = ui.node(
+                "title-row",
+                Node {
+                    axis: Axis::Row,
+                    align: Align::Start,
+                    gap: 12.0,
+                    w: Size::Grow,
+                    h: Size::Px(50.6),
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&info, &mut |ui| {
+                let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, p.paper);
+                ui.within(&names, &mut |ui| {
+                    let title = ui.node(
+                        "title",
+                        Node {
+                            role: Role::Label,
+                            w: Size::Grow,
+                            h: Size::Px(27.6),
+                            look: Look { text: p.ink, ..Look::NONE },
+                            ..Node::DEFAULT
+                        },
+                    );
+                    ui.text_line_box(
+                        &title,
+                        if player.title.is_empty() { "Nothing playing" } else { player.title },
+                        &pxui::TextStyle {
+                            size_points: 24.0,
+                            weight: 500,
+                            tracking: -0.72,
+                            line_height: 27.6,
+                            max_lines: 1,
+                            ellipsis: pxui::TextStyle::ELLIPSIS_END,
+                            ..Default::default()
+                        },
+                        &[],
+                    )
+                    .unwrap();
+                    if player.current_id.is_some() {
+                        byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), p, intent);
+                    }
+                });
+                if now::favorite_button(ui, favorite, p)
+                    && let Some((song, on)) = favorite
+                {
+                    *intent = Some(Intent::SetFavorite { song, on: !on });
+                }
+            });
+            spacer(ui, "clock-gap", 14.0);
+            let clock = ui.node(
+                "clock",
+                Node {
+                    axis: Axis::Row,
+                    align: Align::End,
+                    w: Size::Grow,
+                    h: Size::Px(72.0),
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&clock, &mut |ui| {
+                matrix_clock(ui, position.max(0.0) as u64, 72.0, p.ink);
+                ui.box_("flex", BoxOpts::default().w(Size::Grow));
+                let side = ui.node(
+                    "clock-side",
+                    Node {
+                        axis: Axis::Column,
+                        align: Align::End,
+                        gap: 2.0,
+                        w: Size::Px(80.0),
+                        h: Size::Fit,
+                        padding: Edges { b: 2.0, ..Edges::ZERO },
+                        ..Node::DEFAULT
+                    },
+                );
+                ui.within(&side, &mut |ui| {
+                    if let Some(info) = player.info {
+                        text(ui, "format", &info.summary, 12, p.secondary, (Size::Fit, 16.8), true);
+                    }
+                    small_clock(
+                        ui,
+                        "remaining",
+                        (player.duration - position).max(0.0) as u64,
+                        true,
+                        50.0,
+                        p.secondary,
+                    );
+                });
+            });
+            spacer(ui, "seek-gap", 14.0);
+            seek(ui, player, position, p, intent);
+            let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), p.paper);
+            ui.within(&times, &mut |ui| {
+                let start = small_clock(ui, "start", 0, false, 40.0, p.secondary);
+                ui.a11y_name(&start, "Start time");
+                ui.box_("flex", BoxOpts::default().w(Size::Grow));
+                let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, p.secondary);
+                ui.a11y_name(&total, "Duration");
+            });
+            spacer(ui, "modes-gap", 14.0);
+            let modes = ui.node(
+                "modes",
+                Node {
+                    axis: Axis::Row,
+                    gap: 2.0,
+                    padding: Edges::all(2.0),
+                    w: Size::Grow,
+                    h: Size::Px(48.0),
+                    look: Look { fill: p.panel, ..Look::NONE },
+                    ..Node::DEFAULT
+                },
+            );
+            ui.within(&modes, &mut |ui| {
+                if mode_key(
+                    ui,
+                    "shuffle",
+                    if player.shuffled { "Shuffle on" } else { "Shuffle off" },
+                    Icon::Shuffle,
+                    player.shuffled,
+                    p,
+                    |ui| {
+                        let c = if player.shuffled { p.paper } else { p.ink };
+                        text(ui, "label", "Shuffle", 14, c, (Size::Fit, 19.6), false);
+                    },
+                ) {
+                    *intent = Some(Intent::Shuffle);
+                }
+                let again = player.repeat != RepeatMode::None;
+                if mode_key(
+                    ui,
+                    "repeat",
+                    match player.repeat {
+                        RepeatMode::None => "Repeat off",
+                        RepeatMode::All => "Repeat all",
+                        RepeatMode::One => "Repeat one",
+                    },
+                    Icon::Repeat,
+                    again,
+                    p,
+                    |ui| {
+                        let c = if again { p.paper } else { p.ink };
+                        let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
+                        text(ui, "label", label, 14, c, (Size::Fit, 19.6), false);
+                    },
+                ) {
+                    *intent = Some(Intent::Repeat);
+                }
+                if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, p, |ui| {
+                    let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
+                    text(ui, "count", count, 11, p.ink, (Size::Fit, 15.4), true);
+                    text(ui, "label", "up next", 14, p.ink, (Size::Fit, 19.6), false);
+                }) {
+                    *intent = Some(Intent::ShowQueue);
+                }
+            });
+            if !player.message.is_empty() {
+                line(ui, "notice", player.message, 12.0, p.secondary);
+            }
+        });
+        // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
         let keys = ui.node(
             "keys",
             Node {
                 axis: Axis::Row,
-                align: Align::Center,
-                justify: Justify::Center,
+                gap: 2.0,
+                padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
                 w: Size::Grow,
-                h: Size::Px(72.0),
-                gap: 16.0,
+                h: Size::Px(86.0),
+                look: Look { fill: p.selected, ..Look::NONE },
                 ..Node::DEFAULT
             },
         );
         ui.within(&keys, &mut |ui| {
-            if icon_button(
-                ui,
-                "previous",
-                "Previous",
-                Icon::Previous,
-                (56.0, 56.0),
-                false,
-                p,
-            ) {
+            let key = ((size.0 - 8.0) / 3.0).max(1.0);
+            if icon_button(ui, "previous", "Previous", Icon::Previous, (key, 84.0), false, p) {
                 *intent = Some(Intent::Previous);
             }
-            play(ui, player, 64.0, p, intent);
-            if icon_button(ui, "next", "Next", Icon::Next, (56.0, 56.0), false, p) {
+            play(ui, player, (key, 84.0), p, intent);
+            if icon_button(ui, "next", "Next", Icon::Next, (key, 84.0), false, p) {
                 *intent = Some(Intent::Next);
             }
         });
-        let actions = ui.node(
-            "actions",
-            Node {
-                axis: Axis::Row,
-                justify: Justify::SpaceBetween,
-                w: Size::Grow,
-                h: Size::Px(48.0),
-                ..Node::DEFAULT
-            },
-        );
-        ui.within(&actions, &mut |ui| {
-            if icon_button(
-                ui,
-                "shuffle",
-                if player.shuffled {
-                    "Shuffle on"
-                } else {
-                    "Shuffle off"
-                },
-                Icon::Shuffle,
-                (44.0, 44.0),
-                player.shuffled,
-                p,
-            ) {
-                *intent = Some(Intent::Shuffle);
-            }
-            if icon_button(
-                ui,
-                "repeat",
-                match player.repeat {
-                    lw_core::queue::RepeatMode::None => "Repeat off",
-                    lw_core::queue::RepeatMode::All => "Repeat all",
-                    lw_core::queue::RepeatMode::One => "Repeat one",
-                },
-                Icon::Repeat,
-                (44.0, 44.0),
-                player.repeat != lw_core::queue::RepeatMode::None,
-                p,
-            ) {
-                *intent = Some(Intent::Repeat);
-            }
-            if icon_button(ui, "stop", "Stop", Icon::Stop, (44.0, 44.0), false, p) {
-                *intent = Some(Intent::Stop);
-            }
-            if icon_button(
-                ui,
-                "queue",
-                "Show full queue",
-                Icon::Queue,
-                (44.0, 44.0),
-                false,
-                p,
-            ) {
-                *intent = Some(Intent::ShowQueue);
-            }
-        });
-        volume(ui, player, Size::Grow, p, intent);
-        line(ui, "context", player.context, 12.0, p.secondary);
-        line(ui, "notice", player.message, 12.0, p.secondary);
     });
     crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
 }
@@ -1126,7 +1281,7 @@ mod tests {
         assert!(state.player_expanded && state.panel_visible);
         assert_eq!(state.route, Route::Album(0));
         assert_eq!(state.selected, Some(2));
-        click(&mut ui, "Close Now Playing");
+        click(&mut ui, "Close now playing");
         assert_eq!(
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 10.0),
             Some(Intent::TogglePlayer)
@@ -1146,6 +1301,51 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 15.0),
             Some(Intent::Navigate(Route::Collection(0)))
         );
+    }
+
+    #[test]
+    fn expanded_player_has_swift_structure_and_its_controls_emit_intents() {
+        let catalog = catalog(10);
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = ShellState::default();
+        let info = crate::now_info::NowInfo { summary: "flac 96/24".into(), ..Default::default() };
+        let player = PlayerView {
+            current_id: Some(0),
+            title: "Track 00000",
+            artist: "Example artist",
+            context: "Weather Systems",
+            initialized: true,
+            duration: 240.0,
+            info: Some(&info),
+            ..Default::default()
+        };
+        frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, 1.0);
+        click(&mut ui, "Open Now Playing");
+        assert_eq!(frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, 2.0), Some(Intent::TogglePlayer));
+        state.apply(Intent::TogglePlayer);
+        for time in [3.0, 4.0, 5.0] {
+            frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, time);
+        }
+        let names: Vec<String> = ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_string()).collect();
+        for want in [
+            "Close now playing", "Weather Systems", "Favorite current song", "Elapsed time", "Remaining time",
+            "Playback position", "Start time", "Duration", "Shuffle off", "Repeat off", "Show full queue",
+            "Previous", "Play", "Next",
+        ] {
+            assert!(names.iter().any(|name| name == want), "missing {want}: {names:?}");
+        }
+        for (label, want, time) in [
+            ("Shuffle off", Intent::Shuffle, 6.0),
+            ("Repeat off", Intent::Repeat, 7.0),
+            ("Next", Intent::Next, 8.0),
+            ("Previous", Intent::Previous, 9.0),
+            ("Play", Intent::Play, 10.0),
+            ("Favorite current song", Intent::SetFavorite { song: 0, on: true }, 11.0),
+        ] {
+            click(&mut ui, label);
+            assert_eq!(frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, time), Some(want), "{label}");
+        }
     }
 
     #[test]

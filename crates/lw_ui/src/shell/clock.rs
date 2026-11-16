@@ -55,7 +55,7 @@ pub(super) fn small_clock(
     remaining: bool,
     width: f32,
     color: Rgba,
-) {
+) -> Handle {
     let node = container(
         ui,
         key,
@@ -72,6 +72,7 @@ pub(super) fn small_clock(
             "Elapsed time"
         },
     );
+    ui.set_role(&node, Role::Label, 0);
     ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0);
     let label = ClockLabel::new(seconds, remaining);
     ui.draw(&node, move |paint, rect| {
@@ -80,6 +81,7 @@ pub(super) fn small_clock(
             x += paint.icon((x, rect.y + 4.0), 1, 12.0, *byte as char, color);
         }
     });
+    node
 }
 const DIGITS: [[u8; 7]; 10] = [
     [14, 17, 17, 17, 17, 17, 14],
@@ -119,7 +121,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &str, digits: &'static [u8], heigh
         }
     });
 }
-pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, color: Rgba) {
+pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) {
     use pxui::kit::{AnimationTarget, Keyframe};
     const ROW_KEYS: [&str; 7] = [
         "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
@@ -133,7 +135,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, color: Rgba) {
         label
     }
     let shown = label(seconds);
-    let unit = 43.0 / 7.0;
+    let unit = height / 7.0;
     let columns: usize = shown
         .bytes()
         .iter()
@@ -144,7 +146,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, color: Rgba) {
         "matrix-clock",
         Node {
             w: Size::Px((columns as f32 - 0.22) * unit),
-            h: Size::Px(43.0),
+            h: Size::Px(height),
             role: Role::Label,
             ..Node::DEFAULT
         },

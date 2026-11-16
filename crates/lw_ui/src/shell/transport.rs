@@ -397,7 +397,7 @@ pub(super) fn seek(
         &Node {
             w: Size::Grow,
             h: Size::Px(if ui.view_size().0 < compact::BREAKPOINT {
-                44.0
+                56.0
             } else {
                 40.0
             }),
@@ -456,53 +456,4 @@ pub(super) fn seek(
             p.signal,
         );
     });
-}
-
-pub(super) fn volume(
-    ui: &mut Ui,
-    player: &PlayerView<'_>,
-    width: Size,
-    p: Palette,
-    intent: &mut Option<Intent>,
-) {
-    let value = if player.volume.is_finite() {
-        player.volume.clamp(0.0, 1.0)
-    } else {
-        0.0
-    };
-    let scrub = ui.scrub("Volume", value, 0.0..=1.0, 1.0 / 12.0);
-    ui.set_node_layout(
-        &scrub.node,
-        &Node {
-            w: width,
-            h: Size::Px(if ui.view_size().0 < compact::BREAKPOINT {
-                44.0
-            } else {
-                40.0
-            }),
-            ..Node::DEFAULT
-        },
-    );
-    let fraction = scrub.preview.unwrap_or(value);
-    ui.draw(&scrub.node, move |paint, rect| {
-        let cell = ((rect.w - 22.0) / 12.0).max(0.0);
-        let on = (fraction * 12.0).round() as usize;
-        for index in 0..12 {
-            paint.fill_fractional(
-                rect.x + index as f32 * (cell + 2.0),
-                rect.y + (rect.h - 10.0) * 0.5,
-                cell,
-                10.0,
-                if index < on { p.ink } else { p.selected },
-            );
-        }
-    });
-    let next = if scrub.held {
-        scrub.preview.filter(|next| *next != value)
-    } else {
-        scrub.commit
-    };
-    if let Some(next) = next {
-        *intent = Some(Intent::Volume(next));
-    }
 }

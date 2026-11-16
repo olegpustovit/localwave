@@ -60,7 +60,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F10 | Onboarding, route empty states and Share | done | 92993cf |
 | S | Sign, migrate, TestFlight and release macOS | doing | `make sign` (keychain access pending), `tools/notarize-macos.sh` unrun, `tools/migration-check.sh` passes on a container copy |
 | I1 | Framework gestures and device comparison | todo | — |
-| I2 | iOS flows, physical install and shipping gates | doing | Compact song-row swipe (Play next / Favorite), long-press track menu over a blurred backdrop and pull to refresh on pxui 1.38 gestures; morph, sheets and device gates pending |
+| I2 | iOS flows, physical install and shipping gates | doing | Compact full-screen Now player (Swift structure, mini-player opens it); compact song-row swipe (Play next / Favorite), long-press track menu over a blurred backdrop and pull to refresh on pxui 1.38 gestures; morph, sheets and device gates pending |
 | D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |
 
 ## Latest performance
@@ -427,13 +427,17 @@ device/provider behavior remain open.
   LOCALWAVE_REFERENCE_DESKTOP; Rust: macOS window at 390×778 via LOCALWAVE_REFERENCE_MOBILE=1, which renders the compact layout; same
   titlebar crop; 17 screens, add/track skipped). Latest: mean abs diff 7.6-41.2 (onboarding 7.6, find 11.5, queue 16.6, find-results 18.5,
   lists 19.1, album 22.2, artists 23.2, list 23.3, settings 23.6, songs 24.5, favorites 25.1, folders 26.4, folder 28.5, commands 31.2,
-  shortcuts 39.1, artist 41.2, now 121.3). Gaps: Now stays on Library (no full-screen player), Songs lacks Swift's alphabet index/headers/
+  shortcuts 39.1, artist 41.2, now 7.7; the `now` capture opens the full-screen player). Gaps: Songs lacks Swift's alphabet index/headers/
   counts, Artist lacks header/Play-Shuffle/album card, shortcuts sheet is inset differently, Library header lacks pixel counter.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: compact swipe/long-press/refresh flows are in (pxui 1.38 `Ui::gesture`; Swift's swipe is Play next right /
   Add to queue or Remove left with a 88 pt commit, Rust follows the plan with one-sided Play next + Favorite buttons;
   the backdrop blur needs device qualification; refresh ends on the next catalog delivery or after 5 s; no a11y custom
-  actions for the swipe, the row's actions button remains the alternative). Remaining: player morph/sheets,
+  actions for the swipe, the row's actions button remains the alternative). The compact full-screen Now player follows WaveNowView (header with Playing from, art region,
+  title/heart, 72 pt matrix clock with format summary and remaining time, waveform scrubber, Shuffle/Repeat/N up next, prev/play/next bar;
+  Open/Close Now playing, slide-in via `motion::enter`). Deferred: drag-down dismiss (pxui has no vertical-dismiss gesture), true
+  mini-player morph, AirPlay route picker and track-actions button in the header, medium title weight on the close glyph/key fills.
+  Remaining: sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.
 - D: owner policy: VoiceOver before the first Rust macOS release. pxui a0a0cb8 adds the macOS NSAccessibility bridge
   (one element per a11y node, sync on revision change, actions via inject_a11y; tree built only while VoiceOver runs or

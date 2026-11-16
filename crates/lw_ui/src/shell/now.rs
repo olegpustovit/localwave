@@ -189,7 +189,7 @@ pub(super) fn now_panel(
                     },
                 );
                 ui.within(&clock, &mut |ui| {
-                    matrix_clock(ui, position.max(0.0) as u64, p.ink);
+                    matrix_clock(ui, position.max(0.0) as u64, 43.0, p.ink);
                     ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
                     small_clock(
                         ui,
@@ -242,7 +242,7 @@ pub(super) fn now_panel(
 }
 
 /// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
-fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> bool {
+pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> bool {
     use pxui::kit::{AnimationTarget as Target, Keyframe};
     const RAYS: [(&str, f32, f32); 6] = [
         ("ray0", 0.0, -1.0),

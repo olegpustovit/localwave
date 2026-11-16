@@ -519,7 +519,7 @@ pub fn route(app: &mut App, screen: &str, late: bool) -> Result<(), String> {
         "settings" => vec![albums, Intent::ShowSettings],
         "commands" => vec![albums, Intent::ShowCommands],
         "shortcuts" => vec![albums, Intent::ShowShortcuts],
-        "now" => vec![albums],
+        "now" => vec![albums, Intent::TogglePlayer],
         "onboarding" => vec![],
         "folder" => vec![Intent::Navigate(Route::Files)],
         "queue" => vec![albums, Intent::ShowQueue],

@@ -160,13 +160,93 @@ pub(super) enum Icon {
     Pause,
     Previous,
     Next,
-    Stop,
     Queue,
     Panel,
     Shuffle,
     Repeat,
     Refresh,
     Clear,
+    Down,
+}
+pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
+    match icon {
+        Icon::Play => crate::icons::play(
+            paint,
+            Rect {
+                x,
+                y,
+                w: 20.0,
+                h: 20.0,
+            },
+            color,
+        ),
+        Icon::Pause => {
+            paint.fill(x + 4.0, y + 3.0, 4.0, 14.0, color);
+            paint.fill(x + 12.0, y + 3.0, 4.0, 14.0, color);
+        }
+        Icon::Queue => {
+            for dy in [5.0, 10.0, 15.0] {
+                paint.fill(x + 2.0, y + dy, 2.0, 1.5, color);
+                paint.fill(x + 6.0, y + dy, 12.0, 1.5, color);
+            }
+        }
+        Icon::Previous | Icon::Next => {
+            let next = matches!(icon, Icon::Next);
+            paint.fill(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0, color);
+            for row in 0..12 {
+                let w = (6.0 - (row as f32 - 5.5).abs()) * 1.5;
+                paint.fill(
+                    x + if next { 4.0 } else { 15.0 - w },
+                    y + 4.0 + row as f32,
+                    w,
+                    1.0,
+                    color,
+                );
+            }
+        }
+        Icon::Panel => {
+            paint.stroke(x + 2.0, y + 3.0, 16.0, 14.0, color);
+            paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), color);
+        }
+        Icon::Shuffle => {
+            crate::icons::shuffle(
+                paint,
+                Rect {
+                    x,
+                    y,
+                    w: 20.0,
+                    h: 20.0,
+                },
+                color,
+            );
+        }
+        Icon::Repeat => crate::icons::repeat(
+            paint,
+            Rect {
+                x,
+                y,
+                w: 20.0,
+                h: 20.0,
+            },
+            color,
+        ),
+        Icon::Refresh => {
+            paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
+            paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
+            paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), color);
+            paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), color);
+            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
+            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
+        }
+        Icon::Clear => {
+            paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
+            paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
+        }
+        Icon::Down => {
+            paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), color);
+            paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), color);
+        }
+    }
 }
 pub(super) fn icon_button(
     ui: &mut Ui,
@@ -220,81 +300,7 @@ pub(super) fn icon_button(
             ui.draw(&surface, move |paint, rect| {
                 let x = rect.x + (rect.w - 20.0) / 2.0;
                 let y = rect.y + (rect.h - 20.0) / 2.0;
-                match icon {
-                    Icon::Play => crate::icons::play(
-                        paint,
-                        Rect {
-                            x,
-                            y,
-                            w: 20.0,
-                            h: 20.0,
-                        },
-                        color,
-                    ),
-                    Icon::Pause => {
-                        paint.fill(x + 4.0, y + 3.0, 4.0, 14.0, color);
-                        paint.fill(x + 12.0, y + 3.0, 4.0, 14.0, color);
-                    }
-                    Icon::Stop => paint.fill(x + 5.0, y + 5.0, 10.0, 10.0, color),
-                    Icon::Queue => {
-                        for dy in [5.0, 10.0, 15.0] {
-                            paint.fill(x + 2.0, y + dy, 2.0, 1.5, color);
-                            paint.fill(x + 6.0, y + dy, 12.0, 1.5, color);
-                        }
-                    }
-                    Icon::Previous | Icon::Next => {
-                        let next = matches!(icon, Icon::Next);
-                        paint.fill(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0, color);
-                        for row in 0..12 {
-                            let w = (6.0 - (row as f32 - 5.5).abs()) * 1.5;
-                            paint.fill(
-                                x + if next { 4.0 } else { 15.0 - w },
-                                y + 4.0 + row as f32,
-                                w,
-                                1.0,
-                                color,
-                            );
-                        }
-                    }
-                    Icon::Panel => {
-                        paint.stroke(x + 2.0, y + 3.0, 16.0, 14.0, color);
-                        paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), color);
-                    }
-                    Icon::Shuffle => {
-                        crate::icons::shuffle(
-                            paint,
-                            Rect {
-                                x,
-                                y,
-                                w: 20.0,
-                                h: 20.0,
-                            },
-                            color,
-                        );
-                    }
-                    Icon::Repeat => crate::icons::repeat(
-                        paint,
-                        Rect {
-                            x,
-                            y,
-                            w: 20.0,
-                            h: 20.0,
-                        },
-                        color,
-                    ),
-                    Icon::Refresh => {
-                        paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
-                        paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
-                        paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), color);
-                        paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), color);
-                        paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
-                        paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
-                    }
-                    Icon::Clear => {
-                        paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
-                        paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
-                    }
-                }
+                paint_icon(paint, icon, x, y, color);
             });
         });
         if ui.state(&visual, 0) != i64::from(signal.held) {
@@ -386,7 +392,7 @@ pub(super) mod button_tests {
                             time: time + offset,
                             ..Default::default()
                         },
-                        &mut |ui| matrix_clock(ui, seconds, ink),
+                        &mut |ui| matrix_clock(ui, seconds, 43.0, ink),
                     )
                     .unwrap();
                     let clock = ui
@@ -420,147 +426,6 @@ pub(super) mod button_tests {
                     0,
                     "all digit carries, including minute/hour boundaries"
                 );
-            }
-        }
-    }
-
-    #[test]
-    fn volume_cells_preview_and_adjust_by_reference_steps_without_warm_allocations() {
-        use pxui::{Event, FrameIn, Platform};
-        mem_sys::set_peer(pxui::library_counter);
-        let player = PlayerView {
-            volume: 0.5,
-            ..Default::default()
-        };
-        fn frame(
-            ui: &mut Ui,
-            player: &PlayerView<'_>,
-            scale: f32,
-            events: &[Event],
-            intent: &mut Option<Intent>,
-        ) {
-            ui.frame(
-                &FrameIn {
-                    width: 320.0,
-                    height: 44.0,
-                    scale,
-                    events: events.as_ptr(),
-                    event_count: events.len(),
-                    ..Default::default()
-                },
-                &mut |ui| {
-                    volume(ui, player, Size::Px(82.0), palette(ui), intent);
-                },
-            )
-            .unwrap();
-        }
-        for scale in [1.0, 2.0] {
-            let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-            ui.set_a11y(true);
-            frame(&mut ui, &player, scale, &[], &mut None);
-            let p = palette(&ui);
-            let cells: Vec<_> = ui
-                .layers()
-                .flat_map(|layer| layer.instances.iter())
-                .filter(|quad| {
-                    (quad.rect[2] - quad.rect[0] - 5.0).abs() < 0.001
-                        && (quad.rect[3] - quad.rect[1] - 10.0).abs() < 0.001
-                })
-                .copied()
-                .collect();
-            assert_eq!(cells.len(), 12);
-            for (index, cell) in cells.iter().enumerate() {
-                assert_eq!(
-                    cell.rect,
-                    [index as f32 * 7.0, 17.0, index as f32 * 7.0 + 5.0, 27.0]
-                );
-                let color = if index < 6 { p.ink } else { p.selected };
-                assert_eq!(cell.color, [color.r, color.g, color.b, color.a]);
-            }
-            let id = ui
-                .a11y_nodes()
-                .iter()
-                .find(|node| ui.a11y_name_of(node) == "Volume")
-                .unwrap()
-                .id;
-            let pointer = |kind, x| Event {
-                kind,
-                x,
-                y: 22.0,
-                ..Default::default()
-            };
-            let key = |key: input::Key| Event {
-                kind: input::wire::KEY_PRESSED,
-                code: key.code(),
-                ..Default::default()
-            };
-            for round in 0..8 {
-                mem_sys::local_reset();
-                for (event, expected) in [
-                    (pointer(input::wire::POINTER_PRESSED, 20.5), 0.25),
-                    (pointer(input::wire::POINTER_MOVED, 61.5), 0.75),
-                    (pointer(input::wire::POINTER_RELEASED, 82.0), 1.0),
-                    (key(input::Key::ArrowRight), 0.5 + 1.0 / 12.0),
-                    (key(input::Key::ArrowLeft), 0.5 - 1.0 / 12.0),
-                    (key(input::Key::Home), 0.0),
-                    (key(input::Key::End), 1.0),
-                    (key(input::Key::PageUp), 1.0),
-                    (key(input::Key::PageDown), 0.0),
-                ] {
-                    let mut intent = None;
-                    frame(
-                        &mut ui,
-                        &player,
-                        scale,
-                        std::slice::from_ref(&event),
-                        &mut intent,
-                    );
-                    assert_eq!(intent, Some(Intent::Volume(expected)));
-                }
-                let mut intent = None;
-                frame(
-                    &mut ui,
-                    &player,
-                    scale,
-                    &[pointer(input::wire::POINTER_PRESSED, 20.5)],
-                    &mut intent,
-                );
-                let events = [
-                    pointer(input::wire::POINTER_RELEASED, 61.5),
-                    pointer(input::wire::POINTER_PRESSED, 20.5),
-                ];
-                intent = None;
-                frame(&mut ui, &player, scale, &events, &mut intent);
-                assert_eq!(
-                    intent,
-                    Some(Intent::Volume(0.25)),
-                    "live preview wins over an older release in the same batch"
-                );
-                intent = None;
-                frame(
-                    &mut ui,
-                    &player,
-                    scale,
-                    &[pointer(input::wire::POINTER_CANCELLED, 20.5)],
-                    &mut intent,
-                );
-                assert!(intent.is_none());
-                ui.inject_a11y(&[pxui::A11yAction {
-                    id,
-                    action_code: 4,
-                    payload: 0.25,
-                    ..Default::default()
-                }]);
-                let mut intent = None;
-                frame(&mut ui, &player, scale, &[], &mut intent);
-                assert_eq!(intent, Some(Intent::Volume(0.25)));
-                if round > 1 {
-                    assert_eq!(
-                        mem_sys::local_alloc_count(),
-                        0,
-                        "warm volume input and cells"
-                    );
-                }
             }
         }
     }

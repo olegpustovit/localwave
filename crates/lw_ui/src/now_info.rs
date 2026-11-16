@@ -6,6 +6,8 @@ use lw_core::models::{FileState, Song};
 pub struct NowInfo {
     pub song: i64,
     pub format: String,
+    /// Compact player's `flac 96/24` (Swift `formatSummary`).
+    pub summary: String,
     pub size: String,
     pub file: String,
     /// Full folder label for the accessibility name.
@@ -35,6 +37,13 @@ impl NowInfo {
             }
             None => fields.push("audio".into()),
         }
+        let summary = match (&song.file_extension, song.sample_rate, song.bit_depth) {
+            (Some(extension), Some(rate), Some(bits)) => {
+                format!("{} {}/{bits}", extension.to_lowercase(), general(rate / 1000.0))
+            }
+            (Some(extension), ..) => extension.to_lowercase(),
+            _ => "audio".into(),
+        };
         let size = song.file_size.map_or("—".into(), |bytes| {
             format!("{:.1} MB", bytes as f64 / 1_048_576.0)
         });
@@ -63,6 +72,7 @@ impl NowInfo {
         Self {
             song: song.id.unwrap_or_default(),
             format: fields.join(" · "),
+            summary,
             size: format!("{size} · {location}"),
             file,
             folder,
@@ -89,6 +99,7 @@ mod tests {
         };
         let info = NowInfo::new(&song, Some("Google Drive"), 16);
         assert_eq!(info.format, "flac · 96 kHz · 24 bit");
+        assert_eq!(info.summary, "flac 96/24");
         assert_eq!(info.size, "103.1 MB · on device");
         assert_eq!(info.file, "Google Drive / Weather Systems");
         assert_eq!(info.plays, "16");
