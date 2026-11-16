@@ -423,6 +423,12 @@ device/provider behavior remain open.
   (onboarding 2.25, queue 2.59, find 6.24, artists 6.39, now 7.20, songs 8.52, commands 11.56, settings 14.73, folders
   23.17). Remaining: Files card spacing/fixture paths, settings layout, artist page album grid, demo library; the rest is
   spacing and per-glyph antialiasing (CoreText-matching raster, see D).
+- I2 mobile goldens: `MOBILE=1 tools/reference-goldens.sh && tools/compare-goldens.py /tmp/localwave-goldens-mobile` (Swift canvas 390×778 without
+  LOCALWAVE_REFERENCE_DESKTOP; Rust: macOS window at 390×778 via LOCALWAVE_REFERENCE_MOBILE=1, which renders the compact layout; same
+  titlebar crop; 17 screens, add/track skipped). Latest: mean abs diff 7.6-41.2 (onboarding 7.6, find 11.5, queue 16.6, find-results 18.5,
+  lists 19.1, album 22.2, artists 23.2, list 23.3, settings 23.6, songs 24.5, favorites 25.1, folders 26.4, folder 28.5, commands 31.2,
+  shortcuts 39.1, artist 41.2, now 121.3). Gaps: Now stays on Library (no full-screen player), Songs lacks Swift's alphabet index/headers/
+  counts, Artist lacks header/Play-Shuffle/album card, shortcuts sheet is inset differently, Library header lacks pixel counter.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: remaining framework gestures, swipe/long-press/refresh app flows, player morph/sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.

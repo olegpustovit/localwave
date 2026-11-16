@@ -96,7 +96,9 @@ pub(super) fn open(
             .map_err(|error| error.to_string())?;
         // Goldens compare the 1440x872 content area; tools/reference-goldens.sh crops the titlebar inset.
         let extra = if reference.is_some() { chrome.snapshot().map_err(|error| error.to_string())?.top_inset.ceil() as i64 } else { 0 };
-        window.resize(1440, 872 + extra)?;
+        // LOCALWAVE_REFERENCE_MOBILE=1 (goldens only) opens the 390x778 compact canvas.
+        let (width, height) = if reference.is_some() && std::env::var_os("LOCALWAVE_REFERENCE_MOBILE").is_some() { (390, 778) } else { (1440, 872) };
+        window.resize(width, height + extra)?;
         chrome
     };
     #[cfg(target_os = "macos")]

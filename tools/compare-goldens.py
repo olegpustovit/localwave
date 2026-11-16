@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare reference/<screen>.png (Swift) with rust/<screen>.png; write diff/, index.html, summary.txt.
 
-Usage: compare-goldens.py [OUTDIR]   (default /tmp/localwave-goldens); compare-goldens.py --crop FILE TOP. Stdlib only.
+Usage: compare-goldens.py [OUTDIR]   (default /tmp/localwave-goldens); compare-goldens.py --crop FILE TOP [HEIGHT]. Stdlib only.
 Metrics: mean absolute RGB difference (0-255) and percent of pixels whose max channel differs by > THRESH.
 Pixel-exact equality is not expected (CoreText antialiasing is deferred decision D); review the HTML.
 """
@@ -85,8 +85,8 @@ def crop(path, top, height=872):
 
 
 def main():
-    if len(sys.argv) == 4 and sys.argv[1] == "--crop":
-        return crop(sys.argv[2], int(sys.argv[3]))
+    if len(sys.argv) in (4, 5) and sys.argv[1] == "--crop":
+        return crop(sys.argv[2], int(sys.argv[3]), *map(int, sys.argv[4:]))
     out = sys.argv[1] if len(sys.argv) > 1 else "/tmp/localwave-goldens"
     os.makedirs(f"{out}/diff", exist_ok=True)
     names = sorted(n[:-4] for n in os.listdir(f"{out}/rust") if n.endswith(".png") and os.path.exists(f"{out}/reference/{n}"))
@@ -100,7 +100,7 @@ def main():
     lines = [f"{'screen':<14}{'mean abs diff':>15}{'% px > ' + str(THRESH):>12}"]
     page = ["<!doctype html><meta charset=utf-8><title>LocalWave goldens</title><style>body{font:14px system-ui;margin:16px}"
             "img{width:480px;border:1px solid #888}table{border-collapse:collapse}td,th{padding:4px 10px;text-align:right}"
-            ".row{display:flex;gap:8px;margin-bottom:24px}</style><h1>LocalWave 1440x872 goldens</h1>"
+            ".row{display:flex;gap:8px;margin-bottom:24px}</style><h1>LocalWave goldens</h1>"
             "<p>reference (Swift) | rust | diff (red: channel diff &gt; %d)</p><table><tr><th>screen<th>mean abs diff<th>%% px &gt; %d</tr>" % (THRESH, THRESH)]
     for name, metrics, error in rows:
         if metrics:
