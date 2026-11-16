@@ -91,7 +91,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | HEAD + pxui 769f444 |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | done | efe51b9 + pxui 550a4c9 |
 | DX2.4 | _into forms for quads and rasterize_rgba | done | 1a95982 + pxui 932e9c5 |
-| DX2.5 | Typed errors | todo |  |
+| DX2.5 | Typed errors | done | HEAD + pxui 850be9d |
 | DX3.1 | Theme row height outside panels | done | b89b7c5 + pxui edfae14 |
 | DX3.2 | App-defined colour tokens | done | b1e9ef6 + pxui 74c723a |
 | DX3.3 | Engine text element behind label | todo |  |
@@ -112,7 +112,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.9 | Codemod B: hashed view to view_of | todo |  |
 | DX4.10 | Codemod C: node+within to containers | todo |  |
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
-| DX5.1 | Pinned glyph entries; label_digits | done | HEAD |
+| DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | todo |  |
 | DX5.3 | Viewport-distance eviction for list entries | todo |  |
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |

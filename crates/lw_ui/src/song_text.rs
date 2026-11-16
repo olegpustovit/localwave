@@ -82,9 +82,9 @@ impl Window {
         catalog: &Catalog,
         position: usize,
         text: &mut Text,
-    ) -> Result<[Option<(u64, PreparedText)>; ROW_LAYOUTS], i32> {
-        let collection = catalog.collection(self.route).ok_or(-1)?;
-        let index = *collection.rows.get(position).ok_or(-1)?;
+    ) -> Result<[Option<(u64, PreparedText)>; ROW_LAYOUTS], pxui::Error> {
+        let collection = catalog.collection(self.route).ok_or(pxui::Error::InvalidInput)?;
+        let index = *collection.rows.get(position).ok_or(pxui::Error::InvalidInput)?;
         let row = catalog.row(index);
         let current = self.current == Some(row.id);
         let numbered = matches!(self.route, Route::Album(_));
