@@ -43,7 +43,7 @@ pub(crate) fn library(base: &Path, workload: Option<Workload>) -> std::io::Resul
         }
         if matches!(
             workload,
-            Some(Workload::ListDialogs | Workload::SongDrag)
+            Some(Workload::ListDialogs | Workload::SongDrag | Workload::FirstMenuOpen)
         ) {
             // A sidebar list row for the menu and drop target, in the isolated fixture only.
             library
@@ -208,7 +208,10 @@ pub(crate) fn prepare(
             return Err("Detail performance fixture needs a scoped table of 50+ songs".into());
         }
     }
-    if matches!(workload, Some(Workload::MetadataEditor)) {
+    if matches!(workload, Some(Workload::SearchTyping)) {
+        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Find));
+    }
+    if matches!(workload, Some(Workload::MetadataEditor | Workload::TextTyping)) {
         use lw_ui::browse::Query;
         let field = |text| Query::new(text).unwrap_or_default();
         shell_state.apply(lw_ui::Intent::OpenMetadata(lw_ui::MetadataEdit {
@@ -297,6 +300,7 @@ pub(crate) fn configure_ui(ui: &mut pxui::Ui, workload: Option<Workload>) {
                 | Workload::AlbumDetail
                 | Workload::ArtistDetail
                 | Workload::ListDialogs
+                | Workload::FirstMenuOpen
                 | Workload::MetadataEditor
                 | Workload::SongDrag
                 | Workload::Settings

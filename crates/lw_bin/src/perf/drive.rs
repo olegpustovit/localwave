@@ -27,6 +27,7 @@ pub(crate) struct Frame {
     requests: usize,
     pub(crate) artwork_updated: bool,
     carry_frames: usize,
+    from: usize,
 }
 
 pub(crate) struct Build {
@@ -60,6 +61,7 @@ impl Frame {
             requests: 0,
             artwork_updated: false,
             carry_frames: 0,
+            from: WARMUP_FRAMES,
         }
     }
     pub(crate) fn begin_frame(&mut self) -> Result<(), String> {
@@ -123,7 +125,9 @@ impl Frame {
         let workload = self.workload;
         let mut expected_settings_intent = None;
         if workload.is_some() && self.index >= 2 && !matches!(workload, Some(Workload::Drop)) {
-            if matches!(workload, Some(Workload::Settings)) {
+            if let Some(measured) = workload.filter(|workload| workload.measured()) {
+                super::measured::events(measured, self.index - 2, self.from, ui, &mut *events)?;
+            } else if matches!(workload, Some(Workload::Settings)) {
                 expected_settings_intent = settings_events(self.index - 2, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::Waveform)) {
                 waveform_events(self.index - 2, &mut *events);
@@ -201,6 +205,9 @@ impl Frame {
             return;
         }
         let phase = (self.index - 2) % 40;
+        if let Some(workload) = self.workload.filter(|workload| workload.measured()) {
+            super::measured::state_input(workload, self.index - 2, self.from, state);
+        }
         match self.workload {
             Some(Workload::ListDialogs) if (14..30).contains(&phase) => {
                 let typed = if phase < 22 { phase - 13 } else { 29 - phase };
@@ -238,6 +245,13 @@ impl Frame {
         if self.workload.is_some() {
             *position = self.index as f64;
             view.duration = 240.0;
+        }
+        match self.workload {
+            Some(Workload::Resize) => {
+                (input.width, input.height) = super::measured::resize_extent(self.index);
+            }
+            Some(Workload::Clock120) => input.time = super::measured::clock_120(self.index),
+            _ => {}
         }
         if matches!(self.workload, Some(Workload::SongIndicators)) {
             view.revision = (self.index / 20) as u64;
@@ -290,7 +304,7 @@ impl Frame {
         }
         use lw_ui::Intent::*;
         let allowed = match workload {
-            Some(Workload::ListDialogs) => matches!(
+            Some(Workload::ListDialogs | Workload::FirstMenuOpen) => matches!(
                 intent,
                 None | Some(ListMenu(..) | CloseListMenu | NewList(None) | CancelPlaylistName)
             ),
@@ -298,6 +312,7 @@ impl Frame {
                 Workload::AlbumDetail
                 | Workload::ArtistDetail
                 | Workload::MetadataEditor
+                | Workload::TextTyping
                 | Workload::SongDrag,
             ) => intent.is_none(),
             _ => true,
@@ -480,7 +495,7 @@ fn center(
 
 /// Right-click a sidebar list for its menu, dismiss it, open New list and leave it with Esc;
 /// typing happens through `state_input`. Nothing is ever created, renamed or deleted.
-fn list_dialog_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Result<(), String> {
+pub(super) fn list_dialog_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Result<(), String> {
     use input::{Event, Key, MouseButton};
     use pxui::ui::Role;
     let phase = frame % 40;
@@ -676,6 +691,7 @@ impl Perf {
         Frame {
             workload: Some(self.workload),
             indicator_song: self.indicator_song,
+            from: self.measured_from(),
             ..Frame::new(index, trace_frames)
         }
     }
@@ -689,6 +705,7 @@ impl Perf {
         graphics_slot: &mut Option<Graphics>,
         counts: (usize, usize),
     ) -> Result<Option<Schedule>, String> {
+        let from = self.measured_from();
         let Self {
             workload,
             waveform_seeks,
@@ -717,7 +734,7 @@ impl Perf {
         if frame.warmup.is_some() {
             self.warmup = frame.warmup;
         }
-        if *workload == Workload::LongScroll && counts.0 > WARMUP_FRAMES {
+        if *workload == Workload::LongScroll && counts.0 > from {
             let first = frame
                 .first_row
                 .ok_or("LongScroll has no visible song rows")?
@@ -747,7 +764,8 @@ impl Perf {
         *settings_themes |= frame.settings_themes;
         if trace_frames && workload.is_some() {
             let ids = frame.ids;
-            (*frame_trace)[(*frames) - 1] = (
+            if let Some(slot) = (*frame_trace).get_mut((*frames) - 1) {
+            *slot = (
                 if artwork_updated {
                     artwork.ready().map_or(0, |ready| ready.key.id)
                 } else {
@@ -760,8 +778,9 @@ impl Perf {
                 gpu_trace,
                 output_allocations,
             );
+            }
         }
-        if (*frames) > WARMUP_FRAMES {
+        if (*frames) > from {
             let visible = |name: &str, below: f32| {
                 ui.a11y_nodes().iter().any(|node| {
                     node.states & pxui::a11y::state::VISIBLE != 0
@@ -805,7 +824,7 @@ impl Perf {
             }
         }
         if matches!(workload, Some(Workload::Artwork | Workload::AlbumDetail))
-            && (*frames) > WARMUP_FRAMES
+            && (*frames) > from
         {
             let image_quads = ui
                 .layers()
@@ -820,7 +839,7 @@ impl Perf {
             (*min_artwork_quads) = (*min_artwork_quads).min(image_quads);
             (*warm_artwork_requests) = (*warm_artwork_requests).max(frame.requests);
         }
-        if matches!(workload, Some(Workload::SongIndicators)) && (*frames) > WARMUP_FRAMES {
+        if matches!(workload, Some(Workload::SongIndicators)) && (*frames) > from {
             let indicator = ui.a11y_nodes().iter().find(|node| {
                 node.is_role(pxui::ui::Role::Image)
                     && matches!(ui.a11y_name_of(node), "Playing" | "Paused")
@@ -880,7 +899,7 @@ impl Perf {
                 }
             }
         }
-        if matches!(workload, Some(Workload::Artists)) && (*frames) > WARMUP_FRAMES {
+        if matches!(workload, Some(Workload::Artists)) && (*frames) > from {
             let mut rows = 0;
             for node in ui
                 .a11y_nodes()
@@ -902,7 +921,7 @@ impl Perf {
             (*min_artist_rows) = (*min_artist_rows).min(rows);
             (*max_artist_rows) = (*max_artist_rows).max(rows);
         }
-        if matches!(workload, Some(Workload::Files)) && (*frames) > WARMUP_FRAMES {
+        if matches!(workload, Some(Workload::Files)) && (*frames) > from {
             let rows = ui
                 .layers()
                 .flat_map(|layer| layer.instances.iter())
@@ -931,11 +950,11 @@ impl Perf {
             if overlays != usize::from(hovered) {
                 return Err("External drag workload lost its actual overlay quad".into());
             }
-            if (*frames) > WARMUP_FRAMES {
+            if (*frames) > from {
                 (*drop_overlay_frames) += usize::from(hovered);
             }
         }
-        if workload.is_some() && (*frames) > WARMUP_FRAMES {
+        if workload.is_some() && (*frames) > from {
             let bars = ui
                 .layers()
                 .flat_map(|layer| layer.instances.iter())
@@ -947,7 +966,7 @@ impl Perf {
             (*warm_allocations) = (*warm_allocations).max(mem_sys::local_alloc_count());
             self.warm_layouts = self.warm_layouts.max(frame.layouts);
             (*warm_build_us) = (*warm_build_us).max(build_us);
-            (*timings)[(*frames) - WARMUP_FRAMES - 1] = super::report::FrameTiming {
+            (*timings)[(*frames) - from - 1] = super::report::FrameTiming {
                 wall: build_us,
                 cpu: cpu_us,
                 frame_wall,
@@ -961,7 +980,7 @@ impl Perf {
                 },
             };
         }
-        if counts.0 >= WARMUP_FRAMES + MEASURED_FRAMES {
+        if counts.0 >= from + MEASURED_FRAMES {
             let artwork_bytes = graphics_slot
                 .as_ref()
                 .ok_or("App graphics have already closed")?

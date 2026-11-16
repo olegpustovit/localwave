@@ -14,6 +14,7 @@
 //! Startup selection for the isolated signed performance matrix; no argument work runs in frames.
 
 mod drive;
+mod measured;
 mod report;
 pub(crate) mod setup;
 pub(crate) use drive::Frame;
@@ -40,9 +41,41 @@ pub enum Workload {
     ListDialogs,
     MetadataEditor,
     SongDrag,
+    // Measured-only: reported with allocations and timings, never gated.
+    Fling,
+    ReverseScroll,
+    Jump,
+    NonSongLists,
+    SearchTyping,
+    FirstNavigation,
+    TextTyping,
+    FirstMenuOpen,
+    Resize,
+    ThemeSwitch,
+    Idle600,
+    Clock120,
 }
 
 impl Workload {
+    /// Workloads that report allocations and timings but never fail the run.
+    pub fn measured(self) -> bool {
+        matches!(
+            self,
+            Self::Fling
+                | Self::ReverseScroll
+                | Self::Jump
+                | Self::NonSongLists
+                | Self::SearchTyping
+                | Self::FirstNavigation
+                | Self::TextTyping
+                | Self::FirstMenuOpen
+                | Self::Resize
+                | Self::ThemeSwitch
+                | Self::Idle600
+                | Self::Clock120
+        )
+    }
+
     pub fn uses_queue(self) -> bool {
         matches!(
             self,
@@ -70,6 +103,18 @@ impl Workload {
             Self::ListDialogs => "list-dialogs-menu-and-name",
             Self::MetadataEditor => "metadata-editor-typing",
             Self::SongDrag => "song-drag-carry-hover-cancel",
+            Self::Fling => "measured-fling",
+            Self::ReverseScroll => "measured-reverse-scroll",
+            Self::Jump => "measured-scroll-jump",
+            Self::NonSongLists => "measured-non-song-lists",
+            Self::SearchTyping => "measured-search-typing",
+            Self::FirstNavigation => "measured-first-navigation",
+            Self::TextTyping => "measured-text-typing",
+            Self::FirstMenuOpen => "measured-first-menu-open",
+            Self::Resize => "measured-resize",
+            Self::ThemeSwitch => "measured-theme-switch",
+            Self::Idle600 => "measured-idle-600-return",
+            Self::Clock120 => "measured-clock-120",
         }
     }
 
@@ -99,6 +144,18 @@ impl Workload {
                 "--performance-list-dialogs" => Self::ListDialogs,
                 "--performance-metadata-editor" => Self::MetadataEditor,
                 "--performance-song-drag" => Self::SongDrag,
+                "--performance-fling" => Self::Fling,
+                "--performance-reverse-scroll" => Self::ReverseScroll,
+                "--performance-jump" => Self::Jump,
+                "--performance-non-song-lists" => Self::NonSongLists,
+                "--performance-search-typing" => Self::SearchTyping,
+                "--performance-first-navigation" => Self::FirstNavigation,
+                "--performance-text-typing" => Self::TextTyping,
+                "--performance-first-menu" => Self::FirstMenuOpen,
+                "--performance-resize" => Self::Resize,
+                "--performance-theme-switch" => Self::ThemeSwitch,
+                "--performance-idle-600" => Self::Idle600,
+                "--performance-clock-120" => Self::Clock120,
                 _ if arg.starts_with("--performance-") => {
                     return Err(format!("Unknown performance option: {arg}"));
                 }
@@ -173,6 +230,16 @@ pub(crate) struct Perf {
     menu_frames: usize,
 }
 impl Perf {
+    /// First measured frame index: warm-up, plus the silent stretch of the idle-600 workload.
+    pub(crate) fn measured_from(&self) -> usize {
+        WARMUP_FRAMES + if self.workload == Workload::Idle600 { measured::IDLE_FRAMES } else { 0 }
+    }
+
+    /// System appearance forced on this frame, for the theme-switch workload only.
+    pub(crate) fn appearance(&self, frame: usize) -> Option<u32> {
+        (self.workload == Workload::ThemeSwitch).then(|| measured::appearance(frame))
+    }
+
     pub(crate) fn new(workload: Workload, indicator_song: Option<i64>) -> Self {
         let waveform_seeks = 0;
         let (settings_changes, settings_themes) = (0, 0u8);
@@ -251,9 +318,22 @@ mod tests {
             (Workload::ListDialogs, "list-dialogs-menu-and-name", false),
             (Workload::MetadataEditor, "metadata-editor-typing", false),
             (Workload::SongDrag, "song-drag-carry-hover-cancel", true),
+            (Workload::Fling, "measured-fling", false),
+            (Workload::ReverseScroll, "measured-reverse-scroll", false),
+            (Workload::Jump, "measured-scroll-jump", false),
+            (Workload::NonSongLists, "measured-non-song-lists", false),
+            (Workload::SearchTyping, "measured-search-typing", false),
+            (Workload::FirstNavigation, "measured-first-navigation", false),
+            (Workload::TextTyping, "measured-text-typing", false),
+            (Workload::FirstMenuOpen, "measured-first-menu-open", false),
+            (Workload::Resize, "measured-resize", false),
+            (Workload::ThemeSwitch, "measured-theme-switch", false),
+            (Workload::Idle600, "measured-idle-600-return", false),
+            (Workload::Clock120, "measured-clock-120", false),
         ] {
             assert_eq!(workload.name(), name);
             assert_eq!(workload.uses_queue(), queue);
+            assert_eq!(workload.measured(), name.starts_with("measured-"));
         }
     }
 
@@ -291,6 +371,18 @@ mod tests {
             ("--performance-list-dialogs", Workload::ListDialogs),
             ("--performance-metadata-editor", Workload::MetadataEditor),
             ("--performance-song-drag", Workload::SongDrag),
+            ("--performance-fling", Workload::Fling),
+            ("--performance-reverse-scroll", Workload::ReverseScroll),
+            ("--performance-jump", Workload::Jump),
+            ("--performance-non-song-lists", Workload::NonSongLists),
+            ("--performance-search-typing", Workload::SearchTyping),
+            ("--performance-first-navigation", Workload::FirstNavigation),
+            ("--performance-text-typing", Workload::TextTyping),
+            ("--performance-first-menu", Workload::FirstMenuOpen),
+            ("--performance-resize", Workload::Resize),
+            ("--performance-theme-switch", Workload::ThemeSwitch),
+            ("--performance-idle-600", Workload::Idle600),
+            ("--performance-clock-120", Workload::Clock120),
         ];
         for (flag, expected) in modes {
             for values in [

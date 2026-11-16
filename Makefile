@@ -58,6 +58,18 @@ performance: bundle
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-list-dialogs || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-metadata-editor || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-drag || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-fling || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-reverse-scroll || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-jump || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-non-song-lists || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-search-typing || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-first-navigation || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-text-typing || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-first-menu || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-resize || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-theme-switch || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-idle-600 || performance_result=1; \
+	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-clock-120 || performance_result=1; \
 	  exit "$$performance_result"
 
 # iOS development builds use the shared target/ and keep the shipping Swift app installed.

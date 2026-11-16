@@ -481,6 +481,9 @@ impl App {
         let next_preferences = self.environment.snapshot();
         let preferences_changed = next_preferences != self.preferences;
         self.preferences = next_preferences;
+        if let Some(appearance) = self.perf.as_ref().and_then(|perf| perf.appearance(self.frames)) {
+            self.preferences.appearance = appearance;
+        }
         let mut library_changed = false;
         let player_changed = self
             .player

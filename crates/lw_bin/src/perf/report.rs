@@ -81,6 +81,7 @@ impl Perf {
             max_files_rows,
             ..
         } = self;
+        let from = self.measured_from();
         let workload = Some(*workload);
         let frames = &counts.0;
         let draws = &counts.1;
@@ -107,7 +108,7 @@ impl Perf {
             let mut out = std::io::stdout().lock();
             for (index, sample) in (*timings).iter().enumerate() {
                 sample
-                    .write_outlier(WARMUP_FRAMES + index + 1, &mut out)
+                    .write_outlier(from + index + 1, &mut out)
                     .map_err(|error| error.to_string())?;
             }
         }
@@ -304,6 +305,13 @@ impl Perf {
                 return Err("LongScroll did not visit new rows monotonically".into());
             }
         }
+        if workload.is_some_and(Workload::measured) {
+            println!(
+                "LocalWave measured: workload={name} gate=measured warm_rust_allocations={warm_allocations} warm_ready={}",
+                self.warmup.is_some_and(super::Warmup::ready)
+            );
+            return Ok(());
+        }
         if (*draws) != WARMUP_FRAMES + MEASURED_FRAMES
             || (*warm_allocations) != 0
             || cpu_samples[98] >= BUILD_CPU_LIMIT_US
@@ -376,6 +384,22 @@ mod tests {
             assert!(perf.report(false, counts, 0).is_err());
         }
         perf.warmup = None;
+        assert!(perf.report(false, counts, 0).is_err());
+    }
+    #[test]
+    fn measured_workloads_report_but_never_fail_even_over_every_budget() {
+        let mut perf = Perf::new(Workload::Fling, None);
+        let counts = (WARMUP_FRAMES + MEASURED_FRAMES, 0);
+        perf.warmup = None;
+        perf.warm_allocations = 7;
+        perf.timings.fill(FrameTiming {
+            cpu: u64::MAX,
+            frame_cpu: u64::MAX,
+            work_wall: u128::MAX,
+            ..Default::default()
+        });
+        assert!(perf.report(false, counts, 0).is_ok());
+        perf.workload = Workload::Songs;
         assert!(perf.report(false, counts, 0).is_err());
     }
     #[test]
