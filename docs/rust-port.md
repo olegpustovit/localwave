@@ -100,8 +100,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.2 | App-defined colour tokens | done | b1e9ef6 + pxui 74c723a |
 | DX3.3 | Engine text element behind label | done | ca088b0 + pxui 065dc5e |
 | DX3.4 | button_with and Response | done | 24be9be + pxui 9c84707 |
-| DX3.5 | icon_button | done | HEAD + pxui 7891b2a |
-| DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | todo |  |
+| DX3.5 | icon_button | done | c2bf971 + pxui 7891b2a |
+| DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | HEAD + pxui b999ffd |
 | DX3.6 | menu with MenuItem | todo |  |
 | DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
 | DX3.8 | dialog_with | todo |  |
