@@ -514,7 +514,7 @@ pub fn route(app: &mut App, screen: &str, late: bool) -> Result<(), String> {
         "list" => vec![Intent::Navigate(Route::Collection(find(&library.collections, "Late drive")?))],
         "favorites" => vec![Intent::Navigate(Route::Collection(find(&library.collections, "Favorites")?))],
         "find" => vec![Intent::Navigate(Route::Find)],
-        "find-results" => vec![Intent::Navigate(Route::Find), Intent::Search(lw_ui::browse::Query::new("cloud").ok_or("Bad query")?)],
+        "find-results" => vec![Intent::Navigate(Route::Find), Intent::SearchResults(lw_ui::browse::Query::new("cloud").ok_or("Bad query")?)],
         "lists" => vec![Intent::Navigate(Route::Lists)],
         "folders" => vec![Intent::Navigate(Route::Files)],
         "settings" => vec![albums, Intent::ShowSettings],

@@ -44,7 +44,7 @@ impl ShellState {
             }
             Action::Find => {
                 self.apply(Intent::Navigate(Route::Find));
-                Intent::Search(query)
+                Intent::SearchResults(query)
             }
             Action::Command(command) => match command {
                 Command::PlayPause => {
@@ -796,7 +796,7 @@ mod tests {
                 Action::Folder(location),
                 Intent::Files(crate::files::Request::Browse(location)),
             ),
-            (Action::Find, Intent::Search(query)),
+            (Action::Find, Intent::SearchResults(query)),
             (Action::Command(Command::PlayPause), Intent::Pause),
             (Action::Command(Command::Shuffle), Intent::Shuffle),
             (Action::Command(Command::Repeat), Intent::Repeat),

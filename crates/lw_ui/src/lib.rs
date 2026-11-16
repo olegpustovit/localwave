@@ -133,6 +133,8 @@ pub enum Intent {
     Volume(f32),
     RefreshLibrary,
     Search(browse::Query),
+    /// Desktop Find as Swift's separate results page (palette "Find"); ⌘F edits the query again.
+    SearchResults(browse::Query),
     SearchTooLong,
     ShowCommands,
     CloseCommands,

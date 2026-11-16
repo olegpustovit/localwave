@@ -70,6 +70,7 @@ pub struct ShellState {
     playlist_name_too_long: bool,
     top_inset: f32,
     query_too_long: bool,
+    find_results: bool,
     query_revision: u64,
     revision: u64,
     entry_revision: u64,
@@ -125,6 +126,7 @@ impl Default for ShellState {
             playlist_name_too_long: false,
             top_inset: 0.0,
             query_too_long: false,
+            find_results: false,
             query_revision: 0,
             revision: 0,
             entry_revision: 1,
@@ -346,6 +348,7 @@ impl ShellState {
                 | Intent::ShowSettings
                 | Intent::ShowQueue
                 | Intent::Search(_)
+                | Intent::SearchResults(_)
                 | Intent::Sort(_)
         ) {
             self.song_menu = None;
@@ -440,6 +443,7 @@ impl ShellState {
                 self.settings_menu = None;
                 self.player_expanded = false;
                 self.route = route;
+                self.find_results = false;
                 (self.selecting, self.page_menu) = (false, None);
                 self.clear_selection();
                 self.selection_revision = self.selection_revision.wrapping_add(1);
@@ -520,6 +524,10 @@ impl ShellState {
                 self.selection_revision = self.selection_revision.wrapping_add(1);
                 self.query_too_long = false;
                 self.query_revision = self.query_revision.wrapping_add(1);
+            }
+            Intent::SearchResults(query) => {
+                self.apply(Intent::Search(query));
+                self.find_results = true;
             }
             Intent::SearchTooLong => {
                 self.query_too_long = true;

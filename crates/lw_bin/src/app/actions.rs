@@ -147,6 +147,7 @@ impl App {
                 intent,
                 lw_ui::Intent::Navigate(_)
                     | lw_ui::Intent::Search(_)
+                    | lw_ui::Intent::SearchResults(_)
                     | lw_ui::Intent::ShowCommands
                     | lw_ui::Intent::CloseCommands
                     | lw_ui::Intent::CommandQuery(_)
@@ -448,6 +449,7 @@ impl App {
                 | lw_ui::Intent::SelectRow(_)
                 | lw_ui::Intent::Select(_)
                 | lw_ui::Intent::Search(_)
+                | lw_ui::Intent::SearchResults(_)
                 | lw_ui::Intent::SearchTooLong
                 | lw_ui::Intent::ShowCommands
                 | lw_ui::Intent::CloseCommands

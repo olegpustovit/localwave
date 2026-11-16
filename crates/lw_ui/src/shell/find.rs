@@ -472,6 +472,17 @@ mod tests {
         }
     }
     #[test]
+    fn search_results_page_replaces_the_field_until_find_is_navigated_again() {
+        let mut state = ShellState::default();
+        state.apply(Intent::Navigate(Route::Find));
+        state.apply(Intent::Search(Query::new("a").unwrap()));
+        assert!(!state.find_results, "typing in the Find field keeps it editable");
+        state.apply(Intent::SearchResults(Query::new("cloud").unwrap()));
+        assert!(state.find_results && state.query.as_str() == "cloud");
+        state.apply(Intent::Navigate(Route::Find));
+        assert!(!state.find_results && state.query.as_str() == "cloud");
+    }
+    #[test]
     fn find_tools_animate_only_backgrounds_and_settle_without_scaling_or_reshaping() {
         mem_sys::set_peer(pxui::library_counter);
         let catalogs = catalogs();

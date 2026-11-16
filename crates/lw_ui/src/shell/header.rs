@@ -12,6 +12,11 @@ pub(super) fn header(
     intent: &mut Option<Intent>,
 ) {
     let collection = state.collection(catalog);
+    // Swift's desktop results page: "Search", “query”, "N songs · M albums · F folders", no field.
+    let results = state.route == Route::Find && state.find_results;
+    let find_summary = collection
+        .and(catalog.view.as_ref())
+        .and_then(|view| view.find.as_ref());
     let root = ui.node(
         "library-header",
         Node {
@@ -27,7 +32,12 @@ pub(super) fn header(
         },
     );
     ui.within(&root, &mut |ui| {
+        if results {
+            spacer(ui, "results-caption-gap", 6.0);
+            text(ui, "results-caption", "Search", 14, p.secondary, (Size::Grow, 19.6), false);
+        }
         let title = match state.route {
+            Route::Find if results => find_summary.map_or("“…”", |summary| summary.title.as_str()),
             Route::Albums => "Albums",
             Route::Artists => "Artists",
             Route::Find => "Find",
@@ -57,7 +67,8 @@ pub(super) fn header(
                 &[],
             )
             .unwrap();
-            if !matches!(state.route, Route::Albums | Route::Artists)
+            if !results
+                && !matches!(state.route, Route::Albums | Route::Artists)
                 && icon_button(
                     ui,
                     "refresh",
@@ -71,7 +82,7 @@ pub(super) fn header(
                 *intent = Some(Intent::RefreshLibrary);
             }
         });
-        if state.route == Route::Find {
+        if state.route == Route::Find && !results {
             ui.view(
                 "find-query",
                 state.query_revision,
