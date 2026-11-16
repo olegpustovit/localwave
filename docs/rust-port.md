@@ -99,7 +99,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.1 | Theme row height outside panels | done | b89b7c5 + pxui edfae14 |
 | DX3.2 | App-defined colour tokens | done | b1e9ef6 + pxui 74c723a |
 | DX3.3 | Engine text element behind label | done | ca088b0 + pxui 065dc5e |
-| DX3.4 | button_with and Response | todo |  |
+| DX3.4 | button_with and Response | done | HEAD + pxui 9c84707 |
 | DX3.5 | icon_button | todo |  |
 | DX3.6 | menu with MenuItem | todo |  |
 | DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
@@ -114,7 +114,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.7 | Confirmation sheets to dialog_with; field variant | todo |  |
 | DX4.8 | Codemod A: Node literals to builders | done | 4091362 |
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
-| DX4.10 | Codemod C: node+within to containers | done | HEAD |
+| DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | todo |  |
