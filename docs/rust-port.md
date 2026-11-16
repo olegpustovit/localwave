@@ -77,7 +77,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.5 | Response and pressable | todo |  |
 | DX1.6 | view_of and hash_of | todo |  |
 | DX1.7 | local_bool/local_i64/local_f32 | todo |  |
-| DX1.8 | pxui::doc::frames and pxui::testing | done | HEAD + pxui 9cd2dcb |
+| DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | todo |  |
 | DX2.1 | Borrowed key signals | todo |  |
 | DX2.2 | Borrowed text results | todo |  |
@@ -137,7 +137,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
-| DX7.2 | Size-prefix negative table | todo |  |
+| DX7.2 | Size-prefix negative table | done | HEAD + pxui 7a15162 |
 | DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | todo |  |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
