@@ -96,9 +96,14 @@ const DIGITS: [[u8; 7]; 10] = [
     [14, 17, 17, 15, 1, 2, 12],
 ];
 /// Static matrix numerals (Swift's `MatrixText` without the change animation), `height` tall.
-pub(super) fn matrix_digits(ui: &mut Ui, key: &str, digits: &'static [u8], height: f32, color: Rgba) {
+pub(super) fn matrix_digits(ui: &mut Ui, key: &str, digits: &[u8], height: f32, color: Rgba) {
+    // Counts only: ASCII digits, at most 12 shown.
+    let mut buffer = [b'0'; 12];
+    let shown = digits.len().clamp(1, 12);
+    let copied = digits.len().min(12);
+    buffer[..copied].copy_from_slice(&digits[..copied]);
     let unit = height / 7.0;
-    let columns = digits.len() * 6 - 1;
+    let columns = shown * 6 - 1;
     let node = ui.node(
         key,
         Node {
@@ -108,7 +113,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &str, digits: &'static [u8], heigh
         },
     );
     ui.draw(&node, move |paint, rect| {
-        for (index, digit) in digits.iter().enumerate() {
+        for (index, digit) in buffer[..shown].iter().enumerate() {
             let x = rect.x + index as f32 * 6.0 * unit;
             for (row, bits) in DIGITS[(digit - b'0') as usize].iter().enumerate() {
                 for column in 0..5 {

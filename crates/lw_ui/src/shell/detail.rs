@@ -27,7 +27,7 @@ pub(super) fn height(width: f32, route: Route) -> f32 {
         _ => 28.0 + ARTIST_META + 18.0,
     }
 }
-fn line(
+pub(super) fn line(
     ui: &mut Ui,
     key: &str,
     value: &str,

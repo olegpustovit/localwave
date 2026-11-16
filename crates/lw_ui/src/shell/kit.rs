@@ -167,6 +167,9 @@ pub(super) enum Icon {
     Refresh,
     Clear,
     Down,
+    More,
+    Settings,
+    Back,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -241,6 +244,21 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         Icon::Clear => {
             paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
             paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
+        }
+        Icon::More => {
+            for dx in [3.0, 9.0, 15.0] {
+                paint.fill(x + dx, y + 9.0, 2.5, 2.5, color);
+            }
+        }
+        Icon::Settings => {
+            for (dy, knob) in [(5.0, 12.0), (10.0, 6.0), (15.0, 13.0)] {
+                paint.fill(x + 2.0, y + dy, 16.0, 1.5, color);
+                paint.fill(x + knob - 1.5, y + dy - 2.0, 3.0, 5.5, color);
+            }
+        }
+        Icon::Back => {
+            paint.line((x + 12.0, y + 4.0), (x + 6.0, y + 10.0), color);
+            paint.line((x + 6.0, y + 10.0), (x + 12.0, y + 16.0), color);
         }
         Icon::Down => {
             paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), color);

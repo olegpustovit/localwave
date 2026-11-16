@@ -40,6 +40,8 @@ pub struct Row<'a> {
     pub availability: Option<FileAvailability>,
     pub pinned: bool,
     pub actions_label: &'a str,
+    /// Swift's compact second line, "Artist · Album".
+    pub subtitle: &'a str,
     pub duration: &'a str,
     pub seconds: Option<f64>,
     pub release_year: Option<i64>,
@@ -53,7 +55,7 @@ pub struct Row<'a> {
 #[derive(Clone)]
 struct StoredRow {
     id: i64,
-    labels: [Range<usize>; 9],
+    labels: [Range<usize>; 10],
     favorite: bool,
     track_number: Option<i64>,
     source_id: Option<i64>,
@@ -91,7 +93,14 @@ pub struct Collection {
     /// A representative row with artwork, prepared once with the collection.
     pub artwork_row: Option<usize>,
     pub song_table: Option<Arc<SongTable>>,
+    /// First position of each distinct initial letter in row order (Swift's compact A-Z index).
+    pub sections: Vec<(&'static str, usize)>,
 }
+
+const LETTERS: [&str; 27] = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S",
+    "T", "U", "V", "W", "X", "Y", "Z", "#",
+];
 
 pub struct ArtistRow {
     pub albums: String,
@@ -127,6 +136,11 @@ pub struct Library {
     pub offline_fraction: f32,
     pub album_count: String,
     pub artist_count: String,
+    /// Swift's compact Library header lines, "11 albums · 2.3 GB" and "from 4 sources".
+    pub totals_label: String,
+    pub sources_label: String,
+    /// Library album indices per artist (same order as `artists`), for the compact artist page.
+    pub artist_albums: Vec<Vec<usize>>,
     pub artist_table: Option<Arc<ArtistTable>>,
     song_metrics: Option<Arc<song_table::Metrics>>,
     pub song_count: String,
@@ -204,6 +218,7 @@ impl Library {
                 || "—".into(),
                 |seconds| format!("{}:{:02}", seconds / 60, seconds % 60),
             );
+            let subtitle = format!("{} · {}", song.artist, song.album);
             let labels = [
                 &song.title,
                 &song.artist,
@@ -214,6 +229,7 @@ impl Library {
                 &format_key,
                 &track,
                 &actions_label,
+                &subtitle,
             ]
             .map(|text| {
                 let start = out.labels.len();
@@ -338,7 +354,25 @@ impl Library {
                 out.byline_routes[*row][1] = Route::Album(index);
             }
         }
+        out.artist_albums = out
+            .artists
+            .iter()
+            .map(|artist| {
+                let mut albums: Vec<usize> = artist
+                    .rows
+                    .iter()
+                    .filter_map(|row| match out.byline_routes[*row][1] {
+                        Route::Album(index) => Some(index),
+                        _ => None,
+                    })
+                    .collect();
+                albums.sort_unstable();
+                albums.dedup();
+                albums
+            })
+            .collect();
         out.song_count = out.rows.len().to_string();
+        out.totals_label = format!("{} albums · {}", out.albums.len(), out.size_label);
         out.set_source_count(0);
         out.sources = None;
         out.album_count = out.albums.len().to_string();
@@ -379,6 +413,7 @@ impl Library {
     /// Worker-prepared labels include empty sources as in the Swift library model.
     pub fn set_source_count(&mut self, count: usize) {
         self.sources = Some(count);
+        self.sources_label = format!("from {count} sources");
         self.library_subtitle = format!(
             "{} songs across {count} sources · {}",
             self.song_count, self.size_label
@@ -420,6 +455,7 @@ impl Library {
             format_key,
             track_label,
             actions_label,
+            subtitle,
         ] = row
             .labels
             .each_ref()
@@ -435,6 +471,7 @@ impl Library {
             track_number: row.track_number,
             track_label,
             actions_label,
+            subtitle,
             source_id: row.source_id,
             availability: row.availability,
             pinned: row.pinned,
@@ -513,9 +550,22 @@ impl Library {
             }
             _ => String::new(),
         };
+        let mut sections = Vec::new();
+        let mut seen = 0u32;
+        for (position, index) in rows.iter().enumerate() {
+            let letter = match self.row(*index).title.chars().next().map(|c| c.to_ascii_uppercase()) {
+                Some(c @ 'A'..='Z') => (c as u8 - b'A') as usize,
+                _ => 26,
+            };
+            if seen & (1 << letter) == 0 {
+                seen |= 1 << letter;
+                sections.push((LETTERS[letter], position));
+            }
+        }
         Collection {
             key,
             summary,
+            sections,
             row_keys,
             title: title.into(),
             subtitle: subtitle.into(),

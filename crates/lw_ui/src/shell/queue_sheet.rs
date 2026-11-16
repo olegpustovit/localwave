@@ -117,26 +117,36 @@ pub(super) fn queue_sheet(
         Some(height),
         false,
         false,
-        (content.x, content.y + content.h - height),
+        (content.x, content.y + content.h - height + state.sheet_dismiss.get()),
         width,
         height,
         "Playback queue",
         &mut |ui| {
-            let sheet = ui.node(
-                "queue-sheet",
-                Node {
-                    flags: BLOCKING | CLIP,
-                    axis: Axis::Column,
-                    role: Role::Dialog,
-                    w: Size::Px(width),
-                    h: Size::Px(height),
-                    look: Look {
-                        fill: p.paper,
-                        ..Look::NONE
-                    },
-                    ..Node::DEFAULT
+            let sheet_node = Node {
+                flags: BLOCKING | CLIP | CLICKABLE,
+                axis: Axis::Column,
+                role: Role::Dialog,
+                w: Size::Px(width),
+                h: Size::Px(height),
+                look: Look {
+                    fill: p.paper,
+                    ..Look::NONE
+                },
+                ..Node::DEFAULT
+            };
+            let sheet = ui.node("queue-sheet", sheet_node);
+            let drag = ui.gesture(
+                &sheet,
+                pxui::GestureOpts {
+                    dismiss: Some(Default::default()),
+                    ..Default::default()
                 },
             );
+            // The popup itself follows the finger: moving only the node inside it loses the touch.
+            state.sheet_dismiss.set(drag.dismiss);
+            if drag.dismiss_committed {
+                *intent = Some(Intent::CloseQueue);
+            }
             ui.set_role(&sheet, Role::Dialog, pxui::a11y::state::MODAL);
             ui.a11y_name(&sheet, "Playback queue");
             ui.within(&sheet, &mut |ui| {

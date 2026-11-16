@@ -60,7 +60,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F10 | Onboarding, route empty states and Share | done | 92993cf |
 | S | Sign, migrate, TestFlight and release macOS | doing | `make sign` (keychain access pending), `tools/notarize-macos.sh` unrun, `tools/migration-check.sh` passes on a container copy |
 | I1 | Framework gestures and device comparison | todo | — |
-| I2 | iOS flows, physical install and shipping gates | doing | Compact full-screen Now player (Swift structure, mini-player opens it); compact song-row swipe (Play next / Favorite), long-press track menu over a blurred backdrop and pull to refresh on pxui 1.38 gestures; morph, sheets and device gates pending |
+| I2 | iOS flows, physical install and shipping gates | doing | Compact full-screen Now player (Swift structure, mini-player opens it); compact song-row two-sided swipe (Play next right, Add to queue / Remove left, 88 pt full swipe), Swift Songs/Artist pages and tab bar, drag-down dismiss of the Now player and queue sheet, long-press track menu over a blurred backdrop and pull to refresh on pxui 1.38 gestures; morph, sheets and device gates pending |
 | D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |
 
 ## Latest performance
@@ -427,15 +427,17 @@ device/provider behavior remain open.
   LOCALWAVE_REFERENCE_DESKTOP; Rust: macOS window at 390×778 via LOCALWAVE_REFERENCE_MOBILE=1, which renders the compact layout; same
   titlebar crop; 17 screens, add/track skipped). Latest: mean abs diff 7.6-41.2 (onboarding 7.6, find 11.5, queue 16.6, find-results 18.5,
   lists 19.1, album 22.2, artists 23.2, list 23.3, settings 23.6, songs 24.5, favorites 25.1, folders 26.4, folder 28.5, commands 31.2,
-  shortcuts 39.1, artist 41.2, now 7.7; the `now` capture opens the full-screen player). Gaps: Songs lacks Swift's alphabet index/headers/
-  counts, Artist lacks header/Play-Shuffle/album card, shortcuts sheet is inset differently, Library header lacks pixel counter.
+  shortcuts 39.1, artist 41.2, now 7.7; the `now` capture opens the full-screen player). After the Songs/Artist/tab parity step: songs 19.9, artist 19.9 (was 24.5 / 41.2), artists 21.0, lists 18.6, find 11.2.
+  Gaps: shortcuts sheet is inset differently; Songs has no sort menu (the "Title ↓" label is static), no per-row dividers, no play-count glyph
+  (Swift's compact row has none either), the A-Z index drags with a mouse only (touch has no press-and-drag signal; touch taps jump) and
+  non-ASCII initials share "#"; the artist page lists every song (Swift prefixes 12); tab-bar cells lack Swift's boxed dividers/marker.
 - S: Rust macOS signing, migration/release pipeline and a regression-free release cycle before Swift removal.
 - I1–I2: compact swipe/long-press/refresh flows are in (pxui 1.38 `Ui::gesture`; Swift's swipe is Play next right /
-  Add to queue or Remove left with a 88 pt commit, Rust follows the plan with one-sided Play next + Favorite buttons;
+  Add to queue or Remove left with a 88 pt commit, which Rust now matches on pxui 1.40 `swipe_actions` (Favorite lives in the long-press menu);
   the backdrop blur needs device qualification; refresh ends on the next catalog delivery or after 5 s; no a11y custom
   actions for the swipe, the row's actions button remains the alternative). The compact full-screen Now player follows WaveNowView (header with Playing from, art region,
   title/heart, 72 pt matrix clock with format summary and remaining time, waveform scrubber, Shuffle/Repeat/N up next, prev/play/next bar;
-  Open/Close Now playing, slide-in via `motion::enter`). Deferred: drag-down dismiss (pxui has no vertical-dismiss gesture), true
+  Open/Close Now playing, slide-in via `motion::enter`). Drag-down dismiss runs on pxui 1.41 `GestureOpts::dismiss` (player root; the queue popup follows the finger via a state cell, because moving only a node inside a popup loses the touch). Deferred: true
   mini-player morph, AirPlay route picker and track-actions button in the header, medium title weight on the close glyph/key fills.
   Remaining: sheets,
   390×778 goldens and device/background/provider qualification before iOS shipping.
