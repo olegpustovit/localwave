@@ -64,10 +64,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | I2 | iOS flows, physical install and shipping gates | doing | Compact flows on simulator/macOS (swipe, long press, refresh, Now player, sheets, Select, menus, Files); 390×778 goldens; `make ios-build` passes; physical install, 120 Hz and device qualification pending |
 | D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |
 | DX0.1 | DX phase rows and ordering | done | aec5dce |
-| DX0.2 | Allocation tripwire: warm_scope/take_reports | done | HEAD + pxui 53d48ba |
+| DX0.2 | Allocation tripwire: warm_scope/take_reports | done | f126022 + pxui 53d48ba |
 | DX0.3 | Measured uncovered workloads (PERF) | todo |  |
 | DX0.4 | cargo t --doc in the runner | todo |  |
-| DX0.5 | Gate: author-shim rule | todo |  |
+| DX0.5 | Gate: author-shim rule | done | HEAD + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | todo |  |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | todo |  |
