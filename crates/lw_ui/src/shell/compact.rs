@@ -7,7 +7,7 @@
 use super::*;
 use pxui::GestureOpts;
 
-mod list;
+pub(super) mod list;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
@@ -204,7 +204,7 @@ pub(super) fn view(
                 if !state.settings_visible
                     && state.route != Route::Files
                     && state.route != Route::Find
-                    && !matches!(state.route, Route::Artist(_))
+                    && !matches!(state.route, Route::Artist(_) | Route::Album(_) | Route::Collection(_))
                 {
                     let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
                     let head = ui.node(
@@ -224,26 +224,6 @@ pub(super) fn view(
                         },
                     );
                     ui.within(&head, &mut |ui| {
-                        let parent = match state.route {
-                            Route::Album(_) => Some(Route::Albums),
-                            Route::Collection(_) => Some(Route::Lists),
-                            _ => None,
-                        };
-                        if let Some(parent) = parent {
-                            let back = ui.node(
-                                "back-holder",
-                                Node {
-                                    w: Size::Px(64.0),
-                                    h: Size::Px(44.0),
-                                    ..Node::DEFAULT
-                                },
-                            );
-                            ui.within(&back, &mut |ui| {
-                                if button(ui, "back", "Back", false, p) {
-                                    *intent = Some(Intent::Navigate(parent));
-                                }
-                            });
-                        }
                         if library {
                             detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), p.ink, 0);
                             // Swift's header gear; Settings stays one tap away.
@@ -274,9 +254,6 @@ pub(super) fn view(
                         } else {
                             let title = match state.route {
                                 Route::Lists => "Lists",
-                                Route::Album(_) | Route::Collection(_) => state
-                                    .collection(catalog)
-                                    .map_or("Library", |group| group.title.as_str()),
                                 _ => "Library",
                             };
                             line(ui, "heading", title, 28.0, p.ink);
@@ -1391,7 +1368,7 @@ mod tests {
                 }
                 assert_eq!(intent, None);
                 if route == Route::Files {
-                    for label in ["Back", "Import folder", "Folder options"] {
+                    for label in ["Back", "Play folder", "Folder options"] {
                         let node = ui
                             .a11y_nodes()
                             .iter()
@@ -1927,6 +1904,48 @@ mod tests {
             idle(&mut ui, &c, &state, t + f64::from(step));
         }
         assert_eq!(mem_sys::local_alloc_count(), 0, "warm artist page");
+    }
+
+    #[test]
+    fn album_and_list_pages_have_back_title_summary_and_play_shuffle_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut c = catalog(30);
+        c.add_collection("Mix", vec![0, 1, 2], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
+        c.add_collection("Empty", vec![], lw_core::context::PlaybackContext::Playlist { id: 8, name: "Empty".into() });
+        let lists = c.collections.len();
+        let routes = [
+            (Route::Album(0), Route::Albums, "Example artist"),
+            (Route::Collection(lists - 2), Route::Lists, ""),
+            (Route::Collection(lists - 1), Route::Lists, ""),
+        ];
+        let mut t = 1.0;
+        for (route, parent, link) in routes {
+            // A fresh Ui per page: a new state restarts the revision the retained library view keys on.
+            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            let mut state = songs_state();
+            state.apply(Intent::Navigate(route));
+            for _ in 0..3 {
+                idle(&mut ui, &c, &state, t);
+                t += 1.0;
+            }
+            assert!(!has(&ui, Role::Button, "Settings"), "the detail lead replaces the Library header");
+            if !link.is_empty() {
+                assert!(has(&ui, Role::Button, link), "album artist link");
+            }
+            for (name, want) in [("Back", Intent::Navigate(parent)), ("Play", Intent::PlayRow(0)), ("Shuffle", Intent::ShuffleCollection)] {
+                click(&mut ui, name);
+                assert_eq!(idle(&mut ui, &c, &state, t), Some(want), "{name} on {route:?}");
+                t += 1.0;
+                idle(&mut ui, &c, &state, t);
+                t += 1.0;
+            }
+            mem_sys::local_reset();
+            for step in 0..6 {
+                idle(&mut ui, &c, &state, t + f64::from(step));
+            }
+            assert_eq!(mem_sys::local_alloc_count(), 0, "warm detail page");
+        }
     }
 
     /// Drag the finger straight down from `from` by `dy` in three moves and release.

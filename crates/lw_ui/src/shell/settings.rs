@@ -77,20 +77,23 @@ fn row(
     key: &str,
     labels: (&str, &str),
     layout: (f32, Palette),
-    control: (Option<(bool, Change)>, Option<SettingsMenu>),
+    control: (Option<(bool, Change)>, Option<SettingsMenu>, bool),
     intent: &mut Option<Intent>,
     controls: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
     let (title, detail) = labels;
     let (width, p) = layout;
-    let (toggle, menu) = control;
-    let stacked = width < 500.0;
+    let (toggle, menu, tap) = control;
+    // Swift keeps the control beside the label at every width; the label wraps instead.
+    let stacked = false;
     let label_width = (width
         - 32.0
         - if stacked {
             0.0
         } else if toggle.is_some() {
             56.0
+        } else if tap {
+            26.0
         } else if menu == Some(SettingsMenu::Appearance) {
             212.0
         } else {
@@ -124,13 +127,15 @@ fn row(
             align: if stacked { Align::Start } else { Align::Center },
             flags: if toggle.is_some() {
                 CLICKABLE | FOCUSABLE
-            } else if menu.is_some() {
-                CLICKABLE
+            } else if menu.is_some() || tap {
+                CLICKABLE | FOCUSABLE
             } else {
                 0
             },
             role: if toggle.is_some() {
                 Role::Toggle
+            } else if tap {
+                Role::Button
             } else {
                 Role::Group
             },
@@ -227,6 +232,9 @@ fn row(
         if signal.clicked && signal.button != Some(1) {
             *intent = Some(Intent::Setting(change));
         }
+    }
+    if tap && ui.signal_state(&node).clicked {
+        *intent = Some(Intent::Files(crate::files::Request::Roots));
     }
     ui.draw(&node, move |paint, rect| {
         paint.fill(
@@ -327,10 +335,9 @@ pub(super) fn view(
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
-        let title = ui.node("settings-title", Node { flags: FIT_TEXT, role: Role::Heading, w: Size::Grow, h: Size::Px(56.0),
-            inset: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, look: Look { text: p.ink,
-                font: Font { size: 32, weight: 500, tracking: -1.12, ..Font::BODY }, ..Look::NONE }, ..Node::DEFAULT });
-        ui.text(&title, heading);
+        let title = ui.node("settings-title", Node { role: Role::Heading, w: Size::Grow, h: Size::Px(56.0), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
+        ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -1.12), p.ink, 0); });
+        ui.a11y_name(&title, heading);
         if state.privacy_visible {
             for (title, body) in [
                 ("LocalWave", "A music player for your files."),
@@ -350,21 +357,39 @@ pub(super) fn view(
             return;
         }
         let settings = player.settings;
-        row(ui, "download-ahead", ("Download ahead", "Fetch the next two cloud songs in the queue"), (width, p), (Some((settings.download_ahead, Change::ToggleDownloadAhead)), None), intent, &mut |_, _| {});
-        row(ui, "no-network", ("Simulate no network", "Shows skipped songs and failed downloads"), (width, p), (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None), intent, &mut |_, _| {});
+        row(ui, "download-ahead", ("Download ahead", "Fetch the next two cloud songs in the queue"), (width, p), (Some((settings.download_ahead, Change::ToggleDownloadAhead)), None, false), intent, &mut |_, _| {});
+        // Swift shows this on phones only: desktop folder tables always list every file type.
+        let compact = width < compact::BREAKPOINT;
+        if compact {
+            row(ui, "show-non-audio", ("Show non-audio files", "Covers, logs and text in folders"), (width, p), (Some((settings.show_non_audio, Change::ToggleShowNonAudio)), None, false), intent, &mut |_, _| {});
+        }
+        row(ui, "no-network", ("Simulate no network", "Shows skipped songs and failed downloads"), (width, p), (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
-        row(ui, "cache", ("Offline space", cache_detail), (width, p), (None, Some(SettingsMenu::Cache)), intent, &mut |ui, intent| {
+        row(ui, "cache", ("Offline space", cache_detail), (width, p), (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
             let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(174.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
             ui.within(&group, &mut |ui| { for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
                 option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), p, intent);
             }});
         });
-        row(ui, "appearance", ("Appearance", ""), (width, p), (None, Some(SettingsMenu::Appearance)), intent, &mut |ui, intent| {
+        row(ui, "appearance", ("Appearance", ""), (width, p), (None, Some(SettingsMenu::Appearance), false), intent, &mut |ui, intent| {
             let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(204.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
             ui.within(&group, &mut |ui| { for (value, label, name) in [(Appearance::System, "System", "Use system appearance"), (Appearance::Light, "Light", "Use light appearance"), (Appearance::Dark, "Dark", "Use dark appearance")] {
                 option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), p, intent);
             }});
         });
+        if compact {
+            row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), (width, p), (None, None, true), intent, &mut |ui, _| {
+                let glyph = ui.node("chevron", Node { w: Size::Px(18.0), h: Size::Px(18.0), ..Node::DEFAULT });
+                let color = p.ink;
+                ui.draw(&glyph, move |paint, rect| {
+                    for step in 0..6 {
+                        let step = step as f32 * 1.5;
+                        paint.fill(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5, color);
+                        paint.fill(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5, color);
+                    }
+                });
+            });
+        }
         let footer = ui.node("settings-footer", Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, ..Node::DEFAULT });
         ui.within(&footer, &mut |ui| {
             paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed.", width - 32.0, 14.0, p.secondary);
@@ -812,6 +837,36 @@ mod tests {
                     0,
                     "settings/menu warm rebuild round {round}: own/peer={trace:?}"
                 );
+            }
+        }
+    }
+    #[test]
+    fn compact_settings_add_phone_rows_and_keep_controls_inline_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = ShellState::default();
+        state.apply(Intent::ShowSettings);
+        let player = PlayerView { initialized: true, cache_usage: "6.6 MB cached.", ..Default::default() };
+        let mut frame = FrameIn { width: 390.0, height: 778.0, ..Default::default() };
+        for _ in 0..3 {
+            build(&mut ui, &state, &player, 0.0, &frame);
+        }
+        let at = point(&ui, "Show non-audio files");
+        assert_eq!(click(&mut ui, &state, &player, &mut frame, at, 0), Some(Intent::Setting(Change::ToggleShowNonAudio)));
+        let at = point(&ui, "Rescan all sources");
+        assert_eq!(click(&mut ui, &state, &player, &mut frame, at, 0), Some(Intent::Files(crate::files::Request::Roots)));
+        // The 8 GB segment sits beside its label, not under it.
+        let label = ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == "Offline space").unwrap().rect;
+        let segment = ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == "Use 8 GB").unwrap().rect;
+        assert!(segment.x >= label.x + label.w * 0.4 && segment.y < label.y + label.h);
+        for round in 0..5 {
+            mem_sys::local_reset();
+            for _ in 0..10 {
+                build(&mut ui, &state, &player, 0.0, &frame);
+            }
+            if round >= 3 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact settings allocate");
             }
         }
     }

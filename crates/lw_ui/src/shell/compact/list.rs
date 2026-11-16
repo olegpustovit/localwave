@@ -48,7 +48,8 @@ pub(super) fn songs(
         Route::Artist(index) => Some(index),
         _ => None,
     };
-    if collection.rows.is_empty() && artist.is_none() {
+    let detail_page = matches!(state.route, Route::Album(_) | Route::Collection(_));
+    if collection.rows.is_empty() && artist.is_none() && !detail_page {
         line(ui, "empty", "No songs here yet.", 14.0, p.secondary);
         return;
     }
@@ -64,7 +65,12 @@ pub(super) fn songs(
         },
         p,
     };
-    let lead = artist.map_or(0.0, |index| artist_lead_height(catalog, index, width));
+    let lead = match state.route {
+        Route::Artist(index) => artist_lead_height(catalog, index, width),
+        Route::Album(_) => album_lead_height(),
+        Route::Collection(_) => collection_lead_height(),
+        _ => 0.0,
+    };
     let stack = ui.node(
         "songs-stack",
         Node {
@@ -87,8 +93,11 @@ pub(super) fn songs(
             },
             &mut |ui, part| match part {
                 SectionPart::Leading => {
-                    if let Some(index) = artist {
-                        artist_lead(ui, &cx, index, intent);
+                    match state.route {
+                        Route::Artist(index) => artist_lead(ui, &cx, index, intent),
+                        Route::Album(_) => album_lead(ui, &cx, intent),
+                        Route::Collection(_) => collection_lead(ui, &cx, intent),
+                        _ => {}
                     }
                 }
                 SectionPart::Header => {}
@@ -533,108 +542,11 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         &mut |ui| {
             let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
             ui.within(&column, &mut |ui| {
-                let back = ui.node(
-                    "back-row",
-                    Node {
-                        axis: Axis::Row,
-                        align: Align::Center,
-                        w: Size::Grow,
-                        h: Size::Px(BACK_ROW),
-                        padding: Edges {
-                            t: 10.0,
-                            l: 6.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&back, &mut |ui| {
-                    let button = ui.node(
-                        "back",
-                        Node {
-                            flags: CLICKABLE | TAB_STOP,
-                            role: Role::Button,
-                            axis: Axis::Row,
-                            align: Align::Center,
-                            w: Size::Px(96.0),
-                            h: Size::Px(44.0),
-                            ..Node::DEFAULT
-                        },
-                    );
-                    ui.a11y_name(&button, "Back");
-                    ui.within(&button, &mut |ui| {
-                        let glyph = ui.node(
-                            "icon",
-                            Node {
-                                w: Size::Px(20.0),
-                                h: Size::Px(20.0),
-                                ..Node::DEFAULT
-                            },
-                        );
-                        let color = p.secondary;
-                        ui.draw(&glyph, move |paint, rect| {
-                            kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color)
-                        });
-                        text(ui, "label", "Library", 15, p.secondary, (Size::Fit, 21.0), false);
-                    });
-                    if ui.signal_state(&button).clicked {
-                        *intent = Some(Intent::Navigate(Route::Artists));
-                    }
-                });
-                let titles = ui.node(
-                    "titles",
-                    Node {
-                        w: Size::Grow,
-                        h: Size::Px(TITLE_BLOCK),
-                        padding: Edges {
-                            l: 16.0,
-                            r: 16.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&titles, &mut |ui| {
-                    let title = if collection.title.is_empty() {
-                        "Unknown artist"
-                    } else {
-                        &collection.title
-                    };
-                    detail::line(ui, "name", title, (32.0, 33.6, 500, -1.12), p.ink, 0);
-                    spacer(ui, "gap", 4.0);
-                    detail::line(
-                        ui,
-                        "summary",
-                        &collection.summary,
-                        (13.0, 18.2, 400, 0.0),
-                        p.secondary,
-                        0,
-                    );
-                });
+                back_row(ui, "Library", Route::Artists, p, intent);
+                let name = if collection.title.is_empty() { "Unknown artist" } else { &collection.title };
+                titles(ui, name, &collection.summary, p);
                 spacer(ui, "keys-gap", 8.0);
-                let keys = ui.node(
-                    "keys",
-                    Node {
-                        axis: Axis::Row,
-                        gap: 8.0,
-                        w: Size::Grow,
-                        h: Size::Px(PLAY_BAR),
-                        padding: Edges {
-                            l: 16.0,
-                            r: 16.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::DEFAULT
-                    },
-                );
-                ui.within(&keys, &mut |ui| {
-                    if key(ui, "play", "Play", Icon::Play, true, p) {
-                        *intent = Some(Intent::PlayRow(0));
-                    }
-                    if key(ui, "shuffle", "Shuffle", Icon::Shuffle, false, p) {
-                        *intent = Some(Intent::ShuffleCollection);
-                    }
-                });
+                play_keys(ui, p, intent);
                 spacer(ui, "albums-gap", 16.0);
                 let cell = album_cell(width);
                 for (line, pair) in albums.chunks(2).enumerate() {
@@ -739,8 +651,119 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
     );
 }
 
+/// Swift's detail back row: chevron and the parent's name, 44 pt tall.
+fn back_row(ui: &mut Ui, label: &'static str, parent: Route, p: Palette, intent: &mut Option<Intent>) {
+    let back = ui.node(
+        "back-row",
+        Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(BACK_ROW), padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::DEFAULT },
+    );
+    ui.within(&back, &mut |ui| {
+        let button = ui.node(
+            "back",
+            Node { flags: CLICKABLE | TAB_STOP, role: Role::Button, axis: Axis::Row, align: Align::Center, w: Size::Px(96.0), h: Size::Px(44.0), ..Node::DEFAULT },
+        );
+        ui.a11y_name(&button, "Back");
+        ui.within(&button, &mut |ui| {
+            let glyph = ui.node("icon", Node { w: Size::Px(20.0), h: Size::Px(20.0), ..Node::DEFAULT });
+            let color = p.secondary;
+            ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+            text(ui, "label", label, 15, p.secondary, (Size::Fit, 21.0), false);
+        });
+        if ui.signal_state(&button).clicked {
+            *intent = Some(Intent::Navigate(parent));
+        }
+    });
+}
+
+/// Name (32 pt) over a 13 pt summary.
+fn titles(ui: &mut Ui, title: &str, summary: &str, p: Palette) {
+    let titles = ui.node("titles", Node { w: Size::Grow, h: Size::Px(TITLE_BLOCK), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
+    ui.within(&titles, &mut |ui| {
+        detail::line(ui, "name", title, (32.0, 33.6, 500, -1.12), p.ink, 0);
+        spacer(ui, "gap", 4.0);
+        detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), p.secondary, 0);
+    });
+}
+
+/// Play and Shuffle keys.
+fn play_keys(ui: &mut Ui, p: Palette, intent: &mut Option<Intent>) {
+    let keys = ui.node("keys", Node { axis: Axis::Row, gap: 8.0, w: Size::Grow, h: Size::Px(PLAY_BAR), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
+    ui.within(&keys, &mut |ui| {
+        if key(ui, "play", "Play", Icon::Play, true, p) {
+            *intent = Some(Intent::PlayRow(0));
+        }
+        if key(ui, "shuffle", "Shuffle", Icon::Shuffle, false, p) {
+            *intent = Some(Intent::ShuffleCollection);
+        }
+    });
+}
+
+/// Compact album page lead-in: back, 150 pt artwork beside title, artist and summary, Play/Shuffle.
+const ALBUM_ART: f32 = 150.0;
+fn album_lead_height() -> f32 {
+    BACK_ROW + ALBUM_ART + 16.0 + PLAY_BAR + 16.0
+}
+fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
+    let Cx { catalog, collection, state, player, width, p, .. } = *cx;
+    let revision = pxui::hash!((
+        state.revision,
+        std::sync::Arc::as_ptr(&catalog.library) as usize,
+        width.to_bits(),
+        player.artwork.map_or(0, crate::artwork::Images::revision),
+    ));
+    ui.view("album-lead", revision, Size::Grow, Size::Px(album_lead_height()), &mut |ui| {
+        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
+        ui.within(&column, &mut |ui| {
+            back_row(ui, "Library", Route::Albums, p, intent);
+            let top = ui.node("album-top", Node { axis: Axis::Row, gap: 16.0, w: Size::Grow, h: Size::Px(ALBUM_ART), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
+            ui.within(&top, &mut |ui| {
+                let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), p.panel);
+                paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
+                ui.a11y_name(&art, "Album artwork");
+                let meta = ui.node("meta", Node { w: Size::Grow, h: Size::Grow, justify: Justify::End, gap: 6.0, ..Node::DEFAULT });
+                ui.within(&meta, &mut |ui| {
+                    let text_width = (width - 32.0 - ALBUM_ART - 16.0).max(1.0);
+                    super::super::settings::paragraph(ui, "title", &collection.title, text_width, 24.0, p.ink);
+                    if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
+                        && !artist.is_empty()
+                    {
+                        let link = detail::line(ui, "artist", artist, (17.0, 23.8, 400, 0.0), p.secondary, CLICKABLE | TAB_STOP);
+                        if ui.signal_state(&link).clicked
+                            && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
+                        {
+                            *intent = Some(Intent::Navigate(Route::Artist(index)));
+                        }
+                    }
+                    text(ui, "summary", &collection.summary, 13, p.secondary, (Size::Grow, 18.2), true);
+                });
+            });
+            spacer(ui, "keys-gap", 16.0);
+            play_keys(ui, p, intent);
+        });
+    });
+}
+
+/// Compact list page lead-in (playlists, Favorites and the other automatic lists).
+fn collection_lead_height() -> f32 {
+    BACK_ROW + TITLE_BLOCK + 8.0 + PLAY_BAR + 16.0
+}
+fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
+    let Cx { collection, state, p, .. } = *cx;
+    let revision = pxui::hash!((state.revision, collection.key));
+    ui.view("collection-lead", revision, Size::Grow, Size::Px(collection_lead_height()), &mut |ui| {
+        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
+        ui.within(&column, &mut |ui| {
+            back_row(ui, "Lists", Route::Lists, p, intent);
+            titles(ui, &collection.title, &collection.summary, p);
+            spacer(ui, "keys-gap", 8.0);
+            play_keys(ui, p, intent);
+            spacer(ui, "list-gap", 16.0);
+        });
+    });
+}
+
 /// Swift's playKeyButtons: a 52 pt key, ink for Play.
-fn key(ui: &mut Ui, id: &str, label: &'static str, icon: Icon, primary: bool, p: Palette) -> bool {
+pub(in crate::shell) fn key(ui: &mut Ui, id: &str, label: &'static str, icon: Icon, primary: bool, p: Palette) -> bool {
     let node = ui.node(
         id,
         Node {
@@ -753,7 +776,7 @@ fn key(ui: &mut Ui, id: &str, label: &'static str, icon: Icon, primary: bool, p:
             w: Size::Grow,
             h: Size::Px(PLAY_BAR),
             look: Look {
-                fill: if primary { p.ink } else { p.key },
+                fill: if primary { p.ink } else { p.panel },
                 ..Look::NONE
             },
             ..Node::DEFAULT

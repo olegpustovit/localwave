@@ -652,6 +652,23 @@ fn browse_directory(
                 time: song
                     .and_then(|song| song.duration)
                     .map_or_else(String::new, format::duration),
+                detail: {
+                    let size = song.and_then(|song| song.file_size).or(path.file_size);
+                    if path.is_directory {
+                        "Folder".into()
+                    } else if !audio {
+                        size.map_or_else(|| "not audio".into(), |size| format!("not audio · {}", format::megabytes(size)))
+                    } else {
+                        let extension = song
+                            .and_then(|song| song.file_extension.as_deref())
+                            .or_else(|| Path::new(&path.name).extension().and_then(|e| e.to_str()))
+                            .unwrap_or_default();
+                        let mut parts = vec![extension.to_uppercase()];
+                        parts.extend(size.map(format::megabytes));
+                        parts.extend(song.and_then(|song| song.duration).map(format::duration));
+                        parts.join(" · ")
+                    }
+                },
                 glyph: index.map(|index| Glyph {
                     state: inside[index].file_state,
                     availability: Some(states[index].0),

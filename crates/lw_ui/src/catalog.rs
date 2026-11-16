@@ -548,6 +548,8 @@ impl Library {
                     rows.len()
                 )
             }
+            PlaybackContext::Automatic(_) => format!("{} songs · updates itself", rows.len()),
+            PlaybackContext::Playlist { .. } => format!("{} songs · {} min", rows.len(), (seconds() / 60.0).round()),
             _ => String::new(),
         };
         let mut sections = Vec::new();

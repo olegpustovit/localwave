@@ -66,6 +66,8 @@ pub struct Entry {
     pub size: String,
     /// "2:29"; empty without a saved song.
     pub time: String,
+    /// Compact row detail: "FLAC · 20.3 MB · 2:29", "Folder" or "not audio · 1.0 MB".
+    pub detail: String,
     /// None for audio that is not imported yet.
     pub glyph: Option<Glyph>,
     pub directory: bool,
