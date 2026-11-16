@@ -299,6 +299,7 @@ pub(crate) fn configure_ui(ui: &mut pxui::Ui, workload: Option<Workload>) {
                 | Workload::ListDialogs
                 | Workload::MetadataEditor
                 | Workload::SongDrag
+                | Workload::Settings
         )
     ) {
         ui.set_a11y(true);

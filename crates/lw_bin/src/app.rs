@@ -543,7 +543,7 @@ impl App {
             self.artwork.ready_images(),
         )?;
         frame.artwork_updated = artwork_updated;
-        frame.input(&self.ui, self.top_inset, &mut self.events)?;
+        frame.input(&self.ui, &mut self.events)?;
         frame.state_input(&mut self.shell_state);
         let now = window.time();
         let current = window.extent();

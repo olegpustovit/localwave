@@ -118,20 +118,28 @@ impl Frame {
     pub(crate) fn input(
         &mut self,
         ui: &Ui,
-        top_inset: f64,
         events: &mut Vec<HostEvent>,
     ) -> Result<(), String> {
         let workload = self.workload;
         let mut expected_settings_intent = None;
         if workload.is_some() && self.index >= 2 && !matches!(workload, Some(Workload::Drop)) {
             if matches!(workload, Some(Workload::Settings)) {
-                expected_settings_intent = settings_events(self.index - 2, top_inset, &mut *events);
+                expected_settings_intent = settings_events(self.index - 2, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::Waveform)) {
                 waveform_events(self.index - 2, &mut *events);
             } else if matches!(workload, Some(Workload::AlbumDetail | Workload::ArtistDetail)) {
                 events.push(HostEvent::PointerMoved((650.0, 600.0)));
-                // Small steps keep the header in view while the table moves.
-                let step = if (self.index - 2) % 40 < 20 { -0.2 } else { 0.2 };
+                // Small steps keep the header in view while the table moves. The artist page puts its
+                // songs below the Back row, keys and album grid, so it also sweeps down to them and
+                // back each cycle, leaving the header visible for the other half.
+                let phase = (self.index - 2) % 40;
+                let sweep = matches!(workload, Some(Workload::ArtistDetail)) && phase >= 24;
+                let step = match (sweep, phase < 32, phase < 12) {
+                    (true, true, _) => -3.0,
+                    (true, false, _) => 3.0,
+                    (_, _, true) => -0.2,
+                    _ => 0.2,
+                };
                 events.push(HostEvent::Scrolled((0.0, step)));
             } else if matches!(workload, Some(Workload::ListDialogs)) {
                 list_dialog_events(self.index - 2, ui, &mut *events)?;
@@ -570,88 +578,38 @@ pub fn drop_events(frame: usize, events: &mut Vec<input::Event>) {
 }
 
 /// Exercise real Settings hit targets, all eight themes and both advanced menus in two cycles.
+/// Targets are found in the a11y tree each frame so the workload follows the layout.
 pub fn settings_events(
     frame: usize,
-    top: f64,
+    ui: &Ui,
     events: &mut Vec<input::Event>,
-) -> Option<lw_ui::Intent> {
+) -> Result<Option<lw_ui::Intent>, String> {
     use input::{Event, MouseButton};
     use lw_core::preferences::{Appearance, Change, Signal};
     use lw_ui::{Intent, SettingsMenu};
+    use pxui::ui::Role;
     let phase = frame % 40;
-    let (button, at, action) = match phase & !1 {
-        0 | 8 | 14 | 22 | 30 => (
-            MouseButton::RightButton,
-            (1330.0, top + 320.0),
-            Intent::SettingsMenu(SettingsMenu::Appearance, (1330.0, top as f32 + 320.0)),
-        ),
-        4 | 18 => (
-            MouseButton::RightButton,
-            (1330.0, top + 260.0),
-            Intent::SettingsMenu(SettingsMenu::Cache, (1330.0, top as f32 + 260.0)),
-        ),
-        2 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 375.0),
-            Intent::Setting(Change::Signal(Signal::Red)),
-        ),
-        6 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 315.0),
-            Intent::Setting(Change::CacheGB(32)),
-        ),
-        10 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 411.0),
-            Intent::Setting(Change::Signal(Signal::Green)),
-        ),
-        12 => (
-            MouseButton::LeftButton,
-            (
-                if (frame / 40).is_multiple_of(2) {
-                    1390.0
-                } else {
-                    1322.0
-                },
-                top + 320.0,
-            ),
-            Intent::Setting(Change::Appearance(if (frame / 40).is_multiple_of(2) {
-                Appearance::Dark
-            } else {
-                Appearance::Light
-            })),
-        ),
-        16 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 447.0),
-            Intent::Setting(Change::Signal(Signal::Mono)),
-        ),
-        20 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 279.0),
-            Intent::Setting(Change::CacheGB(2)),
-        ),
-        24 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 339.0),
-            Intent::Setting(Change::Signal(Signal::Blue)),
-        ),
-        26 => (
-            MouseButton::LeftButton,
-            (1390.0, top + 140.0),
-            Intent::Setting(Change::ToggleDownloadAhead),
-        ),
-        28 => (
-            MouseButton::LeftButton,
-            (1390.0, top + 200.0),
-            Intent::Setting(Change::ToggleNoNetwork),
-        ),
-        32 => (
-            MouseButton::LeftButton,
-            (1300.0, top + 483.0),
-            Intent::Setting(Change::ToggleReduceMotion),
-        ),
-        _ => return None,
+    let dark = (frame / 40).is_multiple_of(2);
+    let (role, name, button, action): (_, &str, _, _) = match phase & !1 {
+        0 | 8 | 14 | 22 | 30 => (Role::Group, "Appearance", MouseButton::RightButton, Intent::SettingsMenu(SettingsMenu::Appearance, (0.0, 0.0))),
+        4 | 18 => (Role::Group, "Offline space", MouseButton::RightButton, Intent::SettingsMenu(SettingsMenu::Cache, (0.0, 0.0))),
+        2 => (Role::Toggle, "Use red signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Red))),
+        6 => (Role::Toggle, "Use 32 GB", MouseButton::LeftButton, Intent::Setting(Change::CacheGB(32))),
+        10 => (Role::Toggle, "Use green signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Green))),
+        12 if dark => (Role::Toggle, "Use dark appearance", MouseButton::LeftButton, Intent::Setting(Change::Appearance(Appearance::Dark))),
+        12 => (Role::Toggle, "Use light appearance", MouseButton::LeftButton, Intent::Setting(Change::Appearance(Appearance::Light))),
+        16 => (Role::Toggle, "Use monochrome signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Mono))),
+        20 => (Role::Toggle, "Use 2 GB", MouseButton::LeftButton, Intent::Setting(Change::CacheGB(2))),
+        24 => (Role::Toggle, "Use blue signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Blue))),
+        26 => (Role::Toggle, "Download ahead", MouseButton::LeftButton, Intent::Setting(Change::ToggleDownloadAhead)),
+        28 => (Role::Toggle, "Simulate no network", MouseButton::LeftButton, Intent::Setting(Change::ToggleNoNetwork)),
+        32 => (Role::Toggle, "Reduce motion", MouseButton::LeftButton, Intent::Setting(Change::ToggleReduceMotion)),
+        _ => return Ok(None),
+    };
+    let at = center(ui, role, |n| n == name, name)?;
+    let action = match action {
+        Intent::SettingsMenu(menu, _) => Intent::SettingsMenu(menu, (at.0 as f32, at.1 as f32)),
+        other => other,
     };
     let pressed = phase.is_multiple_of(2);
     events.push(Event::PointerMoved(at));
@@ -660,7 +618,7 @@ pub fn settings_events(
     } else {
         Event::PointerReleased(button, at)
     });
-    ((button == MouseButton::RightButton) == pressed).then_some(action)
+    Ok(((button == MouseButton::RightButton) == pressed).then_some(action))
 }
 
 /// Repeat one pointer carry across 30 rows and cancel before returning to its source page.
@@ -1031,7 +989,7 @@ mod tests {
             events.clear();
             mem_sys::local_reset();
             let mut frame = perf.inject(index, false);
-            frame.input(&ui, 0.0, &mut events).unwrap();
+            frame.input(&ui, &mut events).unwrap();
             assert_eq!(
                 events,
                 [
