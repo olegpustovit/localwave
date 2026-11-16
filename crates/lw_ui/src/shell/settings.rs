@@ -150,7 +150,7 @@ fn row(
         context(ui, &node, menu, intent);
     }
     ui.within(&node, &mut |ui| {
-        let labels = ui.node(
+        ui.column(
             "labels",
             Node {
                 justify: Justify::Center,
@@ -162,25 +162,25 @@ fn row(
                         Size::Grow
                     })
             },
-        );
-        ui.within(&labels, &mut |ui| {
-            text(ui, "title", title, 15, ui.color(INK), (Size::Grow, 21.0), false);
-            if !detail.is_empty() {
-                let label = ui.node(
-                    "detail",
-                    Node {
-                        look: Look {
-                            text: ui.color(SECONDARY),
-                            ..Look::NONE
+            |ui| {
+                text(ui, "title", title, 15, ui.color(INK), (Size::Grow, 21.0), false);
+                if !detail.is_empty() {
+                    let label = ui.node(
+                        "detail",
+                        Node {
+                            look: Look {
+                                text: ui.color(SECONDARY),
+                                ..Look::NONE
+                            },
+                            ..Node::column().w(Size::Grow).h_px(detail_height).role(Role::Label)
                         },
-                        ..Node::column().w(Size::Grow).h_px(detail_height).role(Role::Label)
-                    },
-                );
-                ui.text_line_box(&label, detail, &label_style, &[]).unwrap();
-            }
-        });
+                    );
+                    ui.text_line_box(&label, detail, &label_style, &[]).unwrap();
+                }
+            },
+        );
         if let Some((on, _)) = toggle {
-            let track = ui.node(
+            ui.column(
                 "switch",
                 Node {
                     look: Look {
@@ -189,20 +189,20 @@ fn row(
                     },
                     ..Node::column().w_px(48.0).h_px(28.0)
                 },
-            );
-            ui.within(&track, &mut |ui| {
-                ui.node(
-                    "knob",
-                    Node {
-                        at: Some((if on { 23.0 } else { 3.0 }, 3.0)).into(),
-                        look: Look {
-                            fill: ui.color(PAPER),
-                            ..Look::NONE
+                |ui| {
+                    ui.node(
+                        "knob",
+                        Node {
+                            at: Some((if on { 23.0 } else { 3.0 }, 3.0)).into(),
+                            look: Look {
+                                fill: ui.color(PAPER),
+                                ..Look::NONE
+                            },
+                            ..Node::column().w_px(22.0).h_px(22.0)
                         },
-                        ..Node::column().w_px(22.0).h_px(22.0)
-                    },
-                );
-            });
+                    );
+                },
+            );
         } else {
             controls(ui, intent);
         }
@@ -316,8 +316,7 @@ pub(super) fn view(
                 ("Files and iCloud Drive", "Files you select from iCloud Drive or another provider may need downloading through that provider. LocalWave does not receive your Apple Account password."),
                 ("Removing your data", "Removing a library entry removes its database record; cached audio or artwork may remain. Removing LocalWave’s local app data erases its library and logs. Your original files stay where they are."),
             ] {
-                let section = ui.node(title, Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0));
-                ui.within(&section, &mut |ui| {
+                ui.column(title, Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
                     text(ui, "heading", title, 18, ui.color(INK), (Size::Grow, 26.0), false);
                     paragraph(ui, title, body, width - 32.0, 14.0, ui.color(SECONDARY));
                 });
@@ -337,14 +336,12 @@ pub(super) fn view(
         row(ui, "no-network", ("Simulate no network", "Prototype only — shows skipped songs and failed downloads"), width, (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         row(ui, "cache", ("Offline space", cache_detail), width, (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
-            let group = ui.node("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) });
-            ui.within(&group, &mut |ui| { for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
+            ui.row("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) }, |ui| { for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
                 option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
             }});
         });
         row(ui, "appearance", ("Appearance", ""), width, (None, Some(SettingsMenu::Appearance), false), intent, &mut |ui, intent| {
-            let group = ui.node("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) });
-            ui.within(&group, &mut |ui| { for (value, label, name) in [(Appearance::System, "System", "Use system appearance"), (Appearance::Light, "Light", "Use light appearance"), (Appearance::Dark, "Dark", "Use dark appearance")] {
+            ui.row("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) }, |ui| { for (value, label, name) in [(Appearance::System, "System", "Use system appearance"), (Appearance::Light, "Light", "Use light appearance"), (Appearance::Dark, "Dark", "Use dark appearance")] {
                 option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
             }});
         });
@@ -359,8 +356,7 @@ pub(super) fn view(
                 }
             });
         });
-        let footer = ui.node("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0));
-        ui.within(&footer, &mut |ui| {
+        ui.column("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
             paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, ui.color(SECONDARY));
             if back(ui, "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
             paragraph(ui, "cache-usage", if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, width - 32.0, 14.0, ui.color(SECONDARY));

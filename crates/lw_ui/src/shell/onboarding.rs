@@ -33,18 +33,18 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
             "onboarding-page",
             &(column.to_bits(), top_inset.to_bits(), drive),
             |ui| {
-                let outer = ui.node(
+                ui.column(
                     "onboarding-outer",
                     Node {
                         padding: Edges { l: 16.0, r: 16.0, t: 16.0 + top_inset, b: 34.0 },
                         ..Node::column().w(Size::Grow).h(Size::Grow)
                     },
+                    |ui| {
+                        if page(ui, column, drive, intent) {
+                            ui.set_state(&root, i64::from(!drive));
+                        }
+                    },
                 );
-                ui.within(&outer, &mut |ui| {
-                    if page(ui, column, drive, intent) {
-                        ui.set_state(&root, i64::from(!drive));
-                    }
-                });
             },
         );
     });
@@ -70,8 +70,7 @@ fn underlined(ui: &mut Ui, key: &str, label: &'static str) -> bool {
 /// Returns true when the Google Drive disclosure was toggled.
 fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
-    let page = ui.node("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow));
-    ui.within(&page, &mut |ui| {
+    ui.column("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow), |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
             text(ui, "name", "LocalWave", 13, ui.color(SECONDARY), (Size::Grow, 18.2), false);
@@ -167,48 +166,48 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
     );
     let mut clicked = false;
     ui.within(&frame, &mut |ui| {
-        let inner = ui.node(
+        ui.column(
             "drive-inner",
             Node {
                 look: Look { fill: ui.color(PAPER), ..Look::NONE },
                 ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
             },
-        );
-        ui.within(&inner, &mut |ui| {
-            let header = ui.node(
-                "drive-toggle",
-                Node::row().w(Size::Grow).h_px(19.5).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-            );
-            ui.a11y_name(&header, "Google Drive not in the list?");
-            ui.within(&header, &mut |ui| {
-                let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
-                let ink = ui.color(INK);
-                ui.draw(&marker, move |paint, rect| {
-                    // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
-                    let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };
-                    let top = rect.y + 14.0 - h;
-                    for i in 0..h as i32 {
-                        let t = (i as f32 + 0.5) / h;
-                        let span = if expanded { w * (1.0 - t) } else { w * (1.0 - (2.0 * t - 1.0).abs()) };
-                        let x = if expanded { rect.x + (w - span) / 2.0 } else { rect.x };
-                        paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
-                    }
-                });
-                text(ui, "title", "Google Drive not in the list?", 13, ui.color(INK), (Size::Grow, 19.5), false);
-            });
-            clicked = ui.signal_state(&header).clicked;
-            if expanded {
-                spacer(ui, "drive-help-gap", 8.0);
-                settings::paragraph(
-                    ui,
-                    "drive-help",
-                    "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.",
-                    column - 30.0,
-                    13.0,
-                    ui.color(SECONDARY),
+            |ui| {
+                let header = ui.node(
+                    "drive-toggle",
+                    Node::row().w(Size::Grow).h_px(19.5).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                 );
-            }
-        });
+                ui.a11y_name(&header, "Google Drive not in the list?");
+                ui.within(&header, &mut |ui| {
+                    let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
+                    let ink = ui.color(INK);
+                    ui.draw(&marker, move |paint, rect| {
+                        // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
+                        let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };
+                        let top = rect.y + 14.0 - h;
+                        for i in 0..h as i32 {
+                            let t = (i as f32 + 0.5) / h;
+                            let span = if expanded { w * (1.0 - t) } else { w * (1.0 - (2.0 * t - 1.0).abs()) };
+                            let x = if expanded { rect.x + (w - span) / 2.0 } else { rect.x };
+                            paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
+                        }
+                    });
+                    text(ui, "title", "Google Drive not in the list?", 13, ui.color(INK), (Size::Grow, 19.5), false);
+                });
+                clicked = ui.signal_state(&header).clicked;
+                if expanded {
+                    spacer(ui, "drive-help-gap", 8.0);
+                    settings::paragraph(
+                        ui,
+                        "drive-help",
+                        "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.",
+                        column - 30.0,
+                        13.0,
+                        ui.color(SECONDARY),
+                    );
+                }
+            },
+        );
     });
     clicked
 }
@@ -226,14 +225,14 @@ pub(super) fn empty_library(
         header_view(ui, catalog, state, width, intent);
     }
     let inset = if compact { 16.0 } else { 32.0 };
-    let page = ui.node(
+    ui.column(
         "empty-library-inset",
         Node {
             padding: Edges { l: inset, r: inset, t: 24.0, ..Edges::ZERO },
             ..Node::column().w(Size::Grow).h(Size::Fit)
         },
+        |ui| {
+            settings::paragraph(ui, "empty-library", LIBRARY_EMPTY, width - inset * 2.0, 14.0, ui.color(SECONDARY));
+        },
     );
-    ui.within(&page, &mut |ui| {
-        settings::paragraph(ui, "empty-library", LIBRARY_EMPTY, width - inset * 2.0, 14.0, ui.color(SECONDARY));
-    });
 }

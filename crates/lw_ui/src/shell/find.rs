@@ -113,11 +113,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
         );
         background(ui, "press", ui.color(PANEL), signal.held, false);
         ui.view_of("action-copy", &(label, selected), |ui| {
-            let row = ui.node(
-                "content",
-                Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center),
-            );
-            ui.within(&row, &mut |ui| {
+            ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
                 let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
                 let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
                 ui.draw(&icon, move |paint, rect| match action {
@@ -153,8 +149,7 @@ pub(super) fn toolbar(
         .and_then(|view| view.find.as_ref());
     let tools = ui.node("find-tools", Node::column().w(Size::Grow).h_px(45.0));
     ui.within(&tools, &mut |ui| {
-        let row = ui.node("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
-        ui.within(&row, &mut |ui| {
+        ui.row("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0), |ui| {
             if button(
                 ui,
                 Action::Play,

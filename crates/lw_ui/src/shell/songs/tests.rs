@@ -185,8 +185,7 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                     ..Default::default()
                 },
                 &mut |ui| {
-                    let component = ui.node("component", Node::column().w_px(width).h(Size::Grow));
-                    ui.within(&component, &mut |ui| {
+                    ui.column("component", Node::column().w_px(width).h(Size::Grow), |ui| {
                         let layout = heading_layout(ui, &catalog, columns, None);
                         root = Some(heading(ui, columns, None, layout, &mut None));
                     });

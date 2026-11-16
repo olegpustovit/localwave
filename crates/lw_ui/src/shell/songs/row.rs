@@ -20,62 +20,62 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
     ui.set_state(&song, id);
     ui.within(&root, &mut |ui| {
         for (index, key) in ["bar-0", "bar-1", "bar-2"].into_iter().enumerate() {
-            let position = ui.node(
+            ui.column(
                 key,
                 Node {
                     at: Some((index as f32 * 4.0, 0.0)).into(),
                     ..Node::column().w_px(2.0).h_px(11.0)
                 },
-            );
-            ui.within(&position, &mut |ui| {
-                let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
-                    let accent = ui.tokens().accent;
-                    ui.draw(&fill, move |paint, rect| {
-                        paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, accent)
+                |ui| {
+                    let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
+                        let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
+                        let accent = ui.tokens().accent;
+                        ui.draw(&fill, move |paint, rect| {
+                            paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, accent)
+                        });
                     });
-                });
-                if changed {
-                    let scale = |y| Target::Scale {
-                        x: 1.0,
-                        y,
-                        anchor: (0.5, 1.0),
-                    };
-                    let curve = Curve::Bezier {
-                        duration: 0.45,
-                        points: [0.42, 0.0, 0.58, 1.0],
-                    };
-                    if active {
-                        ui.animate_keys_repeat(
-                            &bar,
-                            &[
-                                Keyframe {
+                    if changed {
+                        let scale = |y| Target::Scale {
+                            x: 1.0,
+                            y,
+                            anchor: (0.5, 1.0),
+                        };
+                        let curve = Curve::Bezier {
+                            duration: 0.45,
+                            points: [0.42, 0.0, 0.58, 1.0],
+                        };
+                        if active {
+                            ui.animate_keys_repeat(
+                                &bar,
+                                &[
+                                    Keyframe {
+                                        time: 0.0,
+                                        target: scale(0.4),
+                                        curve,
+                                    },
+                                    Keyframe {
+                                        time: 0.45,
+                                        target: scale(1.0),
+                                        curve,
+                                    },
+                                ],
+                                Repeat::Forever,
+                                true,
+                                index as f32 * 0.3,
+                            );
+                        } else {
+                            ui.animate_keys(
+                                &bar,
+                                &[Keyframe {
                                     time: 0.0,
                                     target: scale(0.4),
                                     curve,
-                                },
-                                Keyframe {
-                                    time: 0.45,
-                                    target: scale(1.0),
-                                    curve,
-                                },
-                            ],
-                            Repeat::Forever,
-                            true,
-                            index as f32 * 0.3,
-                        );
-                    } else {
-                        ui.animate_keys(
-                            &bar,
-                            &[Keyframe {
-                                time: 0.0,
-                                target: scale(0.4),
-                                curve,
-                            }],
-                        );
+                                }],
+                            );
+                        }
                     }
-                }
-            });
+                },
+            );
         }
     });
 }
@@ -406,71 +406,71 @@ impl Rows<'_> {
                         }
                     });
                     if current {
-                        let at = ui.node(
+                        ui.column(
                             "equalizer-position",
                             Node {
                                 at: Some((32.0, layout.y(11.0))).into(),
                                 ..Node::column().w_px(14.0).h_px(11.0)
                             },
+                            |ui| {
+                                ui.view(
+                                    "equalizer-view",
+                                    visual_revision,
+                                    Size::Grow,
+                                    Size::Grow,
+                                    &mut |ui| equalizer(ui, player.playing, visible, row.id),
+                                );
+                            },
                         );
-                        ui.within(&at, &mut |ui| {
-                            ui.view(
-                                "equalizer-view",
-                                visual_revision,
-                                Size::Grow,
-                                Size::Grow,
-                                &mut |ui| equalizer(ui, player.playing, visible, row.id),
-                            );
-                        });
                     }
                     if widths[Column::State as usize] > 0.0 {
                         let x = widths[..Column::State as usize].iter().sum::<f32>() + 8.0;
-                        let at = ui.node(
+                        ui.column(
                             "availability-position",
                             Node {
                                 at: Some((x, layout.y(10.0))).into(),
                                 ..Node::column().w_px(10.0).h_px(10.0)
                             },
-                        );
-                        ui.within(&at, &mut |ui| {
-                            let visual = ui.view(
-                                "availability-view",
-                                visual_revision,
-                                Size::Grow,
-                                Size::Grow,
-                                &mut |ui| availability(ui, row, visible),
-                            );
-                            let previous = ui.state(&visual, -1);
-                            let next = row.state as i64;
-                            if previous != next {
-                                ui.set_state(&visual, next);
-                                if previous >= 0 && !ui.tokens().reduced_motion {
-                                    ui.animate_keys(
-                                        &visual,
-                                        &[
-                                            pxui::kit::Keyframe {
-                                                time: 0.0,
-                                                target: pxui::kit::AnimationTarget::Scale {
-                                                    x: 0.3,
-                                                    y: 0.3,
-                                                    anchor: (0.5, 0.5),
+                            |ui| {
+                                let visual = ui.view(
+                                    "availability-view",
+                                    visual_revision,
+                                    Size::Grow,
+                                    Size::Grow,
+                                    &mut |ui| availability(ui, row, visible),
+                                );
+                                let previous = ui.state(&visual, -1);
+                                let next = row.state as i64;
+                                if previous != next {
+                                    ui.set_state(&visual, next);
+                                    if previous >= 0 && !ui.tokens().reduced_motion {
+                                        ui.animate_keys(
+                                            &visual,
+                                            &[
+                                                pxui::kit::Keyframe {
+                                                    time: 0.0,
+                                                    target: pxui::kit::AnimationTarget::Scale {
+                                                        x: 0.3,
+                                                        y: 0.3,
+                                                        anchor: (0.5, 0.5),
+                                                    },
+                                                    curve: crate::motion::spring(crate::motion::BASE),
                                                 },
-                                                curve: crate::motion::spring(crate::motion::BASE),
-                                            },
-                                            pxui::kit::Keyframe {
-                                                time: crate::motion::BASE,
-                                                target: pxui::kit::AnimationTarget::Scale {
-                                                    x: 1.0,
-                                                    y: 1.0,
-                                                    anchor: (0.5, 0.5),
+                                                pxui::kit::Keyframe {
+                                                    time: crate::motion::BASE,
+                                                    target: pxui::kit::AnimationTarget::Scale {
+                                                        x: 1.0,
+                                                        y: 1.0,
+                                                        anchor: (0.5, 0.5),
+                                                    },
+                                                    curve: crate::motion::spring(crate::motion::BASE),
                                                 },
-                                                curve: crate::motion::spring(crate::motion::BASE),
-                                            },
-                                        ],
-                                    );
+                                            ],
+                                        );
+                                    }
                                 }
-                            }
-                        });
+                            },
+                        );
                     }
                     let x = widths[..7].iter().sum::<f32>();
                     let more = ui.node(

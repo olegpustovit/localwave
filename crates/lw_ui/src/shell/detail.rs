@@ -225,82 +225,81 @@ fn header_body(
         paint_artwork(ui, &art, group.artwork_row.map(|index| catalog.row(index)), size, player.artwork);
         ui.a11y_name(&art, "Album artwork");
     }
-    let meta = ui.node(
+    ui.column(
         "meta",
         Node::column()
             .w(Size::Grow)
             .h_px(if album { ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 } } else { ARTIST_META }),
-    );
-    ui.within(&meta, &mut |ui| {
-        if !album {
-            spacer(ui, "kind-gap", 6.0);
-        }
-        line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), 0);
-        let title = match (album, group.title.is_empty()) {
-            (false, true) => "Unknown artist",
-            _ => &group.title,
-        };
-        line(
-            ui,
-            "title",
-            title,
-            if album { (40.0, 40.8, 500, -1.2) } else { (48.0, 48.0, 500, -1.2) },
-            ui.color(INK),
-            0,
-        );
-        if let PlaybackContext::Album { artist, .. } = group.context.as_ref()
-            && !artist.is_empty()
-        {
-            spacer(ui, "artist-gap", 6.0);
-            let link = line(ui, "artist", artist, (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), CLICKABLE | TAB_STOP);
-            if ui.signal_state(&link).clicked
-                && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
-            {
-                *intent = Some(Intent::Navigate(Route::Artist(index)));
+        |ui| {
+            if !album {
+                spacer(ui, "kind-gap", 6.0);
             }
-        }
-        spacer(ui, "summary-gap", if album { 12.0 } else { 6.0 });
-        if album && !group.format.is_empty() {
-            // Swift: "2019 · 8 songs · 37 min · " in the text face, then the format in mono.
-            let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
-            ui.within(&row, &mut |ui| {
-                text(ui, "lead", &group.lead, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
-                text(ui, "format", &group.format, 12, ui.color(SECONDARY), (Size::Grow, 16.8), true);
-            });
-        } else {
+            line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), 0);
+            let title = match (album, group.title.is_empty()) {
+                (false, true) => "Unknown artist",
+                _ => &group.title,
+            };
             line(
                 ui,
-                "summary",
-                &group.summary,
-                if album { (13.0, 18.2, 400, 0.0) } else { (14.0, 19.6, 400, 0.0) },
-                ui.color(SECONDARY),
+                "title",
+                title,
+                if album { (40.0, 40.8, 500, -1.2) } else { (48.0, 48.0, 500, -1.2) },
+                ui.color(INK),
                 0,
             );
-        }
-        if let Some(target) = &group.folder {
-            spacer(ui, "folder-gap", 4.0);
-            let row = ui.node("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0));
-            ui.within(&row, &mut |ui| {
-                text(ui, "caption", "Folder:", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
-                let link = ui.node(
-                    "link",
-                    Node::column().w(Size::Fit).h_px(18.2).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                );
-                ui.a11y_name(&link, &target.label);
-                ui.within(&link, &mut |ui| {
-                    text(ui, "label", &target.label, 13, ui.color(INK), (Size::Fit, 17.2), false);
-                    container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
-                });
-                if ui.signal_state(&link).clicked {
-                    *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
+            if let PlaybackContext::Album { artist, .. } = group.context.as_ref()
+                && !artist.is_empty()
+            {
+                spacer(ui, "artist-gap", 6.0);
+                let link = line(ui, "artist", artist, (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), CLICKABLE | TAB_STOP);
+                if ui.signal_state(&link).clicked
+                    && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
+                {
+                    *intent = Some(Intent::Navigate(Route::Artist(index)));
                 }
-            });
-        }
-        if album {
-            spacer(ui, "buttons-gap", 20.0);
-            keys(ui, group, true, kept, ALBUM_KEYS.min((width - 64.0).max(1.0)), intent);
-        }
-    });
+            }
+            spacer(ui, "summary-gap", if album { 12.0 } else { 6.0 });
+            if album && !group.format.is_empty() {
+                // Swift: "2019 · 8 songs · 37 min · " in the text face, then the format in mono.
+                let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
+                ui.within(&row, &mut |ui| {
+                    text(ui, "lead", &group.lead, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
+                    text(ui, "format", &group.format, 12, ui.color(SECONDARY), (Size::Grow, 16.8), true);
+                });
+            } else {
+                line(
+                    ui,
+                    "summary",
+                    &group.summary,
+                    if album { (13.0, 18.2, 400, 0.0) } else { (14.0, 19.6, 400, 0.0) },
+                    ui.color(SECONDARY),
+                    0,
+                );
+            }
+            if let Some(target) = &group.folder {
+                spacer(ui, "folder-gap", 4.0);
+                ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
+                    text(ui, "caption", "Folder:", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
+                    let link = ui.node(
+                        "link",
+                        Node::column().w(Size::Fit).h_px(18.2).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
+                    );
+                    ui.a11y_name(&link, &target.label);
+                    ui.within(&link, &mut |ui| {
+                        text(ui, "label", &target.label, 13, ui.color(INK), (Size::Fit, 17.2), false);
+                        container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
+                    });
+                    if ui.signal_state(&link).clicked {
+                        *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
+                    }
+                });
+            }
+            if album {
+                spacer(ui, "buttons-gap", 20.0);
+                keys(ui, group, true, kept, ALBUM_KEYS.min((width - 64.0).max(1.0)), intent);
+            }
+        },
+    );
     if !album {
         keys(ui, group, false, false, if stacked(width) { (width - 64.0).max(1.0) } else { ARTIST_KEYS }, intent);
     }
@@ -315,8 +314,7 @@ fn keys(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let row = ui.node("buttons", Node::row().w_px(width).h_px(KEYS).gap(8.0));
-    ui.within(&row, &mut |ui| {
+    ui.row("buttons", Node::row().w_px(width).h_px(KEYS).gap(8.0), |ui| {
         let enabled = !group.ids.is_empty();
         if key(ui, "play", "Play", Icon::Play, true) && enabled {
             *intent = Some(Intent::PlayRow(0));

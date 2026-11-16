@@ -164,7 +164,7 @@ pub(super) fn queue_sheet(
                         paint.color(LINE),
                     );
                 });
-                let header = ui.node(
+                ui.row(
                     "full-queue-header",
                     Node {
                         padding: Edges {
@@ -175,86 +175,86 @@ pub(super) fn queue_sheet(
                         },
                         ..Node::row().w(Size::Grow).h_px(66.2)
                     },
-                );
-                ui.within(&header, &mut |ui| {
-                    // Swift reaches Save as list from this header's context menu and an a11y action.
-                    let titles = ui.node(
-                        "queue-titles",
-                        Node::column()
-                            .w(Size::Grow)
-                            .h(Size::Grow)
-                            .role(Role::Button)
-                            .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                    );
-                    ui.a11y_name(&titles, "Save queue as playlist");
-                    let signal = ui.signal_state(&titles);
-                    if queue.is_some_and(|queue| !queue.entries.is_empty())
-                        && (signal.clicked || (signal.pressed && signal.button == Some(1)))
-                    {
-                        *intent = Some(Intent::NamePlaylist);
-                    }
-                    ui.within(&titles, &mut |ui| {
-                        text(
-                            ui,
-                            "full-queue-title",
-                            "Queue",
-                            20,
-                            ui.color(INK),
-                            (Size::Grow, 28.0),
-                            false,
+                    |ui| {
+                        // Swift reaches Save as list from this header's context menu and an a11y action.
+                        let titles = ui.node(
+                            "queue-titles",
+                            Node::column()
+                                .w(Size::Grow)
+                                .h(Size::Grow)
+                                .role(Role::Button)
+                                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                         );
-                        let from = container(
-                            ui,
-                            "queue-from",
-                            Axis::Row,
-                            Size::Grow,
-                            Size::Px(18.2),
-                            ui.color(PAPER),
-                        );
-                        ui.within(&from, &mut |ui| {
+                        ui.a11y_name(&titles, "Save queue as playlist");
+                        let signal = ui.signal_state(&titles);
+                        if queue.is_some_and(|queue| !queue.entries.is_empty())
+                            && (signal.clicked || (signal.pressed && signal.button == Some(1)))
+                        {
+                            *intent = Some(Intent::NamePlaylist);
+                        }
+                        ui.within(&titles, &mut |ui| {
                             text(
                                 ui,
-                                "from",
-                                "From ",
-                                13,
-                                ui.color(SECONDARY),
-                                (Size::Fit, 18.2),
+                                "full-queue-title",
+                                "Queue",
+                                20,
+                                ui.color(INK),
+                                (Size::Grow, 28.0),
                                 false,
                             );
-                            text(
+                            let from = container(
                                 ui,
-                                "context",
-                                player.context,
-                                13,
-                                ui.color(SECONDARY),
-                                (Size::Fit, 18.2),
-                                false,
+                                "queue-from",
+                                Axis::Row,
+                                Size::Grow,
+                                Size::Px(18.2),
+                                ui.color(PAPER),
                             );
-                            if player.shuffled {
+                            ui.within(&from, &mut |ui| {
                                 text(
                                     ui,
-                                    "shuffled",
-                                    " · shuffled",
+                                    "from",
+                                    "From ",
                                     13,
                                     ui.color(SECONDARY),
                                     (Size::Fit, 18.2),
                                     false,
                                 );
-                            }
+                                text(
+                                    ui,
+                                    "context",
+                                    player.context,
+                                    13,
+                                    ui.color(SECONDARY),
+                                    (Size::Fit, 18.2),
+                                    false,
+                                );
+                                if player.shuffled {
+                                    text(
+                                        ui,
+                                        "shuffled",
+                                        " · shuffled",
+                                        13,
+                                        ui.color(SECONDARY),
+                                        (Size::Fit, 18.2),
+                                        false,
+                                    );
+                                }
+                            });
                         });
-                    });
-                    if icon_button(
-                        ui,
-                        "close-queue",
-                        "Close queue",
-                        Icon::Clear,
-                        (44.0, 44.0),
-                        false,
-                        true,
-                    ) {
-                        *intent = Some(Intent::CloseQueue);
-                    }
-                });
+                        if icon_button(
+                            ui,
+                            "close-queue",
+                            "Close queue",
+                            Icon::Clear,
+                            (44.0, 44.0),
+                            false,
+                            true,
+                        ) {
+                            *intent = Some(Intent::CloseQueue);
+                        }
+                    },
+                );
                 if state.playlist_editing {
                     text(
                         ui,
@@ -359,7 +359,7 @@ pub(super) fn queue_sheet(
                 if let Some(song) = now {
                     now_row(ui, player, song, width);
                 }
-                let label = ui.node(
+                ui.row(
                     "up-next-label",
                     Node {
                         padding: Edges {
@@ -370,29 +370,29 @@ pub(super) fn queue_sheet(
                         },
                         ..Node::row().w(Size::Grow).h_px(46.2).gap(4.0)
                     },
+                    |ui| {
+                        text(
+                            ui,
+                            "name",
+                            "Up next",
+                            13,
+                            ui.color(SECONDARY),
+                            (Size::Fit, 18.2),
+                            false,
+                        );
+                        text(
+                            ui,
+                            "count",
+                            queue.map_or("0", |queue| queue.count.as_str()),
+                            12,
+                            ui.color(SECONDARY),
+                            (Size::Fit, 18.2),
+                            true,
+                        );
+                    },
                 );
-                ui.within(&label, &mut |ui| {
-                    text(
-                        ui,
-                        "name",
-                        "Up next",
-                        13,
-                        ui.color(SECONDARY),
-                        (Size::Fit, 18.2),
-                        false,
-                    );
-                    text(
-                        ui,
-                        "count",
-                        queue.map_or("0", |queue| queue.count.as_str()),
-                        12,
-                        ui.color(SECONDARY),
-                        (Size::Fit, 18.2),
-                        true,
-                    );
-                });
                 if upcoming == 0 {
-                    let empty = ui.node(
+                    ui.row(
                         "queue-empty",
                         Node {
                             padding: Edges {
@@ -401,29 +401,28 @@ pub(super) fn queue_sheet(
                             },
                             ..Node::row().w(Size::Grow).h_px(96.0).gap(8.0).align(Align::Center)
                         },
+                        |ui| {
+                            let undo = queue.is_some_and(|queue| queue.can_undo);
+                            text(
+                                ui,
+                                "message",
+                                if undo {
+                                    "Up next cleared."
+                                } else {
+                                    "Nothing queued."
+                                },
+                                14,
+                                ui.color(SECONDARY),
+                                (Size::Fit, 20.0),
+                                false,
+                            );
+                            if undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
+                                *intent = Some(Intent::UndoQueue);
+                            }
+                        },
                     );
-                    ui.within(&empty, &mut |ui| {
-                        let undo = queue.is_some_and(|queue| queue.can_undo);
-                        text(
-                            ui,
-                            "message",
-                            if undo {
-                                "Up next cleared."
-                            } else {
-                                "Nothing queued."
-                            },
-                            14,
-                            ui.color(SECONDARY),
-                            (Size::Fit, 20.0),
-                            false,
-                        );
-                        if undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
-                            *intent = Some(Intent::UndoQueue);
-                        }
-                    });
                 } else {
-                    let rows = ui.node("full-queue-body", Node::column().w(Size::Grow).h(Size::Grow).pad_x(10.0));
-                    ui.within(&rows, &mut |ui| {
+                    ui.column("full-queue-body", Node::column().w(Size::Grow).h(Size::Grow).pad_x(10.0), |ui| {
                         ui.view_of(
                             "full-queue-rows",
                             &(
@@ -513,8 +512,7 @@ fn now_row(
             ui.color(kit::PANEL),
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
-        let titles = ui.node("now-titles", Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit));
-        ui.within(&titles, &mut |ui| {
+        ui.column("now-titles", Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
             text(
                 ui,
                 "title",
@@ -546,8 +544,7 @@ fn now_row(
                 );
             });
         });
-        let bars = ui.node("now-bars", Node::column().w_px(14.0).h_px(11.0));
-        ui.within(&bars, &mut |ui| {
+        ui.column("now-bars", Node::column().w_px(14.0).h_px(11.0), |ui| {
             ui.view_of(
                 "equalizer-view",
                 &(player.playing, song.id),
@@ -773,7 +770,7 @@ pub(super) fn queue_rows(
                 if let Some(row) =
                     row.filter(|row| row.state != lw_core::FileState::Copied || row.pinned)
                 {
-                    let at = ui.node(
+                    ui.column(
                         "availability-position",
                         Node {
                             padding: Edges {
@@ -783,10 +780,10 @@ pub(super) fn queue_rows(
                             },
                             ..Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0)
                         },
+                        |ui| {
+                            super::songs::row::availability(ui, row, true)
+                        },
                     );
-                    ui.within(&at, &mut |ui| {
-                        super::songs::row::availability(ui, row, true)
-                    });
                 }
                 if icon_button(
                     ui,

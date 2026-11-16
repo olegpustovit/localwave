@@ -10,7 +10,7 @@ pub(super) fn now_panel(
     carry: u64,
     intent: &mut Option<Intent>,
 ) {
-    let root = ui.node(
+    ui.column(
         "now",
         Node {
             padding: Edges {
@@ -21,191 +21,188 @@ pub(super) fn now_panel(
             },
             ..Node::column().w(Size::Grow).h(Size::Grow)
         },
-    );
-    ui.within(&root, &mut |ui| {
-        let head = ui.node("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center));
-        ui.within(&head, &mut |ui| {
-            text(
+        |ui| {
+            ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
+                text(
+                    ui,
+                    "name",
+                    "Now playing",
+                    13,
+                    ui.color(SECONDARY),
+                    (Size::Grow, 18.2),
+                    false,
+                );
+                if icon_button(
+                    ui,
+                    "hide-panel",
+                    "Minimise to small player",
+                    Icon::Panel,
+                    (36.0, 36.0),
+                    false,
+                    true,
+                ) {
+                    *intent = Some(Intent::TogglePanel);
+                }
+            });
+            spacer(ui, "artwork-top-gap", 4.0);
+            let art = container(
                 ui,
-                "name",
-                "Now playing",
-                13,
-                ui.color(SECONDARY),
-                (Size::Grow, 18.2),
-                false,
+                "artwork",
+                Axis::Stack,
+                Size::Px(200.0),
+                Size::Px(200.0),
+                ui.color(PANEL),
             );
-            if icon_button(
+            paint_artwork(
                 ui,
-                "hide-panel",
-                "Minimise to small player",
-                Icon::Panel,
-                (36.0, 36.0),
-                false,
-                true,
-            ) {
-                *intent = Some(Intent::TogglePanel);
-            }
-        });
-        spacer(ui, "artwork-top-gap", 4.0);
-        let art = container(
-            ui,
-            "artwork",
-            Axis::Stack,
-            Size::Px(200.0),
-            Size::Px(200.0),
-            ui.color(PANEL),
-        );
-        paint_artwork(
-            ui,
-            &art,
-            player
-                .current_id
-                .and_then(|id| catalog.row_index(id))
-                .map(|index| catalog.row(index)),
-            200.0,
-            player.artwork,
-        );
-        ui.a11y_name(&art, "Current track artwork");
-        spacer(ui, "artwork-bottom-gap", 14.0);
-        let favorite = player.current_id.map(|id| {
-            (
-                id,
-                catalog
-                    .row_index(id)
-                    .is_some_and(|i| catalog.row(i).favorite),
-            )
-        });
-        // Swift's heart sits at the end of the title row, level with the title.
-        let title_row = ui.node("title-row", Node::row().w(Size::Grow).h(Size::Fit));
-        ui.within(&title_row, &mut |ui| {
-            let information_revision = crate::hash((
-                player.revision,
-                std::sync::Arc::as_ptr(&catalog.library) as usize,
-            ));
-            let information = ui.view(
-                "track-information",
-                information_revision,
-                Size::Grow,
-                Size::Fit,
-                &mut |ui| {
-                    let title = ui.node(
-                        "current-track",
-                        Node {
-                            min_h: 22.8,
-                            look: Look {
-                                text: ui.color(INK),
-                                ..Look::NONE
+                &art,
+                player
+                    .current_id
+                    .and_then(|id| catalog.row_index(id))
+                    .map(|index| catalog.row(index)),
+                200.0,
+                player.artwork,
+            );
+            ui.a11y_name(&art, "Current track artwork");
+            spacer(ui, "artwork-bottom-gap", 14.0);
+            let favorite = player.current_id.map(|id| {
+                (
+                    id,
+                    catalog
+                        .row_index(id)
+                        .is_some_and(|i| catalog.row(i).favorite),
+                )
+            });
+            // Swift's heart sits at the end of the title row, level with the title.
+            ui.row("title-row", Node::row().w(Size::Grow).h(Size::Fit), |ui| {
+                let information_revision = crate::hash((
+                    player.revision,
+                    std::sync::Arc::as_ptr(&catalog.library) as usize,
+                ));
+                let information = ui.view(
+                    "track-information",
+                    information_revision,
+                    Size::Grow,
+                    Size::Fit,
+                    &mut |ui| {
+                        let title = ui.node(
+                            "current-track",
+                            Node {
+                                min_h: 22.8,
+                                look: Look {
+                                    text: ui.color(INK),
+                                    ..Look::NONE
+                                },
+                                ..Node::column().w(Size::Grow).h(Size::Fit).role(Role::Label)
                             },
-                            ..Node::column().w(Size::Grow).h(Size::Fit).role(Role::Label)
-                        },
-                    );
-                    let value = if !player.initialized {
-                        "Loading library"
-                    } else if player.title.is_empty() {
-                        "Nothing playing"
-                    } else {
-                        player.title
-                    };
-                    ui.text_line_box(
-                        &title,
-                        value,
-                        &pxui::TextStyle {
-                            size_points: 19.0,
-                            weight: 500,
-                            tracking: -0.285,
-                            line_height: 22.8,
-                            wrap: 1,
-                            ..Default::default()
-                        },
-                        &[],
-                    )
-                    .unwrap();
-                    if player.current_id.is_some() {
-                        byline::draw(ui, player, catalog, 243.0, intent);
-                    }
-                    if player.initialized && player.title.is_empty() {
-                        settings::paragraph(
+                        );
+                        let value = if !player.initialized {
+                            "Loading library"
+                        } else if player.title.is_empty() {
+                            "Nothing playing"
+                        } else {
+                            player.title
+                        };
+                        ui.text_line_box(
+                            &title,
+                            value,
+                            &pxui::TextStyle {
+                                size_points: 19.0,
+                                weight: 500,
+                                tracking: -0.285,
+                                line_height: 22.8,
+                                wrap: 1,
+                                ..Default::default()
+                            },
+                            &[],
+                        )
+                        .unwrap();
+                        if player.current_id.is_some() {
+                            byline::draw(ui, player, catalog, 243.0, intent);
+                        }
+                        if player.initialized && player.title.is_empty() {
+                            settings::paragraph(
+                                ui,
+                                "nothing-playing-hint",
+                                "Double-click a song, or drop audio files anywhere in this window.",
+                                243.0,
+                                14.0,
+                                ui.color(SECONDARY),
+                            );
+                        }
+                    },
+                );
+                crate::motion::enter(
+                    ui,
+                    &information,
+                    1,
+                    (0.0, 10.0),
+                    crate::motion::BASE,
+                    crate::motion::QUICK + 0.045,
+                );
+                if favorite_button(ui, favorite)
+                    && let Some((song, on)) = favorite
+                {
+                    *intent = Some(Intent::SetFavorite { song, on: !on });
+                }
+            });
+            spacer(ui, "title-clock-gap", 14.0);
+            let clock_group = ui.view(
+                "playback-clock",
+                crate::hash((player.revision, position.to_bits())),
+                Size::Grow,
+                Size::Px(43.0),
+                &mut |ui| {
+                    ui.row("clock", Node::row().w(Size::Grow).h_px(43.0).align(Align::End), |ui| {
+                        matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
+                        ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
+                        small_clock(
                             ui,
-                            "nothing-playing-hint",
-                            "Double-click a song, or drop audio files anywhere in this window.",
-                            243.0,
-                            14.0,
+                            "panel-remaining",
+                            (player.duration - position).max(0.0) as u64,
+                            true,
+                            50.0,
                             ui.color(SECONDARY),
                         );
-                    }
+                    });
                 },
             );
             crate::motion::enter(
                 ui,
-                &information,
+                &clock_group,
                 1,
                 (0.0, 10.0),
                 crate::motion::BASE,
-                crate::motion::QUICK + 0.045,
+                crate::motion::QUICK + 2.0 * 0.045,
             );
-            if favorite_button(ui, favorite)
-                && let Some((song, on)) = favorite
-            {
-                *intent = Some(Intent::SetFavorite { song, on: !on });
+            spacer(ui, "clock-bottom-gap", 14.0);
+            metadata(ui, player.info);
+            // A playback notice takes room from the (growing) queue viewport only while it shows.
+            if !player.message.is_empty() {
+                text(
+                    ui,
+                    "playback-notice",
+                    player.message,
+                    13,
+                    ui.color(SECONDARY),
+                    (Size::Grow, 44.0),
+                    false,
+                );
             }
-        });
-        spacer(ui, "title-clock-gap", 14.0);
-        let clock_group = ui.view(
-            "playback-clock",
-            crate::hash((player.revision, position.to_bits())),
-            Size::Grow,
-            Size::Px(43.0),
-            &mut |ui| {
-                let clock = ui.node("clock", Node::row().w(Size::Grow).h_px(43.0).align(Align::End));
-                ui.within(&clock, &mut |ui| {
-                    matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
-                    ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
-                    small_clock(
-                        ui,
-                        "panel-remaining",
-                        (player.duration - position).max(0.0) as u64,
-                        true,
-                        50.0,
-                        ui.color(SECONDARY),
-                    );
-                });
-            },
-        );
-        crate::motion::enter(
-            ui,
-            &clock_group,
-            1,
-            (0.0, 10.0),
-            crate::motion::BASE,
-            crate::motion::QUICK + 2.0 * 0.045,
-        );
-        spacer(ui, "clock-bottom-gap", 14.0);
-        metadata(ui, player.info);
-        // A playback notice takes room from the (growing) queue viewport only while it shows.
-        if !player.message.is_empty() {
-            text(
-                ui,
-                "playback-notice",
-                player.message,
-                13,
-                ui.color(SECONDARY),
-                (Size::Grow, 44.0),
-                false,
+            spacer(ui, "queue-gap", 14.0);
+            rule(ui, "queue-divider", false);
+            ui.view_of(
+                "up-next",
+                &(
+                    catalog.queue.as_ref().map(|queue| queue.revision),
+                    std::sync::Arc::as_ptr(&catalog.library) as usize,
+                    player.artwork.map_or(0, crate::artwork::Images::revision),
+                    carry,
+                ),
+                |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, intent),
             );
-        }
-        spacer(ui, "queue-gap", 14.0);
-        rule(ui, "queue-divider", false);
-        ui.view_of(
-            "up-next",
-            &(
-                catalog.queue.as_ref().map(|queue| queue.revision),
-                std::sync::Arc::as_ptr(&catalog.library) as usize,
-                player.artwork.map_or(0, crate::artwork::Images::revision),
-                carry,
-            ),
-            |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, intent),
-        );
-    });
+        },
+    );
 }
 
 /// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
@@ -350,8 +347,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
         Size::Grow,
         Size::Px(79.2),
         &mut |ui| {
-            let column = ui.node("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0));
-            ui.within(&column, &mut |ui| {
+            ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
                 for (key, label, value, ink) in [
                     ("format", "Format", &info.format, ui.color(SECONDARY)),
                     ("size", "Size", &info.size, ui.color(SECONDARY)),

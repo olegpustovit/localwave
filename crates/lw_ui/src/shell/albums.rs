@@ -171,8 +171,7 @@ pub(super) fn gallery(
             }
             SectionPart::Header => {}
             SectionPart::Row(line) => {
-                let inset = ui.node("gallery-inset", Node::column().w(Size::Grow).h(Size::Grow).pad_x(inset));
-                ui.within(&inset, &mut |ui| {
+                ui.column("gallery-inset", Node::column().w(Size::Grow).h(Size::Grow).pad_x(inset), |ui| {
                     let row = ui.node("group-row", Node::row().w(Size::Grow).h(Size::Grow).gap(gap));
                     ui.within(&row, &mut |ui| {
                         for (column, index) in order

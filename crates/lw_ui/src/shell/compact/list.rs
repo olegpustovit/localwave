@@ -76,8 +76,7 @@ pub(super) fn songs(
     };
     // Swift's Find "Play results" / "Keep results offline" keys close the song list (one 56 pt row here).
     let find_keys = state.route == Route::Find;
-    let stack = ui.node("songs-stack", Node::stack().w(Size::Grow).h(Size::Grow));
-    ui.within(&stack, &mut |ui| {
+    ui.stack("songs-stack", Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
         let list = ui.section_list(
             "compact-songs",
             &SectionList {
@@ -208,8 +207,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             if numbered {
                 let mut digits = [0u8; 24];
                 let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
-                let cell = ui.node("track", Node { justify: Justify::End, ..Node::row().w_px(22.0).h_px(18.2) });
-                ui.within(&cell, &mut |ui| {
+                ui.row("track", Node { justify: Justify::End, ..Node::row().w_px(22.0).h_px(18.2) }, |ui| {
                     text(ui, "number", digits, 13, ui.color(SECONDARY), (Size::Fit, 18.2), true);
                 });
             } else {
@@ -290,20 +288,20 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             (key, label, trailing)
         };
         if g.swipe != 0.0 {
-            let strip = ui.node(
+            ui.row(
                 "swipe-actions",
                 Node {
                     justify: if leading { Justify::Start } else { Justify::End },
                     z: -1,
                     ..Node::row().w(Size::Grow).h(Size::Grow)
                 },
+                |ui| {
+                    if swipe_action(ui, key, label, g.swipe.abs()) {
+                        *intent = Some(action);
+                        ui.close_swipe(&node);
+                    }
+                },
             );
-            ui.within(&strip, &mut |ui| {
-                if swipe_action(ui, key, label, g.swipe.abs()) {
-                    *intent = Some(action);
-                    ui.close_swipe(&node);
-                }
-            });
         }
         // A full swipe lasts one frame; the row settles closed on its own.
         if intent.is_none() && (g.swipe_commit_leading || g.swipe_commit_trailing) {
@@ -461,64 +459,64 @@ fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
 
 /// Swift's trailing index: tap or drag over a letter jumps to its first song.
 fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
-    let holder = ui.node(
+    ui.row(
         "index-holder",
         Node {
             justify: Justify::End,
             ..Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center)
         },
-    );
-    ui.within(&holder, &mut |ui| {
-        let rail = ui.node(
-            "index",
-            Node::column().w_px(RAIL_WIDTH).h_px(collection.sections.len() as f32 * RAIL_STEP).role(Role::Group),
-        );
-        ui.a11y_name(&rail, "Section index");
-        let top = ui.rect(&rail).y;
-        let mut dragging = false;
-        ui.within(&rail, &mut |ui| {
-            for (letter, first) in collection.sections.iter().copied() {
-                let node = ui.node(
-                    letter,
-                    Node {
-                        justify: Justify::End,
-                        padding: Edges {
-                            r: 6.0,
-                            ..Edges::ZERO
+        |ui| {
+            let rail = ui.node(
+                "index",
+                Node::column().w_px(RAIL_WIDTH).h_px(collection.sections.len() as f32 * RAIL_STEP).role(Role::Group),
+            );
+            ui.a11y_name(&rail, "Section index");
+            let top = ui.rect(&rail).y;
+            let mut dragging = false;
+            ui.within(&rail, &mut |ui| {
+                for (letter, first) in collection.sections.iter().copied() {
+                    let node = ui.node(
+                        letter,
+                        Node {
+                            justify: Justify::End,
+                            padding: Edges {
+                                r: 6.0,
+                                ..Edges::ZERO
+                            },
+                            ..Node::row()
+                                .w_px(RAIL_WIDTH)
+                                .h_px(RAIL_STEP)
+                                .align(Align::Center)
+                                .role(Role::Button)
+                                .flags(Flags::CLICKABLE)
                         },
-                        ..Node::row()
-                            .w_px(RAIL_WIDTH)
-                            .h_px(RAIL_STEP)
-                            .align(Align::Center)
-                            .role(Role::Button)
-                            .flags(Flags::CLICKABLE)
-                    },
-                );
-                ui.within(&node, &mut |ui| {
-                    text(ui, "letter", letter, 11, ui.color(SECONDARY), (Size::Fit, RAIL_STEP), false);
-                });
-                ui.a11y_name(&node, letter);
-                // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
-                ui.gesture(&node, GestureOpts { touch_drag: true, ..Default::default() });
-                let signal = ui.signal_state(&node);
-                if signal.held {
-                    dragging = true;
-                    // The press holds while the pointer or finger drags over the index; the letter comes from its y.
-                    let under = (((signal.pointer.1 - top) / RAIL_STEP).max(0.0) as usize)
-                        .min(collection.sections.len() - 1);
-                    if ui.state(&rail, -1) != under as i64 {
-                        ui.set_state(&rail, under as i64);
-                        jump(ui, list, collection.sections[under].1, collection.rows.len());
+                    );
+                    ui.within(&node, &mut |ui| {
+                        text(ui, "letter", letter, 11, ui.color(SECONDARY), (Size::Fit, RAIL_STEP), false);
+                    });
+                    ui.a11y_name(&node, letter);
+                    // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
+                    ui.gesture(&node, GestureOpts { touch_drag: true, ..Default::default() });
+                    let signal = ui.signal_state(&node);
+                    if signal.held {
+                        dragging = true;
+                        // The press holds while the pointer or finger drags over the index; the letter comes from its y.
+                        let under = (((signal.pointer.1 - top) / RAIL_STEP).max(0.0) as usize)
+                            .min(collection.sections.len() - 1);
+                        if ui.state(&rail, -1) != under as i64 {
+                            ui.set_state(&rail, under as i64);
+                            jump(ui, list, collection.sections[under].1, collection.rows.len());
+                        }
+                    } else if signal.clicked {
+                        jump(ui, list, first, collection.rows.len());
                     }
-                } else if signal.clicked {
-                    jump(ui, list, first, collection.rows.len());
                 }
+            });
+            if !dragging && ui.state(&rail, -1) != -1 {
+                ui.set_state(&rail, -1);
             }
-        });
-        if !dragging && ui.state(&rail, -1) != -1 {
-            ui.set_state(&rail, -1);
-        }
-    });
+        },
+    );
 }
 
 const BACK_ROW: f32 = 54.0;
@@ -647,7 +645,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                     });
                 }
                 spacer(ui, "songs-gap", 20.0);
-                let label = ui.node(
+                ui.column(
                     "songs-label",
                     Node {
                         padding: Edges {
@@ -658,10 +656,10 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                         },
                         ..Node::column().w(Size::Grow).h_px(SECTION_LABEL)
                     },
+                    |ui| {
+                        detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), 0);
+                    },
                 );
-                ui.within(&label, &mut |ui| {
-                    detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), 0);
-                });
             });
         },
     );
@@ -675,33 +673,32 @@ fn back_row(
     intent: &mut Option<Intent>,
     extras: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
-    let back = ui.node(
+    ui.row(
         "back-row",
         Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
+        |ui| {
+            let button = ui.node(
+                "back",
+                Node::row().w_px(96.0).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
+            );
+            ui.a11y_name(&button, "Back");
+            ui.within(&button, &mut |ui| {
+                let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
+                let color = ui.color(SECONDARY);
+                ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+                text(ui, "label", label, 15, ui.color(SECONDARY), (Size::Fit, 21.0), false);
+            });
+            if ui.signal_state(&button).clicked {
+                *intent = Some(Intent::Navigate(parent));
+            }
+            extras(ui, intent);
+        },
     );
-    ui.within(&back, &mut |ui| {
-        let button = ui.node(
-            "back",
-            Node::row().w_px(96.0).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-        );
-        ui.a11y_name(&button, "Back");
-        ui.within(&button, &mut |ui| {
-            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-            let color = ui.color(SECONDARY);
-            ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-            text(ui, "label", label, 15, ui.color(SECONDARY), (Size::Fit, 21.0), false);
-        });
-        if ui.signal_state(&button).clicked {
-            *intent = Some(Intent::Navigate(parent));
-        }
-        extras(ui, intent);
-    });
 }
 
 /// Name (32 pt) over a 13 pt summary.
 fn titles(ui: &mut Ui, title: &str, summary: &str) {
-    let titles = ui.node("titles", Node::column().w(Size::Grow).h_px(TITLE_BLOCK).pad_x(16.0));
-    ui.within(&titles, &mut |ui| {
+    ui.column("titles", Node::column().w(Size::Grow).h_px(TITLE_BLOCK).pad_x(16.0), |ui| {
         detail::line(ui, "name", title, (32.0, 33.6, 500, -1.12), ui.color(INK), 0);
         spacer(ui, "gap", 4.0);
         detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), 0);
@@ -710,8 +707,7 @@ fn titles(ui: &mut Ui, title: &str, summary: &str) {
 
 fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>) {
     let kept = catalog.view.as_ref().and_then(|view| view.find.as_ref()).is_some_and(|find| find.pinned);
-    let keys = ui.node("find-keys", Node { padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(ROW).gap(8.0) });
-    ui.within(&keys, &mut |ui| {
+    ui.row("find-keys", Node { padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(ROW).gap(8.0) }, |ui| {
         if key(ui, "play-results", "Play results", Icon::Play, false) {
             *intent = Some(Intent::PlayRow(0));
         }
@@ -724,8 +720,7 @@ fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>)
 
 /// Play and Shuffle keys.
 fn play_keys(ui: &mut Ui, offline: Option<bool>, intent: &mut Option<Intent>) {
-    let keys = ui.node("keys", Node::row().w(Size::Grow).h_px(PLAY_BAR).gap(8.0).pad_x(16.0));
-    ui.within(&keys, &mut |ui| {
+    ui.row("keys", Node::row().w(Size::Grow).h_px(PLAY_BAR).gap(8.0).pad_x(16.0), |ui| {
         if key(ui, "play", "Play", Icon::Play, true) {
             *intent = Some(Intent::PlayRow(0));
         }
@@ -807,8 +802,7 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
 /// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
 /// "Select all" marks `rows` positions.
 pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
-    let row = ui.node("selection-header", Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) });
-    ui.within(&row, &mut |ui| {
+    ui.row("selection-header", Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
         let all = selected > 0 && selected == selectable;
         if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false) {
             *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
@@ -860,8 +854,7 @@ pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
 /// key ("play-next", "add-to-list", "offline", "queue" or "remove") and the key's rectangle.
 pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
     let mut pressed = None;
-    let holder = ui.node("selection-holder", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow) });
-    ui.within(&holder, &mut |ui| {
+    ui.column("selection-holder", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow) }, |ui| {
         let deck = ui.node("selection-bar", Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
         ui.set_role(&deck, Role::Group, 0);
         ui.a11y_name(&deck, "Selection actions");
@@ -943,13 +936,11 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Library", Route::Albums, intent);
-            let top = ui.node("album-top", Node::row().w(Size::Grow).h_px(ALBUM_ART).gap(16.0).pad_x(16.0));
-            ui.within(&top, &mut |ui| {
+            ui.row("album-top", Node::row().w(Size::Grow).h_px(ALBUM_ART).gap(16.0).pad_x(16.0), |ui| {
                 let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), ui.color(PANEL));
                 paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
                 ui.a11y_name(&art, "Album artwork");
-                let meta = ui.node("meta", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow).gap(6.0) });
-                ui.within(&meta, &mut |ui| {
+                ui.column("meta", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow).gap(6.0) }, |ui| {
                     let text_width = (width - 32.0 - ALBUM_ART - 16.0).max(1.0);
                     super::super::settings::paragraph(ui, "title", &collection.title, text_width, 24.0, ui.color(INK));
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()

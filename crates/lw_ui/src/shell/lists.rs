@@ -96,7 +96,7 @@ pub(super) fn confirm_delete(
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = playlist_title(catalog, list);
     let open = ui.modal(Some(width), "Delete list?", &mut |ui| {
-        let body = ui.node(
+        ui.column(
             "delete-list-body",
             Node {
                 look: Look {
@@ -105,58 +105,58 @@ pub(super) fn confirm_delete(
                 },
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
-        );
-        ui.within(&body, &mut |ui| {
-            text(
-                ui,
-                "title",
-                "Delete list?",
-                24,
-                ui.color(INK),
-                (Size::Grow, 36.0),
-                false,
-            );
-            settings::paragraph(
-                ui,
-                "list-name",
-                title.unwrap_or("This list changed. Try again."),
-                width - 40.0,
-                15.0,
-                ui.color(INK),
-            );
-            settings::paragraph(
-                ui,
-                "consequences",
-                "The songs stay in your library and folders.",
-                width - 40.0,
-                14.0,
-                ui.color(SECONDARY),
-            );
-            let buttons = container(
-                ui,
-                "delete-list-actions",
-                Axis::Row,
-                Size::Grow,
-                Size::Px(40.0),
-                ui.color(PAPER),
-            );
-            ui.within(&buttons, &mut |ui| {
-                if files::action(ui, "cancel-delete-list", "Cancel", 100.0, true, (PANEL, INK)) {
-                    *intent = Some(Intent::CloseDeleteList);
-                }
-                if files::action(
+            |ui| {
+                text(
                     ui,
-                    "delete-list-confirm",
-                    "Delete List",
-                    100.0,
-                    title.is_some(),
-                    (PANEL, DANGER),
-                ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code()))
-                {
-                    *intent = Some(Intent::DeleteList(list));
-                }
-            });
-        });
+                    "title",
+                    "Delete list?",
+                    24,
+                    ui.color(INK),
+                    (Size::Grow, 36.0),
+                    false,
+                );
+                settings::paragraph(
+                    ui,
+                    "list-name",
+                    title.unwrap_or("This list changed. Try again."),
+                    width - 40.0,
+                    15.0,
+                    ui.color(INK),
+                );
+                settings::paragraph(
+                    ui,
+                    "consequences",
+                    "The songs stay in your library and folders.",
+                    width - 40.0,
+                    14.0,
+                    ui.color(SECONDARY),
+                );
+                let buttons = container(
+                    ui,
+                    "delete-list-actions",
+                    Axis::Row,
+                    Size::Grow,
+                    Size::Px(40.0),
+                    ui.color(PAPER),
+                );
+                ui.within(&buttons, &mut |ui| {
+                    if files::action(ui, "cancel-delete-list", "Cancel", 100.0, true, (PANEL, INK)) {
+                        *intent = Some(Intent::CloseDeleteList);
+                    }
+                    if files::action(
+                        ui,
+                        "delete-list-confirm",
+                        "Delete List",
+                        100.0,
+                        title.is_some(),
+                        (PANEL, DANGER),
+                    ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code()))
+                    {
+                        *intent = Some(Intent::DeleteList(list));
+                    }
+                });
+            },
+        );
     });
     if !open && intent.is_none() {
         *intent = Some(Intent::CloseDeleteList);
@@ -177,7 +177,7 @@ pub(super) fn name_dialog(
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
     let open = ui.modal(Some(width), heading, &mut |ui| {
-        let body = ui.node(
+        ui.column(
             "list-name-body",
             Node {
                 look: Look {
@@ -186,67 +186,67 @@ pub(super) fn name_dialog(
                 },
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
-        );
-        ui.within(&body, &mut |ui| {
-            text(ui, "title", heading, 24, ui.color(INK), (Size::Grow, 36.0), false);
-            let field = ui.box_(
-                "list-name-field",
-                BoxOpts::default().w(Size::Grow).h(Size::Px(40.0)),
-            );
-            ui.within(&field, &mut |ui| {
-                if let Some(value) = ui.text_field_with_options(
-                    "List name",
-                    state.playlist_name.as_str(),
-                    pxui::TextInputOptions {
-                        action: pxui::TextInputOptions::DONE,
-                        ..Default::default()
+            |ui| {
+                text(ui, "title", heading, 24, ui.color(INK), (Size::Grow, 36.0), false);
+                let field = ui.box_(
+                    "list-name-field",
+                    BoxOpts::default().w(Size::Grow).h(Size::Px(40.0)),
+                );
+                ui.within(&field, &mut |ui| {
+                    if let Some(value) = ui.text_field_with_options(
+                        "List name",
+                        state.playlist_name.as_str(),
+                        pxui::TextInputOptions {
+                            action: pxui::TextInputOptions::DONE,
+                            ..Default::default()
+                        },
+                    ) {
+                        *intent = Some(
+                            Query::new(value)
+                                .map_or(Intent::PlaylistNameTooLong, Intent::EditPlaylistName),
+                        );
+                    }
+                });
+                text(
+                    ui,
+                    "list-name-error",
+                    if state.playlist_name_too_long {
+                        "Name exceeds 1,024 UTF-8 bytes. Shorten it to save."
+                    } else {
+                        ""
                     },
-                ) {
-                    *intent = Some(
-                        Query::new(value)
-                            .map_or(Intent::PlaylistNameTooLong, Intent::EditPlaylistName),
-                    );
-                }
-            });
-            text(
-                ui,
-                "list-name-error",
-                if state.playlist_name_too_long {
-                    "Name exceeds 1,024 UTF-8 bytes. Shorten it to save."
-                } else {
-                    ""
-                },
-                12,
-                ui.color(SECONDARY),
-                (Size::Grow, 20.0),
-                false,
-            );
-            let valid =
-                !state.playlist_name_too_long && !state.playlist_name.as_str().trim().is_empty();
-            let buttons = container(
-                ui,
-                "list-name-actions",
-                Axis::Row,
-                Size::Grow,
-                Size::Px(40.0),
-                ui.color(PAPER),
-            );
-            ui.within(&buttons, &mut |ui| {
-                if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, (PANEL, INK)) {
-                    *intent = Some(Intent::CancelPlaylistName);
-                }
-                if files::action(ui, "confirm-list-name", confirm, 100.0, valid, (PANEL, INK))
-                    || (valid && ui.key_pressed(input::Key::Enter.code()))
-                {
-                    let name = state.playlist_name;
-                    *intent = Some(match dialog {
-                        ListDialog::New(song) => Intent::CreateList { name, song },
-                        ListDialog::NewPage => Intent::CreatePageList(name),
-                        ListDialog::Rename(list) => Intent::RenameList { list, name },
-                    });
-                }
-            });
-        });
+                    12,
+                    ui.color(SECONDARY),
+                    (Size::Grow, 20.0),
+                    false,
+                );
+                let valid =
+                    !state.playlist_name_too_long && !state.playlist_name.as_str().trim().is_empty();
+                let buttons = container(
+                    ui,
+                    "list-name-actions",
+                    Axis::Row,
+                    Size::Grow,
+                    Size::Px(40.0),
+                    ui.color(PAPER),
+                );
+                ui.within(&buttons, &mut |ui| {
+                    if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, (PANEL, INK)) {
+                        *intent = Some(Intent::CancelPlaylistName);
+                    }
+                    if files::action(ui, "confirm-list-name", confirm, 100.0, valid, (PANEL, INK))
+                        || (valid && ui.key_pressed(input::Key::Enter.code()))
+                    {
+                        let name = state.playlist_name;
+                        *intent = Some(match dialog {
+                            ListDialog::New(song) => Intent::CreateList { name, song },
+                            ListDialog::NewPage => Intent::CreatePageList(name),
+                            ListDialog::Rename(list) => Intent::RenameList { list, name },
+                        });
+                    }
+                });
+            },
+        );
     });
     if !open && intent.is_none() {
         *intent = Some(Intent::CancelPlaylistName);

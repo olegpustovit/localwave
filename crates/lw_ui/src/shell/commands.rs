@@ -302,7 +302,7 @@ pub(super) fn palette_view(
                 );
                 ui.within(&row, &mut |ui| {
                     if index == 0 || items[index - 1].group != item.group {
-                        let header = ui.node(
+                        ui.column(
                             "group",
                             Node {
                                 padding: Edges {
@@ -313,18 +313,18 @@ pub(super) fn palette_view(
                                 },
                                 ..Node::column().w(Size::Grow).h(Size::Fit)
                             },
+                            |ui| {
+                                text(
+                                    ui,
+                                    "name",
+                                    item.group,
+                                    12,
+                                    ui.color(SECONDARY),
+                                    (Size::Grow, 16.8),
+                                    false,
+                                );
+                            },
                         );
-                        ui.within(&header, &mut |ui| {
-                            text(
-                                ui,
-                                "name",
-                                item.group,
-                                12,
-                                ui.color(SECONDARY),
-                                (Size::Grow, 16.8),
-                                false,
-                            );
-                        });
                     }
                     result_row(ui, player, catalog, item, index == selected, intent);
                 });
@@ -533,8 +533,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                         (Size::Grow, 25.2),
                         false,
                     );
-                    let rows = ui.node("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0));
-                    ui.within(&rows, &mut |ui| {
+                    ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node_keyed(
                                 int_key(body.box_key, index as i64),

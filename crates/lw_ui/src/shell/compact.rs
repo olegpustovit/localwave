@@ -57,8 +57,7 @@ fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool
     );
     let ink = if active { ui.color(INK) } else { ui.color(SECONDARY) };
     ui.within(&node, &mut |ui| {
-        let content = ui.node("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center));
-        ui.within(&content, &mut |ui| {
+        ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
             text(ui, "label", label, 15, ink, (Size::Fit, 21.0), false);
             text(ui, "count", count, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
         });
@@ -185,7 +184,7 @@ pub(super) fn view(
                     let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
                     // Select mode swaps the Songs title for Swift's selection header.
                     let picking = state.selecting && state.route == Route::Songs;
-                    let head = ui.node(
+                    ui.row(
                         "compact-heading",
                         Node {
                             padding: if picking { Edges::ZERO } else { Edges {
@@ -201,46 +200,46 @@ pub(super) fn view(
                                 .h_px(if picking { 54.0 } else if library { 50.0 } else { 64.0 })
                                 .align(if library { Align::Start } else { Align::Center })
                         },
-                    );
-                    ui.within(&head, &mut |ui| {
-                        if picking {
-                            let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
-                            list::selection_header(ui, state.marked.len(), rows, rows, intent);
-                        } else if library {
-                            detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), ui.color(INK), 0);
-                            // Swift's header gear; Settings stays one tap away.
-                            let settings = ui.node(
-                                "settings",
-                                Node::column()
-                                    .w_px(44.0)
-                                    .h_px(44.0)
-                                    .role(Role::Button)
-                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                            );
-                            ui.a11y_name(&settings, "Settings");
-                            let color = ui.color(INK);
-                            ui.draw(&settings, move |paint, rect| {
-                                kit::paint_icon(
-                                    paint,
-                                    Icon::Settings,
-                                    rect.x + (rect.w - 20.0) / 2.0,
-                                    rect.y + (rect.h - 20.0) / 2.0,
-                                    color,
-                                )
-                            });
-                            if ui.signal_state(&settings).clicked {
-                                *intent = Some(Intent::ShowSettings);
+                        |ui| {
+                            if picking {
+                                let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
+                                list::selection_header(ui, state.marked.len(), rows, rows, intent);
+                            } else if library {
+                                detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), ui.color(INK), 0);
+                                // Swift's header gear; Settings stays one tap away.
+                                let settings = ui.node(
+                                    "settings",
+                                    Node::column()
+                                        .w_px(44.0)
+                                        .h_px(44.0)
+                                        .role(Role::Button)
+                                        .flags(Flags::CLICKABLE | Flags::TAB_STOP),
+                                );
+                                ui.a11y_name(&settings, "Settings");
+                                let color = ui.color(INK);
+                                ui.draw(&settings, move |paint, rect| {
+                                    kit::paint_icon(
+                                        paint,
+                                        Icon::Settings,
+                                        rect.x + (rect.w - 20.0) / 2.0,
+                                        rect.y + (rect.h - 20.0) / 2.0,
+                                        color,
+                                    )
+                                });
+                                if ui.signal_state(&settings).clicked {
+                                    *intent = Some(Intent::ShowSettings);
+                                }
+                            } else {
+                                let title = match state.route {
+                                    Route::Lists => "Lists",
+                                    _ => "Library",
+                                };
+                                line(ui, "heading", title, 28.0, ui.color(INK));
                             }
-                        } else {
-                            let title = match state.route {
-                                Route::Lists => "Lists",
-                                _ => "Library",
-                            };
-                            line(ui, "heading", title, 28.0, ui.color(INK));
-                        }
-                    });
+                        },
+                    );
                     if library {
-                        let hero = ui.node(
+                        ui.row(
                             "library-summary",
                             Node {
                                 padding: Edges {
@@ -251,21 +250,17 @@ pub(super) fn view(
                                 },
                                 ..Node::row().w(Size::Grow).h_px(60.0).gap(10.0).align(Align::End)
                             },
+                            |ui| {
+                                // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
+                                clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
+                                text(ui, "unit", "songs", 15, ui.color(INK), (Size::Fit, 21.0), false);
+                                container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+                                ui.column("library-size", Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
+                                    text(ui, "albums", &catalog.totals_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
+                                    text(ui, "sources", &catalog.sources_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
+                                });
+                            },
                         );
-                        ui.within(&hero, &mut |ui| {
-                            // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
-                            clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
-                            text(ui, "unit", "songs", 15, ui.color(INK), (Size::Fit, 21.0), false);
-                            container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-                            let totals = ui.node(
-                                "library-size",
-                                Node::column().w(Size::Fit).h(Size::Fit).align(Align::End),
-                            );
-                            ui.within(&totals, &mut |ui| {
-                                text(ui, "albums", &catalog.totals_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
-                                text(ui, "sources", &catalog.sources_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
-                            });
-                        });
                         let tabs = ui.node(
                             "library-tabs",
                             Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
@@ -403,7 +398,7 @@ fn mini(
     catalog: &Catalog,
     intent: &mut Option<Intent>,
 ) {
-    let root = ui.node(
+    ui.row(
         "mini-player",
         Node {
             look: Look {
@@ -412,51 +407,51 @@ fn mini(
             },
             ..Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center)
         },
-    );
-    ui.within(&root, &mut |ui| {
-        let open = ui.node(
-            "open-player",
-            Node::row()
-                .w(Size::Grow)
-                .h_px(48.0)
-                .gap(10.0)
-                .align(Align::Center)
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-        );
-        ui.a11y_name(&open, "Open Now Playing");
-        ui.within(&open, &mut |ui| {
-            artwork(
-                ui,
-                catalog,
-                player,
-                player.current_id.and_then(|id| catalog.row_index(id)),
-                44.0,
+        |ui| {
+            let open = ui.node(
+                "open-player",
+                Node::row()
+                    .w(Size::Grow)
+                    .h_px(48.0)
+                    .gap(10.0)
+                    .align(Align::Center)
+                    .role(Role::Button)
+                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
             );
-            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PANEL));
-            ui.within(&labels, &mut |ui| {
-                line(
+            ui.a11y_name(&open, "Open Now Playing");
+            ui.within(&open, &mut |ui| {
+                artwork(
                     ui,
-                    "title",
-                    if player.title.is_empty() {
-                        "Nothing playing"
-                    } else {
-                        player.title
-                    },
-                    14.0,
-                    ui.color(INK),
+                    catalog,
+                    player,
+                    player.current_id.and_then(|id| catalog.row_index(id)),
+                    44.0,
                 );
-                line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
+                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PANEL));
+                ui.within(&labels, &mut |ui| {
+                    line(
+                        ui,
+                        "title",
+                        if player.title.is_empty() {
+                            "Nothing playing"
+                        } else {
+                            player.title
+                        },
+                        14.0,
+                        ui.color(INK),
+                    );
+                    line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
+                });
             });
-        });
-        if ui.signal_state(&open).clicked {
-            *intent = Some(Intent::TogglePlayer);
-        }
-        play(ui, player, (44.0, 44.0), intent);
-        if icon_button(ui, "next", "Next", Icon::Next, (44.0, 44.0), false, true) {
-            *intent = Some(Intent::Next);
-        }
-    });
+            if ui.signal_state(&open).clicked {
+                *intent = Some(Intent::TogglePlayer);
+            }
+            play(ui, player, (44.0, 44.0), intent);
+            if icon_button(ui, "next", "Next", Icon::Next, (44.0, 44.0), false, true) {
+                *intent = Some(Intent::Next);
+            }
+        },
+    );
 }
 
 fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Option<Intent>) {
@@ -631,190 +626,187 @@ fn expanded(
     let region = (size.1 - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0)).max(124.0);
     let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
     ui.within(&root, &mut |ui| {
-        let head = ui.node("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center));
-        ui.within(&head, &mut |ui| {
+        ui.row("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
                 if icon_button(ui, "close-player", "Close now playing", Icon::Down, (44.0, 44.0), false, true) {
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
-            let from = ui.node("playing-from", Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label));
-            ui.within(&from, &mut |ui| {
+            ui.row("playing-from", Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
                 text(ui, "prefix", "Playing from", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
                 text(ui, "source", player.context, 13, ui.color(INK), (Size::Fit, 18.2), false);
             });
             container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
         });
-        let region_box = ui.node(
+        ui.row(
             "artwork-region",
             Node {
                 justify: Justify::Center,
                 padding: Edges { t: 4.0, ..Edges::ZERO },
                 ..Node::row().w(Size::Grow).h_px(region)
             },
+            |ui| {
+                artwork(
+                    ui,
+                    catalog,
+                    player,
+                    player.current_id.and_then(|id| catalog.row_index(id)),
+                    art_size,
+                );
+            },
         );
-        ui.within(&region_box, &mut |ui| {
-            artwork(
-                ui,
-                catalog,
-                player,
-                player.current_id.and_then(|id| catalog.row_index(id)),
-                art_size,
-            );
-        });
-        let body = ui.node(
+        ui.column(
             "now-body",
             Node {
                 padding: Edges { l: 16.0, r: 16.0, t: 16.0, b: 10.0 },
                 ..Node::column().w(Size::Grow).h(Size::Grow)
             },
-        );
-        ui.within(&body, &mut |ui| {
-            let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
-            ui.within(&info, &mut |ui| {
-                let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
-                ui.within(&names, &mut |ui| {
-                    let title = ui.node(
-                        "title",
-                        Node {
-                            look: Look { text: ui.color(INK), ..Look::NONE },
-                            ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
-                        },
-                    );
-                    ui.text_line_box(
-                        &title,
-                        if player.title.is_empty() { "Nothing playing" } else { player.title },
-                        &pxui::TextStyle {
-                            size_points: 24.0,
-                            weight: 500,
-                            tracking: -0.72,
-                            line_height: 27.6,
-                            max_lines: 1,
-                            ellipsis: pxui::TextStyle::ELLIPSIS_END,
-                            ..Default::default()
-                        },
-                        &[],
-                    )
-                    .unwrap();
-                    if player.current_id.is_some() {
-                        byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), intent);
+            |ui| {
+                let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
+                ui.within(&info, &mut |ui| {
+                    let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
+                    ui.within(&names, &mut |ui| {
+                        let title = ui.node(
+                            "title",
+                            Node {
+                                look: Look { text: ui.color(INK), ..Look::NONE },
+                                ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
+                            },
+                        );
+                        ui.text_line_box(
+                            &title,
+                            if player.title.is_empty() { "Nothing playing" } else { player.title },
+                            &pxui::TextStyle {
+                                size_points: 24.0,
+                                weight: 500,
+                                tracking: -0.72,
+                                line_height: 27.6,
+                                max_lines: 1,
+                                ellipsis: pxui::TextStyle::ELLIPSIS_END,
+                                ..Default::default()
+                            },
+                            &[],
+                        )
+                        .unwrap();
+                        if player.current_id.is_some() {
+                            byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), intent);
+                        }
+                    });
+                    if now::favorite_button(ui, favorite)
+                        && let Some((song, on)) = favorite
+                    {
+                        *intent = Some(Intent::SetFavorite { song, on: !on });
                     }
                 });
-                if now::favorite_button(ui, favorite)
-                    && let Some((song, on)) = favorite
-                {
-                    *intent = Some(Intent::SetFavorite { song, on: !on });
-                }
-            });
-            spacer(ui, "clock-gap", 14.0);
-            let clock = ui.node("clock", Node::row().w(Size::Grow).h_px(72.0).align(Align::End));
-            ui.within(&clock, &mut |ui| {
-                matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
-                ui.box_("flex", BoxOpts::default().w(Size::Grow));
-                let side = ui.node(
-                    "clock-side",
+                spacer(ui, "clock-gap", 14.0);
+                ui.row("clock", Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
+                    matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
+                    ui.box_("flex", BoxOpts::default().w(Size::Grow));
+                    ui.column(
+                        "clock-side",
+                        Node {
+                            padding: Edges { b: 2.0, ..Edges::ZERO },
+                            ..Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End)
+                        },
+                        |ui| {
+                            if let Some(info) = player.info {
+                                text(ui, "format", &info.summary, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
+                            }
+                            small_clock(
+                                ui,
+                                "remaining",
+                                (player.duration - position).max(0.0) as u64,
+                                true,
+                                50.0,
+                                ui.color(SECONDARY),
+                            );
+                        },
+                    );
+                });
+                spacer(ui, "seek-gap", 14.0);
+                seek(ui, player, position, intent);
+                let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), ui.color(PAPER));
+                ui.within(&times, &mut |ui| {
+                    let start = small_clock(ui, "start", 0, false, 40.0, ui.color(SECONDARY));
+                    ui.a11y_name(&start, "Start time");
+                    ui.box_("flex", BoxOpts::default().w(Size::Grow));
+                    let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, ui.color(SECONDARY));
+                    ui.a11y_name(&total, "Duration");
+                });
+                spacer(ui, "modes-gap", 14.0);
+                ui.row(
+                    "modes",
                     Node {
-                        padding: Edges { b: 2.0, ..Edges::ZERO },
-                        ..Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End)
+                        look: Look { fill: ui.color(PANEL), ..Look::NONE },
+                        ..Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0)
+                    },
+                    |ui| {
+                        if mode_key(
+                            ui,
+                            "shuffle",
+                            if player.shuffled { "Shuffle on" } else { "Shuffle off" },
+                            Icon::Shuffle,
+                            player.shuffled,
+                            |ui| {
+                                let c = if player.shuffled { ui.color(PAPER) } else { ui.color(INK) };
+                                text(ui, "label", "Shuffle", 14, c, (Size::Fit, 19.6), false);
+                            },
+                        ) {
+                            *intent = Some(Intent::Shuffle);
+                        }
+                        let again = player.repeat != RepeatMode::None;
+                        if mode_key(
+                            ui,
+                            "repeat",
+                            match player.repeat {
+                                RepeatMode::None => "Repeat off",
+                                RepeatMode::All => "Repeat all",
+                                RepeatMode::One => "Repeat one",
+                            },
+                            Icon::Repeat,
+                            again,
+                            |ui| {
+                                let c = if again { ui.color(PAPER) } else { ui.color(INK) };
+                                let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
+                                text(ui, "label", label, 14, c, (Size::Fit, 19.6), false);
+                            },
+                        ) {
+                            *intent = Some(Intent::Repeat);
+                        }
+                        if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
+                            let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
+                            text(ui, "count", count, 11, ui.color(INK), (Size::Fit, 15.4), true);
+                            text(ui, "label", "up next", 14, ui.color(INK), (Size::Fit, 19.6), false);
+                        }) {
+                            *intent = Some(Intent::ShowQueue);
+                        }
                     },
                 );
-                ui.within(&side, &mut |ui| {
-                    if let Some(info) = player.info {
-                        text(ui, "format", &info.summary, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
-                    }
-                    small_clock(
-                        ui,
-                        "remaining",
-                        (player.duration - position).max(0.0) as u64,
-                        true,
-                        50.0,
-                        ui.color(SECONDARY),
-                    );
-                });
-            });
-            spacer(ui, "seek-gap", 14.0);
-            seek(ui, player, position, intent);
-            let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), ui.color(PAPER));
-            ui.within(&times, &mut |ui| {
-                let start = small_clock(ui, "start", 0, false, 40.0, ui.color(SECONDARY));
-                ui.a11y_name(&start, "Start time");
-                ui.box_("flex", BoxOpts::default().w(Size::Grow));
-                let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, ui.color(SECONDARY));
-                ui.a11y_name(&total, "Duration");
-            });
-            spacer(ui, "modes-gap", 14.0);
-            let modes = ui.node(
-                "modes",
-                Node {
-                    look: Look { fill: ui.color(PANEL), ..Look::NONE },
-                    ..Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0)
-                },
-            );
-            ui.within(&modes, &mut |ui| {
-                if mode_key(
-                    ui,
-                    "shuffle",
-                    if player.shuffled { "Shuffle on" } else { "Shuffle off" },
-                    Icon::Shuffle,
-                    player.shuffled,
-                    |ui| {
-                        let c = if player.shuffled { ui.color(PAPER) } else { ui.color(INK) };
-                        text(ui, "label", "Shuffle", 14, c, (Size::Fit, 19.6), false);
-                    },
-                ) {
-                    *intent = Some(Intent::Shuffle);
+                if !player.message.is_empty() {
+                    line(ui, "notice", player.message, 12.0, ui.color(SECONDARY));
                 }
-                let again = player.repeat != RepeatMode::None;
-                if mode_key(
-                    ui,
-                    "repeat",
-                    match player.repeat {
-                        RepeatMode::None => "Repeat off",
-                        RepeatMode::All => "Repeat all",
-                        RepeatMode::One => "Repeat one",
-                    },
-                    Icon::Repeat,
-                    again,
-                    |ui| {
-                        let c = if again { ui.color(PAPER) } else { ui.color(INK) };
-                        let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
-                        text(ui, "label", label, 14, c, (Size::Fit, 19.6), false);
-                    },
-                ) {
-                    *intent = Some(Intent::Repeat);
-                }
-                if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
-                    let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                    text(ui, "count", count, 11, ui.color(INK), (Size::Fit, 15.4), true);
-                    text(ui, "label", "up next", 14, ui.color(INK), (Size::Fit, 19.6), false);
-                }) {
-                    *intent = Some(Intent::ShowQueue);
-                }
-            });
-            if !player.message.is_empty() {
-                line(ui, "notice", player.message, 12.0, ui.color(SECONDARY));
-            }
-        });
+            },
+        );
         // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
-        let keys = ui.node(
+        ui.row(
             "keys",
             Node {
                 padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
                 look: Look { fill: ui.color(SELECTED), ..Look::NONE },
                 ..Node::row().w(Size::Grow).h_px(86.0).gap(2.0)
             },
+            |ui| {
+                let key = ((size.0 - 8.0) / 3.0).max(1.0);
+                if icon_button(ui, "previous", "Previous", Icon::Previous, (key, 84.0), false, true) {
+                    *intent = Some(Intent::Previous);
+                }
+                play(ui, player, (key, 84.0), intent);
+                if icon_button(ui, "next", "Next", Icon::Next, (key, 84.0), false, true) {
+                    *intent = Some(Intent::Next);
+                }
+            },
         );
-        ui.within(&keys, &mut |ui| {
-            let key = ((size.0 - 8.0) / 3.0).max(1.0);
-            if icon_button(ui, "previous", "Previous", Icon::Previous, (key, 84.0), false, true) {
-                *intent = Some(Intent::Previous);
-            }
-            play(ui, player, (key, 84.0), intent);
-            if icon_button(ui, "next", "Next", Icon::Next, (key, 84.0), false, true) {
-                *intent = Some(Intent::Next);
-            }
-        });
     });
     crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
 }

@@ -118,8 +118,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
             ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {
-                let stack = ui.node("row", Node::stack().w(Size::Grow).h(Size::Grow));
-                ui.within(&stack, &mut |ui| {
+                ui.stack("row", Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
                     for changing in [false, true] {
                         let visual = ui.view(
                             if changing { "changed" } else { "stable" },

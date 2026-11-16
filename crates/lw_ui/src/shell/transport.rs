@@ -15,7 +15,7 @@ pub(super) fn transport(
 ) {
     let narrow = ui.view_size().0 < 1100.0;
     let key_width = if narrow { 44.0 } else { 68.0 };
-    let root = ui.node(
+    ui.row(
         "transport-content",
         Node {
             padding: Edges {
@@ -28,134 +28,132 @@ pub(super) fn transport(
             },
             ..Node::row().w(Size::Grow).h(Size::Grow).gap(if narrow { 4.0 } else { 16.0 }).align(Align::Center)
         },
-    );
-    ui.within(&root, &mut |ui| {
-        let keys = ui.node("keys", Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0));
-        ui.within(&keys, &mut |ui| {
-            if icon_button(
-                ui,
-                "previous",
-                "Previous",
-                Icon::Previous,
-                (key_width, 71.0),
-                false,
-                true,
-            ) {
-                *intent = Some(Intent::Previous);
-            }
-            if icon_button(
-                ui,
-                "toggle",
-                if player.playing { "Pause" } else { "Play" },
-                if player.playing {
-                    Icon::Pause
-                } else {
-                    Icon::Play
-                },
-                (key_width, 71.0),
-                true,
-                true,
-            ) {
-                *intent = Some(if player.playing {
-                    Intent::Pause
-                } else {
-                    Intent::Play
-                });
-            }
-            if icon_button(ui, "next", "Next", Icon::Next, (key_width, 71.0), false, true) {
-                *intent = Some(Intent::Next);
-            }
-        });
-        let elapsed = position.max(0.0) as u64;
-        let remaining = (player.duration - position).max(0.0) as u64;
-        small_clock(ui, "elapsed", elapsed, false, 44.0, ui.color(SECONDARY));
-        seek(ui, player, position, intent);
-        small_clock(ui, "remaining", remaining, true, 50.0, ui.color(SECONDARY));
-        // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
-        // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
-        let modes = ui.node(
-            "modes",
-            Node {
-                look: Look {
-                    fill: ui.color(PANEL),
-                    ..Look::NONE
-                },
-                ..Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0)
-            },
-        );
-        ui.within(&modes, &mut |ui| {
-            if icon_button(
-                ui,
-                "shuffle",
-                if player.shuffled {
-                    "Shuffle on"
-                } else {
-                    "Shuffle off"
-                },
-                Icon::Shuffle,
-                (44.0, 40.0),
-                player.shuffled,
-                true,
-            ) {
-                *intent = Some(Intent::Shuffle);
-            }
-            let again = ui.node("repeat-key", Node::stack().w_px(44.0).h_px(40.0));
-            ui.within(&again, &mut |ui| {
+        |ui| {
+            ui.row("keys", Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0), |ui| {
                 if icon_button(
                     ui,
-                    "repeat",
-                    match player.repeat {
-                        lw_core::queue::RepeatMode::None => "Repeat off",
-                        lw_core::queue::RepeatMode::All => "Repeat all",
-                        lw_core::queue::RepeatMode::One => "Repeat one",
-                    },
-                    Icon::Repeat,
-                    (44.0, 40.0),
-                    player.repeat != lw_core::queue::RepeatMode::None,
-                    true,
-                ) {
-                    *intent = Some(Intent::Repeat);
-                }
-                if player.repeat == lw_core::queue::RepeatMode::One {
-                    let badge = ui.node(
-                        "repeat-one",
-                        Node {
-                            at: Some((31.0, 25.0)).into(),
-                            ..Node::column().w_px(8.0).h_px(12.0)
-                        },
-                    );
-                    ui.within(&badge, &mut |ui| {
-                        text(ui, "one", "1", 9, ui.color(PAPER), (Size::Px(8.0), 12.0), true);
-                    });
-                }
-            });
-            if icon_button(
-                ui,
-                "panel",
-                "Toggle now playing panel",
-                Icon::Panel,
-                (44.0, 40.0),
-                panel,
-                true,
-            ) {
-                *intent = Some(Intent::TogglePanel);
-            }
-            // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
-            if !panel
-                && icon_button(
-                    ui,
-                    "queue",
-                    "Show full queue",
-                    Icon::Queue,
-                    (44.0, 40.0),
+                    "previous",
+                    "Previous",
+                    Icon::Previous,
+                    (key_width, 71.0),
                     false,
                     true,
-                )
-            {
-                *intent = Some(Intent::ShowQueue);
-            }
-        });
-    });
+                ) {
+                    *intent = Some(Intent::Previous);
+                }
+                if icon_button(
+                    ui,
+                    "toggle",
+                    if player.playing { "Pause" } else { "Play" },
+                    if player.playing {
+                        Icon::Pause
+                    } else {
+                        Icon::Play
+                    },
+                    (key_width, 71.0),
+                    true,
+                    true,
+                ) {
+                    *intent = Some(if player.playing {
+                        Intent::Pause
+                    } else {
+                        Intent::Play
+                    });
+                }
+                if icon_button(ui, "next", "Next", Icon::Next, (key_width, 71.0), false, true) {
+                    *intent = Some(Intent::Next);
+                }
+            });
+            let elapsed = position.max(0.0) as u64;
+            let remaining = (player.duration - position).max(0.0) as u64;
+            small_clock(ui, "elapsed", elapsed, false, 44.0, ui.color(SECONDARY));
+            seek(ui, player, position, intent);
+            small_clock(ui, "remaining", remaining, true, 50.0, ui.color(SECONDARY));
+            // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
+            // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
+            ui.row(
+                "modes",
+                Node {
+                    look: Look {
+                        fill: ui.color(PANEL),
+                        ..Look::NONE
+                    },
+                    ..Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0)
+                },
+                |ui| {
+                    if icon_button(
+                        ui,
+                        "shuffle",
+                        if player.shuffled {
+                            "Shuffle on"
+                        } else {
+                            "Shuffle off"
+                        },
+                        Icon::Shuffle,
+                        (44.0, 40.0),
+                        player.shuffled,
+                        true,
+                    ) {
+                        *intent = Some(Intent::Shuffle);
+                    }
+                    ui.stack("repeat-key", Node::stack().w_px(44.0).h_px(40.0), |ui| {
+                        if icon_button(
+                            ui,
+                            "repeat",
+                            match player.repeat {
+                                lw_core::queue::RepeatMode::None => "Repeat off",
+                                lw_core::queue::RepeatMode::All => "Repeat all",
+                                lw_core::queue::RepeatMode::One => "Repeat one",
+                            },
+                            Icon::Repeat,
+                            (44.0, 40.0),
+                            player.repeat != lw_core::queue::RepeatMode::None,
+                            true,
+                        ) {
+                            *intent = Some(Intent::Repeat);
+                        }
+                        if player.repeat == lw_core::queue::RepeatMode::One {
+                            ui.column(
+                                "repeat-one",
+                                Node {
+                                    at: Some((31.0, 25.0)).into(),
+                                    ..Node::column().w_px(8.0).h_px(12.0)
+                                },
+                                |ui| {
+                                    text(ui, "one", "1", 9, ui.color(PAPER), (Size::Px(8.0), 12.0), true);
+                                },
+                            );
+                        }
+                    });
+                    if icon_button(
+                        ui,
+                        "panel",
+                        "Toggle now playing panel",
+                        Icon::Panel,
+                        (44.0, 40.0),
+                        panel,
+                        true,
+                    ) {
+                        *intent = Some(Intent::TogglePanel);
+                    }
+                    // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
+                    if !panel
+                        && icon_button(
+                            ui,
+                            "queue",
+                            "Show full queue",
+                            Icon::Queue,
+                            (44.0, 40.0),
+                            false,
+                            true,
+                        )
+                    {
+                        *intent = Some(Intent::ShowQueue);
+                    }
+                },
+            );
+        },
+    );
 }
 
 pub(super) fn desktop(

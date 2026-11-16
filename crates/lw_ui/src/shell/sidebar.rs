@@ -135,8 +135,7 @@ pub(super) fn sidebar(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let root = ui.node("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0));
-    ui.within(&root, &mut |ui| {
+    ui.column("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0), |ui| {
         spacer(ui, "sidebar-top", 28.0);
         let search = ui.node(
             "search",
@@ -201,25 +200,25 @@ pub(super) fn sidebar(
                 intent,
             );
         });
-        let footer = ui.node(
+        ui.row(
             "offline",
             Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
+            |ui| {
+                text(ui, "label", "Offline", 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
+                text(ui, "usage", &catalog.offline_usage, 12, ui.color(SECONDARY), (Size::Fit, 16.0), true);
+            },
         );
-        ui.within(&footer, &mut |ui| {
-            text(ui, "label", "Offline", 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
-            text(ui, "usage", &catalog.offline_usage, 12, ui.color(SECONDARY), (Size::Fit, 16.0), true);
-        });
-        let meter = ui.node(
+        ui.row(
             "offline-meter",
             Node {
                 margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
                 look: Look { fill: ui.color(LINE), ..Look::NONE },
                 ..Node::row().w(Size::Grow).h_px(4.0)
             },
+            |ui| {
+                container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
+            },
         );
-        ui.within(&meter, &mut |ui| {
-            container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
-        });
         let shortcuts = ui.node(
             "shortcuts",
             Node {

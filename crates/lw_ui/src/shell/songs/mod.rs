@@ -397,8 +397,7 @@ pub(super) fn table(
                         heading(ui, widths, applied, heading_layout, intent);
                     }
                     SectionPart::Row(_) if placeholder => {
-                        let empty = ui.node("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0));
-                        ui.within(&empty, &mut |ui| {
+                        ui.column("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
                             text(
                                 ui,
                                 "no-songs",
