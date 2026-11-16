@@ -98,7 +98,8 @@ The [implementation plan](https://artifacts.microapps.space/a/w474jy87pnxg#plan)
 steps; [docs/rust-port.md](docs/rust-port.md) is the status. Finish C before B, B before P, P before F;
 then follow shipping/iOS gates. DX0–DX3 and DX5–DX7 ([API redesign
 plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan)) run alongside S, I1, I2 and D;
-DX4 follows I2's device checks. Stop at a blocked step rather than jumping phases.
+DX4 runs without waiting for I2's device checks (owner decision 2026-11-16); goldens are re-checked
+after them. Stop at a blocked step rather than jumping phases.
 
 One step per commit; subjects include its ID. For framework steps publish pxui on `rust-port`
 before staging its pointer in LocalWave, also on `rust-port`; check remote fetchability.

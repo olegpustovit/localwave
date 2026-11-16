@@ -1,52 +1,13 @@
 use super::*;
 
-#[derive(Clone, Copy)]
-pub(super) struct ClockLabel {
-    bytes: [u8; 24],
-    start: usize,
-}
-impl ClockLabel {
-    pub(super) fn integer(mut number: u64) -> Self {
-        let mut out = Self {
-            bytes: [0; 24],
-            start: 24,
-        };
-        loop {
-            out.start -= 1;
-            out.bytes[out.start] = b'0' + (number % 10) as u8;
-            number /= 10;
-            if number == 0 {
-                return out;
-            }
-        }
-    }
-
-    fn new(seconds: u64, remaining: bool) -> Self {
-        let mut out = Self {
-            bytes: [0; 24],
-            start: 21,
-        };
-        out.bytes[21] = b':';
-        out.bytes[22] = b'0' + (seconds % 60 / 10) as u8;
-        out.bytes[23] = b'0' + (seconds % 10) as u8;
-        let mut minutes = seconds / 60;
-        loop {
-            out.start -= 1;
-            out.bytes[out.start] = b'0' + (minutes % 10) as u8;
-            minutes /= 10;
-            if minutes == 0 {
-                break;
-            }
-        }
-        if remaining {
-            out.start -= 1;
-            out.bytes[out.start] = b'-';
-        }
-        out
-    }
-    pub(super) fn bytes(&self) -> &[u8] {
-        &self.bytes[self.start..]
-    }
+/// Formats into `buffer` (no heap): a number or clock string for a label, a drag kind or a seek readout.
+pub(super) fn stack_fmt<'a>(buffer: &'a mut [u8; 24], args: std::fmt::Arguments) -> &'a str {
+    use std::io::Write;
+    let mut rest = &mut buffer[..];
+    // 24 bytes hold u64::MAX and h:mm:ss; a longer string truncates at a char boundary of ASCII digits.
+    let _ = rest.write_fmt(args);
+    let used = 24 - rest.len();
+    std::str::from_utf8(&buffer[..used]).unwrap_or("")
 }
 pub(super) fn small_clock(
     ui: &mut Ui,
@@ -74,12 +35,13 @@ pub(super) fn small_clock(
     );
     ui.set_role(&node, Role::Label, 0);
     ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0);
-    let label = ClockLabel::new(seconds, remaining);
+    let mut buffer = [0u8; 24];
+    let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));
+    let len = text.len();
     ui.draw(&node, move |paint, rect| {
-        let mut x = rect.x;
-        for byte in label.bytes() {
-            x += paint.icon((x, rect.y + 4.0), 1, 12.0, *byte as char, color);
-        }
+        let style = pxui::TextStyle { font: 1, size_points: 12.0, ..pxui::TextStyle::default() };
+        let text = std::str::from_utf8(&buffer[..len]).unwrap_or("");
+        paint.text_chars((rect.x, rect.y + 4.0), &style, Some(color), text);
     });
     node
 }
@@ -131,18 +93,15 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
     const ROW_KEYS: [&str; 7] = [
         "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
     ];
-    fn label(seconds: u64) -> ClockLabel {
-        let mut label = ClockLabel::new(seconds, false);
-        if label.bytes().len() < 5 {
-            label.start -= 1;
-            label.bytes[label.start] = b'0';
-        }
-        label
+    fn label(seconds: u64) -> ([u8; 24], usize) {
+        let mut buffer = [0u8; 24];
+        let len = stack_fmt(&mut buffer, format_args!("{:02}:{:02}", seconds / 60, seconds % 60)).len();
+        (buffer, len)
     }
-    let shown = label(seconds);
+    let (shown_buffer, shown_len) = label(seconds);
+    let shown = &shown_buffer[..shown_len];
     let unit = height / 7.0;
     let columns: usize = shown
-        .bytes()
         .iter()
         .map(|b| if *b == b':' { 2 } else { 6 })
         .sum::<usize>()
@@ -172,8 +131,9 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         if old != seconds {
             ui.set_state(&previous, old as i64);
         }
-        let before = label(ui.state(&previous, seconds as i64) as u64);
-        let revision = crate::hash((shown.bytes(), before.bytes()));
+        let (before_buffer, before_len) = label(ui.state(&previous, seconds as i64) as u64);
+        let before = &before_buffer[..before_len];
+        let revision = crate::hash((shown, before));
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
             ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {
@@ -203,10 +163,11 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                                     },
                                 );
                                 ui.draw(&cells, move |paint, rect| {
+                                    let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
                                     let mut x = rect.x;
-                                    for (index, byte) in shown.bytes().iter().copied().enumerate() {
+                                    for (index, byte) in shown.iter().copied().enumerate() {
                                         let count = if byte == b':' { 1 } else { 5 };
-                                        if (before.bytes().get(index) != Some(&byte)) == changing {
+                                        if (before.get(index) != Some(&byte)) == changing {
                                             let bits = if byte == b':' {
                                                 [0, 0, 1, 0, 1, 0, 0][row]
                                             } else {

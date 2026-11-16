@@ -609,10 +609,7 @@ pub(super) mod button_tests {
             (10000, "10000"),
             (u64::MAX, "18446744073709551615"),
         ] {
-            assert_eq!(
-                std::str::from_utf8(ClockLabel::integer(value).bytes()).unwrap(),
-                expected
-            );
+            assert_eq!(stack_fmt(&mut [0u8; 24], format_args!("{value}")), expected);
         }
         assert_eq!(mem_sys::local_alloc_count(), 0);
     }

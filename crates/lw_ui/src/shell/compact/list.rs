@@ -228,10 +228,11 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 checkbox(ui, state.is_marked(index), p);
             }
             if numbered {
-                let digits = ClockLabel::integer(row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64));
+                let mut digits = [0u8; 24];
+                let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
                 let cell = ui.node("track", Node { axis: Axis::Row, justify: Justify::End, w: Size::Px(22.0), h: Size::Px(18.2), ..Node::DEFAULT });
                 ui.within(&cell, &mut |ui| {
-                    text(ui, "number", std::str::from_utf8(digits.bytes()).unwrap_or(""), 13, p.secondary, (Size::Fit, 18.2), true);
+                    text(ui, "number", digits, 13, p.secondary, (Size::Fit, 18.2), true);
                 });
             } else {
                 artwork(ui, catalog, player, Some(collection.rows[index]), 40.0, p);
@@ -373,11 +374,12 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str, p: Palette) {
     });
     let signal = ui.signal_state(&grip);
     if signal.held || signal.clicked {
-        let id = ClockLabel::integer(index as u64);
+        let mut digits = [0u8; 24];
+        let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();
         let mut kind = [0u8; 48];
         kind[..LIST_ROW.len()].copy_from_slice(LIST_ROW.as_bytes());
-        let len = LIST_ROW.len() + id.bytes().len();
-        kind[LIST_ROW.len()..len].copy_from_slice(id.bytes());
+        let len = LIST_ROW.len() + id.len();
+        kind[LIST_ROW.len()..len].copy_from_slice(id);
         ui.carry(
             if signal.clicked { None } else { Some(&grip) },
             std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
@@ -685,15 +687,12 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     0,
                                 );
                                 let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
-                                let year = ClockLabel::integer(year.unwrap_or(0).max(0) as u64);
+                                let mut digits = [0u8; 24];
+                                let year = stack_fmt(&mut digits, format_args!("{}", year.unwrap_or(0).max(0)));
                                 detail::line(
                                     ui,
                                     "year",
-                                    if year.bytes() == b"0" {
-                                        ""
-                                    } else {
-                                        std::str::from_utf8(year.bytes()).unwrap_or("")
-                                    },
+                                    if year == "0" { "" } else { year },
                                     (13.0, 18.2, 400, 0.0),
                                     p.secondary,
                                     0,
@@ -889,11 +888,11 @@ pub(in crate::shell) fn selection_header(ui: &mut Ui, p: Palette, selected: usiz
 
 /// "N selected" without a heap allocation.
 fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
-    let digits = ClockLabel::integer(count as u64);
-    let (head, tail) = (digits.bytes(), b" selected");
-    buffer[..head.len()].copy_from_slice(head);
-    buffer[head.len()..head.len() + tail.len()].copy_from_slice(tail);
-    std::str::from_utf8(&buffer[..head.len() + tail.len()]).unwrap_or("")
+    use std::io::Write;
+    let mut rest = &mut buffer[..];
+    let _ = write!(rest, "{count} selected");
+    let used = 40 - rest.len();
+    std::str::from_utf8(&buffer[..used]).unwrap_or("")
 }
 
 /// A 44 pt text button (Swift's Select / Done at 16 pt).

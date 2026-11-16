@@ -379,8 +379,9 @@ fn album_grid(
                         spacer(ui, "art-gap", 8.0);
                         line(ui, "name", &group.title, (14.0, 17.5, 500, 0.0), p.ink, 0);
                         let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
-                        let year = ClockLabel::integer(year.unwrap_or(0).max(0) as u64);
-                        let year = if year.bytes() == b"0" { "\u{2014}" } else { std::str::from_utf8(year.bytes()).unwrap_or("") };
+                        let mut digits = [0u8; 24];
+                        let year = stack_fmt(&mut digits, format_args!("{}", year.unwrap_or(0).max(0)));
+                        let year = if year == "0" { "\u{2014}" } else { year };
                         line(ui, "year", year, (13.0, 18.2, 400, 0.0), p.secondary, 0);
                     });
                     if ui.signal_state(&card).clicked {

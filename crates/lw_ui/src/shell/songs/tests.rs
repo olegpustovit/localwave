@@ -912,7 +912,8 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                             },
                         );
                         ui.within(&root, &mut |ui| {
-                            let number = ClockLabel::integer((position + 1) as u64);
+                            let mut digits = [0u8; 24];
+                            let number = stack_fmt(&mut digits, format_args!("{}", position + 1));
                             for column in Column::ALL {
                                 if widths[column as usize] <= 0.0
                                     || matches!(column, Column::Actions | Column::State)
@@ -928,7 +929,7 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                                         &row,
                                         column,
                                         numbered,
-                                        std::str::from_utf8(number.bytes()).unwrap(),
+                                        number,
                                     ),
                                     Rect {
                                         x: column as usize as f32 * 100.0,

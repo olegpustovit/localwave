@@ -156,7 +156,7 @@ pub(super) fn appearance(index: usize) -> u32 {
 mod tests {
     use super::*;
 
-    const MEASURED: [Workload; 12] = [
+    const MEASURED: [Workload; 11] = [
         Workload::Fling,
         Workload::ReverseScroll,
         Workload::Jump,
@@ -168,7 +168,6 @@ mod tests {
         Workload::Resize,
         Workload::ThemeSwitch,
         Workload::Idle600,
-        Workload::Clock120,
     ];
 
     fn run(workload: Workload) -> Vec<Vec<Event>> {

@@ -387,11 +387,12 @@ impl Rows<'_> {
                     State::default(),
                 );
                 if signal.held {
-                    let id = ClockLabel::integer(row.id as u64);
+                    let mut digits = [0u8; 24];
+                    let id = stack_fmt(&mut digits, format_args!("{}", row.id)).as_bytes();
                     let mut kind = [0u8; 48];
                     kind[..SONG_DRAG.len()].copy_from_slice(SONG_DRAG.as_bytes());
-                    let len = SONG_DRAG.len() + id.bytes().len();
-                    kind[SONG_DRAG.len()..len].copy_from_slice(id.bytes());
+                    let len = SONG_DRAG.len() + id.len();
+                    kind[SONG_DRAG.len()..len].copy_from_slice(id);
                     ui.carry(
                         Some(&root),
                         std::str::from_utf8(&kind[..len]).expect("song drag kind is ASCII"),
@@ -410,12 +411,12 @@ impl Rows<'_> {
                             if !(column == Column::Number && current)
                                 && !matches!(column, Column::State | Column::Actions)
                             {
-                                let number = ClockLabel::integer((index + 1) as u64);
+                                let mut digits = [0u8; 24];
                                 let value = body_value(
                                     &row,
                                     column,
                                     numbered,
-                                    std::str::from_utf8(number.bytes()).unwrap(),
+                                    stack_fmt(&mut digits, format_args!("{}", index + 1)),
                                 );
                                 let (fit, h) = layout.sizes[column as usize];
                                 let y = layout.y(baseline(column));
@@ -577,11 +578,12 @@ impl Rows<'_> {
                         });
                         let signal = ui.signal_state(&grip);
                         if signal.held || signal.clicked {
-                            let id = ClockLabel::integer(index as u64);
+                            let mut digits = [0u8; 24];
+                            let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();
                             let mut kind = [0u8; 48];
                             kind[..LIST_ROW.len()].copy_from_slice(LIST_ROW.as_bytes());
-                            let len = LIST_ROW.len() + id.bytes().len();
-                            kind[LIST_ROW.len()..len].copy_from_slice(id.bytes());
+                            let len = LIST_ROW.len() + id.len();
+                            kind[LIST_ROW.len()..len].copy_from_slice(id);
                             ui.carry(
                                 if signal.clicked { None } else { Some(&grip) },
                                 std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),

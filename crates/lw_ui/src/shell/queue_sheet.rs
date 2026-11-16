@@ -772,12 +772,13 @@ pub(super) fn queue_rows(
                 });
                 let signal = ui.signal_state(&grip);
                 if signal.held || signal.clicked {
-                    let id = ClockLabel::integer(entry.id);
+                    let mut digits = [0u8; 24];
+                    let id = stack_fmt(&mut digits, format_args!("{}", entry.id)).as_bytes();
                     const PREFIX: &[u8] = b"localwave.queue-occurrence:";
                     let mut kind = [0u8; 64];
                     kind[..PREFIX.len()].copy_from_slice(PREFIX);
-                    let len = PREFIX.len() + id.bytes().len();
-                    kind[PREFIX.len()..len].copy_from_slice(id.bytes());
+                    let len = PREFIX.len() + id.len();
+                    kind[PREFIX.len()..len].copy_from_slice(id);
                     ui.carry(
                         if signal.clicked { None } else { Some(&grip) },
                         std::str::from_utf8(&kind[..len]).expect("queue drag kind is ASCII"),

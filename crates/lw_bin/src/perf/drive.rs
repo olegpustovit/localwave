@@ -124,7 +124,7 @@ impl Frame {
     ) -> Result<(), String> {
         let workload = self.workload;
         let mut expected_settings_intent = None;
-        if workload.is_some() && self.index >= 2 && !matches!(workload, Some(Workload::Drop)) {
+        if workload.is_some() && self.index >= 2 && !matches!(workload, Some(Workload::Drop | Workload::Clock120)) {
             if let Some(measured) = workload.filter(|workload| workload.measured()) {
                 super::measured::events(measured, self.index - 2, self.from, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::Settings)) {

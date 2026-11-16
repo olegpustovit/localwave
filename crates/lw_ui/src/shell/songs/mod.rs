@@ -73,8 +73,8 @@ fn row_layout(
     current: bool,
 ) -> RowLayout {
     let row = catalog.row(index);
-    let number_label = ClockLabel::integer(number as u64);
-    let number_label = std::str::from_utf8(number_label.bytes()).unwrap();
+    let mut digits = [0u8; 24];
+    let number_label = stack_fmt(&mut digits, format_args!("{number}"));
     let mut layout = RowLayout {
         sizes: [(0.0, 0.0); 8],
         ascent: 0.0,

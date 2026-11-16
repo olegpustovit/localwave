@@ -314,6 +314,7 @@ impl Perf {
         }
         if (*draws) != WARMUP_FRAMES + MEASURED_FRAMES
             || (*warm_allocations) != 0
+            || (workload == Some(Workload::Clock120) && self.warm_layouts != 0)
             || cpu_samples[98] >= BUILD_CPU_LIMIT_US
             || frame_cpu_samples[98] >= FRAME_CPU_LIMIT_US
             || work_samples[98] >= WORK_WALL_LIMIT_US
@@ -384,6 +385,18 @@ mod tests {
             assert!(perf.report(false, counts, 0).is_err());
         }
         perf.warmup = None;
+        assert!(perf.report(false, counts, 0).is_err());
+    }
+    #[test]
+    fn clock_120_is_gated_on_allocations_and_text_layouts() {
+        let mut perf = Perf::new(Workload::Clock120, None);
+        perf.warmup = Some(super::super::Warmup::default());
+        let counts = (WARMUP_FRAMES + MEASURED_FRAMES, WARMUP_FRAMES + MEASURED_FRAMES);
+        assert!(perf.report(false, counts, 0).is_ok());
+        perf.warm_allocations = 1;
+        assert!(perf.report(false, counts, 0).is_err());
+        perf.warm_allocations = 0;
+        perf.warm_layouts = 1;
         assert!(perf.report(false, counts, 0).is_err());
     }
     #[test]

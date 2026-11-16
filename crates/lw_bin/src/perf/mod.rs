@@ -53,6 +53,7 @@ pub enum Workload {
     Resize,
     ThemeSwitch,
     Idle600,
+    // Gated like the rows above: zero warm allocations and no text layouts in the measured window.
     Clock120,
 }
 
@@ -72,7 +73,6 @@ impl Workload {
                 | Self::Resize
                 | Self::ThemeSwitch
                 | Self::Idle600
-                | Self::Clock120
         )
     }
 
@@ -114,7 +114,7 @@ impl Workload {
             Self::Resize => "measured-resize",
             Self::ThemeSwitch => "measured-theme-switch",
             Self::Idle600 => "measured-idle-600-return",
-            Self::Clock120 => "measured-clock-120",
+            Self::Clock120 => "clock-120",
         }
     }
 
@@ -329,7 +329,7 @@ mod tests {
             (Workload::Resize, "measured-resize", false),
             (Workload::ThemeSwitch, "measured-theme-switch", false),
             (Workload::Idle600, "measured-idle-600-return", false),
-            (Workload::Clock120, "measured-clock-120", false),
+            (Workload::Clock120, "clock-120", false),
         ] {
             assert_eq!(workload.name(), name);
             assert_eq!(workload.uses_queue(), queue);
