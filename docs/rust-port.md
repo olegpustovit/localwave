@@ -3,6 +3,7 @@
 ## Steps
 
 Follow the [implementation plan](https://artifacts.microapps.space/a/w474jy87pnxg#plan) in order.
+DX rows follow the [API redesign plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan).
 The next unfinished step is the first row marked todo/doing. `HEAD` identifies this status
 checkpoint; the next step replaces it with its fixed commit hash. Evidence lives in commit messages.
 
@@ -62,6 +63,91 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | I1 | Framework gestures and device comparison | doing | pxui e19dedb..62f1f94 (ABI 1.38-1.42: gestures, two-sided swipe, dismiss, touch drag; trace tests); device side-by-side pending |
 | I2 | iOS flows, physical install and shipping gates | doing | Compact flows on simulator/macOS (swipe, long press, refresh, Now player, sheets, Select, menus, Files); 390×778 goldens; `make ios-build` passes; physical install, 120 Hz and device qualification pending |
 | D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |
+| DX0.1 | DX phase rows and ordering | done | HEAD |
+| DX0.2 | Allocation tripwire: warm_scope/take_reports | todo |  |
+| DX0.3 | Measured uncovered workloads (PERF) | todo |  |
+| DX0.4 | cargo t --doc in the runner | todo |  |
+| DX0.5 | Gate: author-shim rule | todo |  |
+| DX0.6 | abi_bench page for authoring helpers | todo |  |
+| DX0.7 | verify_views in LocalWave UI tests | todo |  |
+| DX1.1 | const fn builders on Node, Look, Edges, Font | todo |  |
+| DX1.2 | Flags newtype; distinct FOCUSABLE names | todo |  |
+| DX1.3 | Key type; row/column/stack shims | todo |  |
+| DX1.4 | label and label_fmt | todo |  |
+| DX1.5 | Response and pressable | todo |  |
+| DX1.6 | view_of and hash_of | todo |  |
+| DX1.7 | local_bool/local_i64/local_f32 | todo |  |
+| DX1.8 | pxui::doc::frames and pxui::testing | todo |  |
+| DX1.9 | header.rs reference conversion (PERF) | todo |  |
+| DX2.1 | Borrowed key signals | todo |  |
+| DX2.2 | Borrowed text results | todo |  |
+| DX2.3 | Borrowed inputs; gate rejects owned parameters | todo |  |
+| DX2.4 | _into forms for quads and rasterize_rgba | todo |  |
+| DX2.5 | Typed errors | todo |  |
+| DX3.1 | Theme row height outside panels | todo |  |
+| DX3.2 | App-defined colour tokens | todo |  |
+| DX3.3 | Engine text element behind label | todo |  |
+| DX3.4 | button_with and Response | todo |  |
+| DX3.5 | icon_button | todo |  |
+| DX3.6 | menu with MenuItem | todo |  |
+| DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
+| DX3.8 | dialog_with | todo |  |
+| DX3.9 | Per-call widget body variants | todo |  |
+| DX4.1 | Palette to colour tokens | todo |  |
+| DX4.2 | kit::text and settings::paragraph to label | todo |  |
+| DX4.3 | Buttons to button_with | todo |  |
+| DX4.4 | Icon buttons to icon_button | todo |  |
+| DX4.5 | Menus to menu | todo |  |
+| DX4.6 | Settings switch and chips to toggle_with/segmented_with | todo |  |
+| DX4.7 | Confirmation sheets to dialog_with; field variant | todo |  |
+| DX4.8 | Codemod A: Node literals to builders | todo |  |
+| DX4.9 | Codemod B: hashed view to view_of | todo |  |
+| DX4.10 | Codemod C: node+within to containers | todo |  |
+| DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
+| DX5.1 | Pinned glyph entries; label_digits | todo |  |
+| DX5.2 | Debug report for prepared/requested style mismatch | todo |  |
+| DX5.3 | Viewport-distance eviction for list entries | todo |  |
+| DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
+| DX5.5 | Reusable layout storage for fresh shapes | todo |  |
+| DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
+| DX6.1 | Public API documentation section; ABI text only in docs/abi.md | todo |  |
+| DX6.2 | One item per line in pxui and pxui_types | todo |  |
+| DX6.3 | gate -- docs with shrinking allowlist | todo |  |
+| DX6.4 | Docs: model and frame | todo |  |
+| DX6.5 | Docs: nodes and state | todo |  |
+| DX6.6 | Docs: views, overlays, animation | todo |  |
+| DX6.7 | Docs: Paint (1) | todo |  |
+| DX6.8 | Docs: Paint (2) | todo |  |
+| DX6.9 | Docs: keys and queries | todo |  |
+| DX6.10 | Docs: gestures | todo |  |
+| DX6.11 | Docs: text | todo |  |
+| DX6.12 | Docs: kit widgets | todo |  |
+| DX6.13 | Docs: options | todo |  |
+| DX6.14 | Docs: inspector | todo |  |
+| DX6.15 | Docs: images and renderer | todo |  |
+| DX6.16 | Docs: node.rs | todo |  |
+| DX6.17 | Docs: layout and geometry | todo |  |
+| DX6.18 | Docs: theme | todo |  |
+| DX6.19 | Docs: ui, a11y, draw | todo |  |
+| DX6.20 | Docs: pxui_types root | todo |  |
+| DX6.21 | Docs: ffi.rs (1) | todo |  |
+| DX6.22 | Docs: ffi.rs (2) | todo |  |
+| DX6.23 | Docs: ffi.rs (3) | todo |  |
+| DX6.24 | Docs: ffi.rs (4) | todo |  |
+| DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
+| DX6.26 | pxui-app skill; README and specification fixes | todo |  |
+| DX7.1 | Generated layout manifest; C static asserts | todo |  |
+| DX7.2 | Size-prefix negative table | todo |  |
+| DX7.3 | ABI policy in docs/abi.md | todo |  |
+| DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
+| DX7.5 | Frozen identity hash; parent-scoped integer keys | todo |  |
+| DX7.6 | Reserved surface id | todo |  |
+| DX7.7 | Record changes before freeze | todo |  |
+| DX7.8 | Rays vocabulary to extension manifest | todo |  |
+| DX7.9 | Lint: records built from DEFAULT | todo |  |
+| DX7.10 | Mach-O and ELF versions | todo |  |
+| DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | todo |  |
+| DX7.12 | Freeze 1.N (PERF) | todo |  |
 
 ## Latest performance
 
