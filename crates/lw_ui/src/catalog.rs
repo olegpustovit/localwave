@@ -335,7 +335,9 @@ impl Library {
             )
         });
         out.album_orders[2].sort_by(|a, b| album_added[*b].total_cmp(&album_added[*a]));
-        for (name, rows) in artists {
+        for (name, mut rows) in artists {
+            // Swift's artist page lists songs in insertion (id) order, not library order.
+            rows.sort_unstable_by_key(|index| out.rows[*index].id);
             out.artists.push(out.make_collection(
                 &name,
                 "Artist",
@@ -563,13 +565,21 @@ impl Library {
                 )
             }
             PlaybackContext::Automatic(_) => format!("{} songs · updates itself", rows.len()),
-            PlaybackContext::Playlist { .. } => format!("{} songs · {} min", rows.len(), (seconds() / 60.0).round()),
+            PlaybackContext::Playlist { .. } => {
+                format!("{} songs · {} min", rows.len(), (seconds() / 60.0).round())
+            }
             _ => String::new(),
         };
         let mut sections = Vec::new();
         let mut seen = 0u32;
         for (position, index) in rows.iter().enumerate() {
-            let letter = match self.row(*index).title.chars().next().map(|c| c.to_ascii_uppercase()) {
+            let letter = match self
+                .row(*index)
+                .title
+                .chars()
+                .next()
+                .map(|c| c.to_ascii_uppercase())
+            {
                 Some(c @ 'A'..='Z') => (c as u8 - b'A') as usize,
                 _ => 26,
             };
@@ -705,7 +715,11 @@ impl Catalog {
     }
     /// Replace one automatic list's rows; unchanged membership keeps the published page.
     fn set_automatic(&mut self, title: &str, name: &str, rows: Vec<usize>) {
-        let Some(index) = self.collections.iter().position(|group| matches!(&*group.context, PlaybackContext::Automatic(value) if value == name)) else { return; };
+        let Some(index) = self.collections.iter().position(
+            |group| matches!(&*group.context, PlaybackContext::Automatic(value) if value == name),
+        ) else {
+            return;
+        };
         if self.collections[index].rows == rows {
             return;
         }
@@ -726,7 +740,8 @@ impl Catalog {
         pinned: &mut dyn FnMut(i64) -> bool,
         limit_gb: u64,
     ) {
-        let (mut kept, mut device, mut never, mut bytes) = (Vec::new(), Vec::new(), Vec::new(), 0u64);
+        let (mut kept, mut device, mut never, mut bytes) =
+            (Vec::new(), Vec::new(), Vec::new(), 0u64);
         for (index, row) in self.rows.iter().enumerate() {
             if pinned(row.id) {
                 kept.push(index);
@@ -1050,6 +1065,27 @@ mod tests {
         assert!(empty.album_orders.iter().all(Vec::is_empty));
     }
     #[test]
+    fn artist_songs_follow_swift_id_order() {
+        let song = |id, title: &str, created_at| Song {
+            id: Some(id),
+            title: title.into(),
+            artist: "A".into(),
+            created_at,
+            ..Default::default()
+        };
+        let library = super::Library::new(vec![
+            song(3, "c", 9.0),
+            song(1, "a", 1.0),
+            song(2, "b", 5.0),
+        ]);
+        let ids: Vec<_> = library.artists[0]
+            .rows
+            .iter()
+            .map(|row| library.rows[*row].id)
+            .collect();
+        assert_eq!(ids, [1, 2, 3]);
+    }
+    #[test]
     fn table_font_widths_match_coretext_reference_faces_and_weights() {
         let mut text = pxui::Text::new(&[crate::FONT, crate::MONO]).unwrap();
         // CTLineGetTypographicBounds with the bundled named faces, captured on macOS.
@@ -1246,7 +1282,10 @@ mod tests {
         assert_eq!(catalog.artists.len(), 10);
         assert_eq!(catalog.row(0).duration, "1:30");
         // Swift's album-row detail: no size on the song, so it says so.
-        assert_eq!((catalog.row(0).file_note, catalog.row(0).cloud_note), ("Size unknown", "Size unknown · in cloud"));
+        assert_eq!(
+            (catalog.row(0).file_note, catalog.row(0).cloud_note),
+            ("Size unknown", "Size unknown · in cloud")
+        );
         assert_eq!(catalog.collections[0].ids.len(), 5000);
         assert_eq!(catalog.collections[1].ids.len(), 24);
         for group in catalog
