@@ -69,7 +69,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.4 | cargo t --doc in the runner | done | 8ef0591 + pxui 4804a4f |
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
-| DX0.7 | verify_views in LocalWave UI tests | done | HEAD |
+| DX0.7 | verify_views in LocalWave UI tests | done | 9be4f52 |
 | DX0.7a | Stale view `compact-library`: revision misses an input (found by DX0.7) | todo |  |
 | DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | todo |  |
 | DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | todo |  |
@@ -85,7 +85,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.7 | local_bool/local_i64/local_f32 | todo |  |
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | todo |  |
-| DX2.1 | Borrowed key signals | todo |  |
+| DX2.1 | Borrowed key signals | done | HEAD + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | todo |  |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | todo |  |
 | DX2.4 | _into forms for quads and rasterize_rgba | todo |  |
