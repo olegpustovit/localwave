@@ -66,7 +66,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.1 | DX phase rows and ordering | done | aec5dce |
 | DX0.2 | Allocation tripwire: warm_scope/take_reports | done | f126022 + pxui 53d48ba |
 | DX0.3 | Measured uncovered workloads (PERF) | todo |  |
-| DX0.4 | cargo t --doc in the runner | done | HEAD + pxui 4804a4f |
+| DX0.4 | cargo t --doc in the runner | done | 8ef0591 + pxui 4804a4f |
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | todo |  |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
@@ -138,7 +138,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
 | DX7.1 | Generated layout manifest; C static asserts | todo |  |
 | DX7.2 | Size-prefix negative table | todo |  |
-| DX7.3 | ABI policy in docs/abi.md | todo |  |
+| DX7.3 | ABI policy in docs/abi.md | done | HEAD + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | todo |  |
 | DX7.6 | Reserved surface id | todo |  |
