@@ -1195,9 +1195,7 @@ mod tests {
                 frame(&mut ui, &catalog, &state, &player, 0.0, width, tick as f64),
                 None
             );
-            // Known: re-entering compact at the 9th and 10th width flip allocates 9 times (pxui retained
-            // pool settling with the Swift row content); steady from tick 110. Needs pxui-side analysis.
-            if tick >= 110 {
+            if tick >= 82 {
                 assert_eq!(
                     mem_sys::local_alloc_count(),
                     0,
