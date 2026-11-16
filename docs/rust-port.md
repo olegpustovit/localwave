@@ -456,5 +456,5 @@ device/provider behavior remain open.
   Group opacity remains deferred. Antialiasing: pxui 4dff60c rasterises Apple text
   CoreText-style (unhinted, ppem-quantised origins, rounded baseline, 0.006·ppem stem growth, shader light-text growth;
   ABI 1.37); mean MAE vs CoreText 1×/2× Host Grotesk 1.86/0.99, Geist Mono 2.40/1.69 (pxui tools/glyph_ref.sh).
-  Geist Mono 20 pt stays ~4 (layout drift, open). pxui static abi_bench body/page ratios
-  already exceeded their limits before this change (open). Decide accessibility release policy before S. Keep shipping Swift targets until their gates pass.
+  Geist Mono 20 pt stays ~4 (layout drift, open). pxui static abi_bench pages meet the
+  plan limits again (pxui 25873cc: Overlays 1.0101/1.011, Layout 1.0095/1.01). Decide accessibility release policy before S. Keep shipping Swift targets until their gates pass.
