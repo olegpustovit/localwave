@@ -91,7 +91,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | HEAD + pxui 769f444 |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | done | efe51b9 + pxui 550a4c9 |
 | DX2.4 | _into forms for quads and rasterize_rgba | done | 1a95982 + pxui 932e9c5 |
-| DX2.5 | Typed errors | done | HEAD + pxui 850be9d |
+| DX2.5 | Typed errors | done | b63c59e + pxui 850be9d |
+| DX2.6 | One API shape: engine matches the wrapper; gallery compat deleted | done | HEAD + pxui 7c4e0db |
 | DX3.1 | Theme row height outside panels | done | b89b7c5 + pxui edfae14 |
 | DX3.2 | App-defined colour tokens | done | b1e9ef6 + pxui 74c723a |
 | DX3.3 | Engine text element behind label | todo |  |
