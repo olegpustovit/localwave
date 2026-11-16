@@ -71,7 +71,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
-| DX1.2 | Flags newtype; distinct FOCUSABLE names | todo |  |
+| DX1.2 | Flags newtype; distinct FOCUSABLE names | done | HEAD + pxui 2f7a6f1 |
 | DX1.3 | Key type; row/column/stack shims | todo |  |
 | DX1.4 | label and label_fmt | todo |  |
 | DX1.5 | Response and pressable | todo |  |
@@ -112,7 +112,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
-| DX6.3 | gate -- docs with shrinking allowlist | done | HEAD + pxui 74a81f8 |
+| DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
 | DX6.4 | Docs: model and frame | todo |  |
 | DX6.5 | Docs: nodes and state | todo |  |
 | DX6.6 | Docs: views, overlays, animation | todo |  |
