@@ -344,6 +344,11 @@ pub(super) fn availability(
     sources: &HashMap<i64, Option<Source>>,
     grants: &mut HashMap<i64, Option<Access>>,
 ) -> FileAvailability {
+    if library.trust_stored_availability
+        && let Some(state) = song.source_availability
+    {
+        return state;
+    }
     let inspect = |path: &Path, known| {
         audio::probe(path, known).map_or(FileAvailability::Unknown, |info| {
             match info.availability {
@@ -620,6 +625,33 @@ mod tests {
             worker.repository.source(source).unwrap().unwrap().dir_path,
             root.to_str().unwrap()
         );
+        // Reference fixtures have no files: stored availability answers cloud/offline like Swift's DEBUG shortcut.
+        worker.trust_stored_availability = true;
+        let stored = |raw: &str| {
+            worker
+                .catalog_view(
+                    Some(&catalog),
+                    Some(Request {
+                        commands: None,
+                        scope: Scope::Find,
+                        query: Query::new(raw).unwrap(),
+                        sort: Sort::Original,
+                        ascending: true,
+                    }),
+                )
+                .unwrap()
+                .collection(Route::Find)
+                .unwrap()
+                .ids
+                .to_vec()
+        };
+        assert_eq!(stored("cloud"), [id(0)]);
+        assert_eq!(
+            stored("offline"),
+            [id(8), id(7), id(5), id(4), id(3), id(2), id(1)],
+            "stored OnDevice joins; stored InCloud leaves"
+        );
+        assert!(stored("cloud offline").is_empty());
     }
     #[test]
     fn find_summary_counts_matching_albums_and_owned_directories_and_excludes_blocked_offline_actions()

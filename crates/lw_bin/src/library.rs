@@ -40,6 +40,8 @@ pub struct LibraryWorker {
     playback_files: HashMap<u64, playback::Lease>,
     active_playback: Option<u64>,
     playback_file_changes: bool,
+    /// Reference fixtures only (Swift's DEBUG `LOCALWAVE_REFERENCE_FIXTURE` shortcut): seeded rows have no files.
+    pub trust_stored_availability: bool,
 }
 
 fn db(error: lw_sqlite::Error) -> io::Error {
@@ -120,6 +122,7 @@ impl LibraryWorker {
             playback_files: HashMap::new(),
             active_playback: None,
             playback_file_changes: false,
+            trust_stored_availability: false,
         })
     }
 

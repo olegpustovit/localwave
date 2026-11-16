@@ -244,6 +244,7 @@ pub fn library(base: &Path, screen: &str) -> std::io::Result<LibraryWorker> {
             test_database: None,
         },
     )?;
+    library.trust_stored_availability = true;
     library.save_settings(&Settings { appearance: Appearance::Light, ..Default::default() })?;
     if screen == "onboarding" {
         return Ok(library); // first run: no sources, no songs
