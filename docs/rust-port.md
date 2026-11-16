@@ -95,14 +95,14 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX2.6 | One API shape: engine matches the wrapper; gallery compat deleted | done | 657e6ea + pxui 7c4e0db |
 | DX3.1 | Theme row height outside panels | done | b89b7c5 + pxui edfae14 |
 | DX3.2 | App-defined colour tokens | done | b1e9ef6 + pxui 74c723a |
-| DX3.3 | Engine text element behind label | todo |  |
+| DX3.3 | Engine text element behind label | done | HEAD + pxui 065dc5e |
 | DX3.4 | button_with and Response | todo |  |
 | DX3.5 | icon_button | todo |  |
 | DX3.6 | menu with MenuItem | todo |  |
 | DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
 | DX3.8 | dialog_with | todo |  |
 | DX3.9 | Per-call widget body variants | todo |  |
-| DX4.1 | Palette to colour tokens | done | HEAD |
+| DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | todo |  |
 | DX4.3 | Buttons to button_with | todo |  |
 | DX4.4 | Icon buttons to icon_button | todo |  |
