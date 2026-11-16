@@ -8,7 +8,6 @@ pub(super) fn header(
     catalog: &Catalog,
     state: &ShellState,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let collection = state.collection(catalog);
@@ -29,7 +28,7 @@ pub(super) fn header(
     ui.column("library-header", root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
-            text(ui, "results-caption", "Search", 14, p.secondary, (Size::Grow, 19.6), false);
+            text(ui, "results-caption", "Search", 14, ui.color(SECONDARY), (Size::Grow, 19.6), false);
         }
         let title = match state.route {
             Route::Find if results => find_summary.map_or("“…”", |summary| summary.title.as_str()),
@@ -44,10 +43,10 @@ pub(super) fn header(
             Axis::Row,
             Size::Grow,
             Size::Px(34.0),
-            p.paper,
+            ui.color(PAPER),
         );
         ui.within(&heading, &mut |ui| {
-            let heading = text(ui, "heading", title, 34, p.ink, (Size::Grow, 34.0), false);
+            let heading = text(ui, "heading", title, 34, ui.color(INK), (Size::Grow, 34.0), false);
             ui.text_line_box(
                 &heading,
                 title,
@@ -71,7 +70,7 @@ pub(super) fn header(
                     Icon::Refresh,
                     (36.0, 36.0),
                     false,
-                    p,
+                    true,
                 )
             {
                 *intent = Some(Intent::RefreshLibrary);
@@ -85,7 +84,7 @@ pub(super) fn header(
                 Size::Px(44.0),
                 &mut |ui| {
                     let row =
-                        container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, p.paper);
+                        container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
                     ui.within(&row, &mut |ui| {
                         let field = ui.box_(
                             "query-field",
@@ -112,14 +111,14 @@ pub(super) fn header(
                             Icon::Clear,
                             (36.0, 36.0),
                             false,
-                            p,
+                            true,
                         ) {
                             *intent = Some(Intent::Search(Query::default()));
                         }
                     });
                 },
             );
-            find_tokens(ui, state, (width - 64.0).max(1.0), p, intent);
+            find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
         text(
@@ -147,13 +146,13 @@ pub(super) fn header(
                 collection.map_or("Browse your library", |group| group.subtitle.as_str())
             },
             14,
-            p.secondary,
+            ui.color(SECONDARY),
             (Size::Grow, 19.6),
             false,
         );
         spacer(ui, "heading-bottom-gap", 18.0);
         if state.route == Route::Albums {
-            albums::toolbar(ui, catalog, state, p, intent);
+            albums::toolbar(ui, catalog, state, intent);
         }
         if state.route == Route::Albums {
             ui.node(
@@ -167,7 +166,7 @@ pub(super) fn header(
                         ..Edges::ZERO
                     },
                     look: Look {
-                        fill: p.line,
+                        fill: ui.color(LINE),
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
@@ -175,7 +174,7 @@ pub(super) fn header(
             );
             spacer(ui, "album-header-bottom", 1.0);
         } else if state.route == Route::Find {
-            find::toolbar(ui, catalog, state, p, intent);
+            find::toolbar(ui, catalog, state, intent);
         }
     });
 }
@@ -188,7 +187,6 @@ pub(super) fn compact_find(
     state: &ShellState,
     theme: Option<&pxui::Theme>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let revision = crate::hash((
@@ -205,7 +203,7 @@ pub(super) fn compact_find(
         // Select mode swaps the whole heading for Swift's selection header.
         if state.selecting {
             let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
-            super::compact::list::selection_header(ui, p, state.marked.len(), rows, rows, intent);
+            super::compact::list::selection_header(ui, state.marked.len(), rows, rows, intent);
             return;
         }
         let root = ui.node(
@@ -229,7 +227,7 @@ pub(super) fn compact_find(
                 "caption",
                 "Find",
                 13,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 21.0),
                 false,
             );
@@ -283,10 +281,7 @@ pub(super) fn compact_find(
                                 (44.0, 44.0),
                                 false,
                                 // Swift's clear glyph has no resting plate.
-                                Palette {
-                                    key: Rgba::default(),
-                                    ..p
-                                },
+                                false,
                             ) {
                                 *intent = Some(Intent::Search(Query::default()));
                             }
@@ -300,12 +295,12 @@ pub(super) fn compact_find(
                 Axis::Column,
                 Size::Grow,
                 Size::Px(1.5),
-                p.ink,
+                ui.color(INK),
             );
             spacer(ui, "tokens-gap", 12.0);
-            find_tokens(ui, state, (width - 32.0).max(1.0), p, intent);
+            find_tokens(ui, state, (width - 32.0).max(1.0), intent);
             if state.query.as_str().trim().is_empty() {
-                hint(ui, (width - 32.0).max(1.0), p);
+                hint(ui, (width - 32.0).max(1.0));
             } else if let Some(summary) = state
                 .collection(catalog)
                 .and(catalog.view.as_ref())
@@ -314,9 +309,9 @@ pub(super) fn compact_find(
                 spacer(ui, "songs-gap", 7.0);
                 ui.row("songs-row", Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
                     ui.column("songs-text", Node::column().w(Size::Grow).h(Size::Fit), |ui| {
-                        detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), p.secondary, 0);
+                        detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), 0);
                     });
-                    if super::compact::list::word(ui, "select", "Select", false, p) {
+                    if super::compact::list::word(ui, "select", "Select", false) {
                         *intent = Some(Intent::SelectMode(true));
                     }
                 });
@@ -326,7 +321,7 @@ pub(super) fn compact_find(
 }
 
 /// "Search spans every source..." with Swift's bold filter examples, wrapped to the page width.
-fn hint(ui: &mut Ui, width: f32, p: Palette) {
+fn hint(ui: &mut Ui, width: f32) {
     const TEXT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
     let bold = |word: &str| {
         let start = TEXT.find(word).unwrap_or(0) as u32;
@@ -359,7 +354,7 @@ fn hint(ui: &mut Ui, width: f32, p: Palette) {
             },
             role: Role::Paragraph,
             look: Look {
-                text: p.secondary,
+                text: ui.color(SECONDARY),
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -373,7 +368,6 @@ pub(super) fn header_view(
     catalog: &Catalog,
     state: &ShellState,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let revision = crate::hash((
@@ -385,7 +379,7 @@ pub(super) fn header_view(
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
     ui.view("page-heading", revision, Size::Grow, Size::Fit, &mut |ui| {
-        header(ui, catalog, state, width, p, intent)
+        header(ui, catalog, state, width, intent)
     });
 }
 
@@ -395,14 +389,13 @@ pub(super) fn content(
     state: &ShellState,
     player: &PlayerView<'_>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     ui.column("content", Node::column().w(Size::Grow).h(Size::Grow), |ui| match state.route {
-        Route::Albums => albums::gallery(ui, catalog, state, player, width, p, intent),
-        Route::Artists => artists::table(ui, catalog, state, player, width, p, intent),
-        Route::Lists => compact::collections(ui, catalog, player, width, p, intent),
-        _ => songs::table(ui, catalog, state, player, width, p, intent),
+        Route::Albums => albums::gallery(ui, catalog, state, player, width, intent),
+        Route::Artists => artists::table(ui, catalog, state, player, width, intent),
+        Route::Lists => compact::collections(ui, catalog, player, width, intent),
+        _ => songs::table(ui, catalog, state, player, width, intent),
     });
 }
 
@@ -410,7 +403,6 @@ pub(super) fn find_tokens(
     ui: &mut Ui,
     state: &ShellState,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
@@ -448,7 +440,7 @@ pub(super) fn find_tokens(
                                 ..Edges::ZERO
                             },
                             look: Look {
-                                fill: if selected { p.ink } else { p.panel },
+                                fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
                                 ..Look::NONE
                             },
                             ..Node::DEFAULT
@@ -473,7 +465,7 @@ pub(super) fn find_tokens(
                                 w: Size::Fit,
                                 h: Size::Grow,
                                 look: Look {
-                                    text: if selected { p.paper } else { p.secondary },
+                                    text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
                                     font: Font {
                                         size: 13,
                                         ..Font::BODY

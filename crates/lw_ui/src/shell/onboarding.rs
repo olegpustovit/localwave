@@ -20,10 +20,10 @@ pub(super) const LIBRARY_EMPTY: &str =
     "Your music starts with a folder. Add music in Folders to build your library.";
 pub(super) const FIND_HINT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
 
-pub(super) fn view(ui: &mut Ui, top_inset: f32, p: Palette, intent: &mut Option<Intent>) -> Handle {
+pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> Handle {
     let (width, _) = ui.view_size();
     let column = (width - 32.0).max(1.0);
-    let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, p.paper);
+    let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
     ui.set_role(&root, Role::Window, 0);
     ui.a11y_name(&root, "LocalWave");
     // The disclosure state lives on the root so the retained page rebuilds when it flips.
@@ -45,7 +45,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, p: Palette, intent: &mut Option<
                     },
                 );
                 ui.within(&outer, &mut |ui| {
-                    if page(ui, column, drive, p, intent) {
+                    if page(ui, column, drive, intent) {
                         ui.set_state(&root, i64::from(!drive));
                     }
                 });
@@ -55,7 +55,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, p: Palette, intent: &mut Option<
     root
 }
 
-fn underlined(ui: &mut Ui, key: &str, label: &'static str, p: Palette) -> bool {
+fn underlined(ui: &mut Ui, key: &str, label: &'static str) -> bool {
     let link = ui.node(
         key,
         Node {
@@ -70,32 +70,32 @@ fn underlined(ui: &mut Ui, key: &str, label: &'static str, p: Palette) -> bool {
     );
     ui.a11y_name(&link, label);
     ui.within(&link, &mut |ui| {
-        text(ui, "label", label, 15, p.ink, (Size::Fit, 21.0), false);
-        rule(ui, "underline", false, p);
+        text(ui, "label", label, 15, ui.color(INK), (Size::Fit, 21.0), false);
+        rule(ui, "underline", false);
     });
     ui.signal_state(&link).clicked
 }
 
 /// Returns true when the Google Drive disclosure was toggled.
-fn page(ui: &mut Ui, column: f32, drive: bool, p: Palette, intent: &mut Option<Intent>) -> bool {
+fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
     let page = ui.node("onboarding-column", Node { w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
     ui.within(&page, &mut |ui| {
-        let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), p.paper);
+        let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
-            text(ui, "name", "LocalWave", 13, p.secondary, (Size::Grow, 18.2), false);
-            text(ui, "version", "v2", 12, p.secondary, (Size::Px(16.0), 16.8), true);
+            text(ui, "name", "LocalWave", 13, ui.color(SECONDARY), (Size::Grow, 18.2), false);
+            text(ui, "version", "v2", 12, ui.color(SECONDARY), (Size::Px(16.0), 16.8), true);
         });
         spacer(ui, "count-gap", 28.0);
-        let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), p.paper);
+        let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
         ui.set_role(&count, Role::Label, 0);
         ui.a11y_name(&count, "0 songs so far");
-        ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, p.ink));
+        ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
         spacer(ui, "count-label-gap", 8.0);
-        text(ui, "count-label", "songs so far", 15, p.secondary, (Size::Grow, 21.0), false);
+        text(ui, "count-label", "songs so far", 15, ui.color(SECONDARY), (Size::Grow, 21.0), false);
         spacer(ui, "heading-gap", 28.0);
-        text(ui, "heading-1", "Point it at a folder.", 32, p.ink, (Size::Grow, 36.8), false);
-        text(ui, "heading-2", "It stays in sync.", 32, p.ink, (Size::Grow, 36.8), false);
+        text(ui, "heading-1", "Point it at a folder.", 32, ui.color(INK), (Size::Grow, 36.8), false);
+        text(ui, "heading-2", "It stays in sync.", 32, ui.color(INK), (Size::Grow, 36.8), false);
         spacer(ui, "promise-gap", 8.0);
         settings::paragraph(
             ui,
@@ -103,21 +103,21 @@ fn page(ui: &mut Ui, column: f32, drive: bool, p: Palette, intent: &mut Option<I
             "Your files stay where they are. Nothing is uploaded.",
             column,
             15.0,
-            p.secondary,
+            ui.color(SECONDARY),
         );
         spacer(ui, "steps-gap", 28.0);
-        rule(ui, "steps-rule", false, p);
+        rule(ui, "steps-rule", false);
         for (key, number, line) in [
             ("step-1", "1", "Choose a folder in Files"),
             ("step-2", "2", "LocalWave indexes it in the background"),
             ("step-3", "3", "Play at once; cloud songs fetch on play"),
         ] {
-            let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), p.paper);
+            let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), ui.color(PAPER));
             ui.within(&row, &mut |ui| {
-                text(ui, "number", number, 13, p.secondary, (Size::Px(26.0), 46.0), false);
-                text(ui, "line", line, 15, p.ink, (Size::Grow, 46.0), false);
+                text(ui, "number", number, 13, ui.color(SECONDARY), (Size::Px(26.0), 46.0), false);
+                text(ui, "line", line, 15, ui.color(INK), (Size::Grow, 46.0), false);
             });
-            rule(ui, "step-rule", false, p);
+            rule(ui, "step-rule", false);
         }
         ui.box_("onboarding-flex", BoxOpts::default().h(Size::Grow));
         settings::paragraph(
@@ -126,7 +126,7 @@ fn page(ui: &mut Ui, column: f32, drive: bool, p: Palette, intent: &mut Option<I
             "iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.",
             column,
             13.0,
-            p.secondary,
+            ui.color(SECONDARY),
         );
         spacer(ui, "choose-gap", 12.0);
         let choose = ui.node(
@@ -139,43 +139,43 @@ fn page(ui: &mut Ui, column: f32, drive: bool, p: Palette, intent: &mut Option<I
                 role: Role::Button,
                 w: Size::Grow,
                 h: Size::Px(52.0),
-                look: Look { fill: p.ink, ..Look::NONE },
+                look: Look { fill: ui.color(INK), ..Look::NONE },
                 ..Node::DEFAULT
             },
         );
         ui.a11y_name(&choose, "Choose a folder");
         ui.within(&choose, &mut |ui| {
-            text(ui, "label", "Choose a folder", 15, p.paper, (Size::Fit, 21.0), false);
+            text(ui, "label", "Choose a folder", 15, ui.color(PAPER), (Size::Fit, 21.0), false);
         });
         if ui.signal_state(&choose).clicked {
             *intent = Some(Intent::ChooseFolder);
         }
         spacer(ui, "links-gap", 4.0);
-        let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), p.paper);
+        let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
         ui.within(&links, &mut |ui| {
-            if underlined(ui, "pick-files", "Pick some files", p) {
+            if underlined(ui, "pick-files", "Pick some files") {
                 *intent = Some(Intent::ChooseAudio);
             }
             ui.box_("links-flex", BoxOpts::default().w(Size::Grow));
-            if underlined(ui, "explore", "Explore the library", p) {
+            if underlined(ui, "explore", "Explore the library") {
                 *intent = Some(Intent::Navigate(Route::Albums));
             }
         });
         spacer(ui, "drive-gap", 4.0);
-        toggled = drive_box(ui, column, drive, p);
+        toggled = drive_box(ui, column, drive);
     });
     toggled
 }
 
 /// Swift's "Google Drive not in the list?" disclosure with its bordered 1px frame.
-fn drive_box(ui: &mut Ui, column: f32, expanded: bool, p: Palette) -> bool {
+fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
     let frame = ui.node(
         "drive-frame",
         Node {
             w: Size::Grow,
             h: Size::Fit,
             padding: Edges { l: 1.0, r: 1.0, t: 1.0, b: 1.0 },
-            look: Look { fill: p.line, ..Look::NONE },
+            look: Look { fill: ui.color(LINE), ..Look::NONE },
             ..Node::DEFAULT
         },
     );
@@ -187,7 +187,7 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool, p: Palette) -> bool {
                 w: Size::Grow,
                 h: Size::Fit,
                 padding: Edges { l: 14.0, r: 14.0, t: 14.0, b: 14.0 },
-                look: Look { fill: p.paper, ..Look::NONE },
+                look: Look { fill: ui.color(PAPER), ..Look::NONE },
                 ..Node::DEFAULT
             },
         );
@@ -206,7 +206,7 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool, p: Palette) -> bool {
             ui.a11y_name(&header, "Google Drive not in the list?");
             ui.within(&header, &mut |ui| {
                 let marker = ui.node("marker", Node { w: Size::Px(40.0 / 3.0), h: Size::Px(19.5), ..Node::DEFAULT });
-                let ink = p.ink;
+                let ink = ui.color(INK);
                 ui.draw(&marker, move |paint, rect| {
                     // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
                     let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };
@@ -218,7 +218,7 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool, p: Palette) -> bool {
                         paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
                     }
                 });
-                text(ui, "title", "Google Drive not in the list?", 13, p.ink, (Size::Grow, 19.5), false);
+                text(ui, "title", "Google Drive not in the list?", 13, ui.color(INK), (Size::Grow, 19.5), false);
             });
             clicked = ui.signal_state(&header).clicked;
             if expanded {
@@ -229,7 +229,7 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool, p: Palette) -> bool {
                     "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.",
                     column - 30.0,
                     13.0,
-                    p.secondary,
+                    ui.color(SECONDARY),
                 );
             }
         });
@@ -243,12 +243,11 @@ pub(super) fn empty_library(
     catalog: &Catalog,
     state: &ShellState,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let compact = ui.view_size().0 < compact::BREAKPOINT;
     if !compact {
-        header_view(ui, catalog, state, width, p, intent);
+        header_view(ui, catalog, state, width, intent);
     }
     let inset = if compact { 16.0 } else { 32.0 };
     let page = ui.node(
@@ -261,6 +260,6 @@ pub(super) fn empty_library(
         },
     );
     ui.within(&page, &mut |ui| {
-        settings::paragraph(ui, "empty-library", LIBRARY_EMPTY, width - inset * 2.0, 14.0, p.secondary);
+        settings::paragraph(ui, "empty-library", LIBRARY_EMPTY, width - inset * 2.0, 14.0, ui.color(SECONDARY));
     });
 }

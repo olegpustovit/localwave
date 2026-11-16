@@ -402,6 +402,7 @@ mod tests {
         let state = lw_ui::ShellState::default();
         pxui::Ui::verify_new_views(true);
         let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+        lw_ui::set_colors(&mut ui);
         let window = draw(&mut ui, &catalog, &state, 1440.0);
         assert!(
             window.rows().len() < catalog.len()
@@ -492,6 +493,7 @@ mod tests {
         let state = lw_ui::ShellState::default();
         pxui::Ui::verify_new_views(true);
         let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+        lw_ui::set_colors(&mut ui);
         let window = draw(&mut ui, &catalog, &state, 1440.0);
         let mut worker = SongTextWorker::open(&mut ui, wake).unwrap();
         worker.request(&catalog, Some(window));

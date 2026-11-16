@@ -11,7 +11,6 @@ pub(super) fn transport(
     player: &PlayerView<'_>,
     position: f64,
     panel: bool,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let narrow = ui.view_size().0 < 1100.0;
@@ -29,7 +28,7 @@ pub(super) fn transport(
                 ..Edges::ZERO
             },
             look: Look {
-                fill: p.panel,
+                fill: ui.color(PANEL),
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -54,7 +53,7 @@ pub(super) fn transport(
                 Icon::Previous,
                 (key_width, 71.0),
                 false,
-                p,
+                true,
             ) {
                 *intent = Some(Intent::Previous);
             }
@@ -69,7 +68,7 @@ pub(super) fn transport(
                 },
                 (key_width, 71.0),
                 true,
-                p,
+                true,
             ) {
                 *intent = Some(if player.playing {
                     Intent::Pause
@@ -77,15 +76,15 @@ pub(super) fn transport(
                     Intent::Play
                 });
             }
-            if icon_button(ui, "next", "Next", Icon::Next, (key_width, 71.0), false, p) {
+            if icon_button(ui, "next", "Next", Icon::Next, (key_width, 71.0), false, true) {
                 *intent = Some(Intent::Next);
             }
         });
         let elapsed = position.max(0.0) as u64;
         let remaining = (player.duration - position).max(0.0) as u64;
-        small_clock(ui, "elapsed", elapsed, false, 44.0, p.secondary);
-        seek(ui, player, position, p, intent);
-        small_clock(ui, "remaining", remaining, true, 50.0, p.secondary);
+        small_clock(ui, "elapsed", elapsed, false, 44.0, ui.color(SECONDARY));
+        seek(ui, player, position, intent);
+        small_clock(ui, "remaining", remaining, true, 50.0, ui.color(SECONDARY));
         // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
         // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
         let modes = ui.node(
@@ -97,7 +96,7 @@ pub(super) fn transport(
                 w: Size::Px(if panel { 140.0 } else { 186.0 }),
                 h: Size::Px(44.0),
                 look: Look {
-                    fill: p.panel,
+                    fill: ui.color(PANEL),
                     ..Look::NONE
                 },
                 ..Node::DEFAULT
@@ -115,7 +114,7 @@ pub(super) fn transport(
                 Icon::Shuffle,
                 (44.0, 40.0),
                 player.shuffled,
-                p,
+                true,
             ) {
                 *intent = Some(Intent::Shuffle);
             }
@@ -140,7 +139,7 @@ pub(super) fn transport(
                     Icon::Repeat,
                     (44.0, 40.0),
                     player.repeat != lw_core::queue::RepeatMode::None,
-                    p,
+                    true,
                 ) {
                     *intent = Some(Intent::Repeat);
                 }
@@ -155,7 +154,7 @@ pub(super) fn transport(
                         },
                     );
                     ui.within(&badge, &mut |ui| {
-                        text(ui, "one", "1", 9, p.paper, (Size::Px(8.0), 12.0), true);
+                        text(ui, "one", "1", 9, ui.color(PAPER), (Size::Px(8.0), 12.0), true);
                     });
                 }
             });
@@ -166,7 +165,7 @@ pub(super) fn transport(
                 Icon::Panel,
                 (44.0, 40.0),
                 panel,
-                p,
+                true,
             ) {
                 *intent = Some(Intent::TogglePanel);
             }
@@ -179,7 +178,7 @@ pub(super) fn transport(
                     Icon::Queue,
                     (44.0, 40.0),
                     false,
-                    p,
+                    true,
                 )
             {
                 *intent = Some(Intent::ShowQueue);
@@ -194,7 +193,6 @@ pub(super) fn desktop(
     position: f64,
     catalog: &Catalog,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) -> Handle {
     let (width, height) = ui.view_size();
@@ -220,7 +218,7 @@ pub(super) fn desktop(
                 ..Edges::ZERO
             },
             look: Look {
-                fill: p.paper,
+                fill: ui.color(PAPER),
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -237,7 +235,7 @@ pub(super) fn desktop(
     );
     ui.within(&root, &mut |ui| {
         spacer(ui, "titlebar-clearance", top);
-        let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, p.paper);
+        let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&work, &mut |ui| {
             // A carry hovering a list row or a queue gap highlights it and a drop reads once; the engine
             // does not say which, so the views showing drop targets rebuild on every frame of a carry
@@ -253,9 +251,9 @@ pub(super) fn desktop(
                 revision,
                 Size::Px(sidebar_width),
                 Size::Grow,
-                &mut |ui| sidebar(ui, catalog, state, sidebar_width, p, intent),
+                &mut |ui| sidebar(ui, catalog, state, sidebar_width, intent),
             );
-            rule(ui, "sidebar-divider", true, p);
+            rule(ui, "sidebar-divider", true);
             let library_revision = library_revision(player, catalog, state);
             let page = ui.view(
                 "library",
@@ -281,11 +279,11 @@ pub(super) fn desktop(
                     );
                     ui.within(&route, &mut |ui| {
                         if state.settings_visible {
-                            settings::view(ui, player, state, content_width, p, intent);
+                            settings::view(ui, player, state, content_width, intent);
                         } else if state.route == Route::Files {
-                            files::view(ui, player, state, content_width, p, intent);
+                            files::view(ui, player, state, content_width, intent);
                         } else {
-                            content(ui, catalog, state, player, content_width, p, intent);
+                            content(ui, catalog, state, player, content_width, intent);
                         }
                     });
                 },
@@ -308,7 +306,7 @@ pub(super) fn desktop(
                 0.0,
             );
             if panel {
-                rule(ui, "panel-divider", true, p);
+                rule(ui, "panel-divider", true);
                 let panel_revision = crate::hash((
                     (player.revision, position.to_bits(), carry),
                     player.artwork.map_or(0, crate::artwork::Images::revision),
@@ -332,7 +330,7 @@ pub(super) fn desktop(
                         panel_revision,
                         Size::Grow,
                         Size::Grow,
-                        &mut |ui| now_panel(ui, player, position, catalog, carry, p, intent),
+                        &mut |ui| now_panel(ui, player, position, catalog, carry, intent),
                     );
                     ui.view_clip(
                         &panel,
@@ -345,6 +343,7 @@ pub(super) fn desktop(
                     );
                     crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
                 });
+                let accent = ui.tokens().accent;
                 match songs::song_drop(ui, &target) {
                     Some((true, song)) => *intent = Some(Intent::AppendSong(song)),
                     Some((false, _)) => ui.draw_over(&target, move |paint, rect| {
@@ -354,14 +353,14 @@ pub(super) fn desktop(
                             (0.0, 0.0, 2.0, rect.h),
                             (rect.w - 2.0, 0.0, 2.0, rect.h),
                         ] {
-                            paint.fill(rect.x + x, rect.y + y, w, h, p.signal);
+                            paint.fill(rect.x + x, rect.y + y, w, h, accent);
                         }
                     }),
                     None => {}
                 }
             }
         });
-        rule(ui, "transport-divider", false, p);
+        rule(ui, "transport-divider", false);
         ui.view(
             "transport",
             crate::hash((
@@ -371,7 +370,7 @@ pub(super) fn desktop(
             )),
             Size::Grow,
             Size::Px(71.0),
-            &mut |ui| transport(ui, player, position, panel, p, intent),
+            &mut |ui| transport(ui, player, position, panel, intent),
         );
     });
     // A carry a row starts mid-build shows from the next frame; one that ended shows its last view once.
@@ -383,7 +382,6 @@ pub(super) fn seek(
     ui: &mut Ui,
     player: &PlayerView<'_>,
     position: f64,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let duration = if player.duration.is_finite() {
@@ -432,10 +430,12 @@ pub(super) fn seek(
         *intent = Some(Intent::SeekFraction(fraction));
     }
     let peaks = player.waveform.copied();
+    let accent = ui.tokens().accent;
     ui.draw(&scrubber, move |paint, rect| {
         const BARS: usize = 200;
         let baseline = (rect.h - 4.0).max(0.0);
         let step = rect.w / BARS as f32;
+        let ink = paint.color(INK);
         if let Some(peaks) = &peaks {
             for index in 0..BARS {
                 let lower = index * peaks.len() / BARS;
@@ -452,20 +452,20 @@ pub(super) fn seek(
                     step / 4.0,
                     height,
                     Rgba {
-                        a: (p.ink.a as f32 * 0.42).round() as u8,
-                        ..p.ink
+                        a: (ink.a as f32 * 0.42).round() as u8,
+                        ..ink
                     },
                 );
             }
         }
-        paint.fill(rect.x, rect.y + baseline + 1.0, rect.w, 1.0, p.line);
-        paint.fill_fractional(rect.x, rect.y + baseline, rect.w * fraction, 3.0, p.ink);
+        paint.fill(rect.x, rect.y + baseline + 1.0, rect.w, 1.0, paint.color(LINE));
+        paint.fill_fractional(rect.x, rect.y + baseline, rect.w * fraction, 3.0, ink);
         paint.fill_fractional(
             rect.x + rect.w * fraction - step / 4.0,
             rect.y,
             step / 2.0,
             rect.h,
-            p.signal,
+            accent,
         );
     });
 }

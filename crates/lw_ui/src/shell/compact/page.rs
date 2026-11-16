@@ -9,7 +9,6 @@ pub(in crate::shell) fn menu(
     catalog: &Catalog,
     state: &ShellState,
     at: (f32, f32),
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     // A folder page only gets the deck's list choices; its songs are the marked rows.
@@ -71,7 +70,7 @@ pub(in crate::shell) fn menu(
     );
     let mut accepted = false;
     let open = ui.popup(
-        Some(p.line),
+        Some(ui.color(LINE)),
         lists.then_some(8.0 * 36.0),
         false,
         false,
@@ -81,19 +80,19 @@ pub(in crate::shell) fn menu(
         if lists { "Add to list" } else { "Page actions" },
         &mut |ui| {
             if lists {
-                let item = ui.node("new-list", super::super::songs::item_node(true, p));
+                let item = ui.node("new-list", super::super::songs::item_node(ui, true));
                 ui.text(&item, "New list…");
                 if ui.signal_state(&item).clicked {
                     *intent = Some(Intent::NewPageList);
                     accepted = true;
                 }
                 if others == 0 {
-                    let item = ui.node("none", super::super::songs::item_node(false, p));
+                    let item = ui.node("none", super::super::songs::item_node(ui, false));
                     ui.text(&item, "No other lists");
                 }
                 for c in &catalog.collections {
                     let PlaybackContext::Playlist { id, .. } = &*c.context else { continue };
-                    let item = ui.node_keyed(pxui::ui::int_key(*id, 7), super::super::songs::item_node(true, p));
+                    let item = ui.node_keyed(pxui::ui::int_key(*id, 7), super::super::songs::item_node(ui, true));
                     ui.text(&item, &c.title);
                     if ui.signal_state(&item).clicked {
                         *intent = Some(Intent::Page(PageAction::AddToList(*id)));
@@ -103,9 +102,9 @@ pub(in crate::shell) fn menu(
                 return;
             }
             for (label, enabled, action, danger) in items[..count].iter().flatten().copied() {
-                let node = ui.node(label, super::super::songs::item_node(enabled, p));
+                let node = ui.node(label, super::super::songs::item_node(ui, enabled));
                 if danger {
-                    ui.set_look(&node, Look { text: p.danger, font: Font { size: 13, ..Font::BODY }, ..Look::NONE }, State::default());
+                    ui.set_look(&node, Look { text: ui.color(DANGER), font: Font { size: 13, ..Font::BODY }, ..Look::NONE }, State::default());
                 }
                 ui.text(&node, label);
                 if enabled && ui.signal_state(&node).clicked {

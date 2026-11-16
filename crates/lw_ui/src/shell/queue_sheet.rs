@@ -9,7 +9,6 @@ pub(super) fn queue_action(
     label: &str,
     name: &str,
     width: f32,
-    p: Palette,
 ) -> bool {
     let button = ui.node(
         key,
@@ -19,7 +18,7 @@ pub(super) fn queue_action(
             w: Size::Px(width),
             h: Size::Px(28.0),
             look: Look {
-                text: p.secondary,
+                text: ui.color(SECONDARY),
                 font: Font {
                     size: 12,
                     ..Font::BODY
@@ -87,7 +86,6 @@ pub(super) fn queue_sheet(
     player: &PlayerView<'_>,
     catalog: &Catalog,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let content = ui.content_rect();
@@ -129,7 +127,7 @@ pub(super) fn queue_sheet(
                 w: Size::Px(width),
                 h: Size::Px(height),
                 look: Look {
-                    fill: p.paper,
+                    fill: ui.color(PAPER),
                     ..Look::NONE
                 },
                 ..Node::DEFAULT
@@ -156,7 +154,7 @@ pub(super) fn queue_sheet(
                     Axis::Stack,
                     Size::Grow,
                     Size::Px(21.0),
-                    p.paper,
+                    ui.color(PAPER),
                 );
                 ui.draw(&handle, move |paint, rect| {
                     paint.fill(
@@ -164,7 +162,7 @@ pub(super) fn queue_sheet(
                         rect.y + 8.0,
                         36.0,
                         5.0,
-                        p.line,
+                        paint.color(LINE),
                     );
                 });
                 let header = ui.node(
@@ -208,7 +206,7 @@ pub(super) fn queue_sheet(
                             "full-queue-title",
                             "Queue",
                             20,
-                            p.ink,
+                            ui.color(INK),
                             (Size::Grow, 28.0),
                             false,
                         );
@@ -218,7 +216,7 @@ pub(super) fn queue_sheet(
                             Axis::Row,
                             Size::Grow,
                             Size::Px(18.2),
-                            p.paper,
+                            ui.color(PAPER),
                         );
                         ui.within(&from, &mut |ui| {
                             text(
@@ -226,7 +224,7 @@ pub(super) fn queue_sheet(
                                 "from",
                                 "From ",
                                 13,
-                                p.secondary,
+                                ui.color(SECONDARY),
                                 (Size::Fit, 18.2),
                                 false,
                             );
@@ -235,7 +233,7 @@ pub(super) fn queue_sheet(
                                 "context",
                                 player.context,
                                 13,
-                                p.secondary,
+                                ui.color(SECONDARY),
                                 (Size::Fit, 18.2),
                                 false,
                             );
@@ -245,7 +243,7 @@ pub(super) fn queue_sheet(
                                     "shuffled",
                                     " · shuffled",
                                     13,
-                                    p.secondary,
+                                    ui.color(SECONDARY),
                                     (Size::Fit, 18.2),
                                     false,
                                 );
@@ -259,7 +257,7 @@ pub(super) fn queue_sheet(
                         Icon::Clear,
                         (44.0, 44.0),
                         false,
-                        p,
+                        true,
                     ) {
                         *intent = Some(Intent::CloseQueue);
                     }
@@ -270,7 +268,7 @@ pub(super) fn queue_sheet(
                         "playlist-prompt",
                         "Save all tracks in queue order; duplicates are included once.",
                         12,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Grow, 32.0),
                         false,
                     );
@@ -280,7 +278,7 @@ pub(super) fn queue_sheet(
                         Axis::Row,
                         Size::Grow,
                         Size::Px(44.0),
-                        p.paper,
+                        ui.color(PAPER),
                     );
                     ui.within(&row, &mut |ui| {
                         let field = ui.box_(
@@ -316,7 +314,6 @@ pub(super) fn queue_sheet(
                                 "Create",
                                 "Create playlist from queue",
                                 60.0,
-                                p,
                             ) {
                                 *intent = Some(Intent::SaveQueue(state.playlist_name));
                             }
@@ -326,7 +323,7 @@ pub(super) fn queue_sheet(
                                 "create-unavailable",
                                 "Create",
                                 12,
-                                p.secondary,
+                                ui.color(SECONDARY),
                                 (Size::Px(60.0), 28.0),
                                 false,
                             );
@@ -337,7 +334,6 @@ pub(super) fn queue_sheet(
                             "Cancel",
                             "Cancel playlist creation",
                             60.0,
-                            p,
                         ) {
                             *intent = Some(Intent::CancelPlaylistName);
                         }
@@ -351,7 +347,7 @@ pub(super) fn queue_sheet(
                             ""
                         },
                         12,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Grow, 24.0),
                         false,
                     );
@@ -362,13 +358,13 @@ pub(super) fn queue_sheet(
                         "queue-notice",
                         player.message,
                         12,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Grow, 28.0),
                         false,
                     );
                 }
                 if let Some(song) = now {
-                    now_row(ui, player, song, width, p);
+                    now_row(ui, player, song, width);
                 }
                 let label = ui.node(
                     "up-next-label",
@@ -392,7 +388,7 @@ pub(super) fn queue_sheet(
                         "name",
                         "Up next",
                         13,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Fit, 18.2),
                         false,
                     );
@@ -401,7 +397,7 @@ pub(super) fn queue_sheet(
                         "count",
                         queue.map_or("0", |queue| queue.count.as_str()),
                         12,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Fit, 18.2),
                         true,
                     );
@@ -433,11 +429,11 @@ pub(super) fn queue_sheet(
                                 "Nothing queued."
                             },
                             14,
-                            p.secondary,
+                            ui.color(SECONDARY),
                             (Size::Fit, 20.0),
                             false,
                         );
-                        if undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0, p) {
+                        if undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
                             *intent = Some(Intent::UndoQueue);
                         }
                     });
@@ -474,7 +470,6 @@ pub(super) fn queue_sheet(
                                     true,
                                     width - 20.0,
                                     player.artwork,
-                                    p,
                                     intent,
                                 )
                             },
@@ -503,7 +498,7 @@ pub(super) fn queue_sheet(
                             "label",
                             "Clear up next",
                             16,
-                            p.secondary,
+                            ui.color(SECONDARY),
                             (Size::Grow, 22.4),
                             false,
                         );
@@ -527,7 +522,6 @@ fn now_row(
     player: &PlayerView<'_>,
     song: crate::catalog::Row<'_>,
     width: f32,
-    p: Palette,
 ) {
     let row = ui.node(
         "queue-now",
@@ -554,7 +548,7 @@ fn now_row(
             Axis::Stack,
             Size::Px(36.0),
             Size::Px(36.0),
-            p.panel,
+            ui.color(kit::PANEL),
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
         let titles = ui.node(
@@ -572,18 +566,18 @@ fn now_row(
                 "title",
                 song.title,
                 15,
-                p.ink,
+                ui.color(INK),
                 (Size::Grow, 21.0),
                 false,
             );
-            let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), p.paper);
+            let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
             ui.within(&line, &mut |ui| {
                 text(
                     ui,
                     "now",
                     "Now · ",
                     13,
-                    p.secondary,
+                    ui.color(SECONDARY),
                     (Size::Fit, 18.2),
                     false,
                 );
@@ -592,7 +586,7 @@ fn now_row(
                     "artist",
                     song.artist,
                     13,
-                    p.secondary,
+                    ui.color(SECONDARY),
                     (Size::Grow, 18.2),
                     false,
                 );
@@ -612,7 +606,7 @@ fn now_row(
                 crate::hash((player.playing, song.id)),
                 Size::Grow,
                 Size::Grow,
-                &mut |ui| super::songs::row::equalizer(ui, player.playing, true, song.id, p),
+                &mut |ui| super::songs::row::equalizer(ui, player.playing, true, song.id),
             );
         });
         spacer(ui, "now-trail", 14.0);
@@ -625,7 +619,6 @@ pub(super) fn queue_rows(
     sheet: bool,
     width: f32,
     images: Option<&crate::artwork::Images>,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let Some(queue) = &catalog.queue else { return };
@@ -639,7 +632,7 @@ pub(super) fn queue_rows(
             Axis::Row,
             Size::Grow,
             Size::Px(34.0),
-            p.paper,
+            ui.color(PAPER),
         );
         ui.within(&header, &mut |ui| {
             text(
@@ -647,7 +640,7 @@ pub(super) fn queue_rows(
                 "queue-context",
                 &queue.heading,
                 13,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 28.0),
                 false,
             );
@@ -656,7 +649,7 @@ pub(super) fn queue_rows(
                 "queue-count",
                 &queue.count,
                 12,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Px(56.0), 28.0),
                 true,
             );
@@ -667,16 +660,16 @@ pub(super) fn queue_rows(
                 Icon::Queue,
                 (28.0, 28.0),
                 false,
-                p,
+                true,
             ) {
                 *intent = Some(Intent::ShowQueue);
             }
             if !queue.upcoming().is_empty()
-                && queue_action(ui, "clear", "Clear", "Clear up next", 44.0, p)
+                && queue_action(ui, "clear", "Clear", "Clear up next", 44.0)
             {
                 *intent = Some(Intent::ClearQueue);
             }
-            if queue.can_undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0, p) {
+            if queue.can_undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
                 *intent = Some(Intent::UndoQueue);
             }
         });
@@ -694,7 +687,7 @@ pub(super) fn queue_rows(
                 "Queue is empty."
             },
             14,
-            p.secondary,
+            ui.color(SECONDARY),
             (Size::Grow, 44.0),
             false,
         );
@@ -744,7 +737,7 @@ pub(super) fn queue_rows(
                     flags: CLICKABLE,
                     role: Role::ListItem,
                     look: Look {
-                        fill: p.paper,
+                        fill: ui.color(PAPER),
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
@@ -766,7 +759,7 @@ pub(super) fn queue_rows(
                 ui.draw(&grip, move |paint, rect| {
                     for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
                         for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
-                            paint.fill(rect.x + x, rect.y + y, 2.0, 2.0, p.secondary);
+                            paint.fill(rect.x + x, rect.y + y, 2.0, 2.0, paint.color(SECONDARY));
                         }
                     }
                 });
@@ -791,7 +784,7 @@ pub(super) fn queue_rows(
                     Axis::Stack,
                     Size::Px(m.art),
                     Size::Px(m.art),
-                    p.panel,
+                    ui.color(kit::PANEL),
                 );
                 paint_artwork(ui, &art, row, m.art, images);
                 ui.a11y_name(&art, "Track artwork");
@@ -817,7 +810,7 @@ pub(super) fn queue_rows(
                         "queue-title",
                         title,
                         m.title,
-                        p.ink,
+                        ui.color(INK),
                         (Size::Grow, m.title_line),
                         false,
                     );
@@ -826,7 +819,7 @@ pub(super) fn queue_rows(
                         "queue-artist",
                         artist,
                         m.artist,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Grow, m.artist_line),
                         false,
                     );
@@ -852,7 +845,7 @@ pub(super) fn queue_rows(
                         },
                     );
                     ui.within(&at, &mut |ui| {
-                        super::songs::row::availability(ui, row, true, p)
+                        super::songs::row::availability(ui, row, true)
                     });
                 }
                 if icon_button(
@@ -862,7 +855,7 @@ pub(super) fn queue_rows(
                     Icon::Clear,
                     (m.remove, m.row),
                     false,
-                    p,
+                    true,
                 ) {
                     *intent = Some(Intent::RemoveQueue(entry.id));
                 }
@@ -893,7 +886,7 @@ pub(super) fn queue_rows(
                             if after { rect.y + rect.h - 2.0 } else { rect.y },
                             rect.w,
                             2.0,
-                            p.ink,
+                            paint.color(INK),
                         );
                     });
                     if dropped {

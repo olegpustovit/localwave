@@ -10,6 +10,7 @@ pub struct Themes {
 impl Themes {
     pub fn new(ui: &mut Ui) -> Result<Self, String> {
         lw_ui::commands::register(ui)?;
+        lw_ui::set_colors(ui);
         let parsed = |source, accent| -> Result<(Theme, Theme), String> {
             let make = || -> Result<Theme, String> {
                 let mut theme = Theme::default();
@@ -101,7 +102,7 @@ mod tests {
                         &mut |_| {},
                     )
                     .unwrap();
-                    assert_eq!(ui.tokens().foreground.r > 128, dark);
+                    assert_eq!(pxui::theme::dark(&ui.tokens()), dark);
                     assert!(ui.tokens().reduced_motion);
                     let expected = match signal {
                         Signal::Blue if dark => [0x6f, 0x7d, 0xff],

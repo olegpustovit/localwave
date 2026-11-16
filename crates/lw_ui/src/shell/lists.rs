@@ -22,7 +22,6 @@ pub(super) fn menu(
     catalog: &Catalog,
     list: i64,
     at: (f32, f32),
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (w, h) = ui.view_size();
@@ -35,7 +34,7 @@ pub(super) fn menu(
     });
     let mut accepted = false;
     let open = ui.popup(
-        Some(p.line),
+        Some(ui.color(LINE)),
         None,
         false,
         false,
@@ -45,8 +44,8 @@ pub(super) fn menu(
         "List actions",
         &mut |ui| {
             for (label, action, color) in [
-                ("Rename…", Intent::RenameListDialog(list, title), p.ink),
-                ("Delete list", Intent::ConfirmDeleteList(list), p.danger),
+                ("Rename…", Intent::RenameListDialog(list, title), ui.color(INK)),
+                ("Delete list", Intent::ConfirmDeleteList(list), ui.color(DANGER)),
             ] {
                 let item = ui.node(
                     label,
@@ -95,7 +94,6 @@ pub(super) fn confirm_delete(
     ui: &mut Ui,
     catalog: &Catalog,
     list: i64,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (width, _) = ui.view_size();
@@ -110,7 +108,7 @@ pub(super) fn confirm_delete(
                 padding: Edges::all(20.0),
                 gap: 12.0,
                 look: Look {
-                    fill: p.paper,
+                    fill: ui.color(PAPER),
                     ..Look::NONE
                 },
                 ..Node::DEFAULT
@@ -122,7 +120,7 @@ pub(super) fn confirm_delete(
                 "title",
                 "Delete list?",
                 24,
-                p.ink,
+                ui.color(INK),
                 (Size::Grow, 36.0),
                 false,
             );
@@ -132,7 +130,7 @@ pub(super) fn confirm_delete(
                 title.unwrap_or("This list changed. Try again."),
                 width - 40.0,
                 15.0,
-                p.ink,
+                ui.color(INK),
             );
             settings::paragraph(
                 ui,
@@ -140,7 +138,7 @@ pub(super) fn confirm_delete(
                 "The songs stay in your library and folders.",
                 width - 40.0,
                 14.0,
-                p.secondary,
+                ui.color(SECONDARY),
             );
             let buttons = container(
                 ui,
@@ -148,10 +146,10 @@ pub(super) fn confirm_delete(
                 Axis::Row,
                 Size::Grow,
                 Size::Px(40.0),
-                p.paper,
+                ui.color(PAPER),
             );
             ui.within(&buttons, &mut |ui| {
-                if files::action(ui, "cancel-delete-list", "Cancel", 100.0, true, p) {
+                if files::action(ui, "cancel-delete-list", "Cancel", 100.0, true, (PANEL, INK)) {
                     *intent = Some(Intent::CloseDeleteList);
                 }
                 if files::action(
@@ -160,7 +158,7 @@ pub(super) fn confirm_delete(
                     "Delete List",
                     100.0,
                     title.is_some(),
-                    Palette { ink: p.danger, ..p },
+                    (PANEL, DANGER),
                 ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code()))
                 {
                     *intent = Some(Intent::DeleteList(list));
@@ -178,7 +176,6 @@ pub(super) fn name_dialog(
     ui: &mut Ui,
     state: &ShellState,
     dialog: ListDialog,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (width, _) = ui.view_size();
@@ -196,14 +193,14 @@ pub(super) fn name_dialog(
                 padding: Edges::all(20.0),
                 gap: 12.0,
                 look: Look {
-                    fill: p.paper,
+                    fill: ui.color(PAPER),
                     ..Look::NONE
                 },
                 ..Node::DEFAULT
             },
         );
         ui.within(&body, &mut |ui| {
-            text(ui, "title", heading, 24, p.ink, (Size::Grow, 36.0), false);
+            text(ui, "title", heading, 24, ui.color(INK), (Size::Grow, 36.0), false);
             let field = ui.box_(
                 "list-name-field",
                 BoxOpts::default().w(Size::Grow).h(Size::Px(40.0)),
@@ -232,7 +229,7 @@ pub(super) fn name_dialog(
                     ""
                 },
                 12,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 20.0),
                 false,
             );
@@ -244,13 +241,13 @@ pub(super) fn name_dialog(
                 Axis::Row,
                 Size::Grow,
                 Size::Px(40.0),
-                p.paper,
+                ui.color(PAPER),
             );
             ui.within(&buttons, &mut |ui| {
-                if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, p) {
+                if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, (PANEL, INK)) {
                     *intent = Some(Intent::CancelPlaylistName);
                 }
-                if files::action(ui, "confirm-list-name", confirm, 100.0, valid, p)
+                if files::action(ui, "confirm-list-name", confirm, 100.0, valid, (PANEL, INK))
                     || (valid && ui.key_pressed(input::Key::Enter.code()))
                 {
                     let name = state.playlist_name;

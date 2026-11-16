@@ -50,7 +50,7 @@ fn background(ui: &mut Ui, key: &str, color: Rgba, shown: bool, immediate: bool)
         );
     }
 }
-pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> bool {
+pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let (key, label, icon_size, selected) = match action {
         Action::Play => ("play-all", "Play all", 16.0, false),
         Action::Folder => ("play-folder", "Play folder", 16.0, false),
@@ -85,7 +85,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> 
                 ..State::default()
             },
             look: Look {
-                fill: if selected { p.selected } else { p.paper },
+                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -110,11 +110,11 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> 
         background(
             ui,
             "hover",
-            p.panel,
+            ui.color(PANEL),
             signal.hovered && !selected,
             before != i64::from(selected),
         );
-        background(ui, "press", p.panel, signal.held, false);
+        background(ui, "press", ui.color(PANEL), signal.held, false);
         let revision = crate::hash((label, selected));
         ui.view("action-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
             let row = ui.node(
@@ -134,7 +134,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool, p: Palette) -> 
                 },
             );
             ui.within(&row, &mut |ui| {
-                let color = if selected { p.ink } else { p.secondary };
+                let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
                 let icon = ui.node(
                     "icon",
                     Node {
@@ -168,7 +168,6 @@ pub(super) fn toolbar(
     ui: &mut Ui,
     catalog: &Catalog,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let collection = state.collection(catalog);
@@ -200,7 +199,6 @@ pub(super) fn toolbar(
                 ui,
                 Action::Play,
                 collection.is_some_and(|group| !group.ids.is_empty()),
-                p,
             ) {
                 *intent = Some(Intent::PlayRow(0));
             }
@@ -208,7 +206,6 @@ pub(super) fn toolbar(
                 ui,
                 Action::Offline(summary.is_some_and(|value| value.pinned)),
                 summary.is_some_and(|value| !value.eligible.is_empty()),
-                p,
             ) {
                 *intent = Some(Intent::TogglePins);
             }
@@ -220,7 +217,7 @@ pub(super) fn toolbar(
             rect.y + rect.h - 1.0,
             rect.w + 64.0,
             1.0,
-            p.line,
+            paint.color(LINE),
         )
     });
 }
@@ -283,7 +280,7 @@ mod tests {
             },
         );
         ui.within(&root, &mut |ui| {
-            toolbar(ui, catalog, state, palette(ui), intent)
+            toolbar(ui, catalog, state, intent)
         });
         root
     }

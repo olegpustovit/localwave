@@ -9,10 +9,9 @@ pub(super) fn side_row(
     label: (&str, &str),
     route: Route,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    side_item(ui, (key, 0), label, Go::Route(route, None), "", state, p, intent)
+    side_item(ui, (key, 0), label, Go::Route(route, None), "", state, intent)
 }
 
 /// Where a sidebar row leads; list rows also take song drops and a menu.
@@ -31,7 +30,6 @@ fn side_item(
     go: Go,
     badge: &str,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (title, count) = label;
@@ -65,11 +63,11 @@ fn side_item(
         &node,
         Look {
             fill: if dropping.is_some() || selected {
-                p.selected
+                ui.color(SELECTED)
             } else if signal.hovered {
-                p.panel
+                ui.color(PANEL)
             } else {
-                p.paper
+                ui.color(PAPER)
             },
             ..Look::NONE
         },
@@ -82,13 +80,13 @@ fn side_item(
             "title",
             title,
             14,
-            if selected { p.ink } else { p.secondary },
+            if selected { ui.color(INK) } else { ui.color(SECONDARY) },
             (if badge.is_empty() { Size::Grow } else { Size::Fit }, 20.0),
             false,
         );
         if !badge.is_empty() {
-            let tag = text(ui, "badge", badge, 11, p.paper, (Size::Fit, 16.0), false);
-            ui.set_look(&tag, Look { fill: p.ink, text: p.paper, font: Font { size: 11, ..Font::BODY }, ..Look::NONE }, State::default());
+            let tag = text(ui, "badge", badge, 11, ui.color(PAPER), (Size::Fit, 16.0), false);
+            ui.set_look(&tag, Look { fill: ui.color(INK), text: ui.color(PAPER), font: Font { size: 11, ..Font::BODY }, ..Look::NONE }, State::default());
             ui.box_("badge-gap", BoxOpts::default().w(Size::Grow));
         }
         text(
@@ -96,7 +94,7 @@ fn side_item(
             "count",
             count,
             12,
-            p.secondary,
+            ui.color(SECONDARY),
             (Size::Px(44.0), 18.0),
             true,
         );
@@ -118,12 +116,12 @@ fn side_item(
 }
 
 /// A Swift group label.
-fn group(ui: &mut Ui, key: &str, title: &str, p: Palette) {
-    text(ui, key, title, 12, p.secondary, (Size::Grow, 30.0), false);
+fn group(ui: &mut Ui, key: &str, title: &str) {
+    text(ui, key, title, 12, ui.color(SECONDARY), (Size::Grow, 30.0), false);
 }
 
 /// A plain "+ label" action row (Swift's Add folder or files, New list).
-fn add_row(ui: &mut Ui, key: &str, title: &str, name: &str, p: Palette) -> bool {
+fn add_row(ui: &mut Ui, key: &str, title: &str, name: &str) -> bool {
     let row = ui.node(
         key,
         Node {
@@ -132,7 +130,7 @@ fn add_row(ui: &mut Ui, key: &str, title: &str, name: &str, p: Palette) -> bool 
             w: Size::Grow,
             h: Size::Px(32.0),
             padding: Edges { l: 8.0, ..Edges::ZERO },
-            look: Look { text: p.secondary, font: Font { size: 14, ..Font::BODY }, ..Look::NONE },
+            look: Look { text: ui.color(SECONDARY), font: Font { size: 14, ..Font::BODY }, ..Look::NONE },
             ..Node::DEFAULT
         },
     );
@@ -146,7 +144,6 @@ pub(super) fn sidebar(
     catalog: &Catalog,
     state: &ShellState,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let root = ui.node(
@@ -169,21 +166,21 @@ pub(super) fn sidebar(
             },
         );
         let signal = ui.signal_state(&search);
-        ui.set_look(&search, Look { fill: if signal.hovered { p.selected } else { p.panel }, ..Look::NONE }, State::default());
+        ui.set_look(&search, Look { fill: if signal.hovered { ui.color(SELECTED) } else { ui.color(PANEL) }, ..Look::NONE }, State::default());
         ui.a11y_name(&search, "Search");
         ui.within(&search, &mut |ui| {
-            text(ui, "label", "Search", 14, p.secondary, (Size::Grow, 20.0), false);
-            text(ui, "hint", "⌘K", 11, p.secondary, (Size::Fit, 16.0), true);
+            text(ui, "label", "Search", 14, ui.color(SECONDARY), (Size::Grow, 20.0), false);
+            text(ui, "hint", "⌘K", 11, ui.color(SECONDARY), (Size::Fit, 16.0), true);
         });
         if signal.clicked {
             *intent = Some(Intent::ShowCommands);
         }
         spacer(ui, "search-gap", 12.0);
-        group(ui, "library-heading", "Library", p);
-        side_row(ui, "albums", ("Albums", &catalog.album_count), Route::Albums, state, p, intent);
-        side_row(ui, "artists", ("Artists", &catalog.artist_count), Route::Artists, state, p, intent);
-        side_row(ui, "songs", ("Songs", &catalog.song_count), Route::Songs, state, p, intent);
-        group(ui, "sources-heading", "Sources", p);
+        group(ui, "library-heading", "Library");
+        side_row(ui, "albums", ("Albums", &catalog.album_count), Route::Albums, state, intent);
+        side_row(ui, "artists", ("Artists", &catalog.artist_count), Route::Artists, state, intent);
+        side_row(ui, "songs", ("Songs", &catalog.song_count), Route::Songs, state, intent);
+        group(ui, "sources-heading", "Sources");
         for source in &catalog.source_rows {
             side_item(
                 ui,
@@ -192,18 +189,17 @@ pub(super) fn sidebar(
                 Go::Source(source.location),
                 if source.reconnect { "Reconnect" } else { "" },
                 state,
-                p,
                 intent,
             );
         }
-        if add_row(ui, "add-music", "+  Add folder or files", "Add folder or files", p) {
+        if add_row(ui, "add-music", "+  Add folder or files", "Add folder or files") {
             *intent = Some(Intent::ChooseAudio);
         }
-        group(ui, "lists-heading", "Lists", p);
+        group(ui, "lists-heading", "Lists");
         let collections = catalog.collections.len();
         ui.grid_list("collections", collections + 1, (width - 20.0).max(1.0), 32.0, &mut |ui, index| {
             let Some(collection) = catalog.collections.get(index) else {
-                if add_row(ui, "new-list", "+  New list", "New list", p) {
+                if add_row(ui, "new-list", "+  New list", "New list") {
                     *intent = Some(Intent::NewList(None));
                 }
                 return;
@@ -219,7 +215,6 @@ pub(super) fn sidebar(
                 Go::Route(Route::Collection(index), list),
                 "",
                 state,
-                p,
                 intent,
             );
         });
@@ -228,8 +223,8 @@ pub(super) fn sidebar(
             Node { axis: Axis::Row, w: Size::Grow, h: Size::Px(30.0), padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::DEFAULT },
         );
         ui.within(&footer, &mut |ui| {
-            text(ui, "label", "Offline", 12, p.secondary, (Size::Grow, 16.0), false);
-            text(ui, "usage", &catalog.offline_usage, 12, p.secondary, (Size::Fit, 16.0), true);
+            text(ui, "label", "Offline", 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
+            text(ui, "usage", &catalog.offline_usage, 12, ui.color(SECONDARY), (Size::Fit, 16.0), true);
         });
         let meter = ui.node(
             "offline-meter",
@@ -238,12 +233,12 @@ pub(super) fn sidebar(
                 w: Size::Grow,
                 h: Size::Px(4.0),
                 margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
-                look: Look { fill: p.line, ..Look::NONE },
+                look: Look { fill: ui.color(LINE), ..Look::NONE },
                 ..Node::DEFAULT
             },
         );
         ui.within(&meter, &mut |ui| {
-            container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, p.ink);
+            container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
         });
         let shortcuts = ui.node(
             "shortcuts",
@@ -259,8 +254,8 @@ pub(super) fn sidebar(
         );
         ui.a11y_name(&shortcuts, "Keyboard shortcuts");
         ui.within(&shortcuts, &mut |ui| {
-            text(ui, "key", "?", 11, p.secondary, (Size::Px(14.0), 16.0), true);
-            text(ui, "label", "shortcuts", 12, p.secondary, (Size::Fit, 16.0), false);
+            text(ui, "key", "?", 11, ui.color(SECONDARY), (Size::Px(14.0), 16.0), true);
+            text(ui, "label", "shortcuts", 12, ui.color(SECONDARY), (Size::Fit, 16.0), false);
         });
         if ui.signal_state(&shortcuts).clicked {
             *intent = Some(Intent::ShowShortcuts);

@@ -9,7 +9,7 @@ use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
 
-fn back(ui: &mut Ui, name: &str, p: Palette) -> bool {
+fn back(ui: &mut Ui, name: &str) -> bool {
     let button = ui.node(
         name,
         Node {
@@ -18,7 +18,7 @@ fn back(ui: &mut Ui, name: &str, p: Palette) -> bool {
             w: Size::Grow,
             h: Size::Px(44.0),
             look: Look {
-                text: p.secondary,
+                text: ui.color(SECONDARY),
                 font: Font {
                     size: 15,
                     ..Font::BODY
@@ -76,13 +76,12 @@ fn row(
     ui: &mut Ui,
     key: &str,
     labels: (&str, &str),
-    layout: (f32, Palette),
+    width: f32,
     control: (Option<(bool, Change)>, Option<SettingsMenu>, bool),
     intent: &mut Option<Intent>,
     controls: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
     let (title, detail) = labels;
-    let (width, p) = layout;
     let (toggle, menu, tap) = control;
     // Swift keeps the control beside the label at every width; the label wraps instead.
     let stacked = false;
@@ -177,7 +176,7 @@ fn row(
             },
         );
         ui.within(&labels, &mut |ui| {
-            text(ui, "title", title, 15, p.ink, (Size::Grow, 21.0), false);
+            text(ui, "title", title, 15, ui.color(INK), (Size::Grow, 21.0), false);
             if !detail.is_empty() {
                 let label = ui.node(
                     "detail",
@@ -186,7 +185,7 @@ fn row(
                         h: Size::Px(detail_height),
                         role: Role::Label,
                         look: Look {
-                            text: p.secondary,
+                            text: ui.color(SECONDARY),
                             ..Look::NONE
                         },
                         ..Node::DEFAULT
@@ -202,7 +201,7 @@ fn row(
                     w: Size::Px(48.0),
                     h: Size::Px(28.0),
                     look: Look {
-                        fill: if on { p.ink } else { p.line },
+                        fill: if on { ui.color(INK) } else { ui.color(LINE) },
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
@@ -216,7 +215,7 @@ fn row(
                         h: Size::Px(22.0),
                         at: Some((if on { 23.0 } else { 3.0 }, 3.0)).into(),
                         look: Look {
-                            fill: p.paper,
+                            fill: ui.color(PAPER),
                             ..Look::NONE
                         },
                         ..Node::DEFAULT
@@ -242,7 +241,7 @@ fn row(
             rect.y + rect.h - 1.0,
             (rect.w - 16.0).max(0.0),
             1.0,
-            p.line,
+            paint.color(LINE),
         )
     });
 }
@@ -251,7 +250,6 @@ fn option(
     labels: (&str, &str),
     selected: bool,
     action: (Change, SettingsMenu),
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (label, name) = labels;
@@ -270,8 +268,8 @@ fn option(
                 ..Edges::ZERO
             },
             look: Look {
-                fill: if selected { p.ink } else { p.panel },
-                text: if selected { p.paper } else { p.secondary },
+                fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
+                text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
                 font: Font {
                     size: 13,
                     ..Font::BODY
@@ -304,7 +302,6 @@ pub(super) fn view(
     player: &PlayerView<'_>,
     state: &ShellState,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let page = ui.node(
@@ -331,12 +328,12 @@ pub(super) fn view(
         },
     );
     ui.within(&page, &mut |ui| {
-        if back(ui, if state.privacy_visible { "‹ Settings" } else { "‹ Library" }, p) {
+        if back(ui, if state.privacy_visible { "‹ Settings" } else { "‹ Library" }) {
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
         let title = ui.node("settings-title", Node { role: Role::Heading, w: Size::Grow, h: Size::Px(56.0), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
-        ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -1.12), p.ink, 0); });
+        ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -1.12), ui.color(INK), 0); });
         ui.a11y_name(&title, heading);
         if state.privacy_visible {
             for (title, body) in [
@@ -347,39 +344,39 @@ pub(super) fn view(
             ] {
                 let section = ui.node(title, Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, ..Node::DEFAULT });
                 ui.within(&section, &mut |ui| {
-                    text(ui, "heading", title, 18, p.ink, (Size::Grow, 26.0), false);
-                    paragraph(ui, title, body, width - 32.0, 14.0, p.secondary);
+                    text(ui, "heading", title, 18, ui.color(INK), (Size::Grow, 26.0), false);
+                    paragraph(ui, title, body, width - 32.0, 14.0, ui.color(SECONDARY));
                 });
             }
-            if back(ui, "Full privacy policy", p) { *intent = Some(Intent::PrivacyPolicy); }
-            if back(ui, "Support", p) { *intent = Some(Intent::Support); }
-            if !player.message.is_empty() { text(ui, "link-error", player.message, 14, p.signal, (Size::Grow, 42.0), false); }
+            if back(ui, "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
+            if back(ui, "Support") { *intent = Some(Intent::Support); }
+            if !player.message.is_empty() { text(ui, "link-error", player.message, 14, ui.tokens().accent, (Size::Grow, 42.0), false); }
             return;
         }
         let settings = player.settings;
-        row(ui, "download-ahead", ("Download ahead", "Fetch the next two cloud songs in the queue"), (width, p), (Some((settings.download_ahead, Change::ToggleDownloadAhead)), None, false), intent, &mut |_, _| {});
+        row(ui, "download-ahead", ("Download ahead", "Fetch the next two cloud songs in the queue"), width, (Some((settings.download_ahead, Change::ToggleDownloadAhead)), None, false), intent, &mut |_, _| {});
         // Swift shows this on phones only: desktop folder tables always list every file type.
         let compact = width < compact::BREAKPOINT;
         if compact {
-            row(ui, "show-non-audio", ("Show non-audio files", "Covers, logs and text in folders"), (width, p), (Some((settings.show_non_audio, Change::ToggleShowNonAudio)), None, false), intent, &mut |_, _| {});
+            row(ui, "show-non-audio", ("Show non-audio files", "Covers, logs and text in folders"), width, (Some((settings.show_non_audio, Change::ToggleShowNonAudio)), None, false), intent, &mut |_, _| {});
         }
-        row(ui, "no-network", ("Simulate no network", "Prototype only — shows skipped songs and failed downloads"), (width, p), (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
+        row(ui, "no-network", ("Simulate no network", "Prototype only — shows skipped songs and failed downloads"), width, (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
-        row(ui, "cache", ("Offline space", cache_detail), (width, p), (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
-            let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(174.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
+        row(ui, "cache", ("Offline space", cache_detail), width, (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
+            let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(174.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::DEFAULT });
             ui.within(&group, &mut |ui| { for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
-                option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), p, intent);
+                option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
             }});
         });
-        row(ui, "appearance", ("Appearance", ""), (width, p), (None, Some(SettingsMenu::Appearance), false), intent, &mut |ui, intent| {
-            let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(204.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
+        row(ui, "appearance", ("Appearance", ""), width, (None, Some(SettingsMenu::Appearance), false), intent, &mut |ui, intent| {
+            let group = ui.node("segments", Node { axis: Axis::Row, w: Size::Px(204.0), h: Size::Px(32.0), padding: Edges::all(2.0), look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::DEFAULT });
             ui.within(&group, &mut |ui| { for (value, label, name) in [(Appearance::System, "System", "Use system appearance"), (Appearance::Light, "Light", "Use light appearance"), (Appearance::Dark, "Dark", "Use dark appearance")] {
-                option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), p, intent);
+                option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
             }});
         });
-        row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), (width, p), (None, None, true), intent, &mut |ui, _| {
+        row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), width, (None, None, true), intent, &mut |ui, _| {
             let glyph = ui.node("chevron", Node { w: Size::Px(18.0), h: Size::Px(18.0), ..Node::DEFAULT });
-            let color = p.ink;
+            let color = ui.color(INK);
             ui.draw(&glyph, move |paint, rect| {
                 for step in 0..6 {
                     let step = step as f32 * 1.5;
@@ -390,11 +387,11 @@ pub(super) fn view(
         });
         let footer = ui.node("settings-footer", Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, ..Node::DEFAULT });
         ui.within(&footer, &mut |ui| {
-            paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, p.secondary);
-            if back(ui, "About & Privacy", p) { *intent = Some(Intent::ShowPrivacy); }
-            paragraph(ui, "cache-usage", if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, width - 32.0, 14.0, p.secondary);
-            if !player.settings_message.is_empty() { text(ui, "settings-message", player.settings_message, 14, p.signal, (Size::Grow, 42.0), false); }
-            if !player.message.is_empty() { text(ui, "playback-message", player.message, 14, p.signal, (Size::Grow, 42.0), false); }
+            paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, ui.color(SECONDARY));
+            if back(ui, "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
+            paragraph(ui, "cache-usage", if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, width - 32.0, 14.0, ui.color(SECONDARY));
+            if !player.settings_message.is_empty() { text(ui, "settings-message", player.settings_message, 14, ui.tokens().accent, (Size::Grow, 42.0), false); }
+            if !player.message.is_empty() { text(ui, "playback-message", player.message, 14, ui.tokens().accent, (Size::Grow, 42.0), false); }
         });
     });
 }
@@ -403,7 +400,6 @@ pub(super) fn popup(
     player: &PlayerView<'_>,
     menu: SettingsMenu,
     at: (f32, f32),
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let rows = if menu == SettingsMenu::Cache { 2 } else { 5 };
@@ -413,7 +409,7 @@ pub(super) fn popup(
         at.1.clamp(0.0, (height - rows as f32 * 36.0).max(0.0)),
     );
     let open = ui.popup(
-        Some(p.line),
+        Some(ui.color(LINE)),
         None,
         false,
         false,
@@ -478,8 +474,8 @@ pub(super) fn popup(
                             ..Edges::ZERO
                         },
                         look: Look {
-                            fill: if selected { p.selected } else { p.paper },
-                            text: p.ink,
+                            fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
+                            text: ui.color(INK),
                             font: Font {
                                 size: 13,
                                 ..Font::BODY

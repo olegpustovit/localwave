@@ -195,8 +195,7 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                     );
                     ui.within(&component, &mut |ui| {
                         let layout = heading_layout(ui, &catalog, columns, None);
-                        let p = palette(ui);
-                        root = Some(heading(ui, columns, None, layout, p, &mut None));
+                        root = Some(heading(ui, columns, None, layout, &mut None));
                     });
                 },
             )
@@ -248,6 +247,7 @@ fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
         ..Default::default()
     };
     let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    crate::set_colors(&mut ui);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -334,12 +334,11 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
         let mut song = catalog.row(0);
         song.state = lw_core::FileState::CopyPending;
         let mut build = |ui: &mut Ui| {
-            let p = palette(ui);
             ui.view("indicator", 0, Size::Px(14.0), Size::Px(11.0), &mut |ui| {
-                row::equalizer(ui, true, true, song.id, p)
+                row::equalizer(ui, true, true, song.id)
             });
             ui.view("file-state", 0, Size::Px(10.0), Size::Px(10.0), &mut |ui| {
-                row::availability(ui, song, true, p)
+                row::availability(ui, song, true)
             });
         };
         ui.frame(&frame, &mut build).unwrap();
@@ -409,13 +408,12 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             frame.time = time;
             frame.reduced_motion = reduced;
             ui.frame(&frame, &mut |ui| {
-                let p = palette(ui);
                 ui.view(
                     "file-state",
                     state_revision,
                     Size::Px(10.0),
                     Size::Px(10.0),
-                    &mut |ui| row::availability(ui, song, true, p),
+                    &mut |ui| row::availability(ui, song, true),
                 );
             })
             .unwrap();
@@ -1601,6 +1599,7 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     let mut state = ShellState::default();
     let player = PlayerView::default();
     let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    crate::set_colors(&mut ui);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {

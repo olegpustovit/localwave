@@ -8,7 +8,6 @@ pub(in crate::shell) fn popup(
     target: (usize, i64, u64),
     at: (f32, f32),
     sharing: bool,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let click = at;
@@ -110,7 +109,7 @@ pub(in crate::shell) fn popup(
     );
     let mut accepted = false;
     let open = ui.popup(
-        Some(p.line),
+        Some(ui.color(LINE)),
         lists.then_some(8.0 * 36.0),
         false,
         false,
@@ -121,14 +120,14 @@ pub(in crate::shell) fn popup(
         &mut |ui| {
             if lists {
                 {
-                    let item = ui.node("new-list", item_node(present, p));
+                    let item = ui.node("new-list", item_node(ui, present));
                     ui.text(&item, "New list…");
                     if present && ui.signal_state(&item).clicked {
                         *intent = Some(Intent::NewList(Some(target.1)));
                         accepted = true;
                     }
                     if others == 0 {
-                        let item = ui.node("none", item_node(false, p));
+                        let item = ui.node("none", item_node(ui, false));
                         ui.text(&item, "No other lists");
                     }
                     for collection in &catalog.collections {
@@ -140,7 +139,7 @@ pub(in crate::shell) fn popup(
                         if Some(*id) == list {
                             continue;
                         }
-                        let item = ui.node_keyed(pxui::ui::int_key(*id, 7), item_node(present, p));
+                        let item = ui.node_keyed(pxui::ui::int_key(*id, 7), item_node(ui, present));
                         ui.text(&item, &collection.title);
                         if present && ui.signal_state(&item).clicked {
                             *intent = Some(Intent::AddToList {
@@ -155,7 +154,7 @@ pub(in crate::shell) fn popup(
             }
             for (label, enabled, action) in items[..count].iter().flatten().copied() {
                 let enabled = enabled && present;
-                let item = ui.node(label, item_node(enabled, p));
+                let item = ui.node(label, item_node(ui, enabled));
                 ui.text(&item, label);
                 if enabled && ui.signal_state(&item).clicked {
                     *intent = Some(action);
@@ -173,7 +172,7 @@ pub(in crate::shell) fn popup(
     }
 }
 
-pub(in crate::shell) fn item_node(enabled: bool, p: Palette) -> Node {
+pub(in crate::shell) fn item_node(ui: &Ui, enabled: bool) -> Node {
     Node {
         flags: if enabled { CLICKABLE | TAB_STOP } else { 0 },
         role: Role::MenuItem,
@@ -189,7 +188,7 @@ pub(in crate::shell) fn item_node(enabled: bool, p: Palette) -> Node {
             ..Edges::ZERO
         },
         look: Look {
-            text: p.ink,
+            text: ui.color(INK),
             font: Font {
                 size: 13,
                 ..Font::BODY

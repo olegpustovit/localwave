@@ -9,7 +9,7 @@ pub(super) struct Viewport {
     pub(super) height: f32,
 }
 
-pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64, p: Palette) {
+pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64) {
     use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
     let root = ui.node(
         "equalizer",
@@ -54,8 +54,9 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                             ..Node::DEFAULT
                         },
                     );
+                    let accent = ui.tokens().accent;
                     ui.draw(&fill, move |paint, rect| {
-                        paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, p.signal)
+                        paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, accent)
                     });
                 });
                 if changed {
@@ -103,8 +104,8 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
     });
 }
 
-pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool, p: Palette) {
-    glyph(ui, (row.state, row.availability, row.pinned), visible, p);
+pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool) {
+    glyph(ui, (row.state, row.availability, row.pinned), visible);
 }
 
 /// Swift's LWStateGlyph from its three inputs; Files rows share it.
@@ -112,7 +113,6 @@ pub(in crate::shell) fn glyph(
     ui: &mut Ui,
     (state, available, pinned): (lw_core::FileState, Option<lw_core::FileAvailability>, bool),
     visible: bool,
-    p: Palette,
 ) {
     use lw_core::{FileAvailability, FileState};
     let root = ui.node(
@@ -137,31 +137,32 @@ pub(in crate::shell) fn glyph(
         },
     };
     ui.a11y_name(&root, label);
+    let accent = ui.tokens().accent;
     ui.draw(&root, move |paint, rect| {
         let (x, y) = (rect.x, rect.y);
         if available == Some(FileAvailability::OnDevice)
             && !matches!(state, FileState::CopyPending | FileState::Failed)
         {
             if pinned {
-                paint.fill_fractional(x - 3.5, y - 3.5, 17.0, 17.0, p.ink);
-                paint.fill_fractional(x - 2.0, y - 2.0, 14.0, 14.0, p.paper);
+                paint.fill_fractional(x - 3.5, y - 3.5, 17.0, 17.0, paint.color(INK));
+                paint.fill_fractional(x - 2.0, y - 2.0, 14.0, 14.0, paint.color(PAPER));
             }
-            paint.fill_fractional(x, y, 10.0, 10.0, p.ink);
+            paint.fill_fractional(x, y, 10.0, 10.0, paint.color(INK));
         } else {
             let unknown = available.is_none_or(|state| state == FileAvailability::Unknown)
                 && !matches!(state, FileState::CopyPending | FileState::Failed);
             let ink = if matches!(state, FileState::CopyPending | FileState::Failed) {
-                p.signal
+                accent
             } else {
-                p.secondary
+                paint.color(SECONDARY)
             };
             if unknown {
                 for start in [0.75, 4.75, 8.75] {
                     let length = 2.0f32.min(9.25 - start);
-                    paint.fill_fractional(x + start, y + 0.25, length, 1.0, p.tertiary);
-                    paint.fill_fractional(x + start, y + 8.75, length, 1.0, p.tertiary);
-                    paint.fill_fractional(x + 0.25, y + start, 1.0, length, p.tertiary);
-                    paint.fill_fractional(x + 8.75, y + start, 1.0, length, p.tertiary);
+                    paint.fill_fractional(x + start, y + 0.25, length, 1.0, paint.color(TERTIARY));
+                    paint.fill_fractional(x + start, y + 8.75, length, 1.0, paint.color(TERTIARY));
+                    paint.fill_fractional(x + 0.25, y + start, 1.0, length, paint.color(TERTIARY));
+                    paint.fill_fractional(x + 8.75, y + start, 1.0, length, paint.color(TERTIARY));
                 }
             } else {
                 paint.fill_fractional(x, y, 10.0, 1.5, ink);
@@ -170,7 +171,7 @@ pub(in crate::shell) fn glyph(
                 paint.fill_fractional(x + 8.5, y + 1.5, 1.5, 7.0, ink);
             }
             if state == FileState::Failed {
-                paint.line((x + 1.0, y + 9.0), (x + 9.0, y + 1.0), p.signal);
+                paint.line((x + 1.0, y + 9.0), (x + 9.0, y + 1.0), accent);
             }
         }
     });
@@ -190,13 +191,14 @@ pub(in crate::shell) fn glyph(
                             ..Node::DEFAULT
                         },
                     );
+                    let accent = ui.tokens().accent;
                     ui.draw(&fill, move |paint, rect| {
                         paint.fill_fractional(
                             rect.x + index as f32 * 5.0,
                             rect.y,
                             5.0,
                             10.0,
-                            p.signal,
+                            accent,
                         )
                     });
                 });
@@ -252,7 +254,6 @@ pub(super) struct Rows<'a> {
     pub(super) widths: [f32; 8],
     pub(super) revision: u64,
     pub(super) numbered: bool,
-    pub(super) p: Palette,
     pub(super) entry: &'a crate::motion::Page,
     pub(super) viewport: Viewport,
 }
@@ -260,7 +261,7 @@ pub(in crate::shell) const LIST_ROW: &str = "localwave.list-row:";
 /// Carry kind of a row drag; the target resolves the selection from the song id.
 pub(crate) const SONG_DRAG: &str = "localwave.song:";
 
-pub(in crate::shell) fn drop_target(ui: &mut Ui, p: Palette, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
+pub(in crate::shell) fn drop_target(ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
     let Some(drop) = ui.drop_target_ref(visual).and_then(|drop| {
         let (dropped, payload) = match drop {
             pxui::DropRef::Hover(p) => (false, p),
@@ -290,7 +291,7 @@ pub(in crate::shell) fn drop_target(ui: &mut Ui, p: Palette, visual: &Handle, in
             if after { rect.y + rect.h - 2.0 } else { rect.y },
             rect.w,
             2.0,
-            p.ink,
+            paint.color(INK),
         );
     });
     if dropped {
@@ -310,7 +311,7 @@ impl Rows<'_> {
             && self.state.ascending
     }
     fn drop_target(&self, ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
-        drop_target(ui, self.p, visual, index, intent);
+        drop_target(ui, visual, index, intent);
     }
     pub(super) fn row(
         &self,
@@ -327,7 +328,6 @@ impl Rows<'_> {
             widths,
             revision,
             numbered,
-            p,
             entry,
             viewport,
         } = *self;
@@ -376,11 +376,11 @@ impl Rows<'_> {
                     &root,
                     Look {
                         fill: if marked {
-                            p.selected
+                            ui.color(SELECTED)
                         } else if signal.hovered {
-                            Rgba { a: 153, ..p.panel }
+                            Rgba { a: 153, ..ui.color(PANEL) }
                         } else {
-                            p.paper
+                            ui.color(PAPER)
                         },
                         ..Look::NONE
                     },
@@ -437,9 +437,9 @@ impl Rows<'_> {
                                     },
                                     body_style(column, current),
                                     if column == Column::Title {
-                                        p.ink
+                                        ui.color(INK)
                                     } else {
-                                        p.secondary
+                                        ui.color(SECONDARY)
                                     },
                                     Role::Label,
                                 );
@@ -463,7 +463,7 @@ impl Rows<'_> {
                                 visual_revision,
                                 Size::Grow,
                                 Size::Grow,
-                                &mut |ui| equalizer(ui, player.playing, visible, row.id, p),
+                                &mut |ui| equalizer(ui, player.playing, visible, row.id),
                             );
                         });
                     }
@@ -484,7 +484,7 @@ impl Rows<'_> {
                                 visual_revision,
                                 Size::Grow,
                                 Size::Grow,
-                                &mut |ui| availability(ui, row, visible, p),
+                                &mut |ui| availability(ui, row, visible),
                             );
                             let previous = ui.state(&visual, -1);
                             let next = row.state as i64;
@@ -536,7 +536,7 @@ impl Rows<'_> {
                             paint.circle(
                                 (rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0),
                                 1.4 * (2.0 / 3.0),
-                                Some(p.secondary),
+                                Some(paint.color(SECONDARY)),
                                 None,
                             );
                         }
@@ -571,7 +571,7 @@ impl Rows<'_> {
                                         rect.y + rect.h * 0.5 + y,
                                         2.0,
                                         2.0,
-                                        p.secondary,
+                                        paint.color(SECONDARY),
                                     );
                                 }
                             }
@@ -594,14 +594,14 @@ impl Rows<'_> {
                 });
                 let last = index + 1 == collection.rows.len();
                 ui.draw_over(&root, move |paint, rect| {
-                    paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, p.line);
+                    paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, paint.color(LINE));
                     if last {
                         paint.fill_fractional(
                             rect.x,
                             (rect.y + rect.h).floor(),
                             rect.w,
                             1.0,
-                            p.line,
+                            paint.color(LINE),
                         );
                     }
                 });

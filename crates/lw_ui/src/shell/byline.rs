@@ -41,7 +41,6 @@ pub(super) fn draw(
     player: &PlayerView<'_>,
     catalog: &Catalog,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let values = [player.artist, " ", "—", " ", player.album];
@@ -94,7 +93,7 @@ pub(super) fn draw(
                         ..Edges::ZERO
                     },
                     look: Look {
-                        text: p.secondary,
+                        text: ui.color(SECONDARY),
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
@@ -186,7 +185,7 @@ mod tests {
         };
         let mut intent = None;
         ui.frame(&frame, &mut |ui| {
-            draw(ui, &player, &catalog, 279.0, palette(ui), &mut intent)
+            draw(ui, &player, &catalog, 279.0, &mut intent)
         })
         .unwrap();
         let find = |ui: &Ui, value: &str| {
@@ -226,7 +225,7 @@ mod tests {
                         frame.time += 0.1;
                         intent = None;
                         ui.frame(&frame, &mut |ui| {
-                            draw(ui, &player, &catalog, width, palette(ui), &mut intent)
+                            draw(ui, &player, &catalog, width, &mut intent)
                         })
                         .unwrap();
                         assert_eq!(intent, Some(Intent::Navigate(route)));
@@ -272,7 +271,7 @@ mod tests {
                 player.album = label;
             }
             ui.frame(&frame, &mut |ui| {
-                draw(ui, &player, &catalog, 279.0, palette(ui), &mut intent)
+                draw(ui, &player, &catalog, 279.0, &mut intent)
             })
             .unwrap();
             let id = find(&ui, label).id;
@@ -283,7 +282,7 @@ mod tests {
             }]);
             intent = None;
             ui.frame(&frame, &mut |ui| {
-                draw(ui, &player, &catalog, 279.0, palette(ui), &mut intent)
+                draw(ui, &player, &catalog, 279.0, &mut intent)
             })
             .unwrap();
             assert_eq!(

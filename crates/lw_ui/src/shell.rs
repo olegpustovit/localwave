@@ -14,6 +14,7 @@
 use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView, Selection};
+use pxui::theme::ColorToken;
 use pxui::ui::*;
 
 mod albums;
@@ -864,20 +865,19 @@ pub fn shell(
     if ui.key_pressed(input::Key::Escape.code()) {
         ui.cancel_carry();
     }
-    let p = palette(ui);
     if state.commands_visible {
-        commands::palette_view(ui, player, catalog, state, p, intent);
+        commands::palette_view(ui, player, catalog, state, intent);
     } else if state.shortcuts_visible {
-        commands::shortcuts(ui, state.top_inset, p, intent);
+        commands::shortcuts(ui, state.top_inset, intent);
     }
     if state.queue_visible {
-        queue_sheet(ui, player, catalog, state, p, intent);
+        queue_sheet(ui, player, catalog, state, intent);
     }
     if let Some((menu, at)) = state.settings_menu {
-        settings::popup(ui, player, menu, at, p, intent);
+        settings::popup(ui, player, menu, at, intent);
     }
     if let Some((target, at)) = state.source_menu {
-        files::popup(ui, player, target, at, p, intent);
+        files::popup(ui, player, target, at, intent);
     }
     if let Some((index, id, key, at)) = state.song_menu {
         songs::popup(
@@ -887,47 +887,46 @@ pub fn shell(
             (index, id, key),
             at,
             player.sharing,
-            p,
             intent,
         );
     }
     if let Some(target) = state.remove_source {
-        files::confirm_remove(ui, player, target, p, intent);
+        files::confirm_remove(ui, player, target, intent);
     }
     if let Some(at) = state.page_menu {
-        compact::page::menu(ui, catalog, state, at, p, intent);
+        compact::page::menu(ui, catalog, state, at, intent);
     }
     if let Some((entry, at)) = state.folder_menu {
-        files::folder_menu(ui, player, entry, at, p, intent);
+        files::folder_menu(ui, player, entry, at, intent);
     }
     if state.add_music {
-        files::add_music(ui, player, p, intent);
+        files::add_music(ui, player, intent);
     }
     if let Some((list, at)) = state.list_menu {
-        lists::menu(ui, catalog, list, at, p, intent);
+        lists::menu(ui, catalog, list, at, intent);
     }
     if let Some(list) = state.delete_list {
-        lists::confirm_delete(ui, catalog, list, p, intent);
+        lists::confirm_delete(ui, catalog, list, intent);
     }
     if let Some(dialog) = state.list_dialog {
-        lists::name_dialog(ui, state, dialog, p, intent);
+        lists::name_dialog(ui, state, dialog, intent);
     }
     if let Some(edit) = state.metadata {
-        metadata::editor(ui, state, edit, p, intent);
+        metadata::editor(ui, state, edit, intent);
     }
     if let Some(song) = state.delete_song {
-        metadata::confirm_delete(ui, catalog, song, p, intent);
+        metadata::confirm_delete(ui, catalog, song, intent);
     }
     if intent.is_none() && onboarding::needs_start_flag(catalog, player.settings.did_start) {
         *intent = Some(Intent::Setting(lw_core::preferences::Change::DidStart));
     }
     let root = if onboarding::wanted(catalog, state, player.settings.did_start) {
-        onboarding::view(ui, state.top_inset, p, intent)
+        onboarding::view(ui, state.top_inset, intent)
     } else if ui.view_size().0 < compact::BREAKPOINT {
         state.song_window.set(None);
-        compact::view(ui, player, position, catalog, state, p, intent)
+        compact::view(ui, player, position, catalog, state, intent)
     } else {
-        desktop(ui, player, position, catalog, state, p, intent)
+        desktop(ui, player, position, catalog, state, intent)
     };
     // Swift's long-press menu blurs the page behind it on a phone.
     if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
@@ -973,28 +972,28 @@ pub fn shell(
                 (rect.w - 24.0).max(0.0),
                 (rect.h - 24.0).max(0.0),
             );
-            paint.fill(x, y, w, h, Rgba { a: 240, ..p.paper });
+            paint.fill(x, y, w, h, Rgba { a: 240, ..paint.color(PAPER) });
             // Swift's drop border uses six-point dashes and gaps.
             for vertical in [false, true] {
                 let length = if vertical { h } else { w };
                 for offset in (0..length.ceil() as usize).step_by(12) {
                     let dash = 6.0f32.min(length - offset as f32);
                     if vertical {
-                        paint.fill(x, y + offset as f32, 2.0, dash, p.ink);
-                        paint.fill(x + w - 2.0, y + offset as f32, 2.0, dash, p.ink);
+                        paint.fill(x, y + offset as f32, 2.0, dash, paint.color(INK));
+                        paint.fill(x + w - 2.0, y + offset as f32, 2.0, dash, paint.color(INK));
                     } else {
-                        paint.fill(x + offset as f32, y, dash, 2.0, p.ink);
-                        paint.fill(x + offset as f32, y + h - 2.0, dash, 2.0, p.ink);
+                        paint.fill(x + offset as f32, y, dash, 2.0, paint.color(INK));
+                        paint.fill(x + offset as f32, y + h - 2.0, dash, 2.0, paint.color(INK));
                     }
                 }
             }
             for (text, size, at, color) in [
-                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0, p.ink),
+                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0, paint.color(INK)),
                 (
                     "Folders are indexed. Audio files join Added Files.",
                     14,
                     rect.y + rect.h * 0.5 + 22.0,
-                    p.secondary,
+                    paint.color(SECONDARY),
                 ),
             ] {
                 let width = paint.text_width(Some(size), text);
@@ -1103,6 +1102,7 @@ pub fn shell(
     }
 }
 mod kit;
+pub use kit::set_colors;
 use kit::*;
 mod sidebar;
 use sidebar::*;

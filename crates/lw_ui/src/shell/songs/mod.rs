@@ -176,7 +176,6 @@ fn heading(
     widths: [f32; 8],
     applied: Option<(Sort, bool)>,
     layout: HeadingLayout,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) -> Handle {
     let root = ui.node(
@@ -185,7 +184,7 @@ fn heading(
             w: Size::Grow,
             h: Size::Px(layout.height),
             look: Look {
-                fill: p.paper,
+                fill: ui.color(PAPER),
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -219,7 +218,7 @@ fn heading(
                         h: Size::Px(height),
                         at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
                         look: Look {
-                            text: p.secondary,
+                            text: ui.color(SECONDARY),
                             ..Look::NONE
                         },
                         ..Node::DEFAULT
@@ -246,7 +245,7 @@ fn heading(
                                 h: height,
                             },
                             style,
-                            p.secondary,
+                            ui.color(SECONDARY),
                             Role::Unknown,
                         );
                     });
@@ -284,7 +283,7 @@ fn heading(
         }
     });
     ui.draw_over(&root, move |paint, rect| {
-        paint.fill_fractional(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0, p.line)
+        paint.fill_fractional(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0, paint.color(LINE))
     });
     root
 }
@@ -295,21 +294,20 @@ pub(super) fn table(
     state: &ShellState,
     player: &PlayerView<'_>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let Some(collection) = state.collection(catalog) else {
-        header_view(ui, catalog, state, width, p, intent);
+        header_view(ui, catalog, state, width, intent);
         return;
     };
     let Some(table) = &collection.song_table else {
-        header_view(ui, catalog, state, width, p, intent);
+        header_view(ui, catalog, state, width, intent);
         text(
             ui,
             "songs-loading",
             "Loading songs…",
             14,
-            p.secondary,
+            ui.color(SECONDARY),
             (Size::Grow, 40.0),
             false,
         );
@@ -354,7 +352,7 @@ pub(super) fn table(
     let hint = find && state.query.as_str().trim().is_empty();
     let placeholder = collection.rows.is_empty() && (!find || hint);
     if find {
-        header_view(ui, catalog, state, width, p, intent);
+        header_view(ui, catalog, state, width, intent);
     }
     let scope = ui.node(
         "song-results-scope",
@@ -405,14 +403,14 @@ pub(super) fn table(
                 },
                 &mut |ui, part, content_y| match part {
                     SectionPart::Leading if detail => {
-                        super::detail::header(ui, catalog, state, player, width, p, intent)
+                        super::detail::header(ui, catalog, state, player, width, intent)
                     }
-                    SectionPart::Leading => header_view(ui, catalog, state, width, p, intent),
+                    SectionPart::Leading => header_view(ui, catalog, state, width, intent),
                     SectionPart::Header => {
                         let list = ui.box_of_key(list_key).unwrap();
                         viewport.offset = ui.scroll_position(&list);
                         viewport.height = ui.rect(&list).h;
-                        heading(ui, widths, applied, heading_layout, p, intent);
+                        heading(ui, widths, applied, heading_layout, intent);
                     }
                     SectionPart::Row(_) if placeholder => {
                         let empty = ui.node(
@@ -436,7 +434,7 @@ pub(super) fn table(
                                     "No songs here yet."
                                 },
                                 14,
-                                p.secondary,
+                                ui.color(SECONDARY),
                                 (Size::Grow, 19.6),
                                 false,
                             );
@@ -462,7 +460,6 @@ pub(super) fn table(
                                 widths,
                                 revision,
                                 numbered,
-                                p,
                                 entry: &entry,
                                 viewport,
                             }

@@ -1,18 +1,15 @@
 use super::*;
 
-#[derive(Clone, Copy)]
-pub(super) struct Palette {
-    pub(super) paper: Rgba,
-    pub(super) panel: Rgba,
-    pub(super) selected: Rgba,
-    pub(super) ink: Rgba,
-    pub(super) secondary: Rgba,
-    pub(super) tertiary: Rgba,
-    pub(super) line: Rgba,
-    pub(super) key: Rgba,
-    pub(super) signal: Rgba,
-    pub(super) danger: Rgba,
-}
+// LocalWave's colour tokens (`Ui::set_colors`), read with `ui.color` and `paint.color`; the accent is the theme's own.
+pub(super) const PAPER: ColorToken = ColorToken(0);
+pub(super) const PANEL: ColorToken = ColorToken(1);
+pub(super) const SELECTED: ColorToken = ColorToken(2);
+pub(super) const INK: ColorToken = ColorToken(3);
+pub(super) const SECONDARY: ColorToken = ColorToken(4);
+pub(super) const TERTIARY: ColorToken = ColorToken(5);
+pub(super) const LINE: ColorToken = ColorToken(6);
+pub(super) const KEY: ColorToken = ColorToken(7);
+pub(super) const DANGER: ColorToken = ColorToken(8);
 pub(super) const fn rgb(hex: u32) -> Rgba {
     Rgba {
         r: (hex >> 16) as u8,
@@ -21,35 +18,31 @@ pub(super) const fn rgb(hex: u32) -> Rgba {
         a: 255,
     }
 }
-pub(super) fn palette(ui: &Ui) -> Palette {
-    let dark = ui.theme().tokens.foreground.r > 128;
-    if dark {
-        Palette {
-            paper: rgb(0x101010),
-            panel: rgb(0x1A1A1A),
-            selected: rgb(0x2A2A2A),
-            ink: rgb(0xEDEDED),
-            secondary: rgb(0x9B9B9B),
-            tertiary: rgb(0x5A5A5A),
-            line: rgb(0x262626),
-            key: rgb(0x1F1F1F),
-            signal: ui.theme().tokens.accent,
-            danger: rgb(0xD21A1A),
-        }
-    } else {
-        Palette {
-            paper: rgb(0xF3F3F3),
-            panel: rgb(0xE6E6E6),
-            selected: rgb(0xD3D3D3),
-            ink: rgb(0x111111),
-            secondary: rgb(0x585858),
-            tertiary: rgb(0xA0A0A0),
-            line: rgb(0xDADADA),
-            key: rgb(0xFBFBFB),
-            signal: ui.theme().tokens.accent,
-            danger: rgb(0xD21A1A),
-        }
-    }
+const LIGHT_COLORS: [Rgba; 9] = [
+    rgb(0xF3F3F3),
+    rgb(0xE6E6E6),
+    rgb(0xD3D3D3),
+    rgb(0x111111),
+    rgb(0x585858),
+    rgb(0xA0A0A0),
+    rgb(0xDADADA),
+    rgb(0xFBFBFB),
+    rgb(0xD21A1A),
+];
+const DARK_COLORS: [Rgba; 9] = [
+    rgb(0x101010),
+    rgb(0x1A1A1A),
+    rgb(0x2A2A2A),
+    rgb(0xEDEDED),
+    rgb(0x9B9B9B),
+    rgb(0x5A5A5A),
+    rgb(0x262626),
+    rgb(0x1F1F1F),
+    rgb(0xD21A1A),
+];
+/// Installs LocalWave's light and dark colour tables; call once between frames, beside the themes.
+pub fn set_colors(ui: &mut Ui) {
+    ui.set_colors(&LIGHT_COLORS, &DARK_COLORS);
 }
 pub(super) fn container(
     ui: &mut Ui,
@@ -112,14 +105,14 @@ pub(super) fn text(
 pub(super) fn spacer(ui: &mut Ui, key: &str, height: f32) {
     ui.box_(key, BoxOpts::default().h(Size::Px(height)));
 }
-pub(super) fn rule(ui: &mut Ui, key: &str, vertical: bool, p: Palette) {
+pub(super) fn rule(ui: &mut Ui, key: &str, vertical: bool) {
     container(
         ui,
         key,
         Axis::Column,
         if vertical { Size::Px(1.0) } else { Size::Grow },
         if vertical { Size::Grow } else { Size::Px(1.0) },
-        p.line,
+        ui.color(LINE),
     );
 }
 
@@ -278,7 +271,7 @@ pub(super) fn icon_button(
     icon: Icon,
     dimensions: (f32, f32),
     inverse: bool,
-    p: Palette,
+    plate: bool,
 ) -> bool {
     let node = ui.node(
         key,
@@ -293,13 +286,15 @@ pub(super) fn icon_button(
     let signal = ui.signal_state(&node);
     ui.a11y_name(&node, label);
     let fill = if inverse {
-        p.ink
+        ui.color(INK)
     } else if signal.hovered || signal.held {
-        p.panel
+        ui.color(PANEL)
+    } else if plate {
+        ui.color(KEY)
     } else {
-        p.key
+        Rgba::default()
     };
-    let color = if inverse { p.paper } else { p.ink };
+    let color = ui.color(if inverse { PAPER } else { INK });
     let revision = crate::hash((icon as u8, inverse, signal.hovered, signal.held));
     ui.within(&node, &mut |ui| {
         let visual = ui.view("visual", revision, Size::Grow, Size::Grow, &mut |ui| {
@@ -484,8 +479,7 @@ pub(super) mod button_tests {
                     ..Default::default()
                 },
                 &mut |ui| {
-                    let p = palette(ui);
-                    transport(ui, player, 60.0, true, p, intent);
+                    transport(ui, player, 60.0, true, intent);
                 },
             )
             .unwrap();
@@ -618,6 +612,7 @@ pub(super) mod button_tests {
     fn pressed_visual_scales_without_shrinking_hit_area_or_allocating_when_warm() {
         mem_sys::set_peer(pxui::library_counter);
         let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        crate::set_colors(&mut ui);
         ui.set_a11y(true);
         ui.set_theme(&ThemeSource {
             source: Str {
@@ -629,7 +624,6 @@ pub(super) mod button_tests {
         .unwrap();
         let clicked = Cell::new(false);
         let mut build = |ui: &mut Ui| {
-            let p = palette(ui);
             clicked.set(icon_button(
                 ui,
                 "test-button",
@@ -637,7 +631,7 @@ pub(super) mod button_tests {
                 Icon::Next,
                 (64.0, 40.0),
                 false,
-                p,
+                true,
             ));
         };
         let input = |time, events: &[Event]| FrameIn {

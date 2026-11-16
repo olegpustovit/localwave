@@ -128,7 +128,6 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
         ui.text(&editor, value);
     }
     if value.is_empty() {
-        let p = palette(ui);
         // Ellipsize to the field: the palette card is (view - 32) clamped to 600 and the phone Find row is view - 32 - 44.
         let view = ui.content_rect().w;
         let room = if find {
@@ -163,7 +162,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
                     w: Size::Grow,
                     h: Size::Px(size as f32 * 1.4),
                     look: Look {
-                        text: if find { p.tertiary } else { p.secondary },
+                        text: if find { ui.color(TERTIARY) } else { ui.color(SECONDARY) },
                         font,
                         ..Look::NONE
                     },
@@ -180,7 +179,6 @@ fn overlay(
     inset: f32,
     label: &str,
     dimensions: (f32, Size),
-    p: Palette,
     close: Intent,
     intent: &mut Option<Intent>,
     build: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
@@ -218,7 +216,7 @@ fn overlay(
                     h: height,
                     max_h: max_height,
                     look: Look {
-                        fill: p.paper,
+                        fill: ui.color(PAPER),
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
@@ -242,7 +240,6 @@ pub(super) fn palette_view(
     player: &PlayerView<'_>,
     catalog: &Catalog,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let content = ui.content_rect();
@@ -255,7 +252,6 @@ pub(super) fn palette_view(
         state.top_inset,
         "Search and commands",
         ((width - 32.0).clamp(0.0, 600.0), Size::Fit),
-        p,
         Intent::CloseCommands,
         intent,
         &mut |ui, intent| {
@@ -287,7 +283,7 @@ pub(super) fn palette_view(
             } else {
                 field(ui);
             }
-            rule(ui, "input-divider", false, p);
+            rule(ui, "input-divider", false);
             if ui.key_pressed(input::Key::Enter)
                 && (intent.is_none() || matches!(intent, Some(Intent::CommandSelect(_))))
                 && let Some(item) = items.get(selected)
@@ -307,7 +303,7 @@ pub(super) fn palette_view(
                             "Searching…"
                         },
                         14,
-                        p.secondary,
+                        ui.color(SECONDARY),
                         (Size::Grow, 48.0),
                         false,
                     );
@@ -345,13 +341,13 @@ pub(super) fn palette_view(
                                 "name",
                                 item.group,
                                 12,
-                                p.secondary,
+                                ui.color(SECONDARY),
                                 (Size::Grow, 16.8),
                                 false,
                             );
                         });
                     }
-                    result_row(ui, player, catalog, item, index == selected, p, intent);
+                    result_row(ui, player, catalog, item, index == selected, intent);
                 });
             });
             ui.set_node_layout(
@@ -382,7 +378,6 @@ fn result_row(
     catalog: &Catalog,
     item: &crate::commands::Item,
     selected: bool,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let row = ui.node(
@@ -402,7 +397,7 @@ fn result_row(
             align: Align::Center,
             look: Look {
                 fill: if selected {
-                    p.selected
+                    ui.color(SELECTED)
                 } else {
                     Rgba::default()
                 },
@@ -435,7 +430,7 @@ fn result_row(
                 Axis::Column,
                 Size::Px(28.0),
                 Size::Px(28.0),
-                p.panel,
+                ui.color(PANEL),
             );
             paint_artwork(ui, &art, Some(catalog.row(index)), 28.0, player.artwork);
         } else {
@@ -481,10 +476,10 @@ fn result_row(
                 for &(a, b) in lines {
                     let a = (rect.x + a.0, rect.y + a.1);
                     let b = (rect.x + b.0, rect.y + b.1);
-                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, 1.1, p.ink);
+                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, 1.1, paint.color(INK));
                 }
                 if kind == crate::commands::Icon::Person {
-                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(p.ink), None);
+                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(paint.color(INK)), None);
                 }
             });
         }
@@ -493,7 +488,7 @@ fn result_row(
             "label",
             &item.label,
             14,
-            p.ink,
+            ui.color(INK),
             (Size::Grow, 19.6),
             false,
         );
@@ -503,7 +498,7 @@ fn result_row(
                 "hint",
                 &item.hint,
                 13,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Fit, 18.2),
                 false,
             );
@@ -511,7 +506,7 @@ fn result_row(
     });
 }
 
-pub(super) fn shortcuts(ui: &mut Ui, inset: f32, p: Palette, intent: &mut Option<Intent>) {
+pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
     const ROWS: [(&str, &str); 12] = [
         ("Play / pause", "Space"),
         ("Seek 5 s · 30 s", "← →  ·  ⌥← ⌥→"),
@@ -552,7 +547,6 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, p: Palette, intent: &mut Option
             card,
             Size::Px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))),
         ),
-        p,
         Intent::CloseShortcuts,
         intent,
         &mut |ui, _| {
@@ -579,7 +573,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, p: Palette, intent: &mut Option
                         "heading",
                         "Keyboard",
                         18,
-                        p.ink,
+                        ui.color(INK),
                         (Size::Grow, 25.2),
                         false,
                     );
@@ -613,7 +607,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, p: Palette, intent: &mut Option
                                         h: Size::Px(heights[index]),
                                         role: Role::Label,
                                         look: Look {
-                                            text: p.ink,
+                                            text: ui.color(INK),
                                             ..Look::NONE
                                         },
                                         ..Node::DEFAULT
@@ -621,7 +615,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, p: Palette, intent: &mut Option
                                 );
                                 ui.text_line_box(&node, label, &style, &[]).unwrap();
                                 ui.box_("fill", BoxOpts::default().w(Size::Grow));
-                                text(ui, "key", key, 12, p.secondary, (Size::Fit, 16.8), true);
+                                text(ui, "key", key, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
                             });
                         }
                     });

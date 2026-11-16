@@ -12,7 +12,7 @@ pub(super) mod page;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
-fn button(ui: &mut Ui, key: &str, label: &str, selected: bool, p: Palette) -> bool {
+fn button(ui: &mut Ui, key: &str, label: &str, selected: bool) -> bool {
     let node = ui.node(
         key,
         Node {
@@ -23,8 +23,8 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool, p: Palette) -> bo
             align: Align::Center,
             justify: Justify::Center,
             look: Look {
-                fill: if selected { p.selected } else { p.paper },
-                text: p.ink,
+                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
+                text: ui.color(INK),
                 font: Font {
                     size: 14,
                     ..Font::BODY
@@ -35,7 +35,7 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool, p: Palette) -> bo
         },
     );
     ui.within(&node, &mut |ui| {
-        text(ui, "label", label, 14, p.ink, (Size::Fit, 19.6), false);
+        text(ui, "label", label, 14, ui.color(INK), (Size::Fit, 19.6), false);
     });
     ui.a11y_name(&node, label);
     ui.set_role(
@@ -51,7 +51,7 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool, p: Palette) -> bo
 }
 
 /// Swift's library mode: label and count, ink with a 2 pt underline when active.
-fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool, p: Palette) -> bool {
+fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool {
     let node = ui.node(
         label,
         Node {
@@ -62,7 +62,7 @@ fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool, p: Pale
             ..Node::DEFAULT
         },
     );
-    let ink = if active { p.ink } else { p.secondary };
+    let ink = if active { ui.color(INK) } else { ui.color(SECONDARY) };
     ui.within(&node, &mut |ui| {
         let content = ui.node(
             "content",
@@ -77,9 +77,9 @@ fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool, p: Pale
         );
         ui.within(&content, &mut |ui| {
             text(ui, "label", label, 15, ink, (Size::Fit, 21.0), false);
-            text(ui, "count", count, 13, p.secondary, (Size::Fit, 18.2), false);
+            text(ui, "count", count, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
         });
-        container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { p.ink } else { p.paper });
+        container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
     });
     ui.a11y_name(&node, label);
     ui.set_role(
@@ -125,7 +125,6 @@ fn artwork(
     player: &PlayerView<'_>,
     row: Option<usize>,
     size: f32,
-    p: Palette,
 ) {
     let art = container(
         ui,
@@ -133,7 +132,7 @@ fn artwork(
         Axis::Stack,
         Size::Px(size),
         Size::Px(size),
-        p.panel,
+        ui.color(PANEL),
     );
     paint_artwork(
         ui,
@@ -150,7 +149,6 @@ pub(super) fn view(
     position: f64,
     catalog: &Catalog,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) -> Handle {
     let (width, height) = ui.view_size();
@@ -175,7 +173,7 @@ pub(super) fn view(
                 l: left,
             },
             look: Look {
-                fill: p.paper,
+                fill: ui.color(PAPER),
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -191,7 +189,6 @@ pub(super) fn view(
                 catalog,
                 (width, height - top.max(state.top_inset) - bottom),
                 state.entry_revision,
-                p,
                 intent,
             );
             return;
@@ -232,9 +229,9 @@ pub(super) fn view(
                     ui.within(&head, &mut |ui| {
                         if picking {
                             let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
-                            list::selection_header(ui, p, state.marked.len(), rows, rows, intent);
+                            list::selection_header(ui, state.marked.len(), rows, rows, intent);
                         } else if library {
-                            detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), p.ink, 0);
+                            detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), ui.color(INK), 0);
                             // Swift's header gear; Settings stays one tap away.
                             let settings = ui.node(
                                 "settings",
@@ -247,7 +244,7 @@ pub(super) fn view(
                                 },
                             );
                             ui.a11y_name(&settings, "Settings");
-                            let color = p.ink;
+                            let color = ui.color(INK);
                             ui.draw(&settings, move |paint, rect| {
                                 kit::paint_icon(
                                     paint,
@@ -265,7 +262,7 @@ pub(super) fn view(
                                 Route::Lists => "Lists",
                                 _ => "Library",
                             };
-                            line(ui, "heading", title, 28.0, p.ink);
+                            line(ui, "heading", title, 28.0, ui.color(INK));
                         }
                     });
                     if library {
@@ -288,9 +285,9 @@ pub(super) fn view(
                         );
                         ui.within(&hero, &mut |ui| {
                             // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
-                            clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, p.ink);
-                            text(ui, "unit", "songs", 15, p.ink, (Size::Fit, 21.0), false);
-                            container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
+                            clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
+                            text(ui, "unit", "songs", 15, ui.color(INK), (Size::Fit, 21.0), false);
+                            container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
                             let totals = ui.node(
                                 "library-size",
                                 Node {
@@ -302,8 +299,8 @@ pub(super) fn view(
                                 },
                             );
                             ui.within(&totals, &mut |ui| {
-                                text(ui, "albums", &catalog.totals_label, 13, p.secondary, (Size::Fit, 19.5), false);
-                                text(ui, "sources", &catalog.sources_label, 13, p.secondary, (Size::Fit, 19.5), false);
+                                text(ui, "albums", &catalog.totals_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
+                                text(ui, "sources", &catalog.sources_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
                             });
                         });
                         let tabs = ui.node(
@@ -330,22 +327,22 @@ pub(super) fn view(
                                 ("Artists", &catalog.artist_count, Route::Artists),
                                 ("Songs", &catalog.song_count, Route::Songs),
                             ] {
-                                if mode_tab(ui, label, count, state.route == route, p) {
+                                if mode_tab(ui, label, count, state.route == route) {
                                     *intent = Some(Intent::Navigate(route));
                                 }
                             }
                             if state.route == Route::Songs {
-                                container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
-                                text(ui, "sort", "Title \u{2193}", 14, p.ink, (Size::Fit, 19.6), false);
+                                container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+                                text(ui, "sort", "Title \u{2193}", 14, ui.color(INK), (Size::Fit, 19.6), false);
                                 if !state.selecting
                                     && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
-                                    && list::word(ui, "select", "Select", false, p)
+                                    && list::word(ui, "select", "Select", false)
                                 {
                                     *intent = Some(Intent::SelectMode(true));
                                 }
                             }
                         });
-                        rule(ui, "tabs-divider", false, p);
+                        rule(ui, "tabs-divider", false);
                     }
                 }
                 let content = ui.view(
@@ -360,7 +357,7 @@ pub(super) fn view(
                             Axis::Column,
                             Size::Grow,
                             Size::Grow,
-                            p.paper,
+                            ui.color(PAPER),
                         );
                         let route_key = crate::hash((
                             state.route,
@@ -382,18 +379,18 @@ pub(super) fn view(
                             );
                             ui.within(&page, &mut |ui| {
                                 if state.settings_visible {
-                                    settings::view(ui, player, state, width, p, intent);
+                                    settings::view(ui, player, state, width, intent);
                                 } else {
                                     match state.route {
-                                        Route::Files => files::view(ui, player, state, width, p, intent),
+                                        Route::Files => files::view(ui, player, state, width, intent),
                                         Route::Albums => {
-                                            albums::gallery(ui, catalog, state, player, width, p, intent)
+                                            albums::gallery(ui, catalog, state, player, width, intent)
                                         }
                                         Route::Artists => {
-                                            groups(ui, catalog, player, true, width, p, intent)
+                                            groups(ui, catalog, player, true, width, intent)
                                         }
-                                        Route::Lists => collections(ui, catalog, player, width, p, intent),
-                                        _ => list::songs(ui, catalog, state, player, width, p, intent),
+                                        Route::Lists => collections(ui, catalog, player, width, intent),
+                                        _ => list::songs(ui, catalog, state, player, width, intent),
                                     }
                                 }
                             });
@@ -410,16 +407,16 @@ pub(super) fn view(
                 );
             },
         );
-        rule(ui, "mini-divider", false, p);
-        mini(ui, player, catalog, p, intent);
-        rule(ui, "nav-divider", false, p);
+        rule(ui, "mini-divider", false);
+        mini(ui, player, catalog, intent);
+        rule(ui, "nav-divider", false);
         let nav = container(
             ui,
             "compact-navigation",
             Axis::Row,
             Size::Grow,
             Size::Px(54.0),
-            p.paper,
+            ui.color(PAPER),
         );
         ui.set_role(&nav, Role::Group, 0);
         ui.a11y_name(&nav, "Main navigation");
@@ -444,7 +441,6 @@ pub(super) fn view(
                     title,
                     title,
                     !state.settings_visible && selected == index,
-                    p,
                 ) {
                     *intent = Some(Intent::Navigate(route));
                 }
@@ -458,7 +454,6 @@ fn mini(
     ui: &mut Ui,
     player: &PlayerView<'_>,
     catalog: &Catalog,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let root = ui.node(
@@ -471,7 +466,7 @@ fn mini(
             padding: Edges::all(8.0),
             gap: 8.0,
             look: Look {
-                fill: p.panel,
+                fill: ui.color(PANEL),
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -499,9 +494,8 @@ fn mini(
                 player,
                 player.current_id.and_then(|id| catalog.row_index(id)),
                 44.0,
-                p,
             );
-            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, p.panel);
+            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PANEL));
             ui.within(&labels, &mut |ui| {
                 line(
                     ui,
@@ -512,22 +506,22 @@ fn mini(
                         player.title
                     },
                     14.0,
-                    p.ink,
+                    ui.color(INK),
                 );
-                line(ui, "artist", player.artist, 12.0, p.secondary);
+                line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
             });
         });
         if ui.signal_state(&open).clicked {
             *intent = Some(Intent::TogglePlayer);
         }
-        play(ui, player, (44.0, 44.0), p, intent);
-        if icon_button(ui, "next", "Next", Icon::Next, (44.0, 44.0), false, p) {
+        play(ui, player, (44.0, 44.0), intent);
+        if icon_button(ui, "next", "Next", Icon::Next, (44.0, 44.0), false, true) {
             *intent = Some(Intent::Next);
         }
     });
 }
 
-fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), p: Palette, intent: &mut Option<Intent>) {
+fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Option<Intent>) {
     if icon_button(
         ui,
         "play",
@@ -539,7 +533,7 @@ fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), p: Palette, inte
         },
         size,
         true,
-        p,
+        true,
     ) {
         *intent = Some(if player.playing {
             Intent::Pause
@@ -554,10 +548,9 @@ pub(super) fn collections(
     catalog: &Catalog,
     player: &PlayerView<'_>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    groups(ui, catalog, player, false, width, p, intent);
+    groups(ui, catalog, player, false, width, intent);
 }
 
 fn groups(
@@ -566,7 +559,6 @@ fn groups(
     player: &PlayerView<'_>,
     artists: bool,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let groups = if artists {
@@ -575,7 +567,7 @@ fn groups(
         &catalog.collections
     };
     if groups.is_empty() {
-        line(ui, "empty-groups", "Nothing here yet.", 14.0, p.secondary);
+        line(ui, "empty-groups", "Nothing here yet.", 14.0, ui.color(SECONDARY));
         return;
     }
     ui.grid_list(
@@ -605,11 +597,11 @@ fn groups(
             );
             ui.a11y_name(&node, &group.title);
             ui.within(&node, &mut |ui| {
-                artwork(ui, catalog, player, group.artwork_row, 44.0, p);
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, p.paper);
+                artwork(ui, catalog, player, group.artwork_row, 44.0);
+                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                 ui.within(&labels, &mut |ui| {
-                    line(ui, "title", &group.title, 16.0, p.ink);
-                    line(ui, "count", &group.count, 12.0, p.secondary);
+                    line(ui, "title", &group.title, 16.0, ui.color(INK));
+                    line(ui, "count", &group.count, 12.0, ui.color(SECONDARY));
                 });
             });
             if ui.signal_state(&node).clicked {
@@ -630,7 +622,6 @@ fn mode_key(
     label: &str,
     icon: Icon,
     active: bool,
-    p: Palette,
     mut inner: impl FnMut(&mut Ui),
 ) -> bool {
     let node = ui.node(
@@ -645,13 +636,13 @@ fn mode_key(
             w: Size::Grow,
             h: Size::Px(44.0),
             look: Look {
-                fill: if active { p.ink } else { p.key },
+                fill: if active { ui.color(INK) } else { ui.color(KEY) },
                 ..Look::NONE
             },
             ..Node::DEFAULT
         },
     );
-    let color = if active { p.paper } else { p.ink };
+    let color = if active { ui.color(PAPER) } else { ui.color(INK) };
     ui.within(&node, &mut |ui| {
         let glyph = ui.node(
             "icon",
@@ -678,7 +669,6 @@ fn expanded(
     catalog: &Catalog,
     size: (f32, f32),
     generation: u64,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     use lw_core::queue::RepeatMode;
@@ -687,7 +677,7 @@ fn expanded(
         w: Size::Grow,
         h: Size::Grow,
         look: Look {
-            fill: p.paper,
+            fill: ui.color(PAPER),
             ..Look::NONE
         },
         ..Node::DEFAULT
@@ -734,9 +724,9 @@ fn expanded(
             },
         );
         ui.within(&head, &mut |ui| {
-            let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), p.paper);
+            let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
-                if icon_button(ui, "close-player", "Close now playing", Icon::Down, (44.0, 44.0), false, p) {
+                if icon_button(ui, "close-player", "Close now playing", Icon::Down, (44.0, 44.0), false, true) {
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
@@ -754,10 +744,10 @@ fn expanded(
                 },
             );
             ui.within(&from, &mut |ui| {
-                text(ui, "prefix", "Playing from", 13, p.secondary, (Size::Fit, 18.2), false);
-                text(ui, "source", player.context, 13, p.ink, (Size::Fit, 18.2), false);
+                text(ui, "prefix", "Playing from", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
+                text(ui, "source", player.context, 13, ui.color(INK), (Size::Fit, 18.2), false);
             });
-            container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), p.paper);
+            container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
         });
         let region_box = ui.node(
             "artwork-region",
@@ -777,7 +767,6 @@ fn expanded(
                 player,
                 player.current_id.and_then(|id| catalog.row_index(id)),
                 art_size,
-                p,
             );
         });
         let body = ui.node(
@@ -802,7 +791,7 @@ fn expanded(
                 },
             );
             ui.within(&info, &mut |ui| {
-                let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, p.paper);
+                let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                 ui.within(&names, &mut |ui| {
                     let title = ui.node(
                         "title",
@@ -810,7 +799,7 @@ fn expanded(
                             role: Role::Label,
                             w: Size::Grow,
                             h: Size::Px(27.6),
-                            look: Look { text: p.ink, ..Look::NONE },
+                            look: Look { text: ui.color(INK), ..Look::NONE },
                             ..Node::DEFAULT
                         },
                     );
@@ -830,10 +819,10 @@ fn expanded(
                     )
                     .unwrap();
                     if player.current_id.is_some() {
-                        byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), p, intent);
+                        byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), intent);
                     }
                 });
-                if now::favorite_button(ui, favorite, p)
+                if now::favorite_button(ui, favorite)
                     && let Some((song, on)) = favorite
                 {
                     *intent = Some(Intent::SetFavorite { song, on: !on });
@@ -851,7 +840,7 @@ fn expanded(
                 },
             );
             ui.within(&clock, &mut |ui| {
-                matrix_clock(ui, position.max(0.0) as u64, 72.0, p.ink);
+                matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
                 ui.box_("flex", BoxOpts::default().w(Size::Grow));
                 let side = ui.node(
                     "clock-side",
@@ -867,7 +856,7 @@ fn expanded(
                 );
                 ui.within(&side, &mut |ui| {
                     if let Some(info) = player.info {
-                        text(ui, "format", &info.summary, 12, p.secondary, (Size::Fit, 16.8), true);
+                        text(ui, "format", &info.summary, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
                     }
                     small_clock(
                         ui,
@@ -875,18 +864,18 @@ fn expanded(
                         (player.duration - position).max(0.0) as u64,
                         true,
                         50.0,
-                        p.secondary,
+                        ui.color(SECONDARY),
                     );
                 });
             });
             spacer(ui, "seek-gap", 14.0);
-            seek(ui, player, position, p, intent);
-            let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), p.paper);
+            seek(ui, player, position, intent);
+            let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), ui.color(PAPER));
             ui.within(&times, &mut |ui| {
-                let start = small_clock(ui, "start", 0, false, 40.0, p.secondary);
+                let start = small_clock(ui, "start", 0, false, 40.0, ui.color(SECONDARY));
                 ui.a11y_name(&start, "Start time");
                 ui.box_("flex", BoxOpts::default().w(Size::Grow));
-                let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, p.secondary);
+                let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, ui.color(SECONDARY));
                 ui.a11y_name(&total, "Duration");
             });
             spacer(ui, "modes-gap", 14.0);
@@ -898,7 +887,7 @@ fn expanded(
                     padding: Edges::all(2.0),
                     w: Size::Grow,
                     h: Size::Px(48.0),
-                    look: Look { fill: p.panel, ..Look::NONE },
+                    look: Look { fill: ui.color(PANEL), ..Look::NONE },
                     ..Node::DEFAULT
                 },
             );
@@ -909,9 +898,8 @@ fn expanded(
                     if player.shuffled { "Shuffle on" } else { "Shuffle off" },
                     Icon::Shuffle,
                     player.shuffled,
-                    p,
                     |ui| {
-                        let c = if player.shuffled { p.paper } else { p.ink };
+                        let c = if player.shuffled { ui.color(PAPER) } else { ui.color(INK) };
                         text(ui, "label", "Shuffle", 14, c, (Size::Fit, 19.6), false);
                     },
                 ) {
@@ -928,25 +916,24 @@ fn expanded(
                     },
                     Icon::Repeat,
                     again,
-                    p,
                     |ui| {
-                        let c = if again { p.paper } else { p.ink };
+                        let c = if again { ui.color(PAPER) } else { ui.color(INK) };
                         let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
                         text(ui, "label", label, 14, c, (Size::Fit, 19.6), false);
                     },
                 ) {
                     *intent = Some(Intent::Repeat);
                 }
-                if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, p, |ui| {
+                if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
                     let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                    text(ui, "count", count, 11, p.ink, (Size::Fit, 15.4), true);
-                    text(ui, "label", "up next", 14, p.ink, (Size::Fit, 19.6), false);
+                    text(ui, "count", count, 11, ui.color(INK), (Size::Fit, 15.4), true);
+                    text(ui, "label", "up next", 14, ui.color(INK), (Size::Fit, 19.6), false);
                 }) {
                     *intent = Some(Intent::ShowQueue);
                 }
             });
             if !player.message.is_empty() {
-                line(ui, "notice", player.message, 12.0, p.secondary);
+                line(ui, "notice", player.message, 12.0, ui.color(SECONDARY));
             }
         });
         // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
@@ -958,17 +945,17 @@ fn expanded(
                 padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
                 w: Size::Grow,
                 h: Size::Px(86.0),
-                look: Look { fill: p.selected, ..Look::NONE },
+                look: Look { fill: ui.color(SELECTED), ..Look::NONE },
                 ..Node::DEFAULT
             },
         );
         ui.within(&keys, &mut |ui| {
             let key = ((size.0 - 8.0) / 3.0).max(1.0);
-            if icon_button(ui, "previous", "Previous", Icon::Previous, (key, 84.0), false, p) {
+            if icon_button(ui, "previous", "Previous", Icon::Previous, (key, 84.0), false, true) {
                 *intent = Some(Intent::Previous);
             }
-            play(ui, player, (key, 84.0), p, intent);
-            if icon_button(ui, "next", "Next", Icon::Next, (key, 84.0), false, p) {
+            play(ui, player, (key, 84.0), intent);
+            if icon_button(ui, "next", "Next", Icon::Next, (key, 84.0), false, true) {
                 *intent = Some(Intent::Next);
             }
         });

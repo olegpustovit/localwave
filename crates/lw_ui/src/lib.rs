@@ -14,7 +14,7 @@ pub mod song_text;
 /// pxui's deterministic fast hash of one value (a revision or identity key; not a DoS-resistant map hash).
 #[inline]
 pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 { pxui::hash(|state| value.hash(state)) }
-pub use shell::{ShellState, shell};
+pub use shell::{ShellState, set_colors, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");
 pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf");
@@ -315,10 +315,12 @@ pub struct PlayerView<'a> {
 #[cfg(test)]
 mod tests;
 
-/// `Ui::create` for tests, with `verify_views` on for every Ui the process creates.
+/// `Ui::create` for tests, with `verify_views` on for every Ui the process creates and LocalWave's colours installed.
 #[cfg(test)]
 pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8]]) -> pxui::Ui {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| pxui::Ui::verify_new_views(true));
-    pxui::Ui::create(platform, size, fonts)
+    let mut ui = pxui::Ui::create(platform, size, fonts);
+    set_colors(&mut ui);
+    ui
 }

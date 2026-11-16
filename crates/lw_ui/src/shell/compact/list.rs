@@ -26,7 +26,6 @@ struct Cx<'a> {
     selecting: bool,
     /// Album pages number rows by track instead of showing artwork.
     numbered: bool,
-    p: Palette,
 }
 
 pub(super) fn songs(
@@ -35,11 +34,10 @@ pub(super) fn songs(
     state: &ShellState,
     player: &PlayerView<'_>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     if state.route == Route::Find {
-        compact_find(ui, catalog, state, player.command_theme, width, p, intent);
+        compact_find(ui, catalog, state, player.command_theme, width, intent);
     }
     // Swift's compact Songs is always title-sorted; the worker projects it.
     if state.route == Route::Songs && state.sort == Sort::Original && intent.is_none() {
@@ -54,7 +52,7 @@ pub(super) fn songs(
     };
     let detail_page = matches!(state.route, Route::Album(_) | Route::Collection(_));
     if collection.rows.is_empty() && artist.is_none() && !detail_page {
-        line(ui, "empty", "No songs here yet.", 14.0, p.secondary);
+        line(ui, "empty", "No songs here yet.", 14.0, ui.color(SECONDARY));
         return;
     }
     let cx = Cx {
@@ -69,7 +67,6 @@ pub(super) fn songs(
         },
         selecting: state.selecting,
         numbered: matches!(state.route, Route::Album(_)),
-        p,
     };
     let lead = match state.route {
         Route::Artist(index) => artist_lead_height(catalog, index, width),
@@ -110,7 +107,7 @@ pub(super) fn songs(
                 }
                 SectionPart::Header => {}
                 SectionPart::Row(index) if index == collection.rows.len() => {
-                    find_result_keys(ui, catalog, p, intent)
+                    find_result_keys(ui, catalog, intent)
                 }
                 SectionPart::Row(index) => row(ui, &cx, index, intent),
             },
@@ -120,7 +117,7 @@ pub(super) fn songs(
             selection_bar(ui, &cx, intent);
         }
         if state.route == Route::Songs && state.sort == Sort::Title && state.ascending {
-            rail(ui, &list, collection, p);
+            rail(ui, &list, collection);
         }
     });
 }
@@ -134,7 +131,6 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         width,
         selecting,
         numbered,
-        p,
         ..
     } = *cx;
     let row = catalog.row(collection.rows[index]);
@@ -164,7 +160,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 ..Edges::ZERO
             },
             look: Look {
-                fill: if selected { p.selected } else { p.paper },
+                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                 ..Look::NONE
             },
             ..Node::DEFAULT
@@ -216,7 +212,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             ui.set_look(
                 &node,
                 Look {
-                    fill: p.selected,
+                    fill: ui.color(SELECTED),
                     ..row_node.look
                 },
                 State::default(),
@@ -225,24 +221,24 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         ui.a11y_name(&node, row.title);
         ui.within(&node, &mut |ui| {
             if selecting {
-                checkbox(ui, state.is_marked(index), p);
+                checkbox(ui, state.is_marked(index));
             }
             if numbered {
                 let mut digits = [0u8; 24];
                 let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
                 let cell = ui.node("track", Node { axis: Axis::Row, justify: Justify::End, w: Size::Px(22.0), h: Size::Px(18.2), ..Node::DEFAULT });
                 ui.within(&cell, &mut |ui| {
-                    text(ui, "number", digits, 13, p.secondary, (Size::Fit, 18.2), true);
+                    text(ui, "number", digits, 13, ui.color(SECONDARY), (Size::Fit, 18.2), true);
                 });
             } else {
-                artwork(ui, catalog, player, Some(collection.rows[index]), 40.0, p);
+                artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
             }
-            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, p.paper);
+            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
             ui.within(&labels, &mut |ui| {
                 let ink = if player.current_id == Some(row.id) {
-                    p.signal
+                    ui.tokens().accent
                 } else {
-                    p.ink
+                    ui.color(INK)
                 };
                 line(ui, "title", row.title, 15.0, ink);
                 let note = if selecting {
@@ -252,11 +248,11 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 } else {
                     row.subtitle
                 };
-                line(ui, "artist", note, 13.0, p.secondary);
+                line(ui, "artist", note, 13.0, ui.color(SECONDARY));
             });
             if selecting {
                 if cx.list.is_some() {
-                    reorder_grip(ui, index, row.title, p);
+                    reorder_grip(ui, index, row.title);
                 }
                 return;
             }
@@ -273,19 +269,18 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                     Axis::Row,
                     Size::Px(if row.pinned { 14.0 } else { 10.0 }),
                     Size::Px(10.0),
-                    p.paper,
+                    ui.color(PAPER),
                 );
                 ui.within(&holder, &mut |ui| {
                     super::super::songs::row::glyph(
                         ui,
                         (row.state, row.availability, row.pinned),
                         true,
-                        p,
                     );
                 });
             }
-            text(ui, "duration", row.duration, 12, p.secondary, (Size::Fit, 16.8), true);
-            if more_button(ui, row.actions_label, p) {
+            text(ui, "duration", row.duration, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
+            if more_button(ui, row.actions_label) {
                 let rect = ui.rect(&node);
                 *intent = Some(Intent::SongMenu(
                     index,
@@ -296,7 +291,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             }
         });
         if selecting && cx.list.is_some() {
-            super::super::songs::row::drop_target(ui, p, &node, index, intent);
+            super::super::songs::row::drop_target(ui, &node, index, intent);
         }
         let leading = g.swipe > 0.0;
         let (key, label, trailing) = match cx.list {
@@ -325,7 +320,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 },
             );
             ui.within(&strip, &mut |ui| {
-                if swipe_action(ui, key, label, g.swipe.abs(), p) {
+                if swipe_action(ui, key, label, g.swipe.abs()) {
                     *intent = Some(action);
                     ui.close_swipe(&node);
                 }
@@ -361,7 +356,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
 }
 
 /// Swift's edit-mode drag handle: dragging it reorders the playlist (`MoveListRow` on drop).
-fn reorder_grip(ui: &mut Ui, index: usize, title: &str, p: Palette) {
+fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     use super::super::songs::row::LIST_ROW;
     let grip = ui.node("reorder", Node { flags: CLICKABLE | TAB_STOP, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
     ui.a11y_name(&grip, "Reorder track");
@@ -369,7 +364,7 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str, p: Palette) {
     ui.gesture(&grip, GestureOpts { touch_drag: true, ..Default::default() });
     ui.draw(&grip, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
-            paint.fill(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0, p.secondary);
+            paint.fill(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0, paint.color(SECONDARY));
         }
     });
     let signal = ui.signal_state(&grip);
@@ -388,12 +383,12 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str, p: Palette) {
     }
 }
 
-fn swipe_action(ui: &mut Ui, key: &str, label: &'static str, revealed: f32, p: Palette) -> bool {
+fn swipe_action(ui: &mut Ui, key: &str, label: &'static str, revealed: f32) -> bool {
     let armed = revealed >= SWIPE_FULL;
     let (fill, ink) = if armed {
-        (p.ink, p.paper)
+        (ui.color(INK), ui.color(PAPER))
     } else {
-        (p.panel, p.secondary)
+        (ui.color(PANEL), ui.color(SECONDARY))
     };
     let node = ui.node(
         key,
@@ -420,7 +415,7 @@ fn swipe_action(ui: &mut Ui, key: &str, label: &'static str, revealed: f32, p: P
 }
 
 /// Swift's LWMenuButton: a bare "…" in a 44 pt target.
-fn more_button(ui: &mut Ui, label: &str, p: Palette) -> bool {
+fn more_button(ui: &mut Ui, label: &str) -> bool {
     let node = ui.node(
         "actions",
         Node {
@@ -432,7 +427,7 @@ fn more_button(ui: &mut Ui, label: &str, p: Palette) -> bool {
         },
     );
     ui.a11y_name(&node, label);
-    let color = p.secondary;
+    let color = ui.color(SECONDARY);
     ui.draw(&node, move |paint, rect| {
         kit::paint_icon(
             paint,
@@ -493,7 +488,7 @@ fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
 }
 
 /// Swift's trailing index: tap or drag over a letter jumps to its first song.
-fn rail(ui: &mut Ui, list: &Handle, collection: &Collection, p: Palette) {
+fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
     let holder = ui.node(
         "index-holder",
         Node {
@@ -539,7 +534,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection, p: Palette) {
                     },
                 );
                 ui.within(&node, &mut |ui| {
-                    text(ui, "letter", letter, 11, p.secondary, (Size::Fit, RAIL_STEP), false);
+                    text(ui, "letter", letter, 11, ui.color(SECONDARY), (Size::Fit, RAIL_STEP), false);
                 });
                 ui.a11y_name(&node, letter);
                 // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
@@ -599,7 +594,6 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         state,
         player,
         width,
-        p,
         ..
     } = *cx;
     let albums = catalog
@@ -619,13 +613,13 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         Size::Grow,
         Size::Px(artist_lead_height(catalog, artist, width)),
         &mut |ui| {
-            let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
+            let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
             ui.within(&column, &mut |ui| {
                 nav_row(ui, cx, "Library", Route::Artists, intent);
                 let name = if collection.title.is_empty() { "Unknown artist" } else { &collection.title };
-                titles(ui, name, &collection.summary, p);
+                titles(ui, name, &collection.summary);
                 spacer(ui, "keys-gap", 8.0);
-                play_keys(ui, p, None, intent);
+                play_keys(ui, None, intent);
                 spacer(ui, "albums-gap", 16.0);
                 let cell = album_cell(width);
                 for (line, pair) in albums.chunks(2).enumerate() {
@@ -668,7 +662,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     Axis::Stack,
                                     Size::Px(cell),
                                     Size::Px(cell),
-                                    p.panel,
+                                    ui.color(PANEL),
                                 );
                                 paint_artwork(
                                     ui,
@@ -683,7 +677,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     "name",
                                     &group.title,
                                     (14.0, 17.5, 500, 0.0),
-                                    p.ink,
+                                    ui.color(INK),
                                     0,
                                 );
                                 let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
@@ -694,7 +688,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     "year",
                                     if year == "0" { "" } else { year },
                                     (13.0, 18.2, 400, 0.0),
-                                    p.secondary,
+                                    ui.color(SECONDARY),
                                     0,
                                 );
                             });
@@ -720,7 +714,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                     },
                 );
                 ui.within(&label, &mut |ui| {
-                    detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), p.secondary, 0);
+                    detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), 0);
                 });
             });
         },
@@ -732,7 +726,6 @@ fn back_row(
     ui: &mut Ui,
     label: &'static str,
     parent: Route,
-    p: Palette,
     intent: &mut Option<Intent>,
     extras: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
@@ -748,9 +741,9 @@ fn back_row(
         ui.a11y_name(&button, "Back");
         ui.within(&button, &mut |ui| {
             let glyph = ui.node("icon", Node { w: Size::Px(20.0), h: Size::Px(20.0), ..Node::DEFAULT });
-            let color = p.secondary;
+            let color = ui.color(SECONDARY);
             ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-            text(ui, "label", label, 15, p.secondary, (Size::Fit, 21.0), false);
+            text(ui, "label", label, 15, ui.color(SECONDARY), (Size::Fit, 21.0), false);
         });
         if ui.signal_state(&button).clicked {
             *intent = Some(Intent::Navigate(parent));
@@ -760,41 +753,41 @@ fn back_row(
 }
 
 /// Name (32 pt) over a 13 pt summary.
-fn titles(ui: &mut Ui, title: &str, summary: &str, p: Palette) {
+fn titles(ui: &mut Ui, title: &str, summary: &str) {
     let titles = ui.node("titles", Node { w: Size::Grow, h: Size::Px(TITLE_BLOCK), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&titles, &mut |ui| {
-        detail::line(ui, "name", title, (32.0, 33.6, 500, -1.12), p.ink, 0);
+        detail::line(ui, "name", title, (32.0, 33.6, 500, -1.12), ui.color(INK), 0);
         spacer(ui, "gap", 4.0);
-        detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), p.secondary, 0);
+        detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), 0);
     });
 }
 
-fn find_result_keys(ui: &mut Ui, catalog: &Catalog, p: Palette, intent: &mut Option<Intent>) {
+fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>) {
     let kept = catalog.view.as_ref().and_then(|view| view.find.as_ref()).is_some_and(|find| find.pinned);
     let keys = ui.node("find-keys", Node { axis: Axis::Row, gap: 8.0, w: Size::Grow, h: Size::Px(ROW), padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&keys, &mut |ui| {
-        if key(ui, "play-results", "Play results", Icon::Play, false, p) {
+        if key(ui, "play-results", "Play results", Icon::Play, false) {
             *intent = Some(Intent::PlayRow(0));
         }
         let (label, icon) = if kept { ("Kept offline", Icon::Check) } else { ("Keep results offline", Icon::Down) };
-        if key(ui, "keep-results-offline", label, icon, false, p) {
+        if key(ui, "keep-results-offline", label, icon, false) {
             *intent = Some(Intent::TogglePins);
         }
     });
 }
 
 /// Play and Shuffle keys.
-fn play_keys(ui: &mut Ui, p: Palette, offline: Option<bool>, intent: &mut Option<Intent>) {
+fn play_keys(ui: &mut Ui, offline: Option<bool>, intent: &mut Option<Intent>) {
     let keys = ui.node("keys", Node { axis: Axis::Row, gap: 8.0, w: Size::Grow, h: Size::Px(PLAY_BAR), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&keys, &mut |ui| {
-        if key(ui, "play", "Play", Icon::Play, true, p) {
+        if key(ui, "play", "Play", Icon::Play, true) {
             *intent = Some(Intent::PlayRow(0));
         }
-        if key(ui, "shuffle", "Shuffle", Icon::Shuffle, false, p) {
+        if key(ui, "shuffle", "Shuffle", Icon::Shuffle, false) {
             *intent = Some(Intent::ShuffleCollection);
         }
         if let Some(kept) = offline
-            && offline_key(ui, kept, p)
+            && offline_key(ui, kept)
         {
             *intent = Some(Intent::Page(crate::PageAction::KeepOffline));
         }
@@ -806,7 +799,7 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
     matches!(&*cx.collection.context, lw_core::context::PlaybackContext::Album { .. })
         .then(|| !cx.collection.rows.is_empty() && cx.collection.rows.iter().all(|&row| cx.catalog.row(row).pinned))
 }
-pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool, p: Palette) -> bool {
+pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
     let label = if kept { "Kept offline" } else { "Keep offline" };
     let node = ui.node(
         "keep-offline",
@@ -819,17 +812,17 @@ pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool, p: Palette) -> bool
             gap: 8.0,
             w: Size::Grow,
             h: Size::Px(PLAY_BAR),
-            look: Look { fill: p.panel, ..Look::NONE },
+            look: Look { fill: ui.color(PANEL), ..Look::NONE },
             ..Node::DEFAULT
         },
     );
     ui.within(&node, &mut |ui| {
         let glyph = ui.node("icon", Node { w: Size::Px(20.0), h: Size::Px(20.0), ..Node::DEFAULT });
-        let color = p.ink;
+        let color = ui.color(INK);
         ui.draw(&glyph, move |paint, rect| {
             crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
         });
-        text(ui, "label", label, 15, p.ink, (Size::Fit, 21.0), false);
+        text(ui, "label", label, 15, ui.color(INK), (Size::Fit, 21.0), false);
     });
     ui.a11y_name(&node, label);
     ui.signal_state(&node).clicked
@@ -845,42 +838,42 @@ const BAR: f32 = 64.0;
 /// Back row, or Swift's selection header (Select all, "N selected", Done) in Select mode.
 /// Albums and lists add the page "…" menu; artists only Select.
 fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent: &mut Option<Intent>) {
-    let Cx { collection, state, p, .. } = *cx;
+    let Cx { collection, state, .. } = *cx;
     let playlist = cx.list.is_some();
     if !state.selecting {
-        back_row(ui, label, parent, p, intent, &mut |ui, intent| {
-            container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
+        back_row(ui, label, parent, intent, &mut |ui, intent| {
+            container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
             // Playlists edit (select and remove); the others select.
             if !(playlist && collection.rows.is_empty())
-                && word(ui, "select", if playlist { "Edit" } else { "Select" }, false, p)
+                && word(ui, "select", if playlist { "Edit" } else { "Select" }, false)
             {
                 *intent = Some(Intent::SelectMode(true));
             }
             if !matches!(state.route, Route::Artist(_))
-                && more_button(ui, if playlist { "List actions" } else { "Album actions" }, p)
+                && more_button(ui, if playlist { "List actions" } else { "Album actions" })
             {
                 *intent = Some(Intent::PageMenu((cx.width - 8.0, BACK_ROW)));
             }
         });
         return;
     }
-    selection_header(ui, p, state.marked.len(), collection.rows.len(), collection.rows.len(), intent);
+    selection_header(ui, state.marked.len(), collection.rows.len(), collection.rows.len(), intent);
 }
 
 /// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
 /// "Select all" marks `rows` positions.
-pub(in crate::shell) fn selection_header(ui: &mut Ui, p: Palette, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
+pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
     let row = ui.node("selection-header", Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(BACK_ROW), padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&row, &mut |ui| {
         let all = selected > 0 && selected == selectable;
-        if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false, p) {
+        if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false) {
             *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
         }
-        container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
+        container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
         let mut buffer = [0u8; 40];
-        text(ui, "count", selected_label(&mut buffer, selected), 15, p.ink, (Size::Fit, 21.0), false);
-        container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
-        if word(ui, "done", "Done", true, p) {
+        text(ui, "count", selected_label(&mut buffer, selected), 15, ui.color(INK), (Size::Fit, 21.0), false);
+        container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+        if word(ui, "done", "Done", true) {
             *intent = Some(Intent::SelectMode(false));
         }
     });
@@ -896,19 +889,19 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 }
 
 /// A 44 pt text button (Swift's Select / Done at 16 pt).
-pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool, p: Palette) -> bool {
+pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool) -> bool {
     let node = ui.node(key, Node { flags: CLICKABLE | TAB_STOP, role: Role::Button, axis: Axis::Row, align: Align::Center, w: Size::Fit, h: Size::Px(44.0), padding: Edges { l: 4.0, r: 4.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&node, &mut |ui| {
-        text(ui, "label", label, 16, p.ink, (Size::Fit, 22.4), false);
+        text(ui, "label", label, 16, ui.color(INK), (Size::Fit, 22.4), false);
     });
     ui.a11y_name(&node, label);
     ui.signal_state(&node).clicked
 }
 
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
-pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool, p: Palette) {
+pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
     let node = ui.node("checkbox", Node { w: Size::Px(20.0), h: Size::Px(20.0), ..Node::DEFAULT });
-    let (ink, outline, paper) = (p.ink, p.secondary, p.paper);
+    let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
     ui.draw(&node, move |paint, rect| {
         if marked {
             paint.fill(rect.x, rect.y, 20.0, 20.0, ink);
@@ -921,11 +914,11 @@ pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool, p: Palette) {
 
 /// Swift's selection deck: Play next, Add to list, Offline, then Queue (Remove inside a list). Returns the pressed
 /// key ("play-next", "add-to-list", "offline", "queue" or "remove") and the key's rectangle.
-pub(in crate::shell) fn deck(ui: &mut Ui, p: Palette, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
+pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
     let mut pressed = None;
     let holder = ui.node("selection-holder", Node { axis: Axis::Column, justify: Justify::End, w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
     ui.within(&holder, &mut |ui| {
-        let deck = ui.node("selection-bar", Node { axis: Axis::Row, gap: 2.0, w: Size::Grow, h: Size::Px(BAR), padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
+        let deck = ui.node("selection-bar", Node { axis: Axis::Row, gap: 2.0, w: Size::Grow, h: Size::Px(BAR), padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::DEFAULT });
         ui.set_role(&deck, Role::Group, 0);
         ui.a11y_name(&deck, "Selection actions");
         ui.within(&deck, &mut |ui| {
@@ -935,7 +928,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, p: Palette, enabled: bool, remove: boo
                 ("offline", "Offline", Icon::Down),
                 (if remove { "remove" } else { "queue" }, if remove { "Remove" } else { "Queue" }, if remove { Icon::Clear } else { Icon::Queue }),
             ] {
-                let ink = if !enabled { p.tertiary } else if key == "remove" { p.danger } else { p.ink };
+                let ink = if !enabled { ui.color(TERTIARY) } else if key == "remove" { ui.color(DANGER) } else { ui.color(INK) };
                 let node = ui.node(
                     key,
                     Node {
@@ -948,7 +941,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, p: Palette, enabled: bool, remove: boo
                         gap: 4.0,
                         w: Size::Grow,
                         h: Size::Grow,
-                        look: Look { fill: p.key, ..Look::NONE },
+                        look: Look { fill: ui.color(KEY), ..Look::NONE },
                         ..Node::DEFAULT
                     },
                 );
@@ -978,7 +971,7 @@ fn selection_bar(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     let Cx { collection, state, .. } = *cx;
     let first = state.marked.first().and_then(|&index| collection.ids.get(index).map(|&id| (index, id)));
     let remove = cx.list;
-    if let Some((key, rect)) = deck(ui, cx.p, first.is_some(), remove.is_some()) {
+    if let Some((key, rect)) = deck(ui, first.is_some(), remove.is_some()) {
         let (index, id) = first.unwrap_or_default();
         *intent = Some(match key {
             "play-next" => Intent::PlayNext(id),
@@ -996,7 +989,7 @@ fn album_lead_height() -> f32 {
     BACK_ROW + ALBUM_ART + 16.0 + PLAY_BAR + 16.0
 }
 fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
-    let Cx { catalog, collection, state, player, width, p, .. } = *cx;
+    let Cx { catalog, collection, state, player, width, .. } = *cx;
     let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -1005,33 +998,33 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         select_revision(state),
     ));
     ui.view("album-lead", revision, Size::Grow, Size::Px(album_lead_height()), &mut |ui| {
-        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
+        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Library", Route::Albums, intent);
             let top = ui.node("album-top", Node { axis: Axis::Row, gap: 16.0, w: Size::Grow, h: Size::Px(ALBUM_ART), padding: Edges { l: 16.0, r: 16.0, ..Edges::ZERO }, ..Node::DEFAULT });
             ui.within(&top, &mut |ui| {
-                let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), p.panel);
+                let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), ui.color(PANEL));
                 paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
                 ui.a11y_name(&art, "Album artwork");
                 let meta = ui.node("meta", Node { w: Size::Grow, h: Size::Grow, justify: Justify::End, gap: 6.0, ..Node::DEFAULT });
                 ui.within(&meta, &mut |ui| {
                     let text_width = (width - 32.0 - ALBUM_ART - 16.0).max(1.0);
-                    super::super::settings::paragraph(ui, "title", &collection.title, text_width, 24.0, p.ink);
+                    super::super::settings::paragraph(ui, "title", &collection.title, text_width, 24.0, ui.color(INK));
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
-                        let link = detail::line(ui, "artist", artist, (17.0, 23.8, 400, 0.0), p.secondary, CLICKABLE | TAB_STOP);
+                        let link = detail::line(ui, "artist", artist, (17.0, 23.8, 400, 0.0), ui.color(SECONDARY), CLICKABLE | TAB_STOP);
                         if ui.signal_state(&link).clicked
                             && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
                         {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
                     }
-                    text(ui, "summary", &collection.summary, 13, p.secondary, (Size::Grow, 18.2), true);
+                    text(ui, "summary", &collection.summary, 13, ui.color(SECONDARY), (Size::Grow, 18.2), true);
                 });
             });
             spacer(ui, "keys-gap", 16.0);
-            play_keys(ui, p, offline_state(cx), intent);
+            play_keys(ui, offline_state(cx), intent);
         });
     });
 }
@@ -1041,7 +1034,7 @@ fn collection_lead_height() -> f32 {
     BACK_ROW + TITLE_BLOCK + 8.0 + PLAY_BAR + 16.0
 }
 fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
-    let Cx { catalog, collection, state, p, .. } = *cx;
+    let Cx { catalog, collection, state, .. } = *cx;
     let revision = crate::hash((
         state.revision,
         collection.key,
@@ -1049,19 +1042,19 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         select_revision(state),
     ));
     ui.view("collection-lead", revision, Size::Grow, Size::Px(collection_lead_height()), &mut |ui| {
-        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
+        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Lists", Route::Lists, intent);
-            titles(ui, &collection.title, &collection.summary, p);
+            titles(ui, &collection.title, &collection.summary);
             spacer(ui, "keys-gap", 8.0);
-            play_keys(ui, p, offline_state(cx), intent);
+            play_keys(ui, offline_state(cx), intent);
             spacer(ui, "list-gap", 16.0);
         });
     });
 }
 
 /// Swift's playKeyButtons: a 52 pt key, ink for Play.
-pub(in crate::shell) fn key(ui: &mut Ui, id: &str, label: &'static str, icon: Icon, primary: bool, p: Palette) -> bool {
+pub(in crate::shell) fn key(ui: &mut Ui, id: &str, label: &'static str, icon: Icon, primary: bool) -> bool {
     let node = ui.node(
         id,
         Node {
@@ -1074,13 +1067,13 @@ pub(in crate::shell) fn key(ui: &mut Ui, id: &str, label: &'static str, icon: Ic
             w: Size::Grow,
             h: Size::Px(PLAY_BAR),
             look: Look {
-                fill: if primary { p.ink } else { p.panel },
+                fill: if primary { ui.color(INK) } else { ui.color(PANEL) },
                 ..Look::NONE
             },
             ..Node::DEFAULT
         },
     );
-    let color = if primary { p.paper } else { p.ink };
+    let color = if primary { ui.color(PAPER) } else { ui.color(INK) };
     ui.within(&node, &mut |ui| {
         let glyph = ui.node(
             "icon",

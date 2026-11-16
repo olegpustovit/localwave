@@ -808,6 +808,7 @@ mod tests {
                 pxui::Ui::verify_new_views(true);
                 let mut ui =
                     pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+                lw_ui::set_colors(&mut ui);
                 ui.set_a11y(true);
                 ui.frame(
                     &pxui::FrameIn {

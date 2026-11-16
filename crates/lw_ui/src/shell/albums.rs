@@ -12,7 +12,6 @@ pub(super) fn toolbar(
     ui: &mut Ui,
     catalog: &Catalog,
     state: &ShellState,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let row = ui.node(
@@ -47,7 +46,7 @@ pub(super) fn toolbar(
                         ..Edges::ZERO
                     },
                     look: Look {
-                        fill: if selected { p.selected } else { p.paper },
+                        fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
                         ..Look::NONE
                     },
                     ..Node::DEFAULT
@@ -69,22 +68,22 @@ pub(super) fn toolbar(
                     "label",
                     title,
                     13,
-                    if selected { p.ink } else { p.secondary },
+                    if selected { ui.color(INK) } else { ui.color(SECONDARY) },
                     (Size::Fit, 18.2),
                     false,
                 );
             });
             if selected {
                 ui.draw_over(&button, move |paint, rect| {
-                    paint.fill_fractional(rect.x, rect.y, rect.w, 1.5, p.ink);
-                    paint.fill_fractional(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5, p.ink);
-                    paint.fill_fractional(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0, p.ink);
+                    paint.fill_fractional(rect.x, rect.y, rect.w, 1.5, paint.color(INK));
+                    paint.fill_fractional(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5, paint.color(INK));
+                    paint.fill_fractional(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0, paint.color(INK));
                     paint.fill_fractional(
                         rect.x + rect.w - 1.5,
                         rect.y + 1.5,
                         1.5,
                         rect.h - 3.0,
-                        p.ink,
+                        paint.color(INK),
                     );
                 });
             }
@@ -130,14 +129,14 @@ pub(super) fn toolbar(
                 },
             );
             ui.draw(&icon, move |paint, rect| {
-                crate::icons::shuffle(paint, rect, p.secondary)
+                crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
             text(
                 ui,
                 "label",
                 "Shuffle all",
                 13,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Fit, 18.2),
                 false,
             );
@@ -155,11 +154,10 @@ pub(super) fn gallery(
     state: &ShellState,
     player: &PlayerView<'_>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     if catalog.all.is_some() && catalog.is_empty() {
-        onboarding::empty_library(ui, catalog, state, width, p, intent);
+        onboarding::empty_library(ui, catalog, state, width, intent);
         return;
     }
     let revision = crate::hash((
@@ -194,7 +192,7 @@ pub(super) fn gallery(
         &mut |ui, part| match part {
             SectionPart::Leading => {
                 if !compact {
-                    header_view(ui, catalog, state, width, p, intent);
+                    header_view(ui, catalog, state, width, intent);
                     spacer(ui, "gallery-top-gap", 22.0);
                 }
             }
@@ -264,7 +262,7 @@ pub(super) fn gallery(
                                         ui.set_look(
                                             &node,
                                             Look {
-                                                fill: p.paper,
+                                                fill: ui.color(PAPER),
                                                 ..Look::NONE
                                             },
                                             State::default(),
@@ -276,7 +274,7 @@ pub(super) fn gallery(
                                                 Axis::Stack,
                                                 Size::Grow,
                                                 Size::Px(cell),
-                                                p.panel,
+                                                ui.color(PANEL),
                                             );
                                             paint_artwork(
                                                 ui,
@@ -293,7 +291,7 @@ pub(super) fn gallery(
                                                 "name",
                                                 &group.title,
                                                 14,
-                                                p.ink,
+                                                ui.color(INK),
                                                 (Size::Grow, 17.5),
                                                 false,
                                             );
@@ -316,7 +314,7 @@ pub(super) fn gallery(
                                                 "artist",
                                                 &group.subtitle,
                                                 13,
-                                                p.secondary,
+                                                ui.color(SECONDARY),
                                                 (Size::Grow, 18.2),
                                                 false,
                                             );

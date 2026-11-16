@@ -62,15 +62,14 @@ pub(super) fn table(
     state: &ShellState,
     player: &PlayerView<'_>,
     width: f32,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     if catalog.artist_table.is_some() && catalog.is_empty() {
-        onboarding::empty_library(ui, catalog, state, width, p, intent);
+        onboarding::empty_library(ui, catalog, state, width, intent);
         return;
     }
     let Some(table) = &catalog.artist_table else {
-        header_view(ui, catalog, state, width, p, intent);
+        header_view(ui, catalog, state, width, intent);
         let inset = ui.node(
             "artists-loading-inset",
             Node {
@@ -90,7 +89,7 @@ pub(super) fn table(
                 "artists-loading",
                 "Loading artists…",
                 14,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 40.0),
                 false,
             );
@@ -139,7 +138,7 @@ pub(super) fn table(
             overlay_scrollbar: true,
         },
         &mut |ui, part, _| match part {
-            SectionPart::Leading => header_view(ui, catalog, state, width, p, intent),
+            SectionPart::Leading => header_view(ui, catalog, state, width, intent),
             SectionPart::Header => {
                 let head = ui.node(
                     "artist-columns",
@@ -147,7 +146,7 @@ pub(super) fn table(
                         w: Size::Grow,
                         h: Size::Px(heading_height),
                         look: Look {
-                            fill: p.paper,
+                            fill: ui.color(PAPER),
                             ..Look::NONE
                         },
                         ..Node::DEFAULT
@@ -186,13 +185,13 @@ pub(super) fn table(
                                 },
                                 ..Default::default()
                             },
-                            p.secondary,
+                            ui.color(SECONDARY),
                         );
                         x += columns[index];
                     }
                 });
                 ui.draw_over(&head, move |paint, rect| {
-                    paint.fill_fractional(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0, p.line)
+                    paint.fill_fractional(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0, paint.color(LINE))
                 });
             }
             SectionPart::Row(index) => {
@@ -225,7 +224,7 @@ pub(super) fn table(
                         ui.set_look(
                             &row,
                             Look {
-                                fill: p.paper,
+                                fill: ui.color(PAPER),
                                 ..Look::NONE
                             },
                             State::default(),
@@ -238,7 +237,7 @@ pub(super) fn table(
                                     Axis::Stack,
                                     Size::Grow,
                                     Size::Grow,
-                                    Rgba { a: 153, ..p.panel },
+                                    Rgba { a: 153, ..ui.color(PANEL) },
                                 );
                             });
                             let previous = ui.state(&hover, -1);
@@ -263,7 +262,7 @@ pub(super) fn table(
                                     h: Size::Px(28.0),
                                     at: Some((32.0, top)).into(),
                                     look: Look {
-                                        fill: p.panel,
+                                        fill: ui.color(PANEL),
                                         ..Look::NONE
                                     },
                                     ..Node::DEFAULT
@@ -326,21 +325,21 @@ pub(super) fn table(
                                         },
                                         ..Default::default()
                                     },
-                                    if column == 0 { p.ink } else { p.secondary },
+                                    if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
                                 );
                                 x += columns[column];
                             }
                         });
                         let last = index + 1 == catalog.artists.len();
                         ui.draw_over(&row, move |paint, rect| {
-                            paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, p.line);
+                            paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, paint.color(LINE));
                             if last {
                                 paint.fill_fractional(
                                     rect.x,
                                     (rect.y + rect.h).floor(),
                                     rect.w,
                                     1.0,
-                                    p.line,
+                                    paint.color(LINE),
                                 );
                             }
                         });

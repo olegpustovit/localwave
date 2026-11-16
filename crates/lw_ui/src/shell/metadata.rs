@@ -17,7 +17,6 @@ pub(super) fn editor(
     ui: &mut Ui,
     state: &ShellState,
     mut edit: MetadataEdit,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (width, _) = ui.view_size();
@@ -31,7 +30,7 @@ pub(super) fn editor(
                 padding: Edges::all(20.0),
                 gap: 4.0,
                 look: Look {
-                    fill: p.paper,
+                    fill: ui.color(PAPER),
                     ..Look::NONE
                 },
                 ..Node::DEFAULT
@@ -43,12 +42,12 @@ pub(super) fn editor(
                 "title",
                 "Edit Metadata",
                 24,
-                p.ink,
+                ui.color(INK),
                 (Size::Grow, 36.0),
                 false,
             );
             for (index, (label, key)) in FIELDS.into_iter().enumerate() {
-                text(ui, label, label, 12, p.secondary, (Size::Grow, 16.0), false);
+                text(ui, label, label, 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
                 let field = ui.box_(key, BoxOpts::default().w(Size::Grow).h(Size::Px(32.0)));
                 ui.within(&field, &mut |ui| {
                     let current = *edit.field_mut(index).expect("field index is in range");
@@ -81,7 +80,7 @@ pub(super) fn editor(
                     ""
                 },
                 12,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 20.0),
                 false,
             );
@@ -91,13 +90,13 @@ pub(super) fn editor(
                 Axis::Row,
                 Size::Grow,
                 Size::Px(40.0),
-                p.paper,
+                ui.color(PAPER),
             );
             ui.within(&buttons, &mut |ui| {
-                if files::action(ui, "cancel-metadata", "Cancel", 100.0, true, p) {
+                if files::action(ui, "cancel-metadata", "Cancel", 100.0, true, (PANEL, INK)) {
                     *intent = Some(Intent::CloseMetadata);
                 }
-                if files::action(ui, "save-metadata", "Save", 100.0, valid, p) {
+                if files::action(ui, "save-metadata", "Save", 100.0, valid, (PANEL, INK)) {
                     *intent = Some(Intent::SaveMetadata(edit));
                 }
             });
@@ -112,7 +111,6 @@ pub(super) fn confirm_delete(
     ui: &mut Ui,
     catalog: &Catalog,
     song: i64,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let (width, _) = ui.view_size();
@@ -129,7 +127,7 @@ pub(super) fn confirm_delete(
                 padding: Edges::all(20.0),
                 gap: 12.0,
                 look: Look {
-                    fill: p.paper,
+                    fill: ui.color(PAPER),
                     ..Look::NONE
                 },
                 ..Node::DEFAULT
@@ -141,7 +139,7 @@ pub(super) fn confirm_delete(
                 "title",
                 "Delete song?",
                 24,
-                p.ink,
+                ui.color(INK),
                 (Size::Grow, 36.0),
                 false,
             );
@@ -151,7 +149,7 @@ pub(super) fn confirm_delete(
                 title.unwrap_or("This song changed. Try again."),
                 width - 40.0,
                 15.0,
-                p.ink,
+                ui.color(INK),
             );
             settings::paragraph(
                 ui,
@@ -159,7 +157,7 @@ pub(super) fn confirm_delete(
                 "It leaves your library and lists. The audio file is not deleted.",
                 width - 40.0,
                 14.0,
-                p.secondary,
+                ui.color(SECONDARY),
             );
             let buttons = container(
                 ui,
@@ -167,10 +165,10 @@ pub(super) fn confirm_delete(
                 Axis::Row,
                 Size::Grow,
                 Size::Px(40.0),
-                p.paper,
+                ui.color(PAPER),
             );
             ui.within(&buttons, &mut |ui| {
-                if files::action(ui, "cancel-delete-song", "Cancel", 100.0, true, p) {
+                if files::action(ui, "cancel-delete-song", "Cancel", 100.0, true, (PANEL, INK)) {
                     *intent = Some(Intent::CloseDeleteSong);
                 }
                 if files::action(
@@ -179,7 +177,7 @@ pub(super) fn confirm_delete(
                     "Delete Song",
                     100.0,
                     title.is_some(),
-                    Palette { ink: p.danger, ..p },
+                    (PANEL, DANGER),
                 ) {
                     *intent = Some(Intent::DeleteSong(song));
                 }

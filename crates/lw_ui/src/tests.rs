@@ -455,6 +455,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         false,
     )));
     let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    crate::set_colors(&mut ui);
     ui.set_a11y(true);
     let mut state = ShellState::default();
     state.apply(Intent::SelectRow(0));
@@ -2670,6 +2671,7 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
         ..PlayerView::default()
     };
     let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    crate::set_colors(&mut ui);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run =
@@ -2850,6 +2852,7 @@ fn favorite_burst_runs_only_on_the_off_to_on_transition_and_respects_reduced_mot
     for (reduced, expect_burst) in [(0, true), (1, false)] {
         let state = ShellState::default();
         let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        crate::set_colors(&mut ui);
         let mut time = 0.0;
         let mut run = |catalog: &catalog::Catalog, id: i64, seconds: f64| {
             time += seconds;

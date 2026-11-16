@@ -8,7 +8,6 @@ pub(super) fn now_panel(
     position: f64,
     catalog: &Catalog,
     carry: u64,
-    p: Palette,
     intent: &mut Option<Intent>,
 ) {
     let root = ui.node(
@@ -42,7 +41,7 @@ pub(super) fn now_panel(
                 "name",
                 "Now playing",
                 13,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 18.2),
                 false,
             );
@@ -53,7 +52,7 @@ pub(super) fn now_panel(
                 Icon::Panel,
                 (36.0, 36.0),
                 false,
-                p,
+                true,
             ) {
                 *intent = Some(Intent::TogglePanel);
             }
@@ -65,7 +64,7 @@ pub(super) fn now_panel(
             Axis::Stack,
             Size::Px(200.0),
             Size::Px(200.0),
-            p.panel,
+            ui.color(PANEL),
         );
         paint_artwork(
             ui,
@@ -116,7 +115,7 @@ pub(super) fn now_panel(
                             min_h: 22.8,
                             role: Role::Label,
                             look: Look {
-                                text: p.ink,
+                                text: ui.color(INK),
                                 ..Look::NONE
                             },
                             ..Node::DEFAULT
@@ -144,7 +143,7 @@ pub(super) fn now_panel(
                     )
                     .unwrap();
                     if player.current_id.is_some() {
-                        byline::draw(ui, player, catalog, 243.0, p, intent);
+                        byline::draw(ui, player, catalog, 243.0, intent);
                     }
                     if player.initialized && player.title.is_empty() {
                         settings::paragraph(
@@ -153,7 +152,7 @@ pub(super) fn now_panel(
                             "Double-click a song, or drop audio files anywhere in this window.",
                             243.0,
                             14.0,
-                            p.secondary,
+                            ui.color(SECONDARY),
                         );
                     }
                 },
@@ -166,7 +165,7 @@ pub(super) fn now_panel(
                 crate::motion::BASE,
                 crate::motion::QUICK + 0.045,
             );
-            if favorite_button(ui, favorite, p)
+            if favorite_button(ui, favorite)
                 && let Some((song, on)) = favorite
             {
                 *intent = Some(Intent::SetFavorite { song, on: !on });
@@ -190,7 +189,7 @@ pub(super) fn now_panel(
                     },
                 );
                 ui.within(&clock, &mut |ui| {
-                    matrix_clock(ui, position.max(0.0) as u64, 43.0, p.ink);
+                    matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
                     ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
                     small_clock(
                         ui,
@@ -198,7 +197,7 @@ pub(super) fn now_panel(
                         (player.duration - position).max(0.0) as u64,
                         true,
                         50.0,
-                        p.secondary,
+                        ui.color(SECONDARY),
                     );
                 });
             },
@@ -212,7 +211,7 @@ pub(super) fn now_panel(
             crate::motion::QUICK + 2.0 * 0.045,
         );
         spacer(ui, "clock-bottom-gap", 14.0);
-        metadata(ui, player.info, p);
+        metadata(ui, player.info);
         // A playback notice takes room from the (growing) queue viewport only while it shows.
         if !player.message.is_empty() {
             text(
@@ -220,13 +219,13 @@ pub(super) fn now_panel(
                 "playback-notice",
                 player.message,
                 13,
-                p.secondary,
+                ui.color(SECONDARY),
                 (Size::Grow, 44.0),
                 false,
             );
         }
         spacer(ui, "queue-gap", 14.0);
-        rule(ui, "queue-divider", false, p);
+        rule(ui, "queue-divider", false);
         let queue_revision = crate::hash((
             catalog.queue.as_ref().map(|queue| queue.revision),
             std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -238,13 +237,13 @@ pub(super) fn now_panel(
             queue_revision,
             Size::Grow,
             Size::Grow,
-            &mut |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, p, intent),
+            &mut |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, intent),
         );
     });
 }
 
 /// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
-pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Palette) -> bool {
+pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool {
     use pxui::kit::{AnimationTarget as Target, Keyframe};
     const RAYS: [(&str, f32, f32); 6] = [
         ("ray0", 0.0, -1.0),
@@ -291,7 +290,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Pale
     if was != seen {
         ui.set_state(&node, seen);
     }
-    let color = if on { p.signal } else { p.secondary };
+    let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
     let revision = crate::hash((on, signal.hovered, signal.held, current.is_some()));
     ui.within(&node, &mut |ui| {
         let heart = ui.view("heart", revision, Size::Grow, Size::Grow, &mut |ui| {
@@ -336,8 +335,9 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Pale
                             ..Node::DEFAULT
                         },
                     );
+                    let accent = ui.tokens().accent;
                     ui.draw(&dot, move |paint, rect| {
-                        paint.fill(rect.x, rect.y, rect.w, rect.h, p.signal)
+                        paint.fill(rect.x, rect.y, rect.w, rect.h, accent)
                     });
                 }));
             });
@@ -388,12 +388,12 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>, p: Pale
 }
 
 /// Format / Size / File / Plays under a hairline, drawn from the worker-prepared strings.
-fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>, p: Palette) {
+fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
     let Some(info) = info else {
         return;
     };
     spacer(ui, "metadata-gap", 14.0);
-    rule(ui, "metadata-divider", false, p);
+    rule(ui, "metadata-divider", false);
     spacer(ui, "metadata-top", 13.0);
     let revision = crate::hash(info as *const crate::now_info::NowInfo as usize);
     ui.view(
@@ -414,10 +414,10 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>, p: Palette) {
             );
             ui.within(&column, &mut |ui| {
                 for (key, label, value, ink) in [
-                    ("format", "Format", &info.format, p.secondary),
-                    ("size", "Size", &info.size, p.secondary),
-                    ("file", "File", &info.file, p.ink),
-                    ("plays", "Plays", &info.plays, p.secondary),
+                    ("format", "Format", &info.format, ui.color(SECONDARY)),
+                    ("size", "Size", &info.size, ui.color(SECONDARY)),
+                    ("file", "File", &info.file, ui.color(INK)),
+                    ("plays", "Plays", &info.plays, ui.color(SECONDARY)),
                 ] {
                     let row = ui.node(
                         key,
@@ -436,7 +436,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>, p: Palette) {
                             "label",
                             label,
                             12,
-                            p.secondary,
+                            ui.color(SECONDARY),
                             (Size::Px(64.0), 16.8),
                             false,
                         );
