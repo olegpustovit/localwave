@@ -85,8 +85,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.7 | local_bool/local_i64/local_f32 | todo |  |
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | todo |  |
-| DX2.1 | Borrowed key signals | done | HEAD + pxui 4e0de1f |
-| DX2.2 | Borrowed text results | todo |  |
+| DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
+| DX2.2 | Borrowed text results | done | HEAD + pxui 5e0e4a3 |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | todo |  |
 | DX2.4 | _into forms for quads and rasterize_rgba | todo |  |
 | DX2.5 | Typed errors | todo |  |
