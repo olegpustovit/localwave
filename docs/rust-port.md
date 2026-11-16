@@ -86,7 +86,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.7 | local_bool/local_i64/local_f32 | done | 0cd0585 + pxui 770760a |
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | done | 0292834 |
-| DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | HEAD + pxui 1089fe5 |
+| DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | 1cb17d5 + pxui 1089fe5 |
 | DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | todo |  |
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
@@ -100,7 +100,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.2 | App-defined colour tokens | done | b1e9ef6 + pxui 74c723a |
 | DX3.3 | Engine text element behind label | done | ca088b0 + pxui 065dc5e |
 | DX3.4 | button_with and Response | done | 24be9be + pxui 9c84707 |
-| DX3.5 | icon_button | todo |  |
+| DX3.5 | icon_button | done | HEAD + pxui 7891b2a |
+| DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | todo |  |
 | DX3.6 | menu with MenuItem | todo |  |
 | DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
 | DX3.8 | dialog_with | todo |  |
