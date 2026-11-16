@@ -65,15 +65,15 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-`make performance` on pxui fc90815 (gestures, 488-byte nodes, view-record reuse; after compact I2 work) (exit 0): eighteen signed workloads, 10,000 songs, 1440×872, 182 frames /
+`make performance` on 7557bec (pxui 62f1f94; after compact I2 parity, Find fixes) (exit 0): eighteen signed workloads, 10,000 songs, 1440×872, 182 frames /
 82 warm-up / 100 measured, both Rust counters. All eighteen pass with zero warm Rust allocations and
-new layouts, and a passing frame-82 audit. Settled idle smoke passes (506.6 ms). The five new rows
+new layouts, and a passing frame-82 audit. Settled idle smoke passes (508.5 ms). The five new rows
 drive album-detail and artist-detail scoped-table scrolls (album with real artwork), list menu and
 New list dialog with bounded typing, metadata editor typing and a song carry over the table, a sidebar
 list and Up next that Esc cancels. Typing is applied as the Intents a text field emits, because
 TextInput events own Strings. Onboarding is not a workload: it needs an empty library, which
 contradicts the 10,000-song fixture contract.
-Source: `/tmp/localwave-i2-performance.log`.
+Source: `/tmp/localwave-i2b-performance.log`.
 
 Gate (owner decision for this M1 Mac mini, 2026-11-15): build CPU p99 < 1,500 µs, frame CPU p99
 < 2,500 µs, frame work wall p99 < 8,000 µs (half a 60 Hz vsync), zero warm allocations. Work wall is
@@ -90,24 +90,24 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 
 | Workload | Build CPU | Build wall | Frame CPU | Work wall | Alloc max | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 675/944/1015 | 733/1908/2352/2915 | 1119/1385/1486 | 1123/2682/3251/3871 | 0 | pass |
-| find-filters-title-descending | 689/919/930 | 787/1836/2384/3044 | 1166/1451/1457 | 1235/3065/4109/4647 | 0 | pass |
-| queue-occurrences | 705/876/908 | 750/1949/2164/2431 | 1139/1346/1371 | 1127/2750/3982/4054 | 0 | pass |
-| queue-carry-scroll-cancel | 593/1053/1067 | 679/1336/2289/3284 | 1082/1641/1701 | 1151/3159/3668/5224 | 0 | pass |
-| full-queue-playlist-editor | 449/552/559 | 481/863/1467/2851 | 893/1180/1224 | 847/1431/2413/3190 | 0 | pass |
-| albums-artwork | 656/1071/1264 | 731/2350/2939/3720 | 1211/1713/1811 | 1320/3519/4028/5812 | 0 | pass |
-| waveform-scrub-and-scroll | 456/958/971 | 595/1866/2657/3314 | 983/1540/1560 | 1108/3100/3961/4023 | 0 | pass |
-| settings-menus-appearance | 353/634/648 | 391/1553/2191/2328 | 808/1119/1196 | 867/2435/4754/5064 | 0 | pass |
-| files-indexed-directory | 661/892/899 | 791/2185/2831/3347 | 1142/1415/1454 | 1259/3611/4851/4866 | 0 | pass |
-| external-drop-hover-and-cancel | 344/443/473 | 356/1610/2125/2454 | 809/1006/1024 | 799/2562/3017/3103 | 0 | pass |
-| artists-measured-columns | 697/966/996 | 786/1965/2921/3008 | 1178/1537/1610 | 1242/2880/3387/3450 | 0 | pass |
-| songs-playing-indicator | 763/1005/1058 | 893/2256/2509/2751 | 1213/1494/1501 | 1288/2999/4550/5023 | 0 | pass |
-| songs-long-scroll | 846/1091/1111 | 921/2306/2507/2734 | 1306/1583/1647 | 1318/2831/4281/5060 | 0 | pass |
-| album-detail-scoped-scroll | 570/775/799 | 596/2233/2590/3288 | 1080/1306/1361 | 1069/3152/4546/4603 | 0 | pass |
-| artist-detail-scoped-scroll | 579/873/882 | 622/1350/2092/2383 | 1048/1427/1512 | 1018/2187/3676/4878 | 0 | pass |
-| list-dialogs-menu-and-name | 469/1203/1216 | 893/2053/2929/3205 | 1004/1780/1863 | 1258/2882/4528/4732 | 0 | pass |
-| metadata-editor-typing | 874/1171/1185 | 926/2332/2597/3126 | 1290/1636/1695 | 1289/2843/3549/4136 | 0 | pass |
-| song-drag-carry-hover-cancel | 700/1257/1488 | 798/1800/2242/4304 | 1194/1800/2083 | 1278/3121/4067/4640 | 0 | pass |
+| songs-original | 680/998/1104 | 829/2556/4105/4621 | 1139/1545/1687 | 1237/3780/4656/5238 | 0 | pass |
+| find-filters-title-descending | 672/972/987 | 760/2495/3046/3196 | 1126/1472/1587 | 1206/3418/3793/5017 | 0 | pass |
+| queue-occurrences | 757/942/943 | 859/1953/2559/2676 | 1263/1537/1557 | 1302/2909/3012/3086 | 0 | pass |
+| queue-carry-scroll-cancel | 607/1000/1065 | 623/1100/1484/2089 | 1132/1656/1733 | 1053/1895/2631/2858 | 0 | pass |
+| full-queue-playlist-editor | 454/623/696 | 496/1369/2141/4634 | 908/1224/1254 | 915/2469/3362/4813 | 0 | pass |
+| albums-artwork | 681/1154/1349 | 756/2134/2836/3266 | 1320/1927/2030 | 1398/3432/4799/5120 | 0 | pass |
+| waveform-scrub-and-scroll | 525/838/883 | 594/1739/2349/2461 | 955/1399/1473 | 998/2655/3256/4156 | 0 | pass |
+| settings-menus-appearance | 362/650/682 | 404/1447/2028/2064 | 798/1219/1260 | 813/2919/3108/4353 | 0 | pass |
+| files-indexed-directory | 614/781/831 | 644/1716/2847/3131 | 1039/1241/1343 | 1004/2691/3141/5837 | 0 | pass |
+| external-drop-hover-and-cancel | 339/442/487 | 364/700/1945/2574 | 805/991/1055 | 753/1308/2735/2799 | 0 | pass |
+| artists-measured-columns | 682/1432/1495 | 731/1958/2439/2591 | 1188/2178/2208 | 1206/2631/3342/3627 | 0 | pass |
+| songs-playing-indicator | 826/1103/1132 | 941/2295/2647/2700 | 1338/1760/1763 | 1417/3022/3779/3922 | 0 | pass |
+| songs-long-scroll | 826/1112/1120 | 897/2344/2508/2797 | 1270/1667/1728 | 1260/3337/3517/3734 | 0 | pass |
+| album-detail-scoped-scroll | 546/747/750 | 573/1455/1988/2201 | 1045/1384/1424 | 1027/2496/3154/3436 | 0 | pass |
+| artist-detail-scoped-scroll | 562/759/778 | 623/1940/2364/2539 | 991/1300/1326 | 1040/2612/3009/3027 | 0 | pass |
+| list-dialogs-menu-and-name | 475/1148/1186 | 750/2384/3181/3957 | 966/1703/1762 | 1151/3304/4399/5002 | 0 | pass |
+| metadata-editor-typing | 837/1169/1605 | 924/2269/3261/6057 | 1239/1665/2198 | 1350/3413/5392/6913 | 0 | pass |
+| song-drag-carry-hover-cancel | 754/1298/1356 | 910/2293/2512/2733 | 1290/1921/1927 | 1303/3068/4714/6144 | 0 | pass |
 
 ### CPU profile
 
