@@ -92,8 +92,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | done | efe51b9 + pxui 550a4c9 |
 | DX2.4 | _into forms for quads and rasterize_rgba | done | 1a95982 + pxui 932e9c5 |
 | DX2.5 | Typed errors | todo |  |
-| DX3.1 | Theme row height outside panels | done | HEAD + pxui edfae14 |
-| DX3.2 | App-defined colour tokens | todo |  |
+| DX3.1 | Theme row height outside panels | done | b89b7c5 + pxui edfae14 |
+| DX3.2 | App-defined colour tokens | done | HEAD + pxui 74c723a |
 | DX3.3 | Engine text element behind label | todo |  |
 | DX3.4 | button_with and Response | todo |  |
 | DX3.5 | icon_button | todo |  |
