@@ -326,6 +326,54 @@ impl App {
                         _ => Command::TogglePins(directory.songs.clone()),
                     }
                 }
+                lw_ui::Intent::Page(action) => {
+                    // Whole-page actions of the compact "…" menu apply to the displayed collection.
+                    let Some(collection) = shell_state
+                        .collection(player.catalog())
+                        .filter(|collection| !collection.ids.is_empty())
+                    else {
+                        return Ok(Some(Schedule::NextFrame));
+                    };
+                    let songs = collection.ids.clone();
+                    match action {
+                        lw_ui::PageAction::Play => Command::Configure {
+                            songs,
+                            start: 0,
+                            autoplay: true,
+                            context: Some(collection.context.clone()),
+                        },
+                        lw_ui::PageAction::Shuffle => Command::ShuffleAll {
+                            songs,
+                            seed: now.to_bits(),
+                            context: Some(collection.context.clone()),
+                        },
+                        lw_ui::PageAction::PlayNext => Command::InsertNext(songs),
+                        lw_ui::PageAction::AddToQueue => Command::Append(songs),
+                        lw_ui::PageAction::KeepOffline => Command::TogglePins(songs),
+                        lw_ui::PageAction::AddToList(list) => Command::AddToList(list, songs),
+                    }
+                }
+                lw_ui::Intent::PlayFile(song) => {
+                    // The FilesWorker prepared the folder's saved songs in natural path order.
+                    let Some((directory, start)) = files
+                        .snapshot()
+                        .directory
+                        .as_ref()
+                        .and_then(|directory| {
+                            let start = directory.songs.iter().position(|&id| id == song)?;
+                            Some((directory, start))
+                        })
+                    else {
+                        return Ok(Some(Schedule::NextFrame));
+                    };
+                    shell_state.apply(lw_ui::Intent::CloseSongMenu);
+                    Command::Configure {
+                        songs: directory.songs.clone(),
+                        start,
+                        autoplay: true,
+                        context: Some(directory.context.clone()),
+                    }
+                }
                 lw_ui::Intent::ShuffleCollection => {
                     let Some(collection) = shell_state
                         .collection(player.catalog())
@@ -453,7 +501,14 @@ impl App {
                 | lw_ui::Intent::MetadataTooLong
                 | lw_ui::Intent::CloseMetadata
                 | lw_ui::Intent::ConfirmDeleteSong(_)
-                | lw_ui::Intent::CloseDeleteSong => {
+                | lw_ui::Intent::CloseDeleteSong
+                | lw_ui::Intent::SelectMode(_)
+                | lw_ui::Intent::SelectionLists(..)
+                | lw_ui::Intent::PageMenu(_)
+                | lw_ui::Intent::PageLists
+                | lw_ui::Intent::ClosePageMenu
+                | lw_ui::Intent::FilesFilter(_)
+                | lw_ui::Intent::ShowAddMusic => {
                     unreachable!("handled by ShellState")
                 }
             })
@@ -465,6 +520,16 @@ impl App {
         };
         (*command_error) = match result {
             Ok(_) => {
+                // Swift leaves phone selection mode once a bar action ran (the targets are already taken).
+                if matches!(
+                    intent,
+                    lw_ui::Intent::PlayNext(_)
+                        | lw_ui::Intent::AppendSong(_)
+                        | lw_ui::Intent::AddToList { .. }
+                        | lw_ui::Intent::KeepOffline(_)
+                ) {
+                    shell_state.finish_selecting();
+                }
                 match intent {
                     lw_ui::Intent::SaveQueue(_)
                     | lw_ui::Intent::CreateList { .. }

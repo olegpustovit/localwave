@@ -12,9 +12,15 @@ pub(in crate::shell) fn popup(
     intent: &mut Option<Intent>,
 ) {
     let click = at;
-    let present = state.collection(catalog).is_some_and(|collection| {
-        collection.key == target.2 && collection.ids.get(target.0) == Some(&target.1)
-    });
+    // A folder page row has no collection; its saved song only has to exist.
+    let files = state.route == Route::Files;
+    let present = if files {
+        catalog.row_index(target.1).is_some()
+    } else {
+        state.collection(catalog).is_some_and(|collection| {
+            collection.key == target.2 && collection.ids.get(target.0) == Some(&target.1)
+        })
+    };
     let row = catalog.row_index(target.1).map(|index| catalog.row(index));
     let favorite = row.is_some_and(|row| row.favorite);
     let list = state
@@ -28,7 +34,11 @@ pub(in crate::shell) fn popup(
     let mut items: [Option<(&'static str, bool, Intent)>; 15] = [None; 15];
     let mut count = 0;
     for entry in [
-        Some(("Play", true, Intent::PlayRow(target.0))),
+        Some((
+            "Play",
+            true,
+            if files { Intent::PlayFile(target.1) } else { Intent::PlayRow(target.0) },
+        )),
         Some(("Play next", true, Intent::PlayNext(target.1))),
         Some(("Add to queue", true, Intent::AppendSong(target.1))),
         Some(("Add to list", true, Intent::SongMenuLists)),
@@ -163,7 +173,7 @@ pub(in crate::shell) fn popup(
     }
 }
 
-fn item_node(enabled: bool, p: Palette) -> Node {
+pub(in crate::shell) fn item_node(enabled: bool, p: Palette) -> Node {
     Node {
         flags: if enabled { CLICKABLE | TAB_STOP } else { 0 },
         role: Role::MenuItem,

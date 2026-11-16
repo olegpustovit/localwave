@@ -1,4 +1,5 @@
 use super::*;
+use crate::FilesFilter;
 use crate::files::{Folder, Location, Request, Target};
 
 fn options(ui: &mut Ui, target: Target, p: Palette, intent: &mut Option<Intent>) {
@@ -334,6 +335,7 @@ const NUMBER: f32 = 56.0;
 pub(super) fn view(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    filter: FilesFilter,
     width: f32,
     p: Palette,
     intent: &mut Option<Intent>,
@@ -359,7 +361,7 @@ pub(super) fn view(
         };
         let content = (width - inset * 2.0).max(1.0);
         match &files.directory {
-            Some(directory) if files.account.is_some() => folder_page(ui, files, directory, content, compact, p, intent),
+            Some(directory) if files.account.is_some() => folder_page(ui, files, directory, filter, content, compact, p, intent),
             _ => source_page(ui, files, content, compact, p, intent),
         }
     });
@@ -404,7 +406,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
                 paint.fill(rect.x + 21.25, rect.y + 10.0, 1.5, 24.0, color);
             });
             if enabled && ui.signal_state(&add).clicked {
-                *intent = Some(Intent::ChooseFolder);
+                *intent = Some(Intent::ShowAddMusic);
             }
         } else {
             if action(ui, "add-folder", "Add folder", 110.0, enabled, p) {
@@ -526,10 +528,10 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, p: Palette, 
     }
 }
 
-fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, width: f32, compact: bool, p: Palette, intent: &mut Option<Intent>) {
+fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, filter: FilesFilter, width: f32, compact: bool, p: Palette, intent: &mut Option<Intent>) {
     use super::find::{Action, button as tool};
     if compact {
-        return compact_folder(ui, files, directory, width, p, intent);
+        return compact_folder(ui, files, directory, filter, width, p, intent);
     }
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
@@ -661,8 +663,8 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
 }
 
 /// Swift's mobileFolder: back and item count, title with options, breadcrumb, Play folder / Shuffle / Keep offline
-/// keys and 56 pt file rows. Gaps: no Select mode, availability filter tabs or per-row menus; audio rows do not play.
-fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, width: f32, p: Palette, intent: &mut Option<Intent>) {
+/// keys, All / Offline / In cloud tabs and 56 pt file rows (tap plays, "…" opens the song menu). Gap: no Select mode.
+fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, files_filter: FilesFilter, width: f32, p: Palette, intent: &mut Option<Intent>) {
     use super::compact::list::key;
     use super::kit::{Icon, paint_icon};
     let location = directory.location;
@@ -734,16 +736,45 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         text(ui, "empty-directory", "No files in this folder.", 14, p.secondary, (Size::Grow, 48.0), false);
         return;
     }
+    // Swift's All / Offline / In cloud tabs; the worker listed what each shows.
+    let tabs = ui.node("filter-tabs", Node { axis: Axis::Row, gap: 20.0, w: Size::Grow, h: Size::Px(44.0), ..Node::DEFAULT });
+    ui.set_role(&tabs, Role::Group, 0);
+    ui.a11y_name(&tabs, "Availability filter");
+    ui.within(&tabs, &mut |ui| {
+        for (filter, label, count) in [(FilesFilter::All, "All", 0), (FilesFilter::Offline, "Offline", 1), (FilesFilter::Cloud, "In cloud", 2)] {
+            let active = filter == files_filter;
+            let tab = ui.node(label, Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, axis: Axis::Column, w: Size::Fit, h: Size::Px(44.0), ..Node::DEFAULT });
+            let ink = if active { p.ink } else { p.secondary };
+            ui.within(&tab, &mut |ui| {
+                let content = ui.node("content", Node { axis: Axis::Row, align: Align::Center, gap: 6.0, w: Size::Fit, h: Size::Px(42.0), ..Node::DEFAULT });
+                ui.within(&content, &mut |ui| {
+                    text(ui, "label", label, 15, ink, (Size::Fit, 21.0), false);
+                    text(ui, "count", &directory.filter_counts[count], 13, p.secondary, (Size::Fit, 18.2), false);
+                });
+                container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { p.ink } else { p.paper });
+            });
+            ui.a11y_name(&tab, label);
+            ui.set_role(&tab, Role::Button, if active { pxui::a11y::state::SELECTED } else { 0 });
+            if ui.signal_state(&tab).clicked {
+                *intent = Some(Intent::FilesFilter(filter));
+            }
+        }
+    });
     let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
     let list = ui.node_keyed(key, Node { w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
-    let shown = directory.entries.len() - if directory.show_non_audio { 0 } else { directory.non_audio };
+    let tab_rows: Option<&[u32]> = match files_filter {
+        FilesFilter::All => None,
+        FilesFilter::Offline => Some(&directory.filters[0]),
+        FilesFilter::Cloud => Some(&directory.filters[1]),
+    };
+    let shown = tab_rows.map_or(directory.entries.len() - if directory.show_non_audio { 0 } else { directory.non_audio }, <[u32]>::len);
     ui.within(&list, &mut |ui| {
         ui.grid_list("directory-entries", shown, width, 56.0, &mut |ui, index| {
-            let entry = &directory.entries[index];
+            let entry = &directory.entries[tab_rows.map_or(index, |rows| rows[index] as usize)];
             let other = !entry.directory && !entry.audio;
             let row = ui.node_keyed(
                 int_key(Ui::key_of(0, "files-entry"), entry.id),
-                Node { axis: Axis::Row, align: Align::Center, gap: 12.0, w: Size::Grow, h: Size::Px(56.0), flags: if entry.directory { CLICKABLE | FOCUSABLE } else { 0 }, role: if entry.directory { Role::Button } else { Role::Row }, ..Node::DEFAULT },
+                Node { axis: Axis::Row, align: Align::Center, gap: 12.0, w: Size::Grow, h: Size::Px(56.0), padding: Edges { r: 6.0, ..Edges::ZERO }, flags: if entry.directory || entry.audio { CLICKABLE | FOCUSABLE } else { 0 }, role: if entry.directory || entry.audio { Role::Button } else { Role::Row }, ..Node::DEFAULT },
             );
             ui.a11y_name(&row, &entry.name);
             let signal = ui.signal_state(&row);
@@ -758,13 +789,68 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     text(ui, "name", &entry.name, 15, if other { p.tertiary } else { p.ink }, (Size::Grow, 21.0), false);
                     text(ui, "detail", &entry.detail, 12, p.secondary, (Size::Grow, 16.8), true);
                 });
+                // Swift's per-file "…"; only saved songs have actions here.
+                if let Some(song) = entry.song {
+                    let more = ui.node("actions", Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
+                    ui.a11y_name(&more, "Actions for file");
+                    let color = p.secondary;
+                    ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
+                    if ui.signal_state(&more).clicked {
+                        let at = ui.rect(&more);
+                        *intent = Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
+                    }
+                }
             });
             ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0, p.line));
-            if signal.clicked && entry.directory && intent.is_none() {
-                *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })));
+            if signal.clicked && intent.is_none() {
+                *intent = if entry.directory {
+                    Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })))
+                } else if let Some(song) = entry.song {
+                    Some(Intent::PlayFile(song))
+                } else if entry.audio && !files.busy {
+                    // Not imported yet: Swift imports on play; here a tap imports the file.
+                    Some(Intent::Files(Request::ImportPath { user: location.user, source: location.source, path: entry.id }))
+                } else {
+                    None
+                };
             }
         });
     });
+}
+
+/// Swift's Add music sheet: a folder or some files.
+pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, p: Palette, intent: &mut Option<Intent>) {
+    let (width, _) = ui.view_size();
+    let width = (width - 32.0).clamp(240.0, 420.0);
+    let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
+    let open = ui.modal(Some(width), "Add music", &mut |ui| {
+        let body = ui.node("add-music-body", Node { w: Size::Grow, h: Size::Fit, padding: Edges::all(16.0), gap: 8.0, look: Look { fill: p.paper, ..Look::NONE }, ..Node::DEFAULT });
+        ui.within(&body, &mut |ui| {
+            super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.2), p.ink, 0);
+            text(ui, "subtitle", "Files stay where they are", 13, p.secondary, (Size::Grow, 18.2), false);
+            spacer(ui, "gap", 4.0);
+            for (key, title, detail, action) in [
+                ("add-folder", "A folder", "Watched for changes. iCloud Drive, Google Drive, Dropbox, On My iPhone, USB drives, SMB servers.", Intent::ChooseFolder),
+                ("add-files", "Some files", "Play them now; they join the library too.", Intent::ChooseAudio),
+            ] {
+                let option = ui.node(key, Node { flags: if enabled { CLICKABLE | FOCUSABLE } else { 0 }, role: Role::Button, w: Size::Grow, h: Size::Fit, padding: Edges { t: 10.0, b: 10.0, l: 12.0, r: 12.0 }, gap: 2.0, look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
+                ui.a11y_name(&option, title);
+                ui.within(&option, &mut |ui| {
+                    super::detail::line(ui, "title", title, (17.0, 23.8, 500, 0.0), p.ink, 0);
+                    settings::paragraph(ui, "detail", detail, width - 56.0, 13.0, p.secondary);
+                });
+                if enabled && ui.signal_state(&option).clicked {
+                    *intent = Some(action);
+                }
+            }
+            if action(ui, "close-add-music", "Close", 100.0, true, p) {
+                *intent = Some(Intent::CloseSourceMenu);
+            }
+        });
+    });
+    if !open && intent.is_none() {
+        *intent = Some(Intent::CloseSourceMenu);
+    }
 }
 
 /// The right-hand key of the folder toolbar.
@@ -1436,5 +1522,98 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact folder page allocates");
             }
         }
+    }
+
+    #[test]
+    fn compact_folder_tabs_filter_rows_tap_plays_and_the_plus_opens_the_add_music_sheet() {
+        use lw_core::FileAvailability::{InCloud, OnDevice};
+        mem_sys::set_peer(pxui::library_counter);
+        let size = (390.0, 778.0);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let location = Location { user: 42, source: 1, parent: Some(5) };
+        let glyph = |availability| Some(crate::files::Glyph { state: lw_core::FileState::Copied, availability: Some(availability), pinned: false });
+        let audio = |id: i64, name: &str, song: Option<i64>, availability| Entry {
+            id, name: name.into(), detail: "FLAC · 1.0 MB · 2:29".into(), audio: true, song,
+            glyph: song.and_then(|_| glyph(availability)),
+            number: id.to_string(), ..Default::default()
+        };
+        let directory = Directory {
+            location, source_root: 5, up: Some(4), title: "Field".into(), detail: "4 items".into(), songs: Arc::from([9_i64, 10]),
+            entries: vec![
+                Entry { id: 1, name: "Takes".into(), detail: "Folder".into(), directory: true, ..Default::default() },
+                audio(2, "01 Here.flac", Some(9), OnDevice),
+                audio(3, "02 Cloud.flac", Some(10), InCloud),
+                audio(4, "03 New.flac", None, OnDevice),
+            ],
+            filters: [vec![0, 1], vec![0, 2]],
+            filter_counts: ["3".into(), "1".into(), "1".into()],
+            ..Default::default()
+        };
+        let files = Snapshot { revision: 1, account: Some(42), directory: Some(Arc::new(directory)), ..Default::default() };
+        let (catalog, mut state, mut time) = (Catalog::default(), ShellState::default(), 0.0);
+        state.apply(Intent::Navigate(Route::Files));
+        for _ in 0..3 {
+            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
+        let seen = names(&ui);
+        for want in ["All", "Offline", "In cloud", "01 Here.flac", "02 Cloud.flac", "03 New.flac"] {
+            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        }
+        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "01 Here.flac"), Some(Intent::PlayFile(9)));
+        assert_eq!(
+            click_at(size, &mut ui, &files, &catalog, &state, &mut time, "03 New.flac"),
+            Some(Intent::Files(Request::ImportPath { user: 42, source: 1, path: 4 })),
+            "an unsaved file imports on tap"
+        );
+        let more = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Actions for file");
+        assert!(matches!(more, Some(Intent::SongMenu(_, 9, 0, _))), "{more:?}");
+        let tab = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "In cloud");
+        assert_eq!(tab, Some(Intent::FilesFilter(crate::FilesFilter::Cloud)));
+        state.apply(tab.unwrap());
+        for _ in 0..3 {
+            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
+        let seen = names(&ui);
+        assert!(seen.iter().any(|name| name == "02 Cloud.flac") && seen.iter().any(|name| name == "Takes"), "{seen:?}");
+        assert!(!seen.iter().any(|name| name == "01 Here.flac" || name == "03 New.flac"), "{seen:?}");
+        // A folder row's song menu plays inside the folder's context.
+        let library = crate::tests::prepared(vec![lw_core::Song { id: Some(9), title: "Here".into(), ..Default::default() }]);
+        state.apply(Intent::SongMenu(0, 9, 0, (100.0, 100.0)));
+        for _ in 0..3 {
+            frame_at(size, &mut ui, &files, &library, &state, &mut time, &[], &mut None);
+        }
+        let play = ui.a11y_nodes().iter().find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == "Play").unwrap().id;
+        ui.inject_a11y(&[pxui::A11yAction { id: play, action_code: 1, ..Default::default() }]);
+        let mut menu = None;
+        frame_at(size, &mut ui, &files, &library, &state, &mut time, &[], &mut menu);
+        assert_eq!(menu, Some(Intent::PlayFile(9)));
+        state.apply(Intent::CloseSongMenu);
+        state.apply(Intent::Files(Request::Roots));
+        assert_eq!(state.files_filter, crate::FilesFilter::All, "changing folder resets the tab");
+        for round in 0..5 {
+            mem_sys::local_reset();
+            for _ in 0..10 {
+                frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+            }
+            if round >= 3 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "warm filtered folder page allocates");
+            }
+        }
+        // The Folders "+" opens the sheet; its two choices start the pickers.
+        let roots = Snapshot { revision: 2, account: Some(42), ..Default::default() };
+        for _ in 0..3 {
+            frame_at(size, &mut ui, &roots, &catalog, &state, &mut time, &[], &mut None);
+        }
+        let plus = click_at(size, &mut ui, &roots, &catalog, &state, &mut time, "Add music");
+        assert_eq!(plus, Some(Intent::ShowAddMusic));
+        state.apply(Intent::ShowAddMusic);
+        for _ in 0..3 {
+            frame_at(size, &mut ui, &roots, &catalog, &state, &mut time, &[], &mut None);
+        }
+        assert_eq!(click_at(size, &mut ui, &roots, &catalog, &state, &mut time, "A folder"), Some(Intent::ChooseFolder));
+        assert_eq!(click_at(size, &mut ui, &roots, &catalog, &state, &mut time, "Some files"), Some(Intent::ChooseAudio));
+        state.apply(Intent::CloseSourceMenu);
+        assert!(!state.add_music);
     }
 }

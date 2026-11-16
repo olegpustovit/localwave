@@ -277,7 +277,7 @@ pub(super) fn desktop(
                         if state.settings_visible {
                             settings::view(ui, player, state, content_width, p, intent);
                         } else if state.route == Route::Files {
-                            files::view(ui, player, content_width, p, intent);
+                            files::view(ui, player, state.files_filter, content_width, p, intent);
                         } else {
                             content(ui, catalog, state, player, content_width, p, intent);
                         }

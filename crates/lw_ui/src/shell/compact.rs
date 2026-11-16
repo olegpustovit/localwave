@@ -8,6 +8,7 @@ use super::*;
 use pxui::GestureOpts;
 
 pub(super) mod list;
+pub(super) mod page;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
@@ -366,7 +367,7 @@ pub(super) fn view(
                             settings::view(ui, player, state, width, p, intent);
                         } else {
                             match state.route {
-                                Route::Files => files::view(ui, player, width, p, intent),
+                                Route::Files => files::view(ui, player, state.files_filter, width, p, intent),
                                 Route::Albums => {
                                     albums::gallery(ui, catalog, state, player, width, p, intent)
                                 }
@@ -1104,6 +1105,205 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 15.0),
             Some(Intent::Navigate(Route::Collection(0)))
         );
+    }
+
+    fn names(ui: &Ui) -> Vec<String> {
+        ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_string()).collect()
+    }
+    /// Activates `name` and returns the intent of the next frame, applying it like the controller.
+    fn press(ui: &mut Ui, catalog: &Catalog, state: &mut ShellState, player: &PlayerView<'_>, time: &mut f64, name: &str) -> Option<Intent> {
+        click(ui, name);
+        *time += 1.0;
+        let intent = frame(ui, catalog, state, player, 0.0, 390.0, *time);
+        if let Some(intent) = intent {
+            state.apply(intent);
+        }
+        for _ in 0..2 {
+            *time += 1.0;
+            frame(ui, catalog, state, player, 0.0, 390.0, *time);
+        }
+        intent
+    }
+
+    #[test]
+    fn phone_select_mode_marks_rows_and_the_bar_acts_on_them_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = catalog(40);
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Album(0)));
+        let player = PlayerView::default();
+        let mut time = 0.0;
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        let seen = names(&ui);
+        for want in ["Back", "Select", "Album actions", "Play", "Shuffle", "Keep offline"] {
+            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        }
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)));
+        assert!(state.selecting());
+        let seen = names(&ui);
+        for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue"] {
+            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        }
+        assert!(!seen.iter().any(|name| name == "Back"), "selection header replaces the back row");
+        // Row taps toggle marks instead of playing.
+        let mut titles: Vec<String> = names(&ui).into_iter().filter(|name| name.starts_with("Track ")).collect();
+        titles.dedup();
+        assert!(titles.len() >= 2, "{titles:?}");
+        for (title, count) in [(&titles[0], 1), (&titles[1], 2), (&titles[0], 1)] {
+            let node = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == title.as_str()).unwrap();
+            ui.inject_a11y(&[pxui::A11yAction { id: node.id, action_code: 1, ..Default::default() }]);
+            time += 1.0;
+            let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+            assert!(matches!(intent, Some(Intent::Select(Selection::Toggle(_)))), "{intent:?}");
+            state.apply(intent.unwrap());
+            assert_eq!(state.marked.len(), count);
+            for _ in 0..2 {
+                time += 1.0;
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+            }
+        }
+        assert!(names(&ui).iter().any(|name| name == "1 selected"), "{:?}", names(&ui));
+        let first = state.selected_song_ids(&catalog).next().unwrap();
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Play next"), Some(Intent::PlayNext(first)));
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Queue"), Some(Intent::AppendSong(first)));
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Offline"), Some(Intent::KeepOffline(first)));
+        let lists = press(&mut ui, &catalog, &mut state, &player, &mut time, "Add to list");
+        assert!(matches!(lists, Some(Intent::SelectionLists(_, id, _, _)) if id == first), "{lists:?}");
+        assert!(state.song_menu.is_some() && state.song_lists);
+        state.apply(Intent::CloseSongMenu);
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select all"), Some(Intent::Select(Selection::All(state.collection(&catalog).unwrap().rows.len()))));
+        assert!(names(&ui).iter().any(|name| name == "Deselect all"));
+        // The controller ends the mode after a bar action.
+        state.finish_selecting();
+        assert!(!state.selecting() && state.marked.is_empty());
+        state.apply(Intent::SelectMode(true));
+        state.apply(Intent::Select(Selection::Toggle(0)));
+        for tick in 0..120 {
+            mem_sys::local_reset();
+            time += 1.0;
+            assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), None);
+            if tick >= 60 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "select-mode frame {tick} allocated");
+            }
+        }
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)));
+        assert!(!state.selecting());
+    }
+
+    #[test]
+    fn phone_lists_edit_and_remove_and_have_no_offline_key() {
+        let catalog = {
+            let mut catalog = catalog(10);
+            catalog.add_collection(
+                "Mix",
+                vec![0, 1, 2],
+                lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() },
+            );
+            catalog
+        };
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView::default();
+        let mut time = 0.0;
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Collection(0)));
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        let seen = names(&ui);
+        assert!(seen.iter().any(|name| name == "Select") && !seen.iter().any(|name| name == "Keep offline"), "{seen:?}");
+        let index = catalog.collections.iter().position(|c| c.title == "Mix").unwrap();
+        state.apply(Intent::Navigate(Route::Collection(index)));
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        assert!(!names(&ui).iter().any(|name| name == "Keep offline"), "Swift's list page has no offline key");
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Edit"), Some(Intent::SelectMode(true)));
+        state.apply(Intent::Select(Selection::Toggle(1)));
+        time += 1.0;
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        let song = state.selected_song_ids(&catalog).next().unwrap();
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Remove"),
+            Some(Intent::RemoveFromList { song, list: 7 })
+        );
+    }
+
+    #[test]
+    fn phone_page_menu_offers_swift_page_actions() {
+        let catalog = {
+            let mut catalog = catalog(10);
+            catalog.add_collection("Mix", vec![0, 1], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
+            catalog.add_collection("Other", vec![2], lw_core::context::PlaybackContext::Playlist { id: 8, name: "Other".into() });
+            catalog
+        };
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView::default();
+        let (mut time, mut state) = (0.0, songs_state());
+        state.apply(Intent::Navigate(Route::Album(0)));
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        let opened = press(&mut ui, &catalog, &mut state, &player, &mut time, "Album actions");
+        assert!(matches!(opened, Some(Intent::PageMenu(_))), "{opened:?}");
+        let seen = names(&ui);
+        for want in ["Play", "Shuffle", "Play next", "Add to queue", "Add to list", "Keep offline"] {
+            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        }
+        for (label, action) in [
+            ("Shuffle", crate::PageAction::Shuffle),
+            ("Play next", crate::PageAction::PlayNext),
+            ("Add to queue", crate::PageAction::AddToQueue),
+        ] {
+            state.apply(Intent::PageMenu((380.0, 54.0)));
+            for _ in 0..3 {
+                time += 1.0;
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+            }
+            click_menu(&mut ui, label);
+            time += 1.0;
+            let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+            assert_eq!(intent, Some(Intent::Page(action)), "{label}");
+            assert!(!state.apply(intent.unwrap()), "page actions go to the controller");
+            assert!(state.page_menu.is_none(), "{label} closes the menu");
+        }
+        state.apply(Intent::PageMenu((380.0, 54.0)));
+        state.apply(Intent::PageLists);
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        click_menu(&mut ui, "Other");
+        time += 1.0;
+        assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), Some(Intent::Page(crate::PageAction::AddToList(8))));
+        // A playlist page also renames and deletes.
+        let index = catalog.collections.iter().position(|c| c.title == "Mix").unwrap();
+        state.apply(Intent::Navigate(Route::Collection(index)));
+        state.apply(Intent::PageMenu((380.0, 54.0)));
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        click_menu(&mut ui, "Delete list");
+        time += 1.0;
+        assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), Some(Intent::ConfirmDeleteList(7)));
+    }
+    fn click_menu(ui: &mut Ui, name: &str) {
+        let node = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == name)
+            .unwrap_or_else(|| panic!("missing menu item {name}"));
+        ui.inject_a11y(&[pxui::A11yAction { id: node.id, action_code: 1, ..Default::default() }]);
     }
 
     #[test]

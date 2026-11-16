@@ -42,6 +42,9 @@ pub struct Row<'a> {
     pub actions_label: &'a str,
     /// Swift's compact second line, "Artist · Album".
     pub subtitle: &'a str,
+    /// Swift's album-row detail, "12.3 MB" (or "Size unknown"), and its in-cloud variant.
+    pub file_note: &'a str,
+    pub cloud_note: &'a str,
     pub duration: &'a str,
     pub seconds: Option<f64>,
     pub release_year: Option<i64>,
@@ -55,7 +58,7 @@ pub struct Row<'a> {
 #[derive(Clone)]
 struct StoredRow {
     id: i64,
-    labels: [Range<usize>; 10],
+    labels: [Range<usize>; 12],
     favorite: bool,
     track_number: Option<i64>,
     source_id: Option<i64>,
@@ -219,6 +222,11 @@ impl Library {
                 |seconds| format!("{}:{:02}", seconds / 60, seconds % 60),
             );
             let subtitle = format!("{} · {}", song.artist, song.album);
+            let file_note = song.file_size.map_or_else(
+                || "Size unknown".to_owned(),
+                |bytes| format!("{:.1} MB", bytes as f64 / 1_048_576.0),
+            );
+            let cloud_note = format!("{file_note} · in cloud");
             let labels = [
                 &song.title,
                 &song.artist,
@@ -230,6 +238,8 @@ impl Library {
                 &track,
                 &actions_label,
                 &subtitle,
+                &file_note,
+                &cloud_note,
             ]
             .map(|text| {
                 let start = out.labels.len();
@@ -456,6 +466,8 @@ impl Library {
             track_label,
             actions_label,
             subtitle,
+            file_note,
+            cloud_note,
         ] = row
             .labels
             .each_ref()
@@ -472,6 +484,8 @@ impl Library {
             track_label,
             actions_label,
             subtitle,
+            file_note,
+            cloud_note,
             source_id: row.source_id,
             availability: row.availability,
             pinned: row.pinned,
@@ -1231,6 +1245,8 @@ mod tests {
         assert_eq!(catalog.albums.len(), 100);
         assert_eq!(catalog.artists.len(), 10);
         assert_eq!(catalog.row(0).duration, "1:30");
+        // Swift's album-row detail: no size on the song, so it says so.
+        assert_eq!((catalog.row(0).file_note, catalog.row(0).cloud_note), ("Size unknown", "Size unknown · in cloud"));
         assert_eq!(catalog.collections[0].ids.len(), 5000);
         assert_eq!(catalog.collections[1].ids.len(), 24);
         for group in catalog

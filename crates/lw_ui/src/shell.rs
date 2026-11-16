@@ -45,6 +45,12 @@ pub struct ShellState {
     /// Sorted row positions of the multi-selection; grows only in `apply`/`refresh`, never in frames.
     marked: Vec<usize>,
     anchor: Option<usize>,
+    /// Phone Select mode: rows show checkboxes and taps toggle marks.
+    selecting: bool,
+    page_menu: Option<(f32, f32)>,
+    page_lists: bool,
+    files_filter: crate::FilesFilter,
+    add_music: bool,
     selection_revision: u64,
     pub panel_visible: bool,
     pub query: Query,
@@ -95,6 +101,11 @@ impl Default for ShellState {
             selected: None,
             marked: Vec::new(),
             anchor: None,
+            selecting: false,
+            page_menu: None,
+            page_lists: false,
+            files_filter: crate::FilesFilter::All,
+            add_music: false,
             selection_revision: 0,
             panel_visible: true,
             query: Query::default(),
@@ -155,6 +166,17 @@ impl ShellState {
     pub fn selected_song_ids<'a>(&'a self, catalog: &'a Catalog) -> impl Iterator<Item = i64> + 'a {
         let ids = self.collection(catalog).map_or(&[][..], |c| &c.ids[..]);
         self.marked.iter().filter_map(move |&i| ids.get(i).copied())
+    }
+    pub fn selecting(&self) -> bool {
+        self.selecting
+    }
+    /// Swift leaves selection mode once a bar action ran; the controller calls this after taking its targets.
+    pub fn finish_selecting(&mut self) {
+        if self.selecting {
+            self.selecting = false;
+            self.clear_selection();
+            self.selection_revision = self.selection_revision.wrapping_add(1);
+        }
     }
     fn is_marked(&self, index: usize) -> bool {
         self.marked.binary_search(&index).is_ok()
@@ -295,7 +317,17 @@ impl ShellState {
                 self.select(selection);
                 return true;
             }
+            Intent::SelectMode(on) => {
+                self.selecting = on;
+                self.clear_selection();
+                self.selection_revision = self.selection_revision.wrapping_add(1);
+                self.revision = self.revision.wrapping_add(1);
+                return true;
+            }
             _ => {}
+        }
+        if matches!(intent, Intent::Navigate(_) | Intent::Files(_)) {
+            self.files_filter = crate::FilesFilter::All;
         }
         if matches!(
             intent,
@@ -358,6 +390,41 @@ impl ShellState {
                 }
             }
             Intent::SongMenuLists => self.song_lists = self.song_menu.is_some(),
+            Intent::SelectionLists(index, id, key, at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.song_menu = Some((index, id, key, at));
+                    self.song_lists = true;
+                    (self.settings_menu, self.source_menu) = (None, None);
+                }
+            }
+            Intent::PageMenu(at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.page_menu = Some(at);
+                    self.page_lists = false;
+                    (self.song_menu, self.list_menu, self.source_menu) = (None, None, None);
+                    self.settings_menu = None;
+                }
+            }
+            Intent::PageLists => self.page_lists = self.page_menu.is_some(),
+            Intent::ClosePageMenu => {
+                self.page_menu = None;
+                self.page_lists = false;
+            }
+            Intent::Page(_) => {
+                self.page_menu = None;
+                self.page_lists = false;
+                self.revision = self.revision.wrapping_add(1);
+                return false;
+            }
+            Intent::FilesFilter(filter) => {
+                self.files_filter = filter;
+                self.revision = self.revision.wrapping_add(1);
+                return true;
+            }
+            Intent::ShowAddMusic => {
+                self.add_music = true;
+                self.source_menu = None;
+            }
             Intent::CloseSongMenu => {
                 self.song_menu = None;
                 self.song_lists = false;
@@ -373,6 +440,7 @@ impl ShellState {
                 self.settings_menu = None;
                 self.player_expanded = false;
                 self.route = route;
+                (self.selecting, self.page_menu) = (false, None);
                 self.clear_selection();
                 self.selection_revision = self.selection_revision.wrapping_add(1);
                 self.sort = Sort::Original;
@@ -494,7 +562,10 @@ impl ShellState {
                     self.settings_menu = None;
                 }
             }
-            Intent::CloseSourceMenu => self.source_menu = None,
+            Intent::CloseSourceMenu => {
+                self.source_menu = None;
+                self.add_music = false;
+            }
             Intent::ConfirmRemoveSource(target) => {
                 self.remove_source = Some(target);
                 self.source_menu = None;
@@ -775,6 +846,12 @@ pub fn shell(
     }
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, p, intent);
+    }
+    if let Some(at) = state.page_menu {
+        compact::page::menu(ui, catalog, state, at, p, intent);
+    }
+    if state.add_music {
+        files::add_music(ui, player, p, intent);
     }
     if let Some((list, at)) = state.list_menu {
         lists::menu(ui, catalog, list, at, p, intent);

@@ -504,6 +504,6 @@ pub(super) fn song_drop(ui: &mut Ui, target: &Handle) -> Option<(bool, i64)> {
     Some((dropped, id))
 }
 mod menu;
-pub(super) use menu::popup;
+pub(super) use menu::{item_node, popup};
 #[cfg(test)]
 mod tests;

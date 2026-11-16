@@ -68,6 +68,8 @@ pub struct Entry {
     pub time: String,
     /// Compact row detail: "FLAC · 20.3 MB · 2:29", "Folder" or "not audio · 1.0 MB".
     pub detail: String,
+    /// The saved song behind an audio row (menu and play); None until imported.
+    pub song: Option<i64>,
     /// None for audio that is not imported yet.
     pub glyph: Option<Glyph>,
     pub directory: bool,
@@ -97,6 +99,10 @@ pub struct Directory {
     pub show_non_audio: bool,
     pub non_audio: usize,
     pub entries: Vec<Entry>,
+    /// Entry positions each availability tab shows (Offline, In cloud): folders plus matching audio.
+    pub filters: [Vec<u32>; 2],
+    /// Tab labels' counts for All, Offline and In cloud (audio files only, as Swift's filterCount).
+    pub filter_counts: [String; 3],
 }
 
 #[derive(Clone)]

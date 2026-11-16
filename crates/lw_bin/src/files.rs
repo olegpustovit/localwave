@@ -669,6 +669,7 @@ fn browse_directory(
                         parts.join(" · ")
                     }
                 },
+                song: song.and_then(|song| song.id),
                 glyph: index.map(|index| Glyph {
                     state: inside[index].file_state,
                     availability: Some(states[index].0),
@@ -694,6 +695,25 @@ fn browse_directory(
     for (number, entry) in entries.iter_mut().filter(|entry| entry.audio).enumerate() {
         entry.number = (number + 1).to_string();
     }
+    // Swift's tabs: folders always, audio by availability; counts cover audio only.
+    let tab = |wanted: FileAvailability| {
+        entries
+            .iter()
+            .enumerate()
+            .filter(|(_, entry)| {
+                entry.directory
+                    || (entry.audio && entry.glyph.is_some_and(|glyph| glyph.availability == Some(wanted)))
+            })
+            .map(|(index, _)| index as u32)
+            .collect::<Vec<_>>()
+    };
+    let filters = [tab(FileAvailability::OnDevice), tab(FileAvailability::InCloud)];
+    let audio = entries.iter().filter(|entry| entry.audio).count();
+    let filter_counts = [
+        audio.to_string(),
+        filters[0].iter().filter(|&&i| entries[i as usize].audio).count().to_string(),
+        filters[1].iter().filter(|&&i| entries[i as usize].audio).count().to_string(),
+    ];
     let title = path
         .as_ref()
         .map_or_else(|| root_name.clone(), |path| path.name.clone());
@@ -729,6 +749,8 @@ fn browse_directory(
         show_non_audio: library.load_settings().show_non_audio,
         non_audio: entries.iter().filter(|entry| !entry.directory && !entry.audio).count(),
         entries,
+        filters,
+        filter_counts,
     };
     library.select_source(location.user, location.source)?;
     snapshot.directory = Some(Arc::new(directory));
@@ -1238,6 +1260,10 @@ mod tests {
         assert_eq!((entry.number.as_str(), entry.kind.as_str()), ("1", "flac audio"));
         assert!(entry.size.ends_with(" MB") && entry.time.contains(':'), "{} {}", entry.size, entry.time);
         assert!(entry.glyph.is_some_and(|glyph| !glyph.pinned));
+        // The compact tabs: the saved song, and which tab lists it (a local file is on device).
+        assert_eq!(entry.song, directory.songs.first().copied());
+        assert_eq!(directory.filter_counts, ["1", "1", "0"]);
+        assert_eq!((&directory.filters[0][..], &directory.filters[1][..]), (&[0][..], &[][..]));
         assert_eq!(directory.breadcrumb, "Original music 名前 / Album");
         assert_eq!(directory.title, "Album");
         assert_eq!(directory.songs.len(), 1);

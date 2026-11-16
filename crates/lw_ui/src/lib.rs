@@ -39,6 +39,26 @@ pub enum Selection {
     },
 }
 
+/// Whole-page actions of the compact "…" menu; the controller applies them to the displayed collection.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PageAction {
+    Play,
+    Shuffle,
+    PlayNext,
+    AddToQueue,
+    KeepOffline,
+    AddToList(i64),
+}
+
+/// The compact folder page's availability tabs (Swift: All / Offline / In cloud).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum FilesFilter {
+    #[default]
+    All,
+    Offline,
+    Cloud,
+}
+
 // Fixed UTF-8 packets avoid heap allocations when handing searches or playlist names to the worker.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -51,6 +71,19 @@ pub enum Intent {
     Navigate(catalog::Route),
     SelectRow(usize),
     Select(Selection),
+    /// Phone Select mode (rows show checkboxes, a bottom bar acts on the marks); false is Done.
+    SelectMode(bool),
+    /// The selection bar's Add to list: the song menu's list choices for the first marked row.
+    SelectionLists(usize, i64, u64, (f32, f32)),
+    /// The compact page "…" menu, its list choices and whole-page actions.
+    PageMenu((f32, f32)),
+    PageLists,
+    ClosePageMenu,
+    Page(PageAction),
+    /// Play a saved file of the open folder page inside the folder's context.
+    PlayFile(i64),
+    FilesFilter(FilesFilter),
+    ShowAddMusic,
     PlayRow(usize),
     /// Return over a multi-row selection: play exactly the selected songs in displayed order.
     PlaySelection,
