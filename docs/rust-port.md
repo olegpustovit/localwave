@@ -68,9 +68,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.3 | Measured uncovered workloads (PERF) | todo |  |
 | DX0.4 | cargo t --doc in the runner | done | 8ef0591 + pxui 4804a4f |
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
-| DX0.6 | abi_bench page for authoring helpers | done | HEAD + pxui 88c61a7 |
+| DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | todo |  |
-| DX1.1 | const fn builders on Node, Look, Edges, Font | todo |  |
+| DX1.1 | const fn builders on Node, Look, Edges, Font | done | HEAD + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | todo |  |
 | DX1.3 | Key type; row/column/stack shims | todo |  |
 | DX1.4 | label and label_fmt | todo |  |
