@@ -17,21 +17,16 @@ pub(super) fn header(
     let find_summary = collection
         .and(catalog.view.as_ref())
         .and_then(|view| view.find.as_ref());
-    let root = ui.node(
-        "library-header",
-        Node {
-            w: Size::Grow,
-            h: Size::Fit,
-            padding: Edges {
-                l: 32.0,
-                r: 32.0,
-                t: 28.0,
-                b: 0.0,
-            },
-            ..Node::DEFAULT
+    let root = Node {
+        padding: Edges {
+            l: 32.0,
+            r: 32.0,
+            t: 28.0,
+            b: 0.0,
         },
-    );
-    ui.within(&root, &mut |ui| {
+        ..Node::column().w(Size::Grow).h(Size::Fit)
+    };
+    ui.column("library-header", root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
             text(ui, "results-caption", "Search", 14, p.secondary, (Size::Grow, 19.6), false);
@@ -244,17 +239,8 @@ pub(super) fn compact_find(
                 Size::Grow,
                 Size::Px(56.0),
                 &mut |ui| {
-                    let row = ui.node(
-                        "query-row",
-                        Node {
-                            axis: Axis::Row,
-                            align: Align::Center,
-                            w: Size::Grow,
-                            h: Size::Grow,
-                            ..Node::DEFAULT
-                        },
-                    );
-                    ui.within(&row, &mut |ui| {
+                    let row = Node::row().align(Align::Center).w(Size::Grow).h(Size::Grow);
+                    ui.row("query-row", row, |ui| {
                         let field = ui.box_(
                             "query-field",
                             BoxOpts::default().w(Size::Grow).h(Size::Grow),
@@ -281,20 +267,14 @@ pub(super) fn compact_find(
                             }
                         });
                         // Swift offsets the 44 pt target 10 pt past the gutter.
-                        let clear = ui.node(
-                            "clear-slot",
-                            Node {
-                                w: Size::Px(44.0),
-                                h: Size::Px(44.0),
-                                margin: Edges {
-                                    r: -10.0,
-                                    ..Edges::ZERO
-                                },
-                                align: Align::Center,
-                                ..Node::DEFAULT
+                        let clear = Node {
+                            margin: Edges {
+                                r: -10.0,
+                                ..Edges::ZERO
                             },
-                        );
-                        ui.within(&clear, &mut |ui| {
+                            ..Node::column().w_px(44.0).h_px(44.0).align(Align::Center)
+                        };
+                        ui.column("clear-slot", clear, |ui| {
                             if icon_button(
                                 ui,
                                 "clear-query",
@@ -332,10 +312,8 @@ pub(super) fn compact_find(
                 .and_then(|view| view.find.as_ref())
             {
                 spacer(ui, "songs-gap", 7.0);
-                let label = ui.node("songs-row", Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(44.0), ..Node::DEFAULT });
-                ui.within(&label, &mut |ui| {
-                    let text = ui.node("songs-text", Node { w: Size::Grow, h: Size::Fit, ..Node::DEFAULT });
-                    ui.within(&text, &mut |ui| {
+                ui.row("songs-row", Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
+                    ui.column("songs-text", Node::column().w(Size::Grow).h(Size::Fit), |ui| {
                         detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), p.secondary, 0);
                     });
                     if super::compact::list::word(ui, "select", "Select", false, p) {
@@ -420,15 +398,7 @@ pub(super) fn content(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let root = ui.node(
-        "content",
-        Node {
-            w: Size::Grow,
-            h: Size::Grow,
-            ..Node::DEFAULT
-        },
-    );
-    ui.within(&root, &mut |ui| match state.route {
+    ui.column("content", Node::column().w(Size::Grow).h(Size::Grow), |ui| match state.route {
         Route::Albums => albums::gallery(ui, catalog, state, player, width, p, intent),
         Route::Artists => artists::table(ui, catalog, state, player, width, p, intent),
         Route::Lists => compact::collections(ui, catalog, player, width, p, intent),
@@ -451,23 +421,17 @@ pub(super) fn find_tokens(
         Size::Px(width),
         Size::Fit,
         &mut |ui| {
-            let flow = ui.node(
-                "flow",
-                Node {
-                    axis: Axis::Row,
-                    wrap: true,
-                    gap: 6.0,
-                    row_gap: 6.0,
-                    w: Size::Px(width),
-                    h: Size::Fit,
-                    padding: Edges {
-                        b: 12.0,
-                        ..Edges::ZERO
-                    },
-                    ..Node::DEFAULT
+            let flow = Node {
+                wrap: true,
+                row_gap: 6.0,
+                h: Size::Fit,
+                padding: Edges {
+                    b: 12.0,
+                    ..Edges::ZERO
                 },
-            );
-            ui.within(&flow, &mut |ui| {
+                ..Node::row().gap(6.0).w_px(width)
+            };
+            ui.row("flow", flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
                     let chip = ui.node(
