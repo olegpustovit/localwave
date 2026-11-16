@@ -13,14 +13,17 @@ SWIFT_SCREENS=${SWIFT_ONLY:-"songs artists album artist list favorites find find
 RUST_SCREENS=${ONLY:-"songs artists album artist list favorites find find-results lists folders settings commands shortcuts now queue folder onboarding"}
 mkdir -p "$OUT/reference" "$OUT/rust"
 
+# xcodebuild may rewrite the tracked Package.resolved; always put it back.
+RESOLVED=localwave.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
+trap 'git checkout -q -- "$RESOLVED" 2>/dev/null || true' EXIT
 if [ -z "${SKIP_BUILD:-}" ]; then
-  xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$(xcrun simctl list devices booted -j | python3 -c 'import json,sys;print(next(d["udid"] for v in json.load(sys.stdin)["devices"].values() for d in v))')" \
+  [ -n "${SKIP_SWIFT:-}" ] || xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$(xcrun simctl list devices booted -j | python3 -c 'import json,sys;print(next(d["udid"] for v in json.load(sys.stdin)["devices"].values() for d in v))')" \
     -derivedDataPath "$OUT/dd" CODE_SIGNING_ALLOWED=NO build > "$OUT/xcodebuild.log" 2>&1 || { tail -20 "$OUT/xcodebuild.log"; exit 1; }
   cargo build -p lw_bin
   # target/ is shared with other worktrees, which overwrite target/debug/localwave; keep a private copy.
   mkdir -p "$OUT/bin" && cp target/debug/localwave target/debug/libpxui.1.dylib "$OUT/bin/"
 fi
-xcrun simctl install "$SIM" "$(ls -d "$OUT"/dd/Build/Products/Debug-iphonesimulator/*.app | head -1)"
+[ -n "${SKIP_SWIFT:-}" ] || xcrun simctl install "$SIM" "$(ls -d "$OUT"/dd/Build/Products/Debug-iphonesimulator/*.app | head -1)"
 
 for s in $([ -n "${SKIP_SWIFT:-}" ] || echo $SWIFT_SCREENS); do
   rm -f "$OUT/reference/$s.png"
