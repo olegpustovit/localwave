@@ -305,7 +305,7 @@ mod tests {
     fn find_tools_match_native_point_geometry_values_and_warm_action_routing() {
         mem_sys::set_peer(pxui::library_counter);
         let catalogs = catalogs();
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Find));
@@ -486,7 +486,7 @@ mod tests {
     fn find_tools_animate_only_backgrounds_and_settle_without_scaling_or_reshaping() {
         mem_sys::set_peer(pxui::library_counter);
         let catalogs = catalogs();
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Find));

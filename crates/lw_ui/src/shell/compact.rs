@@ -1035,7 +1035,7 @@ mod tests {
     #[test]
     fn compact_navigation_player_and_resize_preserve_domain_state() {
         let catalog = catalog(100);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Album(0)));
@@ -1140,7 +1140,7 @@ mod tests {
     fn phone_select_mode_marks_rows_and_the_bar_acts_on_them_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = catalog(40);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Album(0)));
@@ -1217,7 +1217,7 @@ mod tests {
             );
             catalog
         };
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let player = PlayerView::default();
         let mut time = 0.0;
@@ -1255,7 +1255,7 @@ mod tests {
             catalog.add_collection("Other", vec![2], lw_core::context::PlaybackContext::Playlist { id: 8, name: "Other".into() });
             catalog
         };
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let player = PlayerView::default();
         let (mut time, mut state) = (0.0, songs_state());
@@ -1327,7 +1327,7 @@ mod tests {
             state
         }), ("find", find_state)] {
             let mut state = state;
-            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             let mut time = 0.0;
             for _ in 0..3 {
@@ -1367,7 +1367,7 @@ mod tests {
             catalog.add_collection("Mix", vec![0, 1], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
             catalog
         };
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let player = PlayerView::default();
         let (mut time, mut state) = (0.0, songs_state());
@@ -1415,7 +1415,7 @@ mod tests {
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Collection(c.collections.len() - 1)));
         state.apply(Intent::SelectMode(true));
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut t = 1.0;
         for _ in 0..3 {
@@ -1456,7 +1456,7 @@ mod tests {
     #[test]
     fn expanded_player_has_swift_structure_and_its_controls_emit_intents() {
         let catalog = catalog(10);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         let info = crate::now_info::NowInfo { summary: "flac 96/24".into(), ..Default::default() };
@@ -1502,7 +1502,7 @@ mod tests {
     fn compact_ten_thousand_songs_virtualize_and_resize_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = catalog(10_000);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let state = songs_state();
         let player = PlayerView {
@@ -1651,7 +1651,7 @@ mod tests {
     fn compact_pages_fit_phone_controls_and_keep_warm_frames_allocation_free() {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = catalog(200);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         let files = crate::files::Snapshot {
@@ -1749,7 +1749,7 @@ mod tests {
         let catalog = catalog(200);
         let player = PlayerView::default();
         for mode in 0..3 {
-            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             let mut state = songs_state();
             if mode == 0 {
@@ -1817,7 +1817,7 @@ mod tests {
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Find));
         let player = PlayerView::default();
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         for tick in 0..6 {
             mem_sys::local_reset();
@@ -1865,7 +1865,7 @@ mod tests {
             state.apply(Intent::Search(Query::new("Track").unwrap()));
             catalog.project(state.request(&catalog).unwrap(), (0..3).collect());
             let player = PlayerView::default();
-            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             for tick in 0..6 {
                 mem_sys::local_reset();
@@ -1918,7 +1918,7 @@ mod tests {
         catalog.project(state.request(&catalog).unwrap(), (0..20).collect());
         let player = PlayerView::default();
         for width in [320.0, 390.0, 1000.0] {
-            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             frame(&mut ui, &catalog, &state, &player, 0.0, width, 0.0);
             frame(&mut ui, &catalog, &state, &player, 0.0, width, 1.0);
@@ -2121,7 +2121,7 @@ mod tests {
     fn touch_swipe_actions_emit_intents_close_and_never_tap_through() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(30);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let state = songs_state();
         let mut t = 1.0;
@@ -2186,7 +2186,7 @@ mod tests {
         );
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Collection(c.collections.len() - 1)));
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut t = 1.0;
         idle(&mut ui, &c, &state, t);
@@ -2224,7 +2224,7 @@ mod tests {
     fn songs_page_has_swift_header_tab_order_and_a_working_alphabet_index() {
         mem_sys::set_peer(pxui::library_counter);
         let c = lettered(52);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let state = songs_state();
         let mut t = 1.0;
@@ -2320,7 +2320,7 @@ mod tests {
     fn artist_page_has_back_summary_play_shuffle_album_cards_and_songs() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(30);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Artist(0)));
@@ -2367,7 +2367,7 @@ mod tests {
         let mut t = 1.0;
         for (route, parent, link) in routes {
             // A fresh Ui per page: a new state restarts the revision the retained library view keys on.
-            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
             let mut state = songs_state();
             state.apply(Intent::Navigate(route));
@@ -2415,7 +2415,7 @@ mod tests {
     fn expanded_player_dismisses_by_dragging_down_and_springs_back_when_short() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(10);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::TogglePlayer);
@@ -2451,7 +2451,7 @@ mod tests {
     fn queue_sheet_dismisses_by_dragging_down_and_springs_back_when_short() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(10);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::ShowQueue);
@@ -2487,7 +2487,7 @@ mod tests {
     fn touch_long_press_opens_the_track_menu_without_a_tap() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(30);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         let mut t = 1.0;
@@ -2532,7 +2532,7 @@ mod tests {
     fn touch_pull_to_refresh_asks_once_and_ends_with_the_next_catalog() {
         mem_sys::set_peer(pxui::library_counter);
         let c = catalog(30);
-        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
         let mut t = 1.0;

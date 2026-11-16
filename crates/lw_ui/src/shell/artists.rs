@@ -379,7 +379,7 @@ mod tests {
         let table = catalog.artist_table.as_ref().unwrap().clone();
         assert_eq!(table.rows[0].albums, "Alpha, Beta, Gamma");
         assert_eq!(table.rows[0].minutes, "2 min");
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Artists));
@@ -608,7 +608,7 @@ mod tests {
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Artists));
         let player = PlayerView::default();
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         for cycle in 0..8 {
             mem_sys::local_reset();

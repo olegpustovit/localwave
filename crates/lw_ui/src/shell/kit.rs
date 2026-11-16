@@ -394,7 +394,7 @@ pub(super) mod button_tests {
     #[test]
     fn matrix_digits_match_swift_geometry_stagger_changed_rows_and_stop_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let ink = Rgba {
             r: 12,
@@ -457,7 +457,7 @@ pub(super) mod button_tests {
     fn waveform_bars_preview_drag_seek_on_release_and_keys_without_warm_allocations() {
         use pxui::{Event, FrameIn, Platform};
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut peaks = [0.0; 512];
         peaks[256..].fill(1.0);
@@ -620,7 +620,7 @@ pub(super) mod button_tests {
     #[test]
     fn pressed_visual_scales_without_shrinking_hit_area_or_allocating_when_warm() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         ui.set_theme(&ThemeSource {
             source: Str {

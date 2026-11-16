@@ -69,9 +69,15 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.4 | cargo t --doc in the runner | done | 8ef0591 + pxui 4804a4f |
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
-| DX0.7 | verify_views in LocalWave UI tests | todo |  |
+| DX0.7 | verify_views in LocalWave UI tests | done | HEAD |
+| DX0.7a | Stale view `compact-library`: revision misses an input (found by DX0.7) | todo |  |
+| DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | todo |  |
+| DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | todo |  |
+| DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | todo |  |
+| DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | todo |  |
+| DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
-| DX1.2 | Flags newtype; distinct FOCUSABLE names | done | HEAD + pxui 2f7a6f1 |
+| DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
 | DX1.3 | Key type; row/column/stack shims | todo |  |
 | DX1.4 | label and label_fmt | todo |  |
 | DX1.5 | Response and pressable | todo |  |

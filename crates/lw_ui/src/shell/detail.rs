@@ -432,7 +432,7 @@ mod tests {
             song(3, "Other Album Song", "B", 60.0),
         ]);
         let player = PlayerView::default();
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut frame = FrameIn {
             width: 1440.0,

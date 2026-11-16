@@ -314,3 +314,11 @@ pub struct PlayerView<'a> {
 
 #[cfg(test)]
 mod tests;
+
+/// `Ui::create` for tests, with `verify_views` on for every Ui the process creates.
+#[cfg(test)]
+pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8]]) -> pxui::Ui {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| pxui::Ui::verify_new_views(true));
+    pxui::Ui::create(platform, size, fonts)
+}

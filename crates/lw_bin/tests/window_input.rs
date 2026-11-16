@@ -653,6 +653,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     let mut window =
         pxui_sdl::Window::open_with("LocalWave artwork check", 1440, 872, false, true, true)
             .unwrap();
+    pxui::Ui::verify_new_views(true);
     let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
     let mut graphics = gpu::Graphics::open(&mut window, &ui).unwrap();
     static DECODED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -878,6 +879,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     mem_sys::set_peer(pxui::library_counter);
     let mut window =
         pxui_sdl::Window::open_with("LocalWave input check", 1440, 872, false, true, true).unwrap();
+    pxui::Ui::verify_new_views(true);
     let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
     ui.set_a11y(true);
     let mut incoming = Vec::with_capacity(256);

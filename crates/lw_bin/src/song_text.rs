@@ -400,6 +400,7 @@ mod tests {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = catalog();
         let state = lw_ui::ShellState::default();
+        pxui::Ui::verify_new_views(true);
         let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
         let window = draw(&mut ui, &catalog, &state, 1440.0);
         assert!(
@@ -489,6 +490,7 @@ mod tests {
     fn song_text_worker_retries_stale_fonts_and_coalesces_resized_viewports() {
         let catalog = catalog();
         let state = lw_ui::ShellState::default();
+        pxui::Ui::verify_new_views(true);
         let mut ui = Ui::create(Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
         let window = draw(&mut ui, &catalog, &state, 1440.0);
         let mut worker = SongTextWorker::open(&mut ui, wake).unwrap();

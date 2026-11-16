@@ -805,6 +805,7 @@ mod tests {
                 let mut state = lw_ui::ShellState::default();
                 state.apply(lw_ui::Intent::Navigate(Route::Find));
                 state.apply(lw_ui::Intent::Search(Query::new(raw).unwrap()));
+                pxui::Ui::verify_new_views(true);
                 let mut ui =
                     pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
                 ui.set_a11y(true);

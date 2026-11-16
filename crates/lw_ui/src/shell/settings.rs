@@ -606,7 +606,7 @@ mod tests {
     }
     #[test]
     fn settings_navigation_controls_context_choices_and_privacy_keep_library_selection() {
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = ShellState {
             selected: Some(0),
@@ -786,7 +786,7 @@ mod tests {
     #[test]
     fn settings_and_context_menus_reuse_warm_views_and_allocate_nothing() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);
         let mut player = PlayerView {
@@ -840,7 +840,7 @@ mod tests {
     #[test]
     fn compact_settings_add_phone_rows_and_keep_controls_inline_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);
@@ -871,7 +871,7 @@ mod tests {
     #[test]
     fn desktop_settings_keep_rescan_and_hide_the_phone_only_row() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);

@@ -40,7 +40,7 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
     let catalog = catalog(2);
     let state = ShellState::default();
     let player = PlayerView::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     for round in 0..6 {
         mem_sys::local_reset();
@@ -169,7 +169,7 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
 fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
     let catalog = catalog(2);
     let table = catalog.all.as_ref().unwrap().song_table.as_ref().unwrap();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     for scale in [1.0, 2.0] {
         for width in [
             399.0, 400.0, 519.0, 520.0, 679.0, 680.0, 888.0, 364.0, 364.1, 364.26, 364.3, 364.5,
@@ -247,7 +247,7 @@ fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
         duration: 240.0,
         ..Default::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -322,7 +322,7 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
     mem_sys::set_peer(pxui::library_counter);
     let catalog = catalog(1);
     for scale in [1.0, 2.0] {
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         let mut frame = FrameIn {
             width: 100.0,
             height: 100.0,
@@ -440,7 +440,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         playing: true,
         ..Default::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -608,7 +608,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
     let catalog = catalog(2);
     let mut state = ShellState::default();
     let player = PlayerView::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -751,7 +751,7 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
     catalogs[0].prepare_remap(&previous);
     let mut state = ShellState::default();
     let player = PlayerView::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -833,9 +833,9 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                 (Route::Songs, Some(0)),
                 (Route::Album(0), None),
             ] {
-                let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+                let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
                 let mut reference =
-                    Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+                    crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
                 let input = FrameIn {
                     width: 1200.0,
                     height: 300.0,
@@ -1018,7 +1018,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
     let morning = catalog.collections[slot].key;
     let player = PlayerView::default();
     let mut state = ShellState::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -1271,7 +1271,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
     let all = catalog.all.as_ref().unwrap().key;
     let player = PlayerView::default();
     let mut state = ShellState::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
@@ -1597,7 +1597,7 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     );
     let mut state = ShellState::default();
     let player = PlayerView::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
@@ -1776,7 +1776,7 @@ fn select_all_is_a_no_op_while_find_is_focused() {
     let mut state = ShellState::default();
     state.apply(Intent::Navigate(Route::Find));
     let player = PlayerView::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, events: &[pxui::Event]| {
@@ -1855,7 +1855,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
         account: Some(1),
         ..Default::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let time = std::cell::Cell::new(0.0);
     // Renders three warm frames; the last must not allocate. Returns the accessibility strings.
@@ -2051,7 +2051,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     state.apply(Intent::Navigate(Route::Songs));
     state.apply(Intent::Select(crate::Selection::Toggle(1)));
     state.apply(Intent::Select(crate::Selection::Toggle(3)));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let damage = Cell::new([0.0f32; 4]);
@@ -2176,7 +2176,7 @@ fn metadata_editor_opens_prefilled_saves_edited_fields_and_delete_confirms_witho
     let all = catalog.all.as_ref().unwrap().key;
     let player = PlayerView::default();
     let mut state = ShellState::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &ShellState| {
@@ -2301,7 +2301,7 @@ fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocati
     let catalog = titled(100);
     let mut state = ShellState::default();
     let player = PlayerView::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {

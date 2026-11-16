@@ -177,7 +177,7 @@ mod tests {
             album: "High Violet, Trouble Will Find Me",
             ..Default::default()
         };
-        let mut ui = Ui::create(pxui::Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(pxui::Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut frame = pxui::FrameIn {
             width: 400.0,

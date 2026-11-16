@@ -1078,7 +1078,7 @@ mod tests {
         use crate::files::Glyph;
         use lw_core::{FileAvailability, FileState};
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let card = |id: i64, name: &str, error: Option<&str>| Folder {
             id,
@@ -1205,7 +1205,7 @@ mod tests {
     #[test]
     fn files_virtualize_borrowed_rows_route_actions_and_scroll_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut files = Snapshot {
             revision: 1,
@@ -1547,7 +1547,7 @@ mod tests {
     fn compact_folder_page_has_swift_keys_rows_and_routes_actions_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let size = (390.0, 778.0);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let location = Location { user: 42, source: 1, parent: Some(5) };
         let entry = |id: i64, name: &str, detail: &str, audio: bool, directory: bool| Entry {
@@ -1598,7 +1598,7 @@ mod tests {
         use lw_core::FileAvailability::OnDevice;
         mem_sys::set_peer(pxui::library_counter);
         let size = (390.0, 778.0);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let location = Location { user: 42, source: 1, parent: Some(5) };
         let glyph = Some(crate::files::Glyph { state: lw_core::FileState::Copied, availability: Some(OnDevice), pinned: false });
@@ -1687,7 +1687,7 @@ mod tests {
         use lw_core::FileAvailability::{InCloud, OnDevice};
         mem_sys::set_peer(pxui::library_counter);
         let size = (390.0, 778.0);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let location = Location { user: 42, source: 1, parent: Some(5) };
         let glyph = |availability| Some(crate::files::Glyph { state: lw_core::FileState::Copied, availability: Some(availability), pinned: false });

@@ -29,7 +29,7 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
         ..Default::default()
     };
     for width in [1440.0, 390.0] {
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         ui.set_a11y(true);
         let mut frame = FrameIn {
             width,
@@ -132,7 +132,7 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
 #[test]
 fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allocations() {
     mem_sys::set_peer(pxui::library_counter);
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     let mut text = pxui::Text::new(&[FONT, MONO]).unwrap();
     let samples = [
         (0, 34.0, 34.0, 29.0),
@@ -273,7 +273,7 @@ fn desktop_album_cards_and_player_artwork_use_swift_point_dimensions() {
         current_id: Some(0),
         ..Default::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     for width in [1440.0, 1280.0, 1024.0] {
         for _ in 0..3 {
@@ -335,7 +335,7 @@ fn desktop_album_cards_and_player_artwork_use_swift_point_dimensions() {
 #[test]
 fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocations() {
     mem_sys::set_peer(pxui::library_counter);
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let catalog = catalog::Catalog::default();
     let state = ShellState::default();
@@ -393,7 +393,7 @@ fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocat
 
 #[test]
 fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let catalog = prepared(Vec::new());
     let state = ShellState::default();
@@ -452,7 +452,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         Arc::new(PlaybackContext::Library),
         false,
     )));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut state = ShellState::default();
     state.apply(Intent::SelectRow(0));
@@ -712,7 +712,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
 
 #[test]
 fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let catalog = prepared(Vec::new());
     let mut state = ShellState::default();
@@ -788,7 +788,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
     )));
     let mut state = ShellState::default();
     state.apply(Intent::SelectRow(0));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut player = PlayerView {
         waveform: Some(&[0.5; 512]),
@@ -1057,7 +1057,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
     let mut state = ShellState::default();
     state.apply(Intent::Navigate(Route::Find));
     state.apply(Intent::Search(Query::new("CAFÉ").unwrap()));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView {
         initialized: true,
@@ -1250,7 +1250,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     );
     let mut state = ShellState::default();
     state.apply(Intent::Navigate(Route::Find));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView {
         initialized: true,
@@ -1453,7 +1453,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
     );
     let mut state = ShellState::default();
     state.apply(Intent::SelectRow(10));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView::default();
     let frame = FrameIn {
@@ -1539,7 +1539,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
 fn transport_buttons_return_intents_and_update_retained_labels() {
     let catalog = prepared(Vec::new());
     let state = ShellState::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut player = PlayerView {
         revision: 0,
@@ -1646,7 +1646,7 @@ fn refreshed_catalog_preserves_identity_and_rebuilds_retained_content() {
         assert_eq!(state.route, expected_route);
         assert_eq!(state.selected, expected_selected);
     }
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView {
         initialized: true,
@@ -1756,7 +1756,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
         },
     );
     after.prepare_remap(&before);
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView::default();
     let frame = FrameIn {
@@ -1822,7 +1822,7 @@ fn catalog_refresh_keeps_collection_scroll_after_indices_and_names_change() {
 
 #[test]
 fn accessible_seek_volume_and_panel_controls_return_intents() {
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let catalog = prepared(Vec::new());
     let state = ShellState::default();
@@ -1875,7 +1875,7 @@ fn shell_themes_and_warm_build_allocate_nothing() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = prepared(Vec::new());
     let state = ShellState::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     for theme in [LIGHT, DARK] {
         ui.set_theme(&ThemeSource {
@@ -1985,7 +1985,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
             .collect(),
     );
     let mut state = ShellState::default();
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut player = PlayerView {
         initialized: true,
@@ -2113,7 +2113,7 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
             },
         );
     }
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let state = ShellState::default();
     let player = PlayerView::default();
@@ -2183,7 +2183,7 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
             })
             .collect(),
     );
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut state = ShellState::default();
     let player = PlayerView::default();
@@ -2276,7 +2276,7 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
         duration: 100.0,
         ..PlayerView::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let width = std::cell::Cell::new(1440.0_f32);
@@ -2488,7 +2488,7 @@ fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
     state.apply(Intent::Navigate(mix));
     catalog.project(state.request(&catalog).unwrap(), vec![0, 1, 2]);
     state.apply(Intent::Navigate(Route::Songs));
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
@@ -2660,7 +2660,7 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
         title: "Track 1",
         ..PlayerView::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run =
@@ -2840,7 +2840,7 @@ fn favorite_burst_runs_only_on_the_off_to_on_transition_and_respects_reduced_mot
     };
     for (reduced, expect_burst) in [(0, true), (1, false)] {
         let state = ShellState::default();
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
         let mut time = 0.0;
         let mut run = |catalog: &catalog::Catalog, id: i64, seconds: f64| {
             time += seconds;
@@ -2919,7 +2919,7 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
         catalog::SourceRow { location: location(6), name: "Dropbox".into(), count: "6".into(), reconnect: true },
     ];
 
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let state = ShellState::default();
     let player = PlayerView::default();
@@ -3021,7 +3021,7 @@ fn empty_palette_lists_swift_commands_over_the_live_page_without_a_worker_round_
         swift.map(|(label, hint)| ("Commands", label, hint)),
         "{rows:?}"
     );
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView {
         initialized: true,
@@ -3087,7 +3087,7 @@ fn now_panel_draws_title_and_worker_formatted_metadata_without_warm_allocations(
         info: Some(&info),
         ..Default::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let frame = FrameIn {
         width: 1440.0,
@@ -3168,7 +3168,7 @@ fn queue_sheet_follows_swift_structure_order_and_actions() {
         height: 872.0,
         ..Default::default()
     };
-    let mut ui = Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut intent = None;
     let run = |ui: &mut Ui, intent: &mut Option<Intent>| {

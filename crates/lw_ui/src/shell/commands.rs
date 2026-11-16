@@ -704,7 +704,7 @@ mod tests {
 
     #[test]
     fn phone_shortcuts_wrap_labels_in_the_left_half() {
-        let mut ui = Ui::create(
+        let mut ui = crate::test_ui(
             pxui::Platform::Apple,
             Some(18),
             &[crate::FONT, crate::MONO],
@@ -856,7 +856,7 @@ mod tests {
     #[test]
     fn command_palette_keyboard_selection_focus_utf8_dismissal_and_warm_frames() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         crate::commands::register(&mut ui).unwrap();
         let mut theme = pxui::Theme::default();
