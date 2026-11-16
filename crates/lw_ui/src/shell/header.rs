@@ -198,6 +198,7 @@ pub(super) fn compact_find(
 ) {
     let revision = pxui::hash!((
         state.revision,
+        (state.selecting, state.selection_revision),
         theme.map_or(0, |t| t as *const pxui::Theme as usize),
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         catalog
@@ -206,6 +207,12 @@ pub(super) fn compact_find(
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
     ui.view("page-heading", revision, Size::Grow, Size::Fit, &mut |ui| {
+        // Select mode swaps the whole heading for Swift's selection header.
+        if state.selecting {
+            let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
+            super::compact::list::selection_header(ui, p, state.marked.len(), rows, rows, intent);
+            return;
+        }
         let root = ui.node(
             "compact-find",
             Node {
@@ -324,16 +331,17 @@ pub(super) fn compact_find(
                 .and(catalog.view.as_ref())
                 .and_then(|view| view.find.as_ref())
             {
-                spacer(ui, "songs-gap", 20.0);
-                detail::line(
-                    ui,
-                    "songs-label",
-                    &summary.label,
-                    (13.0, 18.2, 500, 0.0),
-                    p.secondary,
-                    0,
-                );
-                spacer(ui, "songs-gap-bottom", 8.0);
+                spacer(ui, "songs-gap", 7.0);
+                let label = ui.node("songs-row", Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(44.0), ..Node::DEFAULT });
+                ui.within(&label, &mut |ui| {
+                    let text = ui.node("songs-text", Node { w: Size::Grow, h: Size::Fit, ..Node::DEFAULT });
+                    ui.within(&text, &mut |ui| {
+                        detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), p.secondary, 0);
+                    });
+                    if super::compact::list::word(ui, "select", "Select", false, p) {
+                        *intent = Some(Intent::SelectMode(true));
+                    }
+                });
             }
         });
     });

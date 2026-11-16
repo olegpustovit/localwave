@@ -49,6 +49,8 @@ pub struct ShellState {
     selecting: bool,
     page_menu: Option<(f32, f32)>,
     page_lists: bool,
+    /// A folder row's "…" menu: entry id and anchor.
+    folder_menu: Option<(i64, (f32, f32))>,
     files_filter: crate::FilesFilter,
     add_music: bool,
     selection_revision: u64,
@@ -105,6 +107,7 @@ impl Default for ShellState {
             selecting: false,
             page_menu: None,
             page_lists: false,
+            folder_menu: None,
             files_filter: crate::FilesFilter::All,
             add_music: false,
             selection_revision: 0,
@@ -168,6 +171,13 @@ impl ShellState {
     pub fn selected_song_ids<'a>(&'a self, catalog: &'a Catalog) -> impl Iterator<Item = i64> + 'a {
         let ids = self.collection(catalog).map_or(&[][..], |c| &c.ids[..]);
         self.marked.iter().filter_map(move |&i| ids.get(i).copied())
+    }
+    /// Saved songs of the marked rows of a folder page, in row order.
+    pub fn selected_folder_songs(&self, directory: &crate::files::Directory) -> Vec<i64> {
+        self.marked
+            .iter()
+            .filter_map(|&index| directory.entry(self.files_filter, index)?.song)
+            .collect()
     }
     pub fn selecting(&self) -> bool {
         self.selecting
@@ -294,7 +304,7 @@ impl ShellState {
         self.song_menu = None;
         let old = self.route;
         (self.route, self.selected) = remap.resolve(old, self.selected, self.query);
-        if !self.marked.is_empty() || self.anchor.is_some() {
+        if self.route != Route::Files && (!self.marked.is_empty() || self.anchor.is_some()) {
             let map = |i: &usize| remap.resolve(old, Some(*i), self.query).1;
             self.anchor = self.anchor.as_ref().and_then(map);
             let mut marked: Vec<usize> = self.marked.iter().filter_map(map).collect();
@@ -330,6 +340,13 @@ impl ShellState {
         }
         if matches!(intent, Intent::Navigate(_) | Intent::Files(_)) {
             self.files_filter = crate::FilesFilter::All;
+            self.folder_menu = None;
+        }
+        // Marks index the folder's rows, which another folder replaces.
+        if matches!(intent, Intent::Files(_) | Intent::FilesFilter(_)) && self.selecting && self.route == Route::Files {
+            self.selecting = false;
+            self.clear_selection();
+            self.selection_revision = self.selection_revision.wrapping_add(1);
         }
         if matches!(
             intent,
@@ -409,6 +426,25 @@ impl ShellState {
                 }
             }
             Intent::PageLists => self.page_lists = self.page_menu.is_some(),
+            Intent::PageListChoices(at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.page_menu = Some(at);
+                    self.page_lists = true;
+                    (self.song_menu, self.list_menu, self.source_menu) = (None, None, None);
+                    self.settings_menu = None;
+                }
+            }
+            Intent::NewPageList => {
+                (self.page_menu, self.page_lists) = (None, false);
+                self.open_list_dialog(crate::ListDialog::NewPage, Query::default());
+            }
+            Intent::FolderMenu(entry, at) => {
+                if at.0.is_finite() && at.1.is_finite() {
+                    self.folder_menu = Some((entry, at));
+                    (self.song_menu, self.source_menu) = (None, None);
+                }
+            }
+            Intent::CloseFolderMenu => self.folder_menu = None,
             Intent::ClosePageMenu => {
                 self.page_menu = None;
                 self.page_lists = false;
@@ -857,6 +893,9 @@ pub fn shell(
     }
     if let Some(at) = state.page_menu {
         compact::page::menu(ui, catalog, state, at, p, intent);
+    }
+    if let Some((entry, at)) = state.folder_menu {
+        files::folder_menu(ui, player, entry, at, p, intent);
     }
     if state.add_music {
         files::add_music(ui, player, p, intent);

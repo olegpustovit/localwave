@@ -12,25 +12,29 @@ pub(in crate::shell) fn menu(
     p: Palette,
     intent: &mut Option<Intent>,
 ) {
-    let Some(collection) = state.collection(catalog) else {
+    // A folder page only gets the deck's list choices; its songs are the marked rows.
+    let folder = state.route == Route::Files;
+    let collection = state.collection(catalog);
+    if collection.is_none() && !(folder && state.page_lists) {
         *intent = Some(Intent::ClosePageMenu);
         return;
-    };
-    let (list, album) = match &*collection.context {
-        PlaybackContext::Playlist { id, .. } => (Some(*id), false),
-        PlaybackContext::Album { .. } => (None, true),
+    }
+    let context = collection.map(|collection| &*collection.context);
+    let (list, album) = match context {
+        Some(PlaybackContext::Playlist { id, .. }) => (Some(*id), false),
+        Some(PlaybackContext::Album { .. }) => (None, true),
         _ => (None, false),
     };
-    let artist = match &*collection.context {
-        PlaybackContext::Album { artist, .. } => catalog.library.artists.iter().position(|a| a.title == *artist),
+    let artist = match context {
+        Some(PlaybackContext::Album { artist, .. }) => catalog.library.artists.iter().position(|a| a.title == *artist),
         _ => None,
     };
-    let filled = !collection.ids.is_empty();
-    let kept = filled && collection.rows.iter().all(|&row| catalog.row(row).pinned);
+    let filled = collection.is_some_and(|collection| !collection.ids.is_empty());
+    let kept = filled && collection.is_some_and(|collection| collection.rows.iter().all(|&row| catalog.row(row).pinned));
     let name = list.map_or(crate::browse::Query::default(), |_| {
-        crate::browse::Query::new(&collection.title).unwrap_or_default()
+        crate::browse::Query::new(collection.map_or("", |collection| &collection.title)).unwrap_or_default()
     });
-    let mut items: [Option<(&'static str, bool, Intent, bool)>; 9] = [None; 9];
+    let mut items: [Option<(&'static str, bool, Intent, bool)>; 11] = [None; 11];
     let mut count = 0;
     for entry in [
         Some(("Play", filled, Intent::Page(PageAction::Play), false)),
@@ -40,6 +44,8 @@ pub(in crate::shell) fn menu(
         album.then_some(("Add to list", filled, Intent::PageLists, false)),
         artist.map(|index| ("Go to artist", true, Intent::Navigate(Route::Artist(index)), false)),
         list.map(|list| ("Rename…", true, Intent::RenameListDialog(list, name), false)),
+        list.map(|_| ("Duplicate", true, Intent::Page(PageAction::Duplicate), false)),
+        album.then_some(("Show in folder", filled, Intent::Page(PageAction::ShowInFolder), false)),
         Some((
             if kept { "Stop keeping offline" } else { "Keep offline" },
             filled,
@@ -55,6 +61,7 @@ pub(in crate::shell) fn menu(
     }
     let lists = state.page_lists;
     let others = catalog.collections.iter().filter(|c| matches!(&*c.context, PlaybackContext::Playlist { .. })).count();
+    // "New list…" leads the choices, as in Swift's addToListGroups.
     let rows = if lists { others.max(1) + 1 } else { count };
     let height = rows as f32 * 36.0;
     let (w, h) = ui.view_size();
@@ -74,6 +81,12 @@ pub(in crate::shell) fn menu(
         if lists { "Add to list" } else { "Page actions" },
         &mut |ui| {
             if lists {
+                let item = ui.node("new-list", super::super::songs::item_node(true, p));
+                ui.text(&item, "New list…");
+                if ui.signal_state(&item).clicked {
+                    *intent = Some(Intent::NewPageList);
+                    accepted = true;
+                }
                 if others == 0 {
                     let item = ui.node("none", super::super::songs::item_node(false, p));
                     ui.text(&item, "No other lists");

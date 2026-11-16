@@ -67,7 +67,7 @@ pub(super) fn songs(
             lw_core::context::PlaybackContext::Playlist { id, .. } => Some(*id),
             _ => None,
         },
-        selecting: state.selecting && matches!(state.route, Route::Album(_) | Route::Collection(_)),
+        selecting: state.selecting,
         numbered: matches!(state.route, Route::Album(_)),
         p,
     };
@@ -254,6 +254,9 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 line(ui, "artist", note, 13.0, p.secondary);
             });
             if selecting {
+                if cx.list.is_some() {
+                    reorder_grip(ui, index, row.title, p);
+                }
                 return;
             }
             if row.pinned
@@ -291,6 +294,9 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 ));
             }
         });
+        if selecting && cx.list.is_some() {
+            super::super::songs::row::drop_target(ui, p, &node, index, intent);
+        }
         let leading = g.swipe > 0.0;
         let (key, label, trailing) = match cx.list {
             Some(list) => (
@@ -351,6 +357,33 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             }
         }
     });
+}
+
+/// Swift's edit-mode drag handle: dragging it reorders the playlist (`MoveListRow` on drop).
+fn reorder_grip(ui: &mut Ui, index: usize, title: &str, p: Palette) {
+    use super::super::songs::row::LIST_ROW;
+    let grip = ui.node("reorder", Node { flags: CLICKABLE | TAB_STOP, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
+    ui.a11y_name(&grip, "Reorder track");
+    // The finger takes the handle at once as a held press, so the list neither scrolls nor refreshes.
+    ui.gesture(&grip, GestureOpts { touch_drag: true, ..Default::default() });
+    ui.draw(&grip, move |paint, rect| {
+        for y in [-5.0, 0.0, 5.0] {
+            paint.fill(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0, p.secondary);
+        }
+    });
+    let signal = ui.signal_state(&grip);
+    if signal.held || signal.clicked {
+        let id = ClockLabel::integer(index as u64);
+        let mut kind = [0u8; 48];
+        kind[..LIST_ROW.len()].copy_from_slice(LIST_ROW.as_bytes());
+        let len = LIST_ROW.len() + id.bytes().len();
+        kind[LIST_ROW.len()..len].copy_from_slice(id.bytes());
+        ui.carry(
+            if signal.clicked { None } else { Some(&grip) },
+            std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
+            title,
+        );
+    }
 }
 
 fn swipe_action(ui: &mut Ui, key: &str, label: &'static str, revealed: f32, p: Palette) -> bool {
@@ -576,6 +609,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         width.to_bits(),
         player.artwork.map_or(0, crate::artwork::Images::revision),
+        select_revision(state),
     ));
     ui.view(
         "artist-lead",
@@ -585,7 +619,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         &mut |ui| {
             let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, p.paper);
             ui.within(&column, &mut |ui| {
-                back_row(ui, "Library", Route::Artists, p, intent, &mut |_, _| {});
+                nav_row(ui, cx, "Library", Route::Artists, intent);
                 let name = if collection.title.is_empty() { "Unknown artist" } else { &collection.title };
                 titles(ui, name, &collection.summary, p);
                 spacer(ui, "keys-gap", 8.0);
@@ -810,6 +844,7 @@ fn select_revision(state: &ShellState) -> (bool, u64) {
 const BAR: f32 = 64.0;
 
 /// Back row, or Swift's selection header (Select all, "N selected", Done) in Select mode.
+/// Albums and lists add the page "…" menu; artists only Select.
 fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent: &mut Option<Intent>) {
     let Cx { collection, state, p, .. } = *cx;
     let playlist = cx.list.is_some();
@@ -822,21 +857,29 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
             {
                 *intent = Some(Intent::SelectMode(true));
             }
-            if more_button(ui, if playlist { "List actions" } else { "Album actions" }, p) {
+            if !matches!(state.route, Route::Artist(_))
+                && more_button(ui, if playlist { "List actions" } else { "Album actions" }, p)
+            {
                 *intent = Some(Intent::PageMenu((cx.width - 8.0, BACK_ROW)));
             }
         });
         return;
     }
+    selection_header(ui, p, state.marked.len(), collection.rows.len(), collection.rows.len(), intent);
+}
+
+/// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
+/// "Select all" marks `rows` positions.
+pub(in crate::shell) fn selection_header(ui: &mut Ui, p: Palette, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
     let row = ui.node("selection-header", Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(BACK_ROW), padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&row, &mut |ui| {
-        let all = !state.marked.is_empty() && state.marked.len() == collection.rows.len();
+        let all = selected > 0 && selected == selectable;
         if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false, p) {
-            *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(collection.rows.len()) }));
+            *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
         }
         container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
         let mut buffer = [0u8; 40];
-        text(ui, "count", selected_label(&mut buffer, state.marked.len()), 15, p.ink, (Size::Fit, 21.0), false);
+        text(ui, "count", selected_label(&mut buffer, selected), 15, p.ink, (Size::Fit, 21.0), false);
         container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
         if word(ui, "done", "Done", true, p) {
             *intent = Some(Intent::SelectMode(false));
@@ -854,7 +897,7 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 }
 
 /// A 44 pt text button (Swift's Select / Done at 16 pt).
-fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool, p: Palette) -> bool {
+pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool, p: Palette) -> bool {
     let node = ui.node(key, Node { flags: CLICKABLE | TAB_STOP, role: Role::Button, axis: Axis::Row, align: Align::Center, w: Size::Fit, h: Size::Px(44.0), padding: Edges { l: 4.0, r: 4.0, ..Edges::ZERO }, ..Node::DEFAULT });
     ui.within(&node, &mut |ui| {
         text(ui, "label", label, 16, p.ink, (Size::Fit, 22.4), false);
@@ -864,7 +907,7 @@ fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool, p: P
 }
 
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
-fn checkbox(ui: &mut Ui, marked: bool, p: Palette) {
+pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool, p: Palette) {
     let node = ui.node("checkbox", Node { w: Size::Px(20.0), h: Size::Px(20.0), ..Node::DEFAULT });
     let (ink, outline, paper) = (p.ink, p.secondary, p.paper);
     ui.draw(&node, move |paint, rect| {
@@ -877,24 +920,22 @@ fn checkbox(ui: &mut Ui, marked: bool, p: Palette) {
     });
 }
 
-/// Swift's selection deck: Play next, Add to list, Offline, then Queue (Remove inside a list).
-fn selection_bar(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
-    let Cx { collection, state, p, .. } = *cx;
-    let first = state.marked.first().and_then(|&index| collection.ids.get(index).map(|&id| (index, id)));
+/// Swift's selection deck: Play next, Add to list, Offline, then Queue (Remove inside a list). Returns the pressed
+/// key ("play-next", "add-to-list", "offline", "queue" or "remove") and the key's rectangle.
+pub(in crate::shell) fn deck(ui: &mut Ui, p: Palette, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
+    let mut pressed = None;
     let holder = ui.node("selection-holder", Node { axis: Axis::Column, justify: Justify::End, w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
     ui.within(&holder, &mut |ui| {
         let deck = ui.node("selection-bar", Node { axis: Axis::Row, gap: 2.0, w: Size::Grow, h: Size::Px(BAR), padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: Look { fill: p.panel, ..Look::NONE }, ..Node::DEFAULT });
         ui.set_role(&deck, Role::Group, 0);
         ui.a11y_name(&deck, "Selection actions");
         ui.within(&deck, &mut |ui| {
-            let remove = cx.list;
             for (key, label, glyph) in [
                 ("play-next", "Play next", Icon::Next),
                 ("add-to-list", "Add to list", Icon::Clear),
                 ("offline", "Offline", Icon::Down),
-                (if remove.is_some() { "remove" } else { "queue" }, if remove.is_some() { "Remove" } else { "Queue" }, if remove.is_some() { Icon::Clear } else { Icon::Queue }),
+                (if remove { "remove" } else { "queue" }, if remove { "Remove" } else { "Queue" }, if remove { Icon::Clear } else { Icon::Queue }),
             ] {
-                let enabled = first.is_some();
                 let ink = if !enabled { p.tertiary } else if key == "remove" { p.danger } else { p.ink };
                 let node = ui.node(
                     key,
@@ -926,21 +967,28 @@ fn selection_bar(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                 });
                 ui.a11y_name(&node, label);
                 if enabled && ui.signal_state(&node).clicked {
-                    let (index, id) = first.unwrap_or_default();
-                    *intent = Some(match key {
-                        "play-next" => Intent::PlayNext(id),
-                        "add-to-list" => {
-                            let rect = ui.rect(&node);
-                            Intent::SelectionLists(index, id, collection.key, (rect.x, rect.y - 36.0 * 8.0))
-                        }
-                        "offline" => Intent::KeepOffline(id),
-                        "remove" => Intent::RemoveFromList { song: id, list: remove.unwrap_or_default() },
-                        _ => Intent::AppendSong(id),
-                    });
+                    pressed = Some((key, ui.rect(&node)));
                 }
             }
         });
     });
+    pressed
+}
+
+fn selection_bar(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
+    let Cx { collection, state, .. } = *cx;
+    let first = state.marked.first().and_then(|&index| collection.ids.get(index).map(|&id| (index, id)));
+    let remove = cx.list;
+    if let Some((key, rect)) = deck(ui, cx.p, first.is_some(), remove.is_some()) {
+        let (index, id) = first.unwrap_or_default();
+        *intent = Some(match key {
+            "play-next" => Intent::PlayNext(id),
+            "add-to-list" => Intent::SelectionLists(index, id, collection.key, (rect.x, rect.y - 36.0 * 8.0)),
+            "offline" => Intent::KeepOffline(id),
+            "remove" => Intent::RemoveFromList { song: id, list: remove.unwrap_or_default() },
+            _ => Intent::AppendSong(id),
+        });
+    }
 }
 
 /// Compact album page lead-in: back, 150 pt artwork beside title, artist and summary, Play/Shuffle.

@@ -170,7 +170,7 @@ impl FilesWorker {
                 self.shared.cancelled.store(true, Ordering::SeqCst);
                 Ok(())
             }
-            Request::Roots | Request::Browse(_) => {
+            Request::Roots | Request::Browse(_) | Request::Locate { .. } => {
                 let mut inbox = self.shared.inbox.lock().unwrap();
                 if inbox.closed {
                     return Err(io::ErrorKind::BrokenPipe.into());
@@ -419,6 +419,8 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
                     Request::Browse(location) => {
                         browse_directory(&mut library, &mut snapshot, location)
                     }
+                    Request::Locate { user, song } => locate(&mut library, user, song)
+                        .and_then(|location| browse_directory(&mut library, &mut snapshot, location)),
                     _ => unreachable!(),
                 }),
             };
@@ -549,6 +551,30 @@ fn refresh_sources(
     snapshot.sources = Arc::from(sources);
     Ok(())
 }
+/// The folder holding a saved song: its source and the path row of the song's parent directory.
+fn locate(library: &mut LibraryWorker, user: i64, song: i64) -> io::Result<Location> {
+    let song = library
+        .repository
+        .get_song(song)
+        .map_err(io::Error::other)?
+        .ok_or_else(|| io::Error::other("This song was removed."))?;
+    let (Some(source), Some(relative)) = (song.source_id, song.relative_path.as_deref()) else {
+        return Err(io::Error::other("This song has no source folder."));
+    };
+    let parent = match relative.rsplit_once('/') {
+        None => None,
+        Some((directory, _)) => Some(
+            library
+                .repository
+                .source_path(source, directory)
+                .map_err(io::Error::other)?
+                .filter(|path| path.is_directory)
+                .ok_or_else(|| io::Error::other("This folder was removed. Refresh its source."))?
+                .path_id,
+        ),
+    };
+    Ok(Location { user, source, parent })
+}
 fn browse_directory(
     library: &mut LibraryWorker,
     snapshot: &mut Snapshot,
@@ -605,6 +631,8 @@ fn browse_directory(
         .collect::<HashMap<_, _>>();
     // Per child folder: saved songs and bytes below it (the first path component after the prefix).
     let mut totals: HashMap<&str, (usize, i64)> = HashMap::new();
+    // The same songs per child folder, in natural order, for its Play / Shuffle folder menu.
+    let mut below: HashMap<&str, Vec<i64>> = HashMap::new();
     for song in &inside {
         let relative = song.relative_path.as_deref().unwrap_or_default();
         let rest = prefix.map_or(relative, |prefix| &relative[prefix.len() + 1..]);
@@ -612,6 +640,7 @@ fn browse_directory(
             let total = totals.entry(child).or_default();
             total.0 += 1;
             total.1 += song.file_size.unwrap_or(0);
+            below.entry(child).or_default().extend(song.id);
         }
     }
     let mut entries = Vec::new();
@@ -670,6 +699,7 @@ fn browse_directory(
                     }
                 },
                 song: song.and_then(|song| song.id),
+                songs: below.remove(path.name.as_str()).map_or_else(|| Arc::from([]), Arc::from),
                 glyph: index.map(|index| Glyph {
                     state: inside[index].file_state,
                     availability: Some(states[index].0),
@@ -748,6 +778,11 @@ fn browse_directory(
         songs: inside.iter().filter_map(|song| song.id).collect(),
         show_non_audio: library.load_settings().show_non_audio,
         non_audio: entries.iter().filter(|entry| !entry.directory && !entry.audio).count(),
+        hidden_label: match entries.iter().filter(|entry| !entry.directory && !entry.audio).count() {
+            0 => String::new(),
+            1 => "1 non-audio file hidden ·".into(),
+            count => format!("{count} non-audio files hidden ·"),
+        },
         entries,
         filters,
         filter_counts,
@@ -1235,6 +1270,9 @@ mod tests {
         );
         assert_eq!((directory.non_audio, directory.songs.len()), (1, 1));
         assert!(!directory.show_non_audio, "the setting only affects compact lists");
+        assert_eq!(directory.entries[0].songs, directory.songs, "a folder row carries its songs for Play folder");
+        assert!(directory.entries[1].songs.is_empty());
+        assert_eq!(directory.hidden_label, "1 non-audio file hidden ·");
         assert!(directory.summary.starts_with("1 songs · "), "{}", directory.summary);
         assert!(directory.summary.ends_with(" offline"));
         assert_eq!(directory.title, "Original music 名前");
@@ -1266,6 +1304,18 @@ mod tests {
         assert_eq!((&directory.filters[0][..], &directory.filters[1][..]), (&[0][..], &[][..]));
         assert_eq!(directory.breadcrumb, "Original music 名前 / Album");
         assert_eq!(directory.title, "Album");
+        // "Show in folder": a song resolves to its parent folder from anywhere.
+        let song = entry.song.unwrap();
+        worker.request(Request::Browse(root)).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.directory.as_ref().is_some_and(|directory| directory.location == root)
+        });
+        worker.request(Request::Locate { user, song }).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.directory.as_ref().is_some_and(|directory| directory.location == nested)
+        });
+        assert!(worker.request(Request::Locate { user, song: -1 }).is_ok(), "unknown songs fail on the worker, not the caller");
+        let directory = worker.snapshot().directory.as_ref().unwrap();
         assert_eq!(directory.songs.len(), 1);
         assert!(matches!(
             directory.context.as_ref(),

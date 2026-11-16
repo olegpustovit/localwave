@@ -208,26 +208,31 @@ pub(super) fn view(
                     && !matches!(state.route, Route::Artist(_) | Route::Album(_) | Route::Collection(_))
                 {
                     let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
+                    // Select mode swaps the Songs title for Swift's selection header.
+                    let picking = state.selecting && state.route == Route::Songs;
                     let head = ui.node(
                         "compact-heading",
                         Node {
                             axis: Axis::Row,
                             align: if library { Align::Start } else { Align::Center },
                             w: Size::Grow,
-                            h: Size::Px(if library { 50.0 } else { 64.0 }),
-                            padding: Edges {
+                            h: Size::Px(if picking { 54.0 } else if library { 50.0 } else { 64.0 }),
+                            padding: if picking { Edges::ZERO } else { Edges {
                                 l: 16.0,
                                 r: if library { 6.0 } else { 16.0 },
                                 // Swift's compact header: 10 pt pad with the glyph cap 4 pt higher than a 33.6 box; Lists centres in 54.
                                 t: if library { 6.0 } else { 0.0 },
                                 b: if library { 0.0 } else { 10.0 },
                                 ..Edges::ZERO
-                            },
+                            } },
                             ..Node::DEFAULT
                         },
                     );
                     ui.within(&head, &mut |ui| {
-                        if library {
+                        if picking {
+                            let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
+                            list::selection_header(ui, p, state.marked.len(), rows, rows, intent);
+                        } else if library {
                             detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), p.ink, 0);
                             // Swift's header gear; Settings stays one tap away.
                             let settings = ui.node(
@@ -331,6 +336,12 @@ pub(super) fn view(
                             if state.route == Route::Songs {
                                 container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), p.paper);
                                 text(ui, "sort", "Title \u{2193}", 14, p.ink, (Size::Fit, 19.6), false);
+                                if !state.selecting
+                                    && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
+                                    && list::word(ui, "select", "Select", false, p)
+                                {
+                                    *intent = Some(Intent::SelectMode(true));
+                                }
                             }
                         });
                         rule(ui, "tabs-divider", false, p);
@@ -367,7 +378,7 @@ pub(super) fn view(
                             settings::view(ui, player, state, width, p, intent);
                         } else {
                             match state.route {
-                                Route::Files => files::view(ui, player, state.files_filter, width, p, intent),
+                                Route::Files => files::view(ui, player, state, width, p, intent),
                                 Route::Albums => {
                                     albums::gallery(ui, catalog, state, player, width, p, intent)
                                 }
@@ -1297,6 +1308,142 @@ mod tests {
         time += 1.0;
         assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), Some(Intent::ConfirmDeleteList(7)));
     }
+    #[test]
+    fn phone_select_mode_reaches_songs_artist_and_find_pages_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut catalog = catalog(40);
+        let player = PlayerView::default();
+        let find = |catalog: &mut Catalog| {
+            let mut state = songs_state();
+            state.apply(Intent::Navigate(Route::Find));
+            state.apply(Intent::Search(Query::new("Track").unwrap()));
+            catalog.project(state.request(catalog).unwrap(), (0..40).collect());
+            state
+        };
+        let find_state = find(&mut catalog);
+        for (page, state) in [("songs", songs_state()), ("artist", {
+            let mut state = songs_state();
+            state.apply(Intent::Navigate(Route::Artist(0)));
+            state
+        }), ("find", find_state)] {
+            let mut state = state;
+            let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            let mut time = 0.0;
+            for _ in 0..3 {
+                time += 1.0;
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+            }
+            let seen = names(&ui);
+            assert!(seen.iter().any(|name| name == "Select"), "{page} lacks Select: {seen:?}");
+            assert!(!seen.iter().any(|name| name == "Album actions" || name == "List actions"), "{page}");
+            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)), "{page}");
+            let seen = names(&ui);
+            for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue"] {
+                assert!(seen.iter().any(|name| name == want), "{page} missing {want}: {seen:?}");
+            }
+            let rows = state.collection(&catalog).unwrap().rows.len();
+            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select all"), Some(Intent::Select(Selection::All(rows))), "{page}");
+            assert!(names(&ui).iter().any(|name| *name == format!("{rows} selected")), "{page}: {:?}", names(&ui));
+            let first = state.selected_song_ids(&catalog).next().unwrap();
+            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Queue"), Some(Intent::AppendSong(first)), "{page}");
+            for tick in 0..90 {
+                mem_sys::local_reset();
+                time += 1.0;
+                assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), None);
+                if tick >= 60 {
+                    assert_eq!(mem_sys::local_alloc_count(), 0, "{page} select-mode frame {tick} allocated");
+                }
+            }
+            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)), "{page}");
+            assert!(!state.selecting() && state.marked.is_empty(), "{page}");
+        }
+    }
+
+    #[test]
+    fn phone_page_menu_duplicates_lists_offers_new_list_and_shows_albums_in_their_folder() {
+        let catalog = {
+            let mut catalog = catalog(10);
+            catalog.add_collection("Mix", vec![0, 1], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
+            catalog
+        };
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let player = PlayerView::default();
+        let (mut time, mut state) = (0.0, songs_state());
+        let menu = |ui: &mut Ui, state: &mut ShellState, time: &mut f64, label: &str| {
+            state.apply(Intent::PageMenu((380.0, 54.0)));
+            for _ in 0..3 {
+                *time += 1.0;
+                frame(ui, &catalog, state, &player, 0.0, 390.0, *time);
+            }
+            click_menu(ui, label);
+            *time += 1.0;
+            let intent = frame(ui, &catalog, state, &player, 0.0, 390.0, *time);
+            if let Some(intent) = intent {
+                state.apply(intent);
+            }
+            intent
+        };
+        state.apply(Intent::Navigate(Route::Album(0)));
+        assert_eq!(menu(&mut ui, &mut state, &mut time, "Show in folder"), Some(Intent::Page(crate::PageAction::ShowInFolder)));
+        let index = catalog.collections.iter().position(|c| c.title == "Mix").unwrap();
+        state.apply(Intent::Navigate(Route::Collection(index)));
+        assert_eq!(menu(&mut ui, &mut state, &mut time, "Duplicate"), Some(Intent::Page(crate::PageAction::Duplicate)));
+        // The list choices lead with "New list…", which opens the name dialog for the page's songs.
+        state.apply(Intent::Navigate(Route::Album(0)));
+        state.apply(Intent::PageMenu((380.0, 54.0)));
+        state.apply(Intent::PageLists);
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        click_menu(&mut ui, "New list…");
+        time += 1.0;
+        let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        assert_eq!(intent, Some(Intent::NewPageList));
+        state.apply(intent.unwrap());
+        assert_eq!(state.list_dialog, Some(crate::ListDialog::NewPage));
+        assert!(state.page_menu.is_none());
+    }
+
+    #[test]
+    fn touch_dragging_a_playlist_handle_in_edit_mode_reorders_the_list() {
+        mem_sys::set_peer(pxui::library_counter);
+        let mut c = catalog(30);
+        c.add_collection("Mix", vec![0, 1, 2], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Collection(c.collections.len() - 1)));
+        state.apply(Intent::SelectMode(true));
+        let mut ui = Ui::create(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut t = 1.0;
+        for _ in 0..3 {
+            t += 0.5;
+            idle(&mut ui, &c, &state, t);
+        }
+        let grips: Vec<_> = ui.a11y_nodes().iter().filter(|node| ui.a11y_name_of(node) == "Reorder track").map(|node| node.rect).collect();
+        assert_eq!(grips.len(), 3, "one handle per row");
+        let from = centre(grips[0]);
+        let to = (from.0, centre(grips[2]).1 + 20.0);
+        assert_eq!(finger(&mut ui, &c, &state, 0, from, t), None);
+        // The handle holds the row before it drags (touch hold), so the list never scrolls or refreshes.
+        for _ in 0..3 {
+            t += 0.2;
+            assert_eq!(finger(&mut ui, &c, &state, 1, from, t), None);
+        }
+        let mut intent = None;
+        for (step, fraction) in [0.2, 0.5, 0.9, 1.0].into_iter().enumerate() {
+            t += 0.05;
+            let at = (from.0, from.1 + (to.1 - from.1) * fraction);
+            intent = finger(&mut ui, &c, &state, 1, at, t);
+            assert_eq!(intent, None, "step {step}");
+        }
+        t += 0.05;
+        intent = finger(&mut ui, &c, &state, 2, to, t).or(intent);
+        assert_eq!(intent, Some(Intent::MoveListRow { from: 0, to: 2 }));
+    }
+
     fn click_menu(ui: &mut Ui, name: &str) {
         let node = ui
             .a11y_nodes()

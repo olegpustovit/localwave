@@ -48,6 +48,10 @@ pub enum PageAction {
     AddToQueue,
     KeepOffline,
     AddToList(i64),
+    /// Playlist "Duplicate": a new list "<name> copy" holding the same songs in order.
+    Duplicate,
+    /// Album "Show in folder": open the first song's source folder in Files.
+    ShowInFolder,
 }
 
 /// The compact folder page's availability tabs (Swift: All / Offline / In cloud).
@@ -78,7 +82,17 @@ pub enum Intent {
     /// The compact page "…" menu, its list choices and whole-page actions.
     PageMenu((f32, f32)),
     PageLists,
+    /// The deck's Add to list on a folder page: the page menu already showing its list choices.
+    PageListChoices((f32, f32)),
+    /// The page menu's "New list…": the name dialog, then a list holding the page's (or selection's) songs.
+    NewPageList,
+    CreatePageList(browse::Query),
     ClosePageMenu,
+    /// A folder row's "…" menu (entry id) and its Play / Shuffle folder actions.
+    FolderMenu(i64, (f32, f32)),
+    CloseFolderMenu,
+    PlayEntryFolder(i64),
+    ShuffleEntryFolder(i64),
     Page(PageAction),
     /// Play a saved file of the open folder page inside the folder's context.
     PlayFile(i64),
@@ -258,6 +272,8 @@ impl MetadataEdit {
 pub enum ListDialog {
     /// New list, optionally holding the track menu's song (and its selection).
     New(Option<i64>),
+    /// New list holding the page's songs (compact page menu, folder selection).
+    NewPage,
     Rename(i64),
 }
 

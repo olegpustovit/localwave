@@ -184,7 +184,7 @@ pub(super) fn name_dialog(
     let (width, _) = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let (heading, confirm) = match dialog {
-        ListDialog::New(_) => ("New list", "Create"),
+        ListDialog::New(_) | ListDialog::NewPage => ("New list", "Create"),
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
     let open = ui.modal(Some(width), heading, &mut |ui| {
@@ -256,6 +256,7 @@ pub(super) fn name_dialog(
                     let name = state.playlist_name;
                     *intent = Some(match dialog {
                         ListDialog::New(song) => Intent::CreateList { name, song },
+                        ListDialog::NewPage => Intent::CreatePageList(name),
                         ListDialog::Rename(list) => Intent::RenameList { list, name },
                     });
                 }

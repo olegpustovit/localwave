@@ -325,7 +325,7 @@ const NUMBER: f32 = 56.0;
 pub(super) fn view(
     ui: &mut Ui,
     player: &PlayerView<'_>,
-    filter: FilesFilter,
+    state: &ShellState,
     width: f32,
     p: Palette,
     intent: &mut Option<Intent>,
@@ -351,7 +351,7 @@ pub(super) fn view(
         };
         let content = (width - inset * 2.0).max(1.0);
         match &files.directory {
-            Some(directory) if files.account.is_some() => folder_page(ui, files, directory, filter, content, compact, p, intent),
+            Some(directory) if files.account.is_some() => folder_page(ui, files, directory, (state, player.settings.show_non_audio), content, compact, p, intent),
             _ => source_page(ui, files, content, compact, p, intent),
         }
     });
@@ -506,10 +506,10 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, p: Palette, 
     }
 }
 
-fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, filter: FilesFilter, width: f32, compact: bool, p: Palette, intent: &mut Option<Intent>) {
+fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), width: f32, compact: bool, p: Palette, intent: &mut Option<Intent>) {
     use super::find::{Action, button as tool};
     if compact {
-        return compact_folder(ui, files, directory, filter, width, p, intent);
+        return compact_folder(ui, files, directory, (state, show_non_audio), width, p, intent);
     }
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
@@ -642,12 +642,24 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
 
 /// Swift's mobileFolder: back and item count, title with options, breadcrumb, Play folder / Shuffle / Keep offline
 /// keys, All / Offline / In cloud tabs and 56 pt file rows (tap plays, "…" opens the song menu). Gap: no Select mode.
-fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, files_filter: FilesFilter, width: f32, p: Palette, intent: &mut Option<Intent>) {
+fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), width: f32, p: Palette, intent: &mut Option<Intent>) {
     use super::compact::list::key;
+    let files_filter = state.files_filter;
+    let selecting = state.selecting;
+    // Marks index the shown rows; "all" covers the saved songs among them.
+    let shown = directory.shown(files_filter, show_non_audio);
+    let selectable = (0..shown).filter(|&i| directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
+    let selected = state.marked.iter().filter(|&&i| directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
     use super::kit::{Icon, paint_icon};
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
     let top = ui.node("folder-top", Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(44.0), ..Node::DEFAULT });
+    if selecting {
+        // Swift's selection header replaces the back row and the title.
+        ui.within(&top, &mut |ui| {
+            super::compact::list::selection_header(ui, p, selected, selectable, shown, intent);
+        });
+    } else {
     ui.within(&top, &mut |ui| {
         let back = ui.node("Back", Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, axis: Axis::Row, align: Align::Center, gap: 4.0, w: Size::Fit, h: Size::Px(44.0), ..Node::DEFAULT });
         ui.a11y_name(&back, "Back");
@@ -662,7 +674,18 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         }
         ui.box_("top-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
         text(ui, "count", &directory.detail, 12, p.secondary, (Size::Fit, 16.8), true);
+        if directory.songs.is_empty() {
+            return;
+        }
+        let select = ui.node("select", Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, axis: Axis::Row, align: Align::Center, w: Size::Fit, h: Size::Px(44.0), padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::DEFAULT });
+        ui.within(&select, &mut |ui| { text(ui, "label", "Select", 16, p.ink, (Size::Fit, 22.4), false); });
+        ui.a11y_name(&select, "Select");
+        if ui.signal_state(&select).clicked {
+            *intent = Some(Intent::SelectMode(true));
+        }
     });
+    }
+    if !selecting {
     let titles = ui.node("folder-titles", Node { axis: Axis::Row, align: Align::Center, w: Size::Grow, h: Size::Px(48.0), ..Node::DEFAULT });
     ui.within(&titles, &mut |ui| {
         let name = ui.node("name", Node { w: Size::Grow, h: Size::Fit, ..Node::DEFAULT });
@@ -676,6 +699,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
         }
     });
+    }
     if !directory.breadcrumb.is_empty() {
         text(ui, "breadcrumb", &directory.breadcrumb, 13, p.secondary, (Size::Grow, 24.0), false);
     }
@@ -740,15 +764,24 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     });
     let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
     let list = ui.node_keyed(key, Node { w: Size::Grow, h: Size::Grow, ..Node::DEFAULT });
-    let tab_rows: Option<&[u32]> = match files_filter {
-        FilesFilter::All => None,
-        FilesFilter::Offline => Some(&directory.filters[0]),
-        FilesFilter::Cloud => Some(&directory.filters[1]),
-    };
-    let shown = tab_rows.map_or(directory.entries.len() - if directory.show_non_audio { 0 } else { directory.non_audio }, <[u32]>::len);
+    // Swift's "N non-audio files hidden · show" closes the list while the setting is off.
+    let footer = !show_non_audio && directory.non_audio > 0;
     ui.within(&list, &mut |ui| {
-        ui.grid_list("directory-entries", shown, width, 56.0, &mut |ui, index| {
-            let entry = &directory.entries[tab_rows.map_or(index, |rows| rows[index] as usize)];
+        ui.grid_list("directory-entries", shown + usize::from(footer), width, 56.0, &mut |ui, index| {
+            if index == shown {
+                let row = ui.node("hidden-footer", Node { axis: Axis::Row, align: Align::Center, gap: 4.0, w: Size::Grow, h: Size::Px(56.0), ..Node::DEFAULT });
+                ui.within(&row, &mut |ui| {
+                    text(ui, "hidden", &directory.hidden_label, 14, p.secondary, (Size::Fit, 19.6), false);
+                    let show = ui.node("show", Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, w: Size::Fit, h: Size::Px(44.0), align: Align::Center, axis: Axis::Row, ..Node::DEFAULT });
+                    ui.within(&show, &mut |ui| { text(ui, "label", "show", 14, p.secondary, (Size::Fit, 19.6), false); });
+                    ui.a11y_name(&show, "Show non-audio files");
+                    if ui.signal_state(&show).clicked {
+                        *intent = Some(Intent::Setting(lw_core::preferences::Change::ToggleShowNonAudio));
+                    }
+                });
+                return;
+            }
+            let Some(entry) = directory.entry(files_filter, index) else { return };
             let other = !entry.directory && !entry.audio;
             let row = ui.node_keyed(
                 int_key(Ui::key_of(0, "files-entry"), entry.id),
@@ -767,8 +800,24 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     text(ui, "name", &entry.name, 15, if other { p.tertiary } else { p.ink }, (Size::Grow, 21.0), false);
                     text(ui, "detail", &entry.detail, 12, p.secondary, (Size::Grow, 16.8), true);
                 });
+                if selecting {
+                    // Swift's trailing 44 pt checkbox, on saved songs only.
+                    if entry.song.is_some() {
+                        let cell = ui.node("select-cell", Node { axis: Axis::Row, align: Align::Center, justify: Justify::Center, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
+                        ui.within(&cell, &mut |ui| super::compact::list::checkbox(ui, state.marked.binary_search(&index).is_ok(), p));
+                    }
+                } else if entry.directory {
+                    // Folder rows: Open folder / Play folder / Shuffle folder.
+                    let more = ui.node("actions", Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
+                    ui.a11y_name(&more, "Actions for folder");
+                    let color = p.secondary;
+                    ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
+                    if ui.signal_state(&more).clicked {
+                        let at = ui.rect(&more);
+                        *intent = Some(Intent::FolderMenu(entry.id, (at.x + at.w - 44.0, at.y)));
+                    }
                 // Swift's per-file "…"; only saved songs have actions here.
-                if let Some(song) = entry.song {
+                } else if let Some(song) = entry.song {
                     let more = ui.node("actions", Node { flags: CLICKABLE | FOCUSABLE, role: Role::Button, w: Size::Px(44.0), h: Size::Px(44.0), ..Node::DEFAULT });
                     ui.a11y_name(&more, "Actions for file");
                     let color = p.secondary;
@@ -780,7 +829,11 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                 }
             });
             ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0, p.line));
-            if signal.clicked && intent.is_none() {
+            if signal.clicked && intent.is_none() && selecting {
+                if entry.song.is_some() {
+                    *intent = Some(Intent::Select(crate::Selection::Toggle(index)));
+                }
+            } else if signal.clicked && intent.is_none() {
                 *intent = if entry.directory {
                     Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })))
                 } else if let Some(song) = entry.song {
@@ -794,6 +847,55 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             }
         });
     });
+    if selecting {
+        let wrap = ui.node("selection-deck", Node { w: Size::Grow, h: Size::Px(64.0), margin: Edges { l: -16.0, r: -16.0, b: -12.0, ..Edges::ZERO }, ..Node::DEFAULT });
+        ui.within(&wrap, &mut |ui| {
+            if let Some((key, rect)) = super::compact::list::deck(ui, p, selected > 0, false) {
+                *intent = Some(match key {
+                    "play-next" => Intent::Page(crate::PageAction::PlayNext),
+                    "add-to-list" => Intent::PageListChoices((rect.x, rect.y - 36.0 * 8.0)),
+                    "offline" => Intent::Page(crate::PageAction::KeepOffline),
+                    _ => Intent::Page(crate::PageAction::AddToQueue),
+                });
+            }
+        });
+    }
+}
+
+/// A folder row's menu: Open folder, Play folder, Shuffle folder.
+pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: (f32, f32), p: Palette, intent: &mut Option<Intent>) {
+    let Some(directory) = player.files.and_then(|files| files.directory.as_ref()) else {
+        *intent = Some(Intent::CloseFolderMenu);
+        return;
+    };
+    let Some(found) = directory.entries.iter().find(|candidate| candidate.id == entry && candidate.directory) else {
+        *intent = Some(Intent::CloseFolderMenu);
+        return;
+    };
+    let filled = !found.songs.is_empty();
+    let (w, h) = ui.view_size();
+    let at = (at.0.clamp(0.0, (w - 200.0).max(0.0)) - 160.0f32.min(at.0), at.1.clamp(0.0, (h - 108.0).max(0.0)));
+    let mut accepted = false;
+    let open = ui.popup(Some(p.line), None, false, false, at, 200.0, 108.0, "Folder actions", &mut |ui| {
+        for (label, enabled, action) in [
+            ("Open folder", true, Intent::Files(Request::Browse(Location { parent: Some(entry), ..directory.location }))),
+            ("Play folder", filled, Intent::PlayEntryFolder(entry)),
+            ("Shuffle folder", filled, Intent::ShuffleEntryFolder(entry)),
+        ] {
+            let node = ui.node(label, super::songs::item_node(enabled, p));
+            ui.text(&node, label);
+            if enabled && ui.signal_state(&node).clicked {
+                *intent = Some(action);
+                accepted = true;
+            }
+        }
+    });
+    if accepted {
+        ui.dismiss_popup();
+    }
+    if !open && intent.is_none() {
+        *intent = Some(Intent::CloseFolderMenu);
+    }
 }
 
 /// Swift's Add music sheet: a folder or some files.
@@ -1487,6 +1589,95 @@ mod tests {
             }
             if round >= 3 {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact folder page allocates");
+            }
+        }
+    }
+
+    #[test]
+    fn compact_folder_select_mode_folder_menus_and_hidden_footer_route_intents_without_warm_allocations() {
+        use lw_core::FileAvailability::OnDevice;
+        mem_sys::set_peer(pxui::library_counter);
+        let size = (390.0, 778.0);
+        let mut ui = Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let location = Location { user: 42, source: 1, parent: Some(5) };
+        let glyph = Some(crate::files::Glyph { state: lw_core::FileState::Copied, availability: Some(OnDevice), pinned: false });
+        let audio = |id: i64, name: &str, song: i64| Entry { id, name: name.into(), detail: "FLAC".into(), audio: true, song: Some(song), glyph, ..Default::default() };
+        let directory = Directory {
+            location, source_root: 5, up: Some(4), title: "Field".into(), detail: "4 items".into(), songs: Arc::from([9_i64, 10, 11]),
+            entries: vec![
+                Entry { id: 1, name: "Takes".into(), detail: "Folder".into(), directory: true, songs: Arc::from([11_i64]), ..Default::default() },
+                audio(2, "01 Here.flac", 9),
+                audio(3, "02 There.flac", 10),
+                Entry { id: 4, name: "cover.jpg".into(), detail: "not audio".into(), ..Default::default() },
+            ],
+            non_audio: 1,
+            hidden_label: "1 non-audio file hidden ·".into(),
+            filter_counts: ["2".into(), "2".into(), "0".into()],
+            ..Default::default()
+        };
+        let files = Snapshot { revision: 1, account: Some(42), directory: Some(Arc::new(directory)), ..Default::default() };
+        let (catalog, mut state, mut time) = (Catalog::default(), ShellState::default(), 0.0);
+        state.apply(Intent::Navigate(Route::Files));
+        let settle = |ui: &mut Ui, state: &ShellState, time: &mut f64| {
+            for _ in 0..3 {
+                frame_at(size, ui, &files, &catalog, state, time, &[], &mut None);
+            }
+        };
+        settle(&mut ui, &state, &mut time);
+        let seen = names(&ui);
+        for want in ["Select", "Actions for folder", "show"] {
+            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        }
+        assert_eq!(
+            click_at(size, &mut ui, &files, &catalog, &state, &mut time, "show"),
+            Some(Intent::Setting(lw_core::preferences::Change::ToggleShowNonAudio))
+        );
+        // The folder row's menu opens, then Open / Play / Shuffle folder emit their intents.
+        let menu = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Actions for folder");
+        assert!(matches!(menu, Some(Intent::FolderMenu(1, _))), "{menu:?}");
+        for (label, want) in [
+            ("Open folder", Intent::Files(Request::Browse(Location { parent: Some(1), ..location }))),
+            ("Play folder", Intent::PlayEntryFolder(1)),
+            ("Shuffle folder", Intent::ShuffleEntryFolder(1)),
+        ] {
+            state.apply(menu.unwrap());
+            settle(&mut ui, &state, &mut time);
+            assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, label), Some(want), "{label}");
+            state.apply(Intent::CloseFolderMenu);
+            settle(&mut ui, &state, &mut time);
+        }
+        // Select mode: header, checkboxes on saved songs, the deck acts on the marked songs.
+        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Select"), Some(Intent::SelectMode(true)));
+        state.apply(Intent::SelectMode(true));
+        settle(&mut ui, &state, &mut time);
+        let seen = names(&ui);
+        for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue", "0 selected"] {
+            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        }
+        assert!(!seen.iter().any(|name| name == "Actions for folder"), "menus hide while selecting");
+        let tap = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "02 There.flac");
+        assert_eq!(tap, Some(Intent::Select(crate::Selection::Toggle(2))));
+        state.apply(tap.unwrap());
+        settle(&mut ui, &state, &mut time);
+        assert!(names(&ui).iter().any(|name| name == "1 selected"));
+        assert_eq!(state.selected_folder_songs(files.directory.as_ref().unwrap()), vec![10]);
+        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Play next"), Some(Intent::Page(crate::PageAction::PlayNext)));
+        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Queue"), Some(Intent::Page(crate::PageAction::AddToQueue)));
+        let lists = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Add to list");
+        assert!(matches!(lists, Some(Intent::PageListChoices(_))), "{lists:?}");
+        // Another folder leaves Select mode.
+        state.apply(Intent::Files(Request::Browse(Location { parent: Some(1), ..location })));
+        assert!(!state.selecting() && state.marked.is_empty());
+        state.apply(Intent::SelectMode(true));
+        settle(&mut ui, &state, &mut time);
+        for round in 0..5 {
+            mem_sys::local_reset();
+            for _ in 0..10 {
+                frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+            }
+            if round >= 3 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "warm folder select frame allocates");
             }
         }
     }

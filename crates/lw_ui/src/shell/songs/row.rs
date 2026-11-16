@@ -256,9 +256,47 @@ pub(super) struct Rows<'a> {
     pub(super) entry: &'a crate::motion::Page,
     pub(super) viewport: Viewport,
 }
-pub(super) const LIST_ROW: &str = "localwave.list-row:";
+pub(in crate::shell) const LIST_ROW: &str = "localwave.list-row:";
 /// Carry kind of a row drag; the target resolves the selection from the song id.
 pub(crate) const SONG_DRAG: &str = "localwave.song:";
+
+pub(in crate::shell) fn drop_target(ui: &mut Ui, p: Palette, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
+    let Some(drop) = ui.drop_target_ref(visual).and_then(|drop| {
+        let (dropped, payload) = match drop {
+            pxui::DropRef::Hover(p) => (false, p),
+            pxui::DropRef::Dropped(p) => (true, p),
+        };
+        payload
+            .kind
+            .strip_prefix(LIST_ROW)?
+            .parse::<usize>()
+            .ok()
+            .map(|from| (dropped, from))
+    }) else {
+        return;
+    };
+    let (dropped, from) = drop;
+    let after =
+        ui.signal_state(visual).pointer.1 >= ui.rect(visual).y + ui.rect(visual).h * 0.5;
+    let before = index + usize::from(after);
+    // Final position once the dragged row leaves its slot.
+    let to = if from < before { before - 1 } else { before };
+    if to == from {
+        return;
+    }
+    ui.draw_over(visual, move |paint, rect| {
+        paint.fill(
+            rect.x,
+            if after { rect.y + rect.h - 2.0 } else { rect.y },
+            rect.w,
+            2.0,
+            p.ink,
+        );
+    });
+    if dropped {
+        *intent = Some(Intent::MoveListRow { from, to });
+    }
+}
 
 impl Rows<'_> {
     /// Rows of a list in saved order can be dragged to reorder (not while sorted).
@@ -272,42 +310,7 @@ impl Rows<'_> {
             && self.state.ascending
     }
     fn drop_target(&self, ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
-        let p = self.p;
-        let Some(drop) = ui.drop_target_ref(visual).and_then(|drop| {
-            let (dropped, payload) = match drop {
-                pxui::DropRef::Hover(p) => (false, p),
-                pxui::DropRef::Dropped(p) => (true, p),
-            };
-            payload
-                .kind
-                .strip_prefix(LIST_ROW)?
-                .parse::<usize>()
-                .ok()
-                .map(|from| (dropped, from))
-        }) else {
-            return;
-        };
-        let (dropped, from) = drop;
-        let after =
-            ui.signal_state(visual).pointer.1 >= ui.rect(visual).y + ui.rect(visual).h * 0.5;
-        let before = index + usize::from(after);
-        // Final position once the dragged row leaves its slot.
-        let to = if from < before { before - 1 } else { before };
-        if to == from {
-            return;
-        }
-        ui.draw_over(visual, move |paint, rect| {
-            paint.fill(
-                rect.x,
-                if after { rect.y + rect.h - 2.0 } else { rect.y },
-                rect.w,
-                2.0,
-                p.ink,
-            );
-        });
-        if dropped {
-            *intent = Some(Intent::MoveListRow { from, to });
-        }
+        drop_target(ui, self.p, visual, index, intent);
     }
     pub(super) fn row(
         &self,

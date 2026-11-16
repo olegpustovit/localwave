@@ -19,6 +19,8 @@ pub struct Target {
 pub enum Request {
     Roots,
     Browse(Location),
+    /// Browse the folder that holds a saved song ("Show in folder").
+    Locate { user: i64, song: i64 },
     Rescan(Location),
     Import(Location),
     ImportPath { user: i64, source: i64, path: i64 },
@@ -72,6 +74,8 @@ pub struct Entry {
     pub song: Option<i64>,
     /// None for audio that is not imported yet.
     pub glyph: Option<Glyph>,
+    /// Saved songs below a folder row in natural path order (Play folder / Shuffle folder); empty elsewhere.
+    pub songs: Arc<[i64]>,
     pub directory: bool,
     pub audio: bool,
 }
@@ -103,6 +107,28 @@ pub struct Directory {
     pub filters: [Vec<u32>; 2],
     /// Tab labels' counts for All, Offline and In cloud (audio files only, as Swift's filterCount).
     pub filter_counts: [String; 3],
+    /// "3 non-audio files hidden ·" for the compact footer; empty without hidden files.
+    pub hidden_label: String,
+}
+
+impl Directory {
+    /// The compact list's row at a position of the tab: positions into `entries`.
+    pub fn entry(&self, filter: crate::FilesFilter, index: usize) -> Option<&Entry> {
+        let at = match filter {
+            crate::FilesFilter::All => index,
+            crate::FilesFilter::Offline => *self.filters[0].get(index)? as usize,
+            crate::FilesFilter::Cloud => *self.filters[1].get(index)? as usize,
+        };
+        self.entries.get(at)
+    }
+    /// Rows the compact tab shows; non-audio files trail the full list and hide unless the setting shows them.
+    pub fn shown(&self, filter: crate::FilesFilter, show_non_audio: bool) -> usize {
+        match filter {
+            crate::FilesFilter::All => self.entries.len() - if show_non_audio { 0 } else { self.non_audio },
+            crate::FilesFilter::Offline => self.filters[0].len(),
+            crate::FilesFilter::Cloud => self.filters[1].len(),
+        }
+    }
 }
 
 #[derive(Clone)]

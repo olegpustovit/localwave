@@ -49,6 +49,10 @@ impl App {
                 if matches!(request, lw_ui::files::Request::Remove(_)) {
                     shell_state.apply(lw_ui::Intent::CloseRemoveSource);
                 }
+                if matches!(request, lw_ui::files::Request::Browse(_)) {
+                    // Another folder resets the tab and leaves Select mode.
+                    shell_state.apply(intent);
+                }
             }
             (*command_error) = result
                 .err()
@@ -328,30 +332,109 @@ impl App {
                     }
                 }
                 lw_ui::Intent::Page(action) => {
-                    // Whole-page actions of the compact "…" menu apply to the displayed collection.
-                    let Some(collection) = shell_state
-                        .collection(player.catalog())
-                        .filter(|collection| !collection.ids.is_empty())
-                    else {
+                    // Whole-page actions of the compact "…" menu apply to the displayed collection; on a
+                    // folder page the deck's actions apply to the marked saved songs.
+                    let folder = shell_state.route == lw_ui::catalog::Route::Files;
+                    let collection = shell_state.collection(player.catalog());
+                    let (songs, context) = if folder {
+                        let Some(directory) = files.snapshot().directory.as_ref() else {
+                            return Ok(Some(Schedule::NextFrame));
+                        };
+                        (
+                            std::sync::Arc::<[i64]>::from(shell_state.selected_folder_songs(directory)),
+                            None,
+                        )
+                    } else {
+                        let Some(collection) = collection else {
+                            return Ok(Some(Schedule::NextFrame));
+                        };
+                        (collection.ids.clone(), Some(collection.context.clone()))
+                    };
+                    if action == lw_ui::PageAction::Duplicate {
+                        // One transaction creates "<name> copy" holding the same songs in order.
+                        let name = collection
+                            .filter(|collection| {
+                                matches!(&*collection.context, lw_core::context::PlaybackContext::Playlist { .. })
+                            })
+                            .and_then(|collection| lw_ui::browse::Query::new(&format!("{} copy", collection.title)));
+                        let Some(name) = name else {
+                            return Ok(Some(Schedule::NextFrame));
+                        };
+                        Command::CreateList(name, songs)
+                    } else if songs.is_empty() {
+                        return Ok(Some(Schedule::NextFrame));
+                    } else {
+                        match action {
+                            lw_ui::PageAction::Play => Command::Configure {
+                                songs,
+                                start: 0,
+                                autoplay: true,
+                                context,
+                            },
+                            lw_ui::PageAction::Shuffle => Command::ShuffleAll {
+                                songs,
+                                seed: now.to_bits(),
+                                context,
+                            },
+                            lw_ui::PageAction::PlayNext => Command::InsertNext(songs),
+                            lw_ui::PageAction::AddToQueue => Command::Append(songs),
+                            lw_ui::PageAction::KeepOffline => Command::TogglePins(songs),
+                            lw_ui::PageAction::AddToList(list) => Command::AddToList(list, songs),
+                            lw_ui::PageAction::ShowInFolder => {
+                                let located = files.snapshot().account.map(|user| {
+                                    files.request(lw_ui::files::Request::Locate { user, song: songs[0] })
+                                });
+                                (*command_error) = match located {
+                                    Some(Ok(())) => {
+                                        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+                                        None
+                                    }
+                                    _ => Some("Folder work is busy or unavailable. Try again."),
+                                };
+                                (*error_revision) += 1;
+                                (*repaint) = Some(now);
+                                return Ok(Some(Schedule::NextFrame));
+                            }
+                            lw_ui::PageAction::Duplicate => unreachable!("handled above"),
+                        }
+                    }
+                }
+                lw_ui::Intent::CreatePageList(name) => {
+                    // The page's songs (or the folder's marked songs) seed the new list.
+                    let songs = if shell_state.route == lw_ui::catalog::Route::Files {
+                        let Some(directory) = files.snapshot().directory.as_ref() else {
+                            return Ok(Some(Schedule::NextFrame));
+                        };
+                        std::sync::Arc::<[i64]>::from(shell_state.selected_folder_songs(directory))
+                    } else {
+                        let Some(collection) = shell_state.collection(player.catalog()) else {
+                            return Ok(Some(Schedule::NextFrame));
+                        };
+                        collection.ids.clone()
+                    };
+                    Command::CreateList(name, songs)
+                }
+                lw_ui::Intent::PlayEntryFolder(entry) | lw_ui::Intent::ShuffleEntryFolder(entry) => {
+                    // The FilesWorker prepared each folder row's songs in natural path order.
+                    let Some((directory, folder)) = files.snapshot().directory.as_ref().and_then(|directory| {
+                        let folder = directory.entries.iter().find(|e| e.id == entry && e.directory)?;
+                        Some((directory, folder))
+                    }) else {
                         return Ok(Some(Schedule::NextFrame));
                     };
-                    let songs = collection.ids.clone();
-                    match action {
-                        lw_ui::PageAction::Play => Command::Configure {
-                            songs,
-                            start: 0,
-                            autoplay: true,
-                            context: Some(collection.context.clone()),
-                        },
-                        lw_ui::PageAction::Shuffle => Command::ShuffleAll {
-                            songs,
-                            seed: now.to_bits(),
-                            context: Some(collection.context.clone()),
-                        },
-                        lw_ui::PageAction::PlayNext => Command::InsertNext(songs),
-                        lw_ui::PageAction::AddToQueue => Command::Append(songs),
-                        lw_ui::PageAction::KeepOffline => Command::TogglePins(songs),
-                        lw_ui::PageAction::AddToList(list) => Command::AddToList(list, songs),
+                    if folder.songs.is_empty() {
+                        return Ok(Some(Schedule::NextFrame));
+                    }
+                    shell_state.apply(lw_ui::Intent::CloseFolderMenu);
+                    let context = Some(std::sync::Arc::new(lw_core::context::PlaybackContext::Folder {
+                        source_id: directory.location.source,
+                        path_id: Some(folder.id),
+                        name: folder.name.clone(),
+                    }));
+                    if matches!(intent, lw_ui::Intent::PlayEntryFolder(_)) {
+                        Command::Configure { songs: folder.songs.clone(), start: 0, autoplay: true, context }
+                    } else {
+                        Command::ShuffleAll { songs: folder.songs.clone(), seed: now.to_bits(), context }
                     }
                 }
                 lw_ui::Intent::PlayFile(song) => {
@@ -508,6 +591,10 @@ impl App {
                 | lw_ui::Intent::SelectionLists(..)
                 | lw_ui::Intent::PageMenu(_)
                 | lw_ui::Intent::PageLists
+                | lw_ui::Intent::PageListChoices(_)
+                | lw_ui::Intent::NewPageList
+                | lw_ui::Intent::FolderMenu(..)
+                | lw_ui::Intent::CloseFolderMenu
                 | lw_ui::Intent::ClosePageMenu
                 | lw_ui::Intent::FilesFilter(_)
                 | lw_ui::Intent::ShowAddMusic => {
@@ -529,12 +616,15 @@ impl App {
                         | lw_ui::Intent::AppendSong(_)
                         | lw_ui::Intent::AddToList { .. }
                         | lw_ui::Intent::KeepOffline(_)
-                ) {
+                        | lw_ui::Intent::CreatePageList(_)
+                ) || (matches!(intent, lw_ui::Intent::Page(_)) && shell_state.selecting())
+                {
                     shell_state.finish_selecting();
                 }
                 match intent {
                     lw_ui::Intent::SaveQueue(_)
                     | lw_ui::Intent::CreateList { .. }
+                    | lw_ui::Intent::CreatePageList(_)
                     | lw_ui::Intent::RenameList { .. } => {
                         shell_state.apply(lw_ui::Intent::CancelPlaylistName);
                     }
