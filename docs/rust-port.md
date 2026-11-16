@@ -78,7 +78,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
-| DX1.3 | Key type; row/column/stack shims | todo |  |
+| DX1.3 | Key type; row/column/stack shims | done | HEAD + pxui 64f2bba |
 | DX1.4 | label and label_fmt | todo |  |
 | DX1.5 | Response and pressable | todo |  |
 | DX1.6 | view_of and hash_of | todo |  |
@@ -86,7 +86,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
-| DX2.2 | Borrowed text results | done | HEAD + pxui 5e0e4a3 |
+| DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | todo |  |
 | DX2.4 | _into forms for quads and rasterize_rgba | todo |  |
 | DX2.5 | Typed errors | todo |  |
