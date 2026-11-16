@@ -90,9 +90,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | HEAD + pxui 769f444 |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | done | efe51b9 + pxui 550a4c9 |
-| DX2.4 | _into forms for quads and rasterize_rgba | done | HEAD + pxui 932e9c5 |
+| DX2.4 | _into forms for quads and rasterize_rgba | done | 1a95982 + pxui 932e9c5 |
 | DX2.5 | Typed errors | todo |  |
-| DX3.1 | Theme row height outside panels | todo |  |
+| DX3.1 | Theme row height outside panels | done | HEAD + pxui edfae14 |
 | DX3.2 | App-defined colour tokens | todo |  |
 | DX3.3 | Engine text element behind label | todo |  |
 | DX3.4 | button_with and Response | todo |  |
