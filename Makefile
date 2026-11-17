@@ -1,6 +1,9 @@
 PROFILE ?= release
 APPDIR ?= /Applications
 CARGOFLAGS = $(if $(filter release,$(PROFILE)),--release)
+# COUNTING=1 (set by `performance`) builds the counting libpxui and app: the zero-allocation checks count both sides of the ABI.
+# Shipping builds leave it empty and keep the system allocator.
+COUNTING ?=
 PRODUCTS = target/$(if $(filter release,$(PROFILE)),release,debug)
 
 .PHONY: lib build bundle sign notarize install check performance ios-build ios-run
@@ -10,11 +13,11 @@ target/sdl/lib/libSDL3.a:
 
 lib:
 	@test -e pxui/Cargo.toml || git submodule update --init pxui
-	cargo build --locked $(CARGOFLAGS) --manifest-path pxui/Cargo.toml -p pxui_dylib --target-dir target
+	cargo build --locked $(CARGOFLAGS) --manifest-path pxui/Cargo.toml -p pxui_dylib $(if $(COUNTING),--features counting) --target-dir target
 	ln -sfn libpxui.dylib $(PRODUCTS)/libpxui.1.dylib
 
 build: target/sdl/lib/libSDL3.a lib
-	cargo build --locked $(CARGOFLAGS) -p lw_bin --bin localwave
+	cargo build --locked $(CARGOFLAGS) -p lw_bin --bin localwave $(if $(COUNTING),--features counting)
 
 bundle: build
 	packaging/bundle-macos.sh '$(PRODUCTS)'
@@ -34,9 +37,13 @@ check: target/sdl/lib/libSDL3.a
 	python3 packaging/test_ios.py
 	python3 tools/test_split_rs.py
 	cargo t -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin
+	@# Shipping builds keep the system allocator: no normal dependency may turn on mem_sys/counting (only COUNTING=1 does).
+	@! cargo tree --locked -q --workspace --target all -e normal,features -i mem_sys --prefix none | grep -qx 'mem_sys feature "counting"' \
+	  || { echo 'check: a normal dependency enables mem_sys/counting in the shipping build' >&2; exit 1; }
 	tools/check-pxui-remote.sh
 
 performance: PROFILE = release
+performance: COUNTING = 1
 performance: bundle
 	tools/check-macos-bundle.sh
 	@performance_result=0; \

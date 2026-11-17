@@ -131,11 +131,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
 | DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |
-| DX5.4 | Engine prepare queue; fling exception ceiling | done | HEAD + pxui 62ddbcb |
+| DX5.4 | Engine prepare queue; fling exception ceiling | done | b873984 + pxui 62ddbcb |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
 | DX-BUG1 | Bugs found by the docs work: Images::insert mapping, a11y_value char boundaries, paint text layout-top placement, hex_exn twin | done | 5edae64 + pxui f51852f |
+| OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | HEAD + pxui 84752ba |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |

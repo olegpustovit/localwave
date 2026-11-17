@@ -12,7 +12,7 @@ lw_sqlite = { path = "../lw_sqlite" }
 interop-test = []
 
 [dev-dependencies]
-mem_sys = { path = "../../pxui/crates/open/mem_sys" }
+mem_sys = { path = "../../pxui/crates/open/mem_sys", features = ["counting"] }
 
 [build-dependencies]
 cc = "1"

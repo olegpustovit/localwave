@@ -10,7 +10,7 @@ lw_core = { path = "../lw_core" }
 pxui = { path = "../../pxui/crates/public/pxui" }
 
 [dev-dependencies]
-mem_sys = { path = "../../pxui/crates/open/mem_sys" }
+mem_sys = { path = "../../pxui/crates/open/mem_sys", features = ["counting"] }
 
 [lints]
 workspace = true

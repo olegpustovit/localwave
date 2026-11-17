@@ -9,7 +9,7 @@ lw_sqlite = { path = "../lw_sqlite" }
 
 [dev-dependencies]
 lw_apple_sys = { path = "../lw_apple_sys" }
-mem_sys = { path = "../../pxui/crates/open/mem_sys" }
+mem_sys = { path = "../../pxui/crates/open/mem_sys", features = ["counting"] }
 
 [lints]
 workspace = true

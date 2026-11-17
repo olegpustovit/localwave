@@ -88,6 +88,9 @@ pub(super) fn open(
     if cfg!(target_os = "ios") && workload.is_some() {
         return Err("The signed 1440x872 performance matrix requires the macOS host".into());
     }
+    if workload.is_some() && !mem_sys::COUNTING {
+        return Err("--performance-check needs the counting build (make performance)".into());
+    }
     mem_sys::set_peer(pxui::library_counter);
     #[cfg(target_os = "macos")]
     let chrome = {

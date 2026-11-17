@@ -13,6 +13,11 @@ path = "src/main.rs"
 name = "localwave-playback"
 path = "src/playback.rs"
 
+[features]
+# The performance build (`make performance`): the app's own copy of mem_sys installs its counting allocator. Shipping builds keep
+# the system allocator.
+counting = ["mem_sys/counting"]
+
 [dependencies]
 lw_ui = { path = "../lw_ui" }
 lw_core = { path = "../lw_core" }
@@ -25,6 +30,7 @@ input = { path = "../../pxui/crates/open/input" }
 pxui_host = { path = "../../pxui/crates/host/pxui_host" }
 
 [dev-dependencies]
+mem_sys = { path = "../../pxui/crates/open/mem_sys", features = ["counting"] }
 lw_apple_sys = { path = "../lw_apple_sys", features = ["interop-test"] }
 sdl3_sys = { path = "../../pxui/crates/open/sdl3_sys", features = ["test-util"] }
 
