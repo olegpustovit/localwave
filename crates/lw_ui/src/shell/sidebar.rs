@@ -98,7 +98,7 @@ const GROUP: Label = TEXT_12.w(Size::Grow).h(30.0).color(SECONDARY);
 /// A plain "+ label" action row (Swift's Add folder or files, New list).
 fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
     let theme = looks(ui);
-    let row = ui.button_content(key, &ADD_ROW, |ui| {
+    let row = ui.button_content(key, &ADD_ROW, |ui, _| {
         // the text starts 8 points in, as Swift's does; `button_with` centres it
         let copy = ui.node("label".into(), Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: theme.add_row, ..Node::column().w(Size::Grow).h(Size::Grow) });
         ui.text(&copy, title);

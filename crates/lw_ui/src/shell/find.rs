@@ -75,7 +75,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let tool = pxui::Button::sized(width, 30.0).look(if selected { &theme.selected } else { &theme.paper }).enabled(enabled).name(label);
     // the hover and press washes sit under the copy, so the contents are a stack built once the press is known
     let mut layers = None;
-    let response = ui.button_content(key, &tool, |ui| {
+    let response = ui.button_content(key, &tool, |ui, _| {
         layers = Some(ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow)));
     });
     let layers = layers.unwrap();

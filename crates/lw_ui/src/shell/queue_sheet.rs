@@ -13,7 +13,7 @@ pub(super) fn queue_action(
     // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
     let theme = looks(ui);
     let action = pxui::Button::sized(width, 28.0).look(&BARE).name(name);
-    ui.button_content(key, &action, |ui| {
+    ui.button_content(key, &action, |ui, _| {
         let copy = ui.node("label".into(), Node { look: theme.queue_action, ..Node::column().w(Size::Grow).h(Size::Grow) });
         ui.text(&copy, label);
     })

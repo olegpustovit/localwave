@@ -184,7 +184,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     let favorite = FAVORITE.enabled(current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
     // the heart and its burst are a stack of their own, built once the press is known
     let mut layers = None;
-    let signal = ui.button_content("favorite", &favorite, |ui| {
+    let signal = ui.button_content("favorite", &favorite, |ui, _| {
         layers = Some(ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow)));
     });
     let node = layers.unwrap();

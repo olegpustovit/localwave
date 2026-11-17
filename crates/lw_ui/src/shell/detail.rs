@@ -69,7 +69,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     let row = ui.node("back-row".into(), Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
         const BUTTON: pxui::Button = pxui::Button::sized(96.0, BACK).look(&BARE).name("Back");
-        let back = ui.button_content("back", &BUTTON, |ui| {
+        let back = ui.button_content("back", &BUTTON, |ui, _| {
             ui.row(
                 "content",
                 Node { padding: Edges { l: 26.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End) },

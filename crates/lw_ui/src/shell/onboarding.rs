@@ -53,7 +53,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
 
 fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
     let link = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE).name(label);
-    ui.button_content(key, &link, |ui| {
+    ui.button_content(key, &link, |ui, _| {
         ui.column("link", Node::column().w(Size::Fit).h(Size::Fit), |ui| {
             ui.label(label, TEXT_15.h(21.0).color(INK));
             rule(ui, "underline", false);

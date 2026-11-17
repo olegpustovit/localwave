@@ -367,7 +367,7 @@ fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f
     let theme = looks(ui);
     let action = pxui::Button::DEFAULT.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow).centered();
     let action = action.look(if armed { &theme.ink } else { &theme.panel }).name(label);
-    ui.button_content(key, &action, |ui| {
+    ui.button_content(key, &action, |ui, _| {
         ui.label(label, TEXT_13.h(18.2).color(if armed { PAPER } else { SECONDARY }));
     })
     .clicked
@@ -377,7 +377,7 @@ fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f
 /// The row's "…" key: 44 points square.
 const MORE: pxui::Button = pxui::Button::sized(44.0, 44.0).look(&BARE);
 fn more_button(ui: &mut Ui, label: &str) -> bool {
-    let button = ui.button_content("actions", &MORE, |_| {});
+    let button = ui.button_content("actions", &MORE, |_, _| {});
     ui.a11y_name(&button.handle, label);
     let color = ui.color(SECONDARY);
     ui.draw(&button.handle, move |paint, rect| {
@@ -660,7 +660,7 @@ fn back_row(
         Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
         |ui| {
             const BACK: pxui::Button = pxui::Button::sized(96.0, 44.0).look(&BARE).name("Back");
-            let back = ui.button_content("back", &BACK, |ui| {
+            let back = ui.button_content("back", &BACK, |ui, _| {
                 ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
                     let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
@@ -723,7 +723,7 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
 pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
     let label = if kept { "Kept offline" } else { "Keep offline" };
     let key = PLAY_KEY.look(&looks(ui).panel).name(label);
-    ui.button_content("keep-offline", &key, |ui| {
+    ui.button_content("keep-offline", &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(INK);
@@ -802,7 +802,7 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 /// A 44 pt text button (Swift's Select / Done at 16 pt).
 pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool) -> bool {
     let word = WORD.name(label);
-    ui.button_content(key, &word, |ui| {
+    ui.button_content(key, &word, |ui, _| {
         ui.label(label, TEXT_16.h(22.4).color(INK));
     })
     .clicked
@@ -967,7 +967,7 @@ pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, 
     let key = PLAY_KEY.look(if primary { &theme.ink } else { &theme.panel }).name(label);
     let tone = if primary { PAPER } else { INK };
     let color = ui.color(tone);
-    ui.button_content(id, &key, |ui| {
+    ui.button_content(id, &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             ui.draw(&glyph, move |paint, rect| {

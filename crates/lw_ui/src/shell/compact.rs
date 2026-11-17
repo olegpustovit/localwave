@@ -19,7 +19,7 @@ const TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0))
 fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool {
     let ink = if active { INK } else { SECONDARY };
     let tab = MODE_TAB.selected(active).name(label);
-    ui.button_content(label, &tab, |ui| {
+    ui.button_content(label, &tab, |ui, _| {
         ui.column("tab", Node::column().w(Size::Fit).h(Size::Grow), |ui| {
             ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
                 ui.label(label, TEXT_15.h(21.0).color(ink));
@@ -336,7 +336,7 @@ pub(super) fn view(
                 let current = !state.settings_visible && selected == index;
                 let theme = looks(ui);
                 let tab = TAB.look(if current { &theme.tab_on } else { &theme.tab }).selected(current).name(title);
-                if ui.button_content(title, &tab, |ui| { ui.label(title, TEXT_14.h(19.6).color(INK)); }).clicked {
+                if ui.button_content(title, &tab, |ui, _| { ui.label(title, TEXT_14.h(19.6).color(INK)); }).clicked {
                     *intent = Some(Intent::Navigate(route));
                 }
             }
@@ -494,7 +494,7 @@ fn mode_key(
     let theme = looks(ui);
     let mode = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered().look(if active { &theme.ink } else { &theme.key });
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
-    let button = ui.button_content(key, &mode, |ui| {
+    let button = ui.button_content(key, &mode, |ui, _| {
         ui.row("content", Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             ui.draw(&glyph, move |paint, rect| {
