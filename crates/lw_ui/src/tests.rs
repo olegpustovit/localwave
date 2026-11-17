@@ -3092,6 +3092,103 @@ fn now_panel_draws_title_and_worker_formatted_metadata_without_warm_allocations(
 }
 
 #[test]
+fn clip_keeps_char_boundaries_and_oversized_metadata_shows_clipped_everywhere() {
+    use crate::catalog::Route;
+    use lw_core::{context::PlaybackContext, queue::Entry};
+    use std::sync::Arc;
+    let limit = crate::DISPLAY_LIMIT;
+    assert_eq!(crate::clip("short"), "short");
+    assert_eq!(crate::clip(&"a".repeat(limit)).len(), limit);
+    // A 2-byte character straddling the limit is dropped whole.
+    let straddle = format!("{}é{}", "a".repeat(limit - 1), "b".repeat(50));
+    assert_eq!(crate::clip(&straddle).len(), limit - 1);
+    assert_eq!(crate::clip_owned("é".repeat(limit)).len(), limit);
+
+    mem_sys::set_peer(pxui::library_counter);
+    // Tag values of 100 KiB, multi-byte so a clip lands inside a character.
+    let huge = |c: &str| c.repeat(100 * 1024 / c.len());
+    let (title, artist, album) = (huge("é"), huge("名"), huge("x"));
+    let song = lw_core::Song {
+        id: Some(7),
+        title: title.clone(),
+        artist: artist.clone(),
+        album: album.clone(),
+        album_artist: huge("y"),
+        file_extension: Some("flac".into()),
+        relative_path: Some(format!("{}/a.flac", huge("z"))),
+        ..Default::default()
+    };
+    let info = now_info::NowInfo::new(&song, Some(&huge("s")), 1);
+    let mut catalog = prepared(vec![song]);
+    catalog.add_collection(
+        &huge("L"),
+        vec![0],
+        PlaybackContext::Playlist { id: 3, name: huge("L") },
+    );
+    catalog.queue = Some(Arc::new(queue::Snapshot::new(
+        1,
+        Arc::from([Entry { id: 1, song_id: 7 }, Entry { id: 2, song_id: 7 }]),
+        Some(0),
+        Arc::new(PlaybackContext::Playlist { id: 3, name: huge("L") }),
+        false,
+    )));
+    let row = catalog.row(0);
+    for text in [row.title, row.artist, row.album, row.album_artist, row.actions_label, row.subtitle] {
+        assert!(!text.is_empty() && text.len() <= limit, "{}", text.len());
+    }
+    for group in catalog.albums.iter().chain(&catalog.artists).chain(&catalog.collections) {
+        assert!(group.title.len() <= limit && group.subtitle.len() <= limit && group.summary.len() <= limit);
+    }
+    assert!(catalog.queue.as_ref().unwrap().heading.len() <= limit + 16);
+    assert!([&info.format, &info.file, &info.folder].iter().all(|text| text.len() <= limit));
+    // The playback context keeps the full name: only display strings are clipped.
+    assert!(matches!(&*catalog.collections.last().unwrap().context, PlaybackContext::Playlist { name, .. } if name.len() == 100 * 1024));
+
+    let player = PlayerView {
+        initialized: true,
+        revision: 1,
+        current_id: Some(7),
+        title: crate::clip(&title),
+        artist: crate::clip(&artist),
+        album: crate::clip(&album),
+        duration: 30.0,
+        info: Some(&info),
+        ..Default::default()
+    };
+    let routes = [
+        Route::Songs,
+        Route::Albums,
+        Route::Album(0),
+        Route::Artists,
+        Route::Artist(0),
+        Route::Lists,
+        Route::Collection(catalog.collections.len() - 1),
+    ];
+    for (width, height) in [(1440.0, 872.0), (390.0, 844.0)] {
+        for route in routes {
+            let mut ui = test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+            ui.set_a11y(true);
+            let mut state = ShellState::default();
+            state.apply(Intent::Navigate(route));
+            state.apply(Intent::ShowQueue);
+            let frame = FrameIn { width, height, ..Default::default() };
+            for round in 0..8 {
+                mem_sys::local_reset();
+                ui.frame(&frame, &mut |ui| shell(ui, &player, 101.0, &catalog, &state, &mut None))
+                    .unwrap();
+                if round > 5 {
+                    assert_eq!(mem_sys::local_alloc_count(), 0, "warm frame {route:?} {width}");
+                }
+            }
+            for node in ui.a11y_nodes() {
+                let name = ui.a11y_name_of(node);
+                assert!(name.len() <= limit + 64, "{route:?} {width}: {} bytes", name.len());
+            }
+        }
+    }
+}
+
+#[test]
 fn queue_sheet_follows_swift_structure_order_and_actions() {
     use lw_core::{context::PlaybackContext, queue::Entry};
     use std::sync::Arc;

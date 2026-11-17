@@ -30,7 +30,7 @@ impl Snapshot {
             .min(entries.len());
         Self {
             revision,
-            heading: format!("Up next · {}", context.title()),
+            heading: format!("Up next · {}", crate::clip(context.title())),
             count: (entries.len() - start).to_string(),
             total: entries.len().to_string(),
             entries,

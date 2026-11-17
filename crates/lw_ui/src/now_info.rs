@@ -69,10 +69,11 @@ impl NowInfo {
             let tail: String = characters[characters.len() - 15..].iter().collect();
             format!("{head}…{tail}")
         };
+        let (file, folder) = (crate::clip_owned(file), crate::clip_owned(folder));
         Self {
             song: song.id.unwrap_or_default(),
-            format: fields.join(" · "),
-            summary,
+            format: crate::clip_owned(fields.join(" · ")),
+            summary: crate::clip_owned(summary),
             size: format!("{size} · {location}"),
             file,
             folder,

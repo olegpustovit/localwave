@@ -119,6 +119,7 @@ impl Item {
         artwork: Option<usize>,
         action: Action,
     ) -> Self {
+        let (label, hint) = (crate::clip(label), crate::clip(hint));
         let key = crate::hash((group, label, hint, action));
         Self {
             key,

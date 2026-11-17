@@ -297,6 +297,11 @@ impl Drop for FilesWorker {
 }
 fn publish(shared: &Shared, snapshot: &mut Snapshot) {
     snapshot.revision = snapshot.revision.wrapping_add(1);
+    // Error text can quote user-controlled names; clip once here (lw_ui::DISPLAY_LIMIT), not per frame.
+    for text in [&mut snapshot.message, &mut snapshot.progress] {
+        let end = lw_ui::clip(text).len();
+        text.truncate(end);
+    }
     let next = Arc::new(snapshot.clone());
     let (previous, retired) = {
         let mut inbox = shared.inbox.lock().unwrap();
@@ -528,8 +533,8 @@ fn refresh_sources(
             Ok(Folder {
                 id,
                 root: source.path_id,
-                name,
-                path: path.to_string_lossy().into_owned(),
+                name: lw_ui::clip_owned(name),
+                path: lw_ui::clip_owned(path.to_string_lossy().into_owned()),
                 current: source.is_current,
                 count: if songs > 0 {
                     format!("{songs} songs")
@@ -542,7 +547,7 @@ fn refresh_sources(
                     String::new()
                 },
                 scanned: format::age(now, source.last_synced_at),
-                error: source.sync_error,
+                error: source.sync_error.map(lw_ui::clip_owned),
                 local: if songs > 0 { local as f32 / songs as f32 } else { 0.0 },
             })
         })
@@ -660,7 +665,7 @@ fn browse_directory(
                 directory: path.is_directory,
                 audio,
                 number: String::new(),
-                kind: if path.is_directory {
+                kind: lw_ui::clip_owned(if path.is_directory {
                     format!("Folder · {count} songs")
                 } else if audio {
                     let extension = song
@@ -670,7 +675,7 @@ fn browse_directory(
                     format!("{extension} audio")
                 } else {
                     "Not audio".into()
-                },
+                }),
                 size: if path.is_directory {
                     format::bytes(total)
                 } else {
@@ -681,7 +686,7 @@ fn browse_directory(
                 time: song
                     .and_then(|song| song.duration)
                     .map_or_else(String::new, format::duration),
-                detail: {
+                detail: lw_ui::clip_owned({
                     let size = song.and_then(|song| song.file_size).or(path.file_size);
                     if path.is_directory {
                         "Folder".into()
@@ -697,7 +702,7 @@ fn browse_directory(
                         parts.extend(song.and_then(|song| song.duration).map(format::duration));
                         parts.join(" · ")
                     }
-                },
+                }),
                 song: song.and_then(|song| song.id),
                 songs: below.remove(path.name.as_str()).map_or_else(|| Arc::from([]), Arc::from),
                 glyph: index.map(|index| Glyph {
@@ -705,7 +710,7 @@ fn browse_directory(
                     availability: Some(states[index].0),
                     pinned: states[index].1,
                 }),
-                name: path.name,
+                name: lw_ui::clip(&path.name).to_owned(),
             },
             key,
         ));
@@ -763,17 +768,17 @@ fn browse_directory(
             path_id: Some(parent),
             name: title.clone(),
         }),
-        title,
-        breadcrumb: prefix.map_or_else(String::new, |prefix| {
+        title: lw_ui::clip_owned(title),
+        breadcrumb: lw_ui::clip_owned(prefix.map_or_else(String::new, |prefix| {
             format!("{root_name} / {}", prefix.replace('/', " / "))
-        }),
+        })),
         detail: format!("{} items", entries.len()),
         summary: format!(
             "{} songs · {} · {offline} offline",
             inside.len(),
             format::bytes(inside.iter().filter_map(|song| song.file_size).sum())
         ),
-        error: source.sync_error.clone(),
+        error: source.sync_error.clone().map(lw_ui::clip_owned),
         kept: !states.is_empty() && states.iter().all(|(_, pinned)| *pinned),
         songs: inside.iter().filter_map(|song| song.id).collect(),
         show_non_audio: library.load_settings().show_non_audio,

@@ -910,9 +910,9 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
-                        let link = detail::line(ui, "artist", artist, (17.0, 23.8, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
+                        let link = detail::line(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
                         if ui.signal(&link).clicked
-                            && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
+                            && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                         {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }

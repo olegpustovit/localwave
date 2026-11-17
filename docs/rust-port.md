@@ -137,7 +137,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4 | Engine prepare queue; fling exception ceiling | done | b873984 + pxui 62ddbcb |
 | DX5.4b | LocalWave adopts the host-owned TextWorker: one worker, SongTextWorker deleted, prewarm policy, fling gated at the pxui ceiling | done | 40ccc78 |
 | DX5.4c | A prewarmed natural-width layout serves draws at any width that cannot change it | done | 81f353c + pxui 7f2f738 |
-| DX5.4d | LocalWave fling ceiling kept equal to pxui's (parsed test) | done | HEAD |
+| DX5.4d | LocalWave fling ceiling kept equal to pxui's (parsed test) | done | 31e87c3 |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
@@ -145,6 +145,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | f2a2e68 + pxui 84752ba |
 | OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | f2a2e68 + pxui 93c7d20 |
 | OS-B2b | Text, image and renderer bounded for untrusted callers: text length caps, font caps, layout byte budget, renderer records size-checked, resize capped, per-Ui image table | done | f2a2e68 + pxui 5d11b7e |
+| OS-LW1 | LocalWave clips user metadata for display once (1024 B) where snapshots are built; stored data unchanged | done | HEAD |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |

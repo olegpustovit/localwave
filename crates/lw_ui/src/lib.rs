@@ -11,6 +11,32 @@ pub mod queue;
 mod shell;
 pub mod song_text;
 
+/// Longest display string, in bytes, that LocalWave hands to pxui labels and accessible names.
+/// User metadata (tags up to 16 MiB, folder names, list names) is clipped to this once, where the
+/// worker-built snapshots are made (never per frame, never in the database), at a UTF-8 character
+/// boundary and without an ellipsis. pxui itself caps a display string at 64 KiB.
+pub const DISPLAY_LIMIT: usize = 1024;
+
+/// `text` clipped to [`DISPLAY_LIMIT`] bytes at a character boundary; borrows, never allocates.
+#[inline]
+pub fn clip(text: &str) -> &str {
+    if text.len() <= DISPLAY_LIMIT {
+        return text;
+    }
+    let mut end = DISPLAY_LIMIT;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    &text[..end]
+}
+
+/// `text` clipped in place, for strings a worker owns.
+pub fn clip_owned(mut text: String) -> String {
+    let end = clip(&text).len();
+    text.truncate(end);
+    text
+}
+
 /// pxui's deterministic fast hash of one value (a revision or identity key; not a DoS-resistant map hash).
 #[inline]
 pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 { pxui::hash_of(&value) }

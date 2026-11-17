@@ -42,7 +42,7 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
             source_roots.insert(id, (source.path_id, name.clone()));
             library.source_rows.push(SourceRow {
                 location: Location { user: user.id, source: id, parent: None },
-                name,
+                name: lw_ui::clip(&name).to_owned(),
                 count: source.total_paths.map(|count| count.to_string()).unwrap_or_default(),
                 reconnect: source.sync_error.is_some(),
             });
@@ -65,10 +65,10 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
                 let (root, name) = source_roots.get(source)?;
                 let at_root = parent == root || relative.as_deref().is_none_or(str::is_empty);
                 Some(AlbumFolder {
-                    label: match relative.as_deref().filter(|_| !at_root) {
+                    label: lw_ui::clip_owned(match relative.as_deref().filter(|_| !at_root) {
                         Some(relative) => format!("{name} / {relative}"),
                         None => name.clone(),
-                    },
+                    }),
                     location: Location { user: user.id, source: *source, parent: (!at_root).then_some(*parent) },
                 })
             }));

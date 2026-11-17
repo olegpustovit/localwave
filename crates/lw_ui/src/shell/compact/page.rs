@@ -25,7 +25,7 @@ pub(in crate::shell) fn menu(
         _ => (None, false),
     };
     let artist = match context {
-        Some(PlaybackContext::Album { artist, .. }) => catalog.library.artists.iter().position(|a| a.title == *artist),
+        Some(PlaybackContext::Album { artist, .. }) => catalog.library.artists.iter().position(|a| a.title == crate::clip(artist)),
         _ => None,
     };
     let filled = collection.is_some_and(|collection| !collection.ids.is_empty());

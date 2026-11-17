@@ -296,7 +296,7 @@ impl Library {
             ]
             .map(|text| {
                 let start = out.labels.len();
-                out.labels.push_str(text);
+                out.labels.push_str(crate::clip(text));
                 start..out.labels.len()
             });
             let cover_art = song
@@ -670,8 +670,8 @@ impl Library {
             folder: None,
             sections,
             row_keys,
-            title: title.into(),
-            subtitle: subtitle.into(),
+            title: crate::clip(title).into(),
+            subtitle: crate::clip(subtitle).into(),
             count: rows.len().to_string(),
             ids: rows.iter().map(|index| self.rows[*index].id).collect(),
             artwork_row: rows
@@ -734,7 +734,7 @@ impl FindSummary {
             summary.push_str(&format!(" · {folders} folders"));
         }
         Self {
-            title: format!("“{raw}”"),
+            title: format!("“{}”", crate::clip(raw)),
             summary,
             label: format!("Songs {count}"),
             eligible,

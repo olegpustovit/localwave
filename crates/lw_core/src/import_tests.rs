@@ -10,6 +10,7 @@ struct Files {
     reads: usize,
     pinned: bool,
     cancel_read: bool,
+    title: Option<String>,
 }
 impl Default for Files {
     fn default() -> Self {
@@ -23,6 +24,7 @@ impl Default for Files {
             reads: 0,
             pinned: false,
             cancel_read: false,
+            title: None,
         }
     }
 }
@@ -57,7 +59,7 @@ impl ImportIO for Files {
         }
         Ok(Audio {
             artist: Some("Artist".into()),
-            title: Some("Imported".into()),
+            title: Some(self.title.clone().unwrap_or_else(|| "Imported".into())),
             album: Some("Album".into()),
             album_artist: Some("Ensemble".into()),
             year: Some(2026),
@@ -273,6 +275,20 @@ fn cloud_placeholder_enriches_in_place_and_unknown_provider_reads_only_verified_
             .file_hash_sha256,
         Some(vec![1; 32])
     );
+}
+
+#[test]
+fn oversized_title_tag_imports_unchanged() {
+    // Display clipping belongs to the UI snapshots (lw_ui::DISPLAY_LIMIT); the database keeps the tag.
+    let (mut repo, folder) = fixture();
+    let title = "é".repeat(50 * 1024);
+    let mut files = Files { title: Some(title.clone()), ..Files::default() };
+    repo.import_paths(&[folder], &mut files, &AtomicBool::new(false), 100.0, &mut |_, _, _| {})
+        .unwrap();
+    let song = repo.search_songs("", 10, 0).unwrap().pop().unwrap();
+    assert_eq!(song.title.len(), 100 * 1024);
+    assert_eq!(song.title, title);
+    assert_eq!(repo.get_song(song.id.unwrap()).unwrap().unwrap().title, title);
 }
 
 #[test]

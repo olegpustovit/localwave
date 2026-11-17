@@ -352,11 +352,7 @@ impl App {
                     };
                     if action == lw_ui::PageAction::Duplicate {
                         // One transaction creates "<name> copy" holding the same songs in order.
-                        let name = collection
-                            .filter(|collection| {
-                                matches!(&*collection.context, lw_core::context::PlaybackContext::Playlist { .. })
-                            })
-                            .and_then(|collection| lw_ui::browse::Query::new(&format!("{} copy", collection.title)));
+                        let name = collection.and_then(duplicate_name);
                         let Some(name) = name else {
                             return Ok(Some(Schedule::NextFrame));
                         };
@@ -710,5 +706,46 @@ mod tests {
             &[99],
             "outside the selection"
         );
+    }
+}
+
+/// "<name> copy" for a playlist collection, from the playlist's full stored name (the collection's
+/// `title` is a display string clipped to `lw_ui::DISPLAY_LIMIT`). Names beyond the fixed-capacity
+/// `Query` (1024 bytes, the same bound as New list and Rename) are refused, never stored clipped.
+fn duplicate_name(collection: &lw_ui::catalog::Collection) -> Option<lw_ui::browse::Query> {
+    match &*collection.context {
+        lw_core::context::PlaybackContext::Playlist { name, .. } => {
+            lw_ui::browse::Query::new(&format!("{name} copy"))
+        }
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod duplicate_name_tests {
+    use super::*;
+    use lw_core::context::PlaybackContext;
+
+    fn list(name: &str) -> lw_ui::catalog::Collection {
+        let mut catalog = lw_ui::catalog::Catalog::new(Vec::new());
+        catalog.add_collection(name, Vec::new(), PlaybackContext::Playlist { id: 7, name: name.into() });
+        catalog.collections.last().unwrap().clone()
+    }
+
+    #[test]
+    fn copy_name_uses_the_full_stored_name_and_never_a_clipped_one() {
+        assert_eq!(duplicate_name(&list("Mix")).unwrap().as_str(), "Mix copy");
+        // Longer than the display limit but within the name bound: stored in full.
+        let long = "é".repeat(500);
+        assert!(long.len() < lw_ui::DISPLAY_LIMIT + 1 && long.len() + 5 <= lw_ui::browse::MAX_QUERY_BYTES);
+        let big = "x".repeat(1010);
+        let copy = duplicate_name(&list(&big)).unwrap();
+        assert_eq!(copy.as_str(), format!("{big} copy"));
+        assert_eq!(duplicate_name(&list(&long)).unwrap().as_str(), format!("{long} copy"));
+        // A 100 KiB name exceeds the 1024-byte list-name bound: refused, not stored clipped.
+        assert!(duplicate_name(&list(&"y".repeat(100 * 1024))).is_none());
+        let mut catalog = lw_ui::catalog::Catalog::new(Vec::new());
+        catalog.add_collection("Auto", Vec::new(), PlaybackContext::Automatic("Auto".into()));
+        assert!(duplicate_name(catalog.collections.last().unwrap()).is_none());
     }
 }

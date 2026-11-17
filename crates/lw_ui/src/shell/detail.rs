@@ -237,9 +237,9 @@ fn header_body(
                 && !artist.is_empty()
             {
                 spacer(ui, "artist-gap", 6.0);
-                let link = line(ui, "artist", artist, (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
+                let link = line(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
                 if ui.signal(&link).clicked
-                    && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
+                    && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                 {
                     *intent = Some(Intent::Navigate(Route::Artist(index)));
                 }
