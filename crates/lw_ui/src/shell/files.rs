@@ -106,7 +106,7 @@ fn sized_button(ui: &mut Ui, key: &'static str, label: &str, width: f32, height:
 /// A `width` by `height` button box on `fill`, its label centred; pressable while `enabled`.
 fn button_node(width: f32, height: f32, enabled: bool, fill: ColorToken) -> Node {
     Node {
-        look: Look { fill: Rgba::token(fill), ..Look::NONE },
+        look: Look::NONE.fill(Rgba::token(fill)),
         ..Node::row()
             .w_px(width)
             .h_px(height)
@@ -127,7 +127,7 @@ fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: Co
 /// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row.
 pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::PxuiDialogConfig) {
     const SHEET: Node =
-        Node { look: Look { fill: Rgba::token(PAPER), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0) };
+        Node { look: PAPER_FILL, ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0) };
     ui.column("sheet", SHEET, |ui| {
         ui.label(pxui::bodies::text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
         ui.slot(c.content);
@@ -160,7 +160,7 @@ fn link(ui: &mut Ui, key: &'static str, name: &str, label: &str, width: f32) -> 
     let link = ui.node(
         key.into(),
         Node {
-            look: Look { text: ui.color(SECONDARY), font: Font { size: 14, ..Font::BODY }, ..Look::NONE },
+            look: LINK_TEXT,
             ..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
         },
     );
@@ -313,7 +313,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
             ui.label("Offline space", BODY_INK.grow());
             ui.label(&files.offline_usage, MONO_12.color(INK));
         });
-        ui.row("offline-meter", Node { margin: Edges { t: 10.0, ..Edges::ZERO }, look: Look { fill: ui.color(LINE), ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(4.0) }, |ui| {
+        ui.row("offline-meter", Node { margin: Edges { t: 10.0, ..Edges::ZERO }, look: LINE_FILL, ..Node::row().w(Size::Grow).h_px(4.0) }, |ui| {
             container(ui, "fill", Axis::Column, Size::Pct(files.offline_fraction), Size::Grow, ui.color(INK));
         });
         spacer(ui, "offline-note-gap", 8.0);
@@ -328,7 +328,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
         Key::Id(folder.id),
         Node {
             margin: Edges { b: 8.0, ..Edges::ZERO },
-            look: Look { fill: ui.color(PAPER), border: if error { ui.color(INK) } else { ui.color(LINE) }, border_w: 1.0, ..Look::NONE },
+            look: if error { FOLDER_CARD_ERROR } else { FOLDER_CARD },
             ..Node::column()
                 .w(Size::Grow)
                 .h(Size::Fit)
@@ -368,7 +368,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
                 }
             });
         } else {
-            ui.row("source-bar", Node { margin: Edges { t: 14.0, b: 10.0, ..Edges::ZERO }, look: Look { fill: ui.color(LINE), ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(4.0) }, |ui| {
+            ui.row("source-bar", Node { margin: Edges { t: 14.0, b: 10.0, ..Edges::ZERO }, look: LINE_FILL, ..Node::row().w(Size::Grow).h_px(4.0) }, |ui| {
                 container(ui, "fill", Axis::Column, Size::Pct(folder.local), Size::Grow, ui.color(INK));
             });
             let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
@@ -404,7 +404,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         options(ui, target, intent);
     });
     if let Some(message) = &directory.error {
-        let row = ui.node("folder-error".into(), Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: Look { border: ui.color(INK), border_w: 1.5, ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
+        let row = ui.node("folder-error".into(), Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
         ui.within(&row, &mut |ui| {
             super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
             ui.label(message, TEXT_14.grow().h_px(20.0).color(INK));
@@ -581,7 +581,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         ui.label(&directory.breadcrumb, TEXT_13.grow().h_px(24.0).color(SECONDARY));
     }
     if let Some(message) = &directory.error {
-        let row = ui.node("folder-error".into(), Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: Look { border: ui.color(INK), border_w: 1.5, ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
+        let row = ui.node("folder-error".into(), Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
         ui.within(&row, &mut |ui| {
             super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
             ui.label(message, TEXT_13.grow().h_px(18.9).color(INK));
@@ -773,7 +773,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     let width = (width - 32.0).clamp(240.0, 420.0);
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
     let open = ui.modal("add-music", &ADD_MUSIC.w(width), |ui| {
-        ui.column("add-music-body", Node { look: Look { fill: ui.color(PAPER), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0) }, |ui| {
+        ui.column("add-music-body", Node { look: PAPER_FILL, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0) }, |ui| {
             super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
             ui.label("Files stay where they are", CAPTION.grow());
             spacer(ui, "gap", 4.0);

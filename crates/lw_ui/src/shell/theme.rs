@@ -1,6 +1,7 @@
 //! LocalWave's text styles: Swift's one-line `Text` (lines 1.4 times the size, end ellipsis, whole-pixel fitted width), in the
 //! UI face (`TEXT_*`) or Geist Mono (`MONO_*`), and its wrapped running text (`PARAGRAPH_*`). Call sites add the box (`w`, `h`)
-//! and the colour token.
+//! and the colour token. Its looks are named consts over colour tokens (`Rgba::token`), which pxui resolves from the theme's
+//! colour table where a look is applied.
 use super::*;
 
 /// Swift's line height: 1.4 times the size, the one place the factor is written.
@@ -49,94 +50,85 @@ pub(super) const LEAD_DIM: Label = TEXT_15.color(SECONDARY);
 /// Secondary 12-point mono text.
 pub(super) const MONO_DIM: Label = MONO_12.color(SECONDARY);
 
-/// LocalWave's resolved button looks for one appearance: `looks(ui)` picks the light or dark set, so a theme change selects the
-/// other set and nothing is resolved per frame.
-pub(super) struct Looks {
-    /// A compact tab bar button: ink 14-point text on paper.
-    pub tab: States,
-    /// The current compact tab: on the selected fill.
-    pub tab_on: States,
-    /// A Find tool on paper.
-    pub paper: States,
-    /// The current Find tool: on the selected fill.
-    pub selected: States,
-    /// A key on the panel fill.
-    pub panel: States,
-    /// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
-    pub ink: States,
-    /// A mode key on the key fill.
-    pub key: States,
-    /// A queue sheet text action's text: secondary, 12 points.
-    pub queue_action: Look,
-    /// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
-    pub icon: States,
-    /// An icon key on the key plate.
-    pub icon_plate: States,
-    /// An icon key in inverse (Play, an active mode): paper icon on ink.
-    pub icon_inverse: States,
-    /// A sidebar "+ label" row's text: secondary, 14 points.
-    pub add_row: Look,
-    /// A sidebar route row: paper, the panel fill while hovered or held.
-    pub side_row: States,
-    /// The sidebar search row: the panel fill, the selected fill while hovered or held.
-    pub search_row: States,
-    /// A song table row: paper, a 60 percent panel fill while hovered or held.
-    pub song_row: States,
-}
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::all(Look::NONE);
 /// A pressable that keeps its node's own look (the node draws itself, or its contents do).
 pub(super) const PLAIN: pxui::Pressable = pxui::Pressable::DEFAULT;
-const fn token(token: ColorToken, dark: bool) -> Rgba {
-    let pair = COLORS[token.0 as usize];
-    if dark { pair.1 } else { pair.0 }
+
+/// The paper fill.
+pub(super) const PAPER_FILL: Look = Look::NONE.fill(Rgba::token(PAPER));
+/// The panel fill.
+pub(super) const PANEL_FILL: Look = Look::NONE.fill(Rgba::token(PANEL));
+/// The selected fill.
+pub(super) const SELECTED_FILL: Look = Look::NONE.fill(Rgba::token(SELECTED));
+/// The ink fill.
+pub(super) const INK_FILL: Look = Look::NONE.fill(Rgba::token(INK));
+/// The key fill.
+pub(super) const KEY_FILL: Look = Look::NONE.fill(Rgba::token(KEY));
+/// The hairline fill.
+pub(super) const LINE_FILL: Look = Look::NONE.fill(Rgba::token(super::kit::LINE));
+/// Ink text.
+pub(super) const INK_TEXT: Look = Look::NONE.text(Rgba::token(INK));
+/// Secondary text.
+pub(super) const SECONDARY_TEXT: Look = Look::NONE.text(Rgba::token(SECONDARY));
+/// An ink border 1.5 points wide (an error row).
+pub(super) const INK_OUTLINE: Look = Look::NONE.border(Rgba::token(INK), 1.5);
+/// A source folder card: paper with a hairline border.
+pub(super) const FOLDER_CARD: Look = PAPER_FILL.border(Rgba::token(super::kit::LINE), 1.0);
+/// A source folder card with an error: paper with an ink border.
+pub(super) const FOLDER_CARD_ERROR: Look = PAPER_FILL.border(Rgba::token(INK), 1.0);
+/// `color` text at `size` points.
+const fn text(color: ColorToken, size: i64) -> Look {
+    Look::NONE.text(Rgba::token(color)).font(Font::BODY.size(size))
 }
-const fn fill(color: ColorToken, dark: bool) -> States {
-    States::all(Look { fill: token(color, dark), ..Look::NONE })
-}
-const fn text(color: ColorToken, size: i64, dark: bool) -> Look {
-    Look { text: token(color, dark), font: Font { size, ..Font::BODY }, ..Look::NONE }
-}
-/// An ink icon key resting on `rest`, on the panel fill while hovered or held.
-const fn icon(rest: Rgba, dark: bool) -> States {
-    let idle = Look { fill: rest, text: token(INK, dark), ..Look::NONE };
-    let lit = Look { fill: token(PANEL, dark), ..idle };
-    States { hover: lit, pressed: lit, ..States::all(idle) }
-}
+/// Secondary 12-point text: a queue sheet text action.
+pub(super) const QUEUE_ACTION_TEXT: Look = text(SECONDARY, 12);
+/// Secondary 13-point text: an unselected chip.
+pub(super) const CHIP_TEXT: Look = text(SECONDARY, 13);
+/// Paper 13-point text: a selected chip.
+pub(super) const CHIP_TEXT_ON: Look = text(PAPER, 13);
+/// Secondary 14-point text: a sidebar "+ label" row, a text link.
+pub(super) const LINK_TEXT: Look = text(SECONDARY, 14);
+/// Secondary 15-point text: a back link.
+pub(super) const BACK_TEXT: Look = text(SECONDARY, 15);
+/// A sidebar count badge: paper 11-point text on ink.
+pub(super) const BADGE: Look = text(PAPER, 11).fill(Rgba::token(INK));
+/// An unselected settings choice: secondary 13-point text on the panel fill.
+pub(super) const CHOICE: Look = text(SECONDARY, 13).fill(Rgba::token(PANEL));
+/// The selected settings choice: paper 13-point text on ink.
+pub(super) const CHOICE_ON: Look = text(PAPER, 13).fill(Rgba::token(INK));
+/// A compact tab bar button: ink 14-point text on paper.
+pub(super) const TAB_LOOKS: States = States::all(text(INK, 14).fill(Rgba::token(PAPER)));
+/// The current compact tab: on the selected fill.
+pub(super) const TAB_ON_LOOKS: States = States::all(text(INK, 14).fill(Rgba::token(SELECTED)));
+/// A Find tool, a card or a row on paper.
+pub(super) const PAPER_LOOKS: States = States::all(PAPER_FILL);
+/// The current Find tool or route: on the selected fill.
+pub(super) const SELECTED_LOOKS: States = States::all(SELECTED_FILL);
+/// A key on the panel fill.
+pub(super) const PANEL_LOOKS: States = States::all(PANEL_FILL);
+/// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
+pub(super) const INK_LOOKS: States = States::all(INK_FILL);
+/// A mode key on the key fill.
+pub(super) const KEY_LOOKS: States = States::all(KEY_FILL);
 /// `rest` while idle, `lit` while hovered or held.
-const fn lit(rest: ColorToken, lit: ColorToken, dark: bool) -> States {
-    let on = Look { fill: token(lit, dark), ..Look::NONE };
-    States { hover: on, pressed: on, ..fill(rest, dark) }
+const fn lit(rest: Look, lit: Look) -> States {
+    States { hover: lit, pressed: lit, ..States::all(rest) }
 }
-/// The token at 60 percent alpha (the song row's hover wash).
-const fn tinted(color: ColorToken, dark: bool) -> Look {
-    Look { fill: Rgba { a: 153, ..token(color, dark) }, ..Look::NONE }
-}
-const fn resolve(dark: bool) -> Looks {
-    let tab = text(INK, 14, dark);
-    Looks {
-        tab: States::all(Look { fill: token(PAPER, dark), ..tab }),
-        tab_on: States::all(Look { fill: token(SELECTED, dark), ..tab }),
-        paper: fill(PAPER, dark),
-        selected: fill(SELECTED, dark),
-        panel: fill(PANEL, dark),
-        ink: fill(INK, dark),
-        key: fill(KEY, dark),
-        queue_action: text(SECONDARY, 12, dark),
-        add_row: text(SECONDARY, 14, dark),
-        side_row: lit(PAPER, PANEL, dark),
-        search_row: lit(PANEL, SELECTED, dark),
-        song_row: States { hover: tinted(PANEL, dark), pressed: tinted(PANEL, dark), ..fill(PAPER, dark) },
-        icon: icon(Look::NONE.fill, dark),
-        icon_plate: icon(token(KEY, dark), dark),
-        icon_inverse: States::all(Look { fill: token(INK, dark), text: token(PAPER, dark), ..Look::NONE }),
-    }
-}
-const LIGHT: Looks = resolve(false);
-const DARK: Looks = resolve(true);
-/// The looks for `ui`'s appearance (the dark colour table when its theme is dark, as `Ui::color` reads).
-pub(super) fn looks(ui: &Ui) -> &'static Looks {
-    if pxui::theme::dark(&ui.theme().tokens) { &DARK } else { &LIGHT }
+/// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
+pub(super) const ICON_LOOKS: States = lit(INK_TEXT, INK_TEXT.fill(Rgba::token(PANEL)));
+/// An icon key on the key plate.
+pub(super) const ICON_PLATE_LOOKS: States = lit(INK_TEXT.fill(Rgba::token(KEY)), INK_TEXT.fill(Rgba::token(PANEL)));
+/// An icon key in inverse (Play, an active mode): paper icon on ink.
+pub(super) const ICON_INVERSE_LOOKS: States = States::all(INK_FILL.text(Rgba::token(PAPER)));
+/// A sidebar route row: paper, the panel fill while hovered or held.
+pub(super) const SIDE_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_FILL);
+/// The sidebar search row: the panel fill, the selected fill while hovered or held.
+pub(super) const SEARCH_ROW_LOOKS: States = lit(PANEL_FILL, SELECTED_FILL);
+/// A song table row: paper, a 60 percent panel wash while hovered or held. A token carries no alpha (pxui gap), so the wash is
+/// the resolved panel colour at alpha 153, read where the row is built.
+pub(super) fn song_row_looks(ui: &Ui) -> States {
+    lit(PAPER_FILL, Look::NONE.fill(Rgba { a: 153, ..ui.color(PANEL) }))
 }
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton {

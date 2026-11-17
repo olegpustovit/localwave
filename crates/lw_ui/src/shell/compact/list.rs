@@ -139,10 +139,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 r: 6.0,
                 ..Edges::ZERO
             },
-            look: Look {
-                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
-                ..Look::NONE
-            },
+            look: if selected { SELECTED_FILL } else { PAPER_FILL },
             ..Node::row()
                 .w(Size::Grow)
                 .h(Size::Grow)
@@ -247,10 +244,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         if g.highlighted {
             ui.set_look(
                 &node.handle,
-                Look {
-                    fill: ui.color(SELECTED),
-                    ..row_node.look
-                },
+                row_node.look.fill(Rgba::token(SELECTED)),
                 State::default(),
             );
         }
@@ -357,9 +351,8 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
 
 fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f32) -> bool {
     let armed = revealed >= SWIPE_FULL;
-    let theme = looks(ui);
     let action = pxui::Button::DEFAULT.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow).centered();
-    let action = action.look(if armed { &theme.ink } else { &theme.panel }).name(label);
+    let action = action.look(if armed { &INK_LOOKS } else { &PANEL_LOOKS }).name(label);
     ui.button_content(key, &action, |ui, _| {
         ui.label(label, TEXT_13.color(if armed { PAPER } else { SECONDARY }));
     })
@@ -697,9 +690,8 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
         .then(|| !cx.collection.rows.is_empty() && cx.collection.rows.iter().all(|&row| cx.catalog.row(row).pinned))
 }
 pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
-    let theme = looks(ui);
     let label = if kept { "Kept offline" } else { "Keep offline" };
-    let key = PLAY_KEY.look(&theme.panel).name(label);
+    let key = PLAY_KEY.look(&PANEL_LOOKS).name(label);
     ui.button_content("keep-offline", &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
@@ -807,7 +799,7 @@ pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
 pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
     let mut pressed = None;
     ui.column("selection-holder", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow) }, |ui| {
-        let deck = ui.node("selection-bar".into(), Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
+        let deck = ui.node("selection-bar".into(), Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
         ui.set_role(&deck, Role::Group, 0);
         ui.a11y_name(&deck, "Selection actions");
         ui.within(&deck, &mut |ui| {
@@ -820,7 +812,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                 let tone = if !enabled { TERTIARY } else if key == "remove" { DANGER } else { INK };
                 let ink = ui.color(tone);
                 let node = Node {
-                    look: Look { fill: ui.color(KEY), ..Look::NONE },
+                    look: KEY_FILL,
                     ..Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button)
                 };
                 let key_node = ui.pressable(key, node, &PLAIN.enabled(enabled), |ui, _| {
@@ -930,8 +922,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
 
 /// Swift's playKeyButtons: a 52 pt key, ink for Play.
 pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, icon: Icon, primary: bool) -> bool {
-    let theme = looks(ui);
-    let key = PLAY_KEY.look(if primary { &theme.ink } else { &theme.panel }).name(label);
+    let key = PLAY_KEY.look(if primary { &INK_LOOKS } else { &PANEL_LOOKS }).name(label);
     let tone = if primary { PAPER } else { INK };
     let color = ui.color(tone);
     ui.button_content(id, &key, |ui, _| {

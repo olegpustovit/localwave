@@ -119,11 +119,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
                 r: if find { 0.0 } else { 2.0 },
                 ..Edges::ZERO
             },
-            look: Look {
-                text: ui.tokens().foreground,
-                font,
-                ..Look::NONE
-            },
+            look: Look::NONE.text(ui.tokens().foreground).font(font),
             ..Node::column().w(Size::Grow).h_px(height)
         },
     );
@@ -158,11 +154,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
             let line = ui.node(
                 "line".into(),
                 Node {
-                    look: Look {
-                        text: if find { ui.color(TERTIARY) } else { ui.color(SECONDARY) },
-                        font,
-                        ..Look::NONE
-                    },
+                    look: Look::NONE.text(Rgba::token(if find { TERTIARY } else { SECONDARY })).font(font),
                     ..Node::column().w(Size::Grow).h_px(size as f32 * 1.4)
                 },
             );
@@ -199,10 +191,7 @@ fn overlay(
                 "card".into(),
                 Node {
                     max_h: max_height,
-                    look: Look {
-                        fill: ui.color(PAPER),
-                        ..Look::NONE
-                    },
+                    look: PAPER_FILL,
                     ..Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP)
                 },
             );
@@ -335,14 +324,7 @@ fn result_row(
     let row = ui.node(
         "item".into(),
         Node {
-            look: Look {
-                fill: if selected {
-                    ui.color(SELECTED)
-                } else {
-                    Rgba::default()
-                },
-                ..Look::NONE
-            },
+            look: if selected { SELECTED_FILL } else { Look::NONE },
             ..Node::row()
                 .w(Size::Grow)
                 .h_px(44.0)
@@ -491,10 +473,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                                 let node = ui.node(
                                     "label".into(),
                                     Node {
-                                        look: Look {
-                                            text: ui.color(INK),
-                                            ..Look::NONE
-                                        },
+                                        look: INK_TEXT,
                                         ..Node::column().w_px(half).h_px(heights[index]).role(Role::Label)
                                     },
                                 );

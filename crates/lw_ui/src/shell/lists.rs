@@ -87,10 +87,7 @@ pub(super) fn name_dialog(
         ui.column(
             "list-name-body",
             Node {
-                look: Look {
-                    fill: ui.color(PAPER),
-                    ..Look::NONE
-                },
+                look: PAPER_FILL,
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
             |ui| {

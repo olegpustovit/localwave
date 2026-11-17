@@ -39,14 +39,13 @@ fn side_item(
     };
     let selected = !state.settings_visible && route.is_some_and(|route| state.route == route);
     let spec = Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center).role(Role::Button);
-    let theme = looks(ui);
-    let row = PLAIN.look(if selected { &theme.selected } else { &theme.side_row });
+    let row = PLAIN.look(if selected { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS });
     let key: Key = if id == 0 { key.into() } else { Key::Id(int_key(Ui::key_of(0, key), id)) };
     let node = ui.pressable(key, spec, &row, |ui, _| {
         ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h_px(20.0).color(if selected { INK } else { SECONDARY }));
         if !badge.is_empty() {
             let tag = ui.label(badge, TEXT_11.h_px(16.0).color(PAPER));
-            ui.set_look(&tag, Look { fill: ui.color(INK), text: ui.color(PAPER), font: Font { size: 11, ..Font::BODY }, ..Look::NONE }, State::default());
+            ui.set_look(&tag, BADGE, State::default());
             ui.box_("badge-gap", BoxOpts::default().w(Size::Grow));
         }
         ui.label(count, MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY));
@@ -54,7 +53,7 @@ fn side_item(
     ui.a11y_name(&node.handle, title);
     let dropping = list.and_then(|_| super::songs::song_drop(ui, &node.handle));
     if dropping.is_some() {
-        ui.set_look(&node.handle, theme.selected.idle, State::default());
+        ui.set_look(&node.handle, SELECTED_LOOKS.idle, State::default());
     }
     if let (Some(list), Some((true, song))) = (list, dropping) {
         *intent = Some(Intent::AddToList { song, list });
@@ -76,10 +75,9 @@ const GROUP: Label = TEXT_12.grow().h_px(30.0).color(SECONDARY);
 
 /// A plain "+ label" action row (Swift's Add folder or files, New list).
 fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
-    let theme = looks(ui);
     let row = ui.button_content(key, &ADD_ROW, |ui, _| {
         // the text starts 8 points in, as Swift's does; `button_with` centres it
-        let copy = ui.node("label".into(), Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: theme.add_row, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        let copy = ui.node("label".into(), Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
         ui.text(&copy, title);
     });
     ui.a11y_name(&row.handle, name);
@@ -98,7 +96,7 @@ pub(super) fn sidebar(
     ui.column("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0), |ui| {
         spacer(ui, "sidebar-top", 28.0);
         let node = Node::row().w(Size::Grow).h_px(34.0).pad_x(10.0).align(Align::Center).role(Role::Button);
-        let search = ui.pressable("search", node, &PLAIN.look(&looks(ui).search_row), |ui, _| {
+        let search = ui.pressable("search", node, &PLAIN.look(&SEARCH_ROW_LOOKS), |ui, _| {
             ui.label("Search", TEXT_14.grow().h_px(20.0).color(SECONDARY));
             ui.label("⌘K", MONO_11.h_px(16.0).color(SECONDARY));
         });
@@ -161,7 +159,7 @@ pub(super) fn sidebar(
             "offline-meter",
             Node {
                 margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
-                look: Look { fill: ui.color(LINE), ..Look::NONE },
+                look: LINE_FILL,
                 ..Node::row().w(Size::Grow).h_px(4.0)
             },
             |ui| {

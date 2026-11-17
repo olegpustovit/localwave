@@ -930,20 +930,14 @@ pub fn shell(
         desktop(ui, player, position, catalog, state, intent)
     };
     // Swift's long-press menu blurs the page behind it on a phone.
+    /// The phone song menu's backdrop: near-black at a quarter alpha, the same in both appearances.
+    const SCRIM: Look = Look::NONE.fill(Rgba { r: 10, g: 10, b: 10, a: 64 });
     if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
         let scrim = ui.view("song-menu-backdrop", 0, Size::Grow, Size::Grow, &mut |ui| {
             ui.node(
                 "scrim".into(),
                 Node {
-                    look: Look {
-                        fill: Rgba {
-                            r: 10,
-                            g: 10,
-                            b: 10,
-                            a: 64,
-                        },
-                        ..Look::NONE
-                    },
+                    look: SCRIM,
                     ..Node::column().w(Size::Grow).h(Size::Grow)
                 },
             );

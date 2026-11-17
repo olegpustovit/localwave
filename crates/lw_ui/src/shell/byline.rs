@@ -78,10 +78,7 @@ pub(super) fn draw(
                     t: if link { 2.0 } else { 0.0 },
                     ..Edges::ZERO
                 },
-                look: Look {
-                    text: ui.color(SECONDARY),
-                    ..Look::NONE
-                },
+                look: SECONDARY_TEXT,
                 ..Node::column().w_px(rect.w).h_px(rect.h).role(if link { Role::Button } else { Role::Label })
             };
             // Only the artist and album are links; the separator is a plain label.

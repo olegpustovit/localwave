@@ -16,10 +16,9 @@ pub(super) fn queue_action(
     width: f32,
 ) -> bool {
     // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
-    let theme = looks(ui);
     let action = pxui::Button::sized(width, 28.0).look(&BARE).name(name);
     ui.button_content(key, &action, |ui, _| {
-        let copy = ui.node("label".into(), Node { look: theme.queue_action, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        let copy = ui.node("label".into(), Node { look: QUEUE_ACTION_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
         ui.text(&copy, label);
     })
     .clicked
@@ -83,7 +82,6 @@ pub(super) fn queue_sheet(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
-    let theme = looks(ui);
     let content = ui.content_rect();
     let queue = catalog.queue.as_deref();
     let upcoming = queue.map_or(0, |queue| queue.upcoming().len());
@@ -108,10 +106,7 @@ pub(super) fn queue_sheet(
     let width = content.w;
     let open = ui.popup("queue-sheet", &Overlay::DEFAULT.at(content.x, content.y + content.h - height + state.sheet_dismiss.get()).w(width).h(height).max_h(height).name("Playback queue"), |ui| {
             let sheet_node = Node {
-                look: Look {
-                    fill: ui.color(PAPER),
-                    ..Look::NONE
-                },
+                look: PAPER_FILL,
                 ..Node::column()
                     .w_px(width)
                     .h_px(height)
@@ -173,7 +168,7 @@ pub(super) fn queue_sheet(
                         if queue.is_some_and(|queue| !queue.entries.is_empty()) && (titles.clicked || titles.secondary) {
                             *intent = Some(Intent::NamePlaylist);
                         }
-                        if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &ICON_44.look(&theme.icon_plate)).clicked {
+                        if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
                             *intent = Some(Intent::CloseQueue);
                         }
                     },
@@ -383,7 +378,6 @@ pub(super) fn queue_rows(
     images: Option<&crate::artwork::Images>,
     intent: &mut Option<Intent>,
 ) {
-    let theme = looks(ui);
     let Some(queue) = &catalog.queue else { return };
     let entries = queue.upcoming();
     // Swift's sheet rows (desktop: false) are larger than the panel's.
@@ -400,7 +394,7 @@ pub(super) fn queue_rows(
         ui.within(&header, &mut |ui| {
             ui.label(&queue.heading, TEXT_13.grow().h_px(28.0).color(SECONDARY));
             ui.label(&queue.count, MONO_12.w_px(56.0).h_px(28.0).color(SECONDARY));
-            if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &ICON_28.look(&theme.icon_plate)).clicked {
+            if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &ICON_28.look(&ICON_PLATE_LOOKS)).clicked {
                 *intent = Some(Intent::ShowQueue);
             }
             if !queue.upcoming().is_empty()
@@ -445,10 +439,7 @@ pub(super) fn queue_rows(
                     r: m.trail,
                     ..Edges::ZERO
                 },
-                look: Look {
-                    fill: ui.color(PAPER),
-                    ..Look::NONE
-                },
+                look: PAPER_FILL,
                 ..Node::row()
                     .w(Size::Grow)
                     .h_px(m.row)
@@ -530,7 +521,7 @@ pub(super) fn queue_rows(
                     "remove-queued",
                     icon_drawing(Icon::Clear),
                     "Remove from queue",
-                    &icon_key(m.remove, m.row).look(&theme.icon_plate),
+                    &icon_key(m.remove, m.row).look(&ICON_PLATE_LOOKS),
                 ).clicked {
                     *intent = Some(Intent::RemoveQueue(entry.id));
                 }

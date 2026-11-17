@@ -46,7 +46,7 @@ pub(super) fn container(
         key.into(),
         Node {
             axis,
-            look: Look { fill, ..Look::NONE },
+            look: Look::NONE.fill(fill),
             ..Node::column().w(w).h(h)
         },
     )
@@ -289,11 +289,11 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::PxuiMenuRowConfig) {
     ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0));
     let ink = if c.danger != 0 { DANGER } else { INK };
     if c.variant == 0 {
-        let look = Look { text: Rgba::token(ink), ..MENU_ROW };
+        let look = MENU_ROW.text(Rgba::token(ink));
         ui.set_look(&c.row, look, State { disabled: !enabled, ..State::default() });
     } else {
         let fill = Rgba::token(if selected { SELECTED } else { PAPER });
-        let look = Look { fill, text: Rgba::token(if enabled { ink } else { SECONDARY }), ..MENU_ROW };
+        let look = MENU_ROW.fill(fill).text(Rgba::token(if enabled { ink } else { SECONDARY }));
         ui.set_look(&c.row, look, State::default());
     }
     ui.text(&c.row, pxui::bodies::text_of(&c.text));
@@ -305,7 +305,7 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::PxuiMenuRowConfig) {
     }
 }
 /// A context menu row's 13-point text.
-const MENU_ROW: Look = Look { font: Font { size: 13, ..Font::BODY }, ..Look::NONE };
+const MENU_ROW: Look = Look::NONE.font(Font::BODY.size(13));
 #[cfg(test)]
 pub(super) mod button_tests {
     use super::*;
@@ -548,7 +548,7 @@ pub(super) mod button_tests {
         .unwrap();
         let clicked = Cell::new(false);
         let mut build = |ui: &mut Ui| {
-            clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&looks(ui).icon_plate)).clicked);
+            clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&ICON_PLATE_LOOKS)).clicked);
         };
         let input = |time, events: &[Event]| FrameIn {
             width: 320.0,

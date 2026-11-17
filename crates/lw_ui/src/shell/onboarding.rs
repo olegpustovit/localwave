@@ -101,7 +101,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
         spacer(ui, "choose-gap", 12.0);
         let node = Node::row().w(Size::Grow).h_px(52.0).center().role(Role::Button);
-        let choose = ui.pressable("choose-folder", node, &PLAIN.look(&looks(ui).ink), |ui, _| {
+        let choose = ui.pressable("choose-folder", node, &PLAIN.look(&INK_LOOKS), |ui, _| {
             ui.label("Choose a folder", TEXT_15.color(PAPER));
         });
         ui.a11y_name(&choose.handle, "Choose a folder");
@@ -130,7 +130,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
     let frame = ui.node(
         "drive-frame".into(),
         Node {
-            look: Look { fill: ui.color(LINE), ..Look::NONE },
+            look: LINE_FILL,
             ..Node::column().w(Size::Grow).h(Size::Fit).pad(1.0)
         },
     );
@@ -139,7 +139,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
         ui.column(
             "drive-inner",
             Node {
-                look: Look { fill: ui.color(PAPER), ..Look::NONE },
+                look: PAPER_FILL,
                 ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
             },
             |ui| {

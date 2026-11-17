@@ -10,10 +10,7 @@ fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label, 
         key.into(),
         Node {
             at: Some((rect.x, rect.y)).into(),
-            look: Look {
-                text: color,
-                ..Look::NONE
-            },
+            look: Look::NONE.text(color),
             ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(Role::Label)
         },
     );
@@ -111,10 +108,7 @@ pub(super) fn table(
                 let head = ui.node(
                     "artist-columns".into(),
                     Node {
-                        look: Look {
-                            fill: ui.color(PAPER),
-                            ..Look::NONE
-                        },
+                        look: PAPER_FILL,
                         ..Node::column().w(Size::Grow).h_px(heading_height)
                     },
                 );
@@ -165,7 +159,7 @@ pub(super) fn table(
                     Size::Fit,
                     &mut |ui| {
                         let node = Node::column().w(Size::Grow).h_px(row_height).role(Role::Button);
-                        let row = ui.pressable("artist", node, &PLAIN.look(&looks(ui).paper), |ui, state| {
+                        let row = ui.pressable("artist", node, &PLAIN.look(&PAPER_LOOKS), |ui, state| {
                             let hover = ui.view("hover", 0, Size::Grow, Size::Grow, &mut |ui| {
                                 container(
                                     ui,
@@ -195,10 +189,7 @@ pub(super) fn table(
                                 "artist-artwork".into(),
                                 Node {
                                     at: Some((32.0, top)).into(),
-                                    look: Look {
-                                        fill: ui.color(PANEL),
-                                        ..Look::NONE
-                                    },
+                                    look: PANEL_FILL,
                                     ..Node::column().w_px(28.0).h_px(28.0)
                                 },
                             );

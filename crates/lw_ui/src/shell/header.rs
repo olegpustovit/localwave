@@ -17,7 +17,6 @@ pub(super) fn header(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let theme = looks(ui);
     let collection = state.collection(catalog);
     // Swift's desktop results page: "Search", “query”, "N songs · M albums · F folders", no field.
     let results = state.route == Route::Find && state.find_results;
@@ -57,7 +56,7 @@ pub(super) fn header(
             ui.label(title, HEADING);
             if !results
                 && !matches!(state.route, Route::Albums | Route::Artists)
-                && ui.icon_button("refresh", icon_drawing(Icon::Refresh), "Refresh library", &ICON_36.look(&theme.icon_plate)).clicked
+                && ui.icon_button("refresh", icon_drawing(Icon::Refresh), "Refresh library", &ICON_36.look(&ICON_PLATE_LOOKS)).clicked
             {
                 *intent = Some(Intent::RefreshLibrary);
             }
@@ -86,7 +85,7 @@ pub(super) fn header(
                                 );
                             }
                         });
-                        if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_36.look(&theme.icon_plate)).clicked {
+                        if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_36.look(&ICON_PLATE_LOOKS)).clicked {
                             *intent = Some(Intent::Search(Query::default()));
                         }
                     });
@@ -109,10 +108,7 @@ pub(super) fn header(
                         r: -32.0,
                         ..Edges::ZERO
                     },
-                    look: Look {
-                        fill: ui.color(LINE),
-                        ..Look::NONE
-                    },
+                    look: LINE_FILL,
                     ..Node::column().w_px(width).h_px(1.0)
                 },
             );
@@ -133,7 +129,6 @@ pub(super) fn compact_find(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let keys = looks(ui);
     let revision = crate::hash((
         state.revision,
         (state.selecting, state.selection_revision),
@@ -203,7 +198,7 @@ pub(super) fn compact_find(
                             };
                             ui.column("clear-slot", clear, |ui| {
                                 // Swift's clear glyph has no resting plate.
-                                if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_44.look(&keys.icon)).clicked {
+                                if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_44.look(&ICON_LOOKS)).clicked {
                                     *intent = Some(Intent::Search(Query::default()));
                                 }
                             });
@@ -267,10 +262,7 @@ fn hint(ui: &mut Ui, width: f32) {
                 t: 28.0, // 40 less find_tokens' 12 pt tail
                 ..Edges::ZERO
             },
-            look: Look {
-                text: ui.color(SECONDARY),
-                ..Look::NONE
-            },
+            look: SECONDARY_TEXT,
             ..Node::column().w(Size::Grow).h_px(height).role(Role::Paragraph)
         },
     );
@@ -340,23 +332,15 @@ pub(super) fn find_tokens(
             ui.row("flow", flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
-                    let theme = looks(ui);
                     let node = Node {
                         max_w: width,
                         ..Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP)
                     };
-                    let chip = ui.pressable(token, node, &PLAIN.look(if selected { &theme.ink } else { &theme.panel }), |ui, _| {
+                    let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {
                         let label = ui.node(
                             "label".into(),
                             Node {
-                                look: Look {
-                                    text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
-                                    font: Font {
-                                        size: 13,
-                                        ..Font::BODY
-                                    },
-                                    ..Look::NONE
-                                },
+                                look: if selected { CHIP_TEXT_ON } else { CHIP_TEXT },
                                 ..Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT)
                             },
                         );

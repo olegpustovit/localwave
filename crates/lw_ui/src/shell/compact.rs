@@ -40,10 +40,7 @@ fn line(ui: &mut Ui, key: &'static str, value: &str, size: f32, color: Rgba) {
     let node = ui.node(
         key.into(),
         Node {
-            look: Look {
-                text: color,
-                ..Look::NONE
-            },
+            look: Look::NONE.text(color),
             ..Node::column().w(Size::Grow).h_px(size * 1.4).role(Role::Label)
         },
     );
@@ -106,10 +103,7 @@ pub(super) fn view(
                 b: bottom,
                 l: left,
             },
-            look: Look {
-                fill: ui.color(PAPER),
-                ..Look::NONE
-            },
+            look: PAPER_FILL,
             ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Window)
         },
     );
@@ -330,8 +324,7 @@ pub(super) fn view(
             .enumerate()
             {
                 let current = !state.settings_visible && selected == index;
-                let theme = looks(ui);
-                let tab = TAB.look(if current { &theme.tab_on } else { &theme.tab }).selected(current).name(title);
+                let tab = TAB.look(if current { &TAB_ON_LOOKS } else { &TAB_LOOKS }).selected(current).name(title);
                 if ui.button_content(key, &tab, |ui, _| {
                     ui.label(title, BODY_INK);
                 })
@@ -351,14 +344,10 @@ fn mini(
     catalog: &Catalog,
     intent: &mut Option<Intent>,
 ) {
-    let theme = looks(ui);
     ui.row(
         "mini-player",
         Node {
-            look: Look {
-                fill: ui.color(PANEL),
-                ..Look::NONE
-            },
+            look: PANEL_FILL,
             ..Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center)
         },
         |ui| {
@@ -392,7 +381,7 @@ fn mini(
                 *intent = Some(Intent::TogglePlayer);
             }
             play(ui, player, (44.0, 44.0), intent);
-            if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &ICON_44.look(&theme.icon_plate)).clicked {
+            if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
                 *intent = Some(Intent::Next);
             }
         },
@@ -400,12 +389,11 @@ fn mini(
 }
 
 fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Option<Intent>) {
-    let theme = looks(ui);
     if ui.icon_button(
         "play",
         icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }),
         if player.playing { "Pause" } else { "Play" },
-        &icon_key(size.0, size.1).look(&theme.icon_inverse),
+        &icon_key(size.0, size.1).look(&ICON_INVERSE_LOOKS),
     ).clicked {
         *intent = Some(if player.playing {
             Intent::Pause
@@ -479,8 +467,7 @@ fn mode_key(
     active: bool,
     mut inner: impl FnMut(&mut Ui),
 ) -> bool {
-    let theme = looks(ui);
-    let mode = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered().look(if active { &theme.ink } else { &theme.key });
+    let mode = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered().look(if active { &INK_LOOKS } else { &KEY_LOOKS });
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
     let button = ui.button_content(key, &mode, |ui, _| {
         ui.row("content", Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
@@ -505,13 +492,9 @@ fn expanded(
     generation: u64,
     intent: &mut Option<Intent>,
 ) {
-    let theme = looks(ui);
     use lw_core::queue::RepeatMode;
     let root_node = Node {
-        look: Look {
-            fill: ui.color(PAPER),
-            ..Look::NONE
-        },
+        look: PAPER_FILL,
         ..Node::column().w(Size::Grow).h(Size::Grow)
     };
     let favorite = player
@@ -525,7 +508,7 @@ fn expanded(
         ui.row("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
-                if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&theme.icon_plate)).clicked {
+                if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
@@ -566,7 +549,7 @@ fn expanded(
                         let title = ui.node(
                             "title".into(),
                             Node {
-                                look: Look { text: ui.color(INK), ..Look::NONE },
+                                look: INK_TEXT,
                                 ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
                             },
                         );
@@ -626,7 +609,7 @@ fn expanded(
                 ui.row(
                     "modes",
                     Node {
-                        look: Look { fill: ui.color(PANEL), ..Look::NONE },
+                        look: PANEL_FILL,
                         ..Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0)
                     },
                     |ui| {
@@ -681,16 +664,16 @@ fn expanded(
             "keys",
             Node {
                 padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
-                look: Look { fill: ui.color(SELECTED), ..Look::NONE },
+                look: SELECTED_FILL,
                 ..Node::row().w(Size::Grow).h_px(86.0).gap(2.0)
             },
             |ui| {
                 let key = ((size.0 - 8.0) / 3.0).max(1.0);
-                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&theme.icon_plate)).clicked {
+                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::Previous);
                 }
                 play(ui, player, (key, 84.0), intent);
-                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&theme.icon_plate)).clicked {
+                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::Next);
                 }
             },

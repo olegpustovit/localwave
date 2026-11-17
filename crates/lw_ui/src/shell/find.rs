@@ -25,10 +25,7 @@ fn background(ui: &mut Ui, key: &str, color: Rgba, shown: bool, immediate: bool)
         ui.node(
             "fill".into(),
             Node {
-                look: Look {
-                    fill: color,
-                    ..Look::NONE
-                },
+                look: Look::NONE.fill(color),
                 ..Node::column().w(Size::Grow).h(Size::Grow)
             },
         );
@@ -64,9 +61,8 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let density = ui.density() as f32;
     let label_width =
         (ui.text_service().width(label, &TOOL_LABEL, 0.0).unwrap() * density).ceil() / density;
-    let theme = looks(ui);
     let width = 20.0 + icon_size + 6.0 + label_width;
-    let tool = pxui::Button::sized(width, 30.0).look(if selected { &theme.selected } else { &theme.paper }).enabled(enabled).name(label);
+    let tool = pxui::Button::sized(width, 30.0).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).enabled(enabled).name(label);
     // the hover and press washes sit under the copy, so the contents are a stack built with the press state
     let response = ui.button_content(key, &tool, |ui, press| {
         let layers = ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow));

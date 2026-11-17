@@ -290,8 +290,8 @@ impl Rows<'_> {
             Size::Fit,
             &mut |ui| {
                 let row = catalog.row(collection.rows[index]);
-                let theme = looks(ui);
-                let look = PLAIN.look(if marked { &theme.selected } else { &theme.song_row });
+                let song_row = song_row_looks(ui);
+                let look = PLAIN.look(if marked { &SELECTED_LOOKS } else { &song_row });
                 let node = Node::column().w(Size::Grow).h_px(layout.height).role(Role::ListItem);
                 let current = player.current_id == Some(row.id);
                 let root = ui.pressable("song", node, &look, |ui, _| {

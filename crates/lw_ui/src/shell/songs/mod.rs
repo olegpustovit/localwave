@@ -30,10 +30,7 @@ fn label(
         key.into(),
         Node {
             at: Some((rect.x, rect.y)).into(),
-            look: Look {
-                text: color,
-                ..Look::NONE
-            },
+            look: Look::NONE.text(color),
             ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(role)
         },
     );
@@ -179,10 +176,7 @@ fn heading(
     let root = ui.node(
         "song-columns".into(),
         Node {
-            look: Look {
-                fill: ui.color(PAPER),
-                ..Look::NONE
-            },
+            look: PAPER_FILL,
             ..Node::column().w(Size::Grow).h_px(layout.height)
         },
     );
@@ -199,10 +193,7 @@ fn heading(
                 let (fit, height) = layout.sizes[column as usize];
                 let node = Node {
                     at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
-                    look: Look {
-                        text: ui.color(SECONDARY),
-                        ..Look::NONE
-                    },
+                    look: SECONDARY_TEXT,
                     ..Node::column()
                         .w_px(available)
                         .h_px(height)

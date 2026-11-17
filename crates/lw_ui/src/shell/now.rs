@@ -10,7 +10,6 @@ pub(super) fn now_panel(
     carry: u64,
     intent: &mut Option<Intent>,
 ) {
-    let theme = looks(ui);
     ui.column(
         "now",
         Node {
@@ -25,7 +24,7 @@ pub(super) fn now_panel(
         |ui| {
             ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
                 ui.label("Now playing", CAPTION.grow());
-                if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &ICON_36.look(&theme.icon_plate)).clicked {
+                if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &ICON_36.look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::TogglePanel);
                 }
             });
@@ -74,10 +73,7 @@ pub(super) fn now_panel(
                             "current-track".into(),
                             Node {
                                 min_h: 22.8,
-                                look: Look {
-                                    text: ui.color(INK),
-                                    ..Look::NONE
-                                },
+                                look: INK_TEXT,
                                 ..Node::column().w(Size::Grow).h(Size::Fit).role(Role::Label)
                             },
                         );

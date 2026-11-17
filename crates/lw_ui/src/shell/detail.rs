@@ -99,10 +99,7 @@ pub(super) fn line(
         key.into(),
         Node {
             flags,
-            look: Look {
-                text: color,
-                ..Look::NONE
-            },
+            look: Look::NONE.text(color),
             ..Node::column()
                 .w(Size::Grow)
                 .h_px(line_height)
@@ -133,7 +130,7 @@ pub(super) fn link(
     color: Rgba,
 ) -> pxui::Response {
     let node = Node {
-        look: Look { text: color, ..Look::NONE },
+        look: Look::NONE.text(color),
         ..Node::column().w(Size::Grow).h_px(line_height).role(Role::Button)
     };
     let link = ui.pressable(key, node, &PLAIN, |_, _| {});

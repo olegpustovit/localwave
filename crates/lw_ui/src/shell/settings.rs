@@ -13,14 +13,7 @@ fn back(ui: &mut Ui, name: &'static str) -> bool {
     let button = ui.node(
         name.into(),
         Node {
-            look: Look {
-                text: ui.color(SECONDARY),
-                font: Font {
-                    size: 15,
-                    ..Font::BODY
-                },
-                ..Look::NONE
-            },
+            look: BACK_TEXT,
             ..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
         },
     );
@@ -58,21 +51,20 @@ pub(super) fn paragraph(
     let node = ui.node(
         key.into(),
         Node {
-            look: Look {
-                text: color,
-                ..Look::NONE
-            },
+            look: Look::NONE.text(color),
             ..Node::column().w(Size::Grow).h_px(metrics.height.max(size * 1.4)).role(Role::Paragraph)
         },
     );
     ui.text_line_box(&node, value, &label, &[]).unwrap();
     node
 }
+/// A notice's 14-point text; the accent colour is added where it is shown.
+const NOTICE: Look = Look::NONE.font(Font::BODY.size(14));
 /// A playback or settings message in the theme's accent, which is no colour token, so the label takes it as a look.
 fn notice(ui: &mut Ui, text: &str) {
     let node = ui.label(text, TEXT_14.grow().h_px(42.0));
     let accent = ui.tokens().accent;
-    ui.set_look(&node, Look { text: accent, font: Font { size: 14, ..Font::BODY }, ..Look::NONE }, State::default());
+    ui.set_look(&node, NOTICE.text(accent), State::default());
 }
 /// Swift's settings row: controls beside the labels at every width (the labels wrap), at least 60 tall, a hairline under it.
 const ROW: Node =
@@ -107,9 +99,9 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::PxuiToggleConfig) {
     hairline(ui, &c.row);
 }
 // The switch: an ink track when on, the line colour when off, a paper knob.
-const TRACK_ON: Look = Look { fill: Rgba::token(INK), ..Look::NONE };
-const TRACK: Look = Look { fill: Rgba::token(LINE), ..Look::NONE };
-const KNOB: Look = Look { fill: Rgba::token(PAPER), ..Look::NONE };
+const TRACK_ON: Look = INK_FILL;
+const TRACK: Look = LINE_FILL;
+const KNOB: Look = PAPER_FILL;
 /// A settings switch row: the whole row flips it.
 const SWITCH: pxui::Toggle<'static> = pxui::Toggle::DEFAULT.row_h(60.0).press_row(true);
 fn option(
@@ -125,15 +117,7 @@ fn option(
         label.into(),
         Node {
             min_w: 40.0,
-            look: Look {
-                fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
-                text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
-                font: Font {
-                    size: 13,
-                    ..Font::BODY
-                },
-                ..Look::NONE
-            },
+            look: if selected { CHOICE_ON } else { CHOICE },
             ..Node::column()
                 .w(Size::Grow)
                 .h_px(28.0)
@@ -234,7 +218,7 @@ pub(super) fn view(
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Offline space", cache_detail);
-            let strip = Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) };
+            let strip = Node { look: PANEL_FILL, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) };
             ui.row("segments", strip, |ui| {
                 for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
                     option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
@@ -244,7 +228,7 @@ pub(super) fn view(
         setting_row(ui, &cache, "Offline space", SettingsMenu::Cache, intent);
         let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Appearance", "");
-            let strip = Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) };
+            let strip = Node { look: PANEL_FILL, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) };
             ui.row("segments", strip, |ui| {
                 for (value, label, name) in [
                     (Appearance::System, "System", "Use system appearance"),
