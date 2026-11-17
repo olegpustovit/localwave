@@ -238,15 +238,8 @@ pub(super) fn desktop(
             if panel {
                 rule(ui, "panel-divider", true);
                 // The drop target wraps the cached panel: hover and drops never rebuild its view.
-                let target = ui.node(
-                    "up-next-drop".into(),
-                    Node {
-                        // Hit-registered so drops on its empty areas reach it.
-                        flags: Flags::CLICKABLE,
-                        ..Node::column().w_px(319.0).h(Size::Grow)
-                    },
-                );
-                ui.within(&target, &mut |ui| {
+                // Pressable so drops on its empty areas reach it; no tab stop.
+                let target = ui.pressable("up-next-drop", Node::column().w_px(319.0).h(Size::Grow), &PLAIN.tab_stop(false), |ui, _| {
                     let panel = ui.view_of(
                         "now-panel",
                         &(
@@ -268,6 +261,7 @@ pub(super) fn desktop(
                     );
                     crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
                 });
+                let target = target.handle;
                 let accent = ui.tokens().accent;
                 match songs::song_drop(ui, &target) {
                     Some((true, song)) => *intent = Some(Intent::AppendSong(song)),

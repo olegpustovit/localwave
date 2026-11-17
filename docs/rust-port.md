@@ -131,7 +131,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.8 | Codemod A: Node literals to builders | done | 4091362 |
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
-| DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
+| DX4.11 | Hand conversion to pressable, one commit per file | done | HEAD |
 | DX4.12 | LocalWave review cleanups: id keys, named styles, theme bound once, press state in button contents | done | 0172279 |
 | DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | 73512bf |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
