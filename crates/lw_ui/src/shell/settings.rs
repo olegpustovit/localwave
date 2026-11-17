@@ -28,11 +28,17 @@ fn back(ui: &mut Ui, name: &'static str) -> bool {
     ui.a11y_name(&button, name);
     ui.signal(&button).clicked
 }
-fn context(ui: &Ui, node: &Handle, menu: SettingsMenu, intent: &mut Option<Intent>) {
-    let signal = ui.signal(node);
-    if signal.pressed && signal.button == Some(1) {
-        *intent = Some(Intent::SettingsMenu(menu, signal.pointer));
+/// A secondary press on a settings row or its chips (`secondary`) opens the row's context menu where the pointer is.
+fn context(ui: &Ui, secondary: bool, node: &Handle, menu: SettingsMenu, intent: &mut Option<Intent>) {
+    if secondary {
+        *intent = Some(Intent::SettingsMenu(menu, ui.signal(node).pointer));
     }
+}
+/// A settings row's name, context menu and hairline.
+fn setting_row(ui: &mut Ui, row: &pxui::Response, title: &str, menu: SettingsMenu, intent: &mut Option<Intent>) {
+    ui.a11y_name(&row.handle, title);
+    context(ui, row.secondary, &row.handle, menu, intent);
+    hairline(ui, &row.handle);
 }
 /// Running text in a node measured at `width`. Kept for the dialogs: a wrapped label re-lays the frame, which places a
 /// modal at its final position one frame earlier than this fixed-height node does (a visible change).
@@ -68,162 +74,44 @@ fn notice(ui: &mut Ui, text: &str) {
     let accent = ui.tokens().accent;
     ui.set_look(&node, Look { text: accent, font: Font { size: 14, ..Font::BODY }, ..Look::NONE }, State::default());
 }
-fn row(
-    ui: &mut Ui,
-    key: &'static str,
-    labels: (&'static str, &str),
-    width: f32,
-    control: (Option<(bool, Change)>, Option<SettingsMenu>, bool),
-    intent: &mut Option<Intent>,
-    controls: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
-) {
-    let (title, detail) = labels;
-    let (toggle, menu, tap) = control;
-    // Swift keeps the control beside the label at every width; the label wraps instead.
-    let stacked = false;
-    let label_width = (width
-        - 32.0
-        - if stacked {
-            0.0
-        } else if toggle.is_some() {
-            56.0
-        } else if tap {
-            26.0
-        } else if menu == Some(SettingsMenu::Appearance) {
-            212.0
-        } else {
-            182.0
-        })
-    .max(1.0);
-    const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap();
-    let detail_height = if detail.is_empty() {
-        0.0
-    } else {
-        ui.text_service()
-            .measure(detail, &DETAIL, label_width)
-            .unwrap()
-            .height
-    };
-    let label_height = 21.0 + detail_height;
-    let row_height = if stacked {
-        92.0f32.max(label_height + 40.0)
-    } else {
-        60.0f32.max(label_height)
-    };
-    let node = ui.node(
-        key.into(),
-        Node {
-            axis: if stacked { Axis::Column } else { Axis::Row },
-            ..Node::column()
-                .w(Size::Grow)
-                .h_px(row_height)
-                .gap(8.0)
-                .pad_x(16.0)
-                .align(if stacked { Align::Start } else { Align::Center })
-                .role(if toggle.is_some() {
-                    Role::Toggle
-                } else if tap {
-                    Role::Button
-                } else {
-                    Role::Group
-                })
-                .flags(if toggle.is_some() {
-                    Flags::CLICKABLE | Flags::FOCUSABLE
-                } else if menu.is_some() || tap {
-                    Flags::CLICKABLE | Flags::FOCUSABLE
-                } else {
-                    Flags::NONE
-                })
-        },
-    );
-    ui.a11y_name(&node, title);
-    if let Some((on, _)) = toggle {
-        ui.set_role(
-            &node,
-            Role::Toggle,
-            pxui::a11y::state::CHECKABLE | if on { pxui::a11y::state::CHECKED } else { 0 },
-        );
-    }
-    if let Some(menu) = menu {
-        context(ui, &node, menu, intent);
-    }
-    ui.within(&node, &mut |ui| {
-        ui.column(
-            "labels",
-            Node {
-                justify: Justify::Center,
-                ..Node::column()
-                    .w(Size::Grow)
-                    .h(if stacked {
-                        Size::Px(label_height)
-                    } else {
-                        Size::Grow
-                    })
-            },
-            |ui| {
-                ui.label(title, TEXT_15.grow().h_px(21.0).color(INK));
-                if !detail.is_empty() {
-                    let label = ui.node(
-                        "detail".into(),
-                        Node {
-                            look: Look {
-                                text: ui.color(SECONDARY),
-                                ..Look::NONE
-                            },
-                            ..Node::column().w(Size::Grow).h_px(detail_height).role(Role::Label)
-                        },
-                    );
-                    ui.text_line_box(&label, detail, &DETAIL, &[]).unwrap();
-                }
-            },
-        );
-        if let Some((on, _)) = toggle {
-            ui.column(
-                "switch",
-                Node {
-                    look: Look {
-                        fill: if on { ui.color(INK) } else { ui.color(LINE) },
-                        ..Look::NONE
-                    },
-                    ..Node::column().w_px(48.0).h_px(28.0)
-                },
-                |ui| {
-                    ui.node(
-                        "knob".into(),
-                        Node {
-                            at: Some((if on { 23.0 } else { 3.0 }, 3.0)).into(),
-                            look: Look {
-                                fill: ui.color(PAPER),
-                                ..Look::NONE
-                            },
-                            ..Node::column().w_px(22.0).h_px(22.0)
-                        },
-                    );
-                },
-            );
-        } else {
-            controls(ui, intent);
+/// Swift's settings row: controls beside the labels at every width (the labels wrap), at least 60 tall, a hairline under it.
+const ROW: Node =
+    Node { axis: Axis::Row, min_h: 60.0, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center) };
+const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap().w(Size::Grow).role(Role::Label).color(SECONDARY);
+fn labels(ui: &mut Ui, title: &str, detail: &str) {
+    ui.column("labels", Node { justify: Justify::Center, ..Node::column().w(Size::Grow).h(Size::Fit) }, |ui| {
+        ui.label(title, TEXT_15.grow().h_px(21.0).color(INK));
+        if !detail.is_empty() {
+            ui.label(detail, DETAIL);
         }
-    });
-    if let Some((_, change)) = toggle {
-        let signal = ui.signal(&node);
-        if signal.clicked && signal.button != Some(1) {
-            *intent = Some(Intent::Setting(change));
-        }
-    }
-    if tap && ui.signal(&node).clicked {
-        *intent = Some(Intent::Files(crate::files::Request::Roots));
-    }
-    ui.draw(&node, move |paint, rect| {
-        paint.fill(
-            rect.x + 16.0,
-            rect.y + rect.h - 1.0,
-            (rect.w - 16.0).max(0.0),
-            1.0,
-            paint.color(LINE),
-        )
     });
 }
+/// The row's hairline, from its title's start to its end.
+fn hairline(ui: &mut Ui, node: &Handle) {
+    ui.draw(node, move |paint, rect| paint.fill(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0, paint.color(LINE)));
+}
+/// LocalWave's settings switch row (registered as `localwave-toggle`): a settings row whose control is the 48 x 28 switch, ink when
+/// on, the line colour when off, with a 22-point paper knob.
+pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::PxuiToggleConfig) {
+    // The switch shows the stored value until the controller applies the flip.
+    let (on, title) = (c.stored != 0, pxui::bodies::text_of(&c.label));
+    ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
+    ui.a11y_name(&c.row, title);
+    ui.set_role(&c.row, Role::Toggle, pxui::a11y::state::CHECKABLE | if on { pxui::a11y::state::CHECKED } else { 0 });
+    labels(ui, title, pxui::bodies::text_of(&c.detail));
+    let track = if on { TRACK_ON } else { TRACK };
+    ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
+        let at = Some((if on { 23.0 } else { 3.0 }, 3.0)).into();
+        ui.node("knob".into(), Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
+    });
+    hairline(ui, &c.row);
+}
+// The switch: an ink track when on, the line colour when off, a paper knob.
+const TRACK_ON: Look = Look { fill: Rgba::token(INK), ..Look::NONE };
+const TRACK: Look = Look { fill: Rgba::token(LINE), ..Look::NONE };
+const KNOB: Look = Look { fill: Rgba::token(PAPER), ..Look::NONE };
+/// A settings switch row: the whole row flips it.
+const SWITCH: pxui::Toggle<'static> = pxui::Toggle::DEFAULT.row_h(60.0).press_row(true);
 fn option(
     ui: &mut Ui,
     labels: (&'static str, &str),
@@ -266,12 +154,14 @@ fn option(
                 0
             },
     );
-    context(ui, &button, menu, intent);
     let signal = ui.signal(&button);
+    context(ui, signal.pressed && signal.button == Some(1), &button, menu, intent);
     if signal.clicked && signal.button != Some(1) {
         *intent = Some(Intent::Setting(change));
     }
 }
+/// A settings row: a press focuses it, as Swift's rows take the focus.
+const SETTING: pxui::Pressable<'static> = PLAIN.focus_on_click(true);
 pub(super) fn view(
     ui: &mut Ui,
     player: &PlayerView<'_>,
@@ -325,25 +215,49 @@ pub(super) fn view(
             return;
         }
         let settings = player.settings;
-        row(ui, "download-ahead", ("Download ahead", "Fetch the next two cloud songs in the queue"), width, (Some((settings.download_ahead, Change::ToggleDownloadAhead)), None, false), intent, &mut |_, _| {});
+        let ahead = SWITCH.detail("Fetch the next two cloud songs in the queue");
+        if ui.toggle_with("download-ahead", "Download ahead", settings.download_ahead, &ahead).changed {
+            *intent = Some(Intent::Setting(Change::ToggleDownloadAhead));
+        }
         // Swift shows this on phones only: desktop folder tables always list every file type.
         let compact = width < compact::BREAKPOINT;
         if compact {
-            row(ui, "show-non-audio", ("Show non-audio files", "Covers, logs and text in folders"), width, (Some((settings.show_non_audio, Change::ToggleShowNonAudio)), None, false), intent, &mut |_, _| {});
+            let files = SWITCH.detail("Covers, logs and text in folders");
+            if ui.toggle_with("show-non-audio", "Show non-audio files", settings.show_non_audio, &files).changed {
+                *intent = Some(Intent::Setting(Change::ToggleShowNonAudio));
+            }
         }
-        row(ui, "no-network", ("Simulate no network", "Prototype only — shows skipped songs and failed downloads"), width, (Some((settings.simulate_no_network, Change::ToggleNoNetwork)), None, false), intent, &mut |_, _| {});
+        let offline = SWITCH.detail("Prototype only — shows skipped songs and failed downloads");
+        if ui.toggle_with("no-network", "Simulate no network", settings.simulate_no_network, &offline).changed {
+            *intent = Some(Intent::Setting(Change::ToggleNoNetwork));
+        }
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
-        row(ui, "cache", ("Offline space", cache_detail), width, (None, Some(SettingsMenu::Cache), false), intent, &mut |ui, intent| {
-            ui.row("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) }, |ui| { for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
-                option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
-            }});
+        let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {
+            labels(ui, "Offline space", cache_detail);
+            let strip = Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) };
+            ui.row("segments", strip, |ui| {
+                for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
+                    option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
+                }
+            });
         });
-        row(ui, "appearance", ("Appearance", ""), width, (None, Some(SettingsMenu::Appearance), false), intent, &mut |ui, intent| {
-            ui.row("segments", Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) }, |ui| { for (value, label, name) in [(Appearance::System, "System", "Use system appearance"), (Appearance::Light, "Light", "Use light appearance"), (Appearance::Dark, "Dark", "Use dark appearance")] {
-                option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
-            }});
+        setting_row(ui, &cache, "Offline space", SettingsMenu::Cache, intent);
+        let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {
+            labels(ui, "Appearance", "");
+            let strip = Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) };
+            ui.row("segments", strip, |ui| {
+                for (value, label, name) in [
+                    (Appearance::System, "System", "Use system appearance"),
+                    (Appearance::Light, "Light", "Use light appearance"),
+                    (Appearance::Dark, "Dark", "Use dark appearance"),
+                ] {
+                    option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
+                }
+            });
         });
-        row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), width, (None, None, true), intent, &mut |ui, _| {
+        setting_row(ui, &appearance, "Appearance", SettingsMenu::Appearance, intent);
+        let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {
+            labels(ui, "Rescan all sources", "Usually not needed — folders are watched");
             let glyph = ui.node("chevron".into(), Node::column().w_px(18.0).h_px(18.0));
             let color = ui.color(INK);
             ui.draw(&glyph, move |paint, rect| {
@@ -354,6 +268,11 @@ pub(super) fn view(
                 }
             });
         });
+        ui.a11y_name(&rescan.handle, "Rescan all sources");
+        hairline(ui, &rescan.handle);
+        if rescan.clicked {
+            *intent = Some(Intent::Files(crate::files::Request::Roots));
+        }
         ui.column("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
             if back(ui, "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }

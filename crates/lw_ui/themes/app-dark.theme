@@ -1,2 +1,3 @@
 context_menu.body = localwave-menu
 popup.idle.border = #262626
+toggle.body = localwave-toggle

@@ -123,8 +123,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
 | DX4.4 | Icon buttons to icon_button | done | 27c3e69 |
-| DX4.5 | Menus to menu | done | HEAD |
-| DX4.6 | Settings switch and chips to toggle_with/segmented_with | todo |  |
+| DX4.5 | Menus to menu | done | cede8a0 |
+| DX4.6 | Settings switch and chips to toggle_with/segmented_with | done | HEAD |
 | DX4.7 | Confirmation sheets to dialog_with; field variant | todo |  |
 | DX4.7a | Field body picks the Find structure by variant (part of DX4.7) | done | 3181aa4 |
 | DX4.8 | Codemod A: Node literals to builders | done | 4091362 |
