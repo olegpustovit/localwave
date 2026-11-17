@@ -145,6 +145,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | f2a2e68 + pxui 84752ba |
 | OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | f2a2e68 + pxui 93c7d20 |
 | OS-B2b | Text, image and renderer bounded for untrusted callers: text length caps, font caps, layout byte budget, renderer records size-checked, resize capped, per-Ui image table | done | f2a2e68 + pxui 5d11b7e |
+| OS-B2a | Every C export validated for untrusted callers (fuzz over the manifest), per-role caps, builders outside a frame refused, wrapper clips display text | done | HEAD + pxui c03699f |
 | OS-LW1 | LocalWave clips user metadata for display once (1024 B) where snapshots are built; stored data unchanged | done | HEAD |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
