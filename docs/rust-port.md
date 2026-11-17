@@ -122,7 +122,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
-| DX4.12 | LocalWave review cleanups: id keys, named styles, theme bound once, press state in button contents | done | HEAD |
+| DX4.12 | LocalWave review cleanups: id keys, named styles, theme bound once, press state in button contents | done | 0172279 |
 | DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | 73512bf |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
@@ -165,7 +165,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | b399fd6 + pxui 61e0cf6 |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
-| DX7.5 | Frozen identity hash; parent-scoped integer keys | todo |  |
+| DX7.5 | Frozen identity hash; parent-scoped integer keys | done | HEAD + pxui 6d85f9c |
 | DX7.6 | Reserved surface id | todo |  |
 | DX7.7 | Record changes before freeze | todo |  |
 | DX7.8 | Rays vocabulary to extension manifest | todo |  |
