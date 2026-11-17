@@ -4,9 +4,6 @@ use crate::browse::Query;
 use crate::catalog::Catalog;
 use crate::{Intent, ListDialog};
 
-/// The delete list sheet: what does not change between frames.
-const DELETE_LIST: Overlay = Overlay::DEFAULT.name("Delete list?");
-
 /// The playlist name input of the list dialog: Done ends editing.
 const LIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
     .action(pxui::ReturnKey::Done)
@@ -61,49 +58,15 @@ pub(super) fn confirm_delete(
     let (width, _) = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = playlist_title(catalog, list);
-    let open = ui.modal("confirm-delete-list", &DELETE_LIST.w(width), |ui| {
-        ui.column(
-            "delete-list-body",
-            Node {
-                look: Look {
-                    fill: ui.color(PAPER),
-                    ..Look::NONE
-                },
-                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
-            },
-            |ui| {
-                ui.label("Delete list?", TEXT_24.grow().h_px(36.0).color(INK));
-                settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
-                settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
-                let buttons = container(
-                    ui,
-                    "delete-list-actions",
-                    Axis::Row,
-                    Size::Grow,
-                    Size::Px(40.0),
-                    ui.color(PAPER),
-                );
-                ui.within(&buttons, &mut |ui| {
-                    if files::action(ui, "cancel-delete-list", "Cancel", 100.0, true, (PANEL, INK)) {
-                        *intent = Some(Intent::CloseDeleteList);
-                    }
-                    if files::action(
-                        ui,
-                        "delete-list-confirm",
-                        "Delete List",
-                        100.0,
-                        title.is_some(),
-                        (PANEL, DANGER),
-                    ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code(), None))
-                    {
-                        *intent = Some(Intent::DeleteList(list));
-                    }
-                });
-            },
-        );
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete List").danger().default().enabled(title.is_some())];
+    let sheet = ui.dialog("delete-list", "Delete list?", &buttons, &Dialog::DEFAULT.width(width), &mut |ui| {
+        settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
+        settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
     });
-    if !open && intent.is_none() {
-        *intent = Some(Intent::CloseDeleteList);
+    match sheet.chosen {
+        Some(1) => *intent = Some(Intent::DeleteList(list)),
+        Some(_) => *intent = Some(Intent::CloseDeleteList),
+        None => {}
     }
 }
 

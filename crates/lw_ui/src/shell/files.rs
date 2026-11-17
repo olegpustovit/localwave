@@ -5,9 +5,6 @@ use crate::files::{Folder, Location, Request, Target};
 /// The add music sheet: what does not change between frames.
 const ADD_MUSIC: Overlay = Overlay::DEFAULT.name("Add music");
 
-/// The remove folder sheet: what does not change between frames.
-const REMOVE_FOLDER: Overlay = Overlay::DEFAULT.name("Remove folder?");
-
 fn options(ui: &mut Ui, target: Target, intent: &mut Option<Intent>) {
     let button = button(ui, "source-options", "Folder options", 118.0, true, (PANEL, INK));
     if ui.signal(&button).clicked {
@@ -74,50 +71,18 @@ pub(super) fn confirm_remove(
         })
     });
     let enabled = folder.is_some() && player.files.is_some_and(|files| !files.busy);
-    let open = ui.modal("confirm-remove-folder", &REMOVE_FOLDER.w(width), |ui| {
-        ui.column(
-            "remove-source-body",
-            Node {
-                look: Look {
-                    fill: ui.color(PAPER),
-                    ..Look::NONE
-                },
-                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
-            },
-            |ui| {
-                ui.label("Remove folder?", TEXT_24.grow().h_px(36.0).color(INK));
-                settings::paragraph(ui, "folder-name", folder.map_or("This folder changed. Reload folders and try again.", |folder| folder.name.as_str()), width - 40.0, 15.0, ui.color(INK));
-                settings::paragraph(ui, "consequences", "Its songs leave the library. Files are not deleted.", width - 40.0, 14.0, ui.color(SECONDARY));
-                let buttons = container(
-                    ui,
-                    "remove-source-actions",
-                    Axis::Row,
-                    Size::Grow,
-                    Size::Px(40.0),
-                    ui.color(PAPER),
-                );
-                ui.within(&buttons, &mut |ui| {
-                    if action(ui, "cancel-remove", "Cancel", 100.0, true, (PANEL, INK)) {
-                        *intent = Some(Intent::CloseRemoveSource);
-                    }
-                    // Swift's default action: Return confirms.
-                    if action(
-                        ui,
-                        "remove-confirm",
-                        "Remove",
-                        100.0,
-                        enabled,
-                        (PANEL, DANGER),
-                    ) || (enabled && ui.key_pressed(input::Key::Enter.code(), None))
-                    {
-                        *intent = Some(Intent::Files(Request::Remove(target)));
-                    }
-                });
-            },
-        );
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().default().enabled(enabled)];
+    let sheet = ui.dialog("remove-source", "Remove folder?", &buttons, &Dialog::DEFAULT.width(width), &mut |ui| {
+        let name = folder.map_or("This folder changed. Reload folders and try again.", |folder| folder.name.as_str());
+        settings::paragraph(ui, "folder-name", name, width - 40.0, 15.0, ui.color(INK));
+        let consequences = "Its songs leave the library. Files are not deleted.";
+        settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
     });
-    if !open && intent.is_none() {
-        *intent = Some(Intent::CloseRemoveSource);
+    // Swift's default action: Return confirms.
+    match sheet.chosen {
+        Some(1) => *intent = Some(Intent::Files(Request::Remove(target))),
+        Some(_) => *intent = Some(Intent::CloseRemoveSource),
+        None => {}
     }
 }
 
@@ -134,24 +99,48 @@ fn button(ui: &mut Ui, key: &'static str, label: &str, width: f32, enabled: bool
     sized_button(ui, key, label, width, height, enabled, tone)
 }
 fn sized_button(ui: &mut Ui, key: &'static str, label: &str, width: f32, height: f32, enabled: bool, (fill, ink): (ColorToken, ColorToken)) -> Handle {
-    let button = ui.node(
-        key.into(),
-        Node {
-            look: Look { fill: ui.color(fill), ..Look::NONE },
-            ..Node::row()
-                .w_px(width)
-                .h_px(height)
-                .center()
-                .role(Role::Button)
-                .flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
-        },
-    );
-    ui.a11y_name(&button, label);
-    ui.set_role(&button, Role::Button, if enabled { pxui::a11y::state::ENABLED } else { 0 });
-    ui.within(&button, &mut |ui| {
+    let button = ui.node(key.into(), button_node(width, height, enabled, fill));
+    button_face(ui, &button, label, enabled, ink);
+    button
+}
+/// A `width` by `height` button box on `fill`, its label centred; pressable while `enabled`.
+fn button_node(width: f32, height: f32, enabled: bool, fill: ColorToken) -> Node {
+    Node {
+        look: Look { fill: Rgba::token(fill), ..Look::NONE },
+        ..Node::row()
+            .w_px(width)
+            .h_px(height)
+            .center()
+            .role(Role::Button)
+            .flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
+    }
+}
+/// A button box's name, role and 13-point label in `ink` (ink-2 while disabled).
+fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: ColorToken) {
+    ui.a11y_name(button, label);
+    ui.set_role(button, Role::Button, if enabled { pxui::a11y::state::ENABLED } else { 0 });
+    ui.within(button, &mut |ui| {
         ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
     });
-    button
+}
+/// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
+/// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row.
+pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::PxuiDialogConfig) {
+    const SHEET: Node =
+        Node { look: Look { fill: Rgba::token(PAPER), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0) };
+    ui.column("sheet", SHEET, |ui| {
+        ui.label(pxui::bodies::text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
+        ui.slot(c.content);
+        let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), Rgba::token(PAPER));
+        ui.within(&actions, &mut |ui| {
+            let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 36.0 };
+            for i in 0..c.buttons.len {
+                let (enabled, ink) = (c.disabled >> i & 1 == 0, if c.danger >> i & 1 != 0 { DANGER } else { INK });
+                let button = ui.part(pxui::Part::button(i as u8), button_node(100.0, height, enabled, PANEL));
+                button_face(ui, &button, pxui::bodies::text_at(&c.buttons, i), enabled, ink);
+            }
+        });
+    });
 }
 pub(super) fn action(
     ui: &mut Ui,

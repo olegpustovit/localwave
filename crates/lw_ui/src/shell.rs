@@ -1108,6 +1108,7 @@ mod kit;
 pub use kit::set_colors;
 pub(crate) use kit::menu_row_body;
 pub(crate) use settings::toggle_body;
+pub(crate) use files::sheet_body;
 #[cfg(test)]
 pub(crate) use kit::TIGHT_3;
 use kit::*;

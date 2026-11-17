@@ -3,9 +3,6 @@ use super::*;
 use crate::catalog::Catalog;
 use crate::{Intent, MetadataEdit};
 
-/// The delete song sheet: what does not change between frames.
-const DELETE_SONG: Overlay = Overlay::DEFAULT.name("Delete song?");
-
 /// The edit metadata sheet: what does not change between frames.
 const EDIT_METADATA: Overlay = Overlay::DEFAULT.name("Edit Metadata");
 
@@ -95,47 +92,15 @@ pub(super) fn confirm_delete(
     let title = catalog
         .row_index(song)
         .map(|index| catalog.row(index).title);
-    let open = ui.modal("confirm-delete-song", &DELETE_SONG.w(width), |ui| {
-        ui.column(
-            "delete-song-body",
-            Node {
-                look: Look {
-                    fill: ui.color(PAPER),
-                    ..Look::NONE
-                },
-                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
-            },
-            |ui| {
-                ui.label("Delete song?", TEXT_24.grow().h_px(36.0).color(INK));
-                settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
-                settings::paragraph(ui, "consequences", "It leaves your library and lists. The audio file is not deleted.", width - 40.0, 14.0, ui.color(SECONDARY));
-                let buttons = container(
-                    ui,
-                    "delete-song-actions",
-                    Axis::Row,
-                    Size::Grow,
-                    Size::Px(40.0),
-                    ui.color(PAPER),
-                );
-                ui.within(&buttons, &mut |ui| {
-                    if files::action(ui, "cancel-delete-song", "Cancel", 100.0, true, (PANEL, INK)) {
-                        *intent = Some(Intent::CloseDeleteSong);
-                    }
-                    if files::action(
-                        ui,
-                        "delete-song-confirm",
-                        "Delete Song",
-                        100.0,
-                        title.is_some(),
-                        (PANEL, DANGER),
-                    ) {
-                        *intent = Some(Intent::DeleteSong(song));
-                    }
-                });
-            },
-        );
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete Song").danger().enabled(title.is_some())];
+    let sheet = ui.dialog("delete-song", "Delete song?", &buttons, &Dialog::DEFAULT.width(width), &mut |ui| {
+        settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
+        let consequences = "It leaves your library and lists. The audio file is not deleted.";
+        settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
     });
-    if !open && intent.is_none() {
-        *intent = Some(Intent::CloseDeleteSong);
+    match sheet.chosen {
+        Some(1) => *intent = Some(Intent::DeleteSong(song)),
+        Some(_) => *intent = Some(Intent::CloseDeleteSong),
+        None => {}
     }
 }
