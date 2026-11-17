@@ -56,36 +56,16 @@ pub(super) fn toolbar(
             }
         }
         ui.box_("flex", BoxOpts::default().w(Size::Grow));
-        let button = ui.node(
-            "shuffle-all".into(),
-            Node {
-                state: State {
-                    disabled: catalog.is_empty(),
-                    ..State::default()
-                },
-                ..Node::row()
-                    .w(Size::Fit)
-                    .h_px(30.0)
-                    .gap(6.0)
-                    .pad_x(10.0)
-                    .align(Align::Center)
-                    .role(Role::Button)
-                    .flags(if catalog.is_empty() {
-                        Flags::NONE
-                    } else {
-                        Flags::CLICKABLE | Flags::TAB_STOP
-                    })
-            },
-        );
-        ui.a11y_name(&button, "Shuffle all");
-        ui.within(&button, &mut |ui| {
+        let node = Node::row().w(Size::Fit).h_px(30.0).gap(6.0).pad_x(10.0).align(Align::Center).role(Role::Button);
+        let button = ui.pressable("shuffle-all", node, &PLAIN.enabled(!catalog.is_empty()), |ui, _| {
             let icon = ui.node("icon".into(), Node::column().w_px(16.0).h_px(16.0));
             ui.draw(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
             ui.label("Shuffle all", CAPTION);
         });
-        if ui.signal(&button).clicked {
+        ui.a11y_name(&button.handle, "Shuffle all");
+        if button.clicked {
             *intent = Some(Intent::ShuffleAll);
         }
     });
