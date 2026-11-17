@@ -312,9 +312,9 @@ impl Perf {
             );
             return Ok(());
         }
-        if (*draws) != WARMUP_FRAMES + MEASURED_FRAMES
+        if (*draws) != from + MEASURED_FRAMES
             || (*warm_allocations) != 0
-            || (workload == Some(Workload::Clock120) && self.warm_layouts != 0)
+            || (matches!(workload, Some(Workload::Clock120 | Workload::Idle600)) && self.warm_layouts != 0)
             || cpu_samples[98] >= BUILD_CPU_LIMIT_US
             || frame_cpu_samples[98] >= FRAME_CPU_LIMIT_US
             || work_samples[98] >= WORK_WALL_LIMIT_US
@@ -388,16 +388,19 @@ mod tests {
         assert!(perf.report(false, counts, 0).is_err());
     }
     #[test]
-    fn clock_120_is_gated_on_allocations_and_text_layouts() {
-        let mut perf = Perf::new(Workload::Clock120, None);
-        perf.warmup = Some(super::super::Warmup::default());
-        let counts = (WARMUP_FRAMES + MEASURED_FRAMES, WARMUP_FRAMES + MEASURED_FRAMES);
-        assert!(perf.report(false, counts, 0).is_ok());
-        perf.warm_allocations = 1;
-        assert!(perf.report(false, counts, 0).is_err());
-        perf.warm_allocations = 0;
-        perf.warm_layouts = 1;
-        assert!(perf.report(false, counts, 0).is_err());
+    fn clock_120_and_idle_600_are_gated_on_allocations_and_text_layouts() {
+        for workload in [Workload::Clock120, Workload::Idle600] {
+            let mut perf = Perf::new(workload, None);
+            perf.warmup = Some(super::super::Warmup::default());
+            let frames = perf.measured_from() + MEASURED_FRAMES;
+            let counts = (frames, frames);
+            assert!(perf.report(false, counts, 0).is_ok(), "{workload:?}");
+            perf.warm_allocations = 1;
+            assert!(perf.report(false, counts, 0).is_err(), "{workload:?}");
+            perf.warm_allocations = 0;
+            perf.warm_layouts = 1;
+            assert!(perf.report(false, counts, 0).is_err(), "{workload:?}");
+        }
     }
     #[test]
     fn measured_workloads_report_but_never_fail_even_over_every_budget() {

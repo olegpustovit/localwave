@@ -1,5 +1,5 @@
 //! Measured-only workloads: they report warm Rust allocations and timing columns like gated rows
-//! but never fail the run. Drivers are pure functions of the frame number: no allocation, no clocks.
+//! but never fail the run. The gated idle-600 return shares this input driver. Drivers are pure functions of the frame number: no allocation, no clocks.
 use super::Workload;
 use input::{Event, ScrollPhase};
 

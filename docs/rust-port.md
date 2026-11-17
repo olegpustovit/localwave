@@ -70,12 +70,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.5 | Gate: author-shim rule | done | bde0f9b + pxui 2e6a4ec |
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | done | 9be4f52 |
-| DX0.7a | Stale view `compact-library`: revision misses an input (found by DX0.7) | done | HEAD |
+| DX0.7a | Stale view `compact-library`: revision misses an input (found by DX0.7) | done | 736f07c |
 | DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | blocked | DX0.7g: the hover fade is a transition started inside the kept body; dropping it was rejected |
-| DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | done | HEAD |
-| DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | HEAD |
+| DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | done | 5e77922 |
+| DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | 4fb54b0 |
 | DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | blocked | DX0.7g: heart draw segments of a nested view differ only with a11y on |
-| DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | done | HEAD |
+| DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | done | 0754b76 |
 | DX0.7g | pxui verify_views: replay transitions started in a body and nested-view draw segments under a11y (blocks DX0.7b/e) | todo |  |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
@@ -91,7 +91,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
-| DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | HEAD + pxui 769f444 |
+| DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
 | DX2.3 | Borrowed inputs; gate rejects owned parameters | done | efe51b9 + pxui 550a4c9 |
 | DX2.4 | _into forms for quads and rasterize_rgba | done | 1a95982 + pxui 932e9c5 |
 | DX2.5 | Typed errors | done | b63c59e + pxui 850be9d |
@@ -101,8 +101,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.3 | Engine text element behind label | done | ca088b0 + pxui 065dc5e |
 | DX3.4 | button_with and Response | done | 24be9be + pxui 9c84707 |
 | DX3.5 | icon_button | done | c2bf971 + pxui 7891b2a |
-| DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | HEAD + pxui b999ffd |
-| DX3.6 | menu with MenuItem | done | HEAD + pxui 759c84a |
+| DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | 712627d + pxui b999ffd |
+| DX3.6 | menu with MenuItem | done | ab60a7b + pxui 759c84a |
 | DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
 | DX3.8 | dialog_with | todo |  |
 | DX3.9 | Per-call widget body variants | todo |  |
@@ -119,7 +119,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
-| DX5.3 | Viewport-distance eviction for list entries | doing | pxui f0651c3: idle-600 return 93 -> 74; remaining cause under investigation |
+| DX5.3 | Viewport-distance eviction for list entries | done | HEAD + pxui 5340fe9 |
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
 | DX5.5 | Reusable layout storage for fresh shapes | todo |  |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
@@ -150,9 +150,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
-| DX7.1a | pxui.h compiles as C11/C++17 and abi-header compiles it | done | HEAD + pxui 6326d8c |
+| DX7.1a | pxui.h compiles as C11/C++17 and abi-header compiles it | done | 58e0eb8 + pxui 6326d8c |
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
-| DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | HEAD + pxui 61e0cf6 |
+| DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | b399fd6 + pxui 61e0cf6 |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | todo |  |
@@ -166,7 +166,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-`make performance` with DX5.3 (list text evicted by viewport distance; pxui f0651c3) (exit 0), lanes paused: nineteen gated signed workloads pass with zero warm Rust allocations and no measured text layouts. Measured: idle-600 return 93 -> 74 allocations (list text no longer age-evicted; the rest has another cause), first navigation 1,244, first menu open 151; the other eight measured workloads 0. Source: `/tmp/localwave-dx53-performance.log`. Settled idle smoke passes (508.4 ms).
+`make performance` with DX5.3 (kept views own their drawn text; pxui 5340fe9) (exit 0), lanes paused: twenty gated signed workloads pass with zero warm Rust allocations and no measured text layouts, idle-600 return now gated (74 -> 0). Measured: first navigation 1,244, first menu open 151 (DX5.6); the other eight measured workloads 0. Source: `/tmp/localwave-dx53b-performance.log`. Settled idle smoke passes (500.8 ms).
 
 Gate (owner decision for this M1 Mac mini, 2026-11-15): build CPU p99 < 1,500 µs, frame CPU p99
 < 2,500 µs, frame work wall p99 < 8,000 µs (half a 60 Hz vsync), zero warm allocations. Work wall is
@@ -183,36 +183,36 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 
 | Workload | Build CPU | Build wall | Frame CPU | Work wall | Alloc max | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 263/816/856 | 262/790/1024/- | 511/1249/1304 | 439/1516/4057/6594 | 0 | pass |
-| find-filters-title-descending | 594/863/911 | 665/2564/2980/- | 1024/1330/1397 | 1046/3300/4467/5095 | 0 | pass |
-| queue-occurrences | 723/857/931 | 774/2174/2466/- | 1186/1364/1391 | 1250/3599/5257/13306 | 0 | pass |
-| queue-carry-scroll-cancel | 703/1171/1222 | 787/2356/2776/- | 1171/1783/1810 | 1391/3240/4741/5247 | 0 | pass |
-| full-queue-playlist-editor | 440/542/544 | 474/1440/1785/- | 872/1115/1143 | 864/2602/3426/5240 | 0 | pass |
-| albums-artwork | 268/410/451 | 267/374/462/- | 592/768/816 | 510/631/729/990 | 0 | pass |
-| waveform-scrub-and-scroll | 219/333/376 | 218/313/333/- | 509/668/672 | 414/535/609/677 | 0 | pass |
-| settings-menus-appearance | 232/373/390 | 232/350/389/- | 495/681/738 | 411/568/593/730 | 0 | pass |
-| files-indexed-directory | 321/519/585 | 321/362/819/- | 607/874/893 | 518/587/1030/1067 | 0 | pass |
-| external-drop-hover-and-cancel | 152/357/376 | 151/316/364/- | 426/770/814 | 347/619/900/1008 | 0 | pass |
-| artists-measured-columns | 640/867/947 | 704/1462/2080/- | 1138/1447/1515 | 1137/2887/4207/4581 | 0 | pass |
-| songs-playing-indicator | 745/980/1019 | 873/2014/3091/- | 1178/1505/1586 | 1283/2918/4050/4335 | 0 | pass |
-| songs-long-scroll | 364/593/606 | 364/641/1436/- | 665/953/959 | 575/933/1675/2627 | 0 | pass |
-| album-detail-scoped-scroll | 538/707/749 | 599/1965/2383/- | 1019/1353/1375 | 1116/2838/3280/3814 | 0 | pass |
-| artist-detail-scoped-scroll | 517/837/860 | 568/1461/2144/- | 975/1393/1396 | 1004/2692/3451/3594 | 0 | pass |
-| list-dialogs-menu-and-name | 215/380/401 | 224/361/383/- | 516/683/692 | 431/572/604/605 | 0 | pass |
-| metadata-editor-typing | 337/958/960 | 337/402/1441/- | 591/1271/1378 | 525/600/1672/1827 | 0 | pass |
-| song-drag-carry-hover-cancel | 369/547/606 | 370/507/973/- | 679/862/946 | 586/749/1185/1327 | 0 | pass |
-| measured-fling | 239/609/638 | 239/1465/2389/- | 492/1127/1131 | 420/2253/2727/2931 | 0 | measured |
-| measured-reverse-scroll | 287/354/356 | 287/341/358/- | 541/627/630 | 468/541/544/678 | 0 | measured |
-| measured-scroll-jump | 166/493/510 | 165/457/493/- | 410/743/756 | 342/646/669/686 | 0 | measured |
-| measured-non-song-lists | 203/522/528 | 204/391/522/- | 506/819/870 | 408/644/720/1595 | 0 | measured |
-| measured-search-typing | 215/239/272 | 215/237/253/- | 504/567/573 | 411/448/463/476 | 0 | measured |
-| measured-first-navigation | 190/1099/1129 | 190/612/1098/- | 470/1410/1423 | 391/818/1332/1341 | 1244 | measured |
-| measured-text-typing | 374/874/924 | 375/949/1508/- | 683/1272/1308 | 599/1305/1944/2538 | 0 | measured |
-| measured-first-menu-open | 160/336/855 | 160/199/336/- | 441/636/1212 | 350/412/545/1111 | 151 | measured |
-| measured-resize | 447/492/499 | 448/492/532/- | 718/840/853 | 643/713/769/993 | 0 | measured |
-| measured-theme-switch | 480/589/595 | 479/572/589/- | 726/850/882 | 660/765/769/803 | 0 | measured |
-| measured-idle-600-return | 271/353/422 | 272/340/353/- | 529/638/681 | 459/530/614/790 | 74 | measured |
-| clock-120 | 137/164/255 | 137/160/166/- | 365/428/541 | 300/344/376/1121 | 0 | pass |
+| songs-original | 698/977/1023 | 781/1890/3885/- | 1129/1544/1579 | 1213/2784/4243/5408 | 0 | pass |
+| find-filters-title-descending | 652/878/928 | 698/1144/1540/- | 1093/1355/1437 | 1022/1653/2402/2504 | 0 | pass |
+| queue-occurrences | 749/948/979 | 829/2366/3077/- | 1249/1559/1637 | 1287/3331/3904/3984 | 0 | pass |
+| queue-carry-scroll-cancel | 670/1043/1090 | 676/1250/2070/- | 1094/1710/1726 | 1032/2462/3269/3597 | 0 | pass |
+| full-queue-playlist-editor | 434/537/541 | 451/1171/1594/- | 862/1045/1086 | 797/2191/2430/3910 | 0 | pass |
+| albums-artwork | 666/1015/1034 | 720/1961/3085/- | 1293/1721/1787 | 1424/3962/4551/4919 | 0 | pass |
+| waveform-scrub-and-scroll | 516/941/1030 | 586/1788/2677/- | 939/1506/1632 | 947/2922/3427/4932 | 0 | pass |
+| settings-menus-appearance | 562/896/938 | 608/1548/2508/- | 982/1397/1404 | 1018/2913/3793/4574 | 0 | pass |
+| files-indexed-directory | 873/1079/1106 | 994/2533/3196/- | 1317/1629/1707 | 1404/3114/3584/5476 | 0 | pass |
+| external-drop-hover-and-cancel | 349/471/472 | 366/723/1226/- | 856/1139/1142 | 792/1524/3006/3375 | 0 | pass |
+| artists-measured-columns | 695/911/1007 | 818/2419/3049/- | 1111/1354/1396 | 1228/3470/3865/4126 | 0 | pass |
+| songs-playing-indicator | 787/1012/1039 | 902/2130/2968/- | 1239/1512/1548 | 1321/2743/3819/3836 | 0 | pass |
+| songs-long-scroll | 833/1102/1145 | 908/2160/2624/- | 1271/1500/1546 | 1308/2877/4233/4757 | 0 | pass |
+| album-detail-scoped-scroll | 533/671/846 | 556/1498/1613/- | 1010/1215/1373 | 1036/2161/3568/4080 | 0 | pass |
+| artist-detail-scoped-scroll | 471/835/879 | 518/1506/2379/- | 924/1364/1368 | 994/2382/2814/3638 | 0 | pass |
+| list-dialogs-menu-and-name | 506/1153/1309 | 626/2106/2658/- | 995/1678/1884 | 1203/2679/4070/6957 | 0 | pass |
+| metadata-editor-typing | 923/1289/1317 | 1023/2349/2806/- | 1394/1895/1948 | 1558/3024/4072/4127 | 0 | pass |
+| song-drag-carry-hover-cancel | 872/1125/1133 | 960/1953/2896/- | 1344/1665/1710 | 1415/2998/3314/3412 | 0 | pass |
+| measured-fling | 580/826/910 | 615/1728/2087/- | 1024/1334/1530 | 1037/2535/2921/3328 | 0 | measured |
+| measured-reverse-scroll | 809/1078/1087 | 900/2156/2775/- | 1297/1596/1609 | 1289/3179/4058/4135 | 0 | measured |
+| measured-scroll-jump | 378/1391/1441 | 426/1452/1620/- | 845/1786/1859 | 836/2481/3278/3278 | 0 | measured |
+| measured-non-song-lists | 466/1410/1449 | 746/2049/3103/- | 942/1851/1944 | 1262/2915/3751/6600 | 0 | measured |
+| measured-search-typing | 519/656/658 | 560/1600/1879/- | 990/1270/1311 | 1014/2719/3593/3912 | 0 | measured |
+| measured-first-navigation | 453/3233/3262 | 518/2202/3297/- | 963/3836/3982 | 970/2830/3866/4371 | 1244 | measured |
+| measured-text-typing | 895/1111/1128 | 1003/2469/3512/- | 1347/1560/1580 | 1565/3378/4227/4273 | 0 | measured |
+| measured-first-menu-open | 358/809/2261 | 363/1423/2108/- | 813/1215/2844 | 797/2443/3032/3327 | 151 | measured |
+| measured-resize | 1240/1626/1653 | 1396/2419/3334/- | 1715/2158/2186 | 1921/3871/4882/5101 | 0 | measured |
+| measured-theme-switch | 1270/1637/1683 | 1430/2563/3205/- | 1761/2281/2358 | 1835/3416/4646/6503 | 0 | measured |
+| idle-600-return | 705/944/1014 | 782/2031/3736/- | 1162/1468/1481 | 1163/3217/4653/6084 | 0 | pass |
+| clock-120 | 320/410/420 | 334/473/908/- | 760/1109/1113 | 700/1033/1499/1623 | 0 | pass |
 
 ### CPU profile
 
