@@ -192,7 +192,7 @@ mod tests {
             "content",
             part,
         ] {
-            key = Ui::key_of(key, label);
+            key = pxui::ui::key_of(key, label);
         }
         ui.box_of_key(key).unwrap()
     }

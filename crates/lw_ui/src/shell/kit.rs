@@ -562,10 +562,10 @@ pub(super) mod button_tests {
         for time in [0.0, 0.1] {
             ui.frame(&input(time, &[]), &mut build).unwrap();
         }
-        let key = Ui::key_of(ROOT_KEY, "test-button");
+        let key = pxui::ui::key_of(ROOT_KEY, "test-button");
         let button = ui.box_of_key(key).unwrap();
         let surface = ui
-            .box_of_key(Ui::key_of(Ui::key_of(key, "visual"), "surface"))
+            .box_of_key(pxui::ui::key_of(pxui::ui::key_of(key, "visual"), "surface"))
             .unwrap();
         let original = ui.rect(&button);
         let pointer = |kind| Event {

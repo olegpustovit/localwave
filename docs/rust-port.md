@@ -94,7 +94,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | c6cd355 + pxui cf953b3 |
 | DX1.12A | Audit batch A: Label is the one text-style input (TextStyle opaque, from resolve), enums for wrap/ellipsis/align, label exports resolve in-call | done | 1efcf4d + pxui 763df85 |
 | DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | done | 0cd725a + pxui b6958651 |
-| DX1.12G | Audit batch G: body vocabulary follows the public calls; sealed per-kind body config wrappers | done | HEAD + pxui 98ca495 |
+| DX1.12G | Audit batch G: body vocabulary follows the public calls; sealed per-kind body config wrappers | done | 7c9c670 + pxui 98ca495 |
+| DX1.12C | Audit batch C: geometry/colour/theme/layout/draw/a11y value types, one const shape each | done | HEAD + pxui 8d0e1f4 |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |

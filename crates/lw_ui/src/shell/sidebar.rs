@@ -40,7 +40,7 @@ fn side_item(
     let selected = !state.settings_visible && route.is_some_and(|route| state.route == route);
     let spec = Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center).role(Role::Button);
     let row = PLAIN.look(if selected { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS });
-    let key: Key = if id == 0 { key.into() } else { Key::Id(int_key(Ui::key_of(0, key), id)) };
+    let key: Key = if id == 0 { key.into() } else { Key::Id(int_key(pxui::ui::key_of(0, key), id)) };
     let node = ui.pressable(key, spec, &row, |ui, _| {
         ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h_px(20.0).color(if selected { INK } else { SECONDARY }));
         if !badge.is_empty() {

@@ -338,7 +338,7 @@ pub(super) fn table(
             Node::column().w(Size::Grow).h(Size::Grow),
         );
         ui.within(&results, &mut |ui| {
-            let list_key = Ui::key_of(results.box_key, "songs");
+            let list_key = pxui::ui::key_of(results.box_key, "songs");
             let mut viewport = Viewport {
                 leading: if find { 0.0 } else { leading },
                 heading: heading_layout.height,

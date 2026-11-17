@@ -462,7 +462,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     });
     ui.draw_over(&head, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
     // The parent participates in the identity, giving each destination its own scroll state.
-    let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
+    let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
     let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
     // Desktop lists every file greyed (Swift); the compact list honours Show non-audio files.
     let shown = directory.entries.len() - if compact && !directory.show_non_audio { directory.non_audio } else { 0 };
@@ -642,7 +642,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             }
         }
     });
-    let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
+    let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
     let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
     // Swift's "N non-audio files hidden · show" closes the list while the setting is off.
     let footer = !show_non_audio && directory.non_audio > 0;

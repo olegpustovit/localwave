@@ -128,7 +128,7 @@ pub(super) const SEARCH_ROW_LOOKS: States = lit(PANEL_FILL, SELECTED_FILL);
 /// A song table row: paper, a 60 percent panel wash while hovered or held. A token carries no alpha (pxui gap), so the wash is
 /// the resolved panel colour at alpha 153, read where the row is built.
 pub(super) fn song_row_looks(ui: &Ui) -> States {
-    lit(PAPER_FILL, Look::NONE.fill(Rgba { a: 153, ..ui.color(PANEL) }))
+    lit(PAPER_FILL, Look::NONE.fill(ui.color(PANEL).with_alpha(153)))
 }
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton {

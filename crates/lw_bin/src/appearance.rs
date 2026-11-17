@@ -102,7 +102,7 @@ mod tests {
                         &mut |_| {},
                     )
                     .unwrap();
-                    assert_eq!(pxui::theme::dark(&ui.tokens()), dark);
+                    assert_eq!(ui.tokens().is_dark(), dark);
                     assert!(ui.tokens().reduced_motion);
                     let expected = match signal {
                         Signal::Blue if dark => [0x6f, 0x7d, 0xff],

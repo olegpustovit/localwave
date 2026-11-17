@@ -868,10 +868,10 @@ impl Perf {
                     .ok_or("Song indicator identity retired during its frame")?;
                 let mut heights = [0u32; 3];
                 for (index, key) in ["bar-0", "bar-1", "bar-2"].into_iter().enumerate() {
-                    let position = pxui::Ui::key_of(root.box_key, key);
-                    let visual = pxui::Ui::key_of(position, "bar");
+                    let position = pxui::ui::key_of(root.box_key, key);
+                    let visual = pxui::ui::key_of(position, "bar");
                     let fill = ui
-                        .box_of_key(pxui::Ui::key_of(visual, "fill"))
+                        .box_of_key(pxui::ui::key_of(visual, "fill"))
                         .ok_or("Song indicator workload lost a retained bar")?;
                     // Retained scale lives in the view table; source instances stay full height.
                     let rect = ui.rect(&fill);

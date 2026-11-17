@@ -30,7 +30,7 @@ impl App {
                 player.catalog(),
                 key,
                 player.status().wants_playback,
-                pxui::theme::dark(&ui.tokens()),
+                ui.tokens().is_dark(),
             ) else {
                 return Ok(Some(Schedule::NextFrame));
             };

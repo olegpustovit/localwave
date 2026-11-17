@@ -9,3 +9,4 @@ tokens.radius.medium = 0
 tokens.radius.large = 0
 tokens.motion.fast = 0.14
 tokens.motion.normal = 0.24
+tokens.motion.slow = 0.24
