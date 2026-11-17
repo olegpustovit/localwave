@@ -76,6 +76,10 @@ pub(super) struct Looks {
     pub icon_inverse: States,
     /// A sidebar "+ label" row's text: secondary, 14 points.
     pub add_row: Look,
+    /// A sidebar route row: paper, the panel fill while hovered or held.
+    pub side_row: States,
+    /// The sidebar search row: the panel fill, the selected fill while hovered or held.
+    pub search_row: States,
 }
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::all(Look::NONE);
@@ -97,6 +101,11 @@ const fn icon(rest: Rgba, dark: bool) -> States {
     let lit = Look { fill: token(PANEL, dark), ..idle };
     States { hover: lit, pressed: lit, ..States::all(idle) }
 }
+/// `rest` while idle, `lit` while hovered or held.
+const fn lit(rest: ColorToken, lit: ColorToken, dark: bool) -> States {
+    let on = Look { fill: token(lit, dark), ..Look::NONE };
+    States { hover: on, pressed: on, ..fill(rest, dark) }
+}
 const fn resolve(dark: bool) -> Looks {
     let tab = text(INK, 14, dark);
     Looks {
@@ -109,6 +118,8 @@ const fn resolve(dark: bool) -> Looks {
         key: fill(KEY, dark),
         queue_action: text(SECONDARY, 12, dark),
         add_row: text(SECONDARY, 14, dark),
+        side_row: lit(PAPER, PANEL, dark),
+        search_row: lit(PANEL, SELECTED, dark),
         icon: icon(Look::NONE.fill, dark),
         icon_plate: icon(token(KEY, dark), dark),
         icon_inverse: States::all(Look { fill: token(INK, dark), text: token(PAPER, dark), ..Look::NONE }),

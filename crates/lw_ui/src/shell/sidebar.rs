@@ -38,36 +38,11 @@ fn side_item(
         Go::Source(_) => (None, None),
     };
     let selected = !state.settings_visible && route.is_some_and(|route| state.route == route);
-    let spec = Node::row()
-        .w(Size::Grow)
-        .h_px(32.0)
-        .pad_x(8.0)
-        .align(Align::Center)
-        .role(Role::Button)
-        .flags(Flags::CLICKABLE | Flags::TAB_STOP);
-    let node = if id == 0 {
-        ui.node(key.into(), spec)
-    } else {
-        ui.node(Key::Id(int_key(Ui::key_of(0, key), id)), spec)
-    };
-    let signal = ui.signal(&node);
-    let dropping = list.and_then(|_| super::songs::song_drop(ui, &node));
-    ui.set_look(
-        &node,
-        Look {
-            fill: if dropping.is_some() || selected {
-                ui.color(SELECTED)
-            } else if signal.hovered {
-                ui.color(PANEL)
-            } else {
-                ui.color(PAPER)
-            },
-            ..Look::NONE
-        },
-        State::default(),
-    );
-    ui.a11y_name(&node, title);
-    ui.within(&node, &mut |ui| {
+    let spec = Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center).role(Role::Button);
+    let theme = looks(ui);
+    let row = PLAIN.look(if selected { &theme.selected } else { &theme.side_row });
+    let key: Key = if id == 0 { key.into() } else { Key::Id(int_key(Ui::key_of(0, key), id)) };
+    let node = ui.pressable(key, spec, &row, |ui, _| {
         ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h_px(20.0).color(if selected { INK } else { SECONDARY }));
         if !badge.is_empty() {
             let tag = ui.label(badge, TEXT_11.h_px(16.0).color(PAPER));
@@ -76,19 +51,23 @@ fn side_item(
         }
         ui.label(count, MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY));
     });
+    ui.a11y_name(&node.handle, title);
+    let dropping = list.and_then(|_| super::songs::song_drop(ui, &node.handle));
+    if dropping.is_some() {
+        ui.set_look(&node.handle, theme.selected.idle, State::default());
+    }
     if let (Some(list), Some((true, song))) = (list, dropping) {
         *intent = Some(Intent::AddToList { song, list });
-    } else if signal.clicked {
+    } else if node.clicked {
         *intent = Some(match go {
             Go::Route(route, _) => Intent::Navigate(route),
             Go::Source(location) => Intent::Files(crate::files::Request::Browse(location)),
         });
     }
     if let Some(list) = list
-        && signal.pressed
-        && signal.button == Some(1)
+        && node.secondary
     {
-        *intent = Some(Intent::ListMenu(list, signal.pointer));
+        *intent = Some(Intent::ListMenu(list, ui.signal(&node.handle).pointer));
     }
 }
 
@@ -118,24 +97,13 @@ pub(super) fn sidebar(
 ) {
     ui.column("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0), |ui| {
         spacer(ui, "sidebar-top", 28.0);
-        let search = ui.node(
-            "search".into(),
-            Node::row()
-                .w(Size::Grow)
-                .h_px(34.0)
-                .pad_x(10.0)
-                .align(Align::Center)
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-        );
-        let signal = ui.signal(&search);
-        ui.set_look(&search, Look { fill: if signal.hovered { ui.color(SELECTED) } else { ui.color(PANEL) }, ..Look::NONE }, State::default());
-        ui.a11y_name(&search, "Search");
-        ui.within(&search, &mut |ui| {
+        let node = Node::row().w(Size::Grow).h_px(34.0).pad_x(10.0).align(Align::Center).role(Role::Button);
+        let search = ui.pressable("search", node, &PLAIN.look(&looks(ui).search_row), |ui, _| {
             ui.label("Search", TEXT_14.grow().h_px(20.0).color(SECONDARY));
             ui.label("⌘K", MONO_11.h_px(16.0).color(SECONDARY));
         });
-        if signal.clicked {
+        ui.a11y_name(&search.handle, "Search");
+        if search.clicked {
             *intent = Some(Intent::ShowCommands);
         }
         spacer(ui, "search-gap", 12.0);
