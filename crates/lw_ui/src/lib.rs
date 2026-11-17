@@ -44,8 +44,10 @@ pub use shell::{ShellState, set_colors, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");
 pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf");
-pub const LIGHT: &str = include_str!("../themes/light.theme");
-pub const DARK: &str = include_str!("../themes/dark.theme");
+/// The light theme: its tokens, then LocalWave's registered bodies and the looks they rely on (`commands::register` first).
+pub const LIGHT: &str = concat!(include_str!("../themes/light.theme"), include_str!("../themes/app-light.theme"));
+/// The dark theme, as `LIGHT`.
+pub const DARK: &str = concat!(include_str!("../themes/dark.theme"), include_str!("../themes/app-dark.theme"));
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SettingsMenu {
@@ -354,5 +356,9 @@ pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8
     ONCE.call_once(|| pxui::Ui::verify_new_views(true));
     let mut ui = pxui::Ui::create(platform, size, fonts);
     set_colors(&mut ui);
+    // The kit's default theme with LocalWave's bodies and their looks, as the app's themes carry them.
+    commands::register(&mut ui).unwrap();
+    let app = include_str!("../themes/app-light.theme");
+    ui.set_theme(&pxui::ThemeSource { source: pxui::Str { ptr: app.as_ptr(), len: app.len() }, ..pxui::ThemeSource::default() }).unwrap();
     ui
 }

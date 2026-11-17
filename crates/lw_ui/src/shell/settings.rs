@@ -1,6 +1,6 @@
 //! Settings/About preserve route/sort/selection and exclude playback clock revisions from retention
-//! keys. Use eight pre-parsed themes; never parse in frames. Dismiss custom popup acceptance after
-//! Ui::popup returns. Command-comma uses scalar held-key state rather than allocating routed
+//! keys. Use eight pre-parsed themes; never parse in frames. The choice menus are `ui.menu` rows drawn by the app body.
+//! Command-comma uses scalar held-key state rather than allocating routed
 //! vectors. Wrapped paragraph keys include content, including alternating busy/cache summaries.
 //! Preserve overlapping menu presses and warm storage_busy alternation without extending warm-up.
 //! Expose only connected actions.
@@ -8,9 +8,6 @@
 use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
-
-/// The settings menu sheet: what does not change between frames.
-const SETTINGS_MENU: Overlay = Overlay::DEFAULT.w(220.0).stroke(Rgba::token(LINE)).name("Settings options");
 
 fn back(ui: &mut Ui, name: &'static str) -> bool {
     let button = ui.node(
@@ -373,99 +370,46 @@ pub(super) fn popup(
     at: (f32, f32),
     intent: &mut Option<Intent>,
 ) {
-    let rows = if menu == SettingsMenu::Cache { 2 } else { 5 };
-    let (width, height) = ui.view_size();
-    let at = (
-        at.0.clamp(0.0, (width - 220.0).max(0.0)),
-        at.1.clamp(0.0, (height - rows as f32 * 36.0).max(0.0)),
-    );
-    let open = ui.popup("settings-menu", &SETTINGS_MENU.at(at.0, at.1).h(rows as f32 * 36.0), |ui| {
-            let items: &[(Change, &str, bool)] = if menu == SettingsMenu::Cache {
-                &[
-                    (
-                        Change::CacheGB(2),
-                        "Use 2 GB",
-                        player.settings.cache_gb == 2,
-                    ),
-                    (
-                        Change::CacheGB(32),
-                        "Use 32 GB",
-                        player.settings.cache_gb == 32,
-                    ),
-                ]
-            } else {
-                &[
-                    (
-                        Change::Signal(Signal::Blue),
-                        "Use blue signal",
-                        player.settings.signal == Signal::Blue,
-                    ),
-                    (
-                        Change::Signal(Signal::Red),
-                        "Use red signal",
-                        player.settings.signal == Signal::Red,
-                    ),
-                    (
-                        Change::Signal(Signal::Green),
-                        "Use green signal",
-                        player.settings.signal == Signal::Green,
-                    ),
-                    (
-                        Change::Signal(Signal::Mono),
-                        "Use monochrome signal",
-                        player.settings.signal == Signal::Mono,
-                    ),
-                    (
-                        Change::ToggleReduceMotion,
-                        "Reduce motion",
-                        player.settings.reduce_motion,
-                    ),
-                ]
-            };
-            for &(change, label, selected) in items {
-                let node = ui.node(
-                    label.into(),
-                    Node {
-                        look: Look {
-                            fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
-                            text: ui.color(INK),
-                            font: Font {
-                                size: 13,
-                                ..Font::BODY
-                            },
-                            ..Look::NONE
-                        },
-                        ..Node::column()
-                            .w(Size::Grow)
-                            .h_px(36.0)
-                            .pad_x(12.0)
-                            .role(Role::Toggle)
-                            .flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-                    },
-                );
-                ui.text(&node, label);
-                ui.set_role(
-                    &node,
-                    Role::Toggle,
-                    pxui::a11y::state::CHECKABLE
-                        | if selected {
-                            pxui::a11y::state::CHECKED
-                        } else {
-                            0
-                        },
-                );
-                if ui.signal(&node).clicked {
-                    *intent = Some(Intent::Setting(change));
-                }
-            }
-        });
-    if matches!(intent, Some(Intent::Setting(_))) {
-        ui.dismiss_popup();
+    let s = player.settings;
+    let choice = |item: MenuItem<'static>, current: bool| if current { item.selected() } else { item };
+    let cache = [choice(CACHE_2, s.cache_gb == 2), choice(CACHE_32, s.cache_gb == 32)];
+    let look = [
+        choice(BLUE, s.signal == Signal::Blue),
+        choice(RED, s.signal == Signal::Red),
+        choice(GREEN, s.signal == Signal::Green),
+        choice(MONO, s.signal == Signal::Mono),
+        choice(MOTION, s.reduce_motion),
+    ];
+    let rows: &[MenuItem] = if menu == SettingsMenu::Cache { &cache } else { &look };
+    let menu = ui.menu("settings-menu", at, rows, &CHOICES);
+    if let Some(id) = menu.chosen_id {
+        *intent = Some(Intent::Setting(match id {
+            2 | 32 => Change::CacheGB(id),
+            BLUE_ID => Change::Signal(Signal::Blue),
+            RED_ID => Change::Signal(Signal::Red),
+            GREEN_ID => Change::Signal(Signal::Green),
+            MONO_ID => Change::Signal(Signal::Mono),
+            _ => Change::ToggleReduceMotion,
+        }));
     }
-    if !open && intent.is_none() {
+    if menu.dismissed && intent.is_none() {
         *intent = Some(Intent::CloseSettingsMenu);
     }
 }
+/// The settings choice menus: the current choice on the selected fill (`MENU_CHOICE`), rows focused by a press.
+const CHOICES: Menu<'static> = super::songs::MENU.width(220.0).name("Settings options").variant(MENU_CHOICE).focus_on_click(true);
+// The choices; a cache row's id is its size in GB.
+const CACHE_2: MenuItem = MenuItem::new("Use 2 GB").id(2);
+const CACHE_32: MenuItem = MenuItem::new("Use 32 GB").id(32);
+const BLUE_ID: i64 = 100;
+const RED_ID: i64 = 101;
+const GREEN_ID: i64 = 102;
+const MONO_ID: i64 = 103;
+const BLUE: MenuItem = MenuItem::new("Use blue signal").id(BLUE_ID);
+const RED: MenuItem = MenuItem::new("Use red signal").id(RED_ID);
+const GREEN: MenuItem = MenuItem::new("Use green signal").id(GREEN_ID);
+const MONO: MenuItem = MenuItem::new("Use monochrome signal").id(MONO_ID);
+const MOTION: MenuItem = MenuItem::new("Reduce motion").id(104);
 
 #[cfg(test)]
 mod tests {

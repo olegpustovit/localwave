@@ -278,6 +278,34 @@ pub(super) fn table_text_size(
     )
 }
 
+/// `Menu::variant` of a menu whose rows sit on the paper fill, read ink-2 while off and report ENABLED (the folder options).
+pub(super) const MENU_PANEL: u16 = 1;
+/// `Menu::variant` of a settings choice menu: the current row on the selected fill, every row a checkable toggle.
+pub(super) const MENU_CHOICE: u16 = 2;
+/// LocalWave's context menu row (registered as `localwave-menu`): 13-point text 12 points in, ink or the danger red; `MENU_PANEL`
+/// and `MENU_CHOICE` rows also take the paper (or selected) fill and their own accessible role and states.
+pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::PxuiMenuRowConfig) {
+    let (enabled, selected) = (c.state.disabled == 0, c.state.checked != 0);
+    ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0));
+    let ink = if c.danger != 0 { DANGER } else { INK };
+    if c.variant == 0 {
+        let look = Look { text: Rgba::token(ink), ..MENU_ROW };
+        ui.set_look(&c.row, look, State { disabled: !enabled, ..State::default() });
+    } else {
+        let fill = Rgba::token(if selected { SELECTED } else { PAPER });
+        let look = Look { fill, text: Rgba::token(if enabled { ink } else { SECONDARY }), ..MENU_ROW };
+        ui.set_look(&c.row, look, State::default());
+    }
+    ui.text(&c.row, pxui::bodies::text_of(&c.text));
+    use pxui::a11y::state::{CHECKABLE, CHECKED, ENABLED};
+    match c.variant {
+        MENU_PANEL => ui.set_role(&c.row, Role::MenuItem, if enabled { ENABLED } else { 0 }),
+        MENU_CHOICE => ui.set_role(&c.row, Role::Toggle, CHECKABLE | if selected { CHECKED } else { 0 }),
+        _ => {}
+    }
+}
+/// A context menu row's 13-point text.
+const MENU_ROW: Look = Look { font: Font { size: 13, ..Font::BODY }, ..Look::NONE };
 #[cfg(test)]
 pub(super) mod button_tests {
     use super::*;

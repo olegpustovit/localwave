@@ -12,9 +12,11 @@ use crate::{browse::Query, catalog::Route, files::Location};
 use lw_core::context::PlaybackContext;
 use std::sync::Arc;
 
-/// Register once, outside frames; select this body only in the palette's retained theme.
+/// Register once, outside frames, before parsing the themes: the palette's field body (selected only in its retained theme) and
+/// the context menu row body the app themes select.
 pub fn register(ui: &mut pxui::Ui) -> Result<(), String> {
     ui.register_text_field_body("localwave-command", crate::shell::commands::field_body)?;
+    ui.register_context_menu_body("localwave-menu", crate::shell::menu_row_body)?;
     static_items();
     Ok(())
 }

@@ -7,9 +7,6 @@ use crate::{Intent, ListDialog};
 /// The delete list sheet: what does not change between frames.
 const DELETE_LIST: Overlay = Overlay::DEFAULT.name("Delete list?");
 
-/// The list menu sheet: what does not change between frames.
-const LIST_MENU: Overlay = Overlay::DEFAULT.w(200.0).h(72.0).stroke(Rgba::token(LINE)).name("List actions");
-
 /// The playlist name input of the list dialog: Done ends editing.
 const LIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
     .action(pxui::ReturnKey::Done)
@@ -35,57 +32,25 @@ pub(super) fn menu(
     at: (f32, f32),
     intent: &mut Option<Intent>,
 ) {
-    let (w, h) = ui.view_size();
-    let at = (
-        at.0.clamp(0.0, (w - 200.0).max(0.0)),
-        at.1.clamp(0.0, (h - 72.0).max(0.0)),
-    );
-    let (present, title) = playlist_title(catalog, list).map_or((false, Query::default()), |t| {
-        (true, Query::new(t).unwrap_or_default())
-    });
-    let mut accepted = false;
-    let open = ui.popup("list-menu", &LIST_MENU.at(at.0, at.1), |ui| {
-            for (label, action, color) in [
-                ("Rename…", Intent::RenameListDialog(list, title), ui.color(INK)),
-                ("Delete list", Intent::ConfirmDeleteList(list), ui.color(DANGER)),
-            ] {
-                let item = ui.node(
-                    label.into(),
-                    Node {
-                        state: State {
-                            disabled: !present,
-                            ..State::default()
-                        },
-                        look: Look {
-                            text: color,
-                            font: Font {
-                                size: 13,
-                                ..Font::BODY
-                            },
-                            ..Look::NONE
-                        },
-                        ..Node::column()
-                            .w(Size::Grow)
-                            .h_px(36.0)
-                            .pad_x(12.0)
-                            .role(Role::MenuItem)
-                            .flags(if present { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
-                    },
-                );
-                ui.text(&item, label);
-                if present && ui.signal(&item).clicked {
-                    *intent = Some(action);
-                    accepted = true;
-                }
-            }
-        });
-    if accepted {
-        ui.dismiss_popup();
+    let title = playlist_title(catalog, list);
+    let present = title.is_some();
+    let rows = [
+        MenuItem::new("Rename…").id(RENAME).enabled(present),
+        MenuItem::new("Delete list").id(DELETE).enabled(present).danger(),
+    ];
+    let menu = ui.menu("list-menu", at, &rows, &songs::MENU.name("List actions"));
+    match menu.chosen_id {
+        Some(RENAME) => *intent = Some(Intent::RenameListDialog(list, title.and_then(Query::new).unwrap_or_default())),
+        Some(_) => *intent = Some(Intent::ConfirmDeleteList(list)),
+        None => {}
     }
-    if !open && intent.is_none() {
+    if menu.dismissed && intent.is_none() {
         *intent = Some(Intent::CloseListMenu);
     }
 }
+// The list menu's row ids.
+const RENAME: i64 = 0;
+const DELETE: i64 = 1;
 
 pub(super) fn confirm_delete(
     ui: &mut Ui,

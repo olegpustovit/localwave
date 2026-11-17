@@ -5,14 +5,8 @@ use crate::files::{Folder, Location, Request, Target};
 /// The add music sheet: what does not change between frames.
 const ADD_MUSIC: Overlay = Overlay::DEFAULT.name("Add music");
 
-/// The entry menu sheet: what does not change between frames.
-const ENTRY_MENU: Overlay = Overlay::DEFAULT.w(200.0).h(108.0).stroke(Rgba::token(LINE)).name("Folder actions");
-
 /// The remove folder sheet: what does not change between frames.
 const REMOVE_FOLDER: Overlay = Overlay::DEFAULT.name("Remove folder?");
-
-/// The folder menu sheet: what does not change between frames.
-const FOLDER_MENU: Overlay = Overlay::DEFAULT.w(220.0).h(144.0).stroke(Rgba::token(LINE)).name("Folder options");
 
 fn options(ui: &mut Ui, target: Target, intent: &mut Option<Intent>) {
     let button = button(ui, "source-options", "Folder options", 118.0, true, (PANEL, INK));
@@ -29,90 +23,40 @@ pub(super) fn popup(
     at: (f32, f32),
     intent: &mut Option<Intent>,
 ) {
-    let (width, height) = ui.view_size();
-    let at = (
-        at.0.clamp(0.0, (width - 220.0).max(0.0)),
-        at.1.clamp(0.0, (height - 144.0).max(0.0)),
-    );
     let busy = player.files.is_none_or(|files| files.busy);
     let present = player.files.is_some_and(|files| {
         files.account == Some(target.user)
-            && files
-                .sources
-                .iter()
-                .any(|folder| folder.id == target.source && folder.root == target.root)
+            && files.sources.iter().any(|folder| folder.id == target.source && folder.root == target.root)
     });
-    let mut accepted = false;
-    let open = ui.popup("folder-menu", &FOLDER_MENU.at(at.0, at.1), |ui| {
-            for (index, label) in [
-                "Open folder",
-                "Rescan now",
-                "Reconnect folder…",
-                "Remove source",
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                let enabled = present && (index == 0 || !busy);
-                let item = ui.node(
-                    label.into(),
-                    Node {
-                        look: Look {
-                            fill: ui.color(PAPER),
-                            text: if !enabled {
-                                ui.color(SECONDARY)
-                            } else if index == 3 {
-                                ui.color(DANGER)
-                            } else {
-                                ui.color(INK)
-                            },
-                            font: Font {
-                                size: 13,
-                                ..Font::BODY
-                            },
-                            ..Look::NONE
-                        },
-                        ..Node::column()
-                            .w(Size::Grow)
-                            .h_px(36.0)
-                            .pad_x(12.0)
-                            .role(Role::MenuItem)
-                            .flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
-                    },
-                );
-                ui.text(&item, label);
-                ui.set_role(
-                    &item,
-                    Role::MenuItem,
-                    if enabled {
-                        pxui::a11y::state::ENABLED
-                    } else {
-                        0
-                    },
-                );
-                if enabled && ui.signal(&item).clicked {
-                    let location = Location {
-                        user: target.user,
-                        source: target.source,
-                        parent: None,
-                    };
-                    *intent = Some(match index {
-                        0 => Intent::Files(Request::Browse(location)),
-                        1 => Intent::Files(Request::Rescan(location)),
-                        2 => Intent::ReconnectSource(target),
-                        _ => Intent::ConfirmRemoveSource(target),
-                    });
-                    accepted = true;
-                }
-            }
-        });
-    if accepted {
-        ui.dismiss_popup();
+    let rows = [
+        MenuItem::new("Open folder").id(OPEN).enabled(present),
+        MenuItem::new("Rescan now").id(RESCAN).enabled(present && !busy),
+        MenuItem::new("Reconnect folder…").id(RECONNECT).enabled(present && !busy),
+        MenuItem::new("Remove source").id(REMOVE).enabled(present && !busy).danger(),
+    ];
+    let menu = ui.menu("source-menu", at, &rows, &OPTIONS);
+    let location = Location { user: target.user, source: target.source, parent: None };
+    match menu.chosen_id {
+        Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(location))),
+        Some(RESCAN) => *intent = Some(Intent::Files(Request::Rescan(location))),
+        Some(RECONNECT) => *intent = Some(Intent::ReconnectSource(target)),
+        Some(_) => *intent = Some(Intent::ConfirmRemoveSource(target)),
+        None => {}
     }
-    if !open && intent.is_none() {
+    if menu.dismissed && intent.is_none() {
         *intent = Some(Intent::CloseSourceMenu);
     }
 }
+
+/// The folder options menu: rows on the paper fill (`MENU_PANEL`), focused by a press.
+const OPTIONS: Menu<'static> = super::songs::MENU.width(220.0).name("Folder options").variant(MENU_PANEL).focus_on_click(true);
+// The folder options' and folder actions' row ids.
+const OPEN: i64 = 0;
+const RESCAN: i64 = 1;
+const RECONNECT: i64 = 2;
+const REMOVE: i64 = 3;
+const PLAY: i64 = 4;
+const SHUFFLE: i64 = 5;
 
 pub(super) fn confirm_remove(
     ui: &mut Ui,
@@ -815,27 +759,21 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
         return;
     };
     let filled = !found.songs.is_empty();
-    let (w, h) = ui.view_size();
-    let at = (at.0.clamp(0.0, (w - 200.0).max(0.0)) - 160.0f32.min(at.0), at.1.clamp(0.0, (h - 108.0).max(0.0)));
-    let mut accepted = false;
-    let open = ui.popup("entry-menu", &ENTRY_MENU.at(at.0, at.1), |ui| {
-        for (label, enabled, action) in [
-            ("Open folder", true, Intent::Files(Request::Browse(Location { parent: Some(entry), ..directory.location }))),
-            ("Play folder", filled, Intent::PlayEntryFolder(entry)),
-            ("Shuffle folder", filled, Intent::ShuffleEntryFolder(entry)),
-        ] {
-            let node = ui.node(label.into(), super::songs::item_node(ui, enabled));
-            ui.text(&node, label);
-            if enabled && ui.signal(&node).clicked {
-                *intent = Some(action);
-                accepted = true;
-            }
-        }
-    });
-    if accepted {
-        ui.dismiss_popup();
+    let rows = [
+        MenuItem::new("Open folder").id(OPEN),
+        MenuItem::new("Play folder").id(PLAY).enabled(filled),
+        MenuItem::new("Shuffle folder").id(SHUFFLE).enabled(filled),
+    ];
+    // Swift's folder menu ends 160 points short of the view's end, opening leftward from the row's "…" key.
+    let x = at.0.min(ui.view_size().0 - 200.0) - 160.0;
+    let menu = ui.menu("folder-menu", (x, at.1), &rows, &super::songs::MENU.name("Folder actions"));
+    match menu.chosen_id {
+        Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entry), ..directory.location }))),
+        Some(PLAY) => *intent = Some(Intent::PlayEntryFolder(entry)),
+        Some(_) => *intent = Some(Intent::ShuffleEntryFolder(entry)),
+        None => {}
     }
-    if !open && intent.is_none() {
+    if menu.dismissed && intent.is_none() {
         *intent = Some(Intent::CloseFolderMenu);
     }
 }

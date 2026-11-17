@@ -3,9 +3,7 @@
 use super::*;
 use crate::PageAction;
 use lw_core::context::PlaybackContext;
-
-/// The page menu sheet: what does not change between frames.
-const PAGE_MENU: Overlay = Overlay::DEFAULT.w(200.0).stroke(Rgba::token(LINE));
+use super::super::songs::{list_rows, LISTS_MENU, LIST_ROWS, MENU, NEW_LIST};
 
 pub(in crate::shell) fn menu(
     ui: &mut Ui,
@@ -33,86 +31,78 @@ pub(in crate::shell) fn menu(
     };
     let filled = collection.is_some_and(|collection| !collection.ids.is_empty());
     let kept = filled && collection.is_some_and(|collection| collection.rows.iter().all(|&row| catalog.row(row).pinned));
-    let name = list.map_or(crate::browse::Query::default(), |_| {
-        crate::browse::Query::new(collection.map_or("", |collection| &collection.title)).unwrap_or_default()
-    });
-    let mut items: [Option<(&'static str, bool, Intent, bool)>; 11] = [None; 11];
+    if state.page_lists {
+        return lists(ui, catalog, at, intent);
+    }
+    let candidates = [
+        Some(MenuItem::new("Play").id(PLAY).enabled(filled)),
+        Some(MenuItem::new("Shuffle").id(SHUFFLE).enabled(filled)),
+        album.then_some(MenuItem::new("Play next").id(PLAY_NEXT).enabled(filled)),
+        Some(MenuItem::new("Add to queue").id(QUEUE).enabled(filled)),
+        album.then_some(MenuItem::new("Add to list").id(LISTS).enabled(filled)),
+        artist.map(|_| MenuItem::new("Go to artist").id(ARTIST)),
+        list.map(|_| MenuItem::new("Rename…").id(RENAME)),
+        list.map(|_| MenuItem::new("Duplicate").id(DUPLICATE)),
+        album.then_some(MenuItem::new("Show in folder").id(FOLDER).enabled(filled)),
+        Some(MenuItem::new(if kept { "Stop keeping offline" } else { "Keep offline" }).id(OFFLINE).enabled(filled)),
+        list.map(|_| MenuItem::new("Delete list").id(DELETE).danger()),
+    ];
+    let mut rows = [MenuItem::new(""); 11];
     let mut count = 0;
-    for entry in [
-        Some(("Play", filled, Intent::Page(PageAction::Play), false)),
-        Some(("Shuffle", filled, Intent::Page(PageAction::Shuffle), false)),
-        album.then_some(("Play next", filled, Intent::Page(PageAction::PlayNext), false)),
-        Some(("Add to queue", filled, Intent::Page(PageAction::AddToQueue), false)),
-        album.then_some(("Add to list", filled, Intent::PageLists, false)),
-        artist.map(|index| ("Go to artist", true, Intent::Navigate(Route::Artist(index)), false)),
-        list.map(|list| ("Rename…", true, Intent::RenameListDialog(list, name), false)),
-        list.map(|_| ("Duplicate", true, Intent::Page(PageAction::Duplicate), false)),
-        album.then_some(("Show in folder", filled, Intent::Page(PageAction::ShowInFolder), false)),
-        Some((
-            if kept { "Stop keeping offline" } else { "Keep offline" },
-            filled,
-            Intent::Page(PageAction::KeepOffline),
-            false,
-        )),
-        list.map(|list| ("Delete list", true, Intent::ConfirmDeleteList(list), true)),
-    ] {
-        if entry.is_some() {
-            items[count] = entry;
-            count += 1;
-        }
+    for item in candidates.into_iter().flatten() {
+        rows[count] = item;
+        count += 1;
     }
-    let lists = state.page_lists;
-    let others = catalog.collections.iter().filter(|c| matches!(&*c.context, PlaybackContext::Playlist { .. })).count();
-    // "New list…" leads the choices, as in Swift's addToListGroups.
-    let rows = if lists { others.max(1) + 1 } else { count };
-    let height = rows as f32 * 36.0;
-    let (w, h) = ui.view_size();
-    let at = (
-        (at.0 - 200.0).clamp(0.0, (w - 200.0).max(0.0)),
-        at.1.clamp(0.0, (h - height.min(8.0 * 36.0)).max(0.0)),
-    );
-    let mut accepted = false;
-    let menu = PAGE_MENU.at(at.0, at.1).h(height).name(if lists { "Add to list" } else { "Page actions" });
-    let menu = if lists { menu.max_h(8.0 * 36.0) } else { menu };
-    let open = ui.popup("page-menu", &menu, |ui| {
-            if lists {
-                let item = ui.node("new-list".into(), super::super::songs::item_node(ui, true));
-                ui.text(&item, "New list…");
-                if ui.signal(&item).clicked {
-                    *intent = Some(Intent::NewPageList);
-                    accepted = true;
-                }
-                if others == 0 {
-                    let item = ui.node("none".into(), super::super::songs::item_node(ui, false));
-                    ui.text(&item, "No other lists");
-                }
-                for c in &catalog.collections {
-                    let PlaybackContext::Playlist { id, .. } = &*c.context else { continue };
-                    let item = ui.node(Key::Id(*id), super::super::songs::item_node(ui, true));
-                    ui.text(&item, &c.title);
-                    if ui.signal(&item).clicked {
-                        *intent = Some(Intent::Page(PageAction::AddToList(*id)));
-                        accepted = true;
-                    }
-                }
-                return;
-            }
-            for (label, enabled, action, danger) in items[..count].iter().flatten().copied() {
-                let node = ui.node(label.into(), super::super::songs::item_node(ui, enabled));
-                if danger {
-                    ui.set_look(&node, Look { text: ui.color(DANGER), font: Font { size: 13, ..Font::BODY }, ..Look::NONE }, State::default());
-                }
-                ui.text(&node, label);
-                if enabled && ui.signal(&node).clicked {
-                    *intent = Some(action);
-                    accepted = action != Intent::PageLists;
-                }
-            }
-        });
-    if accepted {
-        ui.dismiss_popup();
+    // The menu opens leftward from the "…" key.
+    let menu = ui.menu("page-menu", (at.0 - 200.0, at.1), &rows[..count], &MENU.name("Page actions"));
+    // "Add to list" closes this menu and opens the list panel.
+    if let Some(id) = menu.chosen_id {
+        *intent = match id {
+            PLAY => Some(Intent::Page(PageAction::Play)),
+            SHUFFLE => Some(Intent::Page(PageAction::Shuffle)),
+            PLAY_NEXT => Some(Intent::Page(PageAction::PlayNext)),
+            QUEUE => Some(Intent::Page(PageAction::AddToQueue)),
+            LISTS => Some(Intent::PageLists),
+            ARTIST => artist.map(|index| Intent::Navigate(Route::Artist(index))),
+            RENAME => list.map(|list| {
+                let title = collection.map_or("", |collection| &collection.title);
+                Intent::RenameListDialog(list, crate::browse::Query::new(title).unwrap_or_default())
+            }),
+            DUPLICATE => Some(Intent::Page(PageAction::Duplicate)),
+            FOLDER => Some(Intent::Page(PageAction::ShowInFolder)),
+            OFFLINE => Some(Intent::Page(PageAction::KeepOffline)),
+            _ => list.map(Intent::ConfirmDeleteList),
+        };
     }
-    if !open && intent.is_none() {
+    if menu.dismissed && intent.is_none() {
+        *intent = Some(Intent::ClosePageMenu);
+    }
+}
+
+// The page menu's row ids.
+const PLAY: i64 = 0;
+const SHUFFLE: i64 = 1;
+const PLAY_NEXT: i64 = 2;
+const QUEUE: i64 = 3;
+const LISTS: i64 = 4;
+const ARTIST: i64 = 5;
+const RENAME: i64 = 6;
+const DUPLICATE: i64 = 7;
+const FOLDER: i64 = 8;
+const OFFLINE: i64 = 9;
+const DELETE: i64 = 10;
+
+/// The page menu's "Add to list" panel: "New list…", then every list.
+fn lists(ui: &mut Ui, catalog: &Catalog, at: (f32, f32), intent: &mut Option<Intent>) {
+    let mut rows = [MenuItem::new(""); LIST_ROWS];
+    let count = list_rows(&mut rows, catalog, None);
+    let menu = ui.menu("page-lists", (at.0 - 200.0, at.1), &rows[..count], &LISTS_MENU);
+    match menu.chosen_id {
+        Some(NEW_LIST) => *intent = Some(Intent::NewPageList),
+        Some(list) => *intent = Some(Intent::Page(PageAction::AddToList(list))),
+        None => {}
+    }
+    if menu.dismissed && intent.is_none() {
         *intent = Some(Intent::ClosePageMenu);
     }
 }

@@ -93,7 +93,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12F2a | pxui_render GPU tests use set_view; ellipsis golden follows DX-BUG1; landing compiles every workspace test target | done | fdf646d + pxui e659280 |
 | DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | c6cd355 + pxui cf953b3 |
 | DX1.12A | Audit batch A: Label is the one text-style input (TextStyle opaque, from resolve), enums for wrap/ellipsis/align, label exports resolve in-call | done | 1efcf4d + pxui 763df85 |
-| DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | done | HEAD + pxui b6958651 |
+| DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | done | 0cd725a + pxui b6958651 |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -123,7 +123,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
 | DX4.4 | Icon buttons to icon_button | done | 27c3e69 |
-| DX4.5 | Menus to menu | todo |  |
+| DX4.5 | Menus to menu | done | HEAD |
 | DX4.6 | Settings switch and chips to toggle_with/segmented_with | todo |  |
 | DX4.7 | Confirmation sheets to dialog_with; field variant | todo |  |
 | DX4.7a | Field body picks the Find structure by variant (part of DX4.7) | done | 3181aa4 |
