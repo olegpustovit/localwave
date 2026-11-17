@@ -138,6 +138,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4b | LocalWave adopts the host-owned TextWorker: one worker, SongTextWorker deleted, prewarm policy, fling gated at the pxui ceiling | done | 40ccc78 |
 | DX5.4c | A prewarmed natural-width layout serves draws at any width that cannot change it | done | 81f353c + pxui 7f2f738 |
 | DX5.4d | LocalWave fling ceiling kept equal to pxui's (parsed test) | done | 31e87c3 |
+| DX5.4e | A layout prepared at width W serves draws between its measured width and W (left-aligned; uncut ellipsis) | done | HEAD + pxui a3a8924 |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
