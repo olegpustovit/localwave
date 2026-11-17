@@ -141,7 +141,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.8 | Docs: Paint (2) | done | 622d26c + pxui 5830fd4 |
 | DX6.9 | Docs: keys and queries | done | 4c586e9 + pxui 61ffda6 |
 | DX6.10 | Docs: gestures | done | a61b65a + pxui 07c3d9d |
-| DX6.11 | Docs: text | done | HEAD + pxui 6ab2bf7 |
+| DX6.11 | Docs: text | done | ad2410d + pxui 6ab2bf7 |
 | DX6.12 | Docs: kit widgets | todo |  |
 | DX6.13 | Docs: options | todo |  |
 | DX6.14 | Docs: inspector | todo |  |
@@ -156,7 +156,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.23 | Docs: ffi.rs (3) | todo |  |
 | DX6.24 | Docs: ffi.rs (4) | todo |  |
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
-| DX6.26 | pxui-app skill; README and specification fixes | todo |  |
+| DX6.26 | pxui-app skill; README and specification fixes | done | HEAD + pxui a50ab58 |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
 | DX7.1a | pxui.h compiles as C11/C++17 and abi-header compiles it | done | 58e0eb8 + pxui 6326d8c |
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
