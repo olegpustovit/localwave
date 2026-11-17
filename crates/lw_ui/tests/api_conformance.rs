@@ -3,16 +3,22 @@
 //!
 //! Scans `lw_ui/src` and `lw_bin/src` with plain token matching (comments, string literals and
 //! `#[cfg(test)]` items are blanked first). Every violation is `file<TAB>rule<TAB>snippet`;
-//! `api-conformance-allowlist.tsv` lists the known ones. The test fails on a new violation and on
-//! a stale allowlist line, so the allowlist only shrinks; the target is an empty file once DX4 ends.
+//! `api-conformance-allowlist.tsv` lists the known ones, optionally followed by `<TAB>reason`
+//! (required for R7). The test fails on a new violation, on a stale allowlist line and on an R7
+//! line without a reason, so the allowlist only shrinks; every U package must shrink it.
 //!
 //! Rules:
-//! - R1 struct literal of a pxui style/option type (use `const` builders, named once).
+//! - R1 struct literal of a pxui style/option type (use `const` builders, named once); of a pxui
+//!   value type (`Node`, `Edges`, `Look`, `Rgba`, `Font`, `State`, `States`) outside a `const`/`static` item.
 //! - R2 `Flags::CLICKABLE` outside a registered body fn (`fn *_body`); use `pressable`/`button`.
 //! - R3 app-side shadow theme: reading the colour table / resolving tokens into colours.
 //! - R4 key taken from display text (`format!`, `.to_string()`, `.as_str()` or a text-named variable).
 //! - R5 per-frame allocation (`format!`, `.to_string()`, `Vec::new()`, `vec![`, `.collect::<Vec`)
 //!   inside a function that takes `ui: &mut Ui`.
+//! - R6 colour or look built in a build path: `ui.color(`, `paint.color(` or `Look::NONE.` inside a
+//!   function that takes `ui: &mut Ui` (looks are theme consts built from `Rgba::token`).
+//! - R7 `pressable` site: composite content only; each allowlist line names its reason.
+//! - R8 helper fn whose body is a single pxui widget call (call the widget directly).
 //!
 //! To regenerate after fixing violations, run with `API_CONFORMANCE_BLESS=1` (writes the file).
 
@@ -27,6 +33,16 @@ const STYLE_TYPES: &[&str] = &[
 const KEYED_CALLS: &[&str] = &[
     "button_with", "button_content", "pressable", "icon_button", "menu", "toggle_with",
     "segmented_with", "dialog", "node", "view_of",
+];
+/// pxui value types whose literals belong in `const` items only (R1).
+const VALUE_TYPES: &[&str] = &["Node", "Edges", "Look", "Rgba", "Font", "State", "States"];
+/// pxui widget calls a one-call helper must not wrap (R8).
+const WIDGETS: &[&str] = &[
+    "badge", "button", "button_content", "button_with", "checkbox", "dialog", "disclosure", "dropdown", "grid_list",
+    "icon_button", "label", "list", "menu", "menu_bar", "modal", "panel", "picker", "popup", "pressable", "progress",
+    "radio", "scrub", "search_field", "section_index", "section_list", "segmented", "segmented_with",
+    "selection_list", "slider", "spinner", "table_view", "tabs", "text_area", "text_field", "toasts", "toggle",
+    "toggle_with", "tooltip", "tree",
 ];
 const TEXT_NAMES: &[&str] = &["label", "title", "name", "text"];
 const ALLOC_TOKENS: &[&str] = &["format!(", "vec![", ".to_string()", "Vec::new()", ".collect::<Vec"];
@@ -264,8 +280,9 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
         fns.iter().filter(|f| f.body.0 <= at && at < f.body.1).min_by_key(|f| f.body.1 - f.body.0)
     };
 
-    // R1: `Type {` literals (not item headers, return types or impls).
-    for ty in STYLE_TYPES {
+    // R1: `Type {` literals (not item headers, return types or impls); value types only outside consts.
+    let consts = const_spans(&code);
+    for ty in STYLE_TYPES.iter().chain(VALUE_TYPES) {
         for at in find_all(&code, ty) {
             let end = at + ty.len();
             if (at > 0 && is_ident(code[at - 1])) || code.get(end).is_some_and(|&c| is_ident(c)) {
@@ -284,6 +301,14 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
                 .iter()
                 .any(|kw| before.ends_with(kw))
             {
+                continue;
+            }
+            // `Enum::Variant {` (an enum's variant named like a pxui type, `Column::State`) is no literal.
+            let seg = code[..at].strip_suffix(b"::").map(|p| &p[p.iter().rposition(|&c| !is_ident(c)).map_or(0, |k| k + 1)..]);
+            if seg.is_some_and(|seg| seg.first().is_some_and(u8::is_ascii_uppercase)) {
+                continue;
+            }
+            if VALUE_TYPES.contains(ty) && consts.iter().any(|&(a, b)| a <= at && at < b) {
                 continue;
             }
             hit("R1", at);
@@ -329,6 +354,28 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
         }
     }
 
+    // R6: colours and looks built in build paths.
+    for tok in ["ui.color(", "paint.color(", "Look::NONE."] {
+        for at in find_all(&code, tok) {
+            if (at > 0 && is_ident(code[at - 1])) || !innermost(at).is_some_and(|f| f.takes_ui) {
+                continue;
+            }
+            hit("R6", at);
+        }
+    }
+
+    // R7: pressable sites (composite content; the allowlist names each reason).
+    for at in find_all(&code, ".pressable(") {
+        hit("R7", at);
+    }
+
+    // R8: a helper whose whole body is one widget call.
+    for f in &fns {
+        if !f.name.ends_with("_body") && single_widget_call(&code[f.body.0 + 1..f.body.1 - 1]) {
+            hit("R8", f.body.0);
+        }
+    }
+
     // R5: per-frame allocation in ui build fns (innermost fn decides, closures count as inside).
     for tok in ALLOC_TOKENS {
         for at in find_all(&code, tok) {
@@ -337,6 +384,74 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
             }
         }
     }
+}
+
+/// Spans of `const`/`static` items (`const NAME: T = ..;`), not `const fn`.
+fn const_spans(b: &[u8]) -> Vec<(usize, usize)> {
+    let mut spans = Vec::new();
+    for kw in ["const ", "static "] {
+        for at in find_all(b, kw) {
+            if (at > 0 && is_ident(b[at - 1])) || b[at + kw.len()..].starts_with(b"fn ") {
+                continue;
+            }
+            let Some(eq) = b[at..].iter().position(|&c| c == b'=' || c == b';' || c == b'{').map(|p| at + p) else { continue };
+            if b[eq] != b'=' {
+                continue;
+            }
+            let mut depth = 0i32;
+            let end = b[eq..]
+                .iter()
+                .position(|&c| {
+                    match c {
+                        b'(' | b'[' | b'{' => depth += 1,
+                        b')' | b']' | b'}' => depth -= 1,
+                        _ => {}
+                    }
+                    c == b';' && depth == 0
+                })
+                .map_or(b.len(), |p| eq + p);
+            spans.push((at, end));
+        }
+    }
+    spans
+}
+
+/// Index of the `)` matching the `(` at `open`.
+fn paren_end(b: &[u8], open: usize) -> usize {
+    let mut depth = 0;
+    for (k, &c) in b.iter().enumerate().skip(open) {
+        match c {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return k;
+                }
+            }
+            _ => {}
+        }
+    }
+    b.len()
+}
+
+/// True when `body` (a fn body without its braces) is one `ui.<widget>(..)` call, optionally followed by
+/// field/method accesses (`.clicked`, `.is_some()`) and a `;`.
+fn single_widget_call(body: &[u8]) -> bool {
+    let text = String::from_utf8_lossy(body);
+    let t = text.trim();
+    let Some(rest) = t.strip_prefix("ui.") else { return false };
+    let name_len = rest.bytes().take_while(|&c| is_ident(c)).count();
+    if !WIDGETS.contains(&&rest[..name_len]) || !rest[name_len..].starts_with('(') {
+        return false;
+    }
+    let bytes = rest.as_bytes();
+    let close = paren_end(bytes, name_len);
+    let tail: String = rest[(close + 1).min(rest.len())..].split_whitespace().collect();
+    let tail = tail.strip_suffix(';').unwrap_or(&tail);
+    tail.split('.').skip(1).all(|part| {
+        let part = part.strip_suffix("()").unwrap_or(part);
+        !part.is_empty() && part.bytes().all(is_ident)
+    }) && (tail.is_empty() || tail.starts_with('.'))
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
@@ -404,22 +519,41 @@ fn api_conformance_matches_allowlist() {
 
     let list_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/api-conformance-allowlist.tsv");
     if std::env::var_os("API_CONFORMANCE_BLESS").is_some() {
+        // Kept lines keep their reasons, in order; new lines get none (R7 then fails until one is written).
+        let old = fs::read_to_string(&list_path).unwrap_or_default();
+        let mut reasons: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        for line in old.lines() {
+            let mut cols = line.splitn(4, '\t');
+            let key = [cols.next(), cols.next(), cols.next()].map(|c| c.unwrap_or("")).join("\t");
+            reasons.entry(key).or_default().push(cols.next().unwrap_or("").to_string());
+        }
         let mut text = String::new();
         for (line, n) in &actual {
-            for _ in 0..*n {
+            let kept = reasons.get(line).map_or(&[][..], |r| &r[..]);
+            for k in 0..*n {
                 text.push_str(line);
+                if let Some(reason) = kept.get(k).filter(|r| !r.is_empty()) {
+                    text.push('\t');
+                    text.push_str(reason);
+                }
                 text.push('\n');
             }
         }
         fs::write(&list_path, text).unwrap();
         return;
     }
+    let list = fs::read_to_string(&list_path).unwrap_or_default();
     let mut allowed: BTreeMap<String, usize> = BTreeMap::new();
-    for line in fs::read_to_string(&list_path).unwrap_or_default().lines().filter(|l| !l.trim().is_empty()) {
-        *allowed.entry(line.to_string()).or_default() += 1;
+    let mut problems = Vec::new();
+    for line in list.lines().filter(|l| !l.trim().is_empty()) {
+        let mut cols = line.splitn(4, '\t');
+        let (file, rule, snippet, reason) = (cols.next().unwrap_or(""), cols.next().unwrap_or(""), cols.next().unwrap_or(""), cols.next().unwrap_or(""));
+        if rule == "R7" && reason.trim().is_empty() {
+            problems.push(format!("R7 allowlist line without a reason: {line}"));
+        }
+        *allowed.entry(format!("{file}\t{rule}\t{snippet}")).or_default() += 1;
     }
 
-    let mut problems = Vec::new();
     for (line, n) in &actual {
         let known = allowed.get(line).copied().unwrap_or(0);
         if *n > known {
@@ -437,4 +571,18 @@ fn api_conformance_matches_allowlist() {
         "API conformance drift (see tests/api_conformance.rs; the allowlist only shrinks):\n{}",
         problems.join("\n")
     );
+}
+
+#[test]
+fn rule_helpers_recognise_their_shapes() {
+    assert!(single_widget_call(b" ui.button(\"k\", \"Go\", &B).clicked "));
+    assert!(single_widget_call(b"ui.toggle_with(key, text, on, &T);"));
+    assert!(!single_widget_call(b"let r = ui.button(k, t, &B); r.clicked"));
+    assert!(!single_widget_call(b"ui.node(k, n)"));
+    let src = b"const A: Node = Node { w: 1 }; fn f() { let x = Node { w: 2 }; }";
+    let spans = const_spans(src);
+    let first = find_all(src, "Node {")[0];
+    let second = find_all(src, "Node {")[1];
+    assert!(spans.iter().any(|&(a, b)| a <= first && first < b));
+    assert!(!spans.iter().any(|&(a, b)| a <= second && second < b));
 }
