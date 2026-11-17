@@ -336,34 +336,15 @@ pub(super) fn find_tokens(
             ui.row("flow", flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
-                    let chip = ui.node(
-                        token.into(),
-                        Node {
-                            max_w: width,
-                            look: Look {
-                                fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
-                                ..Look::NONE
-                            },
-                            ..Node::column()
-                                .w(Size::Fit)
-                                .h_px(32.0)
-                                .pad_x(12.0)
-                                .role(Role::Toggle)
-                                .flags(Flags::CLICKABLE | Flags::TAB_STOP | Flags::CLIP)
-                        },
-                    );
-                    ui.set_role(
-                        &chip,
-                        Role::Toggle,
-                        pxui::a11y::state::CHECKABLE
-                            | if selected {
-                                pxui::a11y::state::CHECKED
-                            } else {
-                                0
-                            },
-                    );
-                    ui.a11y_name(&chip, token);
-                    ui.within(&chip, &mut |ui| {
+                    let look = Look {
+                        fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
+                        ..Look::NONE
+                    };
+                    let node = Node {
+                        max_w: width,
+                        ..Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP)
+                    };
+                    let chip = ui.pressable(token, node, &look, |ui| {
                         let label = ui.node(
                             "label".into(),
                             Node {
@@ -380,7 +361,18 @@ pub(super) fn find_tokens(
                         );
                         ui.text(&label, token);
                     });
-                    if ui.signal(&chip).clicked {
+                    ui.set_role(
+                        &chip.handle,
+                        Role::Toggle,
+                        pxui::a11y::state::CHECKABLE
+                            | if selected {
+                                pxui::a11y::state::CHECKED
+                            } else {
+                                0
+                            },
+                    );
+                    ui.a11y_name(&chip.handle, token);
+                    if chip.clicked {
                         *intent = Some(
                             state
                                 .query
