@@ -36,6 +36,9 @@ struct Metrics {
     remove: f32,
     glyph: f32,
 }
+/// Drag down to dismiss with UIKit's sheet thresholds.
+const DISMISS: pxui::GestureOpts = pxui::GestureOpts::DEFAULT.dismiss(pxui::DismissOpts::DEFAULT);
+
 const PANEL: Metrics = Metrics {
     row: 44.0,
     grip: 24.0,
@@ -120,13 +123,7 @@ pub(super) fn queue_sheet(
                     .flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
             };
             let sheet = ui.node("queue-sheet".into(), sheet_node);
-            let drag = ui.gesture(
-                &sheet,
-                pxui::GestureOpts {
-                    dismiss: Some(Default::default()),
-                    ..Default::default()
-                },
-            );
+            let drag = ui.gesture(&sheet, DISMISS);
             // The popup itself follows the finger: moving only the node inside it loses the touch.
             state.sheet_dismiss.set(drag.dismiss);
             if drag.dismiss_committed {
@@ -558,7 +555,7 @@ pub(super) fn queue_rows(
                     *intent = Some(Intent::RemoveQueue(entry.id));
                 }
             });
-            let drop = ui.drop_target_ref(&item).and_then(|drop| {
+            let drop = ui.drop_target(&item).and_then(|drop| {
                 let (dropped, payload) = match drop {
                     pxui::DropRef::Hover(p) => (false, p),
                     pxui::DropRef::Dropped(p) => (true, p),

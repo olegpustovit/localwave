@@ -484,7 +484,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         assert!(intent.is_none());
     }
     assert_eq!(
-        ui.carrying_ref().unwrap().kind,
+        ui.carrying().unwrap().kind,
         "localwave.queue-occurrence:3"
     );
     assert!(
@@ -838,7 +838,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
                 shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
-            if e.is_none() && intent.is_none() && ui.carrying_ref().is_some() {
+            if e.is_none() && intent.is_none() && ui.carrying().is_some() {
                 assert!(
                     !ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
                     "the original grip is virtualized away"
@@ -894,7 +894,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             .unwrap();
             assert!(intent.is_none(), "cancelled drags never reorder");
         }
-        assert!(ui.carrying_ref().is_none());
+        assert!(ui.carrying().is_none());
     }
     frame.events = std::ptr::null();
     frame.event_count = 0;

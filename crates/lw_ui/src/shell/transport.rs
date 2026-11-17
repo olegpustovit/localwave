@@ -171,7 +171,7 @@ pub(super) fn desktop(
             // A carry hovering a list row or a queue gap highlights it and a drop reads once; the engine
             // does not say which, so the views showing drop targets rebuild on every frame of a carry
             // and the one after it.
-            let carry = if ui.carrying_ref().is_some() {
+            let carry = if ui.carrying().is_some() {
                 crate::hash((1u8, ui.frame_index()))
             } else {
                 u64::from(state.carried.get()) * 2
@@ -296,7 +296,7 @@ pub(super) fn desktop(
         );
     });
     // A carry a row starts mid-build shows from the next frame; one that ended shows its last view once.
-    state.carried.set(ui.carrying_ref().is_some());
+    state.carried.set(ui.carrying().is_some());
     root
 }
 

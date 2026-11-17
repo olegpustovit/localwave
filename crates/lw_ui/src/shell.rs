@@ -862,7 +862,7 @@ pub fn shell(
     intent: &mut Option<Intent>,
 ) {
     let input_was_focused = ui.text_input_focused();
-    let carrying = ui.carrying_ref().is_some();
+    let carrying = ui.carrying().is_some();
     if ui.key_pressed(input::Key::Escape.code(), None) {
         ui.cancel_carry();
     }

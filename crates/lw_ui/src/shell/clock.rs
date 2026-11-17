@@ -84,7 +84,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
     });
 }
 pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) {
-    use pxui::kit::{AnimationTarget, Keyframe};
+    use pxui::{ui::Keyframe, Keyframes};
     const ROW_KEYS: [&str; 7] = [
         "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
     ];
@@ -163,22 +163,11 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                             ui.animate_keys(
                                 &visual,
                                 &[
-                                    Keyframe {
-                                        time: 0.0,
-                                        target: AnimationTarget::Opacity(0.0),
-                                        curve,
-                                    },
-                                    Keyframe {
-                                        time: delay,
-                                        target: AnimationTarget::Opacity(0.0),
-                                        curve,
-                                    },
-                                    Keyframe {
-                                        time: delay + crate::motion::QUICK,
-                                        target: AnimationTarget::Opacity(1.0),
-                                        curve,
-                                    },
+                                    Keyframe::opacity(0.0, 0.0).curve(curve),
+                                    Keyframe::opacity(delay, 0.0).curve(curve),
+                                    Keyframe::opacity(delay + crate::motion::QUICK, 1.0).curve(curve),
                                 ],
+                                &Keyframes::DEFAULT,
                             );
                         }
                     }

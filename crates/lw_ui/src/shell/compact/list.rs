@@ -11,6 +11,16 @@ const ROW: f32 = 56.0;
 /// Width of the revealed strip on either side; a full swipe of `SWIPE_FULL` commits it.
 const SWIPE_ACTION: f32 = 76.0;
 const SWIPE_FULL: f32 = 88.0;
+/// A row while selecting: no gesture.
+const SELECTING_ROW: GestureOpts = GestureOpts::DEFAULT;
+/// A row outside selection: long press and swipe actions on both sides.
+const SWIPE_ROW: GestureOpts = GestureOpts::DEFAULT.long_press().swipe_actions(
+    SwipeActions::DEFAULT.leading(SWIPE_ACTION).trailing(SWIPE_ACTION).full(SWIPE_FULL),
+);
+/// A drag handle or index strip: the touch is held at once.
+const HELD_TOUCH: GestureOpts = GestureOpts::DEFAULT.touch_drag();
+/// Pull to refresh at the framework's distance.
+const PULL: GestureOpts = GestureOpts::DEFAULT.pull_to_refresh();
 const RAIL_STEP: f32 = 17.0;
 const RAIL_WIDTH: f32 = 28.0;
 
@@ -152,19 +162,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         // Touch only: a mouse never starts a gesture, so desktop rows read rest.
         let g = ui.gesture(
             &node,
-            if selecting {
-                GestureOpts::default()
-            } else {
-                GestureOpts {
-                    long_press: true,
-                    swipe_actions: Some(SwipeActions {
-                        leading: SWIPE_ACTION,
-                        trailing: SWIPE_ACTION,
-                        full: SWIPE_FULL,
-                    }),
-                    ..Default::default()
-                }
-            },
+            if selecting { SELECTING_ROW } else { SWIPE_ROW },
         );
         let active = g.swiping || g.swipe_open;
         match state.open_swipe.get() {
@@ -340,7 +338,7 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     let grip = ui.node("reorder".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP));
     ui.a11y_name(&grip, "Reorder track");
     // The finger takes the handle at once as a held press, so the list neither scrolls nor refreshes.
-    ui.gesture(&grip, GestureOpts { touch_drag: true, ..Default::default() });
+    ui.gesture(&grip, HELD_TOUCH);
     ui.draw(&grip, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
             paint.fill(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0, paint.color(SECONDARY));
@@ -397,10 +395,7 @@ fn more_button(ui: &mut Ui, label: &str) -> bool {
 fn refresh(ui: &mut Ui, list: &Handle, state: &ShellState, intent: &mut Option<Intent>) {
     let pull = ui.gesture(
         list,
-        GestureOpts {
-            refresh: Some(60.0),
-            ..Default::default()
-        },
+        PULL,
     );
     if !pull.refreshing {
         state.refresh_ending.set(false);
@@ -428,7 +423,7 @@ fn refresh(ui: &mut Ui, list: &Handle, state: &ShellState, intent: &mut Option<I
 /// ends it when moving down).
 fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
     let visible = ((ui.rect(list).h / ROW) as usize).max(1);
-    let top = (ui.scroll_position(list) / ROW) as usize;
+    let top = (ui.scroll(list).painted / ROW) as usize;
     ui.reveal(
         list,
         if target < top {
@@ -478,7 +473,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
                     });
                     ui.a11y_name(&node, letter);
                     // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
-                    ui.gesture(&node, GestureOpts { touch_drag: true, ..Default::default() });
+                    ui.gesture(&node, HELD_TOUCH);
                     let signal = ui.signal(&node);
                     if signal.held {
                         dragging = true;

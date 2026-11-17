@@ -2100,7 +2100,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
             run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y)]);
             run(&mut ui, &[pointer(input::wire::POINTER_PRESSED, x, y)]);
             run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y + 8.0)]);
-            let kind = ui.carrying_ref().map(|p| p.kind.to_owned());
+            let kind = ui.carrying().map(|p| p.kind.to_owned());
             damage.set([0.0; 4]);
             run(&mut ui, &[pointer(input::wire::POINTER_MOVED, tx, ty)]);
             let mut repainted = touches($target, damage.get());
@@ -2114,7 +2114,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
                         code: input::Key::Escape.code(),
                         ..Default::default()
                     }]);
-                    assert!(ui.carrying_ref().is_none(), "Esc cancels the carry");
+                    assert!(ui.carrying().is_none(), "Esc cancels the carry");
                     run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)])
                 }
             };

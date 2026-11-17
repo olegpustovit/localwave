@@ -61,7 +61,7 @@ pub(crate) fn enter(
     duration: f32,
     delay: f32,
 ) {
-    use pxui::kit::{AnimationTarget as Target, Keyframe};
+    use pxui::{ui::Keyframe, Keyframes};
     if ui.state(view, i64::MIN) == generation as i64 {
         return;
     }
@@ -73,32 +73,13 @@ pub(crate) fn enter(
     ui.animate_keys(
         view,
         &[
-            Keyframe {
-                time: 0.0,
-                target: Target::Opacity(0.0),
-                curve,
-            },
-            Keyframe {
-                time: 0.0,
-                target: Target::Offset(offset.0, offset.1),
-                curve,
-            },
-            Keyframe {
-                time: delay,
-                target: Target::Opacity(0.0),
-                curve,
-            },
-            Keyframe {
-                time: delay + duration,
-                target: Target::Opacity(1.0),
-                curve,
-            },
-            Keyframe {
-                time: delay + duration,
-                target: Target::Offset(0.0, 0.0),
-                curve,
-            },
+            Keyframe::opacity(0.0, 0.0).curve(curve),
+            Keyframe::offset(0.0, offset.0, offset.1).curve(curve),
+            Keyframe::opacity(delay, 0.0).curve(curve),
+            Keyframe::opacity(delay + duration, 1.0).curve(curve),
+            Keyframe::offset(delay + duration, 0.0, 0.0).curve(curve),
         ],
+        &Keyframes::DEFAULT,
     );
 }
 

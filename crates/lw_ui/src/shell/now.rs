@@ -172,7 +172,7 @@ pub(super) fn now_panel(
 const FAVORITE: pxui::Button = pxui::Button::sized(36.0, 28.0).look(&BARE);
 /// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
 pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool {
-    use pxui::kit::{AnimationTarget as Target, Keyframe};
+    use pxui::{ui::Keyframe, Keyframes};
     const RAYS: [(&str, f32, f32); 6] = [
         ("ray0", 0.0, -1.0),
         ("ray1", 0.9, -0.5),
@@ -233,40 +233,21 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
                 if burst {
                     let pose = |time, opacity, k: f32, scale| {
                         [
-                            Keyframe {
-                                time,
-                                target: Target::Opacity(opacity),
-                                curve,
-                            },
-                            Keyframe {
-                                time,
-                                target: Target::Offset(dx * 18.0 * k, dy * 18.0 * k),
-                                curve,
-                            },
-                            Keyframe {
-                                time,
-                                target: Target::Scale {
-                                    x: scale,
-                                    y: scale,
-                                    anchor: (0.5, 0.5),
-                                },
-                                curve,
-                            },
+                            Keyframe::opacity(time, opacity).curve(curve),
+                            Keyframe::offset(time, dx * 18.0 * k, dy * 18.0 * k).curve(curve),
+                            Keyframe::scale(time, scale, scale).curve(curve),
                         ]
                     };
                     let [a, b, c] = pose(0.0, 1.0, 0.0, 1.0);
                     let [d, e, f] = pose(crate::motion::SLOW, 0.0, 1.0, 0.25);
-                    ui.animate_keys(&ray, &[a, b, c, d, e, f]);
+                    ui.animate_keys(&ray, &[a, b, c, d, e, f], &Keyframes::DEFAULT);
                     ui.set_state(&ray, 1);
                 } else if ui.state(&ray, 0) == 0 {
                     ui.set_state(&ray, 1);
                     ui.animate_keys(
                         &ray,
-                        &[Keyframe {
-                            time: 0.0,
-                            target: Target::Opacity(0.0),
-                            curve,
-                        }],
+                        &[Keyframe::opacity(0.0, 0.0).curve(curve)],
+                        &Keyframes::DEFAULT,
                     );
                 }
             }

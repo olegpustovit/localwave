@@ -376,7 +376,7 @@ pub(super) fn table(
                     SectionPart::Leading => header_view(ui, catalog, state, width, intent),
                     SectionPart::Header => {
                         let list = ui.box_of_key(list_key).unwrap();
-                        viewport.offset = ui.scroll_position(&list);
+                        viewport.offset = ui.scroll(&list).painted;
                         viewport.height = ui.rect(&list).h;
                         heading(ui, widths, applied, heading_layout, intent);
                     }
@@ -416,7 +416,7 @@ pub(super) fn table(
             }
             // Keep a list-row drag alive while its source row scrolls out of the virtual window.
             if ui
-                .carrying_ref()
+                .carrying()
                 .is_some_and(|payload| {
                     payload.kind.starts_with(LIST_ROW) || payload.kind.starts_with(SONG_DRAG)
                 })
@@ -442,7 +442,7 @@ pub(super) use row::SONG_DRAG;
 
 /// A song drag hovering or dropped on `target`: (dropped, dragged row's song id).
 pub(super) fn song_drop(ui: &mut Ui, target: &Handle) -> Option<(bool, i64)> {
-    let (dropped, payload) = match ui.drop_target_ref(target)? {
+    let (dropped, payload) = match ui.drop_target(target)? {
         pxui::DropRef::Hover(p) => (false, p),
         pxui::DropRef::Dropped(p) => (true, p),
     };

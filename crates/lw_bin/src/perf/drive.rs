@@ -426,7 +426,7 @@ impl Frame {
         }
         if matches!(workload, Some(Workload::QueueDrag | Workload::SongDrag)) && self.index >= 2 {
             let song = workload == Some(Workload::SongDrag);
-            let carrying = ui.carrying_ref();
+            let carrying = ui.carrying();
             self.carry_frames = usize::from(carrying.is_some());
             let expected = (1..20).contains(&((self.index - 2) % 40));
             if expected != carrying.is_some()

@@ -9,8 +9,13 @@ pub(super) struct Viewport {
     pub(super) height: f32,
 }
 
+/// The equalizer bars' loop: forward and back, each bar started a phase later.
+const EQUALIZER_LOOP: pxui::Keyframes = pxui::Keyframes::DEFAULT.repeat(pxui::Repeat::Forever).autoreverse();
+/// The playing glyph's blink loop, each half started a phase later.
+const BLINK_LOOP: pxui::Keyframes = pxui::Keyframes::DEFAULT.repeat(pxui::Repeat::Forever);
+
 pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64) {
-    use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
+    use pxui::{ui::Keyframe, Keyframes};
     let root = ui.node("equalizer".into(), Node::column().w_px(14.0).h_px(11.0).role(Role::Image));
     ui.a11y_name(&root, if playing { "Playing" } else { "Paused" });
     let song = ui.node("equalizer-song".into(), Node::column().w_px(0.0).h_px(0.0));
@@ -35,42 +40,24 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                         });
                     });
                     if changed {
-                        let scale = |y| Target::Scale {
-                            x: 1.0,
-                            y,
-                            anchor: (0.5, 1.0),
-                        };
                         let curve = Curve::Bezier {
                             duration: 0.45,
                             points: [0.42, 0.0, 0.58, 1.0],
                         };
                         if active {
-                            ui.animate_keys_repeat(
+                            ui.animate_keys(
                                 &bar,
                                 &[
-                                    Keyframe {
-                                        time: 0.0,
-                                        target: scale(0.4),
-                                        curve,
-                                    },
-                                    Keyframe {
-                                        time: 0.45,
-                                        target: scale(1.0),
-                                        curve,
-                                    },
+                                    Keyframe::scale(0.0, 1.0, 0.4).anchor(0.5, 1.0).curve(curve),
+                                    Keyframe::scale(0.45, 1.0, 1.0).anchor(0.5, 1.0).curve(curve),
                                 ],
-                                Repeat::Forever,
-                                true,
-                                index as f32 * 0.3,
+                                &EQUALIZER_LOOP.offset(index as f32 * 0.3),
                             );
                         } else {
                             ui.animate_keys(
                                 &bar,
-                                &[Keyframe {
-                                    time: 0.0,
-                                    target: scale(0.4),
-                                    curve,
-                                }],
+                                &[Keyframe::scale(0.0, 1.0, 0.4).anchor(0.5, 1.0).curve(curve)],
+                                &Keyframes::DEFAULT,
                             );
                         }
                     }
@@ -143,7 +130,7 @@ pub(in crate::shell) fn glyph(
         }
     });
     if state == FileState::CopyPending {
-        use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
+        use pxui::{ui::Keyframe, Keyframes};
         let active = visible && !ui.tokens().reduced_motion;
         let changed = ui.state(&root, -1) != i64::from(active);
         ui.set_state(&root, i64::from(active));
@@ -165,37 +152,20 @@ pub(in crate::shell) fn glyph(
                 if changed {
                     let curve = crate::motion::steps(1, 0.5);
                     if active {
-                        ui.animate_keys_repeat(
+                        ui.animate_keys(
                             &half,
                             &[
-                                Keyframe {
-                                    time: 0.0,
-                                    target: Target::Opacity(1.0),
-                                    curve,
-                                },
-                                Keyframe {
-                                    time: 0.5,
-                                    target: Target::Opacity(0.0),
-                                    curve,
-                                },
-                                Keyframe {
-                                    time: 1.0,
-                                    target: Target::Opacity(1.0),
-                                    curve,
-                                },
+                                Keyframe::opacity(0.0, 1.0).curve(curve),
+                                Keyframe::opacity(0.5, 0.0).curve(curve),
+                                Keyframe::opacity(1.0, 1.0).curve(curve),
                             ],
-                            Repeat::Forever,
-                            false,
-                            index as f32 * 0.5,
+                            &BLINK_LOOP.offset(index as f32 * 0.5),
                         );
                     } else {
                         ui.animate_keys(
                             &half,
-                            &[Keyframe {
-                                time: 0.0,
-                                target: Target::Opacity(if index == 0 { 1.0 } else { 0.0 }),
-                                curve,
-                            }],
+                            &[Keyframe::opacity(0.0, if index == 0 { 1.0 } else { 0.0 }).curve(curve)],
+                            &Keyframes::DEFAULT,
                         );
                     }
                 }
@@ -222,7 +192,7 @@ pub(in crate::shell) const LIST_ROW: &str = "localwave.list-row:";
 pub(crate) const SONG_DRAG: &str = "localwave.song:";
 
 pub(in crate::shell) fn drop_target(ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
-    let Some(drop) = ui.drop_target_ref(visual).and_then(|drop| {
+    let Some(drop) = ui.drop_target(visual).and_then(|drop| {
         let (dropped, payload) = match drop {
             pxui::DropRef::Hover(p) => (false, p),
             pxui::DropRef::Dropped(p) => (true, p),
@@ -447,25 +417,10 @@ impl Rows<'_> {
                                         ui.animate_keys(
                                             &visual,
                                             &[
-                                                pxui::kit::Keyframe {
-                                                    time: 0.0,
-                                                    target: pxui::kit::AnimationTarget::Scale {
-                                                        x: 0.3,
-                                                        y: 0.3,
-                                                        anchor: (0.5, 0.5),
-                                                    },
-                                                    curve: crate::motion::spring(crate::motion::BASE),
-                                                },
-                                                pxui::kit::Keyframe {
-                                                    time: crate::motion::BASE,
-                                                    target: pxui::kit::AnimationTarget::Scale {
-                                                        x: 1.0,
-                                                        y: 1.0,
-                                                        anchor: (0.5, 0.5),
-                                                    },
-                                                    curve: crate::motion::spring(crate::motion::BASE),
-                                                },
+                                                Keyframe::scale(0.0, 0.3, 0.3).curve(crate::motion::spring(crate::motion::BASE)),
+                                                Keyframe::scale(crate::motion::BASE, 1.0, 1.0).curve(crate::motion::spring(crate::motion::BASE)),
                                             ],
+                                            &Keyframes::DEFAULT,
                                         );
                                     }
                                 }

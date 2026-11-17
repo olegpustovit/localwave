@@ -5,7 +5,10 @@
 //! typed input and consumes intents. Never add app-owned recognizers to fix routing.
 //!
 use super::*;
-use pxui::GestureOpts;
+use pxui::{DismissOpts, GestureOpts};
+
+/// Drag down to dismiss with UIKit's sheet thresholds.
+const DISMISS: GestureOpts = GestureOpts::DEFAULT.dismiss(DismissOpts::DEFAULT);
 
 pub(super) mod list;
 pub(super) mod page;
@@ -513,13 +516,7 @@ fn expanded(
     };
     let root = ui.node("expanded-player".into(), root_node);
     // Drag down to dismiss (UIKit sheet thresholds); the button below stays the alternative.
-    let drag = ui.gesture(
-        &root,
-        GestureOpts {
-            dismiss: Some(Default::default()),
-            ..Default::default()
-        },
-    );
+    let drag = ui.gesture(&root, DISMISS);
     if drag.dismiss != 0.0 {
         ui.set_node_layout(
             &root,
