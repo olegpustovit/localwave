@@ -16,10 +16,10 @@ pub(super) fn toolbar(
 ) {
     let row = ui.node("album-tools".into(), Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
     ui.within(&row, &mut |ui| {
-        for (value, title) in [
-            (AlbumSort::Artist, "Artist"),
-            (AlbumSort::Year, "Year"),
-            (AlbumSort::Added, "Size"),
+        for (value, key, title) in [
+            (AlbumSort::Artist, "sort-artist", "Artist"),
+            (AlbumSort::Year, "sort-year", "Year"),
+            (AlbumSort::Added, "sort-added", "Size"),
         ] {
             let selected = state.album_sort == value;
             let look = Look {
@@ -27,7 +27,7 @@ pub(super) fn toolbar(
                 ..Look::NONE
             };
             let node = Node::column().w(Size::Fit).h_px(30.0).pad_x(10.0).center().role(Role::Button);
-            let button = ui.pressable(title, node, &look, |ui| {
+            let button = ui.pressable(key, node, &look, |ui| {
                 ui.label(title, TEXT_13.h(18.2).color(if selected { INK } else { SECONDARY }));
             });
             ui.a11y_name(&button.handle, title);
