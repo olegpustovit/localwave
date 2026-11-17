@@ -4,6 +4,12 @@ use crate::browse::Query;
 use crate::catalog::Catalog;
 use crate::{Intent, ListDialog};
 
+/// The delete list sheet: what does not change between frames.
+const DELETE_LIST: Overlay = Overlay::DEFAULT.name("Delete list?");
+
+/// The list menu sheet: what does not change between frames.
+const LIST_MENU: Overlay = Overlay::DEFAULT.w(200.0).h(72.0).stroke(Rgba::token(LINE)).name("List actions");
+
 /// The playlist name input of the list dialog: Done ends editing.
 const LIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
     .action(pxui::ReturnKey::Done)
@@ -38,16 +44,7 @@ pub(super) fn menu(
         (true, Query::new(t).unwrap_or_default())
     });
     let mut accepted = false;
-    let open = ui.popup(
-        Some(ui.color(LINE)),
-        None,
-        false,
-        false,
-        at,
-        200.0,
-        72.0,
-        "List actions",
-        &mut |ui| {
+    let open = ui.popup("list-menu", &LIST_MENU.at(at.0, at.1), |ui| {
             for (label, action, color) in [
                 ("Rename…", Intent::RenameListDialog(list, title), ui.color(INK)),
                 ("Delete list", Intent::ConfirmDeleteList(list), ui.color(DANGER)),
@@ -81,8 +78,7 @@ pub(super) fn menu(
                     accepted = true;
                 }
             }
-        },
-    );
+        });
     if accepted {
         ui.dismiss_popup();
     }
@@ -100,7 +96,7 @@ pub(super) fn confirm_delete(
     let (width, _) = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = playlist_title(catalog, list);
-    let open = ui.modal(Some(width), "Delete list?", &mut |ui| {
+    let open = ui.modal("confirm-delete-list", &DELETE_LIST.w(width), |ui| {
         ui.column(
             "delete-list-body",
             Node {
@@ -159,7 +155,7 @@ pub(super) fn name_dialog(
         ListDialog::New(_) | ListDialog::NewPage => ("New list", "Create"),
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
-    let open = ui.modal(Some(width), heading, &mut |ui| {
+    let open = ui.modal("list-name", &Overlay::DEFAULT.w(width).name(heading), |ui| {
         ui.column(
             "list-name-body",
             Node {

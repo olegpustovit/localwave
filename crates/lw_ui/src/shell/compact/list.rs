@@ -89,17 +89,10 @@ pub(super) fn songs(
     ui.stack("songs-stack", Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
         let list = ui.section_list(
             "compact-songs",
-            &SectionList {
-                count: collection.rows.len() + usize::from(find_keys),
-                row_height: ROW,
-                leading_height: lead,
-                header_height: 0.0,
-                trailing_height: if cx.selecting { BAR } else { 0.0 },
-                overlay_scrollbar: true,
-            },
+            &SectionList::new(collection.rows.len() + usize::from(find_keys)).row_h(ROW).lead(lead).trail(if cx.selecting { BAR } else { 0.0 }).overlay_scrollbar(),
             // the find keys row after the songs has no song
             &|i| collection.row_keys.get(i).copied().unwrap_or(0),
-            &mut |ui, part| match part {
+            &mut |ui, part, _| match part {
                 SectionPart::Leading => {
                     match state.route {
                         Route::Artist(index) => artist_lead(ui, &cx, index, intent),

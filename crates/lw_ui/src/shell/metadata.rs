@@ -3,6 +3,12 @@ use super::*;
 use crate::catalog::Catalog;
 use crate::{Intent, MetadataEdit};
 
+/// The delete song sheet: what does not change between frames.
+const DELETE_SONG: Overlay = Overlay::DEFAULT.name("Delete song?");
+
+/// The edit metadata sheet: what does not change between frames.
+const EDIT_METADATA: Overlay = Overlay::DEFAULT.name("Edit Metadata");
+
 /// A metadata text input: Done ends editing.
 const META_FIELD: pxui::TextField = pxui::TextField::DEFAULT.action(pxui::ReturnKey::Done);
 
@@ -24,7 +30,7 @@ pub(super) fn editor(
 ) {
     let (width, _) = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
-    let open = ui.modal(Some(width), "Edit Metadata", &mut |ui| {
+    let open = ui.modal("edit-metadata", &EDIT_METADATA.w(width), |ui| {
         ui.column(
             "metadata-body",
             Node {
@@ -89,7 +95,7 @@ pub(super) fn confirm_delete(
     let title = catalog
         .row_index(song)
         .map(|index| catalog.row(index).title);
-    let open = ui.modal(Some(width), "Delete song?", &mut |ui| {
+    let open = ui.modal("confirm-delete-song", &DELETE_SONG.w(width), |ui| {
         ui.column(
             "delete-song-body",
             Node {

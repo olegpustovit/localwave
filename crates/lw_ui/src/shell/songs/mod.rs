@@ -351,24 +351,9 @@ pub(super) fn table(
                 offset: 0.0,
                 height: 0.0,
             };
-            let list = ui.section_list_measured(
+            let list = ui.section_list(
                 "songs",
-                &SectionList {
-                    count: if placeholder {
-                        1
-                    } else {
-                        collection.rows.len()
-                    },
-                    row_height: if placeholder {
-                        83.6
-                    } else {
-                        38.0
-                    },
-                    leading_height: if find { 0.0 } else { leading },
-                    header_height: heading_layout.height,
-                    trailing_height: 0.0,
-                    overlay_scrollbar: true,
-                },
+                &SectionList::new(if placeholder { 1 } else { collection.rows.len() }).row_h(if placeholder { 83.6 } else { 38.0 }).lead(if find { 0.0 } else { leading }).header(heading_layout.height).overlay_scrollbar().measured(),
                 &|i| if placeholder { 0 } else { collection.row_keys[i] },
                 &mut |ui, part, content_y| match part {
                     SectionPart::Leading if detail => {

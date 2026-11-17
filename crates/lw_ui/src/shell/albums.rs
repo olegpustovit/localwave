@@ -124,17 +124,10 @@ pub(super) fn gallery(
     let card_height = cell + 43.7;
     ui.section_list(
         "groups",
-        &SectionList {
-            count: groups.len().div_ceil(columns),
-            row_height: card_height + 28.0,
-            leading_height: if compact { 16.0 } else { 172.6 },
-            header_height: 0.0,
-            trailing_height: 12.0,
-            overlay_scrollbar: true,
-        },
+        &SectionList::new(groups.len().div_ceil(columns)).row_h(card_height + 28.0).lead(if compact { 16.0 } else { 172.6 }).trail(12.0).overlay_scrollbar(),
         // a row is a line of cards
         &|line| line as i64,
-        &mut |ui, part| match part {
+        &mut |ui, part, _| match part {
             SectionPart::Leading => {
                 if !compact {
                     header_view(ui, catalog, state, width, intent);

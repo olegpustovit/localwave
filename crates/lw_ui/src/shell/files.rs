@@ -2,6 +2,18 @@ use super::*;
 use crate::FilesFilter;
 use crate::files::{Folder, Location, Request, Target};
 
+/// The add music sheet: what does not change between frames.
+const ADD_MUSIC: Overlay = Overlay::DEFAULT.name("Add music");
+
+/// The entry menu sheet: what does not change between frames.
+const ENTRY_MENU: Overlay = Overlay::DEFAULT.w(200.0).h(108.0).stroke(Rgba::token(LINE)).name("Folder actions");
+
+/// The remove folder sheet: what does not change between frames.
+const REMOVE_FOLDER: Overlay = Overlay::DEFAULT.name("Remove folder?");
+
+/// The folder menu sheet: what does not change between frames.
+const FOLDER_MENU: Overlay = Overlay::DEFAULT.w(220.0).h(144.0).stroke(Rgba::token(LINE)).name("Folder options");
+
 fn options(ui: &mut Ui, target: Target, intent: &mut Option<Intent>) {
     let button = button(ui, "source-options", "Folder options", 118.0, true, (PANEL, INK));
     if ui.signal(&button).clicked {
@@ -31,16 +43,7 @@ pub(super) fn popup(
                 .any(|folder| folder.id == target.source && folder.root == target.root)
     });
     let mut accepted = false;
-    let open = ui.popup(
-        Some(ui.color(LINE)),
-        None,
-        false,
-        false,
-        at,
-        220.0,
-        144.0,
-        "Folder options",
-        &mut |ui| {
+    let open = ui.popup("folder-menu", &FOLDER_MENU.at(at.0, at.1), |ui| {
             for (index, label) in [
                 "Open folder",
                 "Rescan now",
@@ -102,8 +105,7 @@ pub(super) fn popup(
                     accepted = true;
                 }
             }
-        },
-    );
+        });
     if accepted {
         ui.dismiss_popup();
     }
@@ -128,7 +130,7 @@ pub(super) fn confirm_remove(
         })
     });
     let enabled = folder.is_some() && player.files.is_some_and(|files| !files.busy);
-    let open = ui.modal(Some(width), "Remove folder?", &mut |ui| {
+    let open = ui.modal("confirm-remove-folder", &REMOVE_FOLDER.w(width), |ui| {
         ui.column(
             "remove-source-body",
             Node {
@@ -816,7 +818,7 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
     let (w, h) = ui.view_size();
     let at = (at.0.clamp(0.0, (w - 200.0).max(0.0)) - 160.0f32.min(at.0), at.1.clamp(0.0, (h - 108.0).max(0.0)));
     let mut accepted = false;
-    let open = ui.popup(Some(ui.color(LINE)), None, false, false, at, 200.0, 108.0, "Folder actions", &mut |ui| {
+    let open = ui.popup("entry-menu", &ENTRY_MENU.at(at.0, at.1), |ui| {
         for (label, enabled, action) in [
             ("Open folder", true, Intent::Files(Request::Browse(Location { parent: Some(entry), ..directory.location }))),
             ("Play folder", filled, Intent::PlayEntryFolder(entry)),
@@ -843,7 +845,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     let (width, _) = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
-    let open = ui.modal(Some(width), "Add music", &mut |ui| {
+    let open = ui.modal("add-music", &ADD_MUSIC.w(width), |ui| {
         ui.column("add-music-body", Node { look: Look { fill: ui.color(PAPER), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0) }, |ui| {
             super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
             ui.label("Files stay where they are", CAPTION.grow());

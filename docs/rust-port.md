@@ -93,7 +93,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12F2a | pxui_render GPU tests use set_view; ellipsis golden follows DX-BUG1; landing compiles every workspace test target | done | fdf646d + pxui e659280 |
 | DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | c6cd355 + pxui cf953b3 |
 | DX1.12A | Audit batch A: Label is the one text-style input (TextStyle opaque, from resolve), enums for wrap/ellipsis/align, label exports resolve in-call | done | 1efcf4d + pxui 763df85 |
-| DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | todo |  |
+| DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | done | HEAD + pxui b6958651 |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -141,7 +141,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4c | A prewarmed natural-width layout serves draws at any width that cannot change it | done | 81f353c + pxui 7f2f738 |
 | DX5.4d | LocalWave fling ceiling kept equal to pxui's (parsed test); prewarmed-cells test deterministic | done | 31e87c3 |
 | DX5.4e | A layout prepared at width W serves draws between its measured width and W (left-aligned; uncut ellipsis) | done | f27b48b + pxui a3a8924 |
-| DX5.4f | New nodes reuse a measured or worker-prepared layout at their measured width (recent-width index; installs recorded) | done | HEAD |
+| DX5.4f | New nodes reuse a measured or worker-prepared layout at their measured width (recent-width index; installs recorded) | done | 6559e40 |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
@@ -149,8 +149,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | f2a2e68 + pxui 84752ba |
 | OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | f2a2e68 + pxui 93c7d20 |
 | OS-B2b | Text, image and renderer bounded for untrusted callers: text length caps, font caps, layout byte budget, renderer records size-checked, resize capped, per-Ui image table | done | f2a2e68 + pxui 5d11b7e |
-| OS-B2a | Every C export validated for untrusted callers (fuzz over the manifest), per-role caps, builders outside a frame refused, wrapper clips display text | done | HEAD + pxui c03699f |
-| OS-LW1 | LocalWave clips user metadata for display once (1024 B) where snapshots are built; stored data unchanged | done | HEAD |
+| OS-B2a | Every C export validated for untrusted callers (fuzz over the manifest), per-role caps, builders outside a frame refused, wrapper clips display text | done | 6559e40 + pxui c03699f |
+| OS-LW1 | LocalWave clips user metadata for display once (1024 B) where snapshots are built; stored data unchanged | done | 6559e40 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |

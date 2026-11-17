@@ -9,6 +9,9 @@ use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
 
+/// The settings menu sheet: what does not change between frames.
+const SETTINGS_MENU: Overlay = Overlay::DEFAULT.w(220.0).stroke(Rgba::token(LINE)).name("Settings options");
+
 fn back(ui: &mut Ui, name: &'static str) -> bool {
     let button = ui.node(
         name.into(),
@@ -376,16 +379,7 @@ pub(super) fn popup(
         at.0.clamp(0.0, (width - 220.0).max(0.0)),
         at.1.clamp(0.0, (height - rows as f32 * 36.0).max(0.0)),
     );
-    let open = ui.popup(
-        Some(ui.color(LINE)),
-        None,
-        false,
-        false,
-        at,
-        220.0,
-        rows as f32 * 36.0,
-        "Settings options",
-        &mut |ui| {
+    let open = ui.popup("settings-menu", &SETTINGS_MENU.at(at.0, at.1).h(rows as f32 * 36.0), |ui| {
             let items: &[(Change, &str, bool)] = if menu == SettingsMenu::Cache {
                 &[
                     (
@@ -464,8 +458,7 @@ pub(super) fn popup(
                     *intent = Some(Intent::Setting(change));
                 }
             }
-        },
-    );
+        });
     if matches!(intent, Some(Intent::Setting(_))) {
         ui.dismiss_popup();
     }

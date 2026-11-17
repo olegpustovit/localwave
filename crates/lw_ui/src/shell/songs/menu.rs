@@ -1,6 +1,9 @@
 use super::*;
 use crate::browse;
 
+/// The song menu sheet: what does not change between frames.
+const SONG_MENU: Overlay = Overlay::DEFAULT.w(200.0).stroke(Rgba::token(LINE));
+
 pub(in crate::shell) fn popup(
     ui: &mut Ui,
     catalog: &Catalog,
@@ -108,16 +111,9 @@ pub(in crate::shell) fn popup(
         at.1.clamp(0.0, (h - height.min(8.0 * 36.0)).max(0.0)),
     );
     let mut accepted = false;
-    let open = ui.popup(
-        Some(ui.color(LINE)),
-        lists.then_some(8.0 * 36.0),
-        false,
-        false,
-        at,
-        200.0,
-        height,
-        if lists { "Add to list" } else { "Song actions" },
-        &mut |ui| {
+    let menu = SONG_MENU.at(at.0, at.1).h(height).name(if lists { "Add to list" } else { "Song actions" });
+    let menu = if lists { menu.max_h(8.0 * 36.0) } else { menu };
+    let open = ui.popup("song-menu", &menu, |ui| {
             if lists {
                 {
                     let item = ui.node("new-list".into(), item_node(ui, present));
@@ -162,8 +158,7 @@ pub(in crate::shell) fn popup(
                     accepted = action != Intent::SongMenuLists;
                 }
             }
-        },
-    );
+        });
     if accepted {
         ui.dismiss_popup();
     }

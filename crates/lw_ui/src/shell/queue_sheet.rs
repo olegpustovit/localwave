@@ -106,16 +106,7 @@ pub(super) fn queue_sheet(
         + 20.0;
     let height = wanted.min((content.h * 0.86 - 33.0).max(0.0));
     let width = content.w;
-    let open = ui.popup(
-        None,
-        Some(height),
-        false,
-        false,
-        (content.x, content.y + content.h - height + state.sheet_dismiss.get()),
-        width,
-        height,
-        "Playback queue",
-        &mut |ui| {
+    let open = ui.popup("queue-sheet", &Overlay::DEFAULT.at(content.x, content.y + content.h - height + state.sheet_dismiss.get()).w(width).h(height).max_h(height).name("Playback queue"), |ui| {
             let sheet_node = Node {
                 look: Look {
                     fill: ui.color(PAPER),
@@ -341,8 +332,7 @@ pub(super) fn queue_sheet(
                 }
                 spacer(ui, "queue-bottom", 20.0);
             });
-        },
-    );
+        });
     if !open {
         *intent = Some(Intent::CloseQueue);
     }

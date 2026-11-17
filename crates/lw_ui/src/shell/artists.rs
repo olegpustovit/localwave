@@ -101,16 +101,9 @@ pub(super) fn table(
         images.map_or(0, crate::artwork::Images::revision),
         std::sync::Arc::as_ptr(&catalog.library) as usize,
     ));
-    ui.section_list_measured(
+    ui.section_list(
         "artists",
-        &SectionList {
-            count: catalog.artists.len(),
-            row_height: 38.0,
-            leading_height: 105.6,
-            header_height: heading_height,
-            trailing_height: 0.0,
-            overlay_scrollbar: true,
-        },
+        &SectionList::new(catalog.artists.len()).row_h(38.0).lead(105.6).header(heading_height).overlay_scrollbar().measured(),
         &|i| i as i64,
         &mut |ui, part, _| match part {
             SectionPart::Leading => header_view(ui, catalog, state, width, intent),

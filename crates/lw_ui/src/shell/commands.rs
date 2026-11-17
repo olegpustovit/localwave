@@ -174,6 +174,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
 fn overlay(
     ui: &mut Ui,
     inset: f32,
+    key: &'static str,
     label: &str,
     dimensions: (f32, Size),
     close: Intent,
@@ -193,16 +194,7 @@ fn overlay(
     let max_height = (content.h - top - 16.0).max(0.0);
     // The popup is just the card: a full-view popup would paint its own sheet fill over the page.
     // Press-outside dismissal is the popup's; shell() draws the dim over the live page.
-    let open = ui.popup(
-        None,
-        Some(max_height),
-        false,
-        false,
-        (content.x + (content.w - width) * 0.5, content.y + top),
-        width,
-        60.0,
-        label,
-        &mut |ui| {
+    let open = ui.popup(key, &Overlay::DEFAULT.at(content.x + (content.w - width) * 0.5, content.y + top).w(width).h(60.0).max_h(max_height).name(label), |ui| {
             let card = ui.node(
                 "card".into(),
                 Node {
@@ -217,8 +209,7 @@ fn overlay(
             ui.set_role(&card, Role::Dialog, pxui::a11y::state::MODAL);
             ui.a11y_name(&card, label);
             ui.within(&card, &mut |ui| build(ui, intent));
-        },
-    );
+        });
     if !open && intent.is_none() {
         *intent = Some(close);
     }
@@ -242,6 +233,7 @@ pub(super) fn palette_view(
     overlay(
         ui,
         state.top_inset,
+        "commands",
         "Search and commands",
         ((width - 32.0).clamp(0.0, 600.0), Size::Fit),
         Intent::CloseCommands,
@@ -281,16 +273,8 @@ pub(super) fn palette_view(
             {
                 *intent = Some(Intent::ActivateCommand(item.key));
             }
-            const RESULTS: SectionList = SectionList {
-                count: 0,
-                row_height: 44.0,
-                leading_height: 0.0,
-                header_height: 0.0,
-                trailing_height: 0.0,
-                overlay_scrollbar: false,
-            };
-            let rows = SectionList { count: items.len().max(1), ..RESULTS };
-            let list = ui.section_list_measured("results", &rows, &|i| items.get(i).map_or(0, |item| item.key as i64), &mut |ui, part, _| {
+            let rows = SectionList::new(items.len().max(1)).row_h(44.0).measured();
+            let list = ui.section_list("results", &rows, &|i| items.get(i).map_or(0, |item| item.key as i64), &mut |ui, part, _| {
                 let SectionPart::Row(index) = part else { return };
                 let Some(item) = items.get(index) else {
                     ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, TEXT_14.grow().h_px(48.0).color(SECONDARY));
@@ -484,6 +468,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
     overlay(
         ui,
         inset,
+        "shortcuts",
         "Keyboard shortcuts",
         (
             card,
@@ -492,7 +477,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
         Intent::CloseShortcuts,
         intent,
         &mut |ui, _| {
-            ui.scroll_view("shortcuts", Size::Grow, Size::Grow, &mut |ui| {
+            ui.scroll_view("shortcuts", Size::Grow, Size::Grow, |ui| {
                 let body = ui.node("body".into(), Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
                     ui.label("Keyboard", TEXT_18.grow().color(INK));
