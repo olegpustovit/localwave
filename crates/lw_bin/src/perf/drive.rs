@@ -125,7 +125,7 @@ impl Frame {
         let workload = self.workload;
         let mut expected_settings_intent = None;
         if workload.is_some() && self.index >= 2 && !matches!(workload, Some(Workload::Drop | Workload::Clock120)) {
-            if let Some(measured) = workload.filter(|workload| workload.measured() || *workload == Workload::Idle600) {
+            if let Some(measured) = workload.filter(|workload| workload.scripted()) {
                 super::measured::events(measured, self.index - 2, self.from, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::Settings)) {
                 expected_settings_intent = settings_events(self.index - 2, ui, &mut *events)?;
@@ -205,7 +205,7 @@ impl Frame {
             return;
         }
         let phase = (self.index - 2) % 40;
-        if let Some(workload) = self.workload.filter(|workload| workload.measured()) {
+        if let Some(workload) = self.workload.filter(|workload| workload.scripted()) {
             super::measured::state_input(workload, self.index - 2, self.from, state);
         }
         match self.workload {

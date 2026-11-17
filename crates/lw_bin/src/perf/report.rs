@@ -314,7 +314,7 @@ impl Perf {
         }
         if (*draws) != from + MEASURED_FRAMES
             || (*warm_allocations) != 0
-            || (matches!(workload, Some(Workload::Clock120 | Workload::Idle600)) && self.warm_layouts != 0)
+            || (workload.is_some_and(Workload::gates_layouts) && self.warm_layouts != 0)
             || cpu_samples[98] >= BUILD_CPU_LIMIT_US
             || frame_cpu_samples[98] >= FRAME_CPU_LIMIT_US
             || work_samples[98] >= WORK_WALL_LIMIT_US
@@ -388,8 +388,19 @@ mod tests {
         assert!(perf.report(false, counts, 0).is_err());
     }
     #[test]
-    fn clock_120_and_idle_600_are_gated_on_allocations_and_text_layouts() {
-        for workload in [Workload::Clock120, Workload::Idle600] {
+    fn dx0_3_workloads_but_first_navigation_and_menu_are_gated_on_allocations_and_text_layouts() {
+        for workload in [
+            Workload::Fling,
+            Workload::ReverseScroll,
+            Workload::Jump,
+            Workload::NonSongLists,
+            Workload::SearchTyping,
+            Workload::TextTyping,
+            Workload::Resize,
+            Workload::ThemeSwitch,
+            Workload::Clock120,
+            Workload::Idle600,
+        ] {
             let mut perf = Perf::new(workload, None);
             perf.warmup = Some(super::super::Warmup::default());
             let frames = perf.measured_from() + MEASURED_FRAMES;
@@ -404,7 +415,7 @@ mod tests {
     }
     #[test]
     fn measured_workloads_report_but_never_fail_even_over_every_budget() {
-        let mut perf = Perf::new(Workload::Fling, None);
+        let mut perf = Perf::new(Workload::FirstNavigation, None);
         let counts = (WARMUP_FRAMES + MEASURED_FRAMES, 0);
         perf.warmup = None;
         perf.warm_allocations = 7;

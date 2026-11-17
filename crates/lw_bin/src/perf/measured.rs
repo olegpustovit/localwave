@@ -1,5 +1,6 @@
-//! Measured-only workloads: they report warm Rust allocations and timing columns like gated rows
-//! but never fail the run. The gated idle-600 return shares this input driver. Drivers are pure functions of the frame number: no allocation, no clocks.
+//! Input drivers of the DX0.3 workloads. First navigation and first menu open are measured-only
+//! (they report warm Rust allocations and timing columns but never fail the run); the others are
+//! gated. Drivers are pure functions of the frame number: no allocation, no clocks.
 use super::Workload;
 use input::{Event, ScrollPhase};
 

@@ -41,18 +41,20 @@ pub enum Workload {
     ListDialogs,
     MetadataEditor,
     SongDrag,
-    // Measured-only: reported with allocations and timings, never gated.
+    // Measured-only: reported with allocations and timings, never gated. Both show content never
+    // shaped before (a screen's or menu's first build), so the frame shapes text, rasterises
+    // glyphs and creates nodes for the first time.
+    FirstNavigation,
+    FirstMenuOpen,
+    // Gated like the rows above: zero warm allocations and no text layouts in the measured window.
     Fling,
     ReverseScroll,
     Jump,
     NonSongLists,
     SearchTyping,
-    FirstNavigation,
     TextTyping,
-    FirstMenuOpen,
     Resize,
     ThemeSwitch,
-    // Gated like the rows above: zero warm allocations and no text layouts in the measured window.
     Idle600,
     Clock120,
 }
@@ -60,6 +62,11 @@ pub enum Workload {
 impl Workload {
     /// Workloads that report allocations and timings but never fail the run.
     pub fn measured(self) -> bool {
+        matches!(self, Self::FirstNavigation | Self::FirstMenuOpen)
+    }
+
+    /// Workloads whose input comes from the `measured` drivers (the DX0.3 rows but the clock).
+    pub fn scripted(self) -> bool {
         matches!(
             self,
             Self::Fling
@@ -72,7 +79,13 @@ impl Workload {
                 | Self::FirstMenuOpen
                 | Self::Resize
                 | Self::ThemeSwitch
+                | Self::Idle600
         )
+    }
+
+    /// Gated workloads that must also shape no text in the measured window.
+    pub fn gates_layouts(self) -> bool {
+        (self.scripted() && !self.measured()) || self == Self::Clock120
     }
 
     pub fn uses_queue(self) -> bool {
@@ -102,16 +115,16 @@ impl Workload {
             Self::ListDialogs => "list-dialogs-menu-and-name",
             Self::MetadataEditor => "metadata-editor-typing",
             Self::SongDrag => "song-drag-carry-hover-cancel",
-            Self::Fling => "measured-fling",
-            Self::ReverseScroll => "measured-reverse-scroll",
-            Self::Jump => "measured-scroll-jump",
-            Self::NonSongLists => "measured-non-song-lists",
-            Self::SearchTyping => "measured-search-typing",
+            Self::Fling => "fling",
+            Self::ReverseScroll => "reverse-scroll",
+            Self::Jump => "scroll-jump",
+            Self::NonSongLists => "non-song-lists",
+            Self::SearchTyping => "search-typing",
             Self::FirstNavigation => "measured-first-navigation",
-            Self::TextTyping => "measured-text-typing",
+            Self::TextTyping => "text-typing",
             Self::FirstMenuOpen => "measured-first-menu-open",
-            Self::Resize => "measured-resize",
-            Self::ThemeSwitch => "measured-theme-switch",
+            Self::Resize => "resize",
+            Self::ThemeSwitch => "theme-switch",
             Self::Idle600 => "idle-600-return",
             Self::Clock120 => "clock-120",
         }
@@ -317,16 +330,16 @@ mod tests {
             (Workload::ListDialogs, "list-dialogs-menu-and-name", false),
             (Workload::MetadataEditor, "metadata-editor-typing", false),
             (Workload::SongDrag, "song-drag-carry-hover-cancel", true),
-            (Workload::Fling, "measured-fling", false),
-            (Workload::ReverseScroll, "measured-reverse-scroll", false),
-            (Workload::Jump, "measured-scroll-jump", false),
-            (Workload::NonSongLists, "measured-non-song-lists", false),
-            (Workload::SearchTyping, "measured-search-typing", false),
+            (Workload::Fling, "fling", false),
+            (Workload::ReverseScroll, "reverse-scroll", false),
+            (Workload::Jump, "scroll-jump", false),
+            (Workload::NonSongLists, "non-song-lists", false),
+            (Workload::SearchTyping, "search-typing", false),
             (Workload::FirstNavigation, "measured-first-navigation", false),
-            (Workload::TextTyping, "measured-text-typing", false),
+            (Workload::TextTyping, "text-typing", false),
             (Workload::FirstMenuOpen, "measured-first-menu-open", false),
-            (Workload::Resize, "measured-resize", false),
-            (Workload::ThemeSwitch, "measured-theme-switch", false),
+            (Workload::Resize, "resize", false),
+            (Workload::ThemeSwitch, "theme-switch", false),
             (Workload::Idle600, "idle-600-return", false),
             (Workload::Clock120, "clock-120", false),
         ] {
