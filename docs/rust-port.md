@@ -166,9 +166,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | done | ffe72c6 + pxui 6d85f9c |
-| DX7.6 | Reserved surface id | done | HEAD + pxui e5be793 |
+| DX7.6 | Reserved surface id | done | 53377e7 + pxui e5be793 |
 | DX7.7 | Record changes before freeze | todo |  |
-| DX7.8 | Rays vocabulary to extension manifest | todo |  |
+| DX7.8 | Rays vocabulary to extension manifest | done | HEAD + pxui 3d16c6b |
 | DX7.9 | Lint: records built from DEFAULT | todo |  |
 | DX7.10 | Mach-O and ELF versions | todo |  |
 | DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | todo |  |
