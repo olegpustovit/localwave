@@ -400,7 +400,7 @@ fn mini(
                 *intent = Some(Intent::TogglePlayer);
             }
             play(ui, player, (44.0, 44.0), intent);
-            if icon_button(ui, "next", "Next", Icon::Next, (44.0, 44.0), false, true) {
+            if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(44.0, 44.0).look(&looks(ui).icon_plate)).clicked {
                 *intent = Some(Intent::Next);
             }
         },
@@ -408,19 +408,7 @@ fn mini(
 }
 
 fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Option<Intent>) {
-    if icon_button(
-        ui,
-        "play",
-        if player.playing { "Pause" } else { "Play" },
-        if player.playing {
-            Icon::Pause
-        } else {
-            Icon::Play
-        },
-        size,
-        true,
-        true,
-    ) {
+    if ui.icon_button("play", icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }), if player.playing { "Pause" } else { "Play" }, &icon_key(size.0, size.1).look(&looks(ui).icon_inverse)).clicked {
         *intent = Some(if player.playing {
             Intent::Pause
         } else {
@@ -570,7 +558,7 @@ fn expanded(
         ui.row("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
-                if icon_button(ui, "close-player", "Close now playing", Icon::Down, (44.0, 44.0), false, true) {
+                if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &icon_key(44.0, 44.0).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
@@ -731,11 +719,11 @@ fn expanded(
             },
             |ui| {
                 let key = ((size.0 - 8.0) / 3.0).max(1.0);
-                if icon_button(ui, "previous", "Previous", Icon::Previous, (key, 84.0), false, true) {
+                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::Previous);
                 }
                 play(ui, player, (key, 84.0), intent);
-                if icon_button(ui, "next", "Next", Icon::Next, (key, 84.0), false, true) {
+                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::Next);
                 }
             },

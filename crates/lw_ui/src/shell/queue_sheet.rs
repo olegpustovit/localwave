@@ -197,15 +197,7 @@ pub(super) fn queue_sheet(
                                 }
                             });
                         });
-                        if icon_button(
-                            ui,
-                            "close-queue",
-                            "Close queue",
-                            Icon::Clear,
-                            (44.0, 44.0),
-                            false,
-                            true,
-                        ) {
+                        if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &icon_key(44.0, 44.0).look(&looks(ui).icon_plate)).clicked {
                             *intent = Some(Intent::CloseQueue);
                         }
                     },
@@ -433,15 +425,7 @@ pub(super) fn queue_rows(
         ui.within(&header, &mut |ui| {
             ui.label(&queue.heading, TEXT_13.w(Size::Grow).h(28.0).color(SECONDARY));
             ui.label(&queue.count, MONO_12.w(Size::Px(56.0)).h(28.0).color(SECONDARY));
-            if icon_button(
-                ui,
-                "show-queue",
-                "Show full queue",
-                Icon::Queue,
-                (28.0, 28.0),
-                false,
-                true,
-            ) {
+            if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &icon_key(28.0, 28.0).look(&looks(ui).icon_plate)).clicked {
                 *intent = Some(Intent::ShowQueue);
             }
             if !queue.upcoming().is_empty()
@@ -586,15 +570,7 @@ pub(super) fn queue_rows(
                         },
                     );
                 }
-                if icon_button(
-                    ui,
-                    "remove-queued",
-                    "Remove from queue",
-                    Icon::Clear,
-                    (m.remove, m.row),
-                    false,
-                    true,
-                ) {
+                if ui.icon_button("remove-queued", icon_drawing(Icon::Clear), "Remove from queue", &icon_key(m.remove, m.row).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::RemoveQueue(entry.id));
                 }
             });

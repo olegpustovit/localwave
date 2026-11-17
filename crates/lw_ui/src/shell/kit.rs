@@ -213,72 +213,25 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         }
     }
 }
-pub(super) fn icon_button(
-    ui: &mut Ui,
-    key: &'static str,
-    label: &str,
-    icon: Icon,
-    dimensions: (f32, f32),
-    inverse: bool,
-    plate: bool,
-) -> bool {
-    let node = ui.node(
-        key.into(),
-        Node::column()
-            .w_px(dimensions.0)
-            .h_px(dimensions.1)
-            .role(Role::Button)
-            .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-    );
-    let signal = ui.signal(&node);
-    ui.a11y_name(&node, label);
-    let fill = if inverse {
-        ui.color(INK)
-    } else if signal.hovered || signal.held {
-        ui.color(PANEL)
-    } else if plate {
-        ui.color(KEY)
-    } else {
-        Rgba::default()
-    };
-    let color = ui.color(if inverse { PAPER } else { INK });
-    ui.within(&node, &mut |ui| {
-        let visual = ui.view_of("visual", &(icon as u8, inverse, signal.hovered, signal.held), |ui| {
-            let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
-            ui.set_look(
-                &surface,
-                Look { fill, ..Look::NONE },
-                State {
-                    hovered: signal.hovered,
-                    pressed: signal.held,
-                    ..State::default()
-                },
-            );
-            ui.draw(&surface, move |paint, rect| {
-                let x = rect.x + (rect.w - 20.0) / 2.0;
-                let y = rect.y + (rect.h - 20.0) / 2.0;
-                paint_icon(paint, icon, x, y, color);
-            });
-        });
-        if ui.state(&visual, 0) != i64::from(signal.held) {
-            ui.set_state(&visual, i64::from(signal.held));
-            let scale = if signal.held { 0.96 } else { 1.0 };
-            ui.animate(
-                &visual,
-                Target::Scale {
-                    x: scale,
-                    y: scale,
-                    anchor: (0.5, 0.5),
-                },
-                crate::motion::spring(if signal.held {
-                    crate::motion::INSTANT
-                } else {
-                    crate::motion::BASE
-                }),
-            );
-        }
-    });
-    signal.clicked
+/// `icon` as a kit icon button's drawing, painted into the 20-point square it is given in the look's ink.
+pub(super) fn icon_drawing(icon: Icon) -> pxui::Icon {
+    pxui::Icon::Draw(match icon {
+        Icon::Play => |paint, at, ink| paint_icon(paint, Icon::Play, at.x, at.y, ink),
+        Icon::Pause => |paint, at, ink| paint_icon(paint, Icon::Pause, at.x, at.y, ink),
+        Icon::Previous => |paint, at, ink| paint_icon(paint, Icon::Previous, at.x, at.y, ink),
+        Icon::Next => |paint, at, ink| paint_icon(paint, Icon::Next, at.x, at.y, ink),
+        Icon::Queue => |paint, at, ink| paint_icon(paint, Icon::Queue, at.x, at.y, ink),
+        Icon::Panel => |paint, at, ink| paint_icon(paint, Icon::Panel, at.x, at.y, ink),
+        Icon::Shuffle => |paint, at, ink| paint_icon(paint, Icon::Shuffle, at.x, at.y, ink),
+        Icon::Repeat => |paint, at, ink| paint_icon(paint, Icon::Repeat, at.x, at.y, ink),
+        Icon::Refresh => |paint, at, ink| paint_icon(paint, Icon::Refresh, at.x, at.y, ink),
+        Icon::Clear => |paint, at, ink| paint_icon(paint, Icon::Clear, at.x, at.y, ink),
+        Icon::Down => |paint, at, ink| paint_icon(paint, Icon::Down, at.x, at.y, ink),
+        Icon::More => |paint, at, ink| paint_icon(paint, Icon::More, at.x, at.y, ink),
+        Icon::Settings => |paint, at, ink| paint_icon(paint, Icon::Settings, at.x, at.y, ink),
+        Icon::Back => |paint, at, ink| paint_icon(paint, Icon::Back, at.x, at.y, ink),
+        Icon::Check => |paint, at, ink| paint_icon(paint, Icon::Check, at.x, at.y, ink),
+    })
 }
 
 // SwiftUI wraps table labels, then fits their line box to physical pixels.
@@ -560,15 +513,7 @@ pub(super) mod button_tests {
         .unwrap();
         let clicked = Cell::new(false);
         let mut build = |ui: &mut Ui| {
-            clicked.set(icon_button(
-                ui,
-                "test-button",
-                "Next",
-                Icon::Next,
-                (64.0, 40.0),
-                false,
-                true,
-            ));
+            clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&looks(ui).icon_plate)).clicked);
         };
         let input = |time, events: &[Event]| FrameIn {
             width: 320.0,

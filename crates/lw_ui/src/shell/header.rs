@@ -51,15 +51,7 @@ pub(super) fn header(
             ui.label(title, HEADING);
             if !results
                 && !matches!(state.route, Route::Albums | Route::Artists)
-                && icon_button(
-                    ui,
-                    "refresh",
-                    "Refresh library",
-                    Icon::Refresh,
-                    (36.0, 36.0),
-                    false,
-                    true,
-                )
+                && ui.icon_button("refresh", icon_drawing(Icon::Refresh), "Refresh library", &icon_key(36.0, 36.0).look(&looks(ui).icon_plate)).clicked
             {
                 *intent = Some(Intent::RefreshLibrary);
             }
@@ -89,15 +81,7 @@ pub(super) fn header(
                                 );
                             }
                         });
-                        if icon_button(
-                            ui,
-                            "clear-query",
-                            "Clear search",
-                            Icon::Clear,
-                            (36.0, 36.0),
-                            false,
-                            true,
-                        ) {
+                        if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &icon_key(36.0, 36.0).look(&looks(ui).icon_plate)).clicked {
                             *intent = Some(Intent::Search(Query::default()));
                         }
                     });
@@ -213,16 +197,8 @@ pub(super) fn compact_find(
                                 ..Node::column().w_px(44.0).h_px(44.0).align(Align::Center)
                             };
                             ui.column("clear-slot", clear, |ui| {
-                                if icon_button(
-                                    ui,
-                                    "clear-query",
-                                    "Clear search",
-                                    Icon::Clear,
-                                    (44.0, 44.0),
-                                    false,
-                                    // Swift's clear glyph has no resting plate.
-                                    false,
-                                ) {
+                                // Swift's clear glyph has no resting plate.
+                                if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &icon_key(44.0, 44.0).look(&looks(ui).icon)).clicked {
                                     *intent = Some(Intent::Search(Query::default()));
                                 }
                             });

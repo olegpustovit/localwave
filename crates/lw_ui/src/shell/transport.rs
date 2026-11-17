@@ -30,37 +30,17 @@ pub(super) fn transport(
         },
         |ui| {
             ui.row("keys", Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0), |ui| {
-                if icon_button(
-                    ui,
-                    "previous",
-                    "Previous",
-                    Icon::Previous,
-                    (key_width, 71.0),
-                    false,
-                    true,
-                ) {
+                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key_width, 71.0).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::Previous);
                 }
-                if icon_button(
-                    ui,
-                    "toggle",
-                    if player.playing { "Pause" } else { "Play" },
-                    if player.playing {
-                        Icon::Pause
-                    } else {
-                        Icon::Play
-                    },
-                    (key_width, 71.0),
-                    true,
-                    true,
-                ) {
+                if ui.icon_button("toggle", icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }), if player.playing { "Pause" } else { "Play" }, &icon_key(key_width, 71.0).look(&looks(ui).icon_inverse)).clicked {
                     *intent = Some(if player.playing {
                         Intent::Pause
                     } else {
                         Intent::Play
                     });
                 }
-                if icon_button(ui, "next", "Next", Icon::Next, (key_width, 71.0), false, true) {
+                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key_width, 71.0).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::Next);
                 }
             });
@@ -81,35 +61,11 @@ pub(super) fn transport(
                     ..Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0)
                 },
                 |ui| {
-                    if icon_button(
-                        ui,
-                        "shuffle",
-                        if player.shuffled {
-                            "Shuffle on"
-                        } else {
-                            "Shuffle off"
-                        },
-                        Icon::Shuffle,
-                        (44.0, 40.0),
-                        player.shuffled,
-                        true,
-                    ) {
+                    if ui.icon_button("shuffle", icon_drawing(Icon::Shuffle), if player.shuffled { "Shuffle on" } else { "Shuffle off" }, &icon_key(44.0, 40.0).look(if player.shuffled { &looks(ui).icon_inverse } else { &looks(ui).icon_plate })).clicked {
                         *intent = Some(Intent::Shuffle);
                     }
                     ui.stack("repeat-key", Node::stack().w_px(44.0).h_px(40.0), |ui| {
-                        if icon_button(
-                            ui,
-                            "repeat",
-                            match player.repeat {
-                                lw_core::queue::RepeatMode::None => "Repeat off",
-                                lw_core::queue::RepeatMode::All => "Repeat all",
-                                lw_core::queue::RepeatMode::One => "Repeat one",
-                            },
-                            Icon::Repeat,
-                            (44.0, 40.0),
-                            player.repeat != lw_core::queue::RepeatMode::None,
-                            true,
-                        ) {
+                        if ui.icon_button("repeat", icon_drawing(Icon::Repeat), match player.repeat { lw_core::queue::RepeatMode::None => "Repeat off", lw_core::queue::RepeatMode::All => "Repeat all", lw_core::queue::RepeatMode::One => "Repeat one", }, &icon_key(44.0, 40.0).look(if player.repeat != lw_core::queue::RepeatMode::None { &looks(ui).icon_inverse } else { &looks(ui).icon_plate })).clicked {
                             *intent = Some(Intent::Repeat);
                         }
                         if player.repeat == lw_core::queue::RepeatMode::One {
@@ -125,28 +81,12 @@ pub(super) fn transport(
                             );
                         }
                     });
-                    if icon_button(
-                        ui,
-                        "panel",
-                        "Toggle now playing panel",
-                        Icon::Panel,
-                        (44.0, 40.0),
-                        panel,
-                        true,
-                    ) {
+                    if ui.icon_button("panel", icon_drawing(Icon::Panel), "Toggle now playing panel", &icon_key(44.0, 40.0).look(if panel { &looks(ui).icon_inverse } else { &looks(ui).icon_plate })).clicked {
                         *intent = Some(Intent::TogglePanel);
                     }
                     // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
                     if !panel
-                        && icon_button(
-                            ui,
-                            "queue",
-                            "Show full queue",
-                            Icon::Queue,
-                            (44.0, 40.0),
-                            false,
-                            true,
-                        )
+                        && ui.icon_button("queue", icon_drawing(Icon::Queue), "Show full queue", &icon_key(44.0, 40.0).look(&looks(ui).icon_plate)).clicked
                     {
                         *intent = Some(Intent::ShowQueue);
                     }

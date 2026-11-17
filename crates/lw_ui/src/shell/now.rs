@@ -24,15 +24,7 @@ pub(super) fn now_panel(
         |ui| {
             ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
                 ui.label("Now playing", TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
-                if icon_button(
-                    ui,
-                    "hide-panel",
-                    "Minimise to small player",
-                    Icon::Panel,
-                    (36.0, 36.0),
-                    false,
-                    true,
-                ) {
+                if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &icon_key(36.0, 36.0).look(&looks(ui).icon_plate)).clicked {
                     *intent = Some(Intent::TogglePanel);
                 }
             });

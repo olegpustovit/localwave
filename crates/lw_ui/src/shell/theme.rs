@@ -52,6 +52,12 @@ pub(super) struct Looks {
     pub key: States,
     /// A queue sheet text action's text: secondary, 12 points.
     pub queue_action: Look,
+    /// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
+    pub icon: States,
+    /// An icon key on the key plate.
+    pub icon_plate: States,
+    /// An icon key in inverse (Play, an active mode): paper icon on ink.
+    pub icon_inverse: States,
     /// A sidebar "+ label" row's text: secondary, 14 points.
     pub add_row: Look,
 }
@@ -67,6 +73,12 @@ const fn fill(color: ColorToken, dark: bool) -> States {
 const fn text(color: ColorToken, size: i64, dark: bool) -> Look {
     Look { text: token(color, dark), font: Font { size, ..Font::BODY }, ..Look::NONE }
 }
+/// An ink icon key resting on `rest`, on the panel fill while hovered or held.
+const fn icon(rest: Rgba, dark: bool) -> States {
+    let idle = Look { fill: rest, text: token(INK, dark), ..Look::NONE };
+    let lit = Look { fill: token(PANEL, dark), ..idle };
+    States { hover: lit, pressed: lit, ..States::all(idle) }
+}
 const fn resolve(dark: bool) -> Looks {
     let tab = text(INK, 14, dark);
     Looks {
@@ -79,6 +91,9 @@ const fn resolve(dark: bool) -> Looks {
         key: fill(KEY, dark),
         queue_action: text(SECONDARY, 12, dark),
         add_row: text(SECONDARY, 14, dark),
+        icon: icon(Look::NONE.fill, dark),
+        icon_plate: icon(token(KEY, dark), dark),
+        icon_inverse: States::all(Look { fill: token(INK, dark), text: token(PAPER, dark), ..Look::NONE }),
     }
 }
 const LIGHT: Looks = resolve(false);
@@ -87,3 +102,8 @@ const DARK: Looks = resolve(true);
 pub(super) fn looks(ui: &Ui) -> &'static Looks {
     if pxui::theme::dark(&ui.theme().tokens) { &DARK } else { &LIGHT }
 }
+/// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
+pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton {
+    pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)
+}
+const PRESS: [pxui::theme::Curve; 2] = [crate::motion::spring(crate::motion::INSTANT), crate::motion::spring(crate::motion::BASE)];
