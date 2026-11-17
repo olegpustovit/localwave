@@ -93,6 +93,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12F2a | pxui_render GPU tests use set_view; ellipsis golden follows DX-BUG1; landing compiles every workspace test target | done | fdf646d + pxui e659280 |
 | DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | c6cd355 + pxui cf953b3 |
 | DX1.12A | Audit batch A: Label is the one text-style input (TextStyle opaque, from resolve), enums for wrap/ellipsis/align, label exports resolve in-call | done | 1efcf4d + pxui 763df85 |
+| DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -117,7 +118,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.13 | Menu rows keyed by id/position, chosen_id, safe body accessors, toggle stored value, segment container (found by DX4.5–4.7) | done | c4d4617 + pxui e0c424d |
 | DX3.14 | Looks name colour tokens (const app looks follow the theme); Icon::draw(f, word) (found by the DX4 review) | done | cdd976b + pxui cac8615 |
 | DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | a7f9acd |
-| DX3.16 | Menu::max_h, Pressable::focus_on_click, segmented_with(Option) -> SegmentedResponse with a radio-group keyboard model (found by DX4.5/4.6) | done | HEAD + pxui 0968a85 |
+| DX3.16 | Menu::max_h, Pressable::focus_on_click, segmented_with(Option) -> SegmentedResponse with a radio-group keyboard model (found by DX4.5/4.6) | done | 1b2be80 + pxui 0968a85 |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
@@ -140,6 +141,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4c | A prewarmed natural-width layout serves draws at any width that cannot change it | done | 81f353c + pxui 7f2f738 |
 | DX5.4d | LocalWave fling ceiling kept equal to pxui's (parsed test); prewarmed-cells test deterministic | done | 31e87c3 |
 | DX5.4e | A layout prepared at width W serves draws between its measured width and W (left-aligned; uncut ellipsis) | done | f27b48b + pxui a3a8924 |
+| DX5.4f | New nodes reuse a measured or worker-prepared layout at their measured width (recent-width index; installs recorded) | done | HEAD |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |

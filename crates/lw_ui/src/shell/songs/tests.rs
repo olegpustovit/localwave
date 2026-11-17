@@ -899,10 +899,8 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                     crate::song_text::Prewarm::default().request(&mut ui, &catalog, window);
                 }
                 settle(&mut ui, &input);
-                // A numeric cell wider than its column is measured at the column's width (UiText::measure) and
-                // drawn at its measured width. pxui reuses a layout between its measured width and the width it
-                // was laid out at only through the drawing node's own memo or the natural layout, and the
-                // measurement went through neither: the first draw of such a cell still shapes.
+                // A numeric cell wider than its column is measured at the column's width (UiText::measure, the
+                // prewarmed layout) and drawn at its measured width: that layout serves the draw too.
                 let overflow = collection
                     .rows
                     .iter()
@@ -983,7 +981,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                 ui.frame(&input, &mut build).unwrap();
                 assert_eq!(
                     ui.text_layout_count(),
-                    layouts + overflow as u64,
+                    layouts,
                     "prewarmed widths/styles must serve both measurement and node painting: {route:?} {width} {scale}x"
                 );
                 reference.frame(&input, &mut build).unwrap();
