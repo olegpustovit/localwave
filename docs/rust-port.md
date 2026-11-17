@@ -204,13 +204,13 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | done | 3a07463 + pxui 6f2df11 |
 | DX7.11a | abi-frozen accepts append-only record growth | done | 1d8fd2d + pxui 5330f36 |
 | DX7.12 | Freeze 1.N (PERF) | superseded by U6.7 |  |
-| U0.1 | Tools home tools/dx; fingerprint frame helper; lane machinery removed | todo |  |
-| U0.2 | Drift meters: surface.py, api_conformance R1/R6/R7/R8 | todo |  |
-| U0.3 | Build-time meter, API ledger, ledger delta | todo |  |
-| U0.4 | Landed and superseded branches deleted | todo |  |
-| U0.5 | Infra traps: tools/t --all, prewarm fingerprint, layout_scaling | todo |  |
-| U0.6 | Status and process docs | todo |  |
-| U0.7 | CP0: Tier C baseline, performance and build-time tables | todo |  |
+| U0.1 | Tools home tools/dx; fingerprint frame helper; lane machinery removed | done | 4cc530f |
+| U0.2 | Drift meters: surface.py, api_conformance R1/R6/R7/R8 | done | 3310f2b |
+| U0.3 | Build-time meter, API ledger, ledger delta | done | 3bd0004, 7073f41; pxui cefefe57, a64d00ca |
+| U0.4 | Landed and superseded branches deleted | done | b444b1d |
+| U0.5 | Infra traps: tools/t --all, prewarm fingerprint, layout_scaling | done | 8b13a62; pxui eb93fe54 |
+| U0.6 | Status and process docs | done | 63972bf; pxui 3db577ab |
+| U0.7 | CP0: Tier C baseline, performance and build-time tables | done | 16dc635 (CP0 red: abi_bench both modes, 4 build-CPU budgets) |
 | U0.8 | CP0 hard-gate bisect and fix (only if CP0 fails) | todo |  |
 | U1a.1 | Modules (D2) | todo |  |
 | U1a.2 | Theme (D1) and counter (D3) | todo |  |
