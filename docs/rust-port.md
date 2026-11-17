@@ -138,8 +138,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.5 | Docs: nodes and state | done | 962be7c + pxui 4086ec0 |
 | DX6.6 | Docs: views, overlays, animation | done | ca227ba + pxui 652ec53 |
 | DX6.7 | Docs: Paint (1) | done | c164296 + pxui 1d8678e |
-| DX6.8 | Docs: Paint (2) | done | HEAD + pxui 5830fd4 |
-| DX6.9 | Docs: keys and queries | todo |  |
+| DX6.8 | Docs: Paint (2) | done | 622d26c + pxui 5830fd4 |
+| DX6.9 | Docs: keys and queries | done | HEAD + pxui 61ffda6 |
 | DX6.10 | Docs: gestures | todo |  |
 | DX6.11 | Docs: text | todo |  |
 | DX6.12 | Docs: kit widgets | todo |  |
