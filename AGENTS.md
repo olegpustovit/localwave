@@ -99,7 +99,8 @@ steps; [docs/rust-port.md](docs/rust-port.md) is the status. Finish C before B, 
 then follow shipping/iOS gates. DX0–DX3 and DX5–DX7 ([API redesign
 plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan)) run alongside S, I1, I2 and D;
 DX4 runs without waiting for I2's device checks (owner decision 2026-11-16); goldens are re-checked
-after them. Stop at a blocked step rather than jumping phases.
+after them. DX steps defer release abi_bench and `make performance` to wave checkpoints (after DX3, after DX4,
+at the DX7 freeze), which replace the status table and bisect any regression (owner decision 2026-11-17). Stop at a blocked step rather than jumping phases.
 
 One step per commit; subjects include its ID. For framework steps publish pxui on `rust-port`
 before staging its pointer in LocalWave, also on `rust-port`; check remote fetchability.
