@@ -317,7 +317,7 @@ impl Rows<'_> {
                                 let left = if column == Column::Number { 32.0 } else { 8.0 };
                                 label(
                                     ui,
-                                    column.title(),
+                                    column as i64,
                                     value,
                                     Rect {
                                         x: x + if column == Column::Time {

@@ -19,7 +19,7 @@ use crate::song_text::{body_label, body_line_height, body_value};
 
 fn label(
     ui: &mut Ui,
-    key: &'static str,
+    key: impl Into<pxui::Key>,
     value: &str,
     rect: Rect,
     style: Label,
@@ -220,14 +220,14 @@ fn heading(
                 };
                 // Only sortable headings are buttons; the rest are plain labels.
                 let (button, clicked) = if column.sort().is_some() {
-                    let heading = ui.pressable(column.title(), node, &PLAIN, |ui, _| {
+                    let heading = ui.pressable(column as i64, node, &PLAIN, |ui, _| {
                         if column == Column::Time {
                             time_label(ui);
                         }
                     });
                     (heading.handle, heading.clicked)
                 } else {
-                    let heading = ui.node(column.title().into(), node);
+                    let heading = ui.node((column as i64).into(), node);
                     if column == Column::Time {
                         ui.within(&heading, &mut |ui| time_label(ui));
                     }

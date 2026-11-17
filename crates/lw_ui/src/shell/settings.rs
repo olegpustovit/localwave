@@ -9,9 +9,9 @@ use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
 
-fn back(ui: &mut Ui, name: &'static str) -> bool {
+fn back(ui: &mut Ui, key: &'static str, name: &'static str) -> bool {
     let button = ui.node(
-        name.into(),
+        key.into(),
         Node {
             look: BACK_TEXT,
             ..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
@@ -106,6 +106,7 @@ const KNOB: Look = PAPER_FILL;
 const SWITCH: pxui::Toggle<'static> = pxui::Toggle::DEFAULT.row_h(60.0).press_row(true);
 fn option(
     ui: &mut Ui,
+    key: i64,
     labels: (&'static str, &str),
     selected: bool,
     action: (Change, SettingsMenu),
@@ -114,7 +115,7 @@ fn option(
     let (label, name) = labels;
     let (change, menu) = action;
     let button = ui.node(
-        label.into(),
+        key.into(),
         Node {
             min_w: 40.0,
             look: if selected { CHOICE_ON } else { CHOICE },
@@ -174,7 +175,7 @@ pub(super) fn view(
         },
     );
     ui.within(&page, &mut |ui| {
-        if back(ui, if state.privacy_visible { "‹ Settings" } else { "‹ Library" }) {
+        if back(ui, "back", if state.privacy_visible { "‹ Settings" } else { "‹ Library" }) {
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
@@ -193,8 +194,8 @@ pub(super) fn view(
                     ui.label(body, PARAGRAPH_14.color(SECONDARY));
                 });
             }
-            if back(ui, "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
-            if back(ui, "Support") { *intent = Some(Intent::Support); }
+            if back(ui, "full-privacy-policy", "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
+            if back(ui, "support", "Support") { *intent = Some(Intent::Support); }
             if !player.message.is_empty() { notice(ui, player.message); }
             return;
         }
@@ -221,7 +222,7 @@ pub(super) fn view(
             let strip = Node { look: PANEL_FILL, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) };
             ui.row("segments", strip, |ui| {
                 for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
-                    option(ui, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
+                    option(ui, value, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
                 }
             });
         });
@@ -235,7 +236,7 @@ pub(super) fn view(
                     (Appearance::Light, "Light", "Use light appearance"),
                     (Appearance::Dark, "Dark", "Use dark appearance"),
                 ] {
-                    option(ui, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
+                    option(ui, value as i64, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
                 }
             });
         });
@@ -259,7 +260,7 @@ pub(super) fn view(
         }
         ui.column("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
-            if back(ui, "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
+            if back(ui, "about-privacy", "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
             ui.label(if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, PARAGRAPH_14.color(SECONDARY));
             if !player.settings_message.is_empty() { notice(ui, player.settings_message); }
             if !player.message.is_empty() { notice(ui, player.message); }

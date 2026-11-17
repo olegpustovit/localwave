@@ -191,8 +191,10 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                 },
             )
             .unwrap();
+            let mut buf = [0u8; 17];
+            let time = pxui::Key::Id(Column::Time as i64).label(&mut buf);
             let button = ui
-                .box_of_key(Ui::key_of(root.unwrap().box_key, "Time"))
+                .box_of_key(Ui::key_of(root.unwrap().box_key, time))
                 .unwrap();
             let text = ui
                 .box_of_key(Ui::key_of(button.box_key, "time-label"))
@@ -952,7 +954,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                                 let (w, h) = layout.sizes[column as usize];
                                 label(
                                     ui,
-                                    column.title(),
+                                    column as i64,
                                     body_value(
                                         &row,
                                         column,
