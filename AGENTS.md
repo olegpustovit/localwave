@@ -96,20 +96,20 @@ packages use isolated containers. Smoke/performance fixtures never touch normal 
 
 The [implementation plan](https://artifacts.microapps.space/a/w474jy87pnxg#plan) defines ordered
 steps; [docs/rust-port.md](docs/rust-port.md) is the status. Finish C before B, B before P, P before F;
-then follow shipping/iOS gates. DX0–DX3 and DX5–DX7 ([API redesign
-plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan)) run alongside S, I1, I2 and D;
-DX4 runs without waiting for I2's device checks (owner decision 2026-11-16); goldens are re-checked
-after them. DX steps defer release abi_bench and `make performance` to wave checkpoints (after DX3, after DX4,
-at the DX7 freeze), which replace the status table and bisect any regression; between checkpoints DX steps run targeted tests
-only, and the full suite and `make check` run as regression blocks at the same checkpoints (owner decision 2026-11-17). The DX7 freeze cuts pxui ABI 2.0 as the long-lived
-OS base: duplicate/legacy exports dropped, per-event surface ids, manifests re-baselined, append-only from 2.0 (owner
-decision 2026-11-17). Every pxui change is reviewed against the API proposal and
-OS-grade criteria (multi-surface, no process-global state, validated untrusted C callers, bounded resources, long-lived ABI,
-policy-free core). Stop at a blocked step rather than jumping phases.
+then follow shipping/iOS gates. The pxui API work follows the [pxui Unification
+Plan](https://artifacts.microapps.space/a/nnhryen1cd09#plan) (packages U0–U6; it supersedes the open DX rows): one
+implementer per package on branch `u<N>` in both repos, the orchestrator reviews and lands, and every pxui change is
+judged against the ledger `pxui/docs/api.md` and the OS-grade criteria in `docs/dx-checkpoint/os_criteria.md`.
+Owner sign-offs (2026-11-17): (1) no Swift work and no Swift/Xcode checks while the plan runs; S, I1, I2 and D wait,
+and the Rust iOS build is still compiled and smoke-tested at checkpoints. (2) Per-commit checks are targeted (the plan's
+Tier A); the full suite and `make check` run at each package end (Tier B); benchmarks run only at CP0–CP2 and the
+plan's named targeted runs. (3) Within a package, LocalWave commits on `u<N>` may point at pxui commits not yet
+published; the orchestrator publishes pxui before landing. Stop at a blocked step rather than jumping phases.
 
 One step per commit; subjects include its ID. For framework steps publish pxui on `rust-port`
-before staging its pointer in LocalWave, also on `rust-port`; check remote fetchability.
-Before committing, require the bounded Rust suite and `make check` green. PERF steps also run
+before staging its pointer in LocalWave, also on `rust-port` (U packages: at landing, sign-off 3); check remote
+fetchability. Before committing, require the bounded Rust suite and `make check` green (U packages: at the package
+end, sign-off 2). PERF steps also run
 `make performance` and replace the status performance table. Record evidence in commit messages;
 status holds one row per step, never checkpoint journals. ABI history lives in `pxui/docs/abi.md`.
 

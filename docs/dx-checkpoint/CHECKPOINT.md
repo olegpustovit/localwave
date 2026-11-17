@@ -14,7 +14,7 @@ This is a hand-off for an agent who will analyse the state and re-plan. The owne
 | Audits that generated most of the remaining work | `docs/dx-checkpoint/dx1.12_audit.md`, `os_audit.md`, `widget_reuse_audit.md`, `abi2_cut.md` |
 | Follow-ups, bugs, notes | `docs/dx-checkpoint/dx1.12_notes.md` |
 | Agent briefs and review checklists | `docs/dx-checkpoint/brief_*.md` |
-| Landing and remote scripts (paths inside point at an old scratchpad; adjust) | `docs/dx-checkpoint/scripts/` |
+| Tools (U0.1 moved them; the lane and landing scripts were deleted, landing is the Unification Plan's §7) | `tools/dx/` |
 
 ## 2. Where things stand
 

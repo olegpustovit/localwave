@@ -3,7 +3,8 @@
 ## Steps
 
 Follow the [implementation plan](https://artifacts.microapps.space/a/w474jy87pnxg#plan) in order.
-DX rows follow the [API redesign plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan).
+DX rows follow the [API redesign plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan); its open rows are
+superseded by U rows, which follow the [pxui Unification Plan](https://artifacts.microapps.space/a/nnhryen1cd09#plan).
 The next unfinished step is the first row marked todo/doing. `HEAD` identifies this status
 checkpoint; the next step replaces it with its fixed commit hash. Evidence lives in commit messages.
 
@@ -88,7 +89,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.9 | header.rs reference conversion (PERF) | done | 0292834 |
 | DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | 1cb17d5 + pxui 1089fe5 |
 | DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | done | 8709c75 + pxui 5c16fdb |
-| DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
+| DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | superseded by U1a–U1c, U2a–U2b, U6.2–U6.3 |  |
 | DX1.12F2 | Audit batch F2: Keyframes/Repeat/Keyframe constructors, gesture option builders, borrowed carry/drop, Ui::scroll, Ui::set_view | done | 2f5ac3d |
 | DX1.12F2a | pxui_render GPU tests use set_view; ellipsis golden follows DX-BUG1; landing compiles every workspace test target | done | fdf646d + pxui e659280 |
 | DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | c6cd355 + pxui cf953b3 |
@@ -173,20 +174,20 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.9 | Docs: keys and queries | done | 4c586e9 + pxui 61ffda6 |
 | DX6.10 | Docs: gestures | done | a61b65a + pxui 07c3d9d |
 | DX6.11 | Docs: text | done | ad2410d + pxui 6ab2bf7 |
-| DX6.12 | Docs: kit widgets | todo |  |
-| DX6.13 | Docs: options | todo |  |
-| DX6.14 | Docs: inspector | todo |  |
+| DX6.12 | Docs: kit widgets | superseded by U6.3 |  |
+| DX6.13 | Docs: options | superseded by U6.3 |  |
+| DX6.14 | Docs: inspector | superseded by U6.3 |  |
 | DX6.15 | Docs: images and renderer | done | 0d0cd58 + pxui 48be183 |
-| DX6.16 | Docs: node.rs | todo |  |
+| DX6.16 | Docs: node.rs | superseded by U6.3 |  |
 | DX6.17 | Docs: layout and geometry | done | 0a5c610 + pxui 4c08a69 |
 | DX6.18 | Docs: theme | done | c772eb9 + pxui 5b268d7 |
 | DX6.19 | Docs: ui, a11y, draw | done | eb23944 + pxui 28893de |
-| DX6.20 | Docs: pxui_types root | todo |  |
-| DX6.21 | Docs: ffi.rs (1) | todo |  |
-| DX6.22 | Docs: ffi.rs (2) | todo |  |
-| DX6.23 | Docs: ffi.rs (3) | todo |  |
-| DX6.24 | Docs: ffi.rs (4) | todo |  |
-| DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
+| DX6.20 | Docs: pxui_types root | superseded by U6.3 |  |
+| DX6.21 | Docs: ffi.rs (1) | superseded by U6.3 |  |
+| DX6.22 | Docs: ffi.rs (2) | superseded by U6.3 |  |
+| DX6.23 | Docs: ffi.rs (3) | superseded by U6.3 |  |
+| DX6.24 | Docs: ffi.rs (4) | superseded by U6.3 |  |
+| DX6.25 | deny(missing_docs); allowlist deleted | superseded by U6.4 |  |
 | DX6.26 | pxui-app skill; README and specification fixes | done | 73512bf + pxui a50ab58 |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
 | DX7.1a | pxui.h compiles as C11/C++17 and abi-header compiles it | done | 58e0eb8 + pxui 6326d8c |
@@ -196,13 +197,88 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.4 | Minimum-size rule; abi_built; pxui_supports | done | 63f6734 + pxui 2d2a3db |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | done | ffe72c6 + pxui 6d85f9c |
 | DX7.6 | Reserved surface id | done | 53377e7 + pxui e5be793 |
-| DX7.7 | Record changes before freeze | todo |  |
+| DX7.7 | Record changes before freeze | superseded by U5.5 |  |
 | DX7.8 | Rays vocabulary to extension manifest | done | 7a93fa3 + pxui 3d16c6b |
-| DX7.9 | Lint: records built from DEFAULT | todo |  |
-| DX7.10 | Mach-O and ELF versions | todo |  |
+| DX7.9 | Lint: records built from DEFAULT | superseded by U6.5 |  |
+| DX7.10 | Mach-O and ELF versions | superseded by U5.11 |  |
 | DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | done | 3a07463 + pxui 6f2df11 |
 | DX7.11a | abi-frozen accepts append-only record growth | done | 1d8fd2d + pxui 5330f36 |
-| DX7.12 | Freeze 1.N (PERF) | todo |  |
+| DX7.12 | Freeze 1.N (PERF) | superseded by U6.7 |  |
+| U0.1 | Tools home tools/dx; fingerprint frame helper; lane machinery removed | todo |  |
+| U0.2 | Drift meters: surface.py, api_conformance R1/R6/R7/R8 | todo |  |
+| U0.3 | Build-time meter, API ledger, ledger delta | todo |  |
+| U0.4 | Landed and superseded branches deleted | todo |  |
+| U0.5 | Infra traps: tools/t --all, prewarm fingerprint, layout_scaling | todo |  |
+| U0.6 | Status and process docs | todo |  |
+| U0.7 | CP0: Tier C baseline, performance and build-time tables | todo |  |
+| U0.8 | CP0 hard-gate bisect and fix (only if CP0 fails) | todo |  |
+| U1a.1 | Modules (D2) | todo |  |
+| U1a.2 | Theme (D1) and counter (D3) | todo |  |
+| U1a.3 | Lifecycle and errors | todo |  |
+| U1a.4 | Input (D23) | todo |  |
+| U1b.1 | One result idiom (D4, D10) | todo |  |
+| U1b.2 | Keys and small returns | todo |  |
+| U1b.3 | Measurement and units (D20) | todo |  |
+| U1b.4 | Looks, views, a11y types | todo |  |
+| U1b.5 | Builders and vocabulary | todo |  |
+| U1b.6 | Call-shape lock (D25) | todo |  |
+| U1c.1 | Generics (Batch K) and the gate | todo |  |
+| U1c.2 | Globals (OS-2/4) and verify (D22) | todo |  |
+| U1c.3 | Extension set (D6) | todo |  |
+| U1c.4 | Spec sync | todo |  |
+| U2a.1 | Row keys (dx3.22) | todo |  |
+| U2a.2 | Tabs (dx3.19, G1) | todo |  |
+| U2a.3 | Checkbox, disclosure, section index (dx3.20; G5, G9, G10) | todo |  |
+| U2a.4 | Sheets and picker rows (dx3.21; G6, G12) | todo |  |
+| U2b.1 | Selection list and table (rest of G4) | todo |  |
+| U2b.2 | Drop zones (G7) | todo |  |
+| U2b.3 | Reorder (G8) | todo |  |
+| U2b.4 | Gap steps raised during U3–U4 (reserved) | todo |  |
+| U2b.5 | Top-anchored overlay | todo |  |
+| U2b.6 | Picker fill contract | todo |  |
+| U2b.7 | Value and theme gaps | todo |  |
+| U2b.8 | Recorded engine bugs | todo |  |
+| U2b.9 | Site map | todo |  |
+| U2b.10 | Gallery, spec, bench | todo |  |
+| U3.1 | Looks are consts | todo |  |
+| U3.2 | Literal codemod | todo |  |
+| U3.3 | Keys | todo |  |
+| U4a.1 | sidebar.rs | todo |  |
+| U4a.2 | header.rs, find.rs | todo |  |
+| U4a.3 | albums.rs, artists.rs | todo |  |
+| U4a.4 | transport.rs, now.rs | todo |  |
+| U4a.5 | queue_sheet.rs | todo |  |
+| U4a.6 | songs/mod.rs, songs/row.rs | todo |  |
+| U4a.7 | settings.rs | todo |  |
+| U4a.8 | onboarding.rs | todo |  |
+| U4a.9 | commands.rs, metadata.rs, lists.rs | todo |  |
+| U4a.10 | byline.rs (D7) | todo |  |
+| U4b.1 | compact.rs | todo |  |
+| U4b.2 | compact/list.rs | todo |  |
+| U4b.3 | detail.rs | todo |  |
+| U4b.4 | files.rs | todo |  |
+| U4b.5 | Lock-in: api_conformance allowlist at its final size | todo |  |
+| U4b.6 | CP1: Tier C and iOS probes | todo |  |
+| U5.1 | Events and surfaces (OS-1, 32–34) | todo |  |
+| U5.2 | Frames and handles | todo |  |
+| U5.3 | Drop legacy exports | todo |  |
+| U5.4 | Sizes (OS-36) | todo |  |
+| U5.5 | Record changes (DX7.7) | todo |  |
+| U5.6 | Encodings (OS-41) | todo |  |
+| U5.7 | C vocabulary and menu rows | todo |  |
+| U5.8 | Features | todo |  |
+| U5.9 | OS remainder | todo |  |
+| U5.10 | Extension set | todo |  |
+| U5.11 | Re-baseline: major 2 | todo |  |
+| U5.12 | CP2: Tier C | todo |  |
+| U6.1 | Docs gate | todo |  |
+| U6.2 | Literal sweep (Batch H) | todo |  |
+| U6.3 | Docs (Batch J) | todo |  |
+| U6.4 | deny(missing_docs) | todo |  |
+| U6.5 | Records lint (DX7.9) | todo |  |
+| U6.6 | Ledger check | todo |  |
+| U6.7 | Freeze (DX7.12) | todo |  |
+| U6.8 | Close-out | todo |  |
 
 ## Latest performance
 
@@ -253,6 +329,20 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 | measured-theme-switch | 1270/1637/1683 | 1430/2563/3205/- | 1761/2281/2358 | 1835/3416/4646/6503 | 0 | measured |
 | idle-600-return | 705/944/1014 | 782/2031/3736/- | 1162/1468/1481 | 1163/3217/4653/6084 | 0 | pass |
 | clock-120 | 320/410/420 | 334/473/908/- | 760/1109/1113 | 700/1033/1499/1623 | 0 | pass |
+
+## Build time
+
+`tools/dx/buildtime.sh --compare <rev>`: seconds, the minimum of 3 alternating rounds. Each number stays within
+max(5%, 0.3 s) of CP0; de53440 (LocalWave, pxui 5340fe9) is the reference before the DX API work, reported only.
+
+| Measure | Budget | HEAD | de53440 |
+| --- | --- | --- | --- |
+| a clean pxui workspace debug build | 30 s | – | – |
+| b warm `cargo check -p pxui_core` after a touch | 1 s | – | – |
+| c clean `cargo build -p pxui_dylib` | – | – | – |
+| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | – | – |
+| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | – | – |
+| f warm `cargo build -p lw_bin` after the same touch | – | – | – |
 
 ### CPU profile
 
