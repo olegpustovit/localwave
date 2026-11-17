@@ -103,7 +103,9 @@ after them. DX steps defer release abi_bench and `make performance` to wave chec
 at the DX7 freeze), which replace the status table and bisect any regression; between checkpoints DX steps run targeted tests
 only, and the full suite and `make check` run as regression blocks at the same checkpoints (owner decision 2026-11-17). The DX7 freeze cuts pxui ABI 2.0 as the long-lived
 OS base: duplicate/legacy exports dropped, per-event surface ids, manifests re-baselined, append-only from 2.0 (owner
-decision 2026-11-17). Stop at a blocked step rather than jumping phases.
+decision 2026-11-17). Every pxui change is reviewed against the API proposal and
+OS-grade criteria (multi-surface, no process-global state, validated untrusted C callers, bounded resources, long-lived ABI,
+policy-free core). Stop at a blocked step rather than jumping phases.
 
 One step per commit; subjects include its ID. For framework steps publish pxui on `rust-port`
 before staging its pointer in LocalWave, also on `rust-port`; check remote fetchability.
