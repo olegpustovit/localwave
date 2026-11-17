@@ -119,7 +119,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.14 | Looks name colour tokens (const app looks follow the theme); Icon::draw(f, word) (found by the DX4 review) | done | cdd976b + pxui cac8615 |
 | DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | a7f9acd |
 | DX3.16 | Menu::max_h, Pressable::focus_on_click, segmented_with(Option) -> SegmentedResponse with a radio-group keyboard model (found by DX4.5/4.6) | done | 1b2be80 + pxui 0968a85 |
-| DX3.17 | Segmented::focus_on_click; segment bodies see the caller's stored choice (found by DX4.6) | done | HEAD + pxui 0aef02c |
+| DX3.17 | Segmented::focus_on_click; segment bodies see the caller's stored choice (found by DX4.6) | done | 07012b0 + pxui 0aef02c |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
@@ -151,6 +151,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | f2a2e68 + pxui 93c7d20 |
 | OS-B2b | Text, image and renderer bounded for untrusted callers: text length caps, font caps, layout byte budget, renderer records size-checked, resize capped, per-Ui image table | done | f2a2e68 + pxui 5d11b7e |
 | OS-B2a | Every C export validated for untrusted callers (fuzz over the manifest), per-role caps, builders outside a frame refused, wrapper clips display text | done | 6559e40 + pxui c03699f |
+| OS-B1 | Core has no process-global state or app policy: per-Ui body registry, per-Ui verify, floating roots are their own layers with roles, Rays kit staged in kit_ext | done | HEAD + pxui b1a4310 |
 | OS-LW1 | LocalWave clips user metadata for display once (1024 B) where snapshots are built; stored data unchanged | done | 6559e40 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
