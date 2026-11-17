@@ -34,6 +34,8 @@ fn context(ui: &Ui, node: &Handle, menu: SettingsMenu, intent: &mut Option<Inten
         *intent = Some(Intent::SettingsMenu(menu, signal.pointer));
     }
 }
+/// Running text in a node measured at `width`. Kept for the dialogs: a wrapped label re-lays the frame, which places a
+/// modal at its final position one frame earlier than this fixed-height node does (a visible change).
 pub(super) fn paragraph(
     ui: &mut Ui,
     key: &'static str,
@@ -60,6 +62,12 @@ pub(super) fn paragraph(
     );
     ui.text_line_box(&node, value, &label, &[]).unwrap();
     node
+}
+/// A playback or settings message in the theme's accent, which is no colour token, so the label takes it as a look.
+fn notice(ui: &mut Ui, text: &str) {
+    let node = ui.label(text, TEXT_14.w(Size::Grow).h(42.0));
+    let accent = ui.tokens().accent;
+    ui.set_look(&node, Look { text: accent, font: Font { size: 14, ..Font::BODY }, ..Look::NONE }, State::default());
 }
 fn row(
     ui: &mut Ui,
@@ -155,7 +163,7 @@ fn row(
                     })
             },
             |ui| {
-                text(ui, "title", title, 15, ui.color(INK), (Size::Grow, 21.0), false);
+                ui.label(title, TEXT_15.w(Size::Grow).h(21.0).color(INK));
                 if !detail.is_empty() {
                     let label = ui.node(
                         "detail".into(),
@@ -309,13 +317,13 @@ pub(super) fn view(
                 ("Removing your data", "Removing a library entry removes its database record; cached audio or artwork may remain. Removing LocalWave’s local app data erases its library and logs. Your original files stay where they are."),
             ] {
                 ui.column(title, Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
-                    text(ui, "heading", title, 18, ui.color(INK), (Size::Grow, 26.0), false);
-                    paragraph(ui, title, body, width - 32.0, 14.0, ui.color(SECONDARY));
+                    ui.label(title, TEXT_18.w(Size::Grow).h(26.0).color(INK));
+                    ui.label(body, PARAGRAPH_14.color(SECONDARY));
                 });
             }
             if back(ui, "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
             if back(ui, "Support") { *intent = Some(Intent::Support); }
-            if !player.message.is_empty() { text(ui, "link-error", player.message, 14, ui.tokens().accent, (Size::Grow, 42.0), false); }
+            if !player.message.is_empty() { notice(ui, player.message); }
             return;
         }
         let settings = player.settings;
@@ -349,11 +357,11 @@ pub(super) fn view(
             });
         });
         ui.column("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
-            paragraph(ui, "storage-info", "LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", width - 32.0, 14.0, ui.color(SECONDARY));
+            ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
             if back(ui, "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
-            paragraph(ui, "cache-usage", if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, width - 32.0, 14.0, ui.color(SECONDARY));
-            if !player.settings_message.is_empty() { text(ui, "settings-message", player.settings_message, 14, ui.tokens().accent, (Size::Grow, 42.0), false); }
-            if !player.message.is_empty() { text(ui, "playback-message", player.message, 14, ui.tokens().accent, (Size::Grow, 42.0), false); }
+            ui.label(if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, PARAGRAPH_14.color(SECONDARY));
+            if !player.settings_message.is_empty() { notice(ui, player.settings_message); }
+            if !player.message.is_empty() { notice(ui, player.message); }
         });
     });
 }

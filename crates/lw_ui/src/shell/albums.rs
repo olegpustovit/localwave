@@ -49,15 +49,7 @@ pub(super) fn toolbar(
                 },
             );
             ui.within(&button, &mut |ui| {
-                text(
-                    ui,
-                    "label",
-                    title,
-                    13,
-                    if selected { ui.color(INK) } else { ui.color(SECONDARY) },
-                    (Size::Fit, 18.2),
-                    false,
-                );
+                ui.label(title, TEXT_13.h(18.2).color(if selected { INK } else { SECONDARY }));
             });
             if selected {
                 ui.draw_over(&button, move |paint, rect| {
@@ -105,15 +97,7 @@ pub(super) fn toolbar(
             ui.draw(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
-            text(
-                ui,
-                "label",
-                "Shuffle all",
-                13,
-                ui.color(SECONDARY),
-                (Size::Fit, 18.2),
-                false,
-            );
+            ui.label("Shuffle all", TEXT_13.h(18.2).color(SECONDARY));
         });
         if ui.signal(&button).clicked {
             *intent = Some(Intent::ShuffleAll);
@@ -233,31 +217,8 @@ pub(super) fn gallery(
                                             ui.a11y_name(&art, "Album artwork");
                                             spacer(ui, "artwork-label-gap", 8.0);
 
-                                            let name = text(
-                                                ui,
-                                                "name",
-                                                &group.title,
-                                                14,
-                                                ui.color(INK),
-                                                (Size::Grow, 17.5),
-                                                false,
-                                            );
-                                            ui.text_line_box(
-                                                &name,
-                                                &group.title,
-                                                &Label::BODY.line_height(17.5).weight(500).lines(1).ellipsis(),
-                                                &[],
-                                            )
-                                            .unwrap();
-                                            text(
-                                                ui,
-                                                "artist",
-                                                &group.subtitle,
-                                                13,
-                                                ui.color(SECONDARY),
-                                                (Size::Grow, 18.2),
-                                                false,
-                                            );
+                                            ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).w(Size::Grow).h(17.5).color(INK));
+                                            ui.label(&group.subtitle, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
                                         });
                                         if signal.clicked {
                                             *intent = Some(Intent::Navigate(Route::Album(index)));

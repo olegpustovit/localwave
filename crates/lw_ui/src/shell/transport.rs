@@ -120,7 +120,7 @@ pub(super) fn transport(
                                     ..Node::column().w_px(8.0).h_px(12.0)
                                 },
                                 |ui| {
-                                    text(ui, "one", "1", 9, ui.color(PAPER), (Size::Px(8.0), 12.0), true);
+                                    ui.label("1", MONO_9.w(Size::Px(8.0)).h(12.0).color(PAPER));
                                 },
                             );
                         }

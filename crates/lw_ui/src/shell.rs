@@ -1107,6 +1107,8 @@ pub use kit::set_colors;
 #[cfg(test)]
 pub(crate) use kit::TIGHT_3;
 use kit::*;
+mod theme;
+use theme::*;
 mod sidebar;
 use sidebar::*;
 mod header;

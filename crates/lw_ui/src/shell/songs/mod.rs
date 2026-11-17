@@ -291,15 +291,7 @@ pub(super) fn table(
     };
     let Some(table) = &collection.song_table else {
         header_view(ui, catalog, state, width, intent);
-        text(
-            ui,
-            "songs-loading",
-            "Loading songs…",
-            14,
-            ui.color(SECONDARY),
-            (Size::Grow, 40.0),
-            false,
-        );
+        ui.label("Loading songs…", TEXT_14.w(Size::Grow).h(40.0).color(SECONDARY));
         return;
     };
     let applied = catalog
@@ -390,21 +382,7 @@ pub(super) fn table(
                     }
                     SectionPart::Row(_) if placeholder => {
                         ui.column("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
-                            text(
-                                ui,
-                                "no-songs",
-                                if hint {
-                                    onboarding::FIND_HINT
-                                } else if catalog.is_empty() {
-                                    onboarding::LIBRARY_EMPTY
-                                } else {
-                                    "No songs here yet."
-                                },
-                                14,
-                                ui.color(SECONDARY),
-                                (Size::Grow, 19.6),
-                                false,
-                            );
+                            ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
                         });
                     }
                     SectionPart::Row(index) => {

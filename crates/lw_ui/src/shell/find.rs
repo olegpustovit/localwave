@@ -121,16 +121,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
                     Action::Shuffle => crate::icons::shuffle(paint, rect, color),
                     Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
                 });
-                let copy = text(
-                    ui,
-                    "label",
-                    label,
-                    13,
-                    color,
-                    (Size::Px(label_width), 18.2),
-                    false,
-                );
-                ui.set_role(&copy, Role::Unknown, 0);
+                ui.label(label, TEXT_13.w(Size::Px(label_width)).h(18.2).color(if selected { INK } else { SECONDARY }).role(Role::Unknown));
             });
         });
     });
@@ -339,7 +330,7 @@ mod tests {
                                 h: size
                             }
                         );
-                        let copy = ui.rect(&part(&ui, root.unwrap(), action, "label"));
+                        let copy = ui.rect(&part(&ui, root.unwrap(), action, "\0label"));
                         assert!(
                             (copy.x - left - 10.0 - size - 6.0).abs() < 0.001
                                 && (copy.y - 5.9).abs() < 0.001
@@ -449,7 +440,7 @@ mod tests {
             .filter(|quad| quad.kind == pxui::draw::kind::MASK)
             .copied()
             .collect::<Vec<_>>();
-        let copy = part(&ui, root.unwrap(), "play-all", "label");
+        let copy = part(&ui, root.unwrap(), "play-all", "\0label");
         let original = ui.rect(&copy);
         for round in 0..8 {
             mem_sys::local_reset();

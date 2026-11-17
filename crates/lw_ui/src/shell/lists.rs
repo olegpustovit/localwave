@@ -106,31 +106,9 @@ pub(super) fn confirm_delete(
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
             |ui| {
-                text(
-                    ui,
-                    "title",
-                    "Delete list?",
-                    24,
-                    ui.color(INK),
-                    (Size::Grow, 36.0),
-                    false,
-                );
-                settings::paragraph(
-                    ui,
-                    "list-name",
-                    title.unwrap_or("This list changed. Try again."),
-                    width - 40.0,
-                    15.0,
-                    ui.color(INK),
-                );
-                settings::paragraph(
-                    ui,
-                    "consequences",
-                    "The songs stay in your library and folders.",
-                    width - 40.0,
-                    14.0,
-                    ui.color(SECONDARY),
-                );
+                ui.label("Delete list?", TEXT_24.w(Size::Grow).h(36.0).color(INK));
+                settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
+                settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
                 let buttons = container(
                     ui,
                     "delete-list-actions",
@@ -187,7 +165,7 @@ pub(super) fn name_dialog(
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
             |ui| {
-                text(ui, "title", heading, 24, ui.color(INK), (Size::Grow, 36.0), false);
+                ui.label(heading, TEXT_24.w(Size::Grow).h(36.0).color(INK));
                 let field = ui.box_(
                     "list-name-field",
                     BoxOpts::default().w(Size::Grow).h(Size::Px(40.0)),
@@ -204,19 +182,7 @@ pub(super) fn name_dialog(
                         );
                     }
                 });
-                text(
-                    ui,
-                    "list-name-error",
-                    if state.playlist_name_too_long {
-                        "Name exceeds 1,024 UTF-8 bytes. Shorten it to save."
-                    } else {
-                        ""
-                    },
-                    12,
-                    ui.color(SECONDARY),
-                    (Size::Grow, 20.0),
-                    false,
-                );
+                ui.label(if state.playlist_name_too_long { "Name exceeds 1,024 UTF-8 bytes. Shorten it to save." } else { "" }, TEXT_12.w(Size::Grow).h(20.0).color(SECONDARY));
                 let valid =
                     !state.playlist_name_too_long && !state.playlist_name.as_str().trim().is_empty();
                 let buttons = container(

@@ -108,7 +108,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX3.10 | Label, Button and IconButton style values express LocalWave helpers (found by DX4.2–4.4) | done | 2a97383 + pxui 76d9c7d |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
-| DX4.2 | kit::text and settings::paragraph to label | todo |  |
+| DX4.2 | kit::text and settings::paragraph to label | done | HEAD |
 | DX4.3 | Buttons to button_with | todo |  |
 | DX4.4 | Icon buttons to icon_button | todo |  |
 | DX4.5 | Menus to menu | todo |  |
@@ -125,7 +125,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
 | DX5.5 | Reusable layout storage for fresh shapes | todo |  |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
-| DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | HEAD + pxui 3cf7de3 |
+| DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |

@@ -86,7 +86,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(SECONDARY);
             ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-            text(ui, "label", "Back", 14, ui.color(SECONDARY), (Size::Fit, 19.6), false);
+            ui.label("Back", TEXT_14.h(19.6).color(SECONDARY));
         });
         if ui.signal(&button).clicked {
             *intent = Some(Intent::Navigate(parent));
@@ -256,8 +256,8 @@ fn header_body(
                 // Swift: "2019 · 8 songs · 37 min · " in the text face, then the format in mono.
                 let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
                 ui.within(&row, &mut |ui| {
-                    text(ui, "lead", &group.lead, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
-                    text(ui, "format", &group.format, 12, ui.color(SECONDARY), (Size::Grow, 16.8), true);
+                    ui.label(&group.lead, TEXT_13.h(18.2).color(SECONDARY));
+                    ui.label(&group.format, MONO_12.w(Size::Grow).h(16.8).color(SECONDARY));
                 });
             } else {
                 line(
@@ -272,14 +272,14 @@ fn header_body(
             if let Some(target) = &group.folder {
                 spacer(ui, "folder-gap", 4.0);
                 ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
-                    text(ui, "caption", "Folder:", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
+                    ui.label("Folder:", TEXT_13.h(18.2).color(SECONDARY));
                     let link = ui.node(
                         "link".into(),
                         Node::column().w(Size::Fit).h_px(18.2).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                     );
                     ui.a11y_name(&link, &target.label);
                     ui.within(&link, &mut |ui| {
-                        text(ui, "label", &target.label, 13, ui.color(INK), (Size::Fit, 17.2), false);
+                        ui.label(&target.label, TEXT_13.h(17.2).color(INK));
                         container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
                     });
                     if ui.signal(&link).clicked {

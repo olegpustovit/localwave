@@ -23,15 +23,7 @@ pub(super) fn now_panel(
         },
         |ui| {
             ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
-                text(
-                    ui,
-                    "name",
-                    "Now playing",
-                    13,
-                    ui.color(SECONDARY),
-                    (Size::Grow, 18.2),
-                    false,
-                );
+                ui.label("Now playing", TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
                 if icon_button(
                     ui,
                     "hide-panel",
@@ -114,14 +106,7 @@ pub(super) fn now_panel(
                             byline::draw(ui, player, catalog, 243.0, intent);
                         }
                         if player.initialized && player.title.is_empty() {
-                            settings::paragraph(
-                                ui,
-                                "nothing-playing-hint",
-                                "Double-click a song, or drop audio files anywhere in this window.",
-                                243.0,
-                                14.0,
-                                ui.color(SECONDARY),
-                            );
+                            ui.label("Double-click a song, or drop audio files anywhere in this window.", PARAGRAPH_14.color(SECONDARY));
                         }
                     },
                 );
@@ -172,15 +157,7 @@ pub(super) fn now_panel(
             metadata(ui, player.info);
             // A playback notice takes room from the (growing) queue viewport only while it shows.
             if !player.message.is_empty() {
-                text(
-                    ui,
-                    "playback-notice",
-                    player.message,
-                    13,
-                    ui.color(SECONDARY),
-                    (Size::Grow, 44.0),
-                    false,
-                );
+                ui.label(player.message, TEXT_13.w(Size::Grow).h(44.0).color(SECONDARY));
             }
             spacer(ui, "queue-gap", 14.0);
             rule(ui, "queue-divider", false);
@@ -342,23 +319,15 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
         &mut |ui| {
             ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
                 for (key, label, value, ink) in [
-                    ("format", "Format", &info.format, ui.color(SECONDARY)),
-                    ("size", "Size", &info.size, ui.color(SECONDARY)),
-                    ("file", "File", &info.file, ui.color(INK)),
-                    ("plays", "Plays", &info.plays, ui.color(SECONDARY)),
+                    ("format", "Format", &info.format, SECONDARY),
+                    ("size", "Size", &info.size, SECONDARY),
+                    ("file", "File", &info.file, INK),
+                    ("plays", "Plays", &info.plays, SECONDARY),
                 ] {
                     let row = ui.node(key.into(), Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
                     ui.within(&row, &mut |ui| {
-                        text(
-                            ui,
-                            "label",
-                            label,
-                            12,
-                            ui.color(SECONDARY),
-                            (Size::Px(64.0), 16.8),
-                            false,
-                        );
-                        text(ui, "value", value, 12, ink, (Size::Grow, 16.8), true);
+                        ui.label(label, TEXT_12.w(Size::Px(64.0)).h(16.8).color(SECONDARY));
+                        ui.label(value, MONO_12.w(Size::Grow).h(16.8).color(ink));
                     });
                     ui.a11y_name(&row, if key == "file" { &info.folder } else { value });
                 }

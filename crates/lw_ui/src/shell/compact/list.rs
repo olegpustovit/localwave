@@ -210,7 +210,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 let mut digits = [0u8; 24];
                 let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
                 ui.row("track", Node { justify: Justify::End, ..Node::row().w_px(22.0).h_px(18.2) }, |ui| {
-                    text(ui, "number", digits, 13, ui.color(SECONDARY), (Size::Fit, 18.2), true);
+                    ui.label(digits, MONO_13.h(18.2).color(SECONDARY));
                 });
             } else {
                 artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
@@ -261,7 +261,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                     );
                 });
             }
-            text(ui, "duration", row.duration, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
+            ui.label(row.duration, MONO_12.h(16.8).color(SECONDARY));
             if more_button(ui, row.actions_label) {
                 let rect = ui.rect(&node);
                 *intent = Some(Intent::SongMenu(
@@ -386,7 +386,7 @@ fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f
         },
     );
     ui.within(&node, &mut |ui| {
-        text(ui, "label", label, 13, ink, (Size::Fit, 18.2), false);
+        ui.label(label, TEXT_13.h(18.2).color(if armed { PAPER } else { SECONDARY }));
     });
     ui.a11y_name(&node, label);
     ui.signal(&node).clicked
@@ -494,7 +494,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
                         },
                     );
                     ui.within(&node, &mut |ui| {
-                        text(ui, "letter", letter, 11, ui.color(SECONDARY), (Size::Fit, RAIL_STEP), false);
+                        ui.label(letter, TEXT_11.h(RAIL_STEP).color(SECONDARY));
                     });
                     ui.a11y_name(&node, letter);
                     // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
@@ -688,7 +688,7 @@ fn back_row(
                 let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
                 let color = ui.color(SECONDARY);
                 ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-                text(ui, "label", label, 15, ui.color(SECONDARY), (Size::Fit, 21.0), false);
+                ui.label(label, TEXT_15.h(21.0).color(SECONDARY));
             });
             if ui.signal(&button).clicked {
                 *intent = Some(Intent::Navigate(parent));
@@ -763,7 +763,7 @@ pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
         ui.draw(&glyph, move |paint, rect| {
             crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
         });
-        text(ui, "label", label, 15, ui.color(INK), (Size::Fit, 21.0), false);
+        ui.label(label, TEXT_15.h(21.0).color(INK));
     });
     ui.a11y_name(&node, label);
     ui.signal(&node).clicked
@@ -811,7 +811,7 @@ pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectabl
         }
         container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
         let mut buffer = [0u8; 40];
-        text(ui, "count", selected_label(&mut buffer, selected), 15, ui.color(INK), (Size::Fit, 21.0), false);
+        ui.label(selected_label(&mut buffer, selected), TEXT_15.h(21.0).color(INK));
         container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
         if word(ui, "done", "Done", true) {
             *intent = Some(Intent::SelectMode(false));
@@ -832,7 +832,7 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool) -> bool {
     let node = ui.node(key.into(), Node::row().w(Size::Fit).h_px(44.0).pad_x(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP));
     ui.within(&node, &mut |ui| {
-        text(ui, "label", label, 16, ui.color(INK), (Size::Fit, 22.4), false);
+        ui.label(label, TEXT_16.h(22.4).color(INK));
     });
     ui.a11y_name(&node, label);
     ui.signal(&node).clicked
@@ -867,7 +867,8 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                 ("offline", "Offline", Icon::Down),
                 (if remove { "remove" } else { "queue" }, if remove { "Remove" } else { "Queue" }, if remove { Icon::Clear } else { Icon::Queue }),
             ] {
-                let ink = if !enabled { ui.color(TERTIARY) } else if key == "remove" { ui.color(DANGER) } else { ui.color(INK) };
+                let tone = if !enabled { TERTIARY } else if key == "remove" { DANGER } else { INK };
+                let ink = ui.color(tone);
                 let node = ui.node(
                     key.into(),
                     Node {
@@ -892,7 +893,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                         "offline" => crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, false, ink),
                         _ => kit::paint_icon(paint, glyph, rect.x, rect.y, ink),
                     });
-                    text(ui, "label", label, 12, ink, (Size::Fit, 16.8), false);
+                    ui.label(label, TEXT_12.h(16.8).color(tone));
                 });
                 ui.a11y_name(&node, label);
                 if enabled && ui.signal(&node).clicked {
@@ -943,8 +944,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                 paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
                 ui.a11y_name(&art, "Album artwork");
                 ui.column("meta", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow).gap(6.0) }, |ui| {
-                    let text_width = (width - 32.0 - ALBUM_ART - 16.0).max(1.0);
-                    super::super::settings::paragraph(ui, "title", &collection.title, text_width, 24.0, ui.color(INK));
+                    ui.label(&collection.title, PARAGRAPH_24.color(INK));
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
@@ -955,7 +955,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
                     }
-                    text(ui, "summary", &collection.summary, 13, ui.color(SECONDARY), (Size::Grow, 18.2), true);
+                    ui.label(&collection.summary, MONO_13.w(Size::Grow).h(18.2).color(SECONDARY));
                 });
             });
             spacer(ui, "keys-gap", 16.0);
@@ -1006,13 +1006,14 @@ pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, 
                 .flags(Flags::CLICKABLE | Flags::TAB_STOP)
         },
     );
-    let color = if primary { ui.color(PAPER) } else { ui.color(INK) };
+    let tone = if primary { PAPER } else { INK };
+    let color = ui.color(tone);
     ui.within(&node, &mut |ui| {
         let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
         ui.draw(&glyph, move |paint, rect| {
             kit::paint_icon(paint, icon, rect.x, rect.y, color)
         });
-        text(ui, "label", label, 15, color, (Size::Fit, 21.0), false);
+        ui.label(label, TEXT_15.h(21.0).color(tone));
     });
     ui.a11y_name(&node, label);
     ui.signal(&node).clicked

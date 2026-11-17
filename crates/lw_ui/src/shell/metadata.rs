@@ -32,17 +32,9 @@ pub(super) fn editor(
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(4.0).pad(20.0)
             },
             |ui| {
-                text(
-                    ui,
-                    "title",
-                    "Edit Metadata",
-                    24,
-                    ui.color(INK),
-                    (Size::Grow, 36.0),
-                    false,
-                );
+                ui.label("Edit Metadata", TEXT_24.w(Size::Grow).h(36.0).color(INK));
                 for (index, (label, key)) in FIELDS.into_iter().enumerate() {
-                    text(ui, label, label, 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
+                    ui.label(label, TEXT_12.w(Size::Grow).h(16.0).color(SECONDARY));
                     let field = ui.box_(key, BoxOpts::default().w(Size::Grow).h(Size::Px(32.0)));
                     ui.within(&field, &mut |ui| {
                         let current = *edit.field_mut(index).expect("field index is in range");
@@ -59,23 +51,7 @@ pub(super) fn editor(
                     });
                 }
                 let valid = edit.valid() && !state.metadata_too_long;
-                text(
-                    ui,
-                    "meta-error",
-                    if state.metadata_too_long {
-                        "A field exceeds 1,024 UTF-8 bytes. Shorten it to save."
-                    } else if edit.numbers().is_none() {
-                        "Year and track must be whole numbers from 0 to 9999."
-                    } else if edit.title.as_str().trim().is_empty() {
-                        "Title is required."
-                    } else {
-                        ""
-                    },
-                    12,
-                    ui.color(SECONDARY),
-                    (Size::Grow, 20.0),
-                    false,
-                );
+                ui.label(if state.metadata_too_long { "A field exceeds 1,024 UTF-8 bytes. Shorten it to save." } else if edit.numbers().is_none() { "Year and track must be whole numbers from 0 to 9999." } else if edit.title.as_str().trim().is_empty() { "Title is required." } else { "" }, TEXT_12.w(Size::Grow).h(20.0).color(SECONDARY));
                 let buttons = container(
                     ui,
                     "metadata-actions",
@@ -122,31 +98,9 @@ pub(super) fn confirm_delete(
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
             |ui| {
-                text(
-                    ui,
-                    "title",
-                    "Delete song?",
-                    24,
-                    ui.color(INK),
-                    (Size::Grow, 36.0),
-                    false,
-                );
-                settings::paragraph(
-                    ui,
-                    "song-name",
-                    title.unwrap_or("This song changed. Try again."),
-                    width - 40.0,
-                    15.0,
-                    ui.color(INK),
-                );
-                settings::paragraph(
-                    ui,
-                    "consequences",
-                    "It leaves your library and lists. The audio file is not deleted.",
-                    width - 40.0,
-                    14.0,
-                    ui.color(SECONDARY),
-                );
+                ui.label("Delete song?", TEXT_24.w(Size::Grow).h(36.0).color(INK));
+                settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
+                settings::paragraph(ui, "consequences", "It leaves your library and lists. The audio file is not deleted.", width - 40.0, 14.0, ui.color(SECONDARY));
                 let buttons = container(
                     ui,
                     "delete-song-actions",

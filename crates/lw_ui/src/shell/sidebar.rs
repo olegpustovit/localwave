@@ -68,29 +68,13 @@ fn side_item(
     );
     ui.a11y_name(&node, title);
     ui.within(&node, &mut |ui| {
-        text(
-            ui,
-            "title",
-            title,
-            14,
-            if selected { ui.color(INK) } else { ui.color(SECONDARY) },
-            (if badge.is_empty() { Size::Grow } else { Size::Fit }, 20.0),
-            false,
-        );
+        ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h(20.0).color(if selected { INK } else { SECONDARY }));
         if !badge.is_empty() {
-            let tag = text(ui, "badge", badge, 11, ui.color(PAPER), (Size::Fit, 16.0), false);
+            let tag = ui.label(badge, TEXT_11.h(16.0).color(PAPER));
             ui.set_look(&tag, Look { fill: ui.color(INK), text: ui.color(PAPER), font: Font { size: 11, ..Font::BODY }, ..Look::NONE }, State::default());
             ui.box_("badge-gap", BoxOpts::default().w(Size::Grow));
         }
-        text(
-            ui,
-            "count",
-            count,
-            12,
-            ui.color(SECONDARY),
-            (Size::Px(44.0), 18.0),
-            true,
-        );
+        ui.label(count, MONO_12.w(Size::Px(44.0)).h(18.0).color(SECONDARY));
     });
     if let (Some(list), Some((true, song))) = (list, dropping) {
         *intent = Some(Intent::AddToList { song, list });
@@ -109,9 +93,7 @@ fn side_item(
 }
 
 /// A Swift group label.
-fn group(ui: &mut Ui, key: &'static str, title: &str) {
-    text(ui, key, title, 12, ui.color(SECONDARY), (Size::Grow, 30.0), false);
-}
+const GROUP: Label = TEXT_12.w(Size::Grow).h(30.0).color(SECONDARY);
 
 /// A plain "+ label" action row (Swift's Add folder or files, New list).
 fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
@@ -151,18 +133,18 @@ pub(super) fn sidebar(
         ui.set_look(&search, Look { fill: if signal.hovered { ui.color(SELECTED) } else { ui.color(PANEL) }, ..Look::NONE }, State::default());
         ui.a11y_name(&search, "Search");
         ui.within(&search, &mut |ui| {
-            text(ui, "label", "Search", 14, ui.color(SECONDARY), (Size::Grow, 20.0), false);
-            text(ui, "hint", "⌘K", 11, ui.color(SECONDARY), (Size::Fit, 16.0), true);
+            ui.label("Search", TEXT_14.w(Size::Grow).h(20.0).color(SECONDARY));
+            ui.label("⌘K", MONO_11.h(16.0).color(SECONDARY));
         });
         if signal.clicked {
             *intent = Some(Intent::ShowCommands);
         }
         spacer(ui, "search-gap", 12.0);
-        group(ui, "library-heading", "Library");
+        ui.label("Library", GROUP);
         side_row(ui, "albums", ("Albums", &catalog.album_count), Route::Albums, state, intent);
         side_row(ui, "artists", ("Artists", &catalog.artist_count), Route::Artists, state, intent);
         side_row(ui, "songs", ("Songs", &catalog.song_count), Route::Songs, state, intent);
-        group(ui, "sources-heading", "Sources");
+        ui.label("Sources", GROUP);
         for source in &catalog.source_rows {
             side_item(
                 ui,
@@ -177,7 +159,7 @@ pub(super) fn sidebar(
         if add_row(ui, "add-music", "+  Add folder or files", "Add folder or files") {
             *intent = Some(Intent::ChooseAudio);
         }
-        group(ui, "lists-heading", "Lists");
+        ui.label("Lists", GROUP);
         let collections = catalog.collections.len();
         ui.grid_list("collections", collections + 1, (width - 20.0).max(1.0), 32.0, &mut |ui, index| {
             let Some(collection) = catalog.collections.get(index) else {
@@ -204,8 +186,8 @@ pub(super) fn sidebar(
             "offline",
             Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
             |ui| {
-                text(ui, "label", "Offline", 12, ui.color(SECONDARY), (Size::Grow, 16.0), false);
-                text(ui, "usage", &catalog.offline_usage, 12, ui.color(SECONDARY), (Size::Fit, 16.0), true);
+                ui.label("Offline", TEXT_12.w(Size::Grow).h(16.0).color(SECONDARY));
+                ui.label(&catalog.offline_usage, MONO_12.h(16.0).color(SECONDARY));
             },
         );
         ui.row(
@@ -228,8 +210,8 @@ pub(super) fn sidebar(
         );
         ui.a11y_name(&shortcuts, "Keyboard shortcuts");
         ui.within(&shortcuts, &mut |ui| {
-            text(ui, "key", "?", 11, ui.color(SECONDARY), (Size::Px(14.0), 16.0), true);
-            text(ui, "label", "shortcuts", 12, ui.color(SECONDARY), (Size::Fit, 16.0), false);
+            ui.label("?", MONO_11.w(Size::Px(14.0)).h(16.0).color(SECONDARY));
+            ui.label("shortcuts", TEXT_12.h(16.0).color(SECONDARY));
         });
         if ui.signal(&shortcuts).clicked {
             *intent = Some(Intent::ShowShortcuts);

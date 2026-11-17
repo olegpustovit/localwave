@@ -291,21 +291,7 @@ pub(super) fn palette_view(
             let list = ui.section_list_measured("results", &rows, &|i| items.get(i).map_or(0, |item| item.key as i64), &mut |ui, part, _| {
                 let SectionPart::Row(index) = part else { return };
                 let Some(item) = items.get(index) else {
-                    text(
-                        ui,
-                        "empty",
-                        if state.command_too_long {
-                            "Search text is too long. Shorten it."
-                        } else if results.is_some() {
-                            "No matches."
-                        } else {
-                            "Searching…"
-                        },
-                        14,
-                        ui.color(SECONDARY),
-                        (Size::Grow, 48.0),
-                        false,
-                    );
+                    ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, TEXT_14.w(Size::Grow).h(48.0).color(SECONDARY));
                     return;
                 };
                 let row = ui.node(
@@ -326,15 +312,7 @@ pub(super) fn palette_view(
                                 ..Node::column().w(Size::Grow).h(Size::Fit)
                             },
                             |ui| {
-                                text(
-                                    ui,
-                                    "name",
-                                    item.group,
-                                    12,
-                                    ui.color(SECONDARY),
-                                    (Size::Grow, 16.8),
-                                    false,
-                                );
+                                ui.label(item.group, TEXT_12.w(Size::Grow).h(16.8).color(SECONDARY));
                             },
                         );
                     }
@@ -466,25 +444,9 @@ fn result_row(
                 }
             });
         }
-        text(
-            ui,
-            "label",
-            &item.label,
-            14,
-            ui.color(INK),
-            (Size::Grow, 19.6),
-            false,
-        );
+        ui.label(&item.label, TEXT_14.w(Size::Grow).h(19.6).color(INK));
         if !item.hint.is_empty() {
-            text(
-                ui,
-                "hint",
-                &item.hint,
-                13,
-                ui.color(SECONDARY),
-                (Size::Fit, 18.2),
-                false,
-            );
+            ui.label(&item.hint, TEXT_13.h(18.2).color(SECONDARY));
         }
     });
 }
@@ -532,15 +494,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
             ui.scroll_view("shortcuts", Size::Grow, Size::Grow, &mut |ui| {
                 let body = ui.node("body".into(), Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
-                    text(
-                        ui,
-                        "heading",
-                        "Keyboard",
-                        18,
-                        ui.color(INK),
-                        (Size::Grow, 25.2),
-                        false,
-                    );
+                    ui.label("Keyboard", TEXT_18.w(Size::Grow).h(25.2).color(INK));
                     ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node(
@@ -560,7 +514,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                                 );
                                 ui.text_line_box(&node, label, &KEY_LABEL, &[]).unwrap();
                                 ui.box_("fill", BoxOpts::default().w(Size::Grow));
-                                text(ui, "key", key, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
+                                ui.label(key, MONO_12.h(16.8).color(SECONDARY));
                             });
                         }
                     });

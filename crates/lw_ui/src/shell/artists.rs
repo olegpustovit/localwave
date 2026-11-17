@@ -66,15 +66,7 @@ pub(super) fn table(
     let Some(table) = &catalog.artist_table else {
         header_view(ui, catalog, state, width, intent);
         ui.column("artists-loading-inset", Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0), |ui| {
-            text(
-                ui,
-                "artists-loading",
-                "Loading artists…",
-                14,
-                ui.color(SECONDARY),
-                (Size::Grow, 40.0),
-                false,
-            );
+            ui.label("Loading artists…", TEXT_14.w(Size::Grow).h(40.0).color(SECONDARY));
         });
         return;
     };

@@ -40,7 +40,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
                         ..Node::column().w(Size::Grow).h(Size::Grow)
                     },
                     |ui| {
-                        if page(ui, column, drive, intent) {
+                        if page(ui, drive, intent) {
                             ui.set_state(&root, i64::from(!drive));
                         }
                     },
@@ -61,20 +61,20 @@ fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
     );
     ui.a11y_name(&link, label);
     ui.within(&link, &mut |ui| {
-        text(ui, "label", label, 15, ui.color(INK), (Size::Fit, 21.0), false);
+        ui.label(label, TEXT_15.h(21.0).color(INK));
         rule(ui, "underline", false);
     });
     ui.signal(&link).clicked
 }
 
 /// Returns true when the Google Drive disclosure was toggled.
-fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> bool {
+fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
     ui.column("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow), |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
-            text(ui, "name", "LocalWave", 13, ui.color(SECONDARY), (Size::Grow, 18.2), false);
-            text(ui, "version", "v2", 12, ui.color(SECONDARY), (Size::Px(16.0), 16.8), true);
+            ui.label("LocalWave", TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
+            ui.label("v2", MONO_12.w(Size::Px(16.0)).h(16.8).color(SECONDARY));
         });
         spacer(ui, "count-gap", 28.0);
         let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
@@ -82,19 +82,12 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
         ui.a11y_name(&count, "0 songs so far");
         ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
         spacer(ui, "count-label-gap", 8.0);
-        text(ui, "count-label", "songs so far", 15, ui.color(SECONDARY), (Size::Grow, 21.0), false);
+        ui.label("songs so far", TEXT_15.w(Size::Grow).h(21.0).color(SECONDARY));
         spacer(ui, "heading-gap", 28.0);
-        text(ui, "heading-1", "Point it at a folder.", 32, ui.color(INK), (Size::Grow, 36.8), false);
-        text(ui, "heading-2", "It stays in sync.", 32, ui.color(INK), (Size::Grow, 36.8), false);
+        ui.label("Point it at a folder.", TEXT_32.w(Size::Grow).h(36.8).color(INK));
+        ui.label("It stays in sync.", TEXT_32.w(Size::Grow).h(36.8).color(INK));
         spacer(ui, "promise-gap", 8.0);
-        settings::paragraph(
-            ui,
-            "promise",
-            "Your files stay where they are. Nothing is uploaded.",
-            column,
-            15.0,
-            ui.color(SECONDARY),
-        );
+        ui.label("Your files stay where they are. Nothing is uploaded.", PARAGRAPH_15.color(SECONDARY));
         spacer(ui, "steps-gap", 28.0);
         rule(ui, "steps-rule", false);
         for (key, number, line) in [
@@ -104,20 +97,13 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
         ] {
             let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), ui.color(PAPER));
             ui.within(&row, &mut |ui| {
-                text(ui, "number", number, 13, ui.color(SECONDARY), (Size::Px(26.0), 46.0), false);
-                text(ui, "line", line, 15, ui.color(INK), (Size::Grow, 46.0), false);
+                ui.label(number, TEXT_13.w(Size::Px(26.0)).h(46.0).color(SECONDARY));
+                ui.label(line, TEXT_15.w(Size::Grow).h(46.0).color(INK));
             });
             rule(ui, "step-rule", false);
         }
         ui.box_("onboarding-flex", BoxOpts::default().h(Size::Grow));
-        settings::paragraph(
-            ui,
-            "sources-note",
-            "iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.",
-            column,
-            13.0,
-            ui.color(SECONDARY),
-        );
+        ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
         spacer(ui, "choose-gap", 12.0);
         let choose = ui.node(
             "choose-folder".into(),
@@ -133,7 +119,7 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
         );
         ui.a11y_name(&choose, "Choose a folder");
         ui.within(&choose, &mut |ui| {
-            text(ui, "label", "Choose a folder", 15, ui.color(PAPER), (Size::Fit, 21.0), false);
+            ui.label("Choose a folder", TEXT_15.h(21.0).color(PAPER));
         });
         if ui.signal(&choose).clicked {
             *intent = Some(Intent::ChooseFolder);
@@ -150,13 +136,13 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
             }
         });
         spacer(ui, "drive-gap", 4.0);
-        toggled = drive_box(ui, column, drive);
+        toggled = drive_box(ui, drive);
     });
     toggled
 }
 
 /// Swift's "Google Drive not in the list?" disclosure with its bordered 1px frame.
-fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
+fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
     let frame = ui.node(
         "drive-frame".into(),
         Node {
@@ -192,19 +178,12 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
                             paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
                         }
                     });
-                    text(ui, "title", "Google Drive not in the list?", 13, ui.color(INK), (Size::Grow, 19.5), false);
+                    ui.label("Google Drive not in the list?", TEXT_13.w(Size::Grow).h(19.5).color(INK));
                 });
                 clicked = ui.signal(&header).clicked;
                 if expanded {
                     spacer(ui, "drive-help-gap", 8.0);
-                    settings::paragraph(
-                        ui,
-                        "drive-help",
-                        "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.",
-                        column - 30.0,
-                        13.0,
-                        ui.color(SECONDARY),
-                    );
+                    ui.label("Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.", PARAGRAPH_13.color(SECONDARY));
                 }
             },
         );
@@ -232,7 +211,7 @@ pub(super) fn empty_library(
             ..Node::column().w(Size::Grow).h(Size::Fit)
         },
         |ui| {
-            settings::paragraph(ui, "empty-library", LIBRARY_EMPTY, width - inset * 2.0, 14.0, ui.color(SECONDARY));
+            ui.label(LIBRARY_EMPTY, PARAGRAPH_14.color(SECONDARY));
         },
     );
 }

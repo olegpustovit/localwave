@@ -51,38 +51,6 @@ pub(super) fn container(
         },
     )
 }
-pub(super) fn text(
-    ui: &mut Ui,
-    key: &'static str,
-    value: &str,
-    size: i64,
-    color: Rgba,
-    dimensions: (Size, f32),
-    mono: bool,
-) -> Handle {
-    let style = Label::BODY.font(u16::from(mono)).size(size as f32).line_height(size as f32 * 1.4).lines(1).ellipsis();
-    let node = ui.node(
-        key.into(),
-        Node {
-            look: Look {
-                text: color,
-                font: Font {
-                    family: mono as u16,
-                    size,
-                    ..Font::BODY
-                },
-                ..Look::NONE
-            },
-            ..Node::column()
-                .w(dimensions.0)
-                .h_px(dimensions.1)
-                .role(Role::Label)
-                .flags(Flags::FIT_TEXT | Flags::FIT_TEXT_PIXEL)
-        },
-    );
-    ui.text_line_box(&node, value, &style, &[]).unwrap();
-    node
-}
 pub(super) fn spacer(ui: &mut Ui, key: &str, height: f32) {
     ui.box_(key, BoxOpts::default().h(Size::Px(height)));
 }

@@ -34,7 +34,7 @@ fn button(ui: &mut Ui, key: &'static str, label: &str, selected: bool) -> bool {
         },
     );
     ui.within(&node, &mut |ui| {
-        text(ui, "label", label, 14, ui.color(INK), (Size::Fit, 19.6), false);
+        ui.label(label, TEXT_14.h(19.6).color(INK));
     });
     ui.a11y_name(&node, label);
     ui.set_role(
@@ -55,11 +55,11 @@ fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool
         label.into(),
         Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
     );
-    let ink = if active { ui.color(INK) } else { ui.color(SECONDARY) };
+    let ink = if active { INK } else { SECONDARY };
     ui.within(&node, &mut |ui| {
         ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
-            text(ui, "label", label, 15, ink, (Size::Fit, 21.0), false);
-            text(ui, "count", count, 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
+            ui.label(label, TEXT_15.h(21.0).color(ink));
+            ui.label(count, TEXT_13.h(18.2).color(SECONDARY));
         });
         container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
     });
@@ -247,11 +247,11 @@ pub(super) fn view(
                             |ui| {
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
                                 clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
-                                text(ui, "unit", "songs", 15, ui.color(INK), (Size::Fit, 21.0), false);
+                                ui.label("songs", TEXT_15.h(21.0).color(INK));
                                 container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
                                 ui.column("library-size", Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
-                                    text(ui, "albums", &catalog.totals_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
-                                    text(ui, "sources", &catalog.sources_label, 13, ui.color(SECONDARY), (Size::Fit, 19.5), false);
+                                    ui.label(&catalog.totals_label, TEXT_13.h(19.5).color(SECONDARY));
+                                    ui.label(&catalog.sources_label, TEXT_13.h(19.5).color(SECONDARY));
                                 });
                             },
                         );
@@ -273,7 +273,7 @@ pub(super) fn view(
                             }
                             if state.route == Route::Songs {
                                 container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-                                text(ui, "sort", "Title \u{2193}", 14, ui.color(INK), (Size::Fit, 19.6), false);
+                                ui.label("Title \u{2193}", TEXT_14.h(19.6).color(INK));
                                 if !state.selecting
                                     && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
                                     && list::word(ui, "select", "Select", false)
@@ -628,8 +628,8 @@ fn expanded(
                 }
             });
             ui.row("playing-from", Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
-                text(ui, "prefix", "Playing from", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
-                text(ui, "source", player.context, 13, ui.color(INK), (Size::Fit, 18.2), false);
+                ui.label("Playing from", TEXT_13.h(18.2).color(SECONDARY));
+                ui.label(player.context, TEXT_13.h(18.2).color(INK));
             });
             container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
         });
@@ -697,7 +697,7 @@ fn expanded(
                         },
                         |ui| {
                             if let Some(info) = player.info {
-                                text(ui, "format", &info.summary, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
+                                ui.label(&info.summary, MONO_12.h(16.8).color(SECONDARY));
                             }
                             small_clock(
                                 ui,
@@ -735,8 +735,8 @@ fn expanded(
                             Icon::Shuffle,
                             player.shuffled,
                             |ui| {
-                                let c = if player.shuffled { ui.color(PAPER) } else { ui.color(INK) };
-                                text(ui, "label", "Shuffle", 14, c, (Size::Fit, 19.6), false);
+                                let c = if player.shuffled { PAPER } else { INK };
+                                ui.label("Shuffle", TEXT_14.h(19.6).color(c));
                             },
                         ) {
                             *intent = Some(Intent::Shuffle);
@@ -753,17 +753,17 @@ fn expanded(
                             Icon::Repeat,
                             again,
                             |ui| {
-                                let c = if again { ui.color(PAPER) } else { ui.color(INK) };
+                                let c = if again { PAPER } else { INK };
                                 let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
-                                text(ui, "label", label, 14, c, (Size::Fit, 19.6), false);
+                                ui.label(label, TEXT_14.h(19.6).color(c));
                             },
                         ) {
                             *intent = Some(Intent::Repeat);
                         }
                         if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
                             let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                            text(ui, "count", count, 11, ui.color(INK), (Size::Fit, 15.4), true);
-                            text(ui, "label", "up next", 14, ui.color(INK), (Size::Fit, 19.6), false);
+                            ui.label(count, MONO_11.h(15.4).color(INK));
+                            ui.label("up next", TEXT_14.h(19.6).color(INK));
                         }) {
                             *intent = Some(Intent::ShowQueue);
                         }

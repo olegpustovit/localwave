@@ -1,4 +1,6 @@
 use super::*;
+/// The page heading: 34 points, medium, tracked in, on a 34-point line.
+const HEADING: Label = Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1).w(Size::Grow).h(34.0).whole_pixels().color(INK);
 use crate::browse::Query;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
@@ -28,7 +30,7 @@ pub(super) fn header(
     ui.column("library-header", root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
-            text(ui, "results-caption", "Search", 14, ui.color(SECONDARY), (Size::Grow, 19.6), false);
+            ui.label("Search", TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
         }
         let title = match state.route {
             Route::Find if results => find_summary.map_or("“…”", |summary| summary.title.as_str()),
@@ -46,14 +48,7 @@ pub(super) fn header(
             ui.color(PAPER),
         );
         ui.within(&heading, &mut |ui| {
-            let heading = text(ui, "heading", title, 34, ui.color(INK), (Size::Grow, 34.0), false);
-            ui.text_line_box(
-                &heading,
-                title,
-                &Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1),
-                &[],
-            )
-            .unwrap();
+            ui.label(title, HEADING);
             if !results
                 && !matches!(state.route, Route::Albums | Route::Artists)
                 && icon_button(
@@ -111,35 +106,7 @@ pub(super) fn header(
             find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
-        text(
-            ui,
-            "subtitle",
-            if state.query_too_long && state.route == Route::Find {
-                "Search text is too long. Shorten it."
-            } else if state.route == Route::Find && state.query.as_str().trim().is_empty() {
-                "Search titles, artists, albums or add a filter"
-            } else if state.route == Route::Find && collection.is_none() {
-                "Searching…"
-            } else if state.route == Route::Find {
-                catalog
-                    .view
-                    .as_ref()
-                    .and_then(|view| view.find.as_ref())
-                    .map_or("Searching…", |summary| summary.summary.as_str())
-            } else if state.route == Route::Songs {
-                "Click a header to sort. Double-click or Return plays."
-            } else if state.route == Route::Artists {
-                "Sorted ignoring “The”"
-            } else if state.route == Route::Albums {
-                &catalog.library_subtitle
-            } else {
-                collection.map_or("Browse your library", |group| group.subtitle.as_str())
-            },
-            14,
-            ui.color(SECONDARY),
-            (Size::Grow, 19.6),
-            false,
-        );
+        ui.label(if state.query_too_long && state.route == Route::Find { "Search text is too long. Shorten it." } else if state.route == Route::Find && state.query.as_str().trim().is_empty() { "Search titles, artists, albums or add a filter" } else if state.route == Route::Find && collection.is_none() { "Searching…" } else if state.route == Route::Find { catalog .view .as_ref() .and_then(|view| view.find.as_ref()) .map_or("Searching…", |summary| summary.summary.as_str()) } else if state.route == Route::Songs { "Click a header to sort. Double-click or Return plays." } else if state.route == Route::Artists { "Sorted ignoring “The”" } else if state.route == Route::Albums { &catalog.library_subtitle } else { collection.map_or("Browse your library", |group| group.subtitle.as_str()) }, TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
         spacer(ui, "heading-bottom-gap", 18.0);
         if state.route == Route::Albums {
             albums::toolbar(ui, catalog, state, intent);
@@ -206,15 +173,7 @@ pub(super) fn compact_find(
                 ..Node::column().w(Size::Grow).h(Size::Fit)
             },
             |ui| {
-                text(
-                    ui,
-                    "caption",
-                    "Find",
-                    13,
-                    ui.color(SECONDARY),
-                    (Size::Grow, 21.0),
-                    false,
-                );
+                ui.label("Find", TEXT_13.w(Size::Grow).h(21.0).color(SECONDARY));
                 ui.view(
                     "find-query",
                     state.query_revision,

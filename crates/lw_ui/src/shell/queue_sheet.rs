@@ -193,15 +193,7 @@ pub(super) fn queue_sheet(
                             *intent = Some(Intent::NamePlaylist);
                         }
                         ui.within(&titles, &mut |ui| {
-                            text(
-                                ui,
-                                "full-queue-title",
-                                "Queue",
-                                20,
-                                ui.color(INK),
-                                (Size::Grow, 28.0),
-                                false,
-                            );
+                            ui.label("Queue", TEXT_20.w(Size::Grow).h(28.0).color(INK));
                             let from = container(
                                 ui,
                                 "queue-from",
@@ -211,34 +203,10 @@ pub(super) fn queue_sheet(
                                 ui.color(PAPER),
                             );
                             ui.within(&from, &mut |ui| {
-                                text(
-                                    ui,
-                                    "from",
-                                    "From ",
-                                    13,
-                                    ui.color(SECONDARY),
-                                    (Size::Fit, 18.2),
-                                    false,
-                                );
-                                text(
-                                    ui,
-                                    "context",
-                                    player.context,
-                                    13,
-                                    ui.color(SECONDARY),
-                                    (Size::Fit, 18.2),
-                                    false,
-                                );
+                                ui.label("From ", TEXT_13.h(18.2).color(SECONDARY));
+                                ui.label(player.context, TEXT_13.h(18.2).color(SECONDARY));
                                 if player.shuffled {
-                                    text(
-                                        ui,
-                                        "shuffled",
-                                        " · shuffled",
-                                        13,
-                                        ui.color(SECONDARY),
-                                        (Size::Fit, 18.2),
-                                        false,
-                                    );
+                                    ui.label(" · shuffled", TEXT_13.h(18.2).color(SECONDARY));
                                 }
                             });
                         });
@@ -256,15 +224,7 @@ pub(super) fn queue_sheet(
                     },
                 );
                 if state.playlist_editing {
-                    text(
-                        ui,
-                        "playlist-prompt",
-                        "Save all tracks in queue order; duplicates are included once.",
-                        12,
-                        ui.color(SECONDARY),
-                        (Size::Grow, 32.0),
-                        false,
-                    );
+                    ui.label("Save all tracks in queue order; duplicates are included once.", TEXT_12.w(Size::Grow).h(32.0).color(SECONDARY));
                     let row = container(
                         ui,
                         "playlist-editor",
@@ -308,15 +268,7 @@ pub(super) fn queue_sheet(
                                 *intent = Some(Intent::SaveQueue(state.playlist_name));
                             }
                         } else {
-                            text(
-                                ui,
-                                "create-unavailable",
-                                "Create",
-                                12,
-                                ui.color(SECONDARY),
-                                (Size::Px(60.0), 28.0),
-                                false,
-                            );
+                            ui.label("Create", TEXT_12.w(Size::Px(60.0)).h(28.0).color(SECONDARY));
                         }
                         if queue_action(
                             ui,
@@ -328,30 +280,10 @@ pub(super) fn queue_sheet(
                             *intent = Some(Intent::CancelPlaylistName);
                         }
                     });
-                    text(
-                        ui,
-                        "playlist-name-error",
-                        if state.playlist_name_too_long {
-                            "Name exceeds 1,024 UTF-8 bytes. Shorten it to save."
-                        } else {
-                            ""
-                        },
-                        12,
-                        ui.color(SECONDARY),
-                        (Size::Grow, 24.0),
-                        false,
-                    );
+                    ui.label(if state.playlist_name_too_long { "Name exceeds 1,024 UTF-8 bytes. Shorten it to save." } else { "" }, TEXT_12.w(Size::Grow).h(24.0).color(SECONDARY));
                 }
                 if notice {
-                    text(
-                        ui,
-                        "queue-notice",
-                        player.message,
-                        12,
-                        ui.color(SECONDARY),
-                        (Size::Grow, 28.0),
-                        false,
-                    );
+                    ui.label(player.message, TEXT_12.w(Size::Grow).h(28.0).color(SECONDARY));
                 }
                 if let Some(song) = now {
                     now_row(ui, player, song, width);
@@ -368,24 +300,8 @@ pub(super) fn queue_sheet(
                         ..Node::row().w(Size::Grow).h_px(46.2).gap(4.0)
                     },
                     |ui| {
-                        text(
-                            ui,
-                            "name",
-                            "Up next",
-                            13,
-                            ui.color(SECONDARY),
-                            (Size::Fit, 18.2),
-                            false,
-                        );
-                        text(
-                            ui,
-                            "count",
-                            queue.map_or("0", |queue| queue.count.as_str()),
-                            12,
-                            ui.color(SECONDARY),
-                            (Size::Fit, 18.2),
-                            true,
-                        );
+                        ui.label("Up next", TEXT_13.h(18.2).color(SECONDARY));
+                        ui.label(queue.map_or("0", |queue| queue.count.as_str()), MONO_12.h(18.2).color(SECONDARY));
                     },
                 );
                 if upcoming == 0 {
@@ -400,19 +316,7 @@ pub(super) fn queue_sheet(
                         },
                         |ui| {
                             let undo = queue.is_some_and(|queue| queue.can_undo);
-                            text(
-                                ui,
-                                "message",
-                                if undo {
-                                    "Up next cleared."
-                                } else {
-                                    "Nothing queued."
-                                },
-                                14,
-                                ui.color(SECONDARY),
-                                (Size::Fit, 20.0),
-                                false,
-                            );
+                            ui.label(if undo { "Up next cleared." } else { "Nothing queued." }, TEXT_14.h(20.0).color(SECONDARY));
                             if undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
                                 *intent = Some(Intent::UndoQueue);
                             }
@@ -456,15 +360,7 @@ pub(super) fn queue_sheet(
                     );
                     ui.a11y_name(&clear, "Clear up next");
                     ui.within(&clear, &mut |ui| {
-                        text(
-                            ui,
-                            "label",
-                            "Clear up next",
-                            16,
-                            ui.color(SECONDARY),
-                            (Size::Grow, 22.4),
-                            false,
-                        );
+                        ui.label("Clear up next", TEXT_16.w(Size::Grow).h(22.4).color(SECONDARY));
                     });
                     if ui.signal(&clear).clicked {
                         *intent = Some(Intent::ClearQueue);
@@ -509,35 +405,11 @@ fn now_row(
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
         ui.column("now-titles", Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
-            text(
-                ui,
-                "title",
-                song.title,
-                15,
-                ui.color(INK),
-                (Size::Grow, 21.0),
-                false,
-            );
+            ui.label(song.title, TEXT_15.w(Size::Grow).h(21.0).color(INK));
             let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
             ui.within(&line, &mut |ui| {
-                text(
-                    ui,
-                    "now",
-                    "Now · ",
-                    13,
-                    ui.color(SECONDARY),
-                    (Size::Fit, 18.2),
-                    false,
-                );
-                text(
-                    ui,
-                    "artist",
-                    song.artist,
-                    13,
-                    ui.color(SECONDARY),
-                    (Size::Grow, 18.2),
-                    false,
-                );
+                ui.label("Now · ", TEXT_13.h(18.2).color(SECONDARY));
+                ui.label(song.artist, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
             });
         });
         ui.column("now-bars", Node::column().w_px(14.0).h_px(11.0), |ui| {
@@ -572,24 +444,8 @@ pub(super) fn queue_rows(
             ui.color(PAPER),
         );
         ui.within(&header, &mut |ui| {
-            text(
-                ui,
-                "queue-context",
-                &queue.heading,
-                13,
-                ui.color(SECONDARY),
-                (Size::Grow, 28.0),
-                false,
-            );
-            text(
-                ui,
-                "queue-count",
-                &queue.count,
-                12,
-                ui.color(SECONDARY),
-                (Size::Px(56.0), 28.0),
-                true,
-            );
+            ui.label(&queue.heading, TEXT_13.w(Size::Grow).h(28.0).color(SECONDARY));
+            ui.label(&queue.count, MONO_12.w(Size::Px(56.0)).h(28.0).color(SECONDARY));
             if icon_button(
                 ui,
                 "show-queue",
@@ -615,19 +471,7 @@ pub(super) fn queue_rows(
         if sheet {
             return;
         }
-        text(
-            ui,
-            "queue-empty",
-            if queue.can_undo {
-                "Up next cleared."
-            } else {
-                "Queue is empty."
-            },
-            14,
-            ui.color(SECONDARY),
-            (Size::Grow, 44.0),
-            false,
-        );
+        ui.label(if queue.can_undo { "Up next cleared." } else { "Queue is empty." }, TEXT_14.w(Size::Grow).h(44.0).color(SECONDARY));
         return;
     }
     let list = ui.list(
@@ -730,24 +574,8 @@ pub(super) fn queue_rows(
                 );
                 ui.a11y_name(&play, title);
                 ui.within(&play, &mut |ui| {
-                    text(
-                        ui,
-                        "queue-title",
-                        title,
-                        m.title,
-                        ui.color(INK),
-                        (Size::Grow, m.title_line),
-                        false,
-                    );
-                    text(
-                        ui,
-                        "queue-artist",
-                        artist,
-                        m.artist,
-                        ui.color(SECONDARY),
-                        (Size::Grow, m.artist_line),
-                        false,
-                    );
+                    ui.label(title, line_style(m.title as f32).w(Size::Grow).h(m.title_line).color(INK));
+                    ui.label(artist, line_style(m.artist as f32).w(Size::Grow).h(m.artist_line).color(SECONDARY));
                 });
                 if ui.signal(&play).clicked {
                     *intent = Some(Intent::PlayQueue(entry.id));
