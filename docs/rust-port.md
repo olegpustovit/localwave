@@ -71,10 +71,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | done | 9be4f52 |
 | DX0.7a | Stale view `compact-library`: revision misses an input (found by DX0.7) | done | 736f07c |
-| DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | done | HEAD |
+| DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | done | 49ae7ec |
 | DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | done | 5e77922 |
 | DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | 4fb54b0 |
-| DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | blocked | DX0.7g: heart draw segments of a nested view differ only with a11y on |
+| DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | done | HEAD |
 | DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | done | 0754b76 |
 | DX0.7g | pxui verify_views: replay transitions started in a body and nested-view draw segments under a11y (blocks DX0.7b/e) | done | 8c5158c + pxui 4670ad6 |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |

@@ -2665,8 +2665,7 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
         title: "Track 1",
         ..PlayerView::default()
     };
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
-    crate::set_colors(&mut ui);
+    let mut ui = test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run =
@@ -2774,8 +2773,10 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
         Some(Intent::SetFavorite { song: 2, on: true })
     );
     state.apply(Intent::CloseSongMenu);
-    // Nothing current: L is a no-op.
+    // Nothing current: L is a no-op. The controller bumps the stable revision
+    // whenever the current entry changes, so the test does too.
     player.current_id = None;
+    player.revision += 1;
     run(&mut ui, &state, &player, &[]);
     assert_eq!(
         run(
@@ -2794,6 +2795,7 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
     );
     // A focused Find field types the letter instead.
     player.current_id = Some(1);
+    player.revision += 1;
     state.apply(Intent::Navigate(catalog::Route::Find));
     run(&mut ui, &state, &player, &[]);
     let rect = ui
@@ -2846,14 +2848,18 @@ fn favorite_burst_runs_only_on_the_off_to_on_transition_and_respects_reduced_mot
     };
     for (reduced, expect_burst) in [(0, true), (1, false)] {
         let state = ShellState::default();
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
-        crate::set_colors(&mut ui);
+        let mut ui = test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
         let mut time = 0.0;
+        // The controller bumps the stable revision whenever the current entry changes.
+        let (mut revision, mut last_id) = (1, None);
         let mut run = |catalog: &catalog::Catalog, id: i64, seconds: f64| {
             time += seconds;
+            revision += u64::from(last_id != Some(id));
+            last_id = Some(id);
             let player = PlayerView {
                 initialized: true,
                 current_id: Some(id),
+                revision,
                 ..PlayerView::default()
             };
             let frame = FrameIn {
