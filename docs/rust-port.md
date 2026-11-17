@@ -109,7 +109,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.10 | Label, Button and IconButton style values express LocalWave helpers (found by DX4.2–4.4) | done | 2a97383 + pxui 76d9c7d |
 | DX3.11 | Menu, Toggle, Segmented and Dialog carry what app bodies need (found by DX4.5–4.7) | done | eaa73cd + pxui 95df44c |
 | DX3.12 | Disabled widgets never click; Button label/layout/focus options; button_content gets the state (found by DX4.3/4.4) | done | 99ebbe1 + pxui 34c8e4f |
-| DX3.12a | DX3.12 review follow-ups (legacy export marked, docs) | done | HEAD + pxui 456892b |
+| DX3.12a | DX3.12 review follow-ups (legacy export marked, docs) | done | ae5b91a + pxui 456892b |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
@@ -134,7 +134,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
 | DX6.0a | Doctests really run (rays-t ran none) and run split by module | done | 5123918 + pxui 6662f51 |
 | DX6.0b | Fix the 13 doctest examples that never ran | done | ff1a73f + pxui 369fe6c |
-| DX6.4 | Docs: model and frame | todo |  |
+| DX6.4 | Docs: model and frame | done | HEAD + pxui 20e5661 |
 | DX6.5 | Docs: nodes and state | todo |  |
 | DX6.6 | Docs: views, overlays, animation | todo |  |
 | DX6.7 | Docs: Paint (1) | todo |  |
