@@ -123,6 +123,30 @@ pub(super) fn line(
     node
 }
 
+/// A one-line text link: `line`'s look and metrics as a pressable button.
+pub(super) fn link(
+    ui: &mut Ui,
+    key: &'static str,
+    value: &str,
+    // tracking in ems
+    (size, line_height, weight, tracking): (f32, f32, u16, f32),
+    color: Rgba,
+) -> pxui::Response {
+    let node = Node {
+        look: Look { text: color, ..Look::NONE },
+        ..Node::column().w(Size::Grow).h_px(line_height).role(Role::Button)
+    };
+    let link = ui.pressable(key, node, &PLAIN, |_, _| {});
+    ui.text_line_box(
+        &link.handle,
+        value,
+        &Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
+        &[],
+    )
+    .unwrap();
+    link
+}
+
 pub(super) fn header(
     ui: &mut Ui,
     catalog: &Catalog,
@@ -237,8 +261,8 @@ fn header_body(
                 && !artist.is_empty()
             {
                 spacer(ui, "artist-gap", 6.0);
-                let link = line(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
-                if ui.signal(&link).clicked
+                let link = link(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0), ui.color(SECONDARY));
+                if link.clicked
                     && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                 {
                     *intent = Some(Intent::Navigate(Route::Artist(index)));
