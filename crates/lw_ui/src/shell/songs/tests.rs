@@ -821,15 +821,17 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
         let sentinel = format!("settle probe {probe}");
         ui.prewarm_text(&sentinel, &Label::BODY, 0.0).unwrap();
         // One frame flushes the requests, the next installs what the worker delivered meanwhile. Delivery
-        // is not observable between frames, so the wait is 20 ms of yielding rather than a frame per poll:
-        // the frame count (and so every later frame's index in fingerprint dumps) does not depend on how
-        // fast the worker ran. Only a worker starved past that wait costs another two frames.
-        crate::testing::frame(ui, input, &mut |_| {}).unwrap();
+        // is not observable between frames, so the wait is 20 ms of yielding rather than a frame per poll
+        // (each probe shapes a sentinel inline, and a fast poll would fill the text cache with them). A worker
+        // starved past that wait costs another probe, so the probe count depends on machine load: probe
+        // frames build nothing and bypass `testing::frame`, which keeps the fingerprint dump's frame count
+        // and indices deterministic (they were 112 or 116 frames depending on load).
+        ui.frame(input, &mut |_| {}).unwrap();
         let wait = std::time::Instant::now() + std::time::Duration::from_millis(20);
         while std::time::Instant::now() < wait {
             std::thread::yield_now();
         }
-        crate::testing::frame(ui, input, &mut |_| {}).unwrap();
+        ui.frame(input, &mut |_| {}).unwrap();
         let before = ui.text_layout_count();
         ui.text_service().measure(&sentinel, &Label::BODY, 0.0).unwrap();
         if ui.text_layout_count() == before {
