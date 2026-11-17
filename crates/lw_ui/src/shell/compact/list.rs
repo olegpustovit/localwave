@@ -149,51 +149,10 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 .gap(12.0)
                 .align(Align::Center)
                 .role(Role::ListItem)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
         };
-        let node = ui.node("song".into(), row_node);
-        // Touch only: a mouse never starts a gesture, so desktop rows read rest.
-        let g = ui.gesture(
-            &node,
-            if selecting { SELECTING_ROW } else { SWIPE_ROW },
-        );
-        let active = g.swiping || g.swipe_open;
-        match state.open_swipe.get() {
-            Some((open, other)) if active && open != index => {
-                ui.close_swipe(&other);
-                state.open_swipe.set(Some((index, node)));
-            }
-            Some((open, _)) if open == index && active => {
-                state.open_swipe.set(Some((index, node)));
-            }
-            Some((open, _)) if open == index && g.swipe == 0.0 => state.open_swipe.set(None),
-            None if active => state.open_swipe.set(Some((index, node))),
-            _ => {}
-        }
-        if g.swipe != 0.0 {
-            // `swipe` is the row's own x offset; LocalWave never mirrors, so positive reveals the leading side.
-            ui.set_node_layout(
-                &node,
-                &Node {
-                    w: Size::Px(width),
-                    h: Size::Px(ROW),
-                    at: Some((g.swipe, 0.0)).into(),
-                    ..row_node
-                },
-            );
-        }
-        if g.highlighted {
-            ui.set_look(
-                &node,
-                Look {
-                    fill: ui.color(SELECTED),
-                    ..row_node.look
-                },
-                State::default(),
-            );
-        }
-        ui.a11y_name(&node, row.title);
-        ui.within(&node, &mut |ui| {
+        // Touch gestures are taken on the row after it is declared; `more` is read once the row exists.
+        let mut more = false;
+        let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {
             if selecting {
                 checkbox(ui, state.is_marked(index));
             }
@@ -253,16 +212,60 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 });
             }
             ui.label(row.duration, MONO_DIM);
-            if more_button(ui, row.actions_label) {
-                let rect = ui.rect(&node);
-                *intent = Some(Intent::SongMenu(
-                    index,
-                    row.id,
-                    collection.key,
-                    (rect.x + rect.w - 44.0, rect.y),
-                ));
-            }
+            more = more_button(ui, row.actions_label);
         });
+        // Touch only: a mouse never starts a gesture, so desktop rows read rest.
+        let g = ui.gesture(
+            &node.handle,
+            if selecting { SELECTING_ROW } else { SWIPE_ROW },
+        );
+        let active = g.swiping || g.swipe_open;
+        match state.open_swipe.get() {
+            Some((open, other)) if active && open != index => {
+                ui.close_swipe(&other);
+                state.open_swipe.set(Some((index, node.handle)));
+            }
+            Some((open, _)) if open == index && active => {
+                state.open_swipe.set(Some((index, node.handle)));
+            }
+            Some((open, _)) if open == index && g.swipe == 0.0 => state.open_swipe.set(None),
+            None if active => state.open_swipe.set(Some((index, node.handle))),
+            _ => {}
+        }
+        if g.swipe != 0.0 {
+            // `swipe` is the row's own x offset; LocalWave never mirrors, so positive reveals the leading side.
+            ui.set_node_layout(
+                &node.handle,
+                &Node {
+                    w: Size::Px(width),
+                    h: Size::Px(ROW),
+                    at: Some((g.swipe, 0.0)).into(),
+                    ..ui.node_layout(&node.handle)
+                },
+            );
+        }
+        if g.highlighted {
+            ui.set_look(
+                &node.handle,
+                Look {
+                    fill: ui.color(SELECTED),
+                    ..row_node.look
+                },
+                State::default(),
+            );
+        }
+        ui.a11y_name(&node.handle, row.title);
+        let clicked = node.clicked;
+        let node = node.handle;
+        if more {
+            let rect = ui.rect(&node);
+            *intent = Some(Intent::SongMenu(
+                index,
+                row.id,
+                collection.key,
+                (rect.x + rect.w - 44.0, rect.y),
+            ));
+        }
         if selecting && cx.list.is_some() {
             super::super::songs::row::drop_target(ui, &node, index, intent);
         }
@@ -313,7 +316,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 (rect.x + rect.w * 0.5 - 100.0, rect.y + rect.h),
             ));
         }
-        if ui.signal(&node).clicked && intent.is_none() {
+        if clicked && intent.is_none() {
             if selecting {
                 *intent = Some(Intent::Select(Selection::Toggle(index)));
             } else if g.swipe_open {
@@ -328,17 +331,16 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
 /// Swift's edit-mode drag handle: dragging it reorders the playlist (`MoveListRow` on drop).
 fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     use super::super::songs::row::LIST_ROW;
-    let grip = ui.node("reorder".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP));
-    ui.a11y_name(&grip, "Reorder track");
+    let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
+    ui.a11y_name(&grip.handle, "Reorder track");
     // The finger takes the handle at once as a held press, so the list neither scrolls nor refreshes.
-    ui.gesture(&grip, HELD_TOUCH);
-    ui.draw(&grip, move |paint, rect| {
+    ui.gesture(&grip.handle, HELD_TOUCH);
+    ui.draw(&grip.handle, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
             paint.fill(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0, paint.color(SECONDARY));
         }
     });
-    let signal = ui.signal(&grip);
-    if signal.held || signal.clicked {
+    if grip.held || grip.clicked {
         let mut digits = [0u8; 24];
         let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();
         let mut kind = [0u8; 48];
@@ -346,7 +348,7 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
         let len = LIST_ROW.len() + id.len();
         kind[LIST_ROW.len()..len].copy_from_slice(id);
         ui.carry(
-            if signal.clicked { None } else { Some(&grip) },
+            if grip.clicked { None } else { Some(&grip.handle) },
             std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
             title,
         );
@@ -445,29 +447,22 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
             let mut dragging = false;
             ui.within(&rail, &mut |ui| {
                 for (letter, first) in collection.sections.iter().copied() {
-                    let node = ui.node(
-                        letter.into(),
-                        Node {
-                            justify: Justify::End,
-                            padding: Edges {
-                                r: 6.0,
-                                ..Edges::ZERO
-                            },
-                            ..Node::row()
-                                .w_px(RAIL_WIDTH)
-                                .h_px(RAIL_STEP)
-                                .align(Align::Center)
-                                .role(Role::Button)
-                                .flags(Flags::CLICKABLE)
+                    let node = Node {
+                        justify: Justify::End,
+                        padding: Edges {
+                            r: 6.0,
+                            ..Edges::ZERO
                         },
-                    );
-                    ui.within(&node, &mut |ui| {
+                        ..Node::row().w_px(RAIL_WIDTH).h_px(RAIL_STEP).align(Align::Center).role(Role::Button)
+                    };
+                    // The rail takes the pointer, never Tab.
+                    let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {
                         ui.label(letter, TEXT_11.h_px(RAIL_STEP).color(SECONDARY));
                     });
-                    ui.a11y_name(&node, letter);
+                    ui.a11y_name(&key.handle, letter);
                     // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
-                    ui.gesture(&node, HELD_TOUCH);
-                    let signal = ui.signal(&node);
+                    ui.gesture(&key.handle, HELD_TOUCH);
+                    let signal = ui.signal(&key.handle);
                     if signal.held {
                         dragging = true;
                         // The press holds while the pointer or finger drags over the index; the letter comes from its y.
@@ -824,21 +819,11 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
             ] {
                 let tone = if !enabled { TERTIARY } else if key == "remove" { DANGER } else { INK };
                 let ink = ui.color(tone);
-                let node = ui.node(
-                    key.into(),
-                    Node {
-                        state: State { disabled: !enabled, ..State::default() },
-                        look: Look { fill: ui.color(KEY), ..Look::NONE },
-                        ..Node::column()
-                            .w(Size::Grow)
-                            .h(Size::Grow)
-                            .gap(4.0)
-                            .center()
-                            .role(Role::Button)
-                            .flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
-                    },
-                );
-                ui.within(&node, &mut |ui| {
+                let node = Node {
+                    look: Look { fill: ui.color(KEY), ..Look::NONE },
+                    ..Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button)
+                };
+                let key_node = ui.pressable(key, node, &PLAIN.enabled(enabled), |ui, _| {
                     let icon = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
                     ui.draw(&icon, move |paint, rect| match key {
                         "add-to-list" => {
@@ -850,9 +835,9 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                     });
                     ui.label(label, TEXT_12.color(tone));
                 });
-                ui.a11y_name(&node, label);
-                if enabled && ui.signal(&node).clicked {
-                    pressed = Some((key, ui.rect(&node)));
+                ui.a11y_name(&key_node.handle, label);
+                if key_node.clicked {
+                    pressed = Some((key, ui.rect(&key_node.handle)));
                 }
             }
         });
@@ -903,8 +888,8 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
-                        let link = detail::line(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
-                        if ui.signal(&link).clicked
+                        let link = detail::link(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY));
+                        if link.clicked
                             && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                         {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));

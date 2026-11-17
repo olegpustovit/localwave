@@ -2,11 +2,6 @@ lw_ui/src/shell/albums.rs	R2	Flags::CLICKABLE | Flags::TAB_STOP
 lw_ui/src/shell/byline.rs	R2	.flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
 lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
 lw_ui/src/shell/compact.rs	R2	..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
-lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
-lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE)
-lw_ui/src/shell/compact/list.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
-lw_ui/src/shell/compact/list.rs	R2	let grip = ui.node("reorder".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP));
-lw_ui/src/shell/compact/list.rs	R2	let link = detail::line(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
 lw_ui/src/shell/files.rs	R2	..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/files.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/files.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
