@@ -139,8 +139,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.14 | Docs: inspector | todo |  |
 | DX6.15 | Docs: images and renderer | done | 0d0cd58 + pxui 48be183 |
 | DX6.16 | Docs: node.rs | todo |  |
-| DX6.17 | Docs: layout and geometry | done | HEAD + pxui 4c08a69 |
-| DX6.18 | Docs: theme | todo |  |
+| DX6.17 | Docs: layout and geometry | done | 0a5c610 + pxui 4c08a69 |
+| DX6.18 | Docs: theme | done | HEAD + pxui 5b268d7 |
 | DX6.19 | Docs: ui, a11y, draw | todo |  |
 | DX6.20 | Docs: pxui_types root | todo |  |
 | DX6.21 | Docs: ffi.rs (1) | todo |  |
