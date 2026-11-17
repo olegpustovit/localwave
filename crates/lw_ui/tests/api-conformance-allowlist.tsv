@@ -1,0 +1,60 @@
+lw_ui/src/shell/albums.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/albums.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/albums.rs	R2	Flags::CLICKABLE | Flags::TAB_STOP
+lw_ui/src/shell/artists.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/byline.rs	R2	.flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
+lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
+lw_ui/src/shell/compact.rs	R2	..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
+lw_ui/src/shell/compact.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/compact.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/compact.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/compact.rs	R4	if ui.button_content(title, &tab, |ui, _| { ui.label(title, TEXT_14.h(19.6).color(INK)); }).clicked {
+lw_ui/src/shell/compact.rs	R4	ui.button_content(label, &tab, |ui, _| {
+lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE)
+lw_ui/src/shell/compact/list.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
+lw_ui/src/shell/compact/list.rs	R2	let grip = ui.node("reorder".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP));
+lw_ui/src/shell/compact/list.rs	R2	let link = detail::line(ui, "artist", artist, (17.0, 23.8, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
+lw_ui/src/shell/detail.rs	R2	Node::column().w_px(cell).h(Size::Grow).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/files.rs	R2	..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
+lw_ui/src/shell/files.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE)
+lw_ui/src/shell/files.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
+lw_ui/src/shell/files.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
+lw_ui/src/shell/files.rs	R2	Node { padding: Edges { r: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
+lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),
+lw_ui/src/shell/files.rs	R2	let add = ui.node("add-music".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
+lw_ui/src/shell/files.rs	R2	let back = ui.node("Back".into(), Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R2	let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+lw_ui/src/shell/files.rs	R2	let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R2	let show = ui.node("show".into(), Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let tab = ui.node(label.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/header.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP | Flags::CLIP)
+lw_ui/src/shell/lists.rs	R2	.flags(if present { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
+lw_ui/src/shell/onboarding.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/onboarding.rs	R2	Node::row().w(Size::Grow).h_px(19.5).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
+lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE)
+lw_ui/src/shell/settings.rs	R2	..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
+lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
+lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE)
+lw_ui/src/shell/settings.rs	R2	Flags::CLICKABLE | Flags::FOCUSABLE
+lw_ui/src/shell/settings.rs	R2	Flags::CLICKABLE | Flags::FOCUSABLE
+lw_ui/src/shell/sidebar.rs	R2	..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/sidebar.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/sidebar.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP);
+lw_ui/src/shell/songs/menu.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
+lw_ui/src/shell/songs/mod.rs	R2	Flags::CLICKABLE | Flags::TAB_STOP
+lw_ui/src/shell/songs/row.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/songs/row.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
+lw_ui/src/shell/songs/row.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
+lw_ui/src/shell/theme.rs	R3	let pair = COLORS[token.0 as usize];
+lw_ui/src/shell/transport.rs	R2	flags: Flags::CLICKABLE,

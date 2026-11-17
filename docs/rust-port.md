@@ -122,6 +122,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
+| DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | HEAD |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
 | DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |
