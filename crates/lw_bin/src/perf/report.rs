@@ -424,6 +424,20 @@ mod tests {
         perf.warm_allocations = super::super::FLING_CEILING + 1;
         assert!(perf.report(false, counts, 0).is_err());
     }
+    /// LocalWave's fling ceiling is pxui's (kept private in its test): read it from the submodule so they cannot drift.
+    #[test]
+    fn fling_ceiling_equals_pxui_fling_ceiling() {
+        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../pxui/crates/private/pxui_core/tests/cases/views.rs");
+        let source = std::fs::read_to_string(path).unwrap();
+        let pxui: u64 = source
+            .lines()
+            .find_map(|line| line.strip_prefix("const FLING_CEILING: u64 = "))
+            .and_then(|rest| rest.strip_suffix(';'))
+            .expect("pxui_core views.rs defines `const FLING_CEILING: u64 = <n>;`")
+            .parse()
+            .unwrap();
+        assert_eq!(super::super::FLING_CEILING, pxui);
+    }
     #[test]
     fn measured_workloads_report_but_never_fail_even_over_every_budget() {
         let mut perf = Perf::new(Workload::FirstNavigation, None);
