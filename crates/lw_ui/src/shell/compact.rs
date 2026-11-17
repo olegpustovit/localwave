@@ -512,32 +512,16 @@ fn expanded(
             fill: ui.color(PAPER),
             ..Look::NONE
         },
-        ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
+        ..Node::column().w(Size::Grow).h(Size::Grow)
     };
-    let root = ui.node("expanded-player".into(), root_node);
-    // Drag down to dismiss (UIKit sheet thresholds); the button below stays the alternative.
-    let drag = ui.gesture(&root, DISMISS);
-    if drag.dismiss != 0.0 {
-        ui.set_node_layout(
-            &root,
-            &Node {
-                w: Size::Px(size.0),
-                h: Size::Px(size.1),
-                at: Some((0.0, drag.dismiss)).into(),
-                ..root_node
-            },
-        );
-    }
-    if drag.dismiss_committed && intent.is_none() {
-        *intent = Some(Intent::TogglePlayer);
-    }
     let favorite = player
         .current_id
         .map(|id| (id, catalog.row_index(id).is_some_and(|i| catalog.row(i).favorite)));
     // Swift `artworkRegionHeight`: what the fixed rows leave, never below 124.
     let region = (size.1 - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0)).max(124.0);
     let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
-    ui.within(&root, &mut |ui| {
+    // The root takes the pointer for its dismiss gesture but is no tab stop.
+    let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {
         ui.row("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
@@ -712,7 +696,23 @@ fn expanded(
             },
         );
     });
-    crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
+    // Drag down to dismiss (UIKit sheet thresholds); the button inside stays the alternative.
+    let drag = ui.gesture(&root.handle, DISMISS);
+    if drag.dismiss != 0.0 {
+        ui.set_node_layout(
+            &root.handle,
+            &Node {
+                w: Size::Px(size.0),
+                h: Size::Px(size.1),
+                at: Some((0.0, drag.dismiss)).into(),
+                ..ui.node_layout(&root.handle)
+            },
+        );
+    }
+    if drag.dismiss_committed && intent.is_none() {
+        *intent = Some(Intent::TogglePlayer);
+    }
+    crate::motion::enter(ui, &root.handle, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
 }
 
 #[cfg(test)]

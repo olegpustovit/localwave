@@ -1,5 +1,4 @@
 lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
-lw_ui/src/shell/compact.rs	R2	..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
 lw_ui/src/shell/files.rs	R2	..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/files.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/files.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
