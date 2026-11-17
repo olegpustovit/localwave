@@ -119,13 +119,14 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.14 | Looks name colour tokens (const app looks follow the theme); Icon::draw(f, word) (found by the DX4 review) | done | cdd976b + pxui cac8615 |
 | DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | a7f9acd |
 | DX3.16 | Menu::max_h, Pressable::focus_on_click, segmented_with(Option) -> SegmentedResponse with a radio-group keyboard model (found by DX4.5/4.6) | done | 1b2be80 + pxui 0968a85 |
+| DX3.17 | Segmented::focus_on_click; segment bodies see the caller's stored choice (found by DX4.6) | done | HEAD + pxui 0aef02c |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
 | DX4.4 | Icon buttons to icon_button | done | 27c3e69 |
 | DX4.5 | Menus to menu | done | cede8a0 |
 | DX4.6 | Settings switch and chips to toggle_with/segmented_with | done | 435e02a |
-| DX4.7 | Confirmation sheets to dialog_with; field variant | done | HEAD |
+| DX4.7 | Confirmation sheets to dialog_with; field variant | done | efa00fc |
 | DX4.7a | Field body picks the Find structure by variant (part of DX4.7) | done | 3181aa4 |
 | DX4.8 | Codemod A: Node literals to builders | done | 4091362 |
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
