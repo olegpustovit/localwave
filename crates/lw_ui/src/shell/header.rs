@@ -87,7 +87,7 @@ pub(super) fn header(
                             if let Some(value) = ui.text_field_with_options(
                                 "Find songs",
                                 state.query.as_str(),
-                                pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE),
+                                pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE).variant(commands::FIND_FIELD),
                             ) {
                                 *intent = Some(
                                     Query::new(value).map_or(Intent::SearchTooLong, Intent::Search),
@@ -232,7 +232,7 @@ pub(super) fn compact_find(
                                     if let Some(value) = ui.text_field_with_options(
                                         "Find songs",
                                         state.query.as_str(),
-                                        pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE),
+                                        pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE).variant(commands::FIND_FIELD),
                                     ) {
                                         *intent = Some(
                                             Query::new(value)

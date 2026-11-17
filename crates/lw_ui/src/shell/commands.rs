@@ -78,9 +78,12 @@ impl ShellState {
     }
 }
 
+/// The field body's variant for Swift's phone Find field; the palette's field keeps variant 0.
+pub(super) const FIND_FIELD: u16 = 1;
+
 pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
     // One registered body serves the palette (20 pt, 59 pt tall) and Swift's phone Find field (26 pt medium, 56 pt).
-    let find = pxui::bodies::text_of(&c.label) == "Find songs";
+    let find = c.variant == FIND_FIELD;
     let (size, height, inset, hint) = if find {
         (26, 56.0, 0.0, "Songs, albums, folders")
     } else {
