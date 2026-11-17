@@ -473,19 +473,13 @@ impl Rows<'_> {
                         );
                     }
                     let x = widths[..7].iter().sum::<f32>();
-                    let more = ui.node(
-                        "actions".into(),
-                        Node {
-                            at: Some((x, (layout.height - 32.0) * 0.5)).into(),
-                            ..Node::column()
-                                .w_px(32.0)
-                                .h_px(32.0)
-                                .role(Role::Button)
-                                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-                        },
-                    );
-                    ui.a11y_name(&more, row.actions_label);
-                    ui.draw(&more, move |paint, rect| {
+                    let node = Node {
+                        at: Some((x, (layout.height - 32.0) * 0.5)).into(),
+                        ..Node::column().w_px(32.0).h_px(32.0).role(Role::Button)
+                    };
+                    let more = ui.pressable("actions", node, &Look::NONE, |_| {});
+                    ui.a11y_name(&more.handle, row.actions_label);
+                    ui.draw(&more.handle, move |paint, rect| {
                         for x in [5.5, 12.0, 18.5] {
                             paint.circle(
                                 (rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0),
@@ -495,8 +489,8 @@ impl Rows<'_> {
                             );
                         }
                     });
-                    if ui.signal(&more).clicked {
-                        let at = ui.rect(&more);
+                    if more.clicked {
+                        let at = ui.rect(&more.handle);
                         *intent = Some(Intent::SongMenu(
                             index,
                             row.id,
@@ -505,19 +499,13 @@ impl Rows<'_> {
                         ));
                     }
                     if reorder {
-                        let grip = ui.node(
-                            "reorder-listed".into(),
-                            Node {
-                                at: Some((2.0, 0.0)).into(),
-                                ..Node::column()
-                                    .w_px(24.0)
-                                    .h_px(layout.height)
-                                    .role(Role::Button)
-                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-                            },
-                        );
-                        ui.a11y_name(&grip, "Reorder track");
-                        ui.draw(&grip, move |paint, rect| {
+                        let node = Node {
+                            at: Some((2.0, 0.0)).into(),
+                            ..Node::column().w_px(24.0).h_px(layout.height).role(Role::Button)
+                        };
+                        let grip = ui.pressable("reorder-listed", node, &Look::NONE, |_| {});
+                        ui.a11y_name(&grip.handle, "Reorder track");
+                        ui.draw(&grip.handle, move |paint, rect| {
                             for x in [8.0, 12.0] {
                                 for y in [-4.0, 0.0, 4.0] {
                                     paint.fill(
@@ -530,8 +518,7 @@ impl Rows<'_> {
                                 }
                             }
                         });
-                        let signal = ui.signal(&grip);
-                        if signal.held || signal.clicked {
+                        if grip.held || grip.clicked {
                             let mut digits = [0u8; 24];
                             let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();
                             let mut kind = [0u8; 48];
@@ -539,7 +526,7 @@ impl Rows<'_> {
                             let len = LIST_ROW.len() + id.len();
                             kind[LIST_ROW.len()..len].copy_from_slice(id);
                             ui.carry(
-                                if signal.clicked { None } else { Some(&grip) },
+                                if grip.clicked { None } else { Some(&grip.handle) },
                                 std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
                                 row.title,
                             );
