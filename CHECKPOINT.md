@@ -126,7 +126,7 @@ Known small follow-ups are in `dx1.12_notes.md`:
   - Commit `80cd7f2`, branch `dx4.16`. Reviewed by the orchestrator. Landed: see the landing log below.
   - Changes keys for headings and cells, back links and option chips. Accessibility names are unchanged.
 - **DX4.11 interim (`pressable` for the last hand-built clickables)**
-  - Commit `7dde593`, branch in `lw-dx4.5`. **Review FAIL, not landed.**
+  - Commit `7dde593`, branch `dx4.11-lw`. **Review FAIL, not landed.**
   - Fingerprints are identical except the accepted disabled bit.
   - The reviewer's 7 mismatches:
     1. `files.rs` buttons, the back link, settings back and the phone Select/Back must be `button_with` / `button_content` with const looks, not `pressable`.
@@ -257,7 +257,7 @@ DX3.19, DX3.20, DX3.22a and DX1.12B each claim provisional 1.70 and feature id 2
   | DX3.21 | `dx3.21` | WIP, about 40% |
   | DX3.22a | `dx3.22`, `dx3.22-wip` | |
   | DX4.6a | `dx4.6a-chips-wip` | |
-  | DX4.11 interim | `lw-dx4.5` at `7dde593` | Review FAIL; recommend dropping it in favour of the widget migration |
+  | DX4.11 interim | `dx4.11-lw` at `7dde593` | Review FAIL; recommend dropping it in favour of the widget migration |
 
 - **Owed before the freeze:** a regression and performance checkpoint covering DX3 and DX4. Run the full pxui and LocalWave suites, `make check`, release abi_bench, `make performance`, then replace the perf table.
   - Note: the gallery input moved to `FrameIn` in the unlanded DX1.12I.
