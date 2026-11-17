@@ -200,19 +200,16 @@ pub(super) fn sidebar(
                 container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
             },
         );
-        let shortcuts = ui.node(
-            "shortcuts".into(),
-            Node {
-                padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },
-                ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
-            },
-        );
-        ui.a11y_name(&shortcuts, "Keyboard shortcuts");
-        ui.within(&shortcuts, &mut |ui| {
+        let node = Node {
+            padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },
+            ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button)
+        };
+        let shortcuts = ui.pressable("shortcuts", node, &Look::NONE, |ui| {
             ui.label("?", MONO_11.w(Size::Px(14.0)).h(16.0).color(SECONDARY));
             ui.label("shortcuts", TEXT_12.h(16.0).color(SECONDARY));
         });
-        if ui.signal(&shortcuts).clicked {
+        ui.a11y_name(&shortcuts.handle, "Keyboard shortcuts");
+        if shortcuts.clicked {
             *intent = Some(Intent::ShowShortcuts);
         }
     });
