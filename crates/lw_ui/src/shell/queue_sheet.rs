@@ -322,26 +322,18 @@ pub(super) fn queue_sheet(
                             },
                         );
                     });
-                    let clear = ui.node(
-                        "clear".into(),
-                        Node {
-                            padding: Edges {
-                                l: 26.0,
-                                ..Edges::ZERO
-                            },
-                            ..Node::row()
-                                .w(Size::Grow)
-                                .h_px(52.0)
-                                .align(Align::Center)
-                                .role(Role::Button)
-                                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
+                    let node = Node {
+                        padding: Edges {
+                            l: 26.0,
+                            ..Edges::ZERO
                         },
-                    );
-                    ui.a11y_name(&clear, "Clear up next");
-                    ui.within(&clear, &mut |ui| {
+                        ..Node::row().w(Size::Grow).h_px(52.0).align(Align::Center).role(Role::Button)
+                    };
+                    let clear = ui.pressable("clear", node, &Look::NONE, |ui| {
                         ui.label("Clear up next", TEXT_16.w(Size::Grow).h(22.4).color(SECONDARY));
                     });
-                    if ui.signal(&clear).clicked {
+                    ui.a11y_name(&clear.handle, "Clear up next");
+                    if clear.clicked {
                         *intent = Some(Intent::ClearQueue);
                     }
                 }
@@ -487,24 +479,16 @@ pub(super) fn queue_rows(
             );
             ui.a11y_name(&item, title);
             ui.within(&item, &mut |ui| {
-                let grip = ui.node(
-                    "reorder-queued".into(),
-                    Node::column()
-                        .w_px(m.grip)
-                        .h_px(m.row)
-                        .role(Role::Button)
-                        .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                );
-                ui.a11y_name(&grip, "Reorder queued track");
-                ui.draw(&grip, move |paint, rect| {
+                let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &Look::NONE, |_| {});
+                ui.a11y_name(&grip.handle, "Reorder queued track");
+                ui.draw(&grip.handle, move |paint, rect| {
                     for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
                         for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
                             paint.fill(rect.x + x, rect.y + y, 2.0, 2.0, paint.color(SECONDARY));
                         }
                     }
                 });
-                let signal = ui.signal(&grip);
-                if signal.held || signal.clicked {
+                if grip.held || grip.clicked {
                     let mut digits = [0u8; 24];
                     let id = stack_fmt(&mut digits, format_args!("{}", entry.id)).as_bytes();
                     const PREFIX: &[u8] = b"localwave.queue-occurrence:";
@@ -513,7 +497,7 @@ pub(super) fn queue_rows(
                     let len = PREFIX.len() + id.len();
                     kind[PREFIX.len()..len].copy_from_slice(id);
                     ui.carry(
-                        if signal.clicked { None } else { Some(&grip) },
+                        if grip.clicked { None } else { Some(&grip.handle) },
                         std::str::from_utf8(&kind[..len]).expect("queue drag kind is ASCII"),
                         title,
                     );
@@ -528,27 +512,20 @@ pub(super) fn queue_rows(
                 );
                 paint_artwork(ui, &art, row, m.art, images);
                 ui.a11y_name(&art, "Track artwork");
-                let play = ui.node(
-                    "play-queued".into(),
-                    Node {
-                        padding: Edges {
-                            l: 10.0 - m.gap,
-                            t: (m.row - m.title_line - m.artist_line) / 2.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::column()
-                            .w(Size::Grow)
-                            .h(Size::Grow)
-                            .role(Role::Button)
-                            .flags(Flags::CLICKABLE | Flags::TAB_STOP)
+                let node = Node {
+                    padding: Edges {
+                        l: 10.0 - m.gap,
+                        t: (m.row - m.title_line - m.artist_line) / 2.0,
+                        ..Edges::ZERO
                     },
-                );
-                ui.a11y_name(&play, title);
-                ui.within(&play, &mut |ui| {
+                    ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
+                };
+                let play = ui.pressable("play-queued", node, &Look::NONE, |ui| {
                     ui.label(title, line_style(m.title as f32).w(Size::Grow).h(m.title_line).color(INK));
                     ui.label(artist, line_style(m.artist as f32).w(Size::Grow).h(m.artist_line).color(SECONDARY));
                 });
-                if ui.signal(&play).clicked {
+                ui.a11y_name(&play.handle, title);
+                if play.clicked {
                     *intent = Some(Intent::PlayQueue(entry.id));
                 }
                 // Swift marks songs that are not on this device, or kept offline.
