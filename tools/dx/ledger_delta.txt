@@ -1098,6 +1098,7 @@
 + pxui::Ui::id fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, f: F) -> Handle @U1b.6
 + pxui::Ui::image fn <K: Into<Key>>(&mut self, key: K, image: &Image, style: &ImageStyle) -> Result<Handle, Error> @U1b.2
 + pxui::Ui::ime fn (&self) -> Option<Ime> @U1b.2
++ pxui::Ui::instance_id fn (&self) -> usize @U1b.6
 + pxui::Ui::key_down fn (&self, key: KeyCode) -> bool @U1a.4
 + pxui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool @U1a.4
 + pxui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>> @U1a.3
@@ -1227,6 +1228,7 @@
 + pxui::ui::Ui::id fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, f: F) -> Handle @U1b.6
 + pxui::ui::Ui::image fn <K: Into<Key>>(&mut self, key: K, image: &Image, style: &ImageStyle) -> Result<Handle, Error> @U1b.2
 + pxui::ui::Ui::ime fn (&self) -> Option<Ime> @U1b.2
++ pxui::ui::Ui::instance_id fn (&self) -> usize @U1b.6
 + pxui::ui::Ui::key_down fn (&self, key: KeyCode) -> bool @U1a.4
 + pxui::ui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool @U1a.4
 + pxui::ui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>> @U1a.3
