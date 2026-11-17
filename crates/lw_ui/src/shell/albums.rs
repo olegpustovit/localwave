@@ -22,25 +22,17 @@ pub(super) fn toolbar(
             (AlbumSort::Added, "Size"),
         ] {
             let selected = state.album_sort == value;
-            let button = ui.node(
-                title.into(),
-                Node {
-                    look: Look {
-                        fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
-                        ..Look::NONE
-                    },
-                    ..Node::column()
-                        .w(Size::Fit)
-                        .h_px(30.0)
-                        .pad_x(10.0)
-                        .center()
-                        .role(Role::Button)
-                        .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-                },
-            );
-            ui.a11y_name(&button, title);
+            let look = Look {
+                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
+                ..Look::NONE
+            };
+            let node = Node::column().w(Size::Fit).h_px(30.0).pad_x(10.0).center().role(Role::Button);
+            let button = ui.pressable(title, node, &look, |ui| {
+                ui.label(title, TEXT_13.h(18.2).color(if selected { INK } else { SECONDARY }));
+            });
+            ui.a11y_name(&button.handle, title);
             ui.set_role(
-                &button,
+                &button.handle,
                 Role::Button,
                 if selected {
                     pxui::a11y::state::SELECTED
@@ -48,11 +40,8 @@ pub(super) fn toolbar(
                     0
                 },
             );
-            ui.within(&button, &mut |ui| {
-                ui.label(title, TEXT_13.h(18.2).color(if selected { INK } else { SECONDARY }));
-            });
             if selected {
-                ui.draw_over(&button, move |paint, rect| {
+                ui.draw_over(&button.handle, move |paint, rect| {
                     paint.fill_fractional(rect.x, rect.y, rect.w, 1.5, paint.color(INK));
                     paint.fill_fractional(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5, paint.color(INK));
                     paint.fill_fractional(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0, paint.color(INK));
@@ -65,7 +54,7 @@ pub(super) fn toolbar(
                     );
                 });
             }
-            if ui.signal(&button).clicked {
+            if button.clicked {
                 *intent = Some(Intent::SortAlbums(value));
             }
         }
@@ -177,28 +166,15 @@ pub(super) fn gallery(
                                     "group-visual",
                                     &row_revision,
                                     |ui| {
-                                        let node = ui.node(
-                                            "group".into(),
-                                            Node {
-                                                padding: Edges::ZERO,
-                                                ..Node::column()
-                                                    .w(Size::Grow)
-                                                    .h(Size::Grow)
-                                                    .role(Role::Button)
-                                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-                                            },
-                                        );
-                                        ui.a11y_name(&node, &group.title);
-                                        let signal = ui.signal(&node);
-                                        ui.set_look(
-                                            &node,
-                                            Look {
-                                                fill: ui.color(PAPER),
-                                                ..Look::NONE
-                                            },
-                                            State::default(),
-                                        );
-                                        ui.within(&node, &mut |ui| {
+                                        let look = Look {
+                                            fill: ui.color(PAPER),
+                                            ..Look::NONE
+                                        };
+                                        let node = Node {
+                                            padding: Edges::ZERO,
+                                            ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
+                                        };
+                                        let card = ui.pressable("group", node, &look, |ui| {
                                             let art = container(
                                                 ui,
                                                 "artwork",
@@ -220,7 +196,8 @@ pub(super) fn gallery(
                                             ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).w(Size::Grow).h(17.5).color(INK));
                                             ui.label(&group.subtitle, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
                                         });
-                                        if signal.clicked {
+                                        ui.a11y_name(&card.handle, &group.title);
+                                        if card.clicked {
                                             *intent = Some(Intent::Navigate(Route::Album(index)));
                                         }
                                     },
