@@ -101,7 +101,9 @@ plan](https://artifacts.microapps.space/a/mr55jcx8k90t#plan)) run alongside S, I
 DX4 runs without waiting for I2's device checks (owner decision 2026-11-16); goldens are re-checked
 after them. DX steps defer release abi_bench and `make performance` to wave checkpoints (after DX3, after DX4,
 at the DX7 freeze), which replace the status table and bisect any regression; between checkpoints DX steps run targeted tests
-only, and the full suite and `make check` run as regression blocks at the same checkpoints (owner decision 2026-11-17). Stop at a blocked step rather than jumping phases.
+only, and the full suite and `make check` run as regression blocks at the same checkpoints (owner decision 2026-11-17). The DX7 freeze cuts pxui ABI 2.0 as the long-lived
+OS base: duplicate/legacy exports dropped, per-event surface ids, manifests re-baselined, append-only from 2.0 (owner
+decision 2026-11-17). Stop at a blocked step rather than jumping phases.
 
 One step per commit; subjects include its ID. For framework steps publish pxui on `rust-port`
 before staging its pointer in LocalWave, also on `rust-port`; check remote fetchability.
