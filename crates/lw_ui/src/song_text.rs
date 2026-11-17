@@ -1,12 +1,25 @@
-//! Song-cell source/size policy for worker preparation through public pxui. Capture the actual
-//! measured-list row window; prepare a bounded margin, never the whole library. Match numeric
-//! wrapping, density rounding and the exact style/width used by ordinary line-box nodes.
+//! Song-cell prewarm policy over pxui's prepare queue (`Ui::prewarm_text`). Capture the actual
+//! measured-list row window; request a bounded margin around it, never the whole library: rows
+//! nearest the built rows first, below then above. Requests use the exact label, width and density
+//! rounding of the ordinary line-box nodes.
+//!
+//! Budget (a lane holds `LANE_REQUESTS` requests in flight and installs 32 a frame; a request past a
+//! full lane is dropped and that cell shapes when shown):
+//! - while the list moves (its row window changed since the last frame), `ROWS_PER_FRAME` rows;
+//! - on a frame after it stopped (the same window twice), the window's remaining rows up to one
+//!   full lane, so the worker keeps preparing while the app idles. No frame is scheduled for this:
+//!   idle draws zero frames, and a list that stops in the very frame before idle waits for the
+//!   next one.
 use crate::catalog::{Catalog, Route, Row, SongColumn as Column};
-use pxui::{PreparedText, Text};
 use std::sync::Arc;
 
 pub const MAX_ROWS: usize = 256;
-pub const ROW_LAYOUTS: usize = 9;
+/// Rows a moving list's frame hands to `Ui::prewarm_text`: about one frame of installs.
+const ROWS_PER_FRAME: usize = 4;
+/// Requests one prepare-queue lane holds in flight (pxui `QUEUE_ROWS`): a stopped list's budget.
+const LANE_REQUESTS: usize = 128;
+/// Requests a row can make: every column but State and Actions.
+const ROW_CELLS: usize = 6;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Window {
@@ -16,6 +29,8 @@ pub struct Window {
     widths: [f32; 8],
     density: f32,
     current: Option<i64>,
+    /// rows the list built (shaped, or requested by the list itself)
+    built: (usize, usize),
     first: usize,
     end: usize,
 }
@@ -39,6 +54,7 @@ impl Window {
         if first >= end || first >= collection.rows.len() {
             return None;
         }
+        let built = (first, end.min(collection.rows.len()));
         let visible = end.saturating_sub(first).clamp(1, MAX_ROWS / 4);
         let first = first.saturating_sub(visible);
         let end = end
@@ -55,6 +71,7 @@ impl Window {
             widths,
             density,
             current,
+            built: (built.0, built.1.min(end)),
             first,
             end,
         })
@@ -76,21 +93,17 @@ impl Window {
             && self.density == other.density
             && self.current == other.current
     }
-    /// Worker only. Return all possible measurement/drawing layouts for this occurrence.
-    pub fn prepare_row(
-        &self,
-        catalog: &Catalog,
-        position: usize,
-        text: &mut Text,
-    ) -> Result<[Option<(u64, PreparedText)>; ROW_LAYOUTS], pxui::Error> {
-        let collection = catalog.collection(self.route).ok_or(pxui::Error::InvalidInput)?;
-        let index = *collection.rows.get(position).ok_or(pxui::Error::InvalidInput)?;
+    /// Requests every cell layout of row `position` the table measures or draws. A refused hint
+    /// (text over the queue's 16 KiB) is dropped: that cell shapes when shown.
+    fn prewarm_row(&self, ui: &mut pxui::Ui, catalog: &Catalog, position: usize) {
+        let Some(&index) = catalog.collection(self.route).and_then(|c| c.rows.get(position)) else {
+            return;
+        };
         let row = catalog.row(index);
         let current = self.current == Some(row.id);
         let numbered = matches!(self.route, Route::Album(_));
-        let number = (position + 1).to_string();
-        let mut records = [const { None }; ROW_LAYOUTS];
-        let mut next = 0;
+        let mut digits = [0u8; 24];
+        let number = crate::shell::stack_fmt(&mut digits, format_args!("{}", position + 1));
         for column in Column::ALL {
             let column_width = self.widths[column as usize];
             if column_width <= 0.0
@@ -101,93 +114,85 @@ impl Window {
             }
             let available =
                 (column_width - if column == Column::Number { 40.0 } else { 16.0 }).max(0.0);
-            let style = body_style(column, current);
-            let value = body_value(&row, column, numbered, &number);
+            let label = body_label(column, current);
+            let value = body_value(&row, column, numbered, number);
             let mut width = available;
             if matches!(column, Column::Number | Column::Format | Column::Time) {
                 let natural = catalog.song_body_width(index, column, position + 1, numbered);
-                width = if natural > available {
-                    let record = text.prepare(value, &style, available.max(0.01), &[])?;
-                    let width = record.metrics().width;
-                    records[next] = Some((
-                        crate::hash((column as u8, current, available.max(0.01).to_bits(), value)),
-                        record,
-                    ));
-                    next += 1;
-                    width
-                } else {
-                    natural
-                };
-                width = (width * self.density).ceil() / self.density;
+                if natural > available {
+                    // An overflowing cell draws at its measured width: request the measurement; the
+                    // drawing layout shapes when the row is shown.
+                    let _ = ui.prewarm_text(value, &label, available.max(0.01));
+                    continue;
+                }
+                width = (natural * self.density).ceil() / self.density;
             }
-            records[next] = Some((
-                crate::hash((column as u8, current, width.to_bits(), value)),
-                text.prepare(value, &style, width, &[])?,
-            ));
-            next += 1;
+            let _ = ui.prewarm_text(value, &label, width);
         }
-        Ok(records)
     }
 }
 
-/// The authoring style of a song cell, drawn by the UI; `body_style` is the same style resolved for the worker's shaper, and
-/// `Ui::resolve(&body_label(..))` equals it bit for bit (`body_label_resolves_to_the_worker_style`).
+/// The rows of one table layout already requested: a range that grows from the built rows toward
+/// both ends of the window, below and above in turn. A new layout (widths, density, playing row,
+/// catalog or route) starts again from the rows its frame built.
+#[derive(Debug, Default)]
+pub struct Prewarm {
+    layout: Option<Window>,
+    done: std::ops::Range<usize>,
+}
+impl Prewarm {
+    /// Between frames, on the UI's thread: request the next rows of `window` (the previous
+    /// frame's, `ShellState::song_text_window`). `None` or a window of another catalog forgets
+    /// progress. Allocates: never.
+    pub fn request(&mut self, ui: &mut pxui::Ui, catalog: &Catalog, window: Option<Window>) {
+        let Some(window) = window.filter(|window| window.matches(catalog, window.route)) else {
+            self.layout = None;
+            return;
+        };
+        let rows = window.rows();
+        let done = self.done.start.max(rows.start)..self.done.end.min(rows.end);
+        let built = window.built.0..window.built.1;
+        // Union only when the requested rows still touch the built ones: no gap is marked done.
+        self.done = if self.layout.is_some_and(|layout| layout.same_layout(&window))
+            && done.start < done.end
+            && built.start <= done.end
+            && done.start <= built.end
+        {
+            done.start.min(built.start)..done.end.max(built.end)
+        } else {
+            built
+        };
+        let stopped = self.layout == Some(window);
+        self.layout = Some(window);
+        // Counted as if every cell were requested: a row never pushes a stopped frame past the lane.
+        let mut budget = if stopped { LANE_REQUESTS } else { ROWS_PER_FRAME * ROW_CELLS };
+        while budget >= ROW_CELLS && (self.done.end < rows.end || self.done.start > rows.start) {
+            if self.done.end < rows.end {
+                window.prewarm_row(ui, catalog, self.done.end);
+                self.done.end += 1;
+                budget -= ROW_CELLS;
+            }
+            if budget >= ROW_CELLS && self.done.start > rows.start {
+                self.done.start -= 1;
+                window.prewarm_row(ui, catalog, self.done.start);
+                budget -= ROW_CELLS;
+            }
+        }
+    }
+}
+
+const NUMBER: pxui::Label = pxui::Label::MONO.size(13.0).line_height(18.2).wrap_spaces();
+const MONO_CELL: pxui::Label = pxui::Label::BODY.font(1).size(12.0).line_height(16.8).wrap_spaces();
+const CELL: pxui::Label = pxui::Label::BODY.line_height(19.6).weight(400).lines(1).ellipsis();
+const CURRENT_CELL: pxui::Label = CELL.weight(500);
+
+/// The authoring style of a song cell: drawn by the table and requested ahead by `Prewarm`.
 pub(crate) fn body_label(column: Column, current: bool) -> pxui::Label {
-    use pxui::Label;
-    let number = column == Column::Number;
-    let mono = matches!(column, Column::Format | Column::Time);
-    if number {
-        Label::MONO.size(13.0).line_height(18.2).wrap_spaces()
-    } else if mono {
-        Label::BODY.font(1).size(12.0).line_height(16.8).wrap_spaces()
-    } else {
-        Label::BODY.line_height(19.6).weight(if current { 500 } else { 400 }).lines(1).ellipsis()
-    }
-}
-
-/// The resolved shaping style of a song cell, built on the worker (no `Ui` there): equal to `Ui::resolve(&body_label(..))`.
-pub(crate) fn body_style(column: Column, current: bool) -> pxui::TextStyle {
-    let number = column == Column::Number;
-    let mono = matches!(column, Column::Format | Column::Time);
-    let wrap = number || mono;
-    pxui::TextStyle {
-        font: u16::from(mono),
-        size_points: if number {
-            13.0
-        } else if mono {
-            12.0
-        } else {
-            14.0
-        },
-        line_height: if number {
-            18.2
-        } else if mono {
-            16.8
-        } else {
-            19.6
-        },
-        weight: if current && !number && !mono {
-            500
-        } else {
-            400
-        },
-        features: if number {
-            pxui::TextStyle::FEATURE_TABULAR_NUMBERS
-        } else {
-            0
-        },
-        wrap: if wrap {
-            pxui::TextStyle::WRAP_WORD_SPACES
-        } else {
-            pxui::TextStyle::WRAP_NONE
-        },
-        max_lines: if wrap { 0 } else { 1 },
-        ellipsis: if wrap {
-            pxui::TextStyle::ELLIPSIS_NONE
-        } else {
-            pxui::TextStyle::ELLIPSIS_END
-        },
-        ..Default::default()
+    match column {
+        Column::Number => NUMBER,
+        Column::Format | Column::Time => MONO_CELL,
+        _ if current => CURRENT_CELL,
+        _ => CELL,
     }
 }
 pub(crate) fn body_value<'a>(
@@ -216,27 +221,12 @@ pub(crate) fn body_value<'a>(
 
 #[cfg(test)]
 mod resolve_tests {
-    use super::{body_label, body_style};
-    use crate::catalog::SongColumn as Column;
-    use pxui::{Label, TextStyle};
+    use pxui::Label;
 
-    /// Every field of a resolved style, floats as bits: equal means the shaper sees the same style (and the same layout key).
-    fn bits(style: &TextStyle) -> (u16, u16, u32, u32, u32, u32, u16, u8, u8, u32, u32) {
-        (style.font, style.weight, style.size_points.to_bits(), style.line_height.to_bits(), style.wrap, style.align, style.max_lines,
-            style.italic, style.ellipsis, style.features, style.tracking.to_bits())
-    }
-
-    /// The UI draws song cells with `body_label`; the worker prepares them with `body_style`. The two resolve bit for bit, so a
-    /// worker-prepared layout is the one the UI's text finds. LocalWave's tracked labels (tracking in ems) resolve to the point
-    /// values the TextStyle literals used before they were labels.
+    /// LocalWave's tracked labels (tracking in ems) resolve to the point values the TextStyle literals used before they were labels.
     #[test]
-    fn body_label_resolves_to_the_worker_style_and_tracking_keeps_its_points() {
+    fn tracked_labels_keep_their_points() {
         let ui = crate::test_ui(pxui::Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-        for column in Column::ALL {
-            for current in [false, true] {
-                assert_eq!(bits(&ui.resolve(&body_label(column, current))), bits(&body_style(column, current)), "{column:?} current {current}");
-            }
-        }
         let tight = crate::shell::TIGHT_3;
         for (label, size, points) in [
             (Label::BODY.size(24.0).tracking(tight), 24.0f32, -0.72f32),
@@ -253,5 +243,63 @@ mod resolve_tests {
         // -0.2 points at 20 has no em whose product is that f32: -0.01 em resolves one f32 step from it
         let add_music = ui.resolve(&Label::BODY.size(20.0).tracking(-0.01)).tracking;
         assert_eq!(add_music.to_bits().abs_diff((-0.2f32).to_bits()), 1, "{add_music}");
+    }
+}
+
+#[cfg(test)]
+mod prewarm_tests {
+    use super::{Prewarm, Window};
+    use crate::catalog::Route;
+
+    /// Rows grow from the built rows, below then above, without allocating: `ROWS_PER_FRAME` a frame
+    /// while the list moves, the remainder up to one lane on a frame after it stopped; a jump past
+    /// the requested rows or a new layout starts again from the rows its frame built.
+    #[test]
+    fn prewarm_grows_from_built_rows_bursts_when_stopped_and_restarts_after_a_jump_or_layout_change() {
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = crate::tests::prepared(
+            (0..300)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Track {id:05}"),
+                    artist: "Example artist".into(),
+                    album: "Example album".into(),
+                    duration: Some(240.0),
+                    ..Default::default()
+                })
+                .collect(),
+        );
+        let mut ui = crate::test_ui(pxui::Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.frame(&pxui::FrameIn { width: 1440.0, height: 872.0, ..Default::default() }, &mut |_| {}).unwrap();
+        let worker = pxui::TextWorker::new().unwrap();
+        ui.set_text_worker(Some(&worker)).unwrap();
+        let window = |density: f32, first: usize| {
+            Window::new(&catalog, Route::Songs, [100.0; 8], density, None, first, first + 20)
+        };
+        let mut prewarm = Prewarm::default();
+        let mut step = |prewarm: &mut Prewarm, window: Option<Window>| {
+            mem_sys::local_reset();
+            prewarm.request(&mut ui, &catalog, window);
+            assert_eq!(mem_sys::local_alloc_count(), 0, "prewarm requests are fixed-buffer copies");
+            prewarm.done.clone()
+        };
+        assert_eq!(window(1.0, 100).unwrap().rows(), 80..180);
+        let moving = super::ROWS_PER_FRAME;
+        let stopped = super::LANE_REQUESTS / super::ROW_CELLS;
+        assert_eq!(stopped, 21);
+        assert_eq!(step(&mut prewarm, window(1.0, 100)), 98..122, "a new window: {moving} rows");
+        assert_eq!(step(&mut prewarm, window(1.0, 101)), 96..124, "moving: {moving} rows");
+        // Stopped: the same window again requests the remainder, bounded by one lane (21 rows of six cells).
+        assert_eq!(step(&mut prewarm, window(1.0, 101)), 86..135, "stopped: {stopped} rows");
+        assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..151);
+        assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..172);
+        assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..181, "the whole window, never past it");
+        assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..181, "nothing left to request");
+        assert_eq!(step(&mut prewarm, window(1.0, 130)), 110..185, "a scroll inside the requested rows keeps them");
+        assert_eq!(step(&mut prewarm, window(1.0, 200)), 198..222, "a jump past the requested rows restarts");
+        assert_eq!(step(&mut prewarm, window(1.0, 202)), 196..224, "a small scroll keeps what it requested");
+        assert_eq!(step(&mut prewarm, window(2.0, 202)), 200..224, "a new layout restarts");
+        step(&mut prewarm, None);
+        assert!(prewarm.layout.is_none());
     }
 }

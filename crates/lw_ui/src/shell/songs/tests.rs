@@ -1,37 +1,36 @@
 use super::*;
 use pxui::{FrameIn, Platform};
 
+fn song(index: usize) -> lw_core::Song {
+    lw_core::Song {
+        id: Some(index as i64),
+        track_number: Some(if index == 0 { 9 } else { 12 }),
+        title: if index == 0 {
+            "Quiet lights".into()
+        } else {
+            "An exceptionally long song title".into()
+        },
+        artist: if index == 0 {
+            "The National".into()
+        } else {
+            "Another artist".into()
+        },
+        album: if index == 0 {
+            "A midnight album".into()
+        } else {
+            "An earlier record".into()
+        },
+        file_extension: Some(if index == 0 {
+            "FLAC".into()
+        } else {
+            "mp3".into()
+        }),
+        duration: Some(if index == 0 { 240.0 } else { 61.0 }),
+        ..Default::default()
+    }
+}
 fn catalog(count: usize) -> Catalog {
-    crate::tests::prepared(
-        (0..count)
-            .map(|index| lw_core::Song {
-                id: Some(index as i64),
-                track_number: Some(if index == 0 { 9 } else { 12 }),
-                title: if index == 0 {
-                    "Quiet lights".into()
-                } else {
-                    "An exceptionally long song title".into()
-                },
-                artist: if index == 0 {
-                    "The National".into()
-                } else {
-                    "Another artist".into()
-                },
-                album: if index == 0 {
-                    "A midnight album".into()
-                } else {
-                    "An earlier record".into()
-                },
-                file_extension: Some(if index == 0 {
-                    "FLAC".into()
-                } else {
-                    "mp3".into()
-                }),
-                duration: Some(if index == 0 { 240.0 } else { 61.0 }),
-                ..Default::default()
-            })
-            .collect(),
-    )
+    crate::tests::prepared((0..count).map(song).collect())
 }
 
 #[test]
@@ -816,9 +815,42 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
     assert!(ui.output().repaint_at.is_infinite());
 }
 
+/// Runs empty frames until everything requested so far is installed: the worker delivers a `Ui`'s
+/// requests in order, so a sentinel requested last is installed after every earlier one.
+fn settle(ui: &mut Ui, input: &FrameIn) {
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+    let style = ui.resolve(&Label::BODY);
+    for probe in 0.. {
+        let sentinel = format!("settle probe {probe}");
+        ui.prewarm_text(&sentinel, &Label::BODY, 0.0).unwrap();
+        // One frame flushes the requests, the next installs what the worker delivered meanwhile; few
+        // frames, so nothing installed ages out of the text cache before the build uses it.
+        ui.frame(input, &mut |_| {}).unwrap();
+        for _ in 0..1000 {
+            std::thread::yield_now();
+        }
+        ui.frame(input, &mut |_| {}).unwrap();
+        let before = ui.text_layout_count();
+        ui.text_service().measure(&sentinel, &style, 0.0).unwrap();
+        if ui.text_layout_count() == before {
+            return;
+        }
+        assert!(std::time::Instant::now() < deadline, "the text worker did not deliver within a second");
+    }
+}
+
 #[test]
-fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_numbers() {
-    let catalog = catalog(2);
+fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_numbers() {
+    // One album of two songs: in every route each row's window prewarms the other row.
+    let catalog = crate::tests::prepared(
+        (0..2)
+            .map(|index| lw_core::Song {
+                artist: "The National".into(),
+                album: "A midnight album".into(),
+                ..song(index)
+            })
+            .collect(),
+    );
     for scale in [1.0, 1.5, 2.0] {
         for width in [400.0, 888.0] {
             for (route, current) in [
@@ -846,39 +878,43 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                     Sort::Original,
                     route,
                 );
-                let window = crate::song_text::Window::new(
-                    &catalog,
-                    route,
-                    widths,
-                    ui.density() as f32,
-                    current.map(|index| catalog.row(index).id),
-                    0,
-                    collection.rows.len(),
-                )
-                .unwrap();
-                let mut text = ui.text_service().fork().unwrap();
-                let source = catalog.clone();
-                let records = std::thread::spawn(move || {
-                    window
-                        .rows()
-                        .flat_map(|row| {
-                            window
-                                .prepare_row(&source, row, &mut text)
-                                .unwrap()
-                                .into_iter()
-                                .flatten()
-                        })
-                        .collect::<Vec<_>>()
-                })
-                .join()
-                .unwrap();
-                let mut retired = Vec::with_capacity(records.len());
-                for (_, record) in records {
-                    match ui.text_service().install(record) {
-                        Ok(record) => retired.push(record),
-                        Err((code, _)) => panic!("prepared song cell refused ({code})"),
-                    }
+                // Each window built one row; its prewarm requests the other (below, then above).
+                let worker = pxui::TextWorker::new().unwrap();
+                ui.set_text_worker(Some(&worker)).unwrap();
+                for built in [0, 1] {
+                    let window = crate::song_text::Window::new(
+                        &catalog,
+                        route,
+                        widths,
+                        ui.density() as f32,
+                        current.map(|index| catalog.row(index).id),
+                        built,
+                        built + 1,
+                    );
+                    assert_eq!(window.unwrap().rows(), 0..2);
+                    crate::song_text::Prewarm::default().request(&mut ui, &catalog, window);
                 }
+                settle(&mut ui, &input);
+                // A numeric cell wider than its column draws at its measured width, which no hint can
+                // name ahead: its measurement is prewarmed, its drawing layout shapes when shown.
+                let overflowing = collection
+                    .rows
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(position, &index)| {
+                        let current = current == Some(index);
+                        let catalog = &catalog;
+                        [Column::Number, Column::Format, Column::Time].into_iter().filter(move |&column| {
+                            let available = (widths[column as usize]
+                                - if column == Column::Number { 40.0 } else { 16.0 })
+                            .max(0.0);
+                            widths[column as usize] > 0.0
+                                && !(column == Column::Number && current)
+                                && catalog.song_body_width(index, column, position + 1, matches!(route, Route::Album(_)))
+                                    > available
+                        })
+                    })
+                    .count() as u64;
                 let layouts = ui.text_layout_count();
                 let mut build = |ui: &mut Ui| {
                     for (position, &index) in collection.rows.iter().enumerate() {
@@ -940,8 +976,8 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                 ui.frame(&input, &mut build).unwrap();
                 assert_eq!(
                     ui.text_layout_count(),
-                    layouts,
-                    "prepared widths/styles must serve both measurement and node painting: {route:?} {width} {scale}x"
+                    layouts + overflowing,
+                    "prewarmed widths/styles must serve both measurement and node painting: {route:?} {width} {scale}x"
                 );
                 reference.frame(&input, &mut build).unwrap();
                 let actual = ui
@@ -954,7 +990,6 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                     .collect::<Vec<_>>();
                 assert!(!actual.is_empty());
                 assert_eq!(actual, expected);
-                std::thread::spawn(move || drop(retired)).join().unwrap();
             }
         }
     }

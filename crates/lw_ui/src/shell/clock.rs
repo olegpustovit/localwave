@@ -1,7 +1,7 @@
 use super::*;
 
 /// Formats into `buffer` (no heap): a number or clock string for a label, a drag kind or a seek readout.
-pub(super) fn stack_fmt<'a>(buffer: &'a mut [u8; 24], args: std::fmt::Arguments) -> &'a str {
+pub(crate) fn stack_fmt<'a>(buffer: &'a mut [u8; 24], args: std::fmt::Arguments) -> &'a str {
     use std::io::Write;
     let mut rest = &mut buffer[..];
     // 24 bytes hold u64::MAX and h:mm:ss; a longer string truncates at a char boundary of ASCII digits.

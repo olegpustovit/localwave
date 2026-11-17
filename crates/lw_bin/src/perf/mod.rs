@@ -21,6 +21,11 @@ pub(crate) use drive::Frame;
 
 pub(super) type FrameTrace = (usize, [usize; 8], u64, u64, u64, [u64; 4], u64);
 
+/// pxui's ceiling for its one named exception, first-time shaping during a fast fling: allocations
+/// in the fling's worst frame (pxui AGENTS.md "Contracts"; `FLING_CEILING` in pxui_core
+/// tests/cases/views.rs, `window_pxui_fling_shaping_stays_under_its_ceiling`). It may only go down.
+pub(crate) const FLING_CEILING: u64 = 116;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Workload {
     Songs,
@@ -46,8 +51,10 @@ pub enum Workload {
     // glyphs and creates nodes for the first time.
     FirstNavigation,
     FirstMenuOpen,
-    // Gated like the rows above: zero warm allocations and no text layouts in the measured window.
+    // Gated at pxui's one named exception: first-time shaping during a fast fling may allocate,
+    // at most `Workload::allocation_ceiling` in its worst frame; its layouts are not gated.
     Fling,
+    // Gated like the rows above: zero warm allocations and no text layouts in the measured window.
     ReverseScroll,
     Jump,
     NonSongLists,
@@ -85,7 +92,13 @@ impl Workload {
 
     /// Gated workloads that must also shape no text in the measured window.
     pub fn gates_layouts(self) -> bool {
-        (self.scripted() && !self.measured()) || self == Self::Clock120
+        (self.scripted() && !self.measured() && self != Self::Fling) || self == Self::Clock120
+    }
+
+    /// Warm Rust allocations the worst measured frame may make: zero, except the fling, which may
+    /// shape text its rows show before the prepare queue delivers it (`FLING_CEILING`).
+    pub fn allocation_ceiling(self) -> u64 {
+        if self == Self::Fling { FLING_CEILING } else { 0 }
     }
 
     pub fn uses_queue(self) -> bool {

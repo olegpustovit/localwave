@@ -313,7 +313,7 @@ impl Perf {
             return Ok(());
         }
         if (*draws) != from + MEASURED_FRAMES
-            || (*warm_allocations) != 0
+            || (*warm_allocations) > workload.map_or(0, Workload::allocation_ceiling)
             || (workload.is_some_and(Workload::gates_layouts) && self.warm_layouts != 0)
             || cpu_samples[98] >= BUILD_CPU_LIMIT_US
             || frame_cpu_samples[98] >= FRAME_CPU_LIMIT_US
@@ -390,7 +390,6 @@ mod tests {
     #[test]
     fn dx0_3_workloads_but_first_navigation_and_menu_are_gated_on_allocations_and_text_layouts() {
         for workload in [
-            Workload::Fling,
             Workload::ReverseScroll,
             Workload::Jump,
             Workload::NonSongLists,
@@ -412,6 +411,18 @@ mod tests {
             perf.warm_layouts = 1;
             assert!(perf.report(false, counts, 0).is_err(), "{workload:?}");
         }
+    }
+    #[test]
+    fn fling_is_gated_at_the_pxui_shaping_ceiling_without_a_layout_gate() {
+        let mut perf = Perf::new(Workload::Fling, None);
+        perf.warmup = Some(super::super::Warmup::default());
+        let frames = perf.measured_from() + MEASURED_FRAMES;
+        let counts = (frames, frames);
+        perf.warm_layouts = 12;
+        perf.warm_allocations = super::super::FLING_CEILING;
+        assert!(perf.report(false, counts, 0).is_ok());
+        perf.warm_allocations = super::super::FLING_CEILING + 1;
+        assert!(perf.report(false, counts, 0).is_err());
     }
     #[test]
     fn measured_workloads_report_but_never_fail_even_over_every_budget() {

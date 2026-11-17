@@ -132,6 +132,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
 | DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |
 | DX5.4 | Engine prepare queue; fling exception ceiling | done | b873984 + pxui 62ddbcb |
+| DX5.4b | LocalWave adopts the host-owned TextWorker: one worker, SongTextWorker deleted, prewarm policy, fling gated at the pxui ceiling | done | HEAD |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |

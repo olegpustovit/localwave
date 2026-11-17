@@ -5,6 +5,11 @@
 //! application resources before Fixture and close GPU resources on Finish before UI/window teardown.
 //! Set interactive QoS only on the initial UI thread, after spawning workers.
 //!
+//! One `pxui::TextWorker` (pxui's prepare-queue thread) is created at startup beside the other
+//! workers, before the UI's QoS is raised, and attached to the one `Ui` between frames. The app
+//! owns it for the process: it drops after the `Ui` (detaching does not wait) and joins after at
+//! most one shaping call. Between frames the UI thread hands it the song table's next rows
+//! (`lw_ui::song_text::Prewarm`); the `Ui` installs deliveries before a frame builds.
 //!
 //! Main-thread application state. Window/GPU integration stays in pxui_host/pxui_sdl.
 use crate::{events, gpu, perf, reference, smoke, wake};
@@ -35,6 +40,8 @@ pub(crate) struct App {
     graphics_slot: Option<gpu::Graphics>,
     themes: lw_bin::appearance::Themes,
     ui: Ui,
+    // Held for its lifetime, after `ui`: the Ui detaches first, then the worker's thread joins.
+    _text_worker: pxui::TextWorker,
     #[cfg(target_os = "macos")]
     chrome: pxui_host::Chrome,
     #[cfg(target_os = "macos")]
@@ -43,7 +50,7 @@ pub(crate) struct App {
     preferences: pxui_sdl::PreferencesSnapshot,
     pub(super) player: Controller,
     artwork: lw_bin::library::ArtworkWorker,
-    text: lw_bin::song_text::SongTextWorker,
+    text: lw_ui::song_text::Prewarm,
     pub(super) files: lw_bin::files::FilesWorker,
     top_inset: f64,
     perf: Option<perf::Perf>,
@@ -198,8 +205,10 @@ pub(super) fn open(
         wake,
     )
     .map_err(|error| error.to_string())?;
-    let text = lw_bin::song_text::SongTextWorker::open(&mut ui, wake)
+    let text_worker = pxui::TextWorker::new().map_err(|error| error.to_string())?;
+    ui.set_text_worker(Some(&text_worker))
         .map_err(|error| error.to_string())?;
+    let text = lw_ui::song_text::Prewarm::default();
     // Workers do not inherit the UI's interactive QoS.
     mem_sys::profile::ui_thread_priority().map_err(|error| error.to_string())?;
     let indicator_song = perf::setup::wait_ready(window, &mut player, smoke || seeded, workload)?;
@@ -228,6 +237,7 @@ pub(super) fn open(
         graphics_slot,
         themes,
         ui,
+        _text_worker: text_worker,
         #[cfg(target_os = "macos")]
         chrome,
         #[cfg(target_os = "macos")]
@@ -319,7 +329,12 @@ impl App {
             .ok_or("App graphics have already closed")?;
         let wire = encoded.encode(events);
         let clock = frame.begin(ui)?;
-        text.poll(ui)?;
+        // The previous frame's row window; requests flush with this frame and install before the next.
+        text.request(
+            ui,
+            player.catalog(),
+            shell_state.song_text_window(player.catalog()),
+        );
         gpu::configure_artwork(
             graphics,
             extent.logical.0 as f32,
@@ -393,10 +408,6 @@ impl App {
             )
         })
         .map_err(|code| format!("Frame failed ({code})"))?;
-        text.request(
-            player.catalog(),
-            shell_state.song_text_window(player.catalog()),
-        );
         frame.check_intent(&intent, &status.settings)?;
         let mut image_requests = graphics.images().visible_requests(ui);
         if let Some(media) = player.media_controls() {
@@ -582,7 +593,6 @@ impl App {
             || files_changed
             || artwork_changed
             || artwork_updated
-            || self.text.ready()
             || preferences_changed
             || self.repaint.is_some_and(|time| now >= time)
         {

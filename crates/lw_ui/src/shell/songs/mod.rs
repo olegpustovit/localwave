@@ -15,7 +15,7 @@
 //!
 use super::*;
 use crate::catalog::SongColumn as Column;
-use crate::song_text::{body_label, body_style, body_value};
+use crate::song_text::{body_label, body_value};
 
 fn label(
     ui: &mut Ui,
@@ -89,7 +89,8 @@ fn row_layout(
         } else if column == Column::State {
             (10.0, 10.0)
         } else {
-            let style = body_style(column, current);
+            // The resolved style the cell's line box shapes, so measuring keys match drawing and prewarm.
+            let style = ui.resolve(&body_label(column, current));
             if matches!(column, Column::Number | Column::Format | Column::Time) {
                 table_text_size(
                     ui,
