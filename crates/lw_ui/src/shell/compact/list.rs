@@ -574,16 +574,8 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                     ui.within(&cards, &mut |ui| {
                         for index in pair.iter().copied() {
                             let group = &catalog.albums[index];
-                            let card = ui.node(
-                                Key::Id(index as i64),
-                                Node::column()
-                                    .w_px(cell)
-                                    .h(Size::Grow)
-                                    .role(Role::Button)
-                                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                            );
-                            ui.a11y_name(&card, &group.title);
-                            ui.within(&card, &mut |ui| {
+                            let node = Node::column().w_px(cell).h(Size::Grow).role(Role::Button);
+                            let card = ui.pressable(Key::Id(index as i64), node, &Look::NONE, |ui| {
                                 let art = container(
                                     ui,
                                     "artwork",
@@ -620,7 +612,8 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     Flags::NONE,
                                 );
                             });
-                            if ui.signal(&card).clicked {
+                            ui.a11y_name(&card.handle, &group.title);
+                            if card.clicked {
                                 *intent = Some(Intent::Navigate(Route::Album(index)));
                             }
                         }
