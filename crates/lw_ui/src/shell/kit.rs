@@ -213,25 +213,28 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         }
     }
 }
+/// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
+const ICONS: [Icon; 15] = [
+    Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
+    Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check,
+];
+// the table is indexed by discriminant: keep it in declaration order
+const _: () = {
+    let mut i = 0;
+    while i < ICONS.len() {
+        assert!(ICONS[i] as usize == i);
+        i += 1;
+    }
+};
+/// The one drawing of every kit icon button: `word` names the icon.
+fn draw_icon(paint: &mut pxui::Paint<'_>, at: pxui::geom::Rect, ink: Rgba, word: u32) {
+    if let Some(&icon) = ICONS.get(word as usize) {
+        paint_icon(paint, icon, at.x, at.y, ink);
+    }
+}
 /// `icon` as a kit icon button's drawing, painted into the 20-point square it is given in the look's ink.
 pub(super) fn icon_drawing(icon: Icon) -> pxui::Icon {
-    pxui::Icon::Draw(match icon {
-        Icon::Play => |paint, at, ink| paint_icon(paint, Icon::Play, at.x, at.y, ink),
-        Icon::Pause => |paint, at, ink| paint_icon(paint, Icon::Pause, at.x, at.y, ink),
-        Icon::Previous => |paint, at, ink| paint_icon(paint, Icon::Previous, at.x, at.y, ink),
-        Icon::Next => |paint, at, ink| paint_icon(paint, Icon::Next, at.x, at.y, ink),
-        Icon::Queue => |paint, at, ink| paint_icon(paint, Icon::Queue, at.x, at.y, ink),
-        Icon::Panel => |paint, at, ink| paint_icon(paint, Icon::Panel, at.x, at.y, ink),
-        Icon::Shuffle => |paint, at, ink| paint_icon(paint, Icon::Shuffle, at.x, at.y, ink),
-        Icon::Repeat => |paint, at, ink| paint_icon(paint, Icon::Repeat, at.x, at.y, ink),
-        Icon::Refresh => |paint, at, ink| paint_icon(paint, Icon::Refresh, at.x, at.y, ink),
-        Icon::Clear => |paint, at, ink| paint_icon(paint, Icon::Clear, at.x, at.y, ink),
-        Icon::Down => |paint, at, ink| paint_icon(paint, Icon::Down, at.x, at.y, ink),
-        Icon::More => |paint, at, ink| paint_icon(paint, Icon::More, at.x, at.y, ink),
-        Icon::Settings => |paint, at, ink| paint_icon(paint, Icon::Settings, at.x, at.y, ink),
-        Icon::Back => |paint, at, ink| paint_icon(paint, Icon::Back, at.x, at.y, ink),
-        Icon::Check => |paint, at, ink| paint_icon(paint, Icon::Check, at.x, at.y, ink),
-    })
+    pxui::Icon::draw(draw_icon, icon as u32)
 }
 
 // SwiftUI wraps table labels, then fits their line box to physical pixels.

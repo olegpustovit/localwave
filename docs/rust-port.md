@@ -112,6 +112,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.12 | Disabled widgets never click; Button label/layout/focus options; button_content gets the state (found by DX4.3/4.4) | done | 99ebbe1 + pxui 34c8e4f |
 | DX3.12a | DX3.12 review follow-ups (legacy export marked, docs) | done | ae5b91a + pxui 456892b |
 | DX3.13 | Menu rows keyed by id/position, chosen_id, safe body accessors, toggle stored value, segment container (found by DX4.5–4.7) | done | c4d4617 + pxui e0c424d |
+| DX3.14 | Looks name colour tokens (const app looks follow the theme); Icon::draw(f, word) (found by the DX4 review) | done | HEAD + pxui cac8615 |
 | DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | a7f9acd |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
@@ -168,7 +169,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
 | DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | b399fd6 + pxui 61e0cf6 |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
-| DX7.4 | Minimum-size rule; abi_built; pxui_supports | done | HEAD + pxui 2d2a3db |
+| DX7.4 | Minimum-size rule; abi_built; pxui_supports | done | 63f6734 + pxui 2d2a3db |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | done | ffe72c6 + pxui 6d85f9c |
 | DX7.6 | Reserved surface id | done | 53377e7 + pxui e5be793 |
 | DX7.7 | Record changes before freeze | todo |  |
