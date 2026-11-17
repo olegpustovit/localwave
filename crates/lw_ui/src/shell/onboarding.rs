@@ -100,23 +100,13 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         ui.box_("onboarding-flex", BoxOpts::default().h(Size::Grow));
         ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
         spacer(ui, "choose-gap", 12.0);
-        let choose = ui.node(
-            "choose-folder".into(),
-            Node {
-                look: Look { fill: ui.color(INK), ..Look::NONE },
-                ..Node::row()
-                    .w(Size::Grow)
-                    .h_px(52.0)
-                    .center()
-                    .role(Role::Button)
-                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-            },
-        );
-        ui.a11y_name(&choose, "Choose a folder");
-        ui.within(&choose, &mut |ui| {
+        let look = Look { fill: ui.color(INK), ..Look::NONE };
+        let node = Node::row().w(Size::Grow).h_px(52.0).center().role(Role::Button);
+        let choose = ui.pressable("choose-folder", node, &look, |ui| {
             ui.label("Choose a folder", TEXT_15.h(21.0).color(PAPER));
         });
-        if ui.signal(&choose).clicked {
+        ui.a11y_name(&choose.handle, "Choose a folder");
+        if choose.clicked {
             *intent = Some(Intent::ChooseFolder);
         }
         spacer(ui, "links-gap", 4.0);
@@ -154,12 +144,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
                 ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
             },
             |ui| {
-                let header = ui.node(
-                    "drive-toggle".into(),
-                    Node::row().w(Size::Grow).h_px(19.5).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                );
-                ui.a11y_name(&header, "Google Drive not in the list?");
-                ui.within(&header, &mut |ui| {
+                let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &Look::NONE, |ui| {
                     let marker = ui.node("marker".into(), Node::column().w_px(40.0 / 3.0).h_px(19.5));
                     let ink = ui.color(INK);
                     ui.draw(&marker, move |paint, rect| {
@@ -175,7 +160,8 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
                     });
                     ui.label("Google Drive not in the list?", TEXT_13.w(Size::Grow).h(19.5).color(INK));
                 });
-                clicked = ui.signal(&header).clicked;
+                ui.a11y_name(&header.handle, "Google Drive not in the list?");
+                clicked = header.clicked;
                 if expanded {
                     spacer(ui, "drive-help-gap", 8.0);
                     ui.label("Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.", PARAGRAPH_13.color(SECONDARY));
