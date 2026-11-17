@@ -162,17 +162,10 @@ pub(super) fn view(
                             } else if library {
                                 detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
                                 // Swift's header gear; Settings stays one tap away.
-                                let settings = ui.node(
-                                    "settings".into(),
-                                    Node::column()
-                                        .w_px(44.0)
-                                        .h_px(44.0)
-                                        .role(Role::Button)
-                                        .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                                );
-                                ui.a11y_name(&settings, "Settings");
+                                let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &Look::NONE, |_| {});
+                                ui.a11y_name(&settings.handle, "Settings");
                                 let color = ui.color(INK);
-                                ui.draw(&settings, move |paint, rect| {
+                                ui.draw(&settings.handle, move |paint, rect| {
                                     kit::paint_icon(
                                         paint,
                                         Icon::Settings,
@@ -181,7 +174,7 @@ pub(super) fn view(
                                         color,
                                     )
                                 });
-                                if ui.signal(&settings).clicked {
+                                if settings.clicked {
                                     *intent = Some(Intent::ShowSettings);
                                 }
                             } else {
@@ -361,18 +354,8 @@ fn mini(
             ..Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center)
         },
         |ui| {
-            let open = ui.node(
-                "open-player".into(),
-                Node::row()
-                    .w(Size::Grow)
-                    .h_px(48.0)
-                    .gap(10.0)
-                    .align(Align::Center)
-                    .role(Role::Button)
-                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-            );
-            ui.a11y_name(&open, "Open Now Playing");
-            ui.within(&open, &mut |ui| {
+            let node = Node::row().w(Size::Grow).h_px(48.0).gap(10.0).align(Align::Center).role(Role::Button);
+            let open = ui.pressable("open-player", node, &Look::NONE, |ui| {
                 artwork(
                     ui,
                     catalog,
@@ -396,7 +379,8 @@ fn mini(
                     line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
                 });
             });
-            if ui.signal(&open).clicked {
+            ui.a11y_name(&open.handle, "Open Now Playing");
+            if open.clicked {
                 *intent = Some(Intent::TogglePlayer);
             }
             play(ui, player, (44.0, 44.0), intent);
@@ -451,19 +435,8 @@ fn groups(
         68.0,
         &mut |ui, index| {
             let group = &groups[index];
-            let node = ui.node(
-                "group".into(),
-                Node::row()
-                    .w(Size::Grow)
-                    .h(Size::Grow)
-                    .gap(12.0)
-                    .pad_x(16.0)
-                    .align(Align::Center)
-                    .role(Role::Button)
-                    .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-            );
-            ui.a11y_name(&node, &group.title);
-            ui.within(&node, &mut |ui| {
+            let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).pad_x(16.0).align(Align::Center).role(Role::Button);
+            let card = ui.pressable("group", node, &Look::NONE, |ui| {
                 artwork(ui, catalog, player, group.artwork_row, 44.0);
                 let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                 ui.within(&labels, &mut |ui| {
@@ -471,7 +444,8 @@ fn groups(
                     line(ui, "count", &group.count, 12.0, ui.color(SECONDARY));
                 });
             });
-            if ui.signal(&node).clicked {
+            ui.a11y_name(&card.handle, &group.title);
+            if card.clicked {
                 *intent = Some(Intent::Navigate(if artists {
                     Route::Artist(index)
                 } else {
