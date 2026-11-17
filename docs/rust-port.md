@@ -103,7 +103,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.5 | icon_button | done | c2bf971 + pxui 7891b2a |
 | DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | 712627d + pxui b999ffd |
 | DX3.6 | menu with MenuItem | done | ab60a7b + pxui 759c84a |
-| DX3.7 | toggle_with, segmented_with, disabled scope | todo |  |
+| DX3.7 | toggle_with, segmented_with, disabled scope | done | HEAD + pxui 30260fb |
 | DX3.8 | dialog_with | todo |  |
 | DX3.9 | Per-call widget body variants | todo |  |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
@@ -119,7 +119,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
-| DX5.3 | Viewport-distance eviction for list entries | done | HEAD + pxui 5340fe9 |
+| DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
 | DX5.5 | Reusable layout storage for fresh shapes | todo |  |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
