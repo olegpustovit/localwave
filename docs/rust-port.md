@@ -117,6 +117,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.13 | Menu rows keyed by id/position, chosen_id, safe body accessors, toggle stored value, segment container (found by DX4.5–4.7) | done | c4d4617 + pxui e0c424d |
 | DX3.14 | Looks name colour tokens (const app looks follow the theme); Icon::draw(f, word) (found by the DX4 review) | done | cdd976b + pxui cac8615 |
 | DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | a7f9acd |
+| DX3.16 | Menu::max_h, Pressable::focus_on_click, segmented_with(Option) -> SegmentedResponse with a radio-group keyboard model (found by DX4.5/4.6) | done | HEAD + pxui 0968a85 |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
@@ -138,7 +139,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4b | LocalWave adopts the host-owned TextWorker: one worker, SongTextWorker deleted, prewarm policy, fling gated at the pxui ceiling | done | 40ccc78 |
 | DX5.4c | A prewarmed natural-width layout serves draws at any width that cannot change it | done | 81f353c + pxui 7f2f738 |
 | DX5.4d | LocalWave fling ceiling kept equal to pxui's (parsed test) | done | 31e87c3 |
-| DX5.4e | A layout prepared at width W serves draws between its measured width and W (left-aligned; uncut ellipsis) | done | HEAD + pxui a3a8924 |
+| DX5.4e | A layout prepared at width W serves draws between its measured width and W (left-aligned; uncut ellipsis) | done | f27b48b + pxui a3a8924 |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
