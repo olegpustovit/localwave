@@ -436,6 +436,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let user = worker.repository.get_or_create_user(1).unwrap();
@@ -678,6 +679,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let identity = lw_apple_sys::cloud::current_identity()

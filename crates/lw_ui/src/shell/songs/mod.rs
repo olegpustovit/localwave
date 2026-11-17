@@ -15,7 +15,7 @@
 //!
 use super::*;
 use crate::catalog::SongColumn as Column;
-use crate::song_text::{body_label, body_value};
+use crate::song_text::{body_label, body_line_height, body_value};
 
 fn label(
     ui: &mut Ui,
@@ -89,18 +89,18 @@ fn row_layout(
         } else if column == Column::State {
             (10.0, 10.0)
         } else {
-            // The resolved style the cell's line box shapes, so measuring keys match drawing and prewarm.
-            let style = ui.resolve(&body_label(column, current));
             if matches!(column, Column::Number | Column::Format | Column::Time) {
+                // the cell's own label: measuring keys match drawing and prewarm
                 table_text_size(
                     ui,
                     body_value(&row, column, numbered, number_label),
                     available,
                     catalog.song_body_width(index, column, number, numbered),
-                    &style,
+                    &body_label(column, current),
+                    body_line_height(column),
                 )
             } else {
-                (available, style.line_height)
+                (available, body_line_height(column))
             }
         };
         let base = if column == Column::Number && current {
@@ -292,7 +292,7 @@ pub(super) fn table(
     };
     let Some(table) = &collection.song_table else {
         header_view(ui, catalog, state, width, intent);
-        ui.label("Loading songs…", TEXT_14.w(Size::Grow).h(40.0).color(SECONDARY));
+        ui.label("Loading songs…", TEXT_14.grow().h_px(40.0).color(SECONDARY));
         return;
     };
     let applied = catalog
@@ -383,7 +383,7 @@ pub(super) fn table(
                     }
                     SectionPart::Row(_) if placeholder => {
                         ui.column("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
-                            ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, BODY_DIM.w(Size::Grow));
+                            ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, BODY_DIM.grow());
                         });
                     }
                     SectionPart::Row(index) => {

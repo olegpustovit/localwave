@@ -688,7 +688,7 @@ mod tests {
                 })
                 .collect(),
         );
-        catalog.prepare_tables().unwrap();
+        catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]))).unwrap();
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(lw_ui::catalog::Route::Songs));
         assert_eq!(&*super::targets(&state, &catalog, 2), &[2]);

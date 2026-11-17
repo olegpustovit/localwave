@@ -819,7 +819,6 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
 /// requests in order, so a sentinel requested last is installed after every earlier one.
 fn settle(ui: &mut Ui, input: &FrameIn) {
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
-    let style = ui.resolve(&Label::BODY);
     for probe in 0.. {
         let sentinel = format!("settle probe {probe}");
         ui.prewarm_text(&sentinel, &Label::BODY, 0.0).unwrap();
@@ -831,7 +830,7 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
         }
         ui.frame(input, &mut |_| {}).unwrap();
         let before = ui.text_layout_count();
-        ui.text_service().measure(&sentinel, &style, 0.0).unwrap();
+        ui.text_service().measure(&sentinel, &Label::BODY, 0.0).unwrap();
         if ui.text_layout_count() == before {
             return;
         }
@@ -1872,7 +1871,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
             name: "Quiet".into(),
         },
     );
-    filled.prepare_tables().unwrap();
+    filled.prepare_tables(&crate::test_table_styles()).unwrap();
     let list = filled
         .collections
         .iter()

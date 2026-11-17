@@ -1037,6 +1037,7 @@ mod tests {
                         temporary: worker_base.join("tmp"),
                         test_database: None,
                     },
+                    crate::library::headless_table_styles(),
                 )
             },
             wake,
@@ -1097,6 +1098,7 @@ mod tests {
                         temporary: worker_base.join("tmp"),
                         test_database: None,
                     },
+                    crate::library::headless_table_styles(),
                 )
             },
             wake,
@@ -1230,6 +1232,7 @@ mod tests {
                         temporary: worker_base.join("tmp"),
                         test_database: None,
                     },
+                    crate::library::headless_table_styles(),
                 )
             },
             wake,

@@ -118,6 +118,7 @@ pub fn run(fixture: &Path) -> io::Result<()> {
                         temporary: base.join("tmp"),
                         test_database: None,
                     },
+                    lw_bin::library::headless_table_styles(),
                 )?;
                 let user = worker
                     .repository

@@ -22,7 +22,7 @@ fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label, 
 
 /// An artist row's name and figures: one ellipsized line; counts and minutes in the mono face, wrapping.
 const CELL: Label = Label::BODY.line_height(19.6).lines(1).ellipsis();
-const CELL_MONO: Label = Label::BODY.font(1).size(12.0).line_height(16.8).wrap_spaces();
+const CELL_MONO: Label = Label::BODY.font(1).size(12.0).line_height(super::kit::TABLE_LINE).wrap_spaces();
 
 fn row_layout(
     ui: &mut Ui,
@@ -36,14 +36,14 @@ fn row_layout(
         (0.0, 0.0),
         (0.0, 0.0),
     ];
-    let style = ui.resolve(&CELL_MONO);
     for (index, value) in [count, summary.minutes.as_str()].into_iter().enumerate() {
         sizes[index + 2] = table_text_size(
             ui,
             value,
             (columns[index + 2] - if index == 0 { 16.0 } else { 28.0 }).max(0.0),
             summary.widths[index],
-            &style,
+            &CELL_MONO,
+            super::kit::TABLE_LINE,
         );
     }
     let descent = 9.8f32.max(sizes[2].1 - 12.0).max(sizes[3].1 - 12.0);
@@ -66,7 +66,7 @@ pub(super) fn table(
     let Some(table) = &catalog.artist_table else {
         header_view(ui, catalog, state, width, intent);
         ui.column("artists-loading-inset", Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0), |ui| {
-            ui.label("Loading artists…", TEXT_14.w(Size::Grow).h(40.0).color(SECONDARY));
+            ui.label("Loading artists…", TEXT_14.grow().h_px(40.0).color(SECONDARY));
         });
         return;
     };
@@ -146,7 +146,7 @@ pub(super) fn table(
                                 w: heading_sizes[index].0,
                                 h: heading_sizes[index].1,
                             },
-                            if index == 3 { TABLE_HEADING.end() } else { TABLE_HEADING },
+                            if index == 3 { TABLE_HEADING.align(pxui::text::TextAlign::End) } else { TABLE_HEADING },
                             ui.color(SECONDARY),
                         );
                         x += columns[index];
@@ -263,7 +263,7 @@ pub(super) fn table(
                                     },
                                     {
                                         let style = if mono { CELL_MONO } else { CELL };
-                                        if column == 3 { style.end() } else { style }
+                                        if column == 3 { style.align(pxui::text::TextAlign::End) } else { style }
                                     },
                                     if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
                                 );
@@ -314,7 +314,7 @@ mod tests {
                 })
                 .collect(),
         );
-        catalog.prepare_tables().unwrap();
+        catalog.prepare_tables(&crate::test_table_styles()).unwrap();
         let table = catalog.artist_table.as_ref().unwrap().clone();
         assert_eq!(table.rows[0].albums, "Alpha, Beta, Gamma");
         assert_eq!(table.rows[0].minutes, "2 min");

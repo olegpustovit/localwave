@@ -25,6 +25,7 @@ fn open_library(base: &Path, suite: &str) -> io::Result<LibraryWorker> {
             temporary: base.join("tmp"),
             test_database: None,
         },
+        lw_bin::library::headless_table_styles(),
     )
 }
 fn until(

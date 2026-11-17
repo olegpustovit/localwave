@@ -469,7 +469,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
                         },
                     );
                     ui.within(&node, &mut |ui| {
-                        ui.label(letter, TEXT_11.h(RAIL_STEP).color(SECONDARY));
+                        ui.label(letter, TEXT_11.h_px(RAIL_STEP).color(SECONDARY));
                     });
                     ui.a11y_name(&node, letter);
                     // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
@@ -917,7 +917,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
                     }
-                    ui.label(&collection.summary, MONO_13.w(Size::Grow).color(SECONDARY));
+                    ui.label(&collection.summary, MONO_13.grow().color(SECONDARY));
                 });
             });
             spacer(ui, "keys-gap", 16.0);

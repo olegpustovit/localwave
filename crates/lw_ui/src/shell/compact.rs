@@ -207,8 +207,8 @@ pub(super) fn view(
                                 ui.label("songs", LEAD_INK);
                                 container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
                                 ui.column("library-size", Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
-                                    ui.label(&catalog.totals_label, TEXT_13.h(19.5).color(SECONDARY));
-                                    ui.label(&catalog.sources_label, TEXT_13.h(19.5).color(SECONDARY));
+                                    ui.label(&catalog.totals_label, TEXT_13.h_px(19.5).color(SECONDARY));
+                                    ui.label(&catalog.sources_label, TEXT_13.h_px(19.5).color(SECONDARY));
                                 });
                             },
                         );
@@ -1607,7 +1607,7 @@ mod tests {
             let mut catalog = catalog(3);
             if kept {
                 catalog.prepare_pins(&mut |_| true);
-                catalog.prepare_tables().unwrap();
+                catalog.prepare_tables(&crate::test_table_styles()).unwrap();
             }
             let mut state = songs_state();
             state.apply(Intent::Navigate(Route::Find));

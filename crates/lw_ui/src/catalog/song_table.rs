@@ -1,6 +1,6 @@
 //! Worker-prepared SwiftUI desktop song-column measurements.
 use super::{Library, Route, Row};
-type MeasureWidth<'a> = dyn FnMut(&str, bool, f32, u16) -> Result<f32, String> + 'a;
+type MeasureWidth<'a> = dyn FnMut(&str, &pxui::TextStyle) -> Result<f32, String> + 'a;
 use crate::browse::Sort;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -90,14 +90,14 @@ impl Metrics {
             Some(false) => 2,
         }] - if column == Column::Number { 40.0 } else { 16.0 }
     }
-    pub fn prepare(library: &Library, width: &mut MeasureWidth<'_>) -> Result<Self, String> {
+    pub fn prepare(library: &Library, styles: &super::TableStyles, width: &mut MeasureWidth<'_>) -> Result<Self, String> {
         let mut headings = [[0.0; 3]; 8];
         for column in Column::ALL {
             let inset = if column == Column::Number { 40.0 } else { 16.0 };
             headings[column as usize] = [
-                width(column.title(), false, 12.0, 500)? + inset,
-                width(&format!("{} ↑", column.title()), false, 12.0, 500)? + inset,
-                width(&format!("{} ↓", column.title()), false, 12.0, 500)? + inset,
+                width(column.title(), &styles.heading)? + inset,
+                width(&format!("{} ↑", column.title()), &styles.heading)? + inset,
+                width(&format!("{} ↓", column.title()), &styles.heading)? + inset,
             ];
         }
         let mut rows = Vec::with_capacity(library.len());
@@ -106,34 +106,32 @@ impl Metrics {
             let mut regular = [0.0; 3];
             let mut medium = [0.0; 3];
             for (column, value) in [row.title, row.artist, row.album].into_iter().enumerate() {
-                regular[column] = (width(value, false, 14.0, 400)? + 16.0).min(240.0);
-                medium[column] = (width(value, false, 14.0, 500)? + 16.0).min(240.0);
+                regular[column] = (width(value, &styles.body)? + 16.0).min(240.0);
+                medium[column] = (width(value, &styles.body_medium)? + 16.0).min(240.0);
             }
             rows.push(RowWidths {
                 regular,
                 medium,
                 format: width(
                     if row.has_format { row.format } else { "—" },
-                    true,
-                    12.0,
-                    400,
+                    &styles.mono,
                 )? + 16.0,
-                time: width(row.duration, true, 12.0, 400)? + 16.0,
+                time: width(row.duration, &styles.mono)? + 16.0,
                 track_body: row
                     .track_number
-                    .map(|_| width(row.track_label, false, 13.0, 400))
+                    .map(|_| width(row.track_label, &styles.number))
                     .transpose()?,
                 track: row
                     .track_number
-                    .map(|_| width(row.track_label, true, 13.0, 400))
+                    .map(|_| width(row.track_label, &styles.mono_number))
                     .transpose()?,
             });
         }
         Ok(Self {
             rows,
             headings,
-            digit: width("0", true, 13.0, 400)?,
-            body_digit: width("0", false, 13.0, 400)?,
+            digit: width("0", &styles.mono_number)?,
+            body_digit: width("0", &styles.number)?,
         })
     }
 }

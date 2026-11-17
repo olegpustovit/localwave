@@ -11,6 +11,45 @@ use std::collections::{BTreeMap, HashMap};
 use std::ops::{Deref, Range};
 use std::sync::Arc;
 
+/// The table text styles the catalog worker measures with (`Catalog::prepare_tables`): each `Label` is defined once here and resolved
+/// on the UI thread (`resolve`, at setup), then moved to the worker, so its widths match what the UI draws.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct TableStyles {
+    /// Column headings: 12 points, medium.
+    pub heading: pxui::TextStyle,
+    /// Titles, artists and albums: 14 points, regular.
+    pub body: pxui::TextStyle,
+    /// The playing row's titles: 14 points, medium.
+    pub body_medium: pxui::TextStyle,
+    /// Counts, formats and times: the mono face at 12 points.
+    pub mono: pxui::TextStyle,
+    /// Track numbers in the UI face: 13 points, tabular.
+    pub number: pxui::TextStyle,
+    /// Track numbers in the mono face: 13 points.
+    pub mono_number: pxui::TextStyle,
+}
+
+impl TableStyles {
+    pub const HEADING: pxui::Label = pxui::Label::BODY.size(12.0).weight(500);
+    pub const BODY: pxui::Label = pxui::Label::BODY;
+    pub const BODY_MEDIUM: pxui::Label = pxui::Label::BODY.weight(500);
+    pub const MONO: pxui::Label = pxui::Label::BODY.font(1).size(12.0);
+    pub const NUMBER: pxui::Label = pxui::Label::MONO.size(13.0);
+    pub const MONO_NUMBER: pxui::Label = pxui::Label::BODY.font(1).size(13.0);
+
+    /// The styles resolved against `ui`'s theme; on the UI thread.
+    pub fn resolve(ui: &pxui::Ui) -> Self {
+        Self {
+            heading: ui.resolve(&Self::HEADING),
+            body: ui.resolve(&Self::BODY),
+            body_medium: ui.resolve(&Self::BODY_MEDIUM),
+            mono: ui.resolve(&Self::MONO),
+            number: ui.resolve(&Self::NUMBER),
+            mono_number: ui.resolve(&Self::MONO_NUMBER),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum Route {
     #[default]
@@ -825,30 +864,20 @@ impl Catalog {
             Arc::make_mut(view).collection.song_table = None;
         }
     }
-    /// Called on the catalog worker: frames only select and scale prepared table measurements.
-    pub fn prepare_tables(&mut self) -> Result<(), String> {
+    /// Called on the catalog worker: frames only select and scale prepared table measurements. `styles` were resolved on the UI
+    /// thread (`TableStyles::resolve`).
+    pub fn prepare_tables(&mut self, styles: &TableStyles) -> Result<(), String> {
         let mut text = pxui::Text::new(&[crate::FONT, crate::MONO])
-            .ok_or_else(|| "Unable to create library text metrics".to_owned())?;
+            .map_err(|_| "Unable to create library text metrics".to_owned())?;
         text.enable_system_fonts()
             .map_err(|code| format!("Library font fallback failed ({code})"))?;
-        let mut width = |value: &str, mono: bool, size: f32, weight: u16| {
-            let style = pxui::TextStyle {
-                font: u16::from(mono),
-                features: if !mono && size == 13.0 {
-                    pxui::TextStyle::FEATURE_TABULAR_NUMBERS
-                } else {
-                    0
-                },
-                size_points: size,
-                weight,
-                ..Default::default()
-            };
-            text.width(value, &style, 0.0)
+        let mut width = |value: &str, style: &pxui::TextStyle| {
+            text.width(value, style, 0.0)
                 .map_err(|code| format!("Library text measurement failed ({code})"))
         };
         let mut preferred = [0.0f32; 4];
         for (index, title) in ["Name", "Albums", "Songs", "Time"].into_iter().enumerate() {
-            preferred[index] = width(title, false, 12.0, 500)?
+            preferred[index] = width(title, &styles.heading)?
                 + if index == 0 {
                     40.0
                 } else if index == 3 {
@@ -894,16 +923,14 @@ impl Catalog {
                     } else {
                         &artist.title
                     },
-                    false,
-                    14.0,
-                    400,
+                    &styles.body,
                 )? + 80.0)
                     .min(240.0),
             );
-            preferred[1] = preferred[1].max((width(&albums, false, 14.0, 400)? + 16.0).min(240.0));
+            preferred[1] = preferred[1].max((width(&albums, &styles.body)? + 16.0).min(240.0));
             let widths = [
-                width(&artist.count, true, 12.0, 400)?,
-                width(&minutes, true, 12.0, 400)?,
+                width(&artist.count, &styles.mono)?,
+                width(&minutes, &styles.mono)?,
             ];
             preferred[2] = preferred[2].max(widths[0] + 16.0);
             preferred[3] = preferred[3].max(widths[1] + 28.0);
@@ -913,7 +940,7 @@ impl Catalog {
                 widths,
             });
         }
-        let songs = Arc::new(song_table::Metrics::prepare(self, &mut width)?);
+        let songs = Arc::new(song_table::Metrics::prepare(self, styles, &mut width)?);
         let tables = self
             .all
             .iter()
@@ -1142,6 +1169,7 @@ mod tests {
     #[test]
     fn table_font_widths_match_coretext_reference_faces_and_weights() {
         let mut text = pxui::Text::new(&[crate::FONT, crate::MONO]).unwrap();
+        let ui = crate::test_ui(pxui::Platform::Apple, None, &[crate::FONT, crate::MONO]);
         // CTLineGetTypographicBounds with the bundled named faces, captured on macOS.
         for (label, font, size, weight, expected) in [
             ("Name", 0, 12.0, 500, 32.424),
@@ -1157,12 +1185,7 @@ mod tests {
             let width = text
                 .width(
                     label,
-                    &pxui::TextStyle {
-                        font,
-                        size_points: size,
-                        weight,
-                        ..Default::default()
-                    },
+                    &ui.resolve(&pxui::Label::BODY.font(font).size(size).weight(weight)),
                     0.0,
                 )
                 .unwrap();
@@ -1220,7 +1243,7 @@ mod tests {
             },
         ]);
         let unchanged = catalog.library.clone();
-        catalog.prepare_tables().unwrap();
+        catalog.prepare_tables(&crate::test_table_styles()).unwrap();
         assert!(unchanged.artist_table.is_none());
         let table = catalog.artist_table.as_ref().unwrap();
         assert_eq!(table.rows.len(), catalog.artists.len());

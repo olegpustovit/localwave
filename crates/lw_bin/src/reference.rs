@@ -221,7 +221,7 @@ fn manifest() -> Result<Json, String> {
 
 /// Seeds the isolated library from the Swift reference manifest: songs, playlists, sources, queue,
 /// artwork, non-audio files, play counts/last played, pins and waveforms (LWReferenceFixture.seed).
-pub fn library(base: &Path, screen: &str) -> std::io::Result<LibraryWorker> {
+pub fn library(base: &Path, screen: &str, table_styles: lw_ui::catalog::TableStyles) -> std::io::Result<LibraryWorker> {
     use lw_core::{FileAvailability, FileState, Song, Source, SourcePath, preferences::*};
     let other = |e: String| std::io::Error::other(e);
     let data = manifest().map_err(other)?;
@@ -243,6 +243,7 @@ pub fn library(base: &Path, screen: &str) -> std::io::Result<LibraryWorker> {
             temporary: base.join("tmp"),
             test_database: None,
         },
+        table_styles,
     )?;
     library.trust_stored_availability = true;
     library.save_settings(&Settings { appearance: Appearance::Light, ..Default::default() })?;

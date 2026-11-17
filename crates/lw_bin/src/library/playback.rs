@@ -442,6 +442,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let user = worker.repository.get_or_create_user(1).unwrap();

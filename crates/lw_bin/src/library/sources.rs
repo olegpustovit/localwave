@@ -383,6 +383,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let user = worker.user_for_identity(None).unwrap();
@@ -490,6 +491,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let mut fixture = include_str!("../../../lw_apple_sys/fixtures/cloud-identity.txt").lines();

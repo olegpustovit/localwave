@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub(crate) const LIST_NAME: &str = "Qualification mix";
 
-pub(crate) fn library(base: &Path, workload: Option<Workload>) -> std::io::Result<LibraryWorker> {
+pub(crate) fn library(base: &Path, workload: Option<Workload>, table_styles: lw_ui::catalog::TableStyles) -> std::io::Result<LibraryWorker> {
     let documents = base.join("Documents");
     std::fs::create_dir_all(&documents)?;
     let suite = format!(
@@ -26,6 +26,7 @@ pub(crate) fn library(base: &Path, workload: Option<Workload>) -> std::io::Resul
             temporary: base.join("tmp"),
             test_database: None,
         },
+        table_styles,
     )?;
     if workload.is_some() {
         if matches!(workload, Some(Workload::Settings)) {

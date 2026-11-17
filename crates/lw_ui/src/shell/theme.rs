@@ -7,11 +7,11 @@ use super::*;
 const LINE: f64 = 1.4;
 /// One line of `points` text in the UI face: a line box 1.4 times the size high, end ellipsis, a whole-pixel fitted width.
 pub(super) const fn line_style(points: f32) -> Label {
-    Label::BODY.size(points).line_height(points * 1.4).h((points as f64 * LINE) as f32).lines(1).ellipsis().whole_pixels()
+    Label::BODY.size(points).line_height(points * 1.4).h_px((points as f64 * LINE) as f32).lines(1).ellipsis().whole_pixels()
 }
 /// Running text at `points` filling its parent's width: word wrapped, lines 1.4 times the size, read as a paragraph.
 const fn paragraph_style(points: f32) -> Label {
-    Label::BODY.size(points).line_height(points * 1.4).wrap().w(Size::Grow).role(Role::Paragraph)
+    Label::BODY.size(points).line_height(points * 1.4).wrap().grow().role(Role::Paragraph)
 }
 pub(super) const MONO_9: Label = line_style(9.0).font(1);
 pub(super) const MONO_11: Label = line_style(11.0).font(1);

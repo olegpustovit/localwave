@@ -44,17 +44,18 @@ pub(super) fn draw(
     intent: &mut Option<Intent>,
 ) {
     let values = [player.artist, " ", "—", " ", player.album];
-    const NAME: Label = Label::BODY.line_height(19.6).wrap_spaces();
-    const SPACE: Label = Label::BODY.size(15.0).line_height(21.0).wrap_spaces();
+    const NAME_LINE: f32 = 19.6;
+    const SPACE_LINE: f32 = 21.0;
+    const NAME: Label = Label::BODY.line_height(NAME_LINE).wrap_spaces();
+    const SPACE: Label = Label::BODY.size(15.0).line_height(SPACE_LINE).wrap_spaces();
     let labels = std::array::from_fn::<_, 5, _>(|index| if matches!(index, 1 | 3) { SPACE } else { NAME });
-    let styles = labels.map(|label| ui.resolve(&label));
     let density = ui.density() as f32;
     let sizes = std::array::from_fn(|index| {
         let service = &mut ui.text_service();
-        let natural = service.measure(values[index], &styles[index], 0.0).unwrap();
+        let natural = service.measure(values[index], &labels[index], 0.0).unwrap();
         let metrics = if natural.width > width {
             service
-                .measure(values[index], &styles[index], width)
+                .measure(values[index], &labels[index], width)
                 .unwrap()
         } else {
             natural
@@ -62,7 +63,7 @@ pub(super) fn draw(
         let padding = if matches!(index, 0 | 4) { 2.0 } else { 0.0 };
         (
             ((metrics.width * density).ceil() / density).min(width),
-            styles[index].line_height * metrics.lines.max(1) as f32 + padding,
+            if matches!(index, 1 | 3) { SPACE_LINE } else { NAME_LINE } * metrics.lines.max(1) as f32 + padding,
         )
     });
     let (rects, height) = positions(width, sizes);

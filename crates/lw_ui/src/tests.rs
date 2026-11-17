@@ -2,7 +2,7 @@ use super::*;
 use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
 pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
     let mut catalog = catalog::Catalog::new(songs);
-    catalog.prepare_tables().unwrap();
+    catalog.prepare_tables(&crate::test_table_styles()).unwrap();
     catalog
 }
 

@@ -244,11 +244,14 @@ pub(super) fn heading_size(ui: &mut Ui, value: &str, available: f32, natural: f3
         value,
         available,
         natural,
-        &ui.resolve(&TABLE_HEADING),
+        &TABLE_HEADING,
+        TABLE_LINE,
     )
 }
 /// A table column heading: 12 points, medium, wrapping at words.
-pub(super) const TABLE_HEADING: Label = Label::BODY.size(12.0).line_height(16.8).weight(500).wrap_spaces();
+pub(super) const TABLE_HEADING: Label = Label::BODY.size(12.0).line_height(TABLE_LINE).weight(500).wrap_spaces();
+/// The line height of 12-point table text (headings and mono cells), in points.
+pub(super) const TABLE_LINE: f32 = 16.8;
 /// -0.03 em, one f32 step past it so 24 and 40 point text resolve to exactly -0.72 and -1.2 points of tracking.
 pub(crate) const TIGHT_3: f32 = -0.030_000_001;
 pub(super) fn table_text_size(
@@ -256,7 +259,8 @@ pub(super) fn table_text_size(
     value: &str,
     available: f32,
     natural: f32,
-    style: &pxui::TextStyle,
+    style: &pxui::Label,
+    line_height: f32,
 ) -> (f32, f32) {
     let (width, lines) = if natural > available {
         let metrics = ui
@@ -270,7 +274,7 @@ pub(super) fn table_text_size(
     let density = ui.density() as f32;
     (
         (width * density).ceil() / density,
-        style.line_height * lines.max(1) as f32,
+        line_height * lines.max(1) as f32,
     )
 }
 

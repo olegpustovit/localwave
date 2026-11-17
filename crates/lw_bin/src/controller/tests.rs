@@ -204,6 +204,7 @@ fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_prep
                         temporary: worker_base.join("tmp"),
                         test_database: None,
                     },
+                    crate::library::headless_table_styles(),
                 )?;
                 for key in 1..=3 {
                     library
@@ -761,6 +762,7 @@ fn offline_commands_copy_on_the_library_worker_preserve_playback_and_release_pin
                         temporary: worker_base.join("tmp"),
                         test_database: None,
                     },
+                    crate::library::headless_table_styles(),
                 )?;
                 for id in 1..=3 {
                     library
@@ -926,6 +928,7 @@ fn set_favorite_persists_on_the_library_worker_and_refreshes_the_catalog() {
                         temporary: worker_base.join("tmp"),
                         test_database: None,
                     },
+                    crate::library::headless_table_styles(),
                 )?;
                 library
                     .repository
@@ -1053,6 +1056,7 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
     };
     let shared = shared();
@@ -1189,6 +1193,7 @@ fn reveal_and_share_resolve_the_source_grant_on_the_worker_and_reject_missing_fi
             temporary: base.join("tmp"),
             test_database: None,
         },
+        crate::library::headless_table_styles(),
     )
     .unwrap();
     let source = library
@@ -1324,6 +1329,7 @@ fn list_commands_validate_persist_and_deleting_the_playing_list_falls_back_to_li
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
     };
     let shared = shared();
@@ -1503,6 +1509,7 @@ fn metadata_edit_is_atomic_with_search_and_song_delete_keeps_files_and_the_curre
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
     };
     let shared = shared();

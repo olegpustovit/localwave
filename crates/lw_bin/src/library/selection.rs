@@ -334,6 +334,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let user = library.current_sources().unwrap().user.id;

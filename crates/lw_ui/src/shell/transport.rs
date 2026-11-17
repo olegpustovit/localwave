@@ -99,7 +99,7 @@ pub(super) fn transport(
                                     ..Node::column().w_px(8.0).h_px(12.0)
                                 },
                                 |ui| {
-                                    ui.label("1", MONO_9.w(Size::Px(8.0)).h(12.0).color(PAPER));
+                                    ui.label("1", MONO_9.w_px(8.0).h_px(12.0).color(PAPER));
                                 },
                             );
                         }

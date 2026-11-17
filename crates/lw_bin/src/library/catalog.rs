@@ -233,7 +233,7 @@ impl LibraryWorker {
         if catalog.artist_table.is_none() {
             let pins = self.preferences.import_snapshot();
             catalog.prepare_pins(&mut |id| pins.pinned(id));
-            catalog.prepare_tables().map_err(io::Error::other)?;
+            catalog.prepare_tables(&self.table_styles).map_err(io::Error::other)?;
         }
         let summary = if let (Some(find), Some(candidates)) = (find, candidates) {
             let found = find.finish(self, &catalog, candidates);
@@ -294,6 +294,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let mut ids = Vec::new();

@@ -68,13 +68,13 @@ fn side_item(
     );
     ui.a11y_name(&node, title);
     ui.within(&node, &mut |ui| {
-        ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h(20.0).color(if selected { INK } else { SECONDARY }));
+        ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h_px(20.0).color(if selected { INK } else { SECONDARY }));
         if !badge.is_empty() {
-            let tag = ui.label(badge, TEXT_11.h(16.0).color(PAPER));
+            let tag = ui.label(badge, TEXT_11.h_px(16.0).color(PAPER));
             ui.set_look(&tag, Look { fill: ui.color(INK), text: ui.color(PAPER), font: Font { size: 11, ..Font::BODY }, ..Look::NONE }, State::default());
             ui.box_("badge-gap", BoxOpts::default().w(Size::Grow));
         }
-        ui.label(count, MONO_12.w(Size::Px(44.0)).h(18.0).color(SECONDARY));
+        ui.label(count, MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY));
     });
     if let (Some(list), Some((true, song))) = (list, dropping) {
         *intent = Some(Intent::AddToList { song, list });
@@ -93,7 +93,7 @@ fn side_item(
 }
 
 /// A Swift group label.
-const GROUP: Label = TEXT_12.w(Size::Grow).h(30.0).color(SECONDARY);
+const GROUP: Label = TEXT_12.grow().h_px(30.0).color(SECONDARY);
 
 /// A plain "+ label" action row (Swift's Add folder or files, New list).
 fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
@@ -132,8 +132,8 @@ pub(super) fn sidebar(
         ui.set_look(&search, Look { fill: if signal.hovered { ui.color(SELECTED) } else { ui.color(PANEL) }, ..Look::NONE }, State::default());
         ui.a11y_name(&search, "Search");
         ui.within(&search, &mut |ui| {
-            ui.label("Search", TEXT_14.w(Size::Grow).h(20.0).color(SECONDARY));
-            ui.label("⌘K", MONO_11.h(16.0).color(SECONDARY));
+            ui.label("Search", TEXT_14.grow().h_px(20.0).color(SECONDARY));
+            ui.label("⌘K", MONO_11.h_px(16.0).color(SECONDARY));
         });
         if signal.clicked {
             *intent = Some(Intent::ShowCommands);
@@ -185,8 +185,8 @@ pub(super) fn sidebar(
             "offline",
             Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
             |ui| {
-                ui.label("Offline", TEXT_12.w(Size::Grow).h(16.0).color(SECONDARY));
-                ui.label(&catalog.offline_usage, MONO_12.h(16.0).color(SECONDARY));
+                ui.label("Offline", TEXT_12.grow().h_px(16.0).color(SECONDARY));
+                ui.label(&catalog.offline_usage, MONO_12.h_px(16.0).color(SECONDARY));
             },
         );
         ui.row(
@@ -205,8 +205,8 @@ pub(super) fn sidebar(
             ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button)
         };
         let shortcuts = ui.pressable("shortcuts", node, &PLAIN, |ui, _| {
-            ui.label("?", MONO_11.w(Size::Px(14.0)).h(16.0).color(SECONDARY));
-            ui.label("shortcuts", TEXT_12.h(16.0).color(SECONDARY));
+            ui.label("?", MONO_11.w_px(14.0).h_px(16.0).color(SECONDARY));
+            ui.label("shortcuts", TEXT_12.h_px(16.0).color(SECONDARY));
         });
         ui.a11y_name(&shortcuts.handle, "Keyboard shortcuts");
         if shortcuts.clicked {

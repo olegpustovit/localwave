@@ -186,8 +186,8 @@ pub(super) fn gallery(
                                             ui.a11y_name(&art, "Album artwork");
                                             spacer(ui, "artwork-label-gap", 8.0);
 
-                                            ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).w(Size::Grow).h(17.5).color(INK));
-                                            ui.label(&group.subtitle, CAPTION.w(Size::Grow));
+                                            ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).grow().h_px(17.5).color(INK));
+                                            ui.label(&group.subtitle, CAPTION.grow());
                                         });
                                         ui.a11y_name(&card.handle, &group.title);
                                         if card.clicked {

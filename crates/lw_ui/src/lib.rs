@@ -315,6 +315,12 @@ pub struct PlayerView<'a> {
 #[cfg(test)]
 mod tests;
 
+/// The table styles resolved on a test `Ui` (`catalog::TableStyles::resolve`).
+#[cfg(test)]
+pub(crate) fn test_table_styles() -> catalog::TableStyles {
+    catalog::TableStyles::resolve(&test_ui(pxui::Platform::Apple, None, &[FONT, MONO]))
+}
+
 /// `Ui::create` for tests, with `verify_views` on for every Ui the process creates and LocalWave's colours installed.
 #[cfg(test)]
 pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8]]) -> pxui::Ui {

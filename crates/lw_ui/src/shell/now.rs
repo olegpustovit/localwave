@@ -24,7 +24,7 @@ pub(super) fn now_panel(
         },
         |ui| {
             ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
-                ui.label("Now playing", CAPTION.w(Size::Grow));
+                ui.label("Now playing", CAPTION.grow());
                 if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &ICON_36.look(&theme.icon_plate)).clicked {
                     *intent = Some(Intent::TogglePanel);
                 }
@@ -150,7 +150,7 @@ pub(super) fn now_panel(
             metadata(ui, player.info);
             // A playback notice takes room from the (growing) queue viewport only while it shows.
             if !player.message.is_empty() {
-                ui.label(player.message, TEXT_13.w(Size::Grow).h(44.0).color(SECONDARY));
+                ui.label(player.message, TEXT_13.grow().h_px(44.0).color(SECONDARY));
             }
             spacer(ui, "queue-gap", 14.0);
             rule(ui, "queue-divider", false);
@@ -280,8 +280,8 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                 ] {
                     let row = ui.node(key.into(), Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
                     ui.within(&row, &mut |ui| {
-                        ui.label(label, FOOTNOTE.w(Size::Px(64.0)));
-                        ui.label(value, MONO_12.w(Size::Grow).color(ink));
+                        ui.label(label, FOOTNOTE.w_px(64.0));
+                        ui.label(value, MONO_12.grow().color(ink));
                     });
                     ui.a11y_name(&row, if key == "file" { &info.folder } else { value });
                 }

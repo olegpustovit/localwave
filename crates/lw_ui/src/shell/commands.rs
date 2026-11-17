@@ -293,7 +293,7 @@ pub(super) fn palette_view(
             let list = ui.section_list_measured("results", &rows, &|i| items.get(i).map_or(0, |item| item.key as i64), &mut |ui, part, _| {
                 let SectionPart::Row(index) = part else { return };
                 let Some(item) = items.get(index) else {
-                    ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, TEXT_14.w(Size::Grow).h(48.0).color(SECONDARY));
+                    ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, TEXT_14.grow().h_px(48.0).color(SECONDARY));
                     return;
                 };
                 let row = ui.node(
@@ -314,7 +314,7 @@ pub(super) fn palette_view(
                                 ..Node::column().w(Size::Grow).h(Size::Fit)
                             },
                             |ui| {
-                                ui.label(item.group, FOOTNOTE.w(Size::Grow));
+                                ui.label(item.group, FOOTNOTE.grow());
                             },
                         );
                     }
@@ -446,7 +446,7 @@ fn result_row(
                 }
             });
         }
-        ui.label(&item.label, BODY_INK.w(Size::Grow));
+        ui.label(&item.label, BODY_INK.grow());
         if !item.hint.is_empty() {
             ui.label(&item.hint, CAPTION);
         }
@@ -473,12 +473,11 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
     // Swift's Grid gives label and key columns equal halves; labels wrap inside theirs (phone).
     let half = ((card - 48.0 - 16.0) * 0.5).max(1.0);
     const KEY_LABEL: Label = Label::BODY.line_height(19.6).wrap_spaces();
-    let style = ui.resolve(&KEY_LABEL);
     let mut heights = [19.6_f32; ROWS.len()];
     for (height, (label, _)) in heights.iter_mut().zip(ROWS) {
         *height = ui
             .text_service()
-            .measure(label, &style, half)
+            .measure(label, &KEY_LABEL, half)
             .map_or(19.6, |m| m.height.max(19.6));
     }
     let body_height: f32 = 44.0 + 25.2 + 12.0 + heights.iter().sum::<f32>() + 11.0 * 8.0;
@@ -496,7 +495,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
             ui.scroll_view("shortcuts", Size::Grow, Size::Grow, &mut |ui| {
                 let body = ui.node("body".into(), Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
-                    ui.label("Keyboard", TEXT_18.w(Size::Grow).color(INK));
+                    ui.label("Keyboard", TEXT_18.grow().color(INK));
                     ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node(

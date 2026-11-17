@@ -35,9 +35,9 @@ pub(super) fn editor(
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(4.0).pad(20.0)
             },
             |ui| {
-                ui.label("Edit Metadata", TEXT_24.w(Size::Grow).h(36.0).color(INK));
+                ui.label("Edit Metadata", TEXT_24.grow().h_px(36.0).color(INK));
                 for (index, (label, key, input)) in FIELDS.into_iter().enumerate() {
-                    ui.label(label, TEXT_12.w(Size::Grow).h(16.0).color(SECONDARY));
+                    ui.label(label, TEXT_12.grow().h_px(16.0).color(SECONDARY));
                     let field = ui.box_(key, BoxOpts::default().w(Size::Grow).h(Size::Px(32.0)));
                     ui.within(&field, &mut |ui| {
                         let current = *edit.field_mut(index).expect("field index is in range");
@@ -53,7 +53,7 @@ pub(super) fn editor(
                     });
                 }
                 let valid = edit.valid() && !state.metadata_too_long;
-                ui.label(if state.metadata_too_long { "A field exceeds 1,024 UTF-8 bytes. Shorten it to save." } else if edit.numbers().is_none() { "Year and track must be whole numbers from 0 to 9999." } else if edit.title.as_str().trim().is_empty() { "Title is required." } else { "" }, TEXT_12.w(Size::Grow).h(20.0).color(SECONDARY));
+                ui.label(if state.metadata_too_long { "A field exceeds 1,024 UTF-8 bytes. Shorten it to save." } else if edit.numbers().is_none() { "Year and track must be whole numbers from 0 to 9999." } else if edit.title.as_str().trim().is_empty() { "Title is required." } else { "" }, TEXT_12.grow().h_px(20.0).color(SECONDARY));
                 let buttons = container(
                     ui,
                     "metadata-actions",
@@ -100,7 +100,7 @@ pub(super) fn confirm_delete(
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },
             |ui| {
-                ui.label("Delete song?", TEXT_24.w(Size::Grow).h(36.0).color(INK));
+                ui.label("Delete song?", TEXT_24.grow().h_px(36.0).color(INK));
                 settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
                 settings::paragraph(ui, "consequences", "It leaves your library and lists. The audio file is not deleted.", width - 40.0, 14.0, ui.color(SECONDARY));
                 let buttons = container(

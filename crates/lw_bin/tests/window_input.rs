@@ -56,6 +56,7 @@ fn shuffle_all_preserves_catalog_payload_and_configures_a_real_native_queue() {
                     temporary: worker_base.join("tmp"),
                     test_database: None,
                 },
+                lw_bin::library::headless_table_styles(),
             )?;
             let user = library.current_sources()?.user;
             for path_id in 1..=2 {
@@ -154,6 +155,7 @@ fn shuffle_all_preserves_catalog_payload_and_configures_a_real_native_queue() {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            lw_bin::library::headless_table_styles(),
         )
         .unwrap();
         let saved = library.load_player_state().unwrap();
@@ -211,6 +213,7 @@ fn removing_a_source_keeps_current_native_item_metadata_and_cache_lease_until_re
                     temporary: factory_base.join("tmp"),
                     test_database: None,
                 },
+                lw_bin::library::headless_table_styles(),
             )?;
             let user = library
                 .repository
@@ -462,6 +465,7 @@ fn media_commands_wait_for_controller_capacity_without_losing_accepted_events() 
                     temporary: worker_base.join("tmp"),
                     test_database: None,
                 },
+                lw_bin::library::headless_table_styles(),
             )
         },
         wake,
@@ -1004,6 +1008,6 @@ fn main() {
 
 fn prepared_catalog(songs: Vec<lw_core::Song>) -> lw_ui::catalog::Catalog {
     let mut catalog = lw_ui::catalog::Catalog::new(songs);
-    catalog.prepare_tables().unwrap();
+    catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]))).unwrap();
     catalog
 }

@@ -160,20 +160,22 @@ pub(super) fn open(
         ))
     }));
     let seeded = reference.is_some();
+    // the catalog worker measures table text with styles resolved here, on the UI thread
+    let table_styles = lw_ui::catalog::TableStyles::resolve(&ui);
     let screen = reference.clone().unwrap_or_default();
     let mut player = if let Some(base) = fixture.0.clone() {
         Controller::open(
             move || {
                 if seeded {
-                    reference::library(&base, &screen)
+                    reference::library(&base, &screen, table_styles)
                 } else {
-                    perf::setup::library(&base, workload)
+                    perf::setup::library(&base, workload, table_styles)
                 }
             },
             wake,
         )
     } else {
-        Controller::open(LibraryWorker::current, wake)
+        Controller::open(move || LibraryWorker::current(table_styles), wake)
     }
     .map_err(|error| error.to_string())?;
     let artwork = lw_bin::library::ArtworkWorker::open(
@@ -197,9 +199,10 @@ pub(super) fn open(
                         temporary: base.join("tmp"),
                         test_database: None,
                     },
+                    table_styles,
                 )
             } else {
-                LibraryWorker::current()
+                LibraryWorker::current(table_styles)
             }
         },
         wake,

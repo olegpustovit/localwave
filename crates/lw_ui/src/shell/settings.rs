@@ -45,10 +45,9 @@ pub(super) fn paragraph(
     color: Rgba,
 ) -> Handle {
     let label = Label::BODY.size(size).line_height(size * 1.4).wrap();
-    let style = ui.resolve(&label);
     let metrics = ui
         .text_service()
-        .measure(value, &style, width.max(1.0))
+        .measure(value, &label, width.max(1.0))
         .unwrap();
     let node = ui.node(
         key.into(),
@@ -57,7 +56,7 @@ pub(super) fn paragraph(
                 text: color,
                 ..Look::NONE
             },
-            ..Node::column().w(Size::Grow).h_px(metrics.height.max(style.line_height)).role(Role::Paragraph)
+            ..Node::column().w(Size::Grow).h_px(metrics.height.max(size * 1.4)).role(Role::Paragraph)
         },
     );
     ui.text_line_box(&node, value, &label, &[]).unwrap();
@@ -65,7 +64,7 @@ pub(super) fn paragraph(
 }
 /// A playback or settings message in the theme's accent, which is no colour token, so the label takes it as a look.
 fn notice(ui: &mut Ui, text: &str) {
-    let node = ui.label(text, TEXT_14.w(Size::Grow).h(42.0));
+    let node = ui.label(text, TEXT_14.grow().h_px(42.0));
     let accent = ui.tokens().accent;
     ui.set_look(&node, Look { text: accent, font: Font { size: 14, ..Font::BODY }, ..Look::NONE }, State::default());
 }
@@ -97,12 +96,11 @@ fn row(
         })
     .max(1.0);
     const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap();
-    let label_style = ui.resolve(&DETAIL);
     let detail_height = if detail.is_empty() {
         0.0
     } else {
         ui.text_service()
-            .measure(detail, &label_style, label_width)
+            .measure(detail, &DETAIL, label_width)
             .unwrap()
             .height
     };
@@ -163,7 +161,7 @@ fn row(
                     })
             },
             |ui| {
-                ui.label(title, TEXT_15.w(Size::Grow).h(21.0).color(INK));
+                ui.label(title, TEXT_15.grow().h_px(21.0).color(INK));
                 if !detail.is_empty() {
                     let label = ui.node(
                         "detail".into(),
@@ -317,7 +315,7 @@ pub(super) fn view(
                 ("Removing your data", "Removing a library entry removes its database record; cached audio or artwork may remain. Removing LocalWave’s local app data erases its library and logs. Your original files stay where they are."),
             ] {
                 ui.column(title, Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
-                    ui.label(title, TEXT_18.w(Size::Grow).h(26.0).color(INK));
+                    ui.label(title, TEXT_18.grow().h_px(26.0).color(INK));
                     ui.label(body, PARAGRAPH_14.color(SECONDARY));
                 });
             }

@@ -178,6 +178,7 @@ mod tests {
             &database,
             Preferences::open(Some(&suite)).unwrap(),
             paths(&base),
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let song = worker
@@ -288,6 +289,7 @@ mod tests {
             &database,
             Preferences::open(Some(&suite)).unwrap(),
             paths(&base),
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         assert_eq!(

@@ -250,7 +250,7 @@ fn header_body(
                 let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
                 ui.within(&row, &mut |ui| {
                     ui.label(&group.lead, CAPTION);
-                    ui.label(&group.format, MONO_DIM.w(Size::Grow));
+                    ui.label(&group.format, MONO_DIM.grow());
                 });
             } else {
                 line(
@@ -267,7 +267,7 @@ fn header_body(
                 ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
                     ui.label("Folder:", CAPTION);
                     let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {
-                        ui.label(&target.label, TEXT_13.h(17.2).color(INK));
+                        ui.label(&target.label, TEXT_13.h_px(17.2).color(INK));
                         container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
                     });
                     ui.a11y_name(&link.handle, &target.label);

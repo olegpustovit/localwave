@@ -68,8 +68,8 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
     ui.column("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow), |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
-            ui.label("LocalWave", CAPTION.w(Size::Grow));
-            ui.label("v2", MONO_DIM.w(Size::Px(16.0)));
+            ui.label("LocalWave", CAPTION.grow());
+            ui.label("v2", MONO_DIM.w_px(16.0));
         });
         spacer(ui, "count-gap", 28.0);
         let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
@@ -77,10 +77,10 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         ui.a11y_name(&count, "0 songs so far");
         ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
         spacer(ui, "count-label-gap", 8.0);
-        ui.label("songs so far", LEAD_DIM.w(Size::Grow));
+        ui.label("songs so far", LEAD_DIM.grow());
         spacer(ui, "heading-gap", 28.0);
-        ui.label("Point it at a folder.", TEXT_32.w(Size::Grow).h(36.8).color(INK));
-        ui.label("It stays in sync.", TEXT_32.w(Size::Grow).h(36.8).color(INK));
+        ui.label("Point it at a folder.", TEXT_32.grow().h_px(36.8).color(INK));
+        ui.label("It stays in sync.", TEXT_32.grow().h_px(36.8).color(INK));
         spacer(ui, "promise-gap", 8.0);
         ui.label("Your files stay where they are. Nothing is uploaded.", PARAGRAPH_15.color(SECONDARY));
         spacer(ui, "steps-gap", 28.0);
@@ -92,8 +92,8 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         ] {
             let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), ui.color(PAPER));
             ui.within(&row, &mut |ui| {
-                ui.label(number, TEXT_13.w(Size::Px(26.0)).h(46.0).color(SECONDARY));
-                ui.label(line, TEXT_15.w(Size::Grow).h(46.0).color(INK));
+                ui.label(number, TEXT_13.w_px(26.0).h_px(46.0).color(SECONDARY));
+                ui.label(line, TEXT_15.grow().h_px(46.0).color(INK));
             });
             rule(ui, "step-rule", false);
         }
@@ -157,7 +157,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
                             paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
                         }
                     });
-                    ui.label("Google Drive not in the list?", TEXT_13.w(Size::Grow).h(19.5).color(INK));
+                    ui.label("Google Drive not in the list?", TEXT_13.grow().h_px(19.5).color(INK));
                 });
                 ui.a11y_name(&header.handle, "Google Drive not in the list?");
                 clicked = header.clicked;

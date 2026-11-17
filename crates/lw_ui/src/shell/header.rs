@@ -5,7 +5,7 @@ const FIND: pxui::TextField = pxui::TextField::SEARCH
     .action(pxui::ReturnKey::Done)
     .variant(commands::FIND_FIELD)
     .name("Find songs");
-const HEADING: Label = Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1).w(Size::Grow).h(34.0).whole_pixels().color(INK);
+const HEADING: Label = Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1).grow().h_px(34.0).whole_pixels().color(INK);
 use crate::browse::Query;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
@@ -36,7 +36,7 @@ pub(super) fn header(
     ui.column("library-header", root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
-            ui.label("Search", BODY_DIM.w(Size::Grow));
+            ui.label("Search", BODY_DIM.grow());
         }
         let title = match state.route {
             Route::Find if results => find_summary.map_or("“…”", |summary| summary.title.as_str()),
@@ -95,7 +95,7 @@ pub(super) fn header(
             find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
-        ui.label(if state.query_too_long && state.route == Route::Find { "Search text is too long. Shorten it." } else if state.route == Route::Find && state.query.as_str().trim().is_empty() { "Search titles, artists, albums or add a filter" } else if state.route == Route::Find && collection.is_none() { "Searching…" } else if state.route == Route::Find { catalog .view .as_ref() .and_then(|view| view.find.as_ref()) .map_or("Searching…", |summary| summary.summary.as_str()) } else if state.route == Route::Songs { "Click a header to sort. Double-click or Return plays." } else if state.route == Route::Artists { "Sorted ignoring “The”" } else if state.route == Route::Albums { &catalog.library_subtitle } else { collection.map_or("Browse your library", |group| group.subtitle.as_str()) }, BODY_DIM.w(Size::Grow));
+        ui.label(if state.query_too_long && state.route == Route::Find { "Search text is too long. Shorten it." } else if state.route == Route::Find && state.query.as_str().trim().is_empty() { "Search titles, artists, albums or add a filter" } else if state.route == Route::Find && collection.is_none() { "Searching…" } else if state.route == Route::Find { catalog .view .as_ref() .and_then(|view| view.find.as_ref()) .map_or("Searching…", |summary| summary.summary.as_str()) } else if state.route == Route::Songs { "Click a header to sort. Double-click or Return plays." } else if state.route == Route::Artists { "Sorted ignoring “The”" } else if state.route == Route::Albums { &catalog.library_subtitle } else { collection.map_or("Browse your library", |group| group.subtitle.as_str()) }, BODY_DIM.grow());
         spacer(ui, "heading-bottom-gap", 18.0);
         if state.route == Route::Albums {
             albums::toolbar(ui, catalog, state, intent);
@@ -163,7 +163,7 @@ pub(super) fn compact_find(
                 ..Node::column().w(Size::Grow).h(Size::Fit)
             },
             |ui| {
-                ui.label("Find", TEXT_13.w(Size::Grow).h(21.0).color(SECONDARY));
+                ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
                 ui.view(
                     "find-query",
                     state.query_revision,
@@ -256,10 +256,9 @@ fn hint(ui: &mut Ui, width: f32) {
     };
     let spans = [bold("flac"), bold("cloud")];
     const HINT: Label = Label::BODY.line_height(19.6).wrap();
-    let style = ui.resolve(&HINT);
     let height = ui
         .text_service()
-        .measure_spans(TEXT, &style, width, &spans)
+        .measure_spans(TEXT, &HINT, width, &spans)
         .map_or(19.6, |m| m.height.max(19.6));
     let node = ui.node(
         "hint".into(),

@@ -280,6 +280,7 @@ mod tests {
                 temporary: base.join("tmp"),
                 test_database: None,
             },
+            crate::library::headless_table_styles(),
         )
         .unwrap();
         let identity = lw_apple_sys::cloud::current_identity()

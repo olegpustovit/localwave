@@ -60,16 +60,10 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             kept,
         ),
     };
-    let style = pxui::TextStyle {
-        size_points: 13.0,
-        line_height: 18.2,
-        max_lines: 1,
-        ellipsis: pxui::TextStyle::ELLIPSIS_END,
-        ..Default::default()
-    };
+    const TOOL_LABEL: pxui::Label = pxui::Label::BODY.size(13.0).line_height(18.2).lines(1).ellipsis();
     let density = ui.density() as f32;
     let label_width =
-        (ui.text_service().width(label, &style, 0.0).unwrap() * density).ceil() / density;
+        (ui.text_service().width(label, &TOOL_LABEL, 0.0).unwrap() * density).ceil() / density;
     let theme = looks(ui);
     let width = 20.0 + icon_size + 6.0 + label_width;
     let tool = pxui::Button::sized(width, 30.0).look(if selected { &theme.selected } else { &theme.paper }).enabled(enabled).name(label);
@@ -90,7 +84,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
                         Action::Shuffle => crate::icons::shuffle(paint, rect, color),
                         Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
                     });
-                    ui.label(label, TEXT_13.w(Size::Px(label_width)).color(if selected { INK } else { SECONDARY }).role(Role::Unknown));
+                    ui.label(label, TEXT_13.w_px(label_width).color(if selected { INK } else { SECONDARY }).role(Role::Unknown));
                 });
             });
         });
@@ -167,7 +161,7 @@ mod tests {
         normal.project(request, vec![0, 1, 2]);
         let mut kept = base.clone();
         kept.prepare_pins(&mut |_| true);
-        kept.prepare_tables().unwrap();
+        kept.prepare_tables(&crate::test_table_styles()).unwrap();
         kept.project(request, vec![0, 1, 2]);
         let mut blocked = normal.clone();
         std::sync::Arc::make_mut(blocked.view.as_mut().unwrap())

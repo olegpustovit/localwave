@@ -181,9 +181,12 @@ impl Prewarm {
     }
 }
 
-const NUMBER: pxui::Label = pxui::Label::MONO.size(13.0).line_height(18.2).wrap_spaces();
-const MONO_CELL: pxui::Label = pxui::Label::BODY.font(1).size(12.0).line_height(16.8).wrap_spaces();
-const CELL: pxui::Label = pxui::Label::BODY.line_height(19.6).weight(400).lines(1).ellipsis();
+const NUMBER_LINE: f32 = 18.2;
+const MONO_LINE: f32 = 16.8;
+const CELL_LINE: f32 = 19.6;
+const NUMBER: pxui::Label = pxui::Label::MONO.size(13.0).line_height(NUMBER_LINE).wrap_spaces();
+const MONO_CELL: pxui::Label = pxui::Label::BODY.font(1).size(12.0).line_height(MONO_LINE).wrap_spaces();
+const CELL: pxui::Label = pxui::Label::BODY.line_height(CELL_LINE).weight(400).lines(1).ellipsis();
 const CURRENT_CELL: pxui::Label = CELL.weight(500);
 
 /// The authoring style of a song cell: drawn by the table and requested ahead by `Prewarm`.
@@ -193,6 +196,14 @@ pub(crate) fn body_label(column: Column, current: bool) -> pxui::Label {
         Column::Format | Column::Time => MONO_CELL,
         _ if current => CURRENT_CELL,
         _ => CELL,
+    }
+}
+/// The height of a song cell's lines in points: its `body_label`'s line height.
+pub(crate) const fn body_line_height(column: Column) -> f32 {
+    match column {
+        Column::Number => NUMBER_LINE,
+        Column::Format | Column::Time => MONO_LINE,
+        _ => CELL_LINE,
     }
 }
 pub(crate) fn body_value<'a>(
@@ -238,10 +249,10 @@ mod resolve_tests {
             (Label::BODY.size(26.0).tracking(-0.02), 26.0, -0.52),
         ] {
             let resolved = ui.resolve(&label);
-            assert_eq!((resolved.size_points, resolved.tracking.to_bits()), (size, points.to_bits()), "{size} pt: {} not {points}", resolved.tracking);
+            assert_eq!((resolved.size(), resolved.tracking().to_bits()), (size, points.to_bits()), "{size} pt: {} not {points}", resolved.tracking());
         }
         // -0.2 points at 20 has no em whose product is that f32: -0.01 em resolves one f32 step from it
-        let add_music = ui.resolve(&Label::BODY.size(20.0).tracking(-0.01)).tracking;
+        let add_music = ui.resolve(&Label::BODY.size(20.0).tracking(-0.01)).tracking();
         assert_eq!(add_music.to_bits().abs_diff((-0.2f32).to_bits()), 1, "{add_music}");
     }
 }

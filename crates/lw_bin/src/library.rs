@@ -29,6 +29,12 @@ struct Root {
     access: Access,
 }
 
+/// Table styles resolved on a headless `Ui` (no window): for tests and tools that open a `LibraryWorker` without the app's `Ui`.
+/// The app resolves them on its own `Ui` (`TableStyles::resolve`) before opening its workers.
+pub fn headless_table_styles() -> lw_ui::catalog::TableStyles {
+    lw_ui::catalog::TableStyles::resolve(&pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]))
+}
+
 /// Construct on the worker: SQLite, defaults and security-scoped grants stay on that thread.
 pub struct LibraryWorker {
     pub repository: LibraryRepository,
@@ -42,6 +48,8 @@ pub struct LibraryWorker {
     playback_file_changes: bool,
     /// Reference fixtures only (Swift's DEBUG `LOCALWAVE_REFERENCE_FIXTURE` shortcut): seeded rows have no files.
     pub trust_stored_availability: bool,
+    /// The table text styles, resolved on the UI thread before the worker opened (`TableStyles::resolve`).
+    table_styles: lw_ui::catalog::TableStyles,
 }
 
 fn db(error: lw_sqlite::Error) -> io::Error {
@@ -68,7 +76,7 @@ fn check(cancelled: &AtomicBool) -> io::Result<()> {
 }
 
 impl LibraryWorker {
-    pub fn current() -> io::Result<Self> {
+    pub fn current(table_styles: lw_ui::catalog::TableStyles) -> io::Result<Self> {
         let paths = AppPaths::load()?;
         std::fs::create_dir_all(&paths.documents)?;
         let database = if cfg!(debug_assertions) {
@@ -77,7 +85,7 @@ impl LibraryWorker {
             None
         }
         .unwrap_or_else(|| paths.documents.join("musicApp29.sqlite"));
-        Self::open(&database, Preferences::current()?, paths)
+        Self::open(&database, Preferences::current()?, paths, table_styles)
     }
     pub fn import_paths(
         &mut self,
@@ -102,7 +110,7 @@ impl LibraryWorker {
             .import_paths(selected, &mut files, cancelled, now, progress)
     }
 
-    pub fn open(database: &Path, preferences: Preferences, paths: AppPaths) -> io::Result<Self> {
+    pub fn open(database: &Path, preferences: Preferences, paths: AppPaths, table_styles: lw_ui::catalog::TableStyles) -> io::Result<Self> {
         lw_apple_sys::require_worker_thread()?;
         if !database.is_absolute() {
             return Err(io::Error::other("Library database path must be absolute"));
@@ -123,6 +131,7 @@ impl LibraryWorker {
             active_playback: None,
             playback_file_changes: false,
             trust_stored_availability: false,
+            table_styles,
         })
     }
 
@@ -315,7 +324,7 @@ mod tests {
             )
             .unwrap();
         let mut worker =
-            LibraryWorker::open(&base.join("library.sqlite"), preferences, paths).unwrap();
+            LibraryWorker::open(&base.join("library.sqlite"), preferences, paths, crate::library::headless_table_styles()).unwrap();
         let user = worker.repository.get_or_create_user(1).unwrap();
         let source = worker
             .repository
