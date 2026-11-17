@@ -137,6 +137,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
 | DX-BUG1 | Bugs found by the docs work: Images::insert mapping, a11y_value char boundaries, paint text layout-top placement, hex_exn twin | done | 5edae64 + pxui f51852f |
 | OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | HEAD + pxui 84752ba |
+| OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | HEAD + pxui 93c7d20 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
