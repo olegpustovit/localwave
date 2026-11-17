@@ -107,7 +107,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.8 | dialog_with | done | eb713db + pxui d45155b |
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX3.10 | Label, Button and IconButton style values express LocalWave helpers (found by DX4.2–4.4) | done | 2a97383 + pxui 76d9c7d |
-| DX3.11 | Menu, Toggle, Segmented and Dialog carry what app bodies need (found by DX4.5–4.7) | todo |  |
+| DX3.11 | Menu, Toggle, Segmented and Dialog carry what app bodies need (found by DX4.5–4.7) | done | HEAD + pxui 95df44c |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
@@ -131,7 +131,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
 | DX6.0a | Doctests really run (rays-t ran none) and run split by module | done | 5123918 + pxui 6662f51 |
-| DX6.0b | Fix the 13 doctest examples that never ran | done | HEAD + pxui 369fe6c |
+| DX6.0b | Fix the 13 doctest examples that never ran | done | ff1a73f + pxui 369fe6c |
 | DX6.4 | Docs: model and frame | todo |  |
 | DX6.5 | Docs: nodes and state | todo |  |
 | DX6.6 | Docs: views, overlays, animation | todo |  |
