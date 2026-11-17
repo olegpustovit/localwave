@@ -55,7 +55,7 @@ fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
     let link = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE).name(label);
     ui.button_content(key, &link, |ui, _| {
         ui.column("link", Node::column().w(Size::Fit).h(Size::Fit), |ui| {
-            ui.label(label, TEXT_15.h(21.0).color(INK));
+            ui.label(label, LEAD_INK);
             rule(ui, "underline", false);
         });
     })
@@ -68,8 +68,8 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
     ui.column("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow), |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
-            ui.label("LocalWave", TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
-            ui.label("v2", MONO_12.w(Size::Px(16.0)).h(16.8).color(SECONDARY));
+            ui.label("LocalWave", CAPTION.w(Size::Grow));
+            ui.label("v2", MONO_DIM.w(Size::Px(16.0)));
         });
         spacer(ui, "count-gap", 28.0);
         let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
@@ -77,7 +77,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         ui.a11y_name(&count, "0 songs so far");
         ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
         spacer(ui, "count-label-gap", 8.0);
-        ui.label("songs so far", TEXT_15.w(Size::Grow).h(21.0).color(SECONDARY));
+        ui.label("songs so far", LEAD_DIM.w(Size::Grow));
         spacer(ui, "heading-gap", 28.0);
         ui.label("Point it at a folder.", TEXT_32.w(Size::Grow).h(36.8).color(INK));
         ui.label("It stays in sync.", TEXT_32.w(Size::Grow).h(36.8).color(INK));
@@ -103,7 +103,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         let look = Look { fill: ui.color(INK), ..Look::NONE };
         let node = Node::row().w(Size::Grow).h_px(52.0).center().role(Role::Button);
         let choose = ui.pressable("choose-folder", node, &look, |ui| {
-            ui.label("Choose a folder", TEXT_15.h(21.0).color(PAPER));
+            ui.label("Choose a folder", TEXT_15.color(PAPER));
         });
         ui.a11y_name(&choose.handle, "Choose a folder");
         if choose.clicked {

@@ -210,7 +210,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 let mut digits = [0u8; 24];
                 let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
                 ui.row("track", Node { justify: Justify::End, ..Node::row().w_px(22.0).h_px(18.2) }, |ui| {
-                    ui.label(digits, MONO_13.h(18.2).color(SECONDARY));
+                    ui.label(digits, MONO_13.color(SECONDARY));
                 });
             } else {
                 artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
@@ -261,7 +261,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                     );
                 });
             }
-            ui.label(row.duration, MONO_12.h(16.8).color(SECONDARY));
+            ui.label(row.duration, MONO_DIM);
             if more_button(ui, row.actions_label) {
                 let rect = ui.rect(&node);
                 *intent = Some(Intent::SongMenu(
@@ -368,7 +368,7 @@ fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f
     let action = pxui::Button::DEFAULT.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow).centered();
     let action = action.look(if armed { &theme.ink } else { &theme.panel }).name(label);
     ui.button_content(key, &action, |ui, _| {
-        ui.label(label, TEXT_13.h(18.2).color(if armed { PAPER } else { SECONDARY }));
+        ui.label(label, TEXT_13.color(if armed { PAPER } else { SECONDARY }));
     })
     .clicked
 }
@@ -658,7 +658,7 @@ fn back_row(
                     let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
                     ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-                    ui.label(label, TEXT_15.h(21.0).color(SECONDARY));
+                    ui.label(label, LEAD_DIM);
                 });
             });
             if back.clicked {
@@ -714,8 +714,9 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
         .then(|| !cx.collection.rows.is_empty() && cx.collection.rows.iter().all(|&row| cx.catalog.row(row).pinned))
 }
 pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
+    let theme = looks(ui);
     let label = if kept { "Kept offline" } else { "Keep offline" };
-    let key = PLAY_KEY.look(&looks(ui).panel).name(label);
+    let key = PLAY_KEY.look(&theme.panel).name(label);
     ui.button_content("keep-offline", &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
@@ -723,7 +724,7 @@ pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
             ui.draw(&glyph, move |paint, rect| {
                 crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
             });
-            ui.label(label, TEXT_15.h(21.0).color(INK));
+            ui.label(label, LEAD_INK);
         });
     })
     .clicked
@@ -775,7 +776,7 @@ pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectabl
         }
         container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
         let mut buffer = [0u8; 40];
-        ui.label(selected_label(&mut buffer, selected), TEXT_15.h(21.0).color(INK));
+        ui.label(selected_label(&mut buffer, selected), LEAD_INK);
         container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
         if word(ui, "done", "Done", true) {
             *intent = Some(Intent::SelectMode(false));
@@ -796,7 +797,7 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool) -> bool {
     let word = WORD.name(label);
     ui.button_content(key, &word, |ui, _| {
-        ui.label(label, TEXT_16.h(22.4).color(INK));
+        ui.label(label, TEXT_16.color(INK));
     })
     .clicked
 }
@@ -859,7 +860,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                         "offline" => crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, false, ink),
                         _ => kit::paint_icon(paint, glyph, rect.x, rect.y, ink),
                     });
-                    ui.label(label, TEXT_12.h(16.8).color(tone));
+                    ui.label(label, TEXT_12.color(tone));
                 });
                 ui.a11y_name(&node, label);
                 if enabled && ui.signal(&node).clicked {
@@ -921,7 +922,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
                     }
-                    ui.label(&collection.summary, MONO_13.w(Size::Grow).h(18.2).color(SECONDARY));
+                    ui.label(&collection.summary, MONO_13.w(Size::Grow).color(SECONDARY));
                 });
             });
             spacer(ui, "keys-gap", 16.0);
@@ -966,7 +967,7 @@ pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, 
             ui.draw(&glyph, move |paint, rect| {
                 kit::paint_icon(paint, icon, rect.x, rect.y, color)
             });
-            ui.label(label, TEXT_15.h(21.0).color(tone));
+            ui.label(label, TEXT_15.color(tone));
         });
     })
     .clicked

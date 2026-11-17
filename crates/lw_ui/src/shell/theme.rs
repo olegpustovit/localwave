@@ -3,9 +3,11 @@
 //! and the colour token.
 use super::*;
 
-/// One line of `points` text in the UI face: lines 1.4 times the size, end ellipsis, a whole-pixel fitted width.
+/// Swift's line height: 1.4 times the size, the one place the factor is written.
+const LINE: f64 = 1.4;
+/// One line of `points` text in the UI face: a line box 1.4 times the size high, end ellipsis, a whole-pixel fitted width.
 pub(super) const fn line_style(points: f32) -> Label {
-    Label::BODY.size(points).line_height(points * 1.4).lines(1).ellipsis().whole_pixels()
+    Label::BODY.size(points).line_height(points * 1.4).h((points as f64 * LINE) as f32).lines(1).ellipsis().whole_pixels()
 }
 /// Running text at `points` filling its parent's width: word wrapped, lines 1.4 times the size, read as a paragraph.
 const fn paragraph_style(points: f32) -> Label {
@@ -32,6 +34,20 @@ pub(super) const TEXT_24: Label = line_style(24.0);
 pub(super) const TEXT_28: Label = line_style(28.0);
 pub(super) const TEXT_32: Label = line_style(32.0);
 pub(super) const TEXT_34: Label = line_style(34.0);
+/// Secondary 13-point text: counts, captions, helper copy.
+pub(super) const CAPTION: Label = TEXT_13.color(SECONDARY);
+/// Secondary 12-point text.
+pub(super) const FOOTNOTE: Label = TEXT_12.color(SECONDARY);
+/// Secondary 14-point text.
+pub(super) const BODY_DIM: Label = TEXT_14.color(SECONDARY);
+/// Ink 14-point text.
+pub(super) const BODY_INK: Label = TEXT_14.color(INK);
+/// Ink 15-point text.
+pub(super) const LEAD_INK: Label = TEXT_15.color(INK);
+/// Secondary 15-point text.
+pub(super) const LEAD_DIM: Label = TEXT_15.color(SECONDARY);
+/// Secondary 12-point mono text.
+pub(super) const MONO_DIM: Label = MONO_12.color(SECONDARY);
 
 /// LocalWave's resolved button looks for one appearance: `looks(ui)` picks the light or dark set, so a theme change selects the
 /// other set and nothing is resolved per frame.
@@ -106,4 +122,9 @@ pub(super) fn looks(ui: &Ui) -> &'static Looks {
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton {
     pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)
 }
+/// The icon key sizes LocalWave repeats: 28, 36 and 44 points square, and 44 by 40.
+pub(super) const ICON_28: pxui::IconButton = icon_key(28.0, 28.0);
+pub(super) const ICON_36: pxui::IconButton = icon_key(36.0, 36.0);
+pub(super) const ICON_44: pxui::IconButton = icon_key(44.0, 44.0);
+pub(super) const ICON_44X40: pxui::IconButton = icon_key(44.0, 40.0);
 const PRESS: [pxui::theme::Curve; 2] = [crate::motion::spring(crate::motion::INSTANT), crate::motion::spring(crate::motion::BASE)];

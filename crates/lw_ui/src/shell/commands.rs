@@ -312,7 +312,7 @@ pub(super) fn palette_view(
                                 ..Node::column().w(Size::Grow).h(Size::Fit)
                             },
                             |ui| {
-                                ui.label(item.group, TEXT_12.w(Size::Grow).h(16.8).color(SECONDARY));
+                                ui.label(item.group, FOOTNOTE.w(Size::Grow));
                             },
                         );
                     }
@@ -444,9 +444,9 @@ fn result_row(
                 }
             });
         }
-        ui.label(&item.label, TEXT_14.w(Size::Grow).h(19.6).color(INK));
+        ui.label(&item.label, BODY_INK.w(Size::Grow));
         if !item.hint.is_empty() {
-            ui.label(&item.hint, TEXT_13.h(18.2).color(SECONDARY));
+            ui.label(&item.hint, CAPTION);
         }
     });
 }
@@ -494,7 +494,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
             ui.scroll_view("shortcuts", Size::Grow, Size::Grow, &mut |ui| {
                 let body = ui.node("body".into(), Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
-                    ui.label("Keyboard", TEXT_18.w(Size::Grow).h(25.2).color(INK));
+                    ui.label("Keyboard", TEXT_18.w(Size::Grow).color(INK));
                     ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node(
@@ -514,7 +514,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                                 );
                                 ui.text_line_box(&node, label, &KEY_LABEL, &[]).unwrap();
                                 ui.box_("fill", BoxOpts::default().w(Size::Grow));
-                                ui.label(key, MONO_12.h(16.8).color(SECONDARY));
+                                ui.label(key, MONO_DIM);
                             });
                         }
                     });

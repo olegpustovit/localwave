@@ -12,6 +12,7 @@ pub(super) fn header(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
+    let theme = looks(ui);
     let collection = state.collection(catalog);
     // Swift's desktop results page: "Search", “query”, "N songs · M albums · F folders", no field.
     let results = state.route == Route::Find && state.find_results;
@@ -30,7 +31,7 @@ pub(super) fn header(
     ui.column("library-header", root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
-            ui.label("Search", TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
+            ui.label("Search", BODY_DIM.w(Size::Grow));
         }
         let title = match state.route {
             Route::Find if results => find_summary.map_or("“…”", |summary| summary.title.as_str()),
@@ -51,7 +52,7 @@ pub(super) fn header(
             ui.label(title, HEADING);
             if !results
                 && !matches!(state.route, Route::Albums | Route::Artists)
-                && ui.icon_button("refresh", icon_drawing(Icon::Refresh), "Refresh library", &icon_key(36.0, 36.0).look(&looks(ui).icon_plate)).clicked
+                && ui.icon_button("refresh", icon_drawing(Icon::Refresh), "Refresh library", &ICON_36.look(&theme.icon_plate)).clicked
             {
                 *intent = Some(Intent::RefreshLibrary);
             }
@@ -81,7 +82,7 @@ pub(super) fn header(
                                 );
                             }
                         });
-                        if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &icon_key(36.0, 36.0).look(&looks(ui).icon_plate)).clicked {
+                        if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_36.look(&theme.icon_plate)).clicked {
                             *intent = Some(Intent::Search(Query::default()));
                         }
                     });
@@ -90,7 +91,7 @@ pub(super) fn header(
             find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
-        ui.label(if state.query_too_long && state.route == Route::Find { "Search text is too long. Shorten it." } else if state.route == Route::Find && state.query.as_str().trim().is_empty() { "Search titles, artists, albums or add a filter" } else if state.route == Route::Find && collection.is_none() { "Searching…" } else if state.route == Route::Find { catalog .view .as_ref() .and_then(|view| view.find.as_ref()) .map_or("Searching…", |summary| summary.summary.as_str()) } else if state.route == Route::Songs { "Click a header to sort. Double-click or Return plays." } else if state.route == Route::Artists { "Sorted ignoring “The”" } else if state.route == Route::Albums { &catalog.library_subtitle } else { collection.map_or("Browse your library", |group| group.subtitle.as_str()) }, TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
+        ui.label(if state.query_too_long && state.route == Route::Find { "Search text is too long. Shorten it." } else if state.route == Route::Find && state.query.as_str().trim().is_empty() { "Search titles, artists, albums or add a filter" } else if state.route == Route::Find && collection.is_none() { "Searching…" } else if state.route == Route::Find { catalog .view .as_ref() .and_then(|view| view.find.as_ref()) .map_or("Searching…", |summary| summary.summary.as_str()) } else if state.route == Route::Songs { "Click a header to sort. Double-click or Return plays." } else if state.route == Route::Artists { "Sorted ignoring “The”" } else if state.route == Route::Albums { &catalog.library_subtitle } else { collection.map_or("Browse your library", |group| group.subtitle.as_str()) }, BODY_DIM.w(Size::Grow));
         spacer(ui, "heading-bottom-gap", 18.0);
         if state.route == Route::Albums {
             albums::toolbar(ui, catalog, state, intent);
@@ -128,6 +129,7 @@ pub(super) fn compact_find(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
+    let keys = looks(ui);
     let revision = crate::hash((
         state.revision,
         (state.selecting, state.selection_revision),
@@ -198,7 +200,7 @@ pub(super) fn compact_find(
                             };
                             ui.column("clear-slot", clear, |ui| {
                                 // Swift's clear glyph has no resting plate.
-                                if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &icon_key(44.0, 44.0).look(&looks(ui).icon)).clicked {
+                                if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_44.look(&keys.icon)).clicked {
                                     *intent = Some(Intent::Search(Query::default()));
                                 }
                             });

@@ -3,8 +3,6 @@ lw_ui/src/shell/artists.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
 lw_ui/src/shell/byline.rs	R2	.flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
 lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
 lw_ui/src/shell/compact.rs	R2	..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
-lw_ui/src/shell/compact.rs	R4	if ui.button_content(title, &tab, |ui, _| { ui.label(title, TEXT_14.h(19.6).color(INK)); }).clicked {
-lw_ui/src/shell/compact.rs	R4	ui.button_content(label, &tab, |ui, _| {
 lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP)
 lw_ui/src/shell/compact/list.rs	R2	.flags(Flags::CLICKABLE)
 lw_ui/src/shell/compact/list.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
@@ -25,7 +23,7 @@ lw_ui/src/shell/files.rs	R2	let node = ui.node(id.into(), Node { look: Look { fi
 lw_ui/src/shell/files.rs	R2	let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
 lw_ui/src/shell/files.rs	R2	let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
 lw_ui/src/shell/files.rs	R2	let show = ui.node("show".into(), Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let tab = ui.node(label.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let tab = ui.node(key.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/lists.rs	R2	.flags(if present { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
 lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
 lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),

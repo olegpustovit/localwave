@@ -28,7 +28,7 @@ pub(super) fn toolbar(
             };
             let node = Node::column().w(Size::Fit).h_px(30.0).pad_x(10.0).center().role(Role::Button);
             let button = ui.pressable(key, node, &look, |ui| {
-                ui.label(title, TEXT_13.h(18.2).color(if selected { INK } else { SECONDARY }));
+                ui.label(title, TEXT_13.color(if selected { INK } else { SECONDARY }));
             });
             ui.a11y_name(&button.handle, title);
             ui.set_role(
@@ -86,7 +86,7 @@ pub(super) fn toolbar(
             ui.draw(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
-            ui.label("Shuffle all", TEXT_13.h(18.2).color(SECONDARY));
+            ui.label("Shuffle all", CAPTION);
         });
         if ui.signal(&button).clicked {
             *intent = Some(Intent::ShuffleAll);
@@ -194,7 +194,7 @@ pub(super) fn gallery(
                                             spacer(ui, "artwork-label-gap", 8.0);
 
                                             ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).w(Size::Grow).h(17.5).color(INK));
-                                            ui.label(&group.subtitle, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
+                                            ui.label(&group.subtitle, CAPTION.w(Size::Grow));
                                         });
                                         ui.a11y_name(&card.handle, &group.title);
                                         if card.clicked {

@@ -16,14 +16,14 @@ pub(super) const BREAKPOINT: f32 = 620.0;
 const TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered();
 
 /// Swift's library mode: label and count, ink with a 2 pt underline when active.
-fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool {
+fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, active: bool) -> bool {
     let ink = if active { INK } else { SECONDARY };
     let tab = MODE_TAB.selected(active).name(label);
-    ui.button_content(label, &tab, |ui, _| {
+    ui.button_content(key, &tab, |ui, _| {
         ui.column("tab", Node::column().w(Size::Fit).h(Size::Grow), |ui| {
             ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
-                ui.label(label, TEXT_15.h(21.0).color(ink));
-                ui.label(count, TEXT_13.h(18.2).color(SECONDARY));
+                ui.label(label, TEXT_15.color(ink));
+                ui.label(count, CAPTION);
             });
             container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
         });
@@ -201,7 +201,7 @@ pub(super) fn view(
                             |ui| {
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
                                 clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
-                                ui.label("songs", TEXT_15.h(21.0).color(INK));
+                                ui.label("songs", LEAD_INK);
                                 container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
                                 ui.column("library-size", Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
                                     ui.label(&catalog.totals_label, TEXT_13.h(19.5).color(SECONDARY));
@@ -216,18 +216,18 @@ pub(super) fn view(
                         ui.set_role(&tabs, Role::Group, 0);
                         ui.a11y_name(&tabs, "Library view");
                         ui.within(&tabs, &mut |ui| {
-                            for (label, count, route) in [
-                                ("Albums", &catalog.album_count, Route::Albums),
-                                ("Artists", &catalog.artist_count, Route::Artists),
-                                ("Songs", &catalog.song_count, Route::Songs),
+                            for (key, label, count, route) in [
+                                ("mode-albums", "Albums", &catalog.album_count, Route::Albums),
+                                ("mode-artists", "Artists", &catalog.artist_count, Route::Artists),
+                                ("mode-songs", "Songs", &catalog.song_count, Route::Songs),
                             ] {
-                                if mode_tab(ui, label, count, state.route == route) {
+                                if mode_tab(ui, key, label, count, state.route == route) {
                                     *intent = Some(Intent::Navigate(route));
                                 }
                             }
                             if state.route == Route::Songs {
                                 container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-                                ui.label("Title \u{2193}", TEXT_14.h(19.6).color(INK));
+                                ui.label("Title \u{2193}", BODY_INK);
                                 if !state.selecting
                                     && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
                                     && list::word(ui, "select", "Select", false)
@@ -317,11 +317,11 @@ pub(super) fn view(
                 Route::Find => 3,
                 _ => 0,
             };
-            for (index, (title, route)) in [
-                ("Library", Route::Albums),
-                ("Folders", Route::Files),
-                ("Lists", Route::Lists),
-                ("Find", Route::Find),
+            for (index, (key, title, route)) in [
+                ("tab-library", "Library", Route::Albums),
+                ("tab-folders", "Folders", Route::Files),
+                ("tab-lists", "Lists", Route::Lists),
+                ("tab-find", "Find", Route::Find),
             ]
             .into_iter()
             .enumerate()
@@ -329,7 +329,11 @@ pub(super) fn view(
                 let current = !state.settings_visible && selected == index;
                 let theme = looks(ui);
                 let tab = TAB.look(if current { &theme.tab_on } else { &theme.tab }).selected(current).name(title);
-                if ui.button_content(title, &tab, |ui, _| { ui.label(title, TEXT_14.h(19.6).color(INK)); }).clicked {
+                if ui.button_content(key, &tab, |ui, _| {
+                    ui.label(title, BODY_INK);
+                })
+                .clicked
+                {
                     *intent = Some(Intent::Navigate(route));
                 }
             }
@@ -344,6 +348,7 @@ fn mini(
     catalog: &Catalog,
     intent: &mut Option<Intent>,
 ) {
+    let theme = looks(ui);
     ui.row(
         "mini-player",
         Node {
@@ -384,7 +389,7 @@ fn mini(
                 *intent = Some(Intent::TogglePlayer);
             }
             play(ui, player, (44.0, 44.0), intent);
-            if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(44.0, 44.0).look(&looks(ui).icon_plate)).clicked {
+            if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &ICON_44.look(&theme.icon_plate)).clicked {
                 *intent = Some(Intent::Next);
             }
         },
@@ -392,7 +397,13 @@ fn mini(
 }
 
 fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Option<Intent>) {
-    if ui.icon_button("play", icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }), if player.playing { "Pause" } else { "Play" }, &icon_key(size.0, size.1).look(&looks(ui).icon_inverse)).clicked {
+    let theme = looks(ui);
+    if ui.icon_button(
+        "play",
+        icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }),
+        if player.playing { "Pause" } else { "Play" },
+        &icon_key(size.0, size.1).look(&theme.icon_inverse),
+    ).clicked {
         *intent = Some(if player.playing {
             Intent::Pause
         } else {
@@ -491,6 +502,7 @@ fn expanded(
     generation: u64,
     intent: &mut Option<Intent>,
 ) {
+    let theme = looks(ui);
     use lw_core::queue::RepeatMode;
     let root_node = Node {
         look: Look {
@@ -532,13 +544,13 @@ fn expanded(
         ui.row("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
-                if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &icon_key(44.0, 44.0).look(&looks(ui).icon_plate)).clicked {
+                if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&theme.icon_plate)).clicked {
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
             ui.row("playing-from", Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
-                ui.label("Playing from", TEXT_13.h(18.2).color(SECONDARY));
-                ui.label(player.context, TEXT_13.h(18.2).color(INK));
+                ui.label("Playing from", CAPTION);
+                ui.label(player.context, TEXT_13.color(INK));
             });
             container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
         });
@@ -606,7 +618,7 @@ fn expanded(
                         },
                         |ui| {
                             if let Some(info) = player.info {
-                                ui.label(&info.summary, MONO_12.h(16.8).color(SECONDARY));
+                                ui.label(&info.summary, MONO_DIM);
                             }
                             small_clock(
                                 ui,
@@ -645,7 +657,7 @@ fn expanded(
                             player.shuffled,
                             |ui| {
                                 let c = if player.shuffled { PAPER } else { INK };
-                                ui.label("Shuffle", TEXT_14.h(19.6).color(c));
+                                ui.label("Shuffle", TEXT_14.color(c));
                             },
                         ) {
                             *intent = Some(Intent::Shuffle);
@@ -664,15 +676,15 @@ fn expanded(
                             |ui| {
                                 let c = if again { PAPER } else { INK };
                                 let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
-                                ui.label(label, TEXT_14.h(19.6).color(c));
+                                ui.label(label, TEXT_14.color(c));
                             },
                         ) {
                             *intent = Some(Intent::Repeat);
                         }
                         if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
                             let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                            ui.label(count, MONO_11.h(15.4).color(INK));
-                            ui.label("up next", TEXT_14.h(19.6).color(INK));
+                            ui.label(count, MONO_11.color(INK));
+                            ui.label("up next", BODY_INK);
                         }) {
                             *intent = Some(Intent::ShowQueue);
                         }
@@ -693,11 +705,11 @@ fn expanded(
             },
             |ui| {
                 let key = ((size.0 - 8.0) / 3.0).max(1.0);
-                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&looks(ui).icon_plate)).clicked {
+                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&theme.icon_plate)).clicked {
                     *intent = Some(Intent::Previous);
                 }
                 play(ui, player, (key, 84.0), intent);
-                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&looks(ui).icon_plate)).clicked {
+                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&theme.icon_plate)).clicked {
                     *intent = Some(Intent::Next);
                 }
             },

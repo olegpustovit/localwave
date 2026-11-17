@@ -75,6 +75,7 @@ pub(super) fn queue_sheet(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
+    let theme = looks(ui);
     let content = ui.content_rect();
     let queue = catalog.queue.as_deref();
     let upcoming = queue.map_or(0, |queue| queue.upcoming().len());
@@ -180,7 +181,7 @@ pub(super) fn queue_sheet(
                             *intent = Some(Intent::NamePlaylist);
                         }
                         ui.within(&titles, &mut |ui| {
-                            ui.label("Queue", TEXT_20.w(Size::Grow).h(28.0).color(INK));
+                            ui.label("Queue", TEXT_20.w(Size::Grow).color(INK));
                             let from = container(
                                 ui,
                                 "queue-from",
@@ -190,14 +191,14 @@ pub(super) fn queue_sheet(
                                 ui.color(PAPER),
                             );
                             ui.within(&from, &mut |ui| {
-                                ui.label("From ", TEXT_13.h(18.2).color(SECONDARY));
-                                ui.label(player.context, TEXT_13.h(18.2).color(SECONDARY));
+                                ui.label("From ", CAPTION);
+                                ui.label(player.context, CAPTION);
                                 if player.shuffled {
-                                    ui.label(" · shuffled", TEXT_13.h(18.2).color(SECONDARY));
+                                    ui.label(" · shuffled", CAPTION);
                                 }
                             });
                         });
-                        if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &icon_key(44.0, 44.0).look(&looks(ui).icon_plate)).clicked {
+                        if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &ICON_44.look(&theme.icon_plate)).clicked {
                             *intent = Some(Intent::CloseQueue);
                         }
                     },
@@ -279,7 +280,7 @@ pub(super) fn queue_sheet(
                         ..Node::row().w(Size::Grow).h_px(46.2).gap(4.0)
                     },
                     |ui| {
-                        ui.label("Up next", TEXT_13.h(18.2).color(SECONDARY));
+                        ui.label("Up next", CAPTION);
                         ui.label(queue.map_or("0", |queue| queue.count.as_str()), MONO_12.h(18.2).color(SECONDARY));
                     },
                 );
@@ -330,7 +331,7 @@ pub(super) fn queue_sheet(
                         ..Node::row().w(Size::Grow).h_px(52.0).align(Align::Center).role(Role::Button)
                     };
                     let clear = ui.pressable("clear", node, &Look::NONE, |ui| {
-                        ui.label("Clear up next", TEXT_16.w(Size::Grow).h(22.4).color(SECONDARY));
+                        ui.label("Clear up next", TEXT_16.w(Size::Grow).color(SECONDARY));
                     });
                     ui.a11y_name(&clear.handle, "Clear up next");
                     if clear.clicked {
@@ -376,11 +377,11 @@ fn now_row(
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
         ui.column("now-titles", Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
-            ui.label(song.title, TEXT_15.w(Size::Grow).h(21.0).color(INK));
+            ui.label(song.title, LEAD_INK.w(Size::Grow));
             let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
             ui.within(&line, &mut |ui| {
-                ui.label("Now · ", TEXT_13.h(18.2).color(SECONDARY));
-                ui.label(song.artist, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
+                ui.label("Now · ", CAPTION);
+                ui.label(song.artist, CAPTION.w(Size::Grow));
             });
         });
         ui.column("now-bars", Node::column().w_px(14.0).h_px(11.0), |ui| {
@@ -401,6 +402,7 @@ pub(super) fn queue_rows(
     images: Option<&crate::artwork::Images>,
     intent: &mut Option<Intent>,
 ) {
+    let theme = looks(ui);
     let Some(queue) = &catalog.queue else { return };
     let entries = queue.upcoming();
     // Swift's sheet rows (desktop: false) are larger than the panel's.
@@ -417,7 +419,7 @@ pub(super) fn queue_rows(
         ui.within(&header, &mut |ui| {
             ui.label(&queue.heading, TEXT_13.w(Size::Grow).h(28.0).color(SECONDARY));
             ui.label(&queue.count, MONO_12.w(Size::Px(56.0)).h(28.0).color(SECONDARY));
-            if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &icon_key(28.0, 28.0).look(&looks(ui).icon_plate)).clicked {
+            if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &ICON_28.look(&theme.icon_plate)).clicked {
                 *intent = Some(Intent::ShowQueue);
             }
             if !queue.upcoming().is_empty()
@@ -547,7 +549,12 @@ pub(super) fn queue_rows(
                         },
                     );
                 }
-                if ui.icon_button("remove-queued", icon_drawing(Icon::Clear), "Remove from queue", &icon_key(m.remove, m.row).look(&looks(ui).icon_plate)).clicked {
+                if ui.icon_button(
+                    "remove-queued",
+                    icon_drawing(Icon::Clear),
+                    "Remove from queue",
+                    &icon_key(m.remove, m.row).look(&theme.icon_plate),
+                ).clicked {
                     *intent = Some(Intent::RemoveQueue(entry.id));
                 }
             });

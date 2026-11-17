@@ -382,7 +382,7 @@ pub(super) fn table(
                     }
                     SectionPart::Row(_) if placeholder => {
                         ui.column("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
-                            ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
+                            ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, BODY_DIM.w(Size::Grow));
                         });
                     }
                     SectionPart::Row(index) => {

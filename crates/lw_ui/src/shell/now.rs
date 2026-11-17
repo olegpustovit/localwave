@@ -10,6 +10,7 @@ pub(super) fn now_panel(
     carry: u64,
     intent: &mut Option<Intent>,
 ) {
+    let theme = looks(ui);
     ui.column(
         "now",
         Node {
@@ -23,8 +24,8 @@ pub(super) fn now_panel(
         },
         |ui| {
             ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
-                ui.label("Now playing", TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
-                if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &icon_key(36.0, 36.0).look(&looks(ui).icon_plate)).clicked {
+                ui.label("Now playing", CAPTION.w(Size::Grow));
+                if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &ICON_36.look(&theme.icon_plate)).clicked {
                     *intent = Some(Intent::TogglePanel);
                 }
             });
@@ -182,96 +183,94 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     ];
     let on = current.is_some_and(|(_, on)| on);
     let favorite = FAVORITE.enabled(current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
-    // the heart and its burst are a stack of their own, built once the press is known
-    let mut layers = None;
-    let signal = ui.button_content("favorite", &favorite, |ui, _| {
-        layers = Some(ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow)));
-    });
-    let node = layers.unwrap();
-    // Remember (song, state) so a track change never reads as a favourite toggle.
-    let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
-    let was = ui.state(&node, 0);
-    let burst = current.is_some_and(|(id, on)| on && was == id.wrapping_mul(2) + 1)
-        && !ui.tokens().reduced_motion;
-    if was != seen {
-        ui.set_state(&node, seen);
-    }
-    let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
-    ui.within(&node, &mut |ui| {
-        let heart = ui.view_of("heart", &(on, signal.hovered, signal.held, current.is_some()), |ui| {
-            let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
-            ui.draw(&surface, move |paint, rect| {
-                let side = 20.0;
-                let area = Rect {
-                    x: rect.x + (rect.w - side) / 2.0,
-                    y: rect.y + (rect.h - side) / 2.0,
-                    w: side,
-                    h: side,
-                };
-                crate::icons::heart(paint, area, on, color);
-            });
-        });
-        let _ = heart;
-        for (key, dx, dy) in RAYS {
-            let slot = ui.node(
-                key.into(),
-                Node {
-                    at: Some((16.0, 12.0)).into(),
-                    ..Node::column().w_px(4.0).h_px(4.0)
-                },
-            );
-            let mut ray = None;
-            ui.within(&slot, &mut |ui| {
-                ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let dot = ui.node("dot".into(), Node::column().w(Size::Grow).h(Size::Grow));
-                    let accent = ui.tokens().accent;
-                    ui.draw(&dot, move |paint, rect| {
-                        paint.fill(rect.x, rect.y, rect.w, rect.h, accent)
-                    });
-                }));
-            });
-            let ray = ray.unwrap();
-            let curve = crate::motion::out(crate::motion::SLOW);
-            if burst {
-                let pose = |time, opacity, k: f32, scale| {
-                    [
-                        Keyframe {
-                            time,
-                            target: Target::Opacity(opacity),
-                            curve,
-                        },
-                        Keyframe {
-                            time,
-                            target: Target::Offset(dx * 18.0 * k, dy * 18.0 * k),
-                            curve,
-                        },
-                        Keyframe {
-                            time,
-                            target: Target::Scale {
-                                x: scale,
-                                y: scale,
-                                anchor: (0.5, 0.5),
-                            },
-                            curve,
-                        },
-                    ]
-                };
-                let [a, b, c] = pose(0.0, 1.0, 0.0, 1.0);
-                let [d, e, f] = pose(crate::motion::SLOW, 0.0, 1.0, 0.25);
-                ui.animate_keys(&ray, &[a, b, c, d, e, f]);
-                ui.set_state(&ray, 1);
-            } else if ui.state(&ray, 0) == 0 {
-                ui.set_state(&ray, 1);
-                ui.animate_keys(
-                    &ray,
-                    &[Keyframe {
-                        time: 0.0,
-                        target: Target::Opacity(0.0),
-                        curve,
-                    }],
-                );
-            }
+    // the heart and its burst are a stack of their own, built with the press state
+    let signal = ui.button_content("favorite", &favorite, |ui, press| {
+        let node = ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow));
+        // Remember (song, state) so a track change never reads as a favourite toggle.
+        let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
+        let was = ui.state(&node, 0);
+        let burst = current.is_some_and(|(id, on)| on && was == id.wrapping_mul(2) + 1)
+            && !ui.tokens().reduced_motion;
+        if was != seen {
+            ui.set_state(&node, seen);
         }
+        let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
+        ui.within(&node, &mut |ui| {
+            let heart = ui.view_of("heart", &(on, press.hovered, press.pressed, current.is_some()), |ui| {
+                let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                ui.draw(&surface, move |paint, rect| {
+                    let side = 20.0;
+                    let area = Rect {
+                        x: rect.x + (rect.w - side) / 2.0,
+                        y: rect.y + (rect.h - side) / 2.0,
+                        w: side,
+                        h: side,
+                    };
+                    crate::icons::heart(paint, area, on, color);
+                });
+            });
+            let _ = heart;
+            for (key, dx, dy) in RAYS {
+                let slot = ui.node(
+                    key.into(),
+                    Node {
+                        at: Some((16.0, 12.0)).into(),
+                        ..Node::column().w_px(4.0).h_px(4.0)
+                    },
+                );
+                let mut ray = None;
+                ui.within(&slot, &mut |ui| {
+                    ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
+                        let dot = ui.node("dot".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                        let accent = ui.tokens().accent;
+                        ui.draw(&dot, move |paint, rect| {
+                            paint.fill(rect.x, rect.y, rect.w, rect.h, accent)
+                        });
+                    }));
+                });
+                let ray = ray.unwrap();
+                let curve = crate::motion::out(crate::motion::SLOW);
+                if burst {
+                    let pose = |time, opacity, k: f32, scale| {
+                        [
+                            Keyframe {
+                                time,
+                                target: Target::Opacity(opacity),
+                                curve,
+                            },
+                            Keyframe {
+                                time,
+                                target: Target::Offset(dx * 18.0 * k, dy * 18.0 * k),
+                                curve,
+                            },
+                            Keyframe {
+                                time,
+                                target: Target::Scale {
+                                    x: scale,
+                                    y: scale,
+                                    anchor: (0.5, 0.5),
+                                },
+                                curve,
+                            },
+                        ]
+                    };
+                    let [a, b, c] = pose(0.0, 1.0, 0.0, 1.0);
+                    let [d, e, f] = pose(crate::motion::SLOW, 0.0, 1.0, 0.25);
+                    ui.animate_keys(&ray, &[a, b, c, d, e, f]);
+                    ui.set_state(&ray, 1);
+                } else if ui.state(&ray, 0) == 0 {
+                    ui.set_state(&ray, 1);
+                    ui.animate_keys(
+                        &ray,
+                        &[Keyframe {
+                            time: 0.0,
+                            target: Target::Opacity(0.0),
+                            curve,
+                        }],
+                    );
+                }
+            }
+        });
     });
     signal.clicked
 }
@@ -300,8 +299,8 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                 ] {
                     let row = ui.node(key.into(), Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
                     ui.within(&row, &mut |ui| {
-                        ui.label(label, TEXT_12.w(Size::Px(64.0)).h(16.8).color(SECONDARY));
-                        ui.label(value, MONO_12.w(Size::Grow).h(16.8).color(ink));
+                        ui.label(label, FOOTNOTE.w(Size::Px(64.0)));
+                        ui.label(value, MONO_12.w(Size::Grow).color(ink));
                     });
                     ui.a11y_name(&row, if key == "file" { &info.folder } else { value });
                 }

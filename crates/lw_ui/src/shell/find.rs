@@ -73,47 +73,31 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let theme = looks(ui);
     let width = 20.0 + icon_size + 6.0 + label_width;
     let tool = pxui::Button::sized(width, 30.0).look(if selected { &theme.selected } else { &theme.paper }).enabled(enabled).name(label);
-    // the hover and press washes sit under the copy, so the contents are a stack built once the press is known
-    let mut layers = None;
-    let response = ui.button_content(key, &tool, |ui, _| {
-        layers = Some(ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow)));
-    });
-    let layers = layers.unwrap();
-    if matches!(action, Action::Offline(_)) {
-        ui.a11y_value(
-            &response.handle,
-            if selected {
-                "Kept offline"
-            } else {
-                "Not kept offline"
-            },
-            (0, 0),
-        );
-    }
-    let before = ui.state(&layers, -1);
-    ui.set_state(&layers, i64::from(selected));
-    ui.within(&layers, &mut |ui| {
-        background(
-            ui,
-            "hover",
-            ui.color(PANEL),
-            response.hovered && !selected,
-            before != i64::from(selected),
-        );
-        background(ui, "press", ui.color(PANEL), response.held, false);
-        ui.view_of("action-copy", &(label, selected), |ui| {
-            ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
-                let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
-                let icon = ui.node("icon".into(), Node::column().w_px(icon_size).h_px(icon_size));
-                ui.draw(&icon, move |paint, rect| match action {
-                    Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
-                    Action::Shuffle => crate::icons::shuffle(paint, rect, color),
-                    Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
+    // the hover and press washes sit under the copy, so the contents are a stack built with the press state
+    let response = ui.button_content(key, &tool, |ui, press| {
+        let layers = ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow));
+        let before = ui.state(&layers, -1);
+        ui.set_state(&layers, i64::from(selected));
+        ui.within(&layers, &mut |ui| {
+            background(ui, "hover", ui.color(PANEL), press.hovered && !selected, before != i64::from(selected));
+            background(ui, "press", ui.color(PANEL), press.pressed, false);
+            ui.view_of("action-copy", &(label, selected), |ui| {
+                ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
+                    let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
+                    let icon = ui.node("icon".into(), Node::column().w_px(icon_size).h_px(icon_size));
+                    ui.draw(&icon, move |paint, rect| match action {
+                        Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
+                        Action::Shuffle => crate::icons::shuffle(paint, rect, color),
+                        Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
+                    });
+                    ui.label(label, TEXT_13.w(Size::Px(label_width)).color(if selected { INK } else { SECONDARY }).role(Role::Unknown));
                 });
-                ui.label(label, TEXT_13.w(Size::Px(label_width)).h(18.2).color(if selected { INK } else { SECONDARY }).role(Role::Unknown));
             });
         });
     });
+    if matches!(action, Action::Offline(_)) {
+        ui.a11y_value(&response.handle, if selected { "Kept offline" } else { "Not kept offline" }, (0, 0));
+    }
     enabled && response.clicked
 }
 

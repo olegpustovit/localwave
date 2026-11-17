@@ -203,7 +203,7 @@ fn sized_button(ui: &mut Ui, key: &'static str, label: &str, width: f32, height:
     ui.a11y_name(&button, label);
     ui.set_role(&button, Role::Button, if enabled { pxui::a11y::state::ENABLED } else { 0 });
     ui.within(&button, &mut |ui| {
-        ui.label(label, TEXT_13.h(18.2).color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
+        ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
     });
     button
 }
@@ -220,7 +220,7 @@ pub(super) fn action(
 }
 
 /// Swift's plain secondary text link (Back).
-fn link(ui: &mut Ui, key: &'static str, label: &str, width: f32) -> bool {
+fn link(ui: &mut Ui, key: &'static str, name: &str, label: &str, width: f32) -> bool {
     let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 40.0 };
     let link = ui.node(
         key.into(),
@@ -230,7 +230,7 @@ fn link(ui: &mut Ui, key: &'static str, label: &str, width: f32) -> bool {
         },
     );
     ui.text(&link, label);
-    ui.a11y_name(&link, key);
+    ui.a11y_name(&link, name);
     ui.signal(&link).clicked
 }
 
@@ -333,7 +333,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
         |ui| {
             ui.column("files-titles", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
                 ui.label("Folders", TEXT_32.w(Size::Grow).h(if compact { 44.0 } else { 33.6 }).color(INK));
-                ui.label(&files.source_count, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
+                ui.label(&files.source_count, CAPTION.w(Size::Grow));
             });
             // Swift's "+" opens an Add music sheet; its two choices are the picker intents.
             let add = ui.node("add-music".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
@@ -361,7 +361,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
         for (index, step) in ADD_STEPS.iter().enumerate() {
             let row = ui.node(Key::Id(index as i64), Node::row().w(Size::Grow).h_px(44.0).gap(16.0).align(Align::Center));
             ui.within(&row, &mut |ui| {
-                ui.label(&["1", "2", "3"][index], MONO_13.w(Size::Px(12.0)).h(18.2).color(SECONDARY));
+                ui.label(&["1", "2", "3"][index], MONO_13.w(Size::Px(12.0)).color(SECONDARY));
                 ui.label(step, TEXT_15.w(Size::Grow).h(24.0).color(INK));
             });
             ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
@@ -375,8 +375,8 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
         spacer(ui, "offline-gap", 16.0);
         let label = container(ui, "offline-label", Axis::Row, Size::Grow, Size::Px(19.6), ui.color(PAPER));
         ui.within(&label, &mut |ui| {
-            ui.label("Offline space", TEXT_14.w(Size::Grow).h(19.6).color(INK));
-            ui.label(&files.offline_usage, MONO_12.h(16.8).color(INK));
+            ui.label("Offline space", BODY_INK.w(Size::Grow));
+            ui.label(&files.offline_usage, MONO_12.color(INK));
         });
         ui.row("offline-meter", Node { margin: Edges { t: 10.0, ..Edges::ZERO }, look: Look { fill: ui.color(LINE), ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(4.0) }, |ui| {
             container(ui, "fill", Axis::Column, Size::Pct(files.offline_fraction), Size::Grow, ui.color(INK));
@@ -407,10 +407,10 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
         let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
             ui.column("source-labels", Node::column().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
-                ui.label(&folder.name, TEXT_17.w(Size::Grow).h(23.8).color(INK));
-                ui.label(&folder.path, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
+                ui.label(&folder.name, TEXT_17.w(Size::Grow).color(INK));
+                ui.label(&folder.path, CAPTION.w(Size::Grow));
             });
-            ui.label(&folder.count, TEXT_13.h(18.2).color(SECONDARY));
+            ui.label(&folder.count, CAPTION);
         });
         if let Some(message) = &folder.error {
             spacer(ui, "error-gap", 12.0);
@@ -438,8 +438,8 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
             });
             let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
             ui.within(&footer, &mut |ui| {
-                ui.label(&folder.stats, TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
-                ui.label(&folder.scanned, TEXT_13.h(18.2).color(SECONDARY));
+                ui.label(&folder.stats, CAPTION.w(Size::Grow));
+                ui.label(&folder.scanned, CAPTION);
             });
         }
     });
@@ -459,7 +459,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
     ui.row("folder-top", Node { wrap: compact, padding: Edges { t: 16.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).align(Align::Center) }, |ui| {
-        if link(ui, "Back", "‹ Back", 64.0) {
+        if link(ui, "back", "Back", "‹ Back", 64.0) {
             *intent = Some(up(directory));
         }
         ui.box_("top-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
@@ -480,12 +480,12 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     }
     ui.column("folder-header", Node { padding: Edges { t: 28.0, b: 18.0, ..Edges::ZERO }, ..Node::column().w(Size::Grow).h(Size::Fit) }, |ui| {
         if !directory.breadcrumb.is_empty() {
-            ui.label(&directory.breadcrumb, TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
+            ui.label(&directory.breadcrumb, BODY_DIM.w(Size::Grow));
             spacer(ui, "breadcrumb-gap", 8.0);
         }
         ui.label(&directory.title, TEXT_34.w(Size::Grow).h(36.0).color(INK));
         spacer(ui, "summary-gap", 6.0);
-        ui.label(&directory.summary, TEXT_14.w(Size::Grow).h(19.6).color(SECONDARY));
+        ui.label(&directory.summary, BODY_DIM.w(Size::Grow));
     });
     let tools = ui.node("folder-tools".into(), Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
     ui.within(&tools, &mut |ui| {
@@ -513,14 +513,14 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     let head = ui.node("folder-columns".into(), Node::row().w(Size::Grow).h_px(38.0));
     ui.within(&head, &mut |ui| {
         cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
-            ui.label("#", TEXT_12.h(16.8).color(SECONDARY));
+            ui.label("#", FOOTNOTE);
         });
         for (label, fixed, share, end) in COLUMNS {
             if compact && matches!(label, "Kind" | "Size") {
                 continue;
             }
             cell(ui, label, fixed, share, end, &mut |ui| {
-                ui.label(label, TEXT_12.h(16.8).color(SECONDARY));
+                ui.label(label, FOOTNOTE);
             });
         }
     });
@@ -546,20 +546,20 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
             ui.within(&row, &mut |ui| {
                 cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
                     if entry.audio {
-                        ui.label(&entry.number, TEXT_13.h(18.2).color(tone));
+                        ui.label(&entry.number, TEXT_13.color(tone));
                     } else {
                         mark(ui, entry.directory, color);
                     }
                 });
                 cell(ui, "Name", None, COLUMNS[0].2, false, &mut |ui| {
-                    ui.label(&entry.name, TEXT_14.w(Size::Grow).h(19.6).color(ink));
+                    ui.label(&entry.name, TEXT_14.w(Size::Grow).color(ink));
                 });
                 if !compact {
                     cell(ui, "Kind", None, COLUMNS[1].2, false, &mut |ui| {
-                        ui.label(&entry.kind, TEXT_14.w(Size::Grow).h(19.6).color(tone));
+                        ui.label(&entry.kind, TEXT_14.w(Size::Grow).color(tone));
                     });
                     cell(ui, "Size", None, COLUMNS[2].2, false, &mut |ui| {
-                        ui.label(&entry.size, MONO_12.w(Size::Grow).h(16.8).color(tone));
+                        ui.label(&entry.size, MONO_12.w(Size::Grow).color(tone));
                     });
                 }
                 cell(ui, "On device", None, COLUMNS[3].2, false, &mut |ui| match entry.glyph {
@@ -573,7 +573,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
                     None => {}
                 });
                 cell(ui, "Time", COLUMNS[4].1, 0.0, true, &mut |ui| {
-                    ui.label(&entry.time, MONO_12.h(16.8).color(tone));
+                    ui.label(&entry.time, MONO_12.color(tone));
                 });
             });
             ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
@@ -611,18 +611,18 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(SECONDARY);
             ui.draw(&glyph, move |paint, rect| paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-            ui.label(if directory.up.is_some() { "Back" } else { "Folders" }, TEXT_15.h(21.0).color(SECONDARY));
+            ui.label(if directory.up.is_some() { "Back" } else { "Folders" }, LEAD_DIM);
         });
         if ui.signal(&back).clicked {
             *intent = Some(up(directory));
         }
         ui.box_("top-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
-        ui.label(&directory.detail, MONO_12.h(16.8).color(SECONDARY));
+        ui.label(&directory.detail, MONO_DIM);
         if directory.songs.is_empty() {
             return;
         }
         let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-        ui.within(&select, &mut |ui| { ui.label("Select", TEXT_16.h(22.4).color(INK)); });
+        ui.within(&select, &mut |ui| { ui.label("Select", TEXT_16.color(INK)); });
         ui.a11y_name(&select, "Select");
         if ui.signal(&select).clicked {
             *intent = Some(Intent::SelectMode(true));
@@ -684,14 +684,18 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     ui.set_role(&tabs, Role::Group, 0);
     ui.a11y_name(&tabs, "Availability filter");
     ui.within(&tabs, &mut |ui| {
-        for (filter, label, count) in [(FilesFilter::All, "All", 0), (FilesFilter::Offline, "Offline", 1), (FilesFilter::Cloud, "In cloud", 2)] {
+        for (filter, key, label, count) in [
+            (FilesFilter::All, "filter-all", "All", 0),
+            (FilesFilter::Offline, "filter-offline", "Offline", 1),
+            (FilesFilter::Cloud, "filter-cloud", "In cloud", 2),
+        ] {
             let active = filter == files_filter;
-            let tab = ui.node(label.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+            let tab = ui.node(key.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
             let ink = if active { INK } else { SECONDARY };
             ui.within(&tab, &mut |ui| {
                 ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
-                    ui.label(label, TEXT_15.h(21.0).color(ink));
-                    ui.label(&directory.filter_counts[count], TEXT_13.h(18.2).color(SECONDARY));
+                    ui.label(label, TEXT_15.color(ink));
+                    ui.label(&directory.filter_counts[count], CAPTION);
                 });
                 container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
             });
@@ -711,9 +715,9 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             if index == shown {
                 let row = ui.node("hidden-footer".into(), Node::row().w(Size::Grow).h_px(56.0).gap(4.0).align(Align::Center));
                 ui.within(&row, &mut |ui| {
-                    ui.label(&directory.hidden_label, TEXT_14.h(19.6).color(SECONDARY));
+                    ui.label(&directory.hidden_label, BODY_DIM);
                     let show = ui.node("show".into(), Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-                    ui.within(&show, &mut |ui| { ui.label("show", TEXT_14.h(19.6).color(SECONDARY)); });
+                    ui.within(&show, &mut |ui| { ui.label("show", BODY_DIM); });
                     ui.a11y_name(&show, "Show non-audio files");
                     if ui.signal(&show).clicked {
                         *intent = Some(Intent::Setting(lw_core::preferences::Change::ToggleShowNonAudio));
@@ -735,8 +739,8 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     _ => mark(ui, entry.directory, ui.color(SECONDARY)),
                 });
                 ui.column("labels", Node::column().w(Size::Grow).h(Size::Fit), |ui| {
-                    ui.label(&entry.name, TEXT_15.w(Size::Grow).h(21.0).color(if other { TERTIARY } else { INK }));
-                    ui.label(&entry.detail, MONO_12.w(Size::Grow).h(16.8).color(SECONDARY));
+                    ui.label(&entry.name, TEXT_15.w(Size::Grow).color(if other { TERTIARY } else { INK }));
+                    ui.label(&entry.detail, MONO_DIM.w(Size::Grow));
                 });
                 if selecting {
                     // Swift's trailing 44 pt checkbox, on saved songs only.
@@ -842,7 +846,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     let open = ui.modal(Some(width), "Add music", &mut |ui| {
         ui.column("add-music-body", Node { look: Look { fill: ui.color(PAPER), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0) }, |ui| {
             super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
-            ui.label("Files stay where they are", TEXT_13.w(Size::Grow).h(18.2).color(SECONDARY));
+            ui.label("Files stay where they are", CAPTION.w(Size::Grow));
             spacer(ui, "gap", 4.0);
             for (key, title, detail, action) in [
                 ("add-folder", "A folder", "Watched for changes. iCloud Drive, Google Drive, Dropbox, On My iPhone, USB drives, SMB servers.", Intent::ChooseFolder),
@@ -873,11 +877,11 @@ fn legend(ui: &mut Ui) {
     use lw_core::{FileAvailability::{InCloud, OnDevice}, FileState::Copied};
     ui.row("legend", Node { padding: Edges { l: 4.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(30.0).gap(6.0).align(Align::Center) }, |ui| {
         super::songs::row::glyph(ui, (Copied, Some(OnDevice), true), true);
-        ui.label("kept offline", TEXT_12.h(16.8).color(SECONDARY));
+        ui.label("kept offline", FOOTNOTE);
         super::songs::row::glyph(ui, (Copied, Some(OnDevice), false), true);
-        ui.label("on this Mac", TEXT_12.h(16.8).color(SECONDARY));
+        ui.label("on this Mac", FOOTNOTE);
         super::songs::row::glyph(ui, (Copied, Some(InCloud), false), true);
-        ui.label("in cloud", TEXT_12.h(16.8).color(SECONDARY));
+        ui.label("in cloud", FOOTNOTE);
     });
 }
 

@@ -122,13 +122,14 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
+| DX4.12 | LocalWave review cleanups: id keys, named styles, theme bound once, press state in button contents | done | HEAD |
 | DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | 73512bf |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
 | DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
-| DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | HEAD (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
+| DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
