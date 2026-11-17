@@ -450,8 +450,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         Arc::new(PlaybackContext::Library),
         false,
     )));
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[FONT, MONO]);
-    crate::set_colors(&mut ui);
+    let mut ui = test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut state = ShellState::default();
     state.apply(Intent::SelectRow(0));

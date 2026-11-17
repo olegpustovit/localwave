@@ -238,8 +238,9 @@ fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
         duration: 240.0,
         ..Default::default()
     };
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-    crate::set_colors(&mut ui);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    // Asserts exact rebuild counts, which a verify pass inflates.
+    ui.verify_views(false);
     ui.set_a11y(true);
     let mut frame = FrameIn {
         width: 1440.0,
@@ -1586,8 +1587,9 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     );
     let mut state = ShellState::default();
     let player = PlayerView::default();
-    let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-    crate::set_colors(&mut ui);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    // Asserts exact rebuild counts, which a verify pass inflates.
+    ui.verify_views(false);
     ui.set_a11y(true);
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {

@@ -580,8 +580,7 @@ pub(super) mod button_tests {
     #[test]
     fn pressed_visual_scales_without_shrinking_hit_area_or_allocating_when_warm() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = pxui::Ui::create(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-        crate::set_colors(&mut ui);
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         ui.set_theme(&ThemeSource {
             source: Str {

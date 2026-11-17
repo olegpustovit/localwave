@@ -71,7 +71,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.6 | abi_bench page for authoring helpers | done | 51bd807 + pxui 88c61a7 |
 | DX0.7 | verify_views in LocalWave UI tests | done | 9be4f52 |
 | DX0.7a | Stale view `compact-library`: revision misses an input (found by DX0.7) | done | 736f07c |
-| DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | blocked | DX0.7g: the hover fade is a transition started inside the kept body; dropping it was rejected |
+| DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | done | HEAD |
 | DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | done | 5e77922 |
 | DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | 4fb54b0 |
 | DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | blocked | DX0.7g: heart draw segments of a nested view differ only with a11y on |
@@ -105,7 +105,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.6 | menu with MenuItem | done | ab60a7b + pxui 759c84a |
 | DX3.7 | toggle_with, segmented_with, disabled scope | done | bf5780a + pxui 30260fb |
 | DX3.8 | dialog_with | todo |  |
-| DX3.9 | Per-call widget body variants | done | HEAD + pxui ddb538f |
+| DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | todo |  |
 | DX4.3 | Buttons to button_with | todo |  |
