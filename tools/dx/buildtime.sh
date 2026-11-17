@@ -41,7 +41,7 @@ if [ -n "$REV" ]; then
   git -C "$ROOT" worktree add -q --detach "$WT" "$REV"
   git -C "$WT" submodule init -q pxui
   git -C "$WT" config submodule.pxui.url "$ROOT/pxui"
-  git -C "$WT" submodule update -q pxui
+  git -C "$WT" -c protocol.file.allow=always submodule update -q pxui
   mkdir -p "$WT/target"
   ln -s "$ROOT/target/sdl" "$WT/target/sdl"
 fi
