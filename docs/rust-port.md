@@ -87,7 +87,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | done | 0292834 |
 | DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | 1cb17d5 + pxui 1089fe5 |
-| DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | done | HEAD + pxui 5c16fdb |
+| DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | done | 8709c75 + pxui 5c16fdb |
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
@@ -150,6 +150,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
 | DX6.26 | pxui-app skill; README and specification fixes | todo |  |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
+| DX7.1a | pxui.h compiles as C11/C++17 and abi-header compiles it | done | HEAD + pxui 6326d8c |
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
 | DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | HEAD + pxui 61e0cf6 |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
