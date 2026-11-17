@@ -29,6 +29,5 @@ lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE)
 lw_ui/src/shell/settings.rs	R2	..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
 lw_ui/src/shell/songs/mod.rs	R2	Flags::CLICKABLE | Flags::TAB_STOP
-lw_ui/src/shell/songs/row.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
 lw_ui/src/shell/theme.rs	R3	let pair = COLORS[token.0 as usize];
 lw_ui/src/shell/transport.rs	R2	flags: Flags::CLICKABLE,

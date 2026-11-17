@@ -290,45 +290,11 @@ impl Rows<'_> {
             Size::Fit,
             &mut |ui| {
                 let row = catalog.row(collection.rows[index]);
-                let root = ui.node(
-                    "song".into(),
-                    Node::column()
-                        .w(Size::Grow)
-                        .h_px(layout.height)
-                        .role(Role::ListItem)
-                        .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                );
-                ui.a11y_name(&root, row.title);
-                let signal = ui.signal(&root);
-                ui.set_look(
-                    &root,
-                    Look {
-                        fill: if marked {
-                            ui.color(SELECTED)
-                        } else if signal.hovered {
-                            Rgba { a: 153, ..ui.color(PANEL) }
-                        } else {
-                            ui.color(PAPER)
-                        },
-                        ..Look::NONE
-                    },
-                    State::default(),
-                );
-                if signal.held {
-                    let mut digits = [0u8; 24];
-                    let id = stack_fmt(&mut digits, format_args!("{}", row.id)).as_bytes();
-                    let mut kind = [0u8; 48];
-                    kind[..SONG_DRAG.len()].copy_from_slice(SONG_DRAG.as_bytes());
-                    let len = SONG_DRAG.len() + id.len();
-                    kind[SONG_DRAG.len()..len].copy_from_slice(id);
-                    ui.carry(
-                        Some(&root),
-                        std::str::from_utf8(&kind[..len]).expect("song drag kind is ASCII"),
-                        row.title,
-                    );
-                }
+                let theme = looks(ui);
+                let look = PLAIN.look(if marked { &theme.selected } else { &theme.song_row });
+                let node = Node::column().w(Size::Grow).h_px(layout.height).role(Role::ListItem);
                 let current = player.current_id == Some(row.id);
-                ui.within(&root, &mut |ui| {
+                let root = ui.pressable("song", node, &look, |ui, _| {
                     ui.view("song-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
                         let mut x = 0.0;
                         for column in Column::ALL {
@@ -488,8 +454,23 @@ impl Rows<'_> {
                         }
                     }
                 });
+                ui.a11y_name(&root.handle, row.title);
+                let signal = ui.signal(&root.handle);
+                if root.held {
+                    let mut digits = [0u8; 24];
+                    let id = stack_fmt(&mut digits, format_args!("{}", row.id)).as_bytes();
+                    let mut kind = [0u8; 48];
+                    kind[..SONG_DRAG.len()].copy_from_slice(SONG_DRAG.as_bytes());
+                    let len = SONG_DRAG.len() + id.len();
+                    kind[SONG_DRAG.len()..len].copy_from_slice(id);
+                    ui.carry(
+                        Some(&root.handle),
+                        std::str::from_utf8(&kind[..len]).expect("song drag kind is ASCII"),
+                        row.title,
+                    );
+                }
                 let last = index + 1 == collection.rows.len();
-                ui.draw_over(&root, move |paint, rect| {
+                ui.draw_over(&root.handle, move |paint, rect| {
                     paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, paint.color(LINE));
                     if last {
                         paint.fill_fractional(
@@ -523,7 +504,7 @@ impl Rows<'_> {
                     *intent = Some(Intent::PlayRow(index));
                 }
                 if reorder {
-                    self.drop_target(ui, &root, index, intent);
+                    self.drop_target(ui, &root.handle, index, intent);
                 }
             },
         );

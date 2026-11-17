@@ -80,6 +80,8 @@ pub(super) struct Looks {
     pub side_row: States,
     /// The sidebar search row: the panel fill, the selected fill while hovered or held.
     pub search_row: States,
+    /// A song table row: paper, a 60 percent panel fill while hovered or held.
+    pub song_row: States,
 }
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::all(Look::NONE);
@@ -106,6 +108,10 @@ const fn lit(rest: ColorToken, lit: ColorToken, dark: bool) -> States {
     let on = Look { fill: token(lit, dark), ..Look::NONE };
     States { hover: on, pressed: on, ..fill(rest, dark) }
 }
+/// The token at 60 percent alpha (the song row's hover wash).
+const fn tinted(color: ColorToken, dark: bool) -> Look {
+    Look { fill: Rgba { a: 153, ..token(color, dark) }, ..Look::NONE }
+}
 const fn resolve(dark: bool) -> Looks {
     let tab = text(INK, 14, dark);
     Looks {
@@ -120,6 +126,7 @@ const fn resolve(dark: bool) -> Looks {
         add_row: text(SECONDARY, 14, dark),
         side_row: lit(PAPER, PANEL, dark),
         search_row: lit(PANEL, SELECTED, dark),
+        song_row: States { hover: tinted(PANEL, dark), pressed: tinted(PANEL, dark), ..fill(PAPER, dark) },
         icon: icon(Look::NONE.fill, dark),
         icon_plate: icon(token(KEY, dark), dark),
         icon_inverse: States::all(Look { fill: token(INK, dark), text: token(PAPER, dark), ..Look::NONE }),
