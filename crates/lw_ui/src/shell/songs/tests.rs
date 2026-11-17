@@ -822,10 +822,13 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
     for probe in 0.. {
         let sentinel = format!("settle probe {probe}");
         ui.prewarm_text(&sentinel, &Label::BODY, 0.0).unwrap();
-        // One frame flushes the requests, the next installs what the worker delivered meanwhile; few
-        // frames, so nothing installed ages out of the text cache before the build uses it.
+        // One frame flushes the requests, the next installs what the worker delivered meanwhile. Delivery
+        // is not observable between frames, so the wait is 20 ms of yielding rather than a frame per poll:
+        // the frame count (and so every later frame's index in fingerprint dumps) does not depend on how
+        // fast the worker ran. Only a worker starved past that wait costs another two frames.
         ui.frame(input, &mut |_| {}).unwrap();
-        for _ in 0..1000 {
+        let wait = std::time::Instant::now() + std::time::Duration::from_millis(20);
+        while std::time::Instant::now() < wait {
             std::thread::yield_now();
         }
         ui.frame(input, &mut |_| {}).unwrap();
@@ -838,6 +841,7 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
     }
 }
 
+// About 0.3 s: twelve configurations each wait 20 ms for the text worker (see `settle`).
 #[test]
 fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_numbers() {
     // One album of two songs: in every route each row's window prewarms the other row.
@@ -850,6 +854,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
             })
             .collect(),
     );
+    let mut overflowing = 0;
     for scale in [1.0, 1.5, 2.0] {
         for width in [400.0, 888.0] {
             for (route, current) in [
@@ -894,9 +899,11 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                     crate::song_text::Prewarm::default().request(&mut ui, &catalog, window);
                 }
                 settle(&mut ui, &input);
-                // A numeric cell wider than its column draws at its measured width, which no hint can
-                // name ahead: its measurement is prewarmed, its drawing layout shapes when shown.
-                let overflowing = collection
+                // A numeric cell wider than its column is measured at the column's width (UiText::measure) and
+                // drawn at its measured width. pxui reuses a layout between its measured width and the width it
+                // was laid out at only through the drawing node's own memo or the natural layout, and the
+                // measurement went through neither: the first draw of such a cell still shapes.
+                let overflow = collection
                     .rows
                     .iter()
                     .enumerate()
@@ -913,7 +920,8 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                                     > available
                         })
                     })
-                    .count() as u64;
+                    .count();
+                overflowing += overflow;
                 let layouts = ui.text_layout_count();
                 let mut build = |ui: &mut Ui| {
                     for (position, &index) in collection.rows.iter().enumerate() {
@@ -975,7 +983,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                 ui.frame(&input, &mut build).unwrap();
                 assert_eq!(
                     ui.text_layout_count(),
-                    layouts + overflowing,
+                    layouts + overflow as u64,
                     "prewarmed widths/styles must serve both measurement and node painting: {route:?} {width} {scale}x"
                 );
                 reference.frame(&input, &mut build).unwrap();
@@ -992,6 +1000,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
             }
         }
     }
+    assert!(overflowing > 0, "the narrow table overflows numeric cells");
     let window =
         crate::song_text::Window::new(&catalog, Route::Songs, [100.0; 8], 1.0, None, 0, usize::MAX)
             .unwrap();
