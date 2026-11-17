@@ -812,7 +812,8 @@ mod tests {
                     pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
                 lw_ui::set_colors(&mut ui);
                 ui.set_a11y(true);
-                ui.frame(
+                lw_ui::testing::frame(
+                    &mut ui,
                     &pxui::FrameIn {
                         width: 1440.0,
                         height: 872.0,

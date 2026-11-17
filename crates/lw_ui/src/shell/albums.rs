@@ -202,7 +202,7 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..3 {
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
@@ -227,7 +227,7 @@ mod tests {
                     ..Default::default()
                 }]);
                 frame.time += 0.1;
-                ui.frame(&frame, &mut |ui| {
+                crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     shell(ui, &player, 0.0, &catalog, &state, &mut None)
                 })
                 .unwrap();
@@ -333,7 +333,7 @@ mod tests {
                 .unwrap()
         };
         for _ in 0..3 {
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
@@ -384,7 +384,7 @@ mod tests {
             mem_sys::local_reset();
             for scale in [1.0, 2.0] {
                 frame.scale = scale;
-                ui.frame(&frame, &mut |ui| {
+                crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     shell(ui, &player, 0.0, &catalog, &state, &mut None)
                 })
                 .unwrap();
@@ -418,13 +418,13 @@ mod tests {
                     }]);
                     frame.time += 0.1;
                     let mut intent = None;
-                    ui.frame(&frame, &mut |ui| {
+                    crate::testing::frame(&mut ui, &frame, &mut |ui| {
                         shell(ui, &player, 0.0, &catalog, &state, &mut intent)
                     })
                     .unwrap();
                     assert_eq!(intent, Some(Intent::SortAlbums(sort)));
                     assert!(state.apply(intent.unwrap()));
-                    ui.frame(&frame, &mut |ui| {
+                    crate::testing::frame(&mut ui, &frame, &mut |ui| {
                         shell(ui, &player, 0.0, &catalog, &state, &mut None)
                     })
                     .unwrap();
@@ -444,7 +444,7 @@ mod tests {
                     ..Default::default()
                 }]);
                 let mut intent = None;
-                ui.frame(&frame, &mut |ui| {
+                crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     shell(ui, &player, 0.0, &catalog, &state, &mut intent)
                 })
                 .unwrap();

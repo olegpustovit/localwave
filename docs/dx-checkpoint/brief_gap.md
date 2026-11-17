@@ -1,4 +1,4 @@
-You implement one pxui widget-gap row. Read first, in /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/70341840-4a85-459b-b067-76591dd048ed/scratchpad/dx_impl/:
+You implement one pxui widget-gap row. Read first, in docs/dx-checkpoint/:
 brief_common.md (FAST MODE targeted tests, REVIEW GATE, OS, CODEMODS, never git stash, gigacomp via remote.sh + remote_gc.sh when done),
 brief_abi.md, api_spec.md, os_criteria.md, and widget_reuse_audit.md (the gap rows named in your task + the LocalWave rows citing them = the real needs).
 Rules: extend the EXISTING pxui widget (or add one widget where the gap says none exists) in the spec's shape: Copy style with DEFAULT + const fn

@@ -311,7 +311,8 @@ pub(super) mod button_tests {
             for seconds in [0, 1, 59, 60, 3599, 3600, 59999, 60000] {
                 time += 1.0;
                 for offset in [0.0, 0.069, 0.07, 0.139, 0.14, 0.235, 0.236, 0.3] {
-                    ui.frame(
+                    crate::testing::frame(
+                        &mut ui,
                         &FrameIn {
                             width: 400.0,
                             height: 80.0,
@@ -377,7 +378,8 @@ pub(super) mod button_tests {
             events: &[Event],
             intent: &mut Option<Intent>,
         ) {
-            ui.frame(
+            crate::testing::frame(
+                ui,
                 &FrameIn {
                     width: 1440.0,
                     height: 71.0,
@@ -542,7 +544,7 @@ pub(super) mod button_tests {
             ..FrameIn::default()
         };
         for time in [0.0, 0.1] {
-            ui.frame(&input(time, &[]), &mut build).unwrap();
+            crate::testing::frame(&mut ui, &input(time, &[]), &mut build).unwrap();
         }
         let key = pxui::ui::key_of(ROOT_KEY, "test-button");
         let button = ui.box_of_key(key).unwrap();
@@ -559,7 +561,8 @@ pub(super) mod button_tests {
         for round in 0..3 {
             let base = 0.2 + round as f64 * 2.0;
             mem_sys::local_reset();
-            ui.frame(
+            crate::testing::frame(
+                &mut ui,
                 &input(
                     base,
                     &[
@@ -571,7 +574,7 @@ pub(super) mod button_tests {
             )
             .unwrap();
             assert!(!clicked.get());
-            ui.frame(&input(base + 0.08, &[]), &mut build).unwrap();
+            crate::testing::frame(&mut ui, &input(base + 0.08, &[]), &mut build).unwrap();
             let shrunk = ui.rect(&surface);
             assert!((shrunk.w - original.w * 0.96).abs() < 0.001);
             assert!((shrunk.x - original.w * 0.02).abs() < 0.001);
@@ -585,13 +588,14 @@ pub(super) mod button_tests {
                 original
             );
             // Release outside the shrunk visual but inside the original button.
-            ui.frame(
+            crate::testing::frame(
+                &mut ui,
                 &input(base + 0.1, &[pointer(input::wire::POINTER_RELEASED)]),
                 &mut build,
             )
             .unwrap();
             assert!(clicked.get());
-            ui.frame(&input(base + 0.34, &[]), &mut build).unwrap();
+            crate::testing::frame(&mut ui, &input(base + 0.34, &[]), &mut build).unwrap();
             assert_eq!(ui.rect(&surface), original);
             let allocations = mem_sys::local_alloc_count();
             assert!(
@@ -610,7 +614,8 @@ pub(super) mod button_tests {
         })
         .unwrap();
         assert!(ui.theme().tokens.reduced_motion);
-        ui.frame(
+        crate::testing::frame(
+            &mut ui,
             &input(7.0, &[pointer(input::wire::POINTER_PRESSED)]),
             &mut build,
         )
@@ -621,7 +626,8 @@ pub(super) mod button_tests {
             ui.rect(&surface),
             ui.signal(&button).held
         );
-        ui.frame(
+        crate::testing::frame(
+            &mut ui,
             &input(7.01, &[pointer(input::wire::POINTER_RELEASED)]),
             &mut build,
         )

@@ -115,7 +115,8 @@ mod tests {
         for round in 0..6 {
             mem_sys::local_reset();
             for (size, scale) in [(16.0, 1.0), (20.0, 1.0), (16.0, 2.0), (20.0, 2.0)] {
-                ui.frame(
+                crate::testing::frame(
+                    &mut ui,
                     &pxui::FrameIn {
                         width: 40.0,
                         height: 40.0,

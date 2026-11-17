@@ -2,7 +2,7 @@ You are a builder in the DX phase of pxui (a Rust native UI engine) and LocalWav
 The coordinator lands your work; you build exactly one row.
 
 Workspace rules
-- Public API shape: read /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/70341840-4a85-459b-b067-76591dd048ed/scratchpad/dx_impl/api_spec.md
+- Public API shape: read docs/dx-checkpoint/api_spec.md
   first; anything public you add must read like it (const values + const builders, one function per job).
 - Work ONLY in the worktree path given to you. Never touch /Users/snowbear/WORK/GIT/localwave or its pxui/ checkout directly.
 - Use the CARGO_TARGET_DIR given to you for every cargo command (export it in each shell command).
@@ -29,14 +29,14 @@ Report back (concise): branch name and commit hash; files changed; the evidence 
 landing (ABI rows, manifest regeneration, LocalWave caller changes).
 - Waiting on a background process: never `pgrep -f "<pattern>"` in a loop (the loop's own shell matches it and never exits); wait on a PID (`while kill -0 $PID; do sleep 5; done`) or on an output file.
 - Remote Linux host (fast, 20 cores): iterate on gigacomp with
-  /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/70341840-4a85-459b-b067-76591dd048ed/scratchpad/dx_impl/remote.sh <your pxui worktree dir> <command...>
+  tools/dx/remote.sh <your pxui worktree dir> <command...> (deleted in U0.1; landing is the plan's §7)
   (rsyncs the tree, runs there; env vars via `env X=1 cargo ...`). Use it for edit-compile-test loops of pxui_core, pxui_text,
   pxui_abi, pxui_types, pxui (both link modes), mem_sys, gate and the gates deps/shape/docs. Known Linux-only failure: surface::
   marked_text_replaces_the_selection_and_tracks_unicode_caret_without_warm_allocations (macOS font metrics) — ignore it there.
   The FINAL check list before reporting still runs on this Mac (pxui_gallery goldens, both link-mode
   doctests, the whole-workspace cargo t, LocalWave) — Metal, macOS fonts and the Mac thresholds only exist here.
 - This Mac is shared and overloaded: for any cargo command you run ON THE MAC export CARGO_BUILD_JOBS=4. Run the release abi_bench
-  ONLY through /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/70341840-4a85-459b-b067-76591dd048ed/scratchpad/dx_impl/macbench.sh <worktree> [--no-default-features]
+  ONLY through tools/dx/macbench.sh <worktree> [--no-default-features] (deleted in U0.1)
   (one bench at a time machine-wide; it waits for the lock). Compile/test iteration belongs on gigacomp (remote.sh).
 - BENCHMARKS ARE DEFERRED (owner decision 2026-11-17): do NOT run release abi_bench, macbench.sh, quiet A/B timing runs or
   make performance unless your row is itself a performance row (DX-PERF*, DX5.*). Correctness checks stay mandatory: whole-workspace

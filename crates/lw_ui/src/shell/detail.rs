@@ -436,7 +436,7 @@ mod tests {
                 }]);
             }
             let mut intent = None;
-            ui.frame(frame, &mut |ui| {
+            crate::testing::frame(ui, frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, state, &mut intent)
             })
             .unwrap();

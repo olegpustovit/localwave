@@ -530,7 +530,8 @@ mod tests {
     ) -> Option<Intent> {
         *time += 1.0 / 60.0;
         let mut intent = None;
-        ui.frame(
+        crate::testing::frame(
+            ui,
             &FrameIn {
                 width: 1000.0,
                 height: 700.0,
@@ -576,7 +577,8 @@ mod tests {
         };
         for tick in 0..4 {
             let mut intent = None;
-            ui.frame(
+            crate::testing::frame(
+                &mut ui,
                 &FrameIn {
                     width: 390.0,
                     height: 778.0,

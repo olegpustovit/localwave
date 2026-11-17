@@ -212,7 +212,7 @@ mod tests {
                         reduced_motion: 1,
                         ..Default::default()
                     };
-                    ui.frame(&frame, &mut |ui| {
+                    crate::testing::frame(&mut ui, &frame, &mut |ui| {
                         root = Some(build(ui, catalog, &state, &mut intent))
                     })
                     .unwrap();
@@ -325,7 +325,7 @@ mod tests {
                             action_code: 1,
                             ..Default::default()
                         }]);
-                        ui.frame(&frame, &mut |ui| {
+                        crate::testing::frame(&mut ui, &frame, &mut |ui| {
                             build(ui, catalog, &state, &mut intent);
                         })
                         .unwrap();
@@ -340,7 +340,7 @@ mod tests {
                 reduced_motion: 1,
                 ..Default::default()
             };
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
@@ -387,7 +387,7 @@ mod tests {
             ..Default::default()
         };
         for _ in 0..3 {
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 root = Some(build(ui, &catalogs[0], &state, &mut None))
             })
             .unwrap();
@@ -420,7 +420,7 @@ mod tests {
             frame.time = base;
             frame.events = down.as_ptr();
             frame.event_count = down.len();
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
@@ -429,7 +429,7 @@ mod tests {
             let mut settled_revision = None;
             for time in [0.07, 0.15, 0.3] {
                 frame.time = base + time;
-                ui.frame(&frame, &mut |ui| {
+                crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     build(ui, &catalogs[0], &state, &mut None);
                 })
                 .unwrap();
@@ -467,7 +467,7 @@ mod tests {
             frame.event_count = 1;
             frame.time = base + 0.4;
             let mut intent = None;
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut intent);
             })
             .unwrap();
@@ -476,7 +476,7 @@ mod tests {
             frame.event_count = 0;
             for time in [0.47, 0.55] {
                 frame.time = base + time;
-                ui.frame(&frame, &mut |ui| {
+                crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     build(ui, &catalogs[0], &state, &mut None);
                 })
                 .unwrap();
@@ -495,14 +495,14 @@ mod tests {
             frame.events = &leave;
             frame.event_count = 1;
             frame.time = base + 0.6;
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
             frame.events = std::ptr::null();
             frame.event_count = 0;
             frame.time = base + 0.8;
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();

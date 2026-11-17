@@ -90,7 +90,8 @@ mod tests {
                             reduced_motion: 0,
                         },
                     );
-                    ui.frame(
+                    lw_ui::testing::frame(
+                        &mut ui,
                         &FrameIn {
                             width: 320.0,
                             height: 240.0,

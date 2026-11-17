@@ -1,0 +1,109 @@
+mod sealed {
+    pub trait Sealed { fn bounds(&self) -> (usize, usize); }
+}
+
+/// What a registered Rust body reads a config through: the config wrapper (`ToggleConfig`, `MenuRowConfig`, ... one per C record,
+/// `Deref` to its `Pxui*Config` record for the plain fields) and the accessors for its pointer fields. A wrapper cannot be built by
+/// safe code and its record cannot be changed through it, and an accessor reads only a field that lies inside the wrapper's own
+/// record (a copy of a field elsewhere reads as empty), so a body needs no `unsafe` and safe code cannot point one at memory.
+///
+/// ```
+/// use pxui::bodies::{BodyConfig, ToggleConfig};
+/// fn toggle(_ui: &mut pxui::Ui, config: &ToggleConfig) { let _label: &str = config.text_of(&config.label); }
+/// let _register: fn(&mut pxui::Ui, &str) -> Result<_, String> = |ui, name| ui.register_toggle_body(name, toggle);
+/// ```
+pub trait BodyConfig: sealed::Sealed {
+    /// The text of a config field (`config.text_of(&config.label)`), borrowed from the config (valid until the body returns).
+    ///
+    /// Allocates: never.
+    /// Panics: never; a field that is not part of this config, or text that is not UTF-8, reads as "".
+    ///
+    /// ```
+    /// use pxui::bodies::BodyConfig;
+    /// fn label(_ui: &mut pxui::Ui, config: &pxui::bodies::LabelConfig) { let _ = config.text_of(&config.text); }
+    /// ```
+    fn text_of(&self, field: &Str) -> &str {
+        if !inside(self.bounds(), field) || field.len == 0 || field.ptr.is_null() { return ""; }
+        core::str::from_utf8(unsafe { core::slice::from_raw_parts(field.ptr, field.len) }).unwrap_or("")
+    }
+
+    /// Item `index` of a config's text list (a dialog body's `buttons`, a tooltip body's `lines`), borrowed from the config (valid until
+    /// the body returns); "" past the end, for text that is not UTF-8 and for a list that is not part of this config.
+    ///
+    /// Allocates: never.
+    /// Panics: never.
+    ///
+    /// ```
+    /// use pxui::bodies::{BodyConfig, DialogConfig};
+    /// fn dialog(_ui: &mut pxui::Ui, config: &DialogConfig) { let _ = config.text_at(&config.buttons, 1); }
+    /// ```
+    fn text_at(&self, list: &Slice<Str>, index: usize) -> &str {
+        if !inside(self.bounds(), list) || index >= list.len || list.ptr.is_null() { return ""; }
+        self.text_of(unsafe { &*list.ptr.add(index) })
+    }
+
+    /// Item `index` of a footer body's `hints` (read their key and value with `text_of` on the hint), borrowed from the config; `None`
+    /// past the end or for a list that is not part of this config.
+    ///
+    /// Allocates: never.
+    /// Panics: never.
+    ///
+    /// ```
+    /// use pxui::bodies::{BodyConfig, FooterConfig};
+    /// fn footer(_ui: &mut pxui::Ui, config: &FooterConfig) { let _ = config.hint_at(&config.hints, 0); }
+    /// ```
+    fn hint_at(&self, list: &Slice<PxuiHintDesc>, index: usize) -> Option<&PxuiHintDesc> {
+        if !inside(self.bounds(), list) || index >= list.len || list.ptr.is_null() { return None; }
+        Some(unsafe { &*list.ptr.add(index) })
+    }
+
+    /// The looks per state a config field points at (`states` of a button, icon button or segmented config, `track` and `knob` of a
+    /// toggle config: the caller's or the theme's), borrowed from the config; `None` for a null field or one that is not part of this config.
+    ///
+    /// Allocates: never.
+    /// Panics: never.
+    ///
+    /// ```
+    /// use pxui::bodies::{BodyConfig, ButtonConfig};
+    /// fn button(_ui: &mut pxui::Ui, config: &ButtonConfig) { let _ = config.states_of(&config.states); }
+    /// ```
+    fn states_of(&self, field: &*const States) -> Option<&States> {
+        if !inside(self.bounds(), field) || field.is_null() { return None; }
+        Some(unsafe { &**field })
+    }
+
+    /// The press curves an icon button config's `press` points at (the scale's in on press and out on release), borrowed from the
+    /// config; `None` when it is null (the kit's springs) or not part of this config.
+    ///
+    /// Allocates: never.
+    /// Panics: never.
+    ///
+    /// ```
+    /// use pxui::bodies::{BodyConfig, IconButtonConfig};
+    /// fn icon_button(_ui: &mut pxui::Ui, config: &IconButtonConfig) { let _ = config.curves_of(&config.press); }
+    /// ```
+    fn curves_of(&self, field: &*const Curve) -> Option<&[Curve; 2]> {
+        if !inside(self.bounds(), field) || field.is_null() { return None; }
+        Some(unsafe { &*field.cast::<[Curve; 2]>() })
+    }
+}
+
+/// Whether `field` lies wholly inside the record `bounds` (start, length) names.
+fn inside<T>((start, len): (usize, usize), field: &T) -> bool {
+    let at = field as *const T as usize;
+    at >= start && at + core::mem::size_of::<T>() <= start + len
+}
+
+macro_rules! configs {
+    ($($wrapper:ident $record:ident),* $(,)?) => {
+        $(
+            #[doc = concat!("The `", stringify!($record), "` record a registered body receives (borrowed until the body returns): its plain fields read through `Deref`, its text, lists and looks through `BodyConfig`. Which kinds build it is set in `pxui_types::body_kinds!`.")]
+            #[repr(transparent)]
+            pub struct $wrapper($record);
+            impl core::ops::Deref for $wrapper { type Target = $record; fn deref(&self) -> &$record { &self.0 } }
+            impl sealed::Sealed for $wrapper { fn bounds(&self) -> (usize, usize) { (self as *const Self as usize, core::mem::size_of::<$record>()) } }
+            impl BodyConfig for $wrapper {}
+        )*
+    };
+}
+

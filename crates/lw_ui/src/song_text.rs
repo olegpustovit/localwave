@@ -281,7 +281,7 @@ mod prewarm_tests {
                 .collect(),
         );
         let mut ui = crate::test_ui(pxui::Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-        ui.frame(&pxui::FrameIn { width: 1440.0, height: 872.0, ..Default::default() }, &mut |_| {}).unwrap();
+        crate::testing::frame(&mut ui, &pxui::FrameIn { width: 1440.0, height: 872.0, ..Default::default() }, &mut |_| {}).unwrap();
         let worker = pxui::TextWorker::new().unwrap();
         ui.set_text_worker(Some(&worker)).unwrap();
         let window = |density: f32, first: usize| {

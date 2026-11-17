@@ -1,6 +1,6 @@
 DX1.12 audit fix batch — common brief
 Read first: brief_common.md (FAST MODE + REVIEW rules), brief_abi.md, api_spec.md (incl. "How an APP uses pxui"), and your batch in
-dx1.12_audit.md (all in /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/70341840-4a85-459b-b067-76591dd048ed/scratchpad/dx_impl/).
+dx1.12_audit.md (all in docs/dx-checkpoint/).
 - Fix every finding in your batch the spec-conforming way: one function per job (delete twins; the survivor gets the more capable
   signature; callers updated in the same commit), Copy style/option values with DEFAULT/presets + const fn builders, fields pub(crate)
   where they invite literals, keys first (Key from &'static str or item id), interactive calls return Response/result struct, enums

@@ -288,7 +288,7 @@ mod tests {
             ..Default::default()
         };
         let pending = Catalog::new(Vec::new());
-        ui.frame(&frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &pending, &state, &mut None)
         })
         .unwrap();
@@ -304,7 +304,7 @@ mod tests {
         catalog.prepare_remap(&pending);
         state.refresh(&pending, &catalog);
         for _ in 0..3 {
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
@@ -390,7 +390,7 @@ mod tests {
                 ..Default::default()
             }]);
             frame.time += 0.02;
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
             .unwrap();
@@ -429,7 +429,7 @@ mod tests {
         }
         frame.reduced_motion = 0;
         frame.time += 1.0;
-        ui.frame(&frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
@@ -440,7 +440,8 @@ mod tests {
             y: (artist.y + 20.0) as f64,
             ..Default::default()
         };
-        ui.frame(
+        crate::testing::frame(
+            &mut ui,
             &FrameIn {
                 time: entered,
                 events: &pointer,
@@ -451,7 +452,8 @@ mod tests {
         )
         .unwrap();
         assert!(ui.repaint_at().is_some());
-        ui.frame(
+        crate::testing::frame(
+            &mut ui,
             &FrameIn {
                 time: entered + 0.07,
                 ..frame
@@ -464,7 +466,7 @@ mod tests {
             "hover is still moving halfway through Swift's quick duration"
         );
         frame.time = entered + 0.15;
-        ui.frame(&frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
@@ -481,7 +483,7 @@ mod tests {
             action_code: 1,
             ..Default::default()
         }]);
-        ui.frame(&frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut intent)
         })
         .unwrap();
@@ -511,7 +513,8 @@ mod tests {
             mem_sys::local_reset();
             for scale in [1.0, 2.0] {
                 for width in [888.0, 520.0, 400.0, 364.0] {
-                    ui.frame(
+                    crate::testing::frame(
+                        &mut ui,
                         &FrameIn {
                             width: width + 552.0,
                             height: 872.0,

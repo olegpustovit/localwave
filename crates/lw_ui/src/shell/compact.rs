@@ -715,7 +715,8 @@ mod tests {
         time: f64,
     ) -> Option<Intent> {
         let mut intent = None;
-        ui.frame(
+        crate::testing::frame(
+            ui,
             &FrameIn {
                 width,
                 height: 844.0,
@@ -1288,7 +1289,8 @@ mod tests {
                 },
             ];
             mem_sys::local_reset();
-            ui.frame(
+            crate::testing::frame(
+                &mut ui,
                 &FrameIn {
                     width: 390.0,
                     height: 844.0,
@@ -1344,7 +1346,8 @@ mod tests {
             };
             let mut intent = None;
             mem_sys::local_reset();
-            ui.frame(
+            crate::testing::frame(
+                &mut ui,
                 &FrameIn {
                     width: 390.0,
                     height: 844.0,
@@ -1487,7 +1490,8 @@ mod tests {
                 let bottom = [810.0, 700.0, 600.0, 508.0, 600.0, 700.0][tick % 6];
                 mem_sys::local_reset();
                 let mut intent = None;
-                ui.frame(
+                crate::testing::frame(
+                    &mut ui,
                     &FrameIn {
                         width,
                         height: 844.0,
@@ -1609,7 +1613,8 @@ mod tests {
                 };
                 let events = [press, pxui::Event { kind: pxui::Event::POINTER_RELEASED, ..press }];
                 let mut intent = None;
-                ui.frame(
+                crate::testing::frame(
+                    &mut ui,
                     &FrameIn {
                         width: 390.0,
                         height: 844.0,
@@ -1675,7 +1680,8 @@ mod tests {
                 }
                 mem_sys::local_reset();
                 let mut intent = None;
-                ui.frame(
+                crate::testing::frame(
+                    &mut ui,
                     &FrameIn {
                         width,
                         height: 844.0,
@@ -1758,7 +1764,8 @@ mod tests {
             ..Default::default()
         };
         let mut intent = None;
-        ui.frame(
+        crate::testing::frame(
+            ui,
             &FrameIn {
                 width: 390.0,
                 height: 844.0,
@@ -1992,7 +1999,8 @@ mod tests {
                 initialized: true,
                 ..Default::default()
             };
-            ui.frame(
+            crate::testing::frame(
+                ui,
                 &FrameIn {
                     width: 390.0,
                     height: 844.0,

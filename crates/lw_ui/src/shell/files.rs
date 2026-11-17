@@ -845,7 +845,8 @@ mod tests {
         intent: &mut Option<Intent>,
     ) {
         *time += 1.0 / 60.0;
-        ui.frame(
+        crate::testing::frame(
+            ui,
             &FrameIn {
                 width: size.0,
                 height: size.1,
@@ -1372,7 +1373,8 @@ mod tests {
         state.apply(Intent::Navigate(Route::Files));
         for step in 0..3 {
             time += if step == 1 { 1.0 } else { 1.0 / 60.0 };
-            ui.frame(
+            crate::testing::frame(
+                &mut ui,
                 &FrameIn {
                     width: 640.0,
                     height: 480.0,

@@ -173,7 +173,7 @@ mod tests {
             ..Default::default()
         };
         let mut intent = None;
-        ui.frame(&frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
             draw(ui, &player, &catalog, 279.0, &mut intent)
         })
         .unwrap();
@@ -213,7 +213,7 @@ mod tests {
                         }]);
                         frame.time += 0.1;
                         intent = None;
-                        ui.frame(&frame, &mut |ui| {
+                        crate::testing::frame(&mut ui, &frame, &mut |ui| {
                             draw(ui, &player, &catalog, width, &mut intent)
                         })
                         .unwrap();
@@ -259,7 +259,7 @@ mod tests {
             } else {
                 player.album = label;
             }
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 draw(ui, &player, &catalog, 279.0, &mut intent)
             })
             .unwrap();
@@ -270,7 +270,7 @@ mod tests {
                 ..Default::default()
             }]);
             intent = None;
-            ui.frame(&frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 draw(ui, &player, &catalog, 279.0, &mut intent)
             })
             .unwrap();

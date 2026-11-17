@@ -10,6 +10,8 @@ pub mod now_info;
 pub mod queue;
 mod shell;
 pub mod song_text;
+#[doc(hidden)]
+pub mod testing;
 
 /// Longest display string, in bytes, that LocalWave hands to pxui labels and accessible names.
 /// User metadata (tags up to 16 MiB, folder names, list names) is clipped to this once, where the

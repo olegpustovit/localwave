@@ -735,7 +735,8 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
             title: "Covered song",
             ..Default::default()
         };
-        ui.frame(
+        lw_ui::testing::frame(
+            &mut ui,
             &pxui::FrameIn {
                 width: 1440.0,
                 height: 872.0,
@@ -783,7 +784,8 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
             revision: 30 + frame,
             ..Default::default()
         };
-        ui.frame(
+        lw_ui::testing::frame(
+            &mut ui,
             &pxui::FrameIn {
                 width: 1440.0,
                 height: 872.0,
@@ -933,7 +935,8 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
             ""
         };
         let mut intent = None;
-        ui.frame(
+        lw_ui::testing::frame(
+            &mut ui,
             &pxui::FrameIn {
                 width: 1440.0,
                 height: 872.0,
