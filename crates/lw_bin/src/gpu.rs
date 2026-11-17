@@ -16,7 +16,9 @@ pub fn configure_artwork(
     height: f32,
     density: f32,
 ) -> Result<(), String> {
-    graphics.configure_images(density, max_pixels(width, height))
+    graphics
+        .configure_images(density, max_pixels(width, height))
+        .map_err(|error| format!("Artwork configuration failed ({error})"))
 }
 fn max_pixels(width: f32, height: f32) -> u32 {
     let columns = (width.max(1.0) / 180.0).ceil();
@@ -31,13 +33,17 @@ pub fn sync_artwork<'a>(
     namespace: usize,
     ready: impl IntoIterator<Item = &'a lw_bin::library::ArtworkReady>,
 ) -> Result<bool, String> {
-    let mut changed = graphics.sync_images(namespace)?;
+    let mut changed = graphics
+        .sync_images(namespace)
+        .map_err(|error| format!("Artwork sync failed ({error})"))?;
     for ready in ready {
         let pixels = ready
             .thumbnail
             .as_ref()
             .map(|image| (image.width, image.height, image.pixels.as_slice()));
-        changed |= graphics.upload_image(ready.key, ready.epoch, ready.revision, pixels)?;
+        changed |= graphics
+            .upload_image(ready.key, ready.epoch, ready.revision, pixels)
+            .map_err(|error| format!("Artwork upload failed ({error})"))?;
     }
     Ok(changed)
 }

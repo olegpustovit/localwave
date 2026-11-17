@@ -39,7 +39,7 @@ pub(super) fn small_clock(
     let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));
     let len = text.len();
     const CLOCK: pxui::Label = pxui::Label::BODY.font(1).size(12.0);
-    ui.draw(&node, move |paint, rect| {
+    ui.canvas(&node, move |paint, rect| {
         let text = std::str::from_utf8(&buffer[..len]).unwrap_or("");
         // `text_chars` places the layout top at `at`; the 4 pt em-box top tuned to Swift sits about 0.6 pt (the first line's
         // half-leading at 12 pt) above it, so the same glyph pixels need the layout top 0.6 pt lower.
@@ -69,14 +69,14 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
     let unit = height / 7.0;
     let columns = shown * 6 - 1;
     let node = ui.node(key.into(), Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height));
-    ui.draw(&node, move |paint, rect| {
+    ui.canvas(&node, move |paint, rect| {
         for (index, digit) in buffer[..shown].iter().enumerate() {
             let x = rect.x + index as f32 * 6.0 * unit;
             for (row, bits) in DIGITS[(digit - b'0') as usize].iter().enumerate() {
                 for column in 0..5 {
                     if bits & (1 << (4 - column)) != 0 {
                         let y = rect.y + row as f32 * unit;
-                        paint.fill_fractional(x + column as f32 * unit, y, unit * 0.78, unit * 0.78, color);
+                        paint.fill(Rect::new(x + column as f32 * unit, y, unit * 0.78, unit * 0.78), Fill::new(color).fractional());
                     }
                 }
             }
@@ -129,7 +129,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                             Size::Grow,
                             &mut |ui| {
                                 let cells = ui.node("cells".into(), Node::column().w(Size::Grow).h(Size::Grow));
-                                ui.draw(&cells, move |paint, rect| {
+                                ui.canvas(&cells, move |paint, rect| {
                                     let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
                                     let mut x = rect.x;
                                     for (index, byte) in shown.iter().copied().enumerate() {
@@ -142,13 +142,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                                             };
                                             for column in 0..count {
                                                 if bits & (1 << (count - 1 - column)) != 0 {
-                                                    paint.fill_fractional(
-                                                        x + column as f32 * unit,
-                                                        rect.y,
-                                                        unit * 0.78,
-                                                        unit * 0.78,
-                                                        color,
-                                                    );
+                                                    paint.fill(Rect::new(x + column as f32 * unit, rect.y, unit * 0.78, unit * 0.78), Fill::new(color).fractional());
                                                 }
                                             }
                                         }

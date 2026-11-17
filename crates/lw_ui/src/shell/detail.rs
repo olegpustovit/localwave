@@ -76,7 +76,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
                 |ui| {
                     let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
-                    ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+                    ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
                     ui.label("Back", BODY_DIM);
                 },
             );

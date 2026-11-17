@@ -373,7 +373,7 @@ fn result_row(
                 Rgba::default(),
             );
             let kind = item.icon;
-            ui.draw(&icon, move |paint, rect| {
+            ui.canvas(&icon, move |paint, rect| {
                 let rect = Rect {
                     y: rect.y + (rect.h - 16.0) * 0.5,
                     h: 16.0,
@@ -406,10 +406,10 @@ fn result_row(
                 for &(a, b) in lines {
                     let a = (rect.x + a.0, rect.y + a.1);
                     let b = (rect.x + b.0, rect.y + b.1);
-                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, 1.1, paint.color(INK));
+                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(paint.color(INK)).width(1.1));
                 }
                 if kind == crate::commands::Icon::Person {
-                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(paint.color(INK)), None);
+                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(paint.color(INK))), None);
                 }
             });
         }

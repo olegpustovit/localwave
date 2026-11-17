@@ -35,8 +35,8 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                     let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
                         let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
-                        ui.draw(&fill, move |paint, rect| {
-                            paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, accent)
+                        ui.canvas(&fill, move |paint, rect| {
+                            paint.fill(rect, Fill::new(accent).fractional())
                         });
                     });
                     if changed {
@@ -92,16 +92,16 @@ pub(in crate::shell) fn glyph(
     };
     ui.a11y_name(&root, label);
     let accent = ui.tokens().accent;
-    ui.draw(&root, move |paint, rect| {
+    ui.canvas(&root, move |paint, rect| {
         let (x, y) = (rect.x, rect.y);
         if available == Some(FileAvailability::OnDevice)
             && !matches!(state, FileState::CopyPending | FileState::Failed)
         {
             if pinned {
-                paint.fill_fractional(x - 3.5, y - 3.5, 17.0, 17.0, paint.color(INK));
-                paint.fill_fractional(x - 2.0, y - 2.0, 14.0, 14.0, paint.color(PAPER));
+                paint.fill(Rect::new(x - 3.5, y - 3.5, 17.0, 17.0), Fill::new(paint.color(INK)).fractional());
+                paint.fill(Rect::new(x - 2.0, y - 2.0, 14.0, 14.0), Fill::new(paint.color(PAPER)).fractional());
             }
-            paint.fill_fractional(x, y, 10.0, 10.0, paint.color(INK));
+            paint.fill(Rect::new(x, y, 10.0, 10.0), Fill::new(paint.color(INK)).fractional());
         } else {
             let unknown = available.is_none_or(|state| state == FileAvailability::Unknown)
                 && !matches!(state, FileState::CopyPending | FileState::Failed);
@@ -113,19 +113,19 @@ pub(in crate::shell) fn glyph(
             if unknown {
                 for start in [0.75, 4.75, 8.75] {
                     let length = 2.0f32.min(9.25 - start);
-                    paint.fill_fractional(x + start, y + 0.25, length, 1.0, paint.color(TERTIARY));
-                    paint.fill_fractional(x + start, y + 8.75, length, 1.0, paint.color(TERTIARY));
-                    paint.fill_fractional(x + 0.25, y + start, 1.0, length, paint.color(TERTIARY));
-                    paint.fill_fractional(x + 8.75, y + start, 1.0, length, paint.color(TERTIARY));
+                    paint.fill(Rect::new(x + start, y + 0.25, length, 1.0), Fill::new(paint.color(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + start, y + 8.75, length, 1.0), Fill::new(paint.color(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + 0.25, y + start, 1.0, length), Fill::new(paint.color(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + 8.75, y + start, 1.0, length), Fill::new(paint.color(TERTIARY)).fractional());
                 }
             } else {
-                paint.fill_fractional(x, y, 10.0, 1.5, ink);
-                paint.fill_fractional(x, y + 8.5, 10.0, 1.5, ink);
-                paint.fill_fractional(x, y + 1.5, 1.5, 7.0, ink);
-                paint.fill_fractional(x + 8.5, y + 1.5, 1.5, 7.0, ink);
+                paint.fill(Rect::new(x, y, 10.0, 1.5), Fill::new(ink).fractional());
+                paint.fill(Rect::new(x, y + 8.5, 10.0, 1.5), Fill::new(ink).fractional());
+                paint.fill(Rect::new(x, y + 1.5, 1.5, 7.0), Fill::new(ink).fractional());
+                paint.fill(Rect::new(x + 8.5, y + 1.5, 1.5, 7.0), Fill::new(ink).fractional());
             }
             if state == FileState::Failed {
-                paint.line((x + 1.0, y + 9.0), (x + 9.0, y + 1.0), accent);
+                paint.line((x + 1.0, y + 9.0), (x + 9.0, y + 1.0), Stroke::new(accent));
             }
         }
     });
@@ -139,14 +139,8 @@ pub(in crate::shell) fn glyph(
                 let half = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
                     let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
-                    ui.draw(&fill, move |paint, rect| {
-                        paint.fill_fractional(
-                            rect.x + index as f32 * 5.0,
-                            rect.y,
-                            5.0,
-                            10.0,
-                            accent,
-                        )
+                    ui.canvas(&fill, move |paint, rect| {
+                        paint.fill(Rect::new(rect.x + index as f32 * 5.0, rect.y, 5.0, 10.0), Fill::new(accent).fractional())
                     });
                 });
                 if changed {
@@ -215,14 +209,8 @@ pub(in crate::shell) fn drop_target(ui: &mut Ui, visual: &Handle, index: usize, 
     if to == from {
         return;
     }
-    ui.draw_over(visual, move |paint, rect| {
-        paint.fill(
-            rect.x,
-            if after { rect.y + rect.h - 2.0 } else { rect.y },
-            rect.w,
-            2.0,
-            paint.color(INK),
-        );
+    ui.canvas_over(visual, move |paint, rect| {
+        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
     });
     if dropped {
         *intent = Some(Intent::MoveListRow { from, to });
@@ -400,14 +388,9 @@ impl Rows<'_> {
                     };
                     let more = ui.pressable("actions", node, &PLAIN, |_, _| {});
                     ui.a11y_name(&more.handle, row.actions_label);
-                    ui.draw(&more.handle, move |paint, rect| {
+                    ui.canvas(&more.handle, move |paint, rect| {
                         for x in [5.5, 12.0, 18.5] {
-                            paint.circle(
-                                (rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0),
-                                1.4 * (2.0 / 3.0),
-                                Some(paint.color(SECONDARY)),
-                                None,
-                            );
+                            paint.circle((rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0), 1.4 * (2.0 / 3.0), Some(Fill::new(paint.color(SECONDARY))), None);
                         }
                     });
                     if more.clicked {
@@ -426,16 +409,10 @@ impl Rows<'_> {
                         };
                         let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});
                         ui.a11y_name(&grip.handle, "Reorder track");
-                        ui.draw(&grip.handle, move |paint, rect| {
+                        ui.canvas(&grip.handle, move |paint, rect| {
                             for x in [8.0, 12.0] {
                                 for y in [-4.0, 0.0, 4.0] {
-                                    paint.fill(
-                                        rect.x + x,
-                                        rect.y + rect.h * 0.5 + y,
-                                        2.0,
-                                        2.0,
-                                        paint.color(SECONDARY),
-                                    );
+                                    paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
                                 }
                             }
                         });
@@ -470,16 +447,10 @@ impl Rows<'_> {
                     );
                 }
                 let last = index + 1 == collection.rows.len();
-                ui.draw_over(&root.handle, move |paint, rect| {
-                    paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, paint.color(LINE));
+                ui.canvas_over(&root.handle, move |paint, rect| {
+                    paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
                     if last {
-                        paint.fill_fractional(
-                            rect.x,
-                            (rect.y + rect.h).floor(),
-                            rect.w,
-                            1.0,
-                            paint.color(LINE),
-                        );
+                        paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
                     }
                 });
                 if signal.pressed && signal.button == Some(1) {

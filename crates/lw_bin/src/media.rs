@@ -15,7 +15,7 @@ use crate::controller::{Command, Controller, Status};
 use crate::library::ArtworkReady;
 use lw_apple_sys::media::{Media as Native, Metadata};
 use lw_core::playback::Phase;
-use lw_ui::artwork::{Key, Request};
+use lw_ui::artwork::{Want, Request};
 use lw_ui::catalog::Catalog;
 use std::io;
 use std::sync::Arc;
@@ -64,7 +64,9 @@ impl Published {
 pub struct Media {
     pub native: Native,
     published: Option<Published>,
-    cover: Option<(u64, Key)>,
+    cover: Option<(u64, Want)>,
+    /// The cover's source path, rewritten only when the cover changes.
+    cover_path: String,
     cover_ready: bool,
     cover_revision: u64,
 }
@@ -74,6 +76,7 @@ impl Media {
             native: Native::open(publish, wake)?,
             published: None,
             cover: None,
+            cover_path: String::new(),
             cover_ready: false,
             cover_revision: 0,
         })
@@ -165,19 +168,16 @@ impl Media {
                     .row_index(published.song)
                     .map(|index| catalog.library.row(index))
             })
-            .and_then(|row| {
-                Some((
-                    epoch,
-                    Key {
-                        id: row.cover_art_id,
-                        path: lw_ui::artwork::Path::new(row.cover_art_path?)?,
-                        max_pixels: 256,
-                    },
-                ))
-            });
-        if self.cover != cover {
+            .and_then(|row| Some((epoch, Want::new(row.cover_art_id, 256)?, row.cover_art_path?)));
+        let changed = match (self.cover, cover) {
+            (Some(now), Some((epoch, key, path))) => now != (epoch, key) || self.cover_path != path,
+            (now, next) => now.is_some() != next.is_some(),
+        };
+        if changed {
             self.native.artwork(None)?;
-            self.cover = cover;
+            self.cover = cover.map(|(epoch, key, _)| (epoch, key));
+            self.cover_path.clear();
+            self.cover_path.push_str(cover.map_or("", |(_, _, path)| path));
             self.cover_ready = false;
             self.cover_revision = 0;
         }
@@ -186,8 +186,7 @@ impl Media {
         };
         for image in ready {
             if image.epoch == epoch
-                && image.key.id == key.id
-                && image.key.path == key.path
+                && image.key.id() == key.id()
                 && image.revision > self.cover_revision
             {
                 self.native.artwork(image.thumbnail.as_ref())?;
@@ -202,11 +201,11 @@ impl Media {
             && let Some((epoch, key)) = self.cover
             && epoch == request.epoch()
         {
-            let previous = *request;
+            let previous = request.clone();
             request.clear();
-            request.insert(key.id, key.path.as_str(), key.max_pixels);
-            for other in previous.keys() {
-                request.insert(other.id, other.path.as_str(), other.max_pixels);
+            request.insert(key, &self.cover_path);
+            for (index, other) in previous.wants().iter().enumerate() {
+                request.insert(*other, previous.path(index));
             }
         }
     }

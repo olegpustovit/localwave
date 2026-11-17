@@ -8,7 +8,7 @@
 //!
 use super::LibraryWorker;
 use lw_apple_sys::artwork::{self, Thumbnail};
-use lw_ui::artwork::{Key, REQUEST_CAPACITY, Request};
+use lw_ui::artwork::{Want, REQUEST_CAPACITY, Request};
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
@@ -34,7 +34,7 @@ fn load(documents: &Path, stored_path: &str, max_pixels: u32) -> io::Result<Thum
 pub struct ArtworkReady {
     pub revision: u64,
     pub epoch: u64,
-    pub key: Key,
+    pub key: Want,
     pub thumbnail: Option<Thumbnail>,
 }
 type Batch = [Option<Arc<ArtworkReady>>; REQUEST_CAPACITY];
@@ -108,15 +108,15 @@ impl ArtworkWorker {
                             if let Some(mut request) = inbox.request.take() {
                                 if !inbox.cancelled && request.epoch() == pending.epoch() {
                                     // New visible covers take priority; finish selected prefetch in spare slots.
-                                    for key in &pending.keys()[next..] {
-                                        request.insert(key.id, key.path.as_str(), key.max_pixels);
+                                    for index in next..pending.wants().len() {
+                                        request.insert(pending.wants()[index], pending.path(index));
                                     }
                                 }
                                 inbox.cancelled = false;
                                 pending = request;
                                 next = 0;
                             }
-                            inbox.pending = pending.keys().len().saturating_sub(next);
+                            inbox.pending = pending.wants().len().saturating_sub(next);
                             if inbox.retired.iter().any(Option::is_some) {
                                 let retired = std::mem::replace(
                                     &mut inbox.retired,
@@ -124,7 +124,7 @@ impl ArtworkWorker {
                                 );
                                 break (None, retired, !inbox.results.is_empty());
                             }
-                            if let Some(key) = pending.keys().get(next).copied() {
+                            if let Some(key) = pending.wants().get(next).copied() {
                                 if inbox
                                     .results
                                     .iter()
@@ -140,13 +140,14 @@ impl ArtworkWorker {
                                     .map(|image| image.pixels.len())
                                     .sum();
                                 let required =
-                                    key.max_pixels as usize * key.max_pixels as usize * 4;
+                                    key.max_pixels() as usize * key.max_pixels() as usize * 4;
                                 if inbox.results.len() < REQUEST_CAPACITY
                                     && bytes + required <= READY_BYTE_LIMIT
                                 {
+                                    let index = next;
                                     next += 1;
                                     break (
-                                        Some((key, pending.epoch())),
+                                        Some((key, pending.epoch(), index)),
                                         [const { None }; REQUEST_CAPACITY],
                                         false,
                                     );
@@ -159,17 +160,17 @@ impl ArtworkWorker {
                     if retry {
                         (owner.wake)();
                     }
-                    let Some((key, epoch)) = key else {
+                    let Some((key, epoch, index)) = key else {
                         continue;
                     };
                     let decoded = match &documents {
-                        Ok(documents) => load(documents, key.path.as_str(), key.max_pixels),
+                        Ok(documents) => load(documents, pending.path(index), key.max_pixels()),
                         Err(error) => Err(io::Error::other(error.to_string())),
                     };
                     let thumbnail = match decoded {
                         Ok(image) => Some(image),
                         Err(error) => {
-                            eprintln!("LocalWave artwork {}: {error}", key.path.as_str());
+                            eprintln!("LocalWave artwork {}: {error}", pending.path(index));
                             None
                         }
                     };
@@ -181,7 +182,7 @@ impl ArtworkWorker {
                         thumbnail,
                     });
                     let mut inbox = owner.mailbox.lock().unwrap();
-                    inbox.pending = pending.keys().len().saturating_sub(next);
+                    inbox.pending = pending.wants().len().saturating_sub(next);
                     if inbox.closed
                         || inbox.cancelled
                         || inbox
@@ -205,25 +206,29 @@ impl ArtworkWorker {
             sent: Request::default(),
         })
     }
-    pub fn request(&mut self, request: Request) -> io::Result<()> {
+    /// Hands the worker a copy of `request` (a fixed-size packet: no allocation); the same packet again is a no-op.
+    pub fn request(&mut self, request: &Request) -> io::Result<()> {
         self.send(request, false)
     }
     pub fn cancel(&mut self) -> io::Result<()> {
-        let mut empty = self.sent;
+        let mut empty = self.sent.clone();
         empty.clear();
-        self.send(empty, true)
+        self.send(&empty, true)
     }
-    fn send(&mut self, request: Request, cancel: bool) -> io::Result<()> {
-        if self.sent == request && !cancel {
+    fn send(&mut self, request: &Request, cancel: bool) -> io::Result<()> {
+        if self.sent == *request && !cancel {
             return Ok(());
         }
         let mut inbox = self.shared.mailbox.lock().unwrap();
         if inbox.closed {
             return Err(io::ErrorKind::BrokenPipe.into());
         }
-        inbox.request = Some(request);
+        match &mut inbox.request {
+            Some(waiting) => waiting.clone_from(request),
+            none => *none = Some(request.clone()),
+        }
         inbox.cancelled |= cancel;
-        self.sent = request;
+        self.sent.clone_from(request);
         drop(inbox);
         self.shared.changed.notify_one();
         Ok(())
@@ -249,7 +254,7 @@ impl ArtworkWorker {
             || inbox
                 .request
                 .as_ref()
-                .is_some_and(|request| !request.keys().is_empty())
+                .is_some_and(|request| !request.wants().is_empty())
     }
     pub fn ready(&self) -> Option<&ArtworkReady> {
         self.ready_images().last()
@@ -303,9 +308,9 @@ mod tests {
         let _release = Release;
         let mut request = Request::default();
         for id in 1..=REQUEST_CAPACITY {
-            assert!(request.insert(id, fixture.to_str().unwrap(), 160));
+            assert!(request.insert(Want::new(id, 160).unwrap(), fixture.to_str().unwrap()));
         }
-        worker.request(request).unwrap();
+        worker.request(&request).unwrap();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
         while !FIRST.load(Ordering::Acquire) {
             assert!(
@@ -317,7 +322,7 @@ mod tests {
         assert_eq!(worker.shared.mailbox.lock().unwrap().results.len(), 1);
         let mut empty = request;
         empty.clear();
-        worker.request(empty).unwrap();
+        worker.request(&empty).unwrap();
         RELEASE.store(true, Ordering::Release);
         while worker.shared.mailbox.lock().unwrap().results.len() != REQUEST_CAPACITY {
             assert!(
@@ -341,17 +346,17 @@ mod tests {
         let mut worker =
             ArtworkWorker::open(Some(fixture.parent().unwrap().to_owned()), wake).unwrap();
         let mut request = Request::default();
-        request.insert(1, fixture.to_str().unwrap(), 512);
-        worker.request(request).unwrap();
+        request.insert(Want::new(1, 512).unwrap(), fixture.to_str().unwrap());
+        worker.request(&request).unwrap();
         // Cached views keep their outstanding packet until the result is adopted.
-        worker.request(request).unwrap();
-        let until = |worker: &mut ArtworkWorker, path: &str| {
+        worker.request(&request).unwrap();
+        let until = |worker: &mut ArtworkWorker, id: usize| {
             let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
             loop {
                 worker.poll();
                 if worker
                     .ready()
-                    .is_some_and(|ready| ready.key.path.as_str() == path)
+                    .is_some_and(|ready| ready.key.id() == id)
                 {
                     break;
                 }
@@ -362,13 +367,13 @@ mod tests {
                 std::thread::yield_now();
             }
         };
-        until(&mut worker, fixture.to_str().unwrap());
+        until(&mut worker, 1);
         assert!(worker.ready().unwrap().thumbnail.is_some());
         let old = Arc::downgrade(worker.results.iter().flatten().last().unwrap());
         let mut missing = Request::default();
-        missing.insert(2, "not-present.png", 512);
-        worker.request(missing).unwrap();
-        until(&mut worker, "not-present.png");
+        missing.insert(Want::new(2, 512).unwrap(), "not-present.png");
+        worker.request(&missing).unwrap();
+        until(&mut worker, 2);
         assert!(worker.ready().unwrap().thumbnail.is_none());
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
         while old.strong_count() != 0 {
@@ -377,22 +382,22 @@ mod tests {
         }
         mem_sys::local_reset();
         for _ in 0..1000 {
-            worker.request(missing).unwrap();
+            worker.request(&missing).unwrap();
             assert!(!worker.poll());
         }
         assert_eq!(mem_sys::local_alloc_count(), 0);
         let mut batch = Request::default();
         for id in 10..18 {
-            assert!(batch.insert(id, fixture.to_str().unwrap(), 64));
+            assert!(batch.insert(Want::new(id, 64).unwrap(), fixture.to_str().unwrap()));
         }
-        worker.request(batch).unwrap();
+        worker.request(&batch).unwrap();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
         let mut received = 0u8;
         while received != u8::MAX {
             if worker.poll() {
                 for ready in worker.ready_images() {
                     assert!(ready.thumbnail.is_some());
-                    received |= 1 << (ready.key.id - 10);
+                    received |= 1 << (ready.key.id() - 10);
                 }
             }
             assert!(std::time::Instant::now() < deadline, "batch stalled");
@@ -400,7 +405,7 @@ mod tests {
         }
         let previous_revision = worker.ready().unwrap().revision;
         worker.cancel().unwrap();
-        worker.request(batch).unwrap();
+        worker.request(&batch).unwrap();
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
         loop {
             worker.poll();
@@ -427,9 +432,9 @@ mod tests {
             ArtworkWorker::open(Some(fixture.parent().unwrap().to_owned()), wake).unwrap();
         let mut request = Request::default();
         for id in 1..=REQUEST_CAPACITY {
-            assert!(request.insert(id, fixture.to_str().unwrap(), 160));
+            assert!(request.insert(Want::new(id, 160).unwrap(), fixture.to_str().unwrap()));
         }
-        worker.request(request).unwrap();
+        worker.request(&request).unwrap();
         assert!(
             worker.has_pending_work(),
             "queued or decoded-but-undelivered results must remain pending"
@@ -477,11 +482,11 @@ mod tests {
             .map(Arc::downgrade)
             .collect();
         let mut missing = Request::default();
-        assert!(missing.insert(100, "not-present.png", 160));
-        worker.request(missing).unwrap();
+        assert!(missing.insert(Want::new(100, 160).unwrap(), "not-present.png"));
+        worker.request(&missing).unwrap();
         loop {
             worker.poll();
-            if worker.ready().is_some_and(|ready| ready.key.id == 100)
+            if worker.ready().is_some_and(|ready| ready.key.id() == 100)
                 && old.iter().all(|ready| ready.strong_count() == 0)
             {
                 break;

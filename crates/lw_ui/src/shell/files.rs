@@ -186,12 +186,12 @@ fn cell(ui: &mut Ui, key: &'static str, fixed: Option<f32>, share: f32, end: boo
 /// Swift's folder/file marks in the # column, drawn as outlines.
 fn mark(ui: &mut Ui, directory: bool, color: Rgba) {
     let node = ui.node("mark".into(), Node::column().w_px(16.0).h_px(16.0));
-    ui.draw(&node, move |paint, rect| {
+    ui.canvas(&node, move |paint, rect| {
         let (x, y, w, h) = if directory { (rect.x + 1.0, rect.y + 3.0, 14.0, 10.0) } else { (rect.x + 3.0, rect.y + 1.0, 10.0, 14.0) };
-        paint.fill_fractional(x, y, w, 1.5, color);
-        paint.fill_fractional(x, y + h - 1.5, w, 1.5, color);
-        paint.fill_fractional(x, y, 1.5, h, color);
-        paint.fill_fractional(x + w - 1.5, y, 1.5, h, color);
+        paint.fill(Rect::new(x, y, w, 1.5), Fill::new(color).fractional());
+        paint.fill(Rect::new(x, y + h - 1.5, w, 1.5), Fill::new(color).fractional());
+        paint.fill(Rect::new(x, y, 1.5, h), Fill::new(color).fractional());
+        paint.fill(Rect::new(x + w - 1.5, y, 1.5, h), Fill::new(color).fractional());
     });
 }
 
@@ -275,9 +275,9 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
             let add = ui.node("add-music".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
             ui.a11y_name(&add, "Add music");
             let color = ui.color(INK);
-            ui.draw(&add, move |paint, rect| {
-                paint.fill(rect.x + 10.0, rect.y + 21.25, 24.0, 1.5, color);
-                paint.fill(rect.x + 21.25, rect.y + 10.0, 1.5, 24.0, color);
+            ui.canvas(&add, move |paint, rect| {
+                paint.fill(Rect::new(rect.x + 10.0, rect.y + 21.25, 24.0, 1.5), Fill::new(color));
+                paint.fill(Rect::new(rect.x + 21.25, rect.y + 10.0, 1.5, 24.0), Fill::new(color));
             });
             if enabled && ui.signal(&add).clicked {
                 *intent = Some(Intent::ShowAddMusic);
@@ -300,7 +300,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
                 ui.label(&["1", "2", "3"][index], MONO_13.w_px(12.0).color(SECONDARY));
                 ui.label(step, TEXT_15.grow().h_px(24.0).color(INK));
             });
-            ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
+            ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
         }
     }
     for folder in files.sources.iter() {
@@ -440,7 +440,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
             legend(ui);
         }
     });
-    ui.draw_over(&tools, move |paint, rect| paint.fill_fractional(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0, paint.color(LINE)));
+    ui.canvas_over(&tools, move |paint, rect| paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(paint.color(LINE)).fractional()));
     status(ui, files, compact, intent);
     if directory.entries.is_empty() {
         ui.label("Nothing here.", TEXT_14.grow().h_px(48.0).color(SECONDARY));
@@ -460,7 +460,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
             });
         }
     });
-    ui.draw_over(&head, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
+    ui.canvas_over(&head, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
     // The parent participates in the identity, giving each destination its own scroll state.
     let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
     let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
@@ -512,7 +512,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
                     ui.label(&entry.time, MONO_12.color(tone));
                 });
             });
-            ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
+            ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
             if signal.clicked && entry.directory && intent.is_none() {
                 *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })));
             }
@@ -546,7 +546,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         ui.within(&back, &mut |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(SECONDARY);
-            ui.draw(&glyph, move |paint, rect| paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+            ui.canvas(&glyph, move |paint, rect| paint_icon(paint, Icon::Back, rect.x, rect.y, color));
             ui.label(if directory.up.is_some() { "Back" } else { "Folders" }, LEAD_DIM);
         });
         if ui.signal(&back).clicked {
@@ -571,7 +571,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         let more = ui.node("source-options".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
         ui.a11y_name(&more, "Folder options");
         let color = ui.color(INK);
-        ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
+        ui.canvas(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
         if ui.signal(&more).clicked {
             let at = ui.rect(&more);
             *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
@@ -601,7 +601,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
             ui.a11y_name(&node, name);
             let color = if kept { ui.color(PAPER) } else { ui.color(INK) };
-            ui.draw(&node, move |paint, rect| {
+            ui.canvas(&node, move |paint, rect| {
                 let rect = pxui::geom::Rect { x: rect.x + 16.0, y: rect.y + 16.0, w: 20.0, h: 20.0 };
                 if offline { crate::icons::offline(paint, rect, kept, color) } else { crate::icons::shuffle(paint, rect, color) }
             });
@@ -688,7 +688,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
                     ui.a11y_name(&more, "Actions for folder");
                     let color = ui.color(SECONDARY);
-                    ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
+                    ui.canvas(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
                     if ui.signal(&more).clicked {
                         let at = ui.rect(&more);
                         *intent = Some(Intent::FolderMenu(entry.id, (at.x + at.w - 44.0, at.y)));
@@ -698,14 +698,14 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
                     ui.a11y_name(&more, "Actions for file");
                     let color = ui.color(SECONDARY);
-                    ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
+                    ui.canvas(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
                     if ui.signal(&more).clicked {
                         let at = ui.rect(&more);
                         *intent = Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
                     }
                 }
             });
-            ui.draw_over(&row, move |paint, rect| paint.fill_fractional(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0, paint.color(LINE)));
+            ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0), Fill::new(paint.color(LINE)).fractional()));
             if signal.clicked && intent.is_none() && selecting {
                 if entry.song.is_some() {
                     *intent = Some(Intent::Select(crate::Selection::Toggle(index)));

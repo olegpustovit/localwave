@@ -75,7 +75,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
                 ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
                     let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
                     let icon = ui.node("icon".into(), Node::column().w_px(icon_size).h_px(icon_size));
-                    ui.draw(&icon, move |paint, rect| match action {
+                    ui.canvas(&icon, move |paint, rect| match action {
                         Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
                         Action::Shuffle => crate::icons::shuffle(paint, rect, color),
                         Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
@@ -120,14 +120,8 @@ pub(super) fn toolbar(
             }
         });
     });
-    ui.draw_over(&tools, move |paint, rect| {
-        paint.fill_fractional(
-            rect.x - 32.0,
-            rect.y + rect.h - 1.0,
-            rect.w + 64.0,
-            1.0,
-            paint.color(LINE),
-        )
+    ui.canvas_over(&tools, move |paint, rect| {
+        paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(paint.color(LINE)).fractional())
     });
 }
 

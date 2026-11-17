@@ -1,21 +1,21 @@
 use pxui::{
-    Paint,
+    Fill, Paint, Stroke,
     geom::{Rect, Rgba},
 };
 
 pub(crate) fn play(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
-    paint.triangle(at((7.0, 4.6)), at((7.0, 19.4)), at((19.4, 12.0)), color);
+    paint.triangle(at((7.0, 4.6)), at((7.0, 19.4)), at((19.4, 12.0)), Fill::new(color));
 }
 pub(crate) fn heart(paint: &mut Paint<'_>, rect: Rect, filled: bool, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     if filled {
         for x in [8.2, 15.8] {
-            paint.circle(at((x, 8.8)), 4.2 * scale, Some(color), None);
+            paint.circle(at((x, 8.8)), 4.2 * scale, Some(Fill::new(color)), None);
         }
-        paint.triangle(at((4.2, 10.4)), at((19.8, 10.4)), at((12.0, 20.0)), color);
+        paint.triangle(at((4.2, 10.4)), at((19.8, 10.4)), at((12.0, 20.0)), Fill::new(color));
         return;
     }
     for side in [-1.0_f32, 1.0] {
@@ -25,7 +25,7 @@ pub(crate) fn heart(paint: &mut Paint<'_>, rect: Rect, filled: bool, color: Rgba
             [(3.0, 8.5), (3.0, 5.5), (5.2, 4.0), (7.5, 4.0)],
             [(7.5, 4.0), (9.5, 4.0), (11.0, 5.0), (12.0, 7.0)],
         ] {
-            paint.cubic(points.map(mirror), 1.6 * scale, color);
+            paint.cubic(points.map(mirror), Stroke::new(color).width(1.6 * scale));
         }
     }
 }
@@ -33,13 +33,7 @@ pub(crate) fn offline(paint: &mut Paint<'_>, rect: Rect, kept: bool, color: Rgba
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     let mut line = |a: (f32, f32), b: (f32, f32)| {
-        paint.curve(
-            at(a),
-            at(((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5)),
-            at(b),
-            1.6 * scale,
-            color,
-        )
+        paint.curve(at(a), at(((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5)), at(b), Stroke::new(color).width(1.6 * scale))
     };
     if kept {
         line((5.0, 12.5), (9.5, 17.0));
@@ -69,7 +63,7 @@ pub(crate) fn repeat(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
         ((8.0, 20.0), (6.5, 18.5), (5.0, 17.0)),
         ((5.0, 17.0), (6.5, 15.5), (8.0, 14.0)),
     ] {
-        paint.curve(at(a), at(control), at(b), width, color);
+        paint.curve(at(a), at(control), at(b), Stroke::new(color).width(width));
     }
 }
 
@@ -89,14 +83,14 @@ pub(crate) fn shuffle(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
         ((20.0, 17.0), (17.5, 19.5)),
     ] {
         let middle = ((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
-        paint.curve(at(a), at(middle), at(b), width, color);
+        paint.curve(at(a), at(middle), at(b), Stroke::new(color).width(width));
     }
     for points in [
         [(7.0, 7.0), (11.5, 7.0), (12.5, 17.0), (17.0, 17.0)],
         [(7.0, 17.0), (8.7, 17.0), (9.8, 15.6), (10.7, 13.8)],
         [(13.3, 10.2), (14.2, 8.4), (15.3, 7.0), (17.0, 7.0)],
     ] {
-        paint.cubic(points.map(at), width, color);
+        paint.cubic(points.map(at), Stroke::new(color).width(width));
     }
 }
 
@@ -130,7 +124,7 @@ mod tests {
                     },
                     &mut |ui| {
                         let node = ui.node("icon".into(), pxui::ui::Node::column().w_px(size).h_px(size));
-                        ui.draw(&node, |paint, rect| {
+                        ui.canvas(&node, |paint, rect| {
                             shuffle(
                                 paint,
                                 rect,

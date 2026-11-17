@@ -194,7 +194,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         ui.within(&node, &mut |ui| {
             let heart = ui.view_of("heart", &(on, press.hovered, press.pressed, current.is_some()), |ui| {
                 let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
-                ui.draw(&surface, move |paint, rect| {
+                ui.canvas(&surface, move |paint, rect| {
                     let side = 20.0;
                     let area = Rect {
                         x: rect.x + (rect.w - side) / 2.0,
@@ -219,8 +219,8 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
                     ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
                         let dot = ui.node("dot".into(), Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
-                        ui.draw(&dot, move |paint, rect| {
-                            paint.fill(rect.x, rect.y, rect.w, rect.h, accent)
+                        ui.canvas(&dot, move |paint, rect| {
+                            paint.fill(rect, Fill::new(accent))
                         });
                     }));
                 });

@@ -76,23 +76,11 @@ pub(super) fn paint_artwork(
     ui.set_role(node, Role::Image, 0);
     if let (Some(row), Some(images)) = (row, images)
         && let Some(path) = row.cover_art_path
-        && let Some(image) = images.get_at(row.cover_art_id, path, points, node.box_key)
+        && let Some(image) = images.get(row.cover_art_id, path, points, Some(node))
     {
-        ui.draw(node, move |paint, rect| {
-            paint.image_fit(
-                rect.x,
-                rect.y,
-                rect.w,
-                rect.h,
-                &image,
-                Fit::Cover,
-                Rgba {
-                    r: 255,
-                    g: 255,
-                    b: 255,
-                    a: 255,
-                },
-            )
+        // a descriptor that went bad between frames draws nothing (`Paint::image` refuses it)
+        ui.canvas(node, move |paint, rect| {
+            let _ = paint.image(rect, &image, Fit::Cover, Rgba::rgb(255, 255, 255));
         });
     }
 }
@@ -128,32 +116,26 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             color,
         ),
         Icon::Pause => {
-            paint.fill(x + 4.0, y + 3.0, 4.0, 14.0, color);
-            paint.fill(x + 12.0, y + 3.0, 4.0, 14.0, color);
+            paint.fill(Rect::new(x + 4.0, y + 3.0, 4.0, 14.0), Fill::new(color));
+            paint.fill(Rect::new(x + 12.0, y + 3.0, 4.0, 14.0), Fill::new(color));
         }
         Icon::Queue => {
             for dy in [5.0, 10.0, 15.0] {
-                paint.fill(x + 2.0, y + dy, 2.0, 1.5, color);
-                paint.fill(x + 6.0, y + dy, 12.0, 1.5, color);
+                paint.fill(Rect::new(x + 2.0, y + dy, 2.0, 1.5), Fill::new(color));
+                paint.fill(Rect::new(x + 6.0, y + dy, 12.0, 1.5), Fill::new(color));
             }
         }
         Icon::Previous | Icon::Next => {
             let next = matches!(icon, Icon::Next);
-            paint.fill(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0, color);
+            paint.fill(Rect::new(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0), Fill::new(color));
             for row in 0..12 {
                 let w = (6.0 - (row as f32 - 5.5).abs()) * 1.5;
-                paint.fill(
-                    x + if next { 4.0 } else { 15.0 - w },
-                    y + 4.0 + row as f32,
-                    w,
-                    1.0,
-                    color,
-                );
+                paint.fill(Rect::new(x + if next { 4.0 } else { 15.0 - w }, y + 4.0 + row as f32, w, 1.0), Fill::new(color));
             }
         }
         Icon::Panel => {
-            paint.stroke(x + 2.0, y + 3.0, 16.0, 14.0, color);
-            paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), color);
+            paint.stroke(Rect::new(x + 2.0, y + 3.0, 16.0, 14.0), Stroke::new(color));
+            paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), Stroke::new(color));
         }
         Icon::Shuffle => {
             crate::icons::shuffle(
@@ -178,39 +160,39 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             color,
         ),
         Icon::Refresh => {
-            paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), color);
-            paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), color);
-            paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), color);
-            paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), color);
-            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), color);
-            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), color);
+            paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), Stroke::new(color));
+            paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), Stroke::new(color));
+            paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), Stroke::new(color));
+            paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), Stroke::new(color));
+            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), Stroke::new(color));
+            paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), Stroke::new(color));
         }
         Icon::Clear => {
-            paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), color);
-            paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), color);
+            paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), Stroke::new(color));
+            paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), Stroke::new(color));
         }
         Icon::More => {
             for dx in [3.0, 9.0, 15.0] {
-                paint.fill(x + dx, y + 9.0, 2.5, 2.5, color);
+                paint.fill(Rect::new(x + dx, y + 9.0, 2.5, 2.5), Fill::new(color));
             }
         }
         Icon::Settings => {
             for (dy, knob) in [(5.0, 12.0), (10.0, 6.0), (15.0, 13.0)] {
-                paint.fill(x + 2.0, y + dy, 16.0, 1.5, color);
-                paint.fill(x + knob - 1.5, y + dy - 2.0, 3.0, 5.5, color);
+                paint.fill(Rect::new(x + 2.0, y + dy, 16.0, 1.5), Fill::new(color));
+                paint.fill(Rect::new(x + knob - 1.5, y + dy - 2.0, 3.0, 5.5), Fill::new(color));
             }
         }
         Icon::Back => {
-            paint.line((x + 12.0, y + 4.0), (x + 6.0, y + 10.0), color);
-            paint.line((x + 6.0, y + 10.0), (x + 12.0, y + 16.0), color);
+            paint.line((x + 12.0, y + 4.0), (x + 6.0, y + 10.0), Stroke::new(color));
+            paint.line((x + 6.0, y + 10.0), (x + 12.0, y + 16.0), Stroke::new(color));
         }
         Icon::Check => {
-            paint.line((x + 4.0, y + 10.0), (x + 8.0, y + 14.0), color);
-            paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), color);
+            paint.line((x + 4.0, y + 10.0), (x + 8.0, y + 14.0), Stroke::new(color));
+            paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), Stroke::new(color));
         }
         Icon::Down => {
-            paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), color);
-            paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), color);
+            paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), Stroke::new(color));
+            paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), Stroke::new(color));
         }
     }
 }

@@ -266,8 +266,8 @@ fn heading(
             x += w;
         }
     });
-    ui.draw_over(&root, move |paint, rect| {
-        paint.fill_fractional(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0, paint.color(LINE))
+    ui.canvas_over(&root, move |paint, rect| {
+        paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional())
     });
     root
 }

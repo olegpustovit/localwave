@@ -162,7 +162,7 @@ pub(super) fn view(
                                 let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
                                 ui.a11y_name(&settings.handle, "Settings");
                                 let color = ui.color(INK);
-                                ui.draw(&settings.handle, move |paint, rect| {
+                                ui.canvas(&settings.handle, move |paint, rect| {
                                     kit::paint_icon(
                                         paint,
                                         Icon::Settings,
@@ -472,7 +472,7 @@ fn mode_key(
     let button = ui.button_content(key, &mode, |ui, _| {
         ui.row("content", Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-            ui.draw(&glyph, move |paint, rect| {
+            ui.canvas(&glyph, move |paint, rect| {
                 kit::paint_icon(paint, icon, rect.x, rect.y, color)
             });
             inner(ui);

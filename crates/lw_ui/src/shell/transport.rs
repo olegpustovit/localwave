@@ -255,14 +255,14 @@ pub(super) fn desktop(
                 let accent = ui.tokens().accent;
                 match songs::song_drop(ui, &target) {
                     Some((true, song)) => *intent = Some(Intent::AppendSong(song)),
-                    Some((false, _)) => ui.draw_over(&target, move |paint, rect| {
+                    Some((false, _)) => ui.canvas_over(&target, move |paint, rect| {
                         for (x, y, w, h) in [
                             (0.0, 0.0, rect.w, 2.0),
                             (0.0, rect.h - 2.0, rect.w, 2.0),
                             (0.0, 0.0, 2.0, rect.h),
                             (rect.w - 2.0, 0.0, 2.0, rect.h),
                         ] {
-                            paint.fill(rect.x + x, rect.y + y, w, h, accent);
+                            paint.fill(Rect::new(rect.x + x, rect.y + y, w, h), Fill::new(accent));
                         }
                     }),
                     None => {}
@@ -338,7 +338,7 @@ pub(super) fn seek(
     }
     let peaks = player.waveform.copied();
     let accent = ui.tokens().accent;
-    ui.draw(&scrubber, move |paint, rect| {
+    ui.canvas(&scrubber, move |paint, rect| {
         const BARS: usize = 200;
         let baseline = (rect.h - 4.0).max(0.0);
         let step = rect.w / BARS as f32;
@@ -353,26 +353,11 @@ pub(super) fn seek(
                     .fold(0.0, f32::max)
                     .clamp(0.0, 1.0);
                 let height = (peak * baseline).max(2.0);
-                paint.fill_fractional(
-                    rect.x + index as f32 * step,
-                    rect.y + baseline - height,
-                    step / 4.0,
-                    height,
-                    Rgba {
-                        a: (ink.a as f32 * 0.42).round() as u8,
-                        ..ink
-                    },
-                );
+                paint.fill(Rect::new(rect.x + index as f32 * step, rect.y + baseline - height, step / 4.0, height), Fill::new(Rgba { a: (ink.a as f32 * 0.42).round() as u8, ..ink }).fractional());
             }
         }
-        paint.fill(rect.x, rect.y + baseline + 1.0, rect.w, 1.0, paint.color(LINE));
-        paint.fill_fractional(rect.x, rect.y + baseline, rect.w * fraction, 3.0, ink);
-        paint.fill_fractional(
-            rect.x + rect.w * fraction - step / 4.0,
-            rect.y,
-            step / 2.0,
-            rect.h,
-            accent,
-        );
+        paint.fill(Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)));
+        paint.fill(Rect::new(rect.x, rect.y + baseline, rect.w * fraction, 3.0), Fill::new(ink).fractional());
+        paint.fill(Rect::new(rect.x + rect.w * fraction - step / 4.0, rect.y, step / 2.0, rect.h), Fill::new(accent).fractional());
     });
 }

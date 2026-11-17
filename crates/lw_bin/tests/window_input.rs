@@ -526,7 +526,7 @@ fn media_commands_wait_for_controller_capacity_without_losing_accepted_events() 
 fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bounded() {
     use lw_bin::controller::Status;
     use lw_core::{Song, playback::Phase, queue::Entry};
-    use lw_ui::artwork::{Key, Request};
+    use lw_ui::artwork::{Want, Request};
     use std::sync::Arc;
     assert_eq!(
         lw_apple_sys::media::verify_callbacks(),
@@ -558,23 +558,19 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
     media.artwork(&catalog, 0, std::iter::empty()).unwrap();
     let mut request = Request::default();
     for id in 2..=9 {
-        assert!(request.insert(id, "other.png", 512));
+        assert!(request.insert(Want::new(id, 512).unwrap(), "other.png"));
     }
     media.request_artwork(&mut request);
-    assert_eq!(request.keys().len(), 8);
+    assert_eq!(request.wants().len(), 8);
     assert_eq!(
-        request.keys()[0].id,
+        request.wants()[0].id(),
         1,
         "Now Playing must not starve behind a full visible packet"
     );
     let ready = lw_bin::library::ArtworkReady {
         epoch: 0,
         revision: 10,
-        key: Key {
-            id: 1,
-            path: lw_ui::artwork::Path::new("cover.png").unwrap(),
-            max_pixels: 256,
-        },
+        key: Want::new(1, 256).unwrap(),
         thumbnail: Some(lw_apple_sys::artwork::Thumbnail {
             width: 2,
             height: 1,
@@ -590,7 +586,7 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
         media.artwork(&catalog, 0, std::iter::once(&ready)).unwrap();
         let mut request = Request::default();
         media.request_artwork(&mut request);
-        assert!(request.keys().is_empty());
+        assert!(request.wants().is_empty());
         assert!(media.native.peek().is_none());
     }
     assert_eq!(mem_sys::local_alloc_count(), 0);
@@ -691,9 +687,11 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     .unwrap();
     gpu::configure_artwork(&mut graphics, 1440.0, 872.0, 1.0).unwrap();
     for id in 1..=lw_ui::artwork::REQUEST_CAPACITY {
-        graphics.images().get(id, path, 360.0);
+        graphics.images().get(id, path, 360.0, None);
     }
-    worker.request(graphics.images().requests()).unwrap();
+    let mut request = lw_ui::artwork::Request::default();
+    graphics.images().requests(None, &mut request);
+    worker.request(&request).unwrap();
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
     while DECODED.load(std::sync::atomic::Ordering::SeqCst) < lw_ui::artwork::REQUEST_CAPACITY {
         assert!(
@@ -767,7 +765,9 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
                 "warm artwork build, glyphs, image wrappers and native draw"
             );
         }
-        assert!(graphics.images().requests().keys().is_empty());
+        let mut request = lw_ui::artwork::Request::default();
+        graphics.images().requests(None, &mut request);
+        assert!(request.wants().is_empty());
     }
     graphics.sync_images(42).unwrap();
     assert!(!gpu::sync_artwork(&mut graphics, 42, worker.ready_images()).unwrap());

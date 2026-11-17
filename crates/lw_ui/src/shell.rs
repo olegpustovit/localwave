@@ -953,48 +953,50 @@ pub fn shell(
         0
     };
     if dim > 0 {
-        ui.draw_over(&root, move |paint, rect| {
-            paint.fill(rect.x, rect.y, rect.w, rect.h, Rgba { r: 10, g: 10, b: 10, a: dim });
+        ui.canvas_over(&root, move |paint, rect| {
+            paint.fill(rect, Fill::new(Rgba { r: 10, g: 10, b: 10, a: dim }));
         });
     }
     if player.file_dragging {
-        ui.draw_over(&root, move |paint, rect| {
+        const TITLE: pxui::Label = pxui::Label::BODY.size(40.0).color(INK);
+        const NOTE: pxui::Label = pxui::Label::BODY.size(14.0).color(SECONDARY);
+        // measured in the style they are drawn in, resolved before the canvas
+        let (title, note) = (ui.resolve(&TITLE), ui.resolve(&NOTE));
+        ui.canvas_over(&root, move |paint, rect| {
             let (x, y, w, h) = (
                 rect.x + 12.0,
                 rect.y + 12.0,
                 (rect.w - 24.0).max(0.0),
                 (rect.h - 24.0).max(0.0),
             );
-            paint.fill(x, y, w, h, Rgba { a: 240, ..paint.color(PAPER) });
+            paint.fill(Rect::new(x, y, w, h), Fill::new(Rgba { a: 240, ..paint.color(PAPER) }));
             // Swift's drop border uses six-point dashes and gaps.
             for vertical in [false, true] {
                 let length = if vertical { h } else { w };
                 for offset in (0..length.ceil() as usize).step_by(12) {
                     let dash = 6.0f32.min(length - offset as f32);
                     if vertical {
-                        paint.fill(x, y + offset as f32, 2.0, dash, paint.color(INK));
-                        paint.fill(x + w - 2.0, y + offset as f32, 2.0, dash, paint.color(INK));
+                        paint.fill(Rect::new(x, y + offset as f32, 2.0, dash), Fill::new(paint.color(INK)));
+                        paint.fill(Rect::new(x + w - 2.0, y + offset as f32, 2.0, dash), Fill::new(paint.color(INK)));
                     } else {
-                        paint.fill(x + offset as f32, y, dash, 2.0, paint.color(INK));
-                        paint.fill(x + offset as f32, y + h - 2.0, dash, 2.0, paint.color(INK));
+                        paint.fill(Rect::new(x + offset as f32, y, dash, 2.0), Fill::new(paint.color(INK)));
+                        paint.fill(Rect::new(x + offset as f32, y + h - 2.0, dash, 2.0), Fill::new(paint.color(INK)));
                     }
                 }
             }
-            const TITLE: pxui::Label = pxui::Label::BODY.size(40.0).color(INK);
-            const NOTE: pxui::Label = pxui::Label::BODY.size(14.0).color(SECONDARY);
-            // `text_styled` places the layout top at `at`; these were tuned to the Swift app with the em-box top, which sits
+            // `text` places the layout top at `at`; these were tuned to the Swift app with the em-box top, which sits
             // above the layout top by about the first line's half-leading (measured: 3 pt at 40 pt, 1 pt at 14 pt).
-            for (text, size, at, style) in [
-                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0 + 3.0, &TITLE),
+            for (text, resolved, at, style) in [
+                ("Drop to play", &title, rect.y + rect.h * 0.5 - 34.0 + 3.0, &TITLE),
                 (
                     "Folders are indexed. Audio files join Added Files.",
-                    14,
+                    &note,
                     rect.y + rect.h * 0.5 + 22.0 + 1.0,
                     &NOTE,
                 ),
             ] {
-                let width = paint.text_width(Some(size), text);
-                paint.text_styled((rect.x + (rect.w - width) * 0.5, at), style, 0.0, text);
+                let width = paint.text_metrics(resolved, 0.0, text).width;
+                paint.text((rect.x + (rect.w - width) * 0.5, at), style, 0.0, text);
             }
         });
     }

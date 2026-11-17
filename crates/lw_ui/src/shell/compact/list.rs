@@ -329,9 +329,9 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     ui.a11y_name(&grip.handle, "Reorder track");
     // The finger takes the handle at once as a held press, so the list neither scrolls nor refreshes.
     ui.gesture(&grip.handle, HELD_TOUCH);
-    ui.draw(&grip.handle, move |paint, rect| {
+    ui.canvas(&grip.handle, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
-            paint.fill(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0, paint.color(SECONDARY));
+            paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(paint.color(SECONDARY)));
         }
     });
     if grip.held || grip.clicked {
@@ -366,7 +366,7 @@ fn more_button(ui: &mut Ui, label: &str) -> bool {
     let button = ui.button_content("actions", &MORE, |_, _| {});
     ui.a11y_name(&button.handle, label);
     let color = ui.color(SECONDARY);
-    ui.draw(&button.handle, move |paint, rect| {
+    ui.canvas(&button.handle, move |paint, rect| {
         kit::paint_icon(
             paint,
             Icon::More,
@@ -633,7 +633,7 @@ fn back_row(
                 ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
                     let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
-                    ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+                    ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
                     ui.label(label, LEAD_DIM);
                 });
             });
@@ -696,7 +696,7 @@ pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
         ui.row("content", KEY_CONTENT, |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(INK);
-            ui.draw(&glyph, move |paint, rect| {
+            ui.canvas(&glyph, move |paint, rect| {
                 crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
             });
             ui.label(label, LEAD_INK);
@@ -784,12 +784,12 @@ const WORD: pxui::Button =
 pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
     let node = ui.node("checkbox".into(), Node::column().w_px(20.0).h_px(20.0));
     let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
-    ui.draw(&node, move |paint, rect| {
+    ui.canvas(&node, move |paint, rect| {
         if marked {
-            paint.fill(rect.x, rect.y, 20.0, 20.0, ink);
+            paint.fill(Rect::new(rect.x, rect.y, 20.0, 20.0), Fill::new(ink));
             crate::icons::offline(paint, pxui::geom::Rect { x: rect.x + 3.0, y: rect.y + 3.0, w: 14.0, h: 14.0 }, true, paper);
         } else {
-            paint.stroke_w(rect.x, rect.y, 20.0, 20.0, 1.5, outline);
+            paint.stroke(Rect::new(rect.x, rect.y, 20.0, 20.0), Stroke::new(outline).width(1.5));
         }
     });
 }
@@ -817,10 +817,10 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                 };
                 let key_node = ui.pressable(key, node, &PLAIN.enabled(enabled), |ui, _| {
                     let icon = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-                    ui.draw(&icon, move |paint, rect| match key {
+                    ui.canvas(&icon, move |paint, rect| match key {
                         "add-to-list" => {
-                            paint.fill(rect.x + 3.0, rect.y + 9.25, 14.0, 1.5, ink);
-                            paint.fill(rect.x + 9.25, rect.y + 3.0, 1.5, 14.0, ink);
+                            paint.fill(Rect::new(rect.x + 3.0, rect.y + 9.25, 14.0, 1.5), Fill::new(ink));
+                            paint.fill(Rect::new(rect.x + 9.25, rect.y + 3.0, 1.5, 14.0), Fill::new(ink));
                         }
                         "offline" => crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, false, ink),
                         _ => kit::paint_icon(paint, glyph, rect.x, rect.y, ink),
@@ -928,7 +928,7 @@ pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, 
     ui.button_content(id, &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
             let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-            ui.draw(&glyph, move |paint, rect| {
+            ui.canvas(&glyph, move |paint, rect| {
                 kit::paint_icon(paint, icon, rect.x, rect.y, color)
             });
             ui.label(label, TEXT_15.color(tone));

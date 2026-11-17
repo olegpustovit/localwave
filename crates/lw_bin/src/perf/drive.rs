@@ -358,10 +358,10 @@ impl Frame {
         } else {
             0
         };
-        self.requests = requests.keys().len();
+        self.requests = requests.wants().len();
         if self.trace_frames && self.workload.is_some() {
-            for (out, key) in self.ids.iter_mut().zip(requests.keys()) {
-                *out = key.id;
+            for (out, key) in self.ids.iter_mut().zip(requests.wants()) {
+                *out = key.id();
             }
         }
         Ok(())
@@ -767,7 +767,7 @@ impl Perf {
             if let Some(slot) = (*frame_trace).get_mut((*frames) - 1) {
             *slot = (
                 if artwork_updated {
-                    artwork.ready().map_or(0, |ready| ready.key.id)
+                    artwork.ready().map_or(0, |ready| ready.key.id())
                 } else {
                     0
                 },

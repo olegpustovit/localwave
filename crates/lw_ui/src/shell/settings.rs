@@ -81,7 +81,7 @@ fn labels(ui: &mut Ui, title: &str, detail: &str) {
 }
 /// The row's hairline, from its title's start to its end.
 fn hairline(ui: &mut Ui, node: &Handle) {
-    ui.draw(node, move |paint, rect| paint.fill(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0, paint.color(LINE)));
+    ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(paint.color(LINE))));
 }
 /// LocalWave's settings switch row (registered as `localwave-toggle`): a settings row whose control is the 48 x 28 switch, ink when
 /// on, the line colour when off, with a 22-point paper knob.
@@ -246,11 +246,11 @@ pub(super) fn view(
             labels(ui, "Rescan all sources", "Usually not needed — folders are watched");
             let glyph = ui.node("chevron".into(), Node::column().w_px(18.0).h_px(18.0));
             let color = ui.color(INK);
-            ui.draw(&glyph, move |paint, rect| {
+            ui.canvas(&glyph, move |paint, rect| {
                 for step in 0..6 {
                     let step = step as f32 * 1.5;
-                    paint.fill(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5, color);
-                    paint.fill(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5, color);
+                    paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5), Fill::new(color));
+                    paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5), Fill::new(color));
                 }
             });
         });

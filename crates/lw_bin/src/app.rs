@@ -412,13 +412,14 @@ impl App {
         })
         .map_err(|code| format!("Frame failed ({code})"))?;
         frame.check_intent(&intent, &status.settings)?;
-        let mut image_requests = graphics.images().visible_requests(ui);
+        let mut image_requests = lw_ui::artwork::Request::default();
+        graphics.images().requests(Some(ui), &mut image_requests);
         if let Some(media) = player.media_controls() {
             media.request_artwork(&mut image_requests);
         }
         frame.finish_build(clock, &image_requests, ui)?;
         artwork
-            .request(image_requests)
+            .request(&image_requests)
             .map_err(|error| error.to_string())?;
         frame.check_capture(ui, &intent)?;
         let before_output = frame.allocations();

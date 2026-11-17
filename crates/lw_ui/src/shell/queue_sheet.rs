@@ -123,14 +123,8 @@ pub(super) fn queue_sheet(
                     Size::Px(21.0),
                     ui.color(PAPER),
                 );
-                ui.draw(&handle, move |paint, rect| {
-                    paint.fill(
-                        rect.x + (rect.w - 36.0) * 0.5,
-                        rect.y + 8.0,
-                        36.0,
-                        5.0,
-                        paint.color(LINE),
-                    );
+                ui.canvas(&handle, move |paint, rect| {
+                    paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
                 });
                 ui.row(
                     "full-queue-header",
@@ -451,10 +445,10 @@ pub(super) fn queue_rows(
             let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {
                 let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});
                 ui.a11y_name(&grip.handle, "Reorder queued track");
-                ui.draw(&grip.handle, move |paint, rect| {
+                ui.canvas(&grip.handle, move |paint, rect| {
                     for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
                         for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
-                            paint.fill(rect.x + x, rect.y + y, 2.0, 2.0, paint.color(SECONDARY));
+                            paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
                         }
                     }
                 });
@@ -548,14 +542,8 @@ pub(super) fn queue_rows(
                     Some(entry.id)
                 };
                 if before != Some(occurrence) {
-                    ui.draw(&item, move |paint, rect| {
-                        paint.fill(
-                            rect.x,
-                            if after { rect.y + rect.h - 2.0 } else { rect.y },
-                            rect.w,
-                            2.0,
-                            paint.color(INK),
-                        );
+                    ui.canvas(&item, move |paint, rect| {
+                        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
                     });
                     if dropped {
                         *intent = Some(Intent::MoveQueue { occurrence, before });

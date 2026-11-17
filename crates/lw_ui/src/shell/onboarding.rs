@@ -146,7 +146,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
                 let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {
                     let marker = ui.node("marker".into(), Node::column().w_px(40.0 / 3.0).h_px(19.5));
                     let ink = ui.color(INK);
-                    ui.draw(&marker, move |paint, rect| {
+                    ui.canvas(&marker, move |paint, rect| {
                         // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
                         let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };
                         let top = rect.y + 14.0 - h;
@@ -154,7 +154,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
                             let t = (i as f32 + 0.5) / h;
                             let span = if expanded { w * (1.0 - t) } else { w * (1.0 - (2.0 * t - 1.0).abs()) };
                             let x = if expanded { rect.x + (w - span) / 2.0 } else { rect.x };
-                            paint.fill_fractional(x, top + i as f32, span, 1.0, ink);
+                            paint.fill(Rect::new(x, top + i as f32, span, 1.0), Fill::new(ink).fractional());
                         }
                     });
                     ui.label("Google Drive not in the list?", TEXT_13.grow().h_px(19.5).color(INK));

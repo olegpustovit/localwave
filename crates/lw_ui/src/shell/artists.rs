@@ -139,8 +139,8 @@ pub(super) fn table(
                         x += columns[index];
                     }
                 });
-                ui.draw_over(&head, move |paint, rect| {
-                    paint.fill_fractional(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0, paint.color(LINE))
+                ui.canvas_over(&head, move |paint, rect| {
+                    paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional())
                 });
             }
             SectionPart::Row(index) => {
@@ -239,16 +239,10 @@ pub(super) fn table(
                         });
                         ui.a11y_name(&row.handle, name);
                         let last = index + 1 == catalog.artists.len();
-                        ui.draw_over(&row.handle, move |paint, rect| {
-                            paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, paint.color(LINE));
+                        ui.canvas_over(&row.handle, move |paint, rect| {
+                            paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
                             if last {
-                                paint.fill_fractional(
-                                    rect.x,
-                                    (rect.y + rect.h).floor(),
-                                    rect.w,
-                                    1.0,
-                                    paint.color(LINE),
-                                );
+                                paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
                             }
                         });
                         if row.clicked {
