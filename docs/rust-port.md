@@ -104,7 +104,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | 712627d + pxui b999ffd |
 | DX3.6 | menu with MenuItem | done | ab60a7b + pxui 759c84a |
 | DX3.7 | toggle_with, segmented_with, disabled scope | done | bf5780a + pxui 30260fb |
-| DX3.8 | dialog_with | done | HEAD + pxui d45155b |
+| DX3.8 | dialog_with | done | eb713db + pxui d45155b |
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | todo |  |
@@ -137,7 +137,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.12 | Docs: kit widgets | todo |  |
 | DX6.13 | Docs: options | todo |  |
 | DX6.14 | Docs: inspector | todo |  |
-| DX6.15 | Docs: images and renderer | todo |  |
+| DX6.15 | Docs: images and renderer | done | HEAD + pxui 48be183 |
 | DX6.16 | Docs: node.rs | todo |  |
 | DX6.17 | Docs: layout and geometry | todo |  |
 | DX6.18 | Docs: theme | todo |  |
