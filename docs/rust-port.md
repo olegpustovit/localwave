@@ -122,12 +122,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
 | DX4.11 | Hand conversion to pressable, one commit per file | todo |  |
-| DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | HEAD |
+| DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | 73512bf |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
 | DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
-| DX5.5 | Reusable layout storage for fresh shapes | todo |  |
+| DX5.5 | Reusable layout storage for fresh shapes | done | HEAD + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
@@ -157,7 +157,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.23 | Docs: ffi.rs (3) | todo |  |
 | DX6.24 | Docs: ffi.rs (4) | todo |  |
 | DX6.25 | deny(missing_docs); allowlist deleted | todo |  |
-| DX6.26 | pxui-app skill; README and specification fixes | done | HEAD + pxui a50ab58 |
+| DX6.26 | pxui-app skill; README and specification fixes | done | 73512bf + pxui a50ab58 |
 | DX7.1 | Generated layout manifest; C static asserts | done | 2c4bd61 + pxui 8b4dcae |
 | DX7.1a | pxui.h compiles as C11/C++17 and abi-header compiles it | done | 58e0eb8 + pxui 6326d8c |
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
