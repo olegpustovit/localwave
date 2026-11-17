@@ -108,8 +108,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX3.10 | Label, Button and IconButton style values express LocalWave helpers (found by DX4.2–4.4) | done | 2a97383 + pxui 76d9c7d |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
-| DX4.2 | kit::text and settings::paragraph to label | done | HEAD |
-| DX4.3 | Buttons to button_with | todo |  |
+| DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
+| DX4.3 | Buttons to button_with | done | HEAD |
 | DX4.4 | Icon buttons to icon_button | todo |  |
 | DX4.5 | Menus to menu | todo |  |
 | DX4.6 | Settings switch and chips to toggle_with/segmented_with | todo |  |

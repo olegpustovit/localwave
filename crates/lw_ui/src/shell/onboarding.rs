@@ -52,19 +52,14 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
 }
 
 fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
-    let link = ui.node(
-        key.into(),
-        Node {
-            justify: Justify::Center,
-            ..Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
-        },
-    );
-    ui.a11y_name(&link, label);
-    ui.within(&link, &mut |ui| {
-        ui.label(label, TEXT_15.h(21.0).color(INK));
-        rule(ui, "underline", false);
-    });
-    ui.signal(&link).clicked
+    let link = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE).name(label);
+    ui.button_content(key, &link, |ui| {
+        ui.column("link", Node::column().w(Size::Fit).h(Size::Fit), |ui| {
+            ui.label(label, TEXT_15.h(21.0).color(INK));
+            rule(ui, "underline", false);
+        });
+    })
+    .clicked
 }
 
 /// Returns true when the Google Drive disclosure was toggled.

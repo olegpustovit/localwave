@@ -19,7 +19,7 @@ pub(super) const fn rgb(hex: u32) -> Rgba {
     }
 }
 /// The (light, dark) pair of each token, in token order.
-const COLORS: [(Rgba, Rgba); 9] = [
+pub(super) const COLORS: [(Rgba, Rgba); 9] = [
     (rgb(0xF3F3F3), rgb(0x101010)),
     (rgb(0xE6E6E6), rgb(0x1A1A1A)),
     (rgb(0xD3D3D3), rgb(0x2A2A2A)),

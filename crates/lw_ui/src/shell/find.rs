@@ -70,28 +70,18 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let density = ui.density() as f32;
     let label_width =
         (ui.text_service().width(label, &style, 0.0).unwrap() * density).ceil() / density;
-    let root = ui.node(
-        key.into(),
-        Node {
-            state: State {
-                disabled: !enabled,
-                ..State::default()
-            },
-            look: Look {
-                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
-                ..Look::NONE
-            },
-            ..Node::stack()
-                .w_px(20.0 + icon_size + 6.0 + label_width)
-                .h_px(30.0)
-                .role(Role::Button)
-                .flags(if enabled { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
-        },
-    );
-    ui.a11y_name(&root, label);
+    let theme = looks(ui);
+    let width = 20.0 + icon_size + 6.0 + label_width;
+    let tool = pxui::Button::sized(width, 30.0).look(if selected { &theme.selected } else { &theme.paper }).enabled(enabled).name(label);
+    // the hover and press washes sit under the copy, so the contents are a stack built once the press is known
+    let mut layers = None;
+    let response = ui.button_content(key, &tool, |ui| {
+        layers = Some(ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow)));
+    });
+    let layers = layers.unwrap();
     if matches!(action, Action::Offline(_)) {
         ui.a11y_value(
-            &root,
+            &response.handle,
             if selected {
                 "Kept offline"
             } else {
@@ -100,18 +90,17 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             (0, 0),
         );
     }
-    let signal = ui.signal(&root);
-    let before = ui.state(&root, -1);
-    ui.set_state(&root, i64::from(selected));
-    ui.within(&root, &mut |ui| {
+    let before = ui.state(&layers, -1);
+    ui.set_state(&layers, i64::from(selected));
+    ui.within(&layers, &mut |ui| {
         background(
             ui,
             "hover",
             ui.color(PANEL),
-            signal.hovered && !selected,
+            response.hovered && !selected,
             before != i64::from(selected),
         );
-        background(ui, "press", ui.color(PANEL), signal.held, false);
+        background(ui, "press", ui.color(PANEL), response.held, false);
         ui.view_of("action-copy", &(label, selected), |ui| {
             ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
                 let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
@@ -125,7 +114,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             });
         });
     });
-    enabled && signal.clicked
+    enabled && response.clicked
 }
 
 pub(super) fn toolbar(
@@ -224,6 +213,7 @@ mod tests {
             "find-tools",
             "buttons",
             action,
+            "layers",
             "action-copy",
             "content",
             part,

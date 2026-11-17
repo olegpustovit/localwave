@@ -364,43 +364,23 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
 
 fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f32) -> bool {
     let armed = revealed >= SWIPE_FULL;
-    let (fill, ink) = if armed {
-        (ui.color(INK), ui.color(PAPER))
-    } else {
-        (ui.color(PANEL), ui.color(SECONDARY))
-    };
-    let node = ui.node(
-        key.into(),
-        Node {
-            look: Look {
-                fill,
-                text: ink,
-                ..Look::NONE
-            },
-            ..Node::column()
-                .w_px(revealed.max(SWIPE_ACTION))
-                .h(Size::Grow)
-                .center()
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-        },
-    );
-    ui.within(&node, &mut |ui| {
+    let theme = looks(ui);
+    let action = pxui::Button::DEFAULT.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow).centered();
+    let action = action.look(if armed { &theme.ink } else { &theme.panel }).name(label);
+    ui.button_content(key, &action, |ui| {
         ui.label(label, TEXT_13.h(18.2).color(if armed { PAPER } else { SECONDARY }));
-    });
-    ui.a11y_name(&node, label);
-    ui.signal(&node).clicked
+    })
+    .clicked
 }
 
 /// Swift's LWMenuButton: a bare "…" in a 44 pt target.
+/// The row's "…" key: 44 points square.
+const MORE: pxui::Button = pxui::Button::sized(44.0, 44.0).look(&BARE);
 fn more_button(ui: &mut Ui, label: &str) -> bool {
-    let node = ui.node(
-        "actions".into(),
-        Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-    );
-    ui.a11y_name(&node, label);
+    let button = ui.button_content("actions", &MORE, |_| {});
+    ui.a11y_name(&button.handle, label);
     let color = ui.color(SECONDARY);
-    ui.draw(&node, move |paint, rect| {
+    ui.draw(&button.handle, move |paint, rect| {
         kit::paint_icon(
             paint,
             Icon::More,
@@ -409,7 +389,7 @@ fn more_button(ui: &mut Ui, label: &str) -> bool {
             color,
         );
     });
-    ui.signal(&node).clicked
+    button.clicked
 }
 
 /// `refreshing` holds from release until `end_refresh`, so its first frame starts the load; it can
@@ -679,18 +659,16 @@ fn back_row(
         "back-row",
         Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
         |ui| {
-            let button = ui.node(
-                "back".into(),
-                Node::row().w_px(96.0).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-            );
-            ui.a11y_name(&button, "Back");
-            ui.within(&button, &mut |ui| {
-                let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-                let color = ui.color(SECONDARY);
-                ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-                ui.label(label, TEXT_15.h(21.0).color(SECONDARY));
+            const BACK: pxui::Button = pxui::Button::sized(96.0, 44.0).look(&BARE).name("Back");
+            let back = ui.button_content("back", &BACK, |ui| {
+                ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
+                    let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+                    let color = ui.color(SECONDARY);
+                    ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+                    ui.label(label, TEXT_15.h(21.0).color(SECONDARY));
+                });
             });
-            if ui.signal(&button).clicked {
+            if back.clicked {
                 *intent = Some(Intent::Navigate(parent));
             }
             extras(ui, intent);
@@ -744,30 +722,23 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
 }
 pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
     let label = if kept { "Kept offline" } else { "Keep offline" };
-    let node = ui.node(
-        "keep-offline".into(),
-        Node {
-            look: Look { fill: ui.color(PANEL), ..Look::NONE },
-            ..Node::row()
-                .w(Size::Grow)
-                .h_px(PLAY_BAR)
-                .gap(8.0)
-                .center()
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-        },
-    );
-    ui.within(&node, &mut |ui| {
-        let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-        let color = ui.color(INK);
-        ui.draw(&glyph, move |paint, rect| {
-            crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
+    let key = PLAY_KEY.look(&looks(ui).panel).name(label);
+    ui.button_content("keep-offline", &key, |ui| {
+        ui.row("content", KEY_CONTENT, |ui| {
+            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+            let color = ui.color(INK);
+            ui.draw(&glyph, move |paint, rect| {
+                crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
+            });
+            ui.label(label, TEXT_15.h(21.0).color(INK));
         });
-        ui.label(label, TEXT_15.h(21.0).color(INK));
-    });
-    ui.a11y_name(&node, label);
-    ui.signal(&node).clicked
+    })
+    .clicked
 }
+/// A play key: its slot's width, `PLAY_BAR` high, the icon and label centred.
+const PLAY_KEY: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(PLAY_BAR)).centered();
+/// A key's icon and label, 8 points apart.
+const KEY_CONTENT: Node = Node::row().w(Size::Fit).h(Size::Fit).gap(8.0).align(Align::Center);
 
 /// Select-mode part of a lead's cache key: the marks only matter while selecting.
 fn select_revision(state: &ShellState) -> (bool, u64) {
@@ -830,13 +801,15 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 
 /// A 44 pt text button (Swift's Select / Done at 16 pt).
 pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool) -> bool {
-    let node = ui.node(key.into(), Node::row().w(Size::Fit).h_px(44.0).pad_x(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP));
-    ui.within(&node, &mut |ui| {
+    let word = WORD.name(label);
+    ui.button_content(key, &word, |ui| {
         ui.label(label, TEXT_16.h(22.4).color(INK));
-    });
-    ui.a11y_name(&node, label);
-    ui.signal(&node).clicked
+    })
+    .clicked
 }
+/// A text button: as wide as its word plus 4 points either side, 44 points high.
+const WORD: pxui::Button =
+    pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().pad(Edges { l: 4.0, r: 4.0, ..Edges::ZERO }).look(&BARE);
 
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
 pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
@@ -990,31 +963,18 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
 
 /// Swift's playKeyButtons: a 52 pt key, ink for Play.
 pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, icon: Icon, primary: bool) -> bool {
-    let node = ui.node(
-        id.into(),
-        Node {
-            look: Look {
-                fill: if primary { ui.color(INK) } else { ui.color(PANEL) },
-                ..Look::NONE
-            },
-            ..Node::row()
-                .w(Size::Grow)
-                .h_px(PLAY_BAR)
-                .gap(8.0)
-                .center()
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-        },
-    );
+    let theme = looks(ui);
+    let key = PLAY_KEY.look(if primary { &theme.ink } else { &theme.panel }).name(label);
     let tone = if primary { PAPER } else { INK };
     let color = ui.color(tone);
-    ui.within(&node, &mut |ui| {
-        let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-        ui.draw(&glyph, move |paint, rect| {
-            kit::paint_icon(paint, icon, rect.x, rect.y, color)
+    ui.button_content(id, &key, |ui| {
+        ui.row("content", KEY_CONTENT, |ui| {
+            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+            ui.draw(&glyph, move |paint, rect| {
+                kit::paint_icon(paint, icon, rect.x, rect.y, color)
+            });
+            ui.label(label, TEXT_15.h(21.0).color(tone));
         });
-        ui.label(label, TEXT_15.h(21.0).color(tone));
-    });
-    ui.a11y_name(&node, label);
-    ui.signal(&node).clicked
+    })
+    .clicked
 }

@@ -68,27 +68,20 @@ pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     let row = ui.node("back-row".into(), Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
-        let button = ui.node(
-            "back".into(),
-            Node {
-                padding: Edges { l: 26.0, ..Edges::ZERO },
-                ..Node::row()
-                    .w_px(96.0)
-                    .h_px(BACK)
-                    .gap(4.0)
-                    .align(Align::End)
-                    .role(Role::Button)
-                    .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-            },
-        );
-        ui.a11y_name(&button, "Back");
-        ui.within(&button, &mut |ui| {
-            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-            let color = ui.color(SECONDARY);
-            ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-            ui.label("Back", TEXT_14.h(19.6).color(SECONDARY));
+        const BUTTON: pxui::Button = pxui::Button::sized(96.0, BACK).look(&BARE).name("Back");
+        let back = ui.button_content("back", &BUTTON, |ui| {
+            ui.row(
+                "content",
+                Node { padding: Edges { l: 26.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End) },
+                |ui| {
+                    let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+                    let color = ui.color(SECONDARY);
+                    ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
+                    ui.label("Back", TEXT_14.h(19.6).color(SECONDARY));
+                },
+            );
         });
-        if ui.signal(&button).clicked {
+        if back.clicked {
             *intent = Some(Intent::Navigate(parent));
         }
     });

@@ -12,65 +12,26 @@ pub(super) mod page;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
-fn button(ui: &mut Ui, key: &'static str, label: &str, selected: bool) -> bool {
-    let node = ui.node(
-        key.into(),
-        Node {
-            look: Look {
-                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
-                text: ui.color(INK),
-                font: Font {
-                    size: 14,
-                    ..Font::BODY
-                },
-                ..Look::NONE
-            },
-            ..Node::column()
-                .w(Size::Grow)
-                .h_px(44.0)
-                .center()
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-        },
-    );
-    ui.within(&node, &mut |ui| {
-        ui.label(label, TEXT_14.h(19.6).color(INK));
-    });
-    ui.a11y_name(&node, label);
-    ui.set_role(
-        &node,
-        Role::Button,
-        if selected {
-            pxui::a11y::state::SELECTED
-        } else {
-            0
-        },
-    );
-    ui.signal(&node).clicked
-}
+/// A compact tab bar button: the full width of its slot, 44 points high, its title centred.
+const TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered();
 
 /// Swift's library mode: label and count, ink with a 2 pt underline when active.
 fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool {
-    let node = ui.node(
-        label.into(),
-        Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-    );
     let ink = if active { INK } else { SECONDARY };
-    ui.within(&node, &mut |ui| {
-        ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
-            ui.label(label, TEXT_15.h(21.0).color(ink));
-            ui.label(count, TEXT_13.h(18.2).color(SECONDARY));
+    let tab = MODE_TAB.selected(active).name(label);
+    ui.button_content(label, &tab, |ui| {
+        ui.column("tab", Node::column().w(Size::Fit).h(Size::Grow), |ui| {
+            ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
+                ui.label(label, TEXT_15.h(21.0).color(ink));
+                ui.label(count, TEXT_13.h(18.2).color(SECONDARY));
+            });
+            container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
         });
-        container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
-    });
-    ui.a11y_name(&node, label);
-    ui.set_role(
-        &node,
-        Role::Button,
-        if active { pxui::a11y::state::SELECTED } else { 0 },
-    );
-    ui.signal(&node).clicked
+    })
+    .clicked
 }
+/// A library mode tab: as wide as its label and count, 44 points high.
+const MODE_TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE);
 
 fn line(ui: &mut Ui, key: &'static str, value: &str, size: f32, color: Rgba) {
     let node = ui.node(
@@ -372,12 +333,10 @@ pub(super) fn view(
             .into_iter()
             .enumerate()
             {
-                if button(
-                    ui,
-                    title,
-                    title,
-                    !state.settings_visible && selected == index,
-                ) {
+                let current = !state.settings_visible && selected == index;
+                let theme = looks(ui);
+                let tab = TAB.look(if current { &theme.tab_on } else { &theme.tab }).selected(current).name(title);
+                if ui.button_content(title, &tab, |ui| { ui.label(title, TEXT_14.h(19.6).color(INK)); }).clicked {
                     *intent = Some(Intent::Navigate(route));
                 }
             }
@@ -544,32 +503,20 @@ fn mode_key(
     active: bool,
     mut inner: impl FnMut(&mut Ui),
 ) -> bool {
-    let node = ui.node(
-        key.into(),
-        Node {
-            look: Look {
-                fill: if active { ui.color(INK) } else { ui.color(KEY) },
-                ..Look::NONE
-            },
-            ..Node::row()
-                .w(Size::Grow)
-                .h_px(44.0)
-                .gap(6.0)
-                .center()
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP)
-        },
-    );
+    let theme = looks(ui);
+    let mode = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered().look(if active { &theme.ink } else { &theme.key });
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
-    ui.within(&node, &mut |ui| {
-        let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
-        ui.draw(&glyph, move |paint, rect| {
-            kit::paint_icon(paint, icon, rect.x, rect.y, color)
+    let button = ui.button_content(key, &mode, |ui| {
+        ui.row("content", Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
+            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+            ui.draw(&glyph, move |paint, rect| {
+                kit::paint_icon(paint, icon, rect.x, rect.y, color)
+            });
+            inner(ui);
         });
-        inner(ui);
     });
-    ui.a11y_name(&node, label);
-    ui.signal(&node).clicked
+    ui.a11y_name(&button.handle, label);
+    button.clicked
 }
 
 #[allow(clippy::too_many_arguments)] // Keep ticking position separate from stable player data.

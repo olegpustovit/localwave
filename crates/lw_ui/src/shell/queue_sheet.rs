@@ -7,30 +7,17 @@ pub(super) fn queue_action(
     ui: &mut Ui,
     key: &'static str,
     label: &str,
-    name: &str,
+    name: &'static str,
     width: f32,
 ) -> bool {
-    let button = ui.node(
-        key.into(),
-        Node {
-            look: Look {
-                text: ui.color(SECONDARY),
-                font: Font {
-                    size: 12,
-                    ..Font::BODY
-                },
-                ..Look::NONE
-            },
-            ..Node::column()
-                .w_px(width)
-                .h_px(28.0)
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE | Flags::TAB_STOP | Flags::FIT_TEXT)
-        },
-    );
-    ui.text(&button, label);
-    ui.a11y_name(&button, name);
-    ui.signal(&button).clicked
+    // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
+    let theme = looks(ui);
+    let action = pxui::Button::sized(width, 28.0).look(&BARE).name(name);
+    ui.button_content(key, &action, |ui| {
+        let copy = ui.node("label".into(), Node { look: theme.queue_action, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        ui.text(&copy, label);
+    })
+    .clicked
 }
 
 /// Row metrics: the Now panel's Up next (Swift `desktop`) and the bottom sheet's.

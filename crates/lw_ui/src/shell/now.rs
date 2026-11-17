@@ -175,6 +175,8 @@ pub(super) fn now_panel(
     );
 }
 
+/// The heart key: 36 by 28 points, no look of its own.
+const FAVORITE: pxui::Button = pxui::Button::sized(36.0, 28.0).look(&BARE);
 /// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
 pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool {
     use pxui::kit::{AnimationTarget as Target, Keyframe};
@@ -187,33 +189,13 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         ("ray5", -0.9, -0.5),
     ];
     let on = current.is_some_and(|(_, on)| on);
-    let node = ui.node(
-        "favorite".into(),
-        Node {
-            state: State {
-                disabled: current.is_none(),
-                ..State::default()
-            },
-            ..Node::stack()
-                .w_px(36.0)
-                .h_px(28.0)
-                .role(Role::Button)
-                .flags(if current.is_some() {
-                    Flags::CLICKABLE | Flags::TAB_STOP
-                } else {
-                    Flags::NONE
-                })
-        },
-    );
-    let signal = ui.signal(&node);
-    ui.a11y_name(
-        &node,
-        if on {
-            "Unfavorite current song"
-        } else {
-            "Favorite current song"
-        },
-    );
+    let favorite = FAVORITE.enabled(current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
+    // the heart and its burst are a stack of their own, built once the press is known
+    let mut layers = None;
+    let signal = ui.button_content("favorite", &favorite, |ui| {
+        layers = Some(ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow)));
+    });
+    let node = layers.unwrap();
     // Remember (song, state) so a track change never reads as a favourite toggle.
     let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
     let was = ui.state(&node, 0);

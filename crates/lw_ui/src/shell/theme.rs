@@ -32,3 +32,58 @@ pub(super) const TEXT_24: Label = line_style(24.0);
 pub(super) const TEXT_28: Label = line_style(28.0);
 pub(super) const TEXT_32: Label = line_style(32.0);
 pub(super) const TEXT_34: Label = line_style(34.0);
+
+/// LocalWave's resolved button looks for one appearance: `looks(ui)` picks the light or dark set, so a theme change selects the
+/// other set and nothing is resolved per frame.
+pub(super) struct Looks {
+    /// A compact tab bar button: ink 14-point text on paper.
+    pub tab: States,
+    /// The current compact tab: on the selected fill.
+    pub tab_on: States,
+    /// A Find tool on paper.
+    pub paper: States,
+    /// The current Find tool: on the selected fill.
+    pub selected: States,
+    /// A key on the panel fill.
+    pub panel: States,
+    /// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
+    pub ink: States,
+    /// A mode key on the key fill.
+    pub key: States,
+    /// A queue sheet text action's text: secondary, 12 points.
+    pub queue_action: Look,
+    /// A sidebar "+ label" row's text: secondary, 14 points.
+    pub add_row: Look,
+}
+/// A button with no look of its own: its contents draw it.
+pub(super) const BARE: States = States::all(Look::NONE);
+const fn token(token: ColorToken, dark: bool) -> Rgba {
+    let pair = COLORS[token.0 as usize];
+    if dark { pair.1 } else { pair.0 }
+}
+const fn fill(color: ColorToken, dark: bool) -> States {
+    States::all(Look { fill: token(color, dark), ..Look::NONE })
+}
+const fn text(color: ColorToken, size: i64, dark: bool) -> Look {
+    Look { text: token(color, dark), font: Font { size, ..Font::BODY }, ..Look::NONE }
+}
+const fn resolve(dark: bool) -> Looks {
+    let tab = text(INK, 14, dark);
+    Looks {
+        tab: States::all(Look { fill: token(PAPER, dark), ..tab }),
+        tab_on: States::all(Look { fill: token(SELECTED, dark), ..tab }),
+        paper: fill(PAPER, dark),
+        selected: fill(SELECTED, dark),
+        panel: fill(PANEL, dark),
+        ink: fill(INK, dark),
+        key: fill(KEY, dark),
+        queue_action: text(SECONDARY, 12, dark),
+        add_row: text(SECONDARY, 14, dark),
+    }
+}
+const LIGHT: Looks = resolve(false);
+const DARK: Looks = resolve(true);
+/// The looks for `ui`'s appearance (the dark colour table when its theme is dark, as `Ui::color` reads).
+pub(super) fn looks(ui: &Ui) -> &'static Looks {
+    if pxui::theme::dark(&ui.theme().tokens) { &DARK } else { &LIGHT }
+}
