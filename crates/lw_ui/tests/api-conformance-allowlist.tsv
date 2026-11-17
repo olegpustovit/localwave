@@ -22,9 +22,6 @@ lw_ui/src/shell/files.rs	R2	let option = ui.node(key.into(), Node { look: Look {
 lw_ui/src/shell/files.rs	R2	let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
 lw_ui/src/shell/files.rs	R2	let show = ui.node("show".into(), Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let tab = ui.node(key.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
-lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
-lw_ui/src/shell/queue_sheet.rs	R2	.flags(Flags::CLICKABLE)
 lw_ui/src/shell/settings.rs	R2	..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
 lw_ui/src/shell/songs/mod.rs	R2	Flags::CLICKABLE | Flags::TAB_STOP

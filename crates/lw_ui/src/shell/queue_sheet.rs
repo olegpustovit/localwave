@@ -116,18 +116,10 @@ pub(super) fn queue_sheet(
                     .w_px(width)
                     .h_px(height)
                     .role(Role::Dialog)
-                    .flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
+                    .flags(Flags::CLIP)
             };
-            let sheet = ui.node("queue-sheet".into(), sheet_node);
-            let drag = ui.gesture(&sheet, DISMISS);
-            // The popup itself follows the finger: moving only the node inside it loses the touch.
-            state.sheet_dismiss.set(drag.dismiss);
-            if drag.dismiss_committed {
-                *intent = Some(Intent::CloseQueue);
-            }
-            ui.set_role(&sheet, Role::Dialog, pxui::a11y::state::MODAL);
-            ui.a11y_name(&sheet, "Playback queue");
-            ui.within(&sheet, &mut |ui| {
+            // The sheet takes the pointer for its dismiss gesture but is no tab stop.
+            let sheet = ui.pressable("queue-sheet", sheet_node, &PLAIN.tab_stop(false), |ui, _| {
                 let handle = container(
                     ui,
                     "queue-handle",
@@ -158,22 +150,8 @@ pub(super) fn queue_sheet(
                     },
                     |ui| {
                         // Swift reaches Save as list from this header's context menu and an a11y action.
-                        let titles = ui.node(
-                            "queue-titles".into(),
-                            Node::column()
-                                .w(Size::Grow)
-                                .h(Size::Grow)
-                                .role(Role::Button)
-                                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                        );
-                        ui.a11y_name(&titles, "Save queue as playlist");
-                        let signal = ui.signal(&titles);
-                        if queue.is_some_and(|queue| !queue.entries.is_empty())
-                            && (signal.clicked || (signal.pressed && signal.button == Some(1)))
-                        {
-                            *intent = Some(Intent::NamePlaylist);
-                        }
-                        ui.within(&titles, &mut |ui| {
+                        let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button);
+                        let titles = ui.pressable("queue-titles", node, &PLAIN, |ui, _| {
                             ui.label("Queue", TEXT_20.grow().color(INK));
                             let from = container(
                                 ui,
@@ -191,6 +169,10 @@ pub(super) fn queue_sheet(
                                 }
                             });
                         });
+                        ui.a11y_name(&titles.handle, "Save queue as playlist");
+                        if queue.is_some_and(|queue| !queue.entries.is_empty()) && (titles.clicked || titles.secondary) {
+                            *intent = Some(Intent::NamePlaylist);
+                        }
                         if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &ICON_44.look(&theme.icon_plate)).clicked {
                             *intent = Some(Intent::CloseQueue);
                         }
@@ -332,6 +314,14 @@ pub(super) fn queue_sheet(
                 }
                 spacer(ui, "queue-bottom", 20.0);
             });
+            let drag = ui.gesture(&sheet.handle, DISMISS);
+            // The popup itself follows the finger: moving only the node inside it loses the touch.
+            state.sheet_dismiss.set(drag.dismiss);
+            if drag.dismiss_committed {
+                *intent = Some(Intent::CloseQueue);
+            }
+            ui.set_role(&sheet.handle, Role::Dialog, pxui::a11y::state::MODAL);
+            ui.a11y_name(&sheet.handle, "Playback queue");
         });
     if !open {
         *intent = Some(Intent::CloseQueue);
@@ -449,29 +439,25 @@ pub(super) fn queue_rows(
                 }
             });
             let artist = row.map_or("", |row| row.artist);
-            let item = ui.node(
-                Key::Id(entry.id as i64),
-                Node {
-                    padding: Edges {
-                        l: m.lead,
-                        r: m.trail,
-                        ..Edges::ZERO
-                    },
-                    look: Look {
-                        fill: ui.color(PAPER),
-                        ..Look::NONE
-                    },
-                    ..Node::row()
-                        .w(Size::Grow)
-                        .h_px(m.row)
-                        .gap(m.gap)
-                        .align(Align::Center)
-                        .role(Role::ListItem)
-                        .flags(Flags::CLICKABLE)
+            let item_node = Node {
+                padding: Edges {
+                    l: m.lead,
+                    r: m.trail,
+                    ..Edges::ZERO
                 },
-            );
-            ui.a11y_name(&item, title);
-            ui.within(&item, &mut |ui| {
+                look: Look {
+                    fill: ui.color(PAPER),
+                    ..Look::NONE
+                },
+                ..Node::row()
+                    .w(Size::Grow)
+                    .h_px(m.row)
+                    .gap(m.gap)
+                    .align(Align::Center)
+                    .role(Role::ListItem)
+            };
+            // The row takes the pointer for drops and drags but is no tab stop; its own controls are.
+            let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {
                 let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});
                 ui.a11y_name(&grip.handle, "Reorder queued track");
                 ui.draw(&grip.handle, move |paint, rect| {
@@ -549,6 +535,8 @@ pub(super) fn queue_rows(
                     *intent = Some(Intent::RemoveQueue(entry.id));
                 }
             });
+            ui.a11y_name(&item.handle, title);
+            let item = item.handle;
             let drop = ui.drop_target(&item).and_then(|drop| {
                 let (dropped, payload) = match drop {
                     pxui::DropRef::Hover(p) => (false, p),
