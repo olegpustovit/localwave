@@ -108,7 +108,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX3.10 | Label, Button and IconButton style values express LocalWave helpers (found by DX4.2–4.4) | done | 2a97383 + pxui 76d9c7d |
 | DX3.11 | Menu, Toggle, Segmented and Dialog carry what app bodies need (found by DX4.5–4.7) | done | eaa73cd + pxui 95df44c |
-| DX3.12 | Disabled widgets never click; Button label/layout/focus options; button_content gets the state (found by DX4.3/4.4) | done | HEAD + pxui 34c8e4f |
+| DX3.12 | Disabled widgets never click; Button label/layout/focus options; button_content gets the state (found by DX4.3/4.4) | done | 99ebbe1 + pxui 34c8e4f |
+| DX3.12a | DX3.12 review follow-ups (legacy export marked, docs) | done | HEAD + pxui 456892b |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |
