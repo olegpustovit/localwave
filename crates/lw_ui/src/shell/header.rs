@@ -338,15 +338,12 @@ pub(super) fn find_tokens(
             ui.row("flow", flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
-                    let look = Look {
-                        fill: if selected { ui.color(INK) } else { ui.color(PANEL) },
-                        ..Look::NONE
-                    };
+                    let theme = looks(ui);
                     let node = Node {
                         max_w: width,
                         ..Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP)
                     };
-                    let chip = ui.pressable(token, node, &look, |ui| {
+                    let chip = ui.pressable(token, node, &PLAIN.look(if selected { &theme.ink } else { &theme.panel }), |ui, _| {
                         let label = ui.node(
                             "label".into(),
                             Node {

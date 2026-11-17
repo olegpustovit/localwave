@@ -89,6 +89,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | 1cb17d5 + pxui 1089fe5 |
 | DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | done | 8709c75 + pxui 5c16fdb |
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
+| DX1.12F2 | Audit batch F2: Keyframes/Repeat/Keyframe constructors, gesture option builders, borrowed carry/drop, Ui::scroll, Ui::set_view | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -110,7 +111,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.11 | Menu, Toggle, Segmented and Dialog carry what app bodies need (found by DX4.5–4.7) | done | eaa73cd + pxui 95df44c |
 | DX3.12 | Disabled widgets never click; Button label/layout/focus options; button_content gets the state (found by DX4.3/4.4) | done | 99ebbe1 + pxui 34c8e4f |
 | DX3.12a | DX3.12 review follow-ups (legacy export marked, docs) | done | ae5b91a + pxui 456892b |
-| DX3.13 | Menu rows keyed by id/position, chosen_id, safe body accessors, toggle stored value, segment container (found by DX4.5–4.7) | done | HEAD + pxui e0c424d |
+| DX3.13 | Menu rows keyed by id/position, chosen_id, safe body accessors, toggle stored value, segment container (found by DX4.5–4.7) | done | c4d4617 + pxui e0c424d |
+| DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | HEAD |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |

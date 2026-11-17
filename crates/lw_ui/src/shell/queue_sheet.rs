@@ -330,7 +330,7 @@ pub(super) fn queue_sheet(
                         },
                         ..Node::row().w(Size::Grow).h_px(52.0).align(Align::Center).role(Role::Button)
                     };
-                    let clear = ui.pressable("clear", node, &Look::NONE, |ui| {
+                    let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {
                         ui.label("Clear up next", TEXT_16.w(Size::Grow).color(SECONDARY));
                     });
                     ui.a11y_name(&clear.handle, "Clear up next");
@@ -481,7 +481,7 @@ pub(super) fn queue_rows(
             );
             ui.a11y_name(&item, title);
             ui.within(&item, &mut |ui| {
-                let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &Look::NONE, |_| {});
+                let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});
                 ui.a11y_name(&grip.handle, "Reorder queued track");
                 ui.draw(&grip.handle, move |paint, rect| {
                     for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
@@ -522,7 +522,7 @@ pub(super) fn queue_rows(
                     },
                     ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
                 };
-                let play = ui.pressable("play-queued", node, &Look::NONE, |ui| {
+                let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {
                     ui.label(title, line_style(m.title as f32).w(Size::Grow).h(m.title_line).color(INK));
                     ui.label(artist, line_style(m.artist as f32).w(Size::Grow).h(m.artist_line).color(SECONDARY));
                 });

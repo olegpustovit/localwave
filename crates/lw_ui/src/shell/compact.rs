@@ -162,7 +162,7 @@ pub(super) fn view(
                             } else if library {
                                 detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
                                 // Swift's header gear; Settings stays one tap away.
-                                let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &Look::NONE, |_| {});
+                                let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
                                 ui.a11y_name(&settings.handle, "Settings");
                                 let color = ui.color(INK);
                                 ui.draw(&settings.handle, move |paint, rect| {
@@ -360,7 +360,7 @@ fn mini(
         },
         |ui| {
             let node = Node::row().w(Size::Grow).h_px(48.0).gap(10.0).align(Align::Center).role(Role::Button);
-            let open = ui.pressable("open-player", node, &Look::NONE, |ui| {
+            let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {
                 artwork(
                     ui,
                     catalog,
@@ -447,7 +447,7 @@ fn groups(
         &mut |ui, index| {
             let group = &groups[index];
             let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).pad_x(16.0).align(Align::Center).role(Role::Button);
-            let card = ui.pressable("group", node, &Look::NONE, |ui| {
+            let card = ui.pressable("group", node, &PLAIN, |ui, _| {
                 artwork(ui, catalog, player, group.artwork_row, 44.0);
                 let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                 ui.within(&labels, &mut |ui| {

@@ -100,9 +100,8 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         ui.box_("onboarding-flex", BoxOpts::default().h(Size::Grow));
         ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
         spacer(ui, "choose-gap", 12.0);
-        let look = Look { fill: ui.color(INK), ..Look::NONE };
         let node = Node::row().w(Size::Grow).h_px(52.0).center().role(Role::Button);
-        let choose = ui.pressable("choose-folder", node, &look, |ui| {
+        let choose = ui.pressable("choose-folder", node, &PLAIN.look(&looks(ui).ink), |ui, _| {
             ui.label("Choose a folder", TEXT_15.color(PAPER));
         });
         ui.a11y_name(&choose.handle, "Choose a folder");
@@ -144,7 +143,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
                 ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
             },
             |ui| {
-                let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &Look::NONE, |ui| {
+                let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {
                     let marker = ui.node("marker".into(), Node::column().w_px(40.0 / 3.0).h_px(19.5));
                     let ink = ui.color(INK);
                     ui.draw(&marker, move |paint, rect| {

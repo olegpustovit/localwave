@@ -477,7 +477,7 @@ impl Rows<'_> {
                         at: Some((x, (layout.height - 32.0) * 0.5)).into(),
                         ..Node::column().w_px(32.0).h_px(32.0).role(Role::Button)
                     };
-                    let more = ui.pressable("actions", node, &Look::NONE, |_| {});
+                    let more = ui.pressable("actions", node, &PLAIN, |_, _| {});
                     ui.a11y_name(&more.handle, row.actions_label);
                     ui.draw(&more.handle, move |paint, rect| {
                         for x in [5.5, 12.0, 18.5] {
@@ -503,7 +503,7 @@ impl Rows<'_> {
                             at: Some((2.0, 0.0)).into(),
                             ..Node::column().w_px(24.0).h_px(layout.height).role(Role::Button)
                         };
-                        let grip = ui.pressable("reorder-listed", node, &Look::NONE, |_| {});
+                        let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});
                         ui.a11y_name(&grip.handle, "Reorder track");
                         ui.draw(&grip.handle, move |paint, rect| {
                             for x in [8.0, 12.0] {

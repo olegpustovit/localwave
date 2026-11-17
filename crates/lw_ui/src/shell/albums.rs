@@ -22,12 +22,9 @@ pub(super) fn toolbar(
             (AlbumSort::Added, "sort-added", "Size"),
         ] {
             let selected = state.album_sort == value;
-            let look = Look {
-                fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
-                ..Look::NONE
-            };
+            let theme = looks(ui);
             let node = Node::column().w(Size::Fit).h_px(30.0).pad_x(10.0).center().role(Role::Button);
-            let button = ui.pressable(key, node, &look, |ui| {
+            let button = ui.pressable(key, node, &PLAIN.look(if selected { &theme.selected } else { &theme.paper }), |ui, _| {
                 ui.label(title, TEXT_13.color(if selected { INK } else { SECONDARY }));
             });
             ui.a11y_name(&button.handle, title);
@@ -166,15 +163,11 @@ pub(super) fn gallery(
                                     "group-visual",
                                     &row_revision,
                                     |ui| {
-                                        let look = Look {
-                                            fill: ui.color(PAPER),
-                                            ..Look::NONE
-                                        };
                                         let node = Node {
                                             padding: Edges::ZERO,
                                             ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
                                         };
-                                        let card = ui.pressable("group", node, &look, |ui| {
+                                        let card = ui.pressable("group", node, &PLAIN.look(&looks(ui).paper), |ui, _| {
                                             let art = container(
                                                 ui,
                                                 "artwork",

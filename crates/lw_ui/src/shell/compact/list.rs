@@ -575,7 +575,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                         for index in pair.iter().copied() {
                             let group = &catalog.albums[index];
                             let node = Node::column().w_px(cell).h(Size::Grow).role(Role::Button);
-                            let card = ui.pressable(Key::Id(index as i64), node, &Look::NONE, |ui| {
+                            let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {
                                 let art = container(
                                     ui,
                                     "artwork",

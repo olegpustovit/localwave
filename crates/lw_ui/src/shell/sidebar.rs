@@ -204,7 +204,7 @@ pub(super) fn sidebar(
             padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },
             ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button)
         };
-        let shortcuts = ui.pressable("shortcuts", node, &Look::NONE, |ui| {
+        let shortcuts = ui.pressable("shortcuts", node, &PLAIN, |ui, _| {
             ui.label("?", MONO_11.w(Size::Px(14.0)).h(16.0).color(SECONDARY));
             ui.label("shortcuts", TEXT_12.h(16.0).color(SECONDARY));
         });

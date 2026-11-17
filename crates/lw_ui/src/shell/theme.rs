@@ -79,6 +79,8 @@ pub(super) struct Looks {
 }
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::all(Look::NONE);
+/// A pressable that keeps its node's own look (the node draws itself, or its contents do).
+pub(super) const PLAIN: pxui::Pressable = pxui::Pressable::DEFAULT;
 const fn token(token: ColorToken, dark: bool) -> Rgba {
     let pair = COLORS[token.0 as usize];
     if dark { pair.1 } else { pair.0 }

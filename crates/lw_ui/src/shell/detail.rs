@@ -266,7 +266,7 @@ fn header_body(
                 spacer(ui, "folder-gap", 4.0);
                 ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
                     ui.label("Folder:", CAPTION);
-                    let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &Look::NONE, |ui| {
+                    let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {
                         ui.label(&target.label, TEXT_13.h(17.2).color(INK));
                         container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
                     });
@@ -336,7 +336,7 @@ fn album_grid(
             ui.within(&cards_row, &mut |ui| {
                 for &index in chunk {
                     let group = &catalog.albums[index];
-                    let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &Look::NONE, |ui| {
+                    let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {
                         let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), ui.color(PANEL));
                         paint_artwork(ui, &art, group.artwork_row.map(|row| catalog.row(row)), cell, player.artwork);
                         spacer(ui, "art-gap", 8.0);
