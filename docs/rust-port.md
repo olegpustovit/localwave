@@ -76,7 +76,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | 4fb54b0 |
 | DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | blocked | DX0.7g: heart draw segments of a nested view differ only with a11y on |
 | DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | done | 0754b76 |
-| DX0.7g | pxui verify_views: replay transitions started in a body and nested-view draw segments under a11y (blocks DX0.7b/e) | todo |  |
+| DX0.7g | pxui verify_views: replay transitions started in a body and nested-view draw segments under a11y (blocks DX0.7b/e) | done | HEAD + pxui 4670ad6 |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
 | DX1.2 | Flags newtype; distinct FOCUSABLE names | done | 6f0fc01 + pxui 2f7a6f1 |
 | DX1.3 | Key type; row/column/stack shims | done | f3b89c5 + pxui 64f2bba |
@@ -103,7 +103,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.5 | icon_button | done | c2bf971 + pxui 7891b2a |
 | DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | 712627d + pxui b999ffd |
 | DX3.6 | menu with MenuItem | done | ab60a7b + pxui 759c84a |
-| DX3.7 | toggle_with, segmented_with, disabled scope | done | HEAD + pxui 30260fb |
+| DX3.7 | toggle_with, segmented_with, disabled scope | done | bf5780a + pxui 30260fb |
 | DX3.8 | dialog_with | todo |  |
 | DX3.9 | Per-call widget body variants | todo |  |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
