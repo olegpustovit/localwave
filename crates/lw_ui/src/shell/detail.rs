@@ -266,16 +266,12 @@ fn header_body(
                 spacer(ui, "folder-gap", 4.0);
                 ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
                     ui.label("Folder:", TEXT_13.h(18.2).color(SECONDARY));
-                    let link = ui.node(
-                        "link".into(),
-                        Node::column().w(Size::Fit).h_px(18.2).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                    );
-                    ui.a11y_name(&link, &target.label);
-                    ui.within(&link, &mut |ui| {
+                    let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &Look::NONE, |ui| {
                         ui.label(&target.label, TEXT_13.h(17.2).color(INK));
                         container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
                     });
-                    if ui.signal(&link).clicked {
+                    ui.a11y_name(&link.handle, &target.label);
+                    if link.clicked {
                         *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
                     }
                 });
@@ -340,12 +336,7 @@ fn album_grid(
             ui.within(&cards_row, &mut |ui| {
                 for &index in chunk {
                     let group = &catalog.albums[index];
-                    let card = ui.node(
-                        Key::Id(index as i64),
-                        Node::column().w_px(cell).h(Size::Grow).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                    );
-                    ui.a11y_name(&card, &group.title);
-                    ui.within(&card, &mut |ui| {
+                    let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &Look::NONE, |ui| {
                         let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), ui.color(PANEL));
                         paint_artwork(ui, &art, group.artwork_row.map(|row| catalog.row(row)), cell, player.artwork);
                         spacer(ui, "art-gap", 8.0);
@@ -356,7 +347,8 @@ fn album_grid(
                         let year = if year == "0" { "\u{2014}" } else { year };
                         line(ui, "year", year, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
                     });
-                    if ui.signal(&card).clicked {
+                    ui.a11y_name(&card.handle, &group.title);
+                    if card.clicked {
                         *intent = Some(Intent::Navigate(Route::Album(index)));
                     }
                 }
