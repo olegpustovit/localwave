@@ -106,6 +106,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.7 | toggle_with, segmented_with, disabled scope | done | bf5780a + pxui 30260fb |
 | DX3.8 | dialog_with | done | eb713db + pxui d45155b |
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
+| DX3.10 | Label, Button and IconButton style values express LocalWave helpers (found by DX4.2–4.4) | done | HEAD + pxui 76d9c7d |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | todo |  |
 | DX4.3 | Buttons to button_with | todo |  |
@@ -141,7 +142,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.16 | Docs: node.rs | todo |  |
 | DX6.17 | Docs: layout and geometry | done | 0a5c610 + pxui 4c08a69 |
 | DX6.18 | Docs: theme | done | c772eb9 + pxui 5b268d7 |
-| DX6.19 | Docs: ui, a11y, draw | done | HEAD + pxui 28893de |
+| DX6.19 | Docs: ui, a11y, draw | done | eb23944 + pxui 28893de |
 | DX6.20 | Docs: pxui_types root | todo |  |
 | DX6.21 | Docs: ffi.rs (1) | todo |  |
 | DX6.22 | Docs: ffi.rs (2) | todo |  |
