@@ -168,10 +168,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | done | ffe72c6 + pxui 6d85f9c |
 | DX7.6 | Reserved surface id | done | 53377e7 + pxui e5be793 |
 | DX7.7 | Record changes before freeze | todo |  |
-| DX7.8 | Rays vocabulary to extension manifest | done | HEAD + pxui 3d16c6b |
+| DX7.8 | Rays vocabulary to extension manifest | done | 7a93fa3 + pxui 3d16c6b |
 | DX7.9 | Lint: records built from DEFAULT | todo |  |
 | DX7.10 | Mach-O and ELF versions | todo |  |
-| DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | todo |  |
+| DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | done | HEAD + pxui 6f2df11 |
 | DX7.12 | Freeze 1.N (PERF) | todo |  |
 
 ## Latest performance
