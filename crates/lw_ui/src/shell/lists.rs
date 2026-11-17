@@ -4,6 +4,11 @@ use crate::browse::Query;
 use crate::catalog::Catalog;
 use crate::{Intent, ListDialog};
 
+/// The playlist name input of the list dialog: Done ends editing.
+const LIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
+    .action(pxui::ReturnKey::Done)
+    .name("List name");
+
 /// The playlist behind a collection, by id; `None` when it was removed meanwhile.
 pub(super) fn playlist_title(catalog: &Catalog, list: i64) -> Option<&str> {
     catalog
@@ -171,11 +176,10 @@ pub(super) fn name_dialog(
                     BoxOpts::default().w(Size::Grow).h(Size::Px(40.0)),
                 );
                 ui.within(&field, &mut |ui| {
-                    if let Some(value) = ui.text_field_with_options(
-                        "List name",
-                        state.playlist_name.as_str(),
-                        pxui::TextInputOptions::DEFAULT.action(pxui::TextInputOptions::DONE),
-                    ) {
+                    if let Some(value) = ui
+                        .text_field("list-name", state.playlist_name.as_str(), &LIST_NAME)
+                        .changed
+                    {
                         *intent = Some(
                             Query::new(value)
                                 .map_or(Intent::PlaylistNameTooLong, Intent::EditPlaylistName),

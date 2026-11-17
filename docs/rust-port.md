@@ -91,6 +91,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
 | DX1.12F2 | Audit batch F2: Keyframes/Repeat/Keyframe constructors, gesture option builders, borrowed carry/drop, Ui::scroll, Ui::set_view | done | 2f5ac3d |
 | DX1.12F2a | pxui_render GPU tests use set_view; ellipsis golden follows DX-BUG1; landing compiles every workspace test target | done | fdf646d + pxui e659280 |
+| DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | HEAD + pxui cf953b3 |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -138,9 +139,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
 | DX-BUG1 | Bugs found by the docs work: Images::insert mapping, a11y_value char boundaries, paint text layout-top placement, hex_exn twin | done | 5edae64 + pxui f51852f |
-| OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | HEAD + pxui 84752ba |
-| OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | HEAD + pxui 93c7d20 |
-| OS-B2b | Text, image and renderer bounded for untrusted callers: text length caps, font caps, layout byte budget, renderer records size-checked, resize capped, per-Ui image table | done | HEAD + pxui 5d11b7e |
+| OS-B3 | Production libpxui/apps use the system allocator; allocation counting is an explicit opt-in (tests, make performance), checked on both sides of the ABI | done | f2a2e68 + pxui 84752ba |
+| OS-B4 | Hosts are multi-window: SDL events routed by window, dialogs return to their opener, AT-SPI serves many surfaces, per-window Wayland clipboard | done | f2a2e68 + pxui 93c7d20 |
+| OS-B2b | Text, image and renderer bounded for untrusted callers: text length caps, font caps, layout byte budget, renderer records size-checked, resize capped, per-Ui image table | done | f2a2e68 + pxui 5d11b7e |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |

@@ -81,6 +81,9 @@ impl ShellState {
 /// The field body's variant for Swift's phone Find field; the palette's field keeps variant 0.
 pub(super) const FIND_FIELD: u16 = 1;
 
+/// The command palette's input: no autocorrect or capitalization, the Search key.
+const PALETTE_FIELD: pxui::TextField = pxui::TextField::SEARCH.name("Search and commands");
+
 pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
     // One registered body serves the palette (20 pt, 59 pt tall) and Swift's phone Find field (26 pt medium, 56 pt).
     let find = c.variant == FIND_FIELD;
@@ -257,11 +260,10 @@ pub(super) fn palette_view(
                 }
             }
             let mut field = |ui: &mut Ui| {
-                if let Some(value) = ui.text_field_with_options(
-                    "Search and commands",
-                    state.command_query.as_str(),
-                    pxui::TextInputOptions::SEARCH_FIELD,
-                ) {
+                if let Some(value) = ui
+                    .text_field("palette-input", state.command_query.as_str(), &PALETTE_FIELD)
+                    .changed
+                {
                     *intent = Some(
                         Query::new(value).map_or(Intent::CommandTooLong, Intent::CommandQuery),
                     );
@@ -802,7 +804,7 @@ mod tests {
         assert!(ui.text_input_focused());
         assert_eq!(
             ui.text_input_options(),
-            pxui::TextInputOptions::SEARCH_FIELD
+            pxui::TextTraits::SEARCH
         );
         let field = ui
             .a11y_nodes()

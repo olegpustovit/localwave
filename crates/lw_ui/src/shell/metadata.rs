@@ -3,14 +3,17 @@ use super::*;
 use crate::catalog::Catalog;
 use crate::{Intent, MetadataEdit};
 
-/// Label, field key. Swift edits disc numbers too; the sheet keeps them untouched.
-const FIELDS: [(&str, &str); 6] = [
-    ("Title", "meta-title"),
-    ("Artist", "meta-artist"),
-    ("Album", "meta-album"),
-    ("Album artist", "meta-album-artist"),
-    ("Release year", "meta-year"),
-    ("Track number", "meta-track"),
+/// A metadata text input: Done ends editing.
+const META_FIELD: pxui::TextField = pxui::TextField::DEFAULT.action(pxui::ReturnKey::Done);
+
+/// Label, field key, input. Swift edits disc numbers too; the sheet keeps them untouched.
+const FIELDS: [(&str, &str, pxui::TextField); 6] = [
+    ("Title", "meta-title", META_FIELD.name("Title")),
+    ("Artist", "meta-artist", META_FIELD.name("Artist")),
+    ("Album", "meta-album", META_FIELD.name("Album")),
+    ("Album artist", "meta-album-artist", META_FIELD.name("Album artist")),
+    ("Release year", "meta-year", META_FIELD.name("Release year")),
+    ("Track number", "meta-track", META_FIELD.name("Track number")),
 ];
 
 pub(super) fn editor(
@@ -33,16 +36,15 @@ pub(super) fn editor(
             },
             |ui| {
                 ui.label("Edit Metadata", TEXT_24.w(Size::Grow).h(36.0).color(INK));
-                for (index, (label, key)) in FIELDS.into_iter().enumerate() {
+                for (index, (label, key, input)) in FIELDS.into_iter().enumerate() {
                     ui.label(label, TEXT_12.w(Size::Grow).h(16.0).color(SECONDARY));
                     let field = ui.box_(key, BoxOpts::default().w(Size::Grow).h(Size::Px(32.0)));
                     ui.within(&field, &mut |ui| {
                         let current = *edit.field_mut(index).expect("field index is in range");
-                        if let Some(value) = ui.text_field_with_options(
-                            label,
-                            current.as_str(),
-                            pxui::TextInputOptions::DEFAULT.action(pxui::TextInputOptions::DONE),
-                        ) {
+                        if let Some(value) = ui
+                            .text_field(key, current.as_str(), &input)
+                            .changed
+                        {
                             *intent =
                                 Some(Query::new(value).map_or(Intent::MetadataTooLong, |q| {
                                     Intent::MetadataField(index, q)

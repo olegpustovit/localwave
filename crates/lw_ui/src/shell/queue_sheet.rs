@@ -1,5 +1,10 @@
 use super::*;
 use crate::browse::Query;
+
+/// The playlist name input of the queue sheet: Done ends editing.
+const PLAYLIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
+    .action(pxui::ReturnKey::Done)
+    .name("Playlist name");
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
 
@@ -216,11 +221,10 @@ pub(super) fn queue_sheet(
                             BoxOpts::default().w(Size::Grow).h(Size::Grow),
                         );
                         ui.within(&field, &mut |ui| {
-                            if let Some(value) = ui.text_field_with_options(
-                                "Playlist name",
-                                state.playlist_name.as_str(),
-                                pxui::TextInputOptions::DEFAULT.action(pxui::TextInputOptions::DONE),
-                            ) {
+                            if let Some(value) = ui
+                                .text_field("playlist-name", state.playlist_name.as_str(), &PLAYLIST_NAME)
+                                .changed
+                            {
                                 *intent =
                                     Some(Query::new(value).map_or(
                                         Intent::PlaylistNameTooLong,

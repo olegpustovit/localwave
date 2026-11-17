@@ -6,6 +6,9 @@ use super::*;
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView};
 
+/// The playback scrubber: arrow keys move five seconds.
+const SCRUBBER: pxui::Scrubber = pxui::Scrubber::DEFAULT.step(5.0).name("Playback position");
+
 pub(super) fn transport(
     ui: &mut Ui,
     player: &PlayerView<'_>,
@@ -318,10 +321,10 @@ pub(super) fn seek(
     };
     let upper = duration.min(f64::from(f32::MAX)) as f32;
     let scrub = ui.scrub(
-        "Playback position",
+        "playback-position",
         position.min(f64::from(upper)) as f32,
         0.0..=upper,
-        5.0,
+        &SCRUBBER,
     );
     let scrubber = scrub.node;
     ui.set_node_layout(

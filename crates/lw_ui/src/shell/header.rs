@@ -1,5 +1,10 @@
 use super::*;
 /// The page heading: 34 points, medium, tracked in, on a 34-point line.
+/// The phone Find field: no autocorrect or capitalization, Done ends editing, the Find body variant.
+const FIND: pxui::TextField = pxui::TextField::SEARCH
+    .action(pxui::ReturnKey::Done)
+    .variant(commands::FIND_FIELD)
+    .name("Find songs");
 const HEADING: Label = Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1).w(Size::Grow).h(34.0).whole_pixels().color(INK);
 use crate::browse::Query;
 use crate::catalog::{Catalog, Route};
@@ -72,11 +77,10 @@ pub(super) fn header(
                             BoxOpts::default().w(Size::Grow).h(Size::Grow),
                         );
                         ui.within(&field, &mut |ui| {
-                            if let Some(value) = ui.text_field_with_options(
-                                "Find songs",
-                                state.query.as_str(),
-                                pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE).variant(commands::FIND_FIELD),
-                            ) {
+                            if let Some(value) = ui
+                                .text_field("find-songs", state.query.as_str(), &FIND)
+                                .changed
+                            {
                                 *intent = Some(
                                     Query::new(value).map_or(Intent::SearchTooLong, Intent::Search),
                                 );
@@ -174,11 +178,10 @@ pub(super) fn compact_find(
                             );
                             ui.within(&field, &mut |ui| {
                                 let mut edit = |ui: &mut Ui| {
-                                    if let Some(value) = ui.text_field_with_options(
-                                        "Find songs",
-                                        state.query.as_str(),
-                                        pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE).variant(commands::FIND_FIELD),
-                                    ) {
+                                    if let Some(value) = ui
+                                        .text_field("find-songs", state.query.as_str(), &FIND)
+                                        .changed
+                                    {
                                         *intent = Some(
                                             Query::new(value)
                                                 .map_or(Intent::SearchTooLong, Intent::Search),
