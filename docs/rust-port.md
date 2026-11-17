@@ -97,6 +97,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12G | Audit batch G: body vocabulary follows the public calls; sealed per-kind body config wrappers | done | 7c9c670 + pxui 98ca495 |
 | DX1.12C | Audit batch C: geometry/colour/theme/layout/draw/a11y value types, one const shape each | done | bb8df23 + pxui 8d0e1f4 |
 | DX1.12B | Audit batch B: paint Rect + Fill/Stroke, Shapes private, images by id with checked exports (ABI 1.70) | done | 02fc990 + pxui 11a546d |
+| DX1.12D | Audit batch D: one container/view/state shape, Chosen, borrowed looks, Handle (ABI 1.72 ui_view_keyed) | done | HEAD + pxui d6b4182 |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -123,7 +124,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.15 | pressable takes a Pressable style (per-state looks, enabled, tab_stop, selected) and gives f the state; Response::secondary (found by DX4.11) | done | a7f9acd |
 | DX3.16 | Menu::max_h, Pressable::focus_on_click, segmented_with(Option) -> SegmentedResponse with a radio-group keyboard model (found by DX4.5/4.6) | done | 1b2be80 + pxui 0968a85 |
 | DX3.17 | Segmented::focus_on_click; segment bodies see the caller's stored choice (found by DX4.6) | done | 07012b0 + pxui 0aef02c |
-| DX3.18 | ABI 1.71: Button icon/detail/accessory + label styles, IconButton::selected, DialogButton::detail (gaps G2, G3, G13; G11 deferred) | done | HEAD + pxui 28fc92d |
+| DX3.18 | ABI 1.71: Button icon/detail/accessory + label styles, IconButton::selected, DialogButton::detail (gaps G2, G3, G13; G11 deferred) | done | 3d7799f + pxui 28fc92d |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | done | 269af1c |
 | DX4.3 | Buttons to button_with | done | 157587d |

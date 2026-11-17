@@ -46,7 +46,7 @@ fn side_item(
         if !badge.is_empty() {
             let tag = ui.label(badge, TEXT_11.h_px(16.0).color(PAPER));
             ui.set_look(&tag, BADGE, State::default());
-            ui.box_("badge-gap", BoxOpts::default().w(Size::Grow));
+            ui.node("badge-gap".into(), Node::DEFAULT.w(Size::Grow));
         }
         ui.label(count, MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY));
     });

@@ -63,12 +63,9 @@ pub(super) fn now_panel(
                     player.revision,
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
                 ));
-                let information = ui.view(
-                    "track-information",
-                    information_revision,
-                    Size::Grow,
-                    Size::Fit,
-                    &mut |ui| {
+                let information_box = ui.node("track-information".into(), Node::column());
+                let mut information = information_box;
+                ui.within(&information_box, &mut |ui| information = ui.view_of("track-information", &information_revision, |ui| {
                         let title = ui.node(
                             "current-track".into(),
                             Node {
@@ -97,8 +94,7 @@ pub(super) fn now_panel(
                         if player.initialized && player.title.is_empty() {
                             ui.label("Double-click a song, or drop audio files anywhere in this window.", PARAGRAPH_14.color(SECONDARY));
                         }
-                    },
-                );
+                    }));
                 crate::motion::enter(
                     ui,
                     &information,
@@ -114,15 +110,12 @@ pub(super) fn now_panel(
                 }
             });
             spacer(ui, "title-clock-gap", 14.0);
-            let clock_group = ui.view(
-                "playback-clock",
-                crate::hash((player.revision, position.to_bits())),
-                Size::Grow,
-                Size::Px(43.0),
-                &mut |ui| {
+            let clock_group_box = ui.node("playback-clock".into(), Node::column().h_px(43.0));
+            let mut clock_group = clock_group_box;
+            ui.within(&clock_group_box, &mut |ui| clock_group = ui.view_of("playback-clock", &(crate::hash((player.revision, position.to_bits()))), |ui| {
                     ui.row("clock", Node::row().w(Size::Grow).h_px(43.0).align(Align::End), |ui| {
                         matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
-                        ui.box_("clock-flex", BoxOpts::default().w(Size::Grow));
+                        ui.node("clock-flex".into(), Node::DEFAULT.w(Size::Grow));
                         small_clock(
                             ui,
                             "panel-remaining",
@@ -132,8 +125,7 @@ pub(super) fn now_panel(
                             SECONDARY,
                         );
                     });
-                },
-            );
+                }));
             crate::motion::enter(
                 ui,
                 &clock_group,
@@ -216,7 +208,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
                 );
                 let mut ray = None;
                 ui.within(&slot, &mut |ui| {
-                    ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
+                    ray = Some(ui.view_of("ray", &0, |ui| {
                         let dot = ui.node("dot".into(), Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
                         ui.canvas(&dot, move |paint, rect| {
@@ -261,12 +253,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
     rule(ui, "metadata-divider", false);
     spacer(ui, "metadata-top", 13.0);
     let revision = crate::hash(info as *const crate::now_info::NowInfo as usize);
-    ui.view(
-        "now-metadata",
-        revision,
-        Size::Grow,
-        Size::Px(79.2),
-        &mut |ui| {
+    ui.column("now-metadata", Node::column().h_px(79.2), |ui| { ui.view_of("now-metadata", &revision, |ui| {
             ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
                 for (key, label, value, ink) in [
                     ("format", "Format", &info.format, SECONDARY),
@@ -282,6 +269,5 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                     ui.a11y_name(&row, if key == "file" { &info.folder } else { value });
                 }
             });
-        },
-    );
+        }); });
 }

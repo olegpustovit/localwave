@@ -122,12 +122,7 @@ pub(super) fn view(
             return;
         }
         let revision = library_revision(player, catalog, state);
-        ui.view(
-            "compact-library",
-            revision,
-            Size::Grow,
-            Size::Grow,
-            &mut |ui| {
+        ui.view_of("compact-library", &revision, |ui| {
                 if !state.settings_visible
                     && state.route != Route::Files
                     && state.route != Route::Find
@@ -236,12 +231,7 @@ pub(super) fn view(
                         rule(ui, "tabs-divider", false);
                     }
                 }
-                let content = ui.view(
-                    "compact-content",
-                    revision,
-                    Size::Grow,
-                    Size::Grow,
-                    &mut |ui| {
+                let content = ui.view_of("compact-content", &revision, |ui| {
                         let body = container(
                             ui,
                             "compact-content",
@@ -282,8 +272,7 @@ pub(super) fn view(
                                 }
                             });
                         });
-                    },
-                );
+                    });
                 crate::motion::enter(
                     ui,
                     &content,
@@ -292,8 +281,7 @@ pub(super) fn view(
                     crate::motion::BASE,
                     0.0,
                 );
-            },
-        );
+            });
         rule(ui, "mini-divider", false);
         mini(ui, player, catalog, intent);
         rule(ui, "nav-divider", false);
@@ -573,7 +561,7 @@ fn expanded(
                 spacer(ui, "clock-gap", 14.0);
                 ui.row("clock", Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
                     matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
-                    ui.box_("flex", BoxOpts::default().w(Size::Grow));
+                    ui.node("flex".into(), Node::DEFAULT.w(Size::Grow));
                     ui.column(
                         "clock-side",
                         Node {
@@ -601,7 +589,7 @@ fn expanded(
                 ui.within(&times, &mut |ui| {
                     let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
                     ui.a11y_name(&start, "Start time");
-                    ui.box_("flex", BoxOpts::default().w(Size::Grow));
+                    ui.node("flex".into(), Node::DEFAULT.w(Size::Grow));
                     let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, SECONDARY);
                     ui.a11y_name(&total, "Duration");
                 });

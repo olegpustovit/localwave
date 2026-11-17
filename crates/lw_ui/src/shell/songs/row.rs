@@ -32,7 +32,7 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                     ..Node::column().w_px(2.0).h_px(11.0)
                 },
                 |ui| {
-                    let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
+                    let bar = ui.view_of("bar", &0, |ui| {
                         let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
                         ui.canvas(&fill, move |paint, rect| {
@@ -136,7 +136,7 @@ pub(in crate::shell) fn glyph(
         ui.set_state(&root, i64::from(active));
         ui.within(&root, &mut |ui| {
             for (index, key) in ["left", "right"].into_iter().enumerate() {
-                let half = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
+                let half = ui.view_of(key, &0, |ui| {
                     let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.canvas(&fill, move |paint, rect| {
@@ -271,19 +271,16 @@ impl Rows<'_> {
         } else {
             revision
         };
-        let visual = ui.view(
-            "song-visual",
-            visual_revision,
-            Size::Grow,
-            Size::Fit,
-            &mut |ui| {
+        let visual_box = ui.node("song-visual".into(), Node::column());
+        let mut visual = visual_box;
+        ui.within(&visual_box, &mut |ui| visual = ui.view_of("song-visual", &visual_revision, |ui| {
                 let row = catalog.row(collection.rows[index]);
                 let song_row = song_row_looks(ui);
                 let look = PLAIN.look(if marked { &SELECTED_LOOKS } else { &song_row });
                 let node = Node::column().w(Size::Grow).h_px(layout.height).role(Role::ListItem);
                 let current = player.current_id == Some(row.id);
                 let root = ui.pressable("song", node, &look, |ui, _| {
-                    ui.view("song-copy", revision, Size::Grow, Size::Grow, &mut |ui| {
+                    ui.view_of("song-copy", &revision, |ui| {
                         let mut x = 0.0;
                         for column in Column::ALL {
                             let w = widths[column as usize];
@@ -337,13 +334,7 @@ impl Rows<'_> {
                                 ..Node::column().w_px(14.0).h_px(11.0)
                             },
                             |ui| {
-                                ui.view(
-                                    "equalizer-view",
-                                    visual_revision,
-                                    Size::Grow,
-                                    Size::Grow,
-                                    &mut |ui| equalizer(ui, player.playing, visible, row.id),
-                                );
+                                ui.view_of("equalizer-view", &visual_revision, |ui| equalizer(ui, player.playing, visible, row.id));
                             },
                         );
                     }
@@ -356,13 +347,7 @@ impl Rows<'_> {
                                 ..Node::column().w_px(10.0).h_px(10.0)
                             },
                             |ui| {
-                                let visual = ui.view(
-                                    "availability-view",
-                                    visual_revision,
-                                    Size::Grow,
-                                    Size::Grow,
-                                    &mut |ui| availability(ui, row, visible),
-                                );
+                                let visual = ui.view_of("availability-view", &visual_revision, |ui| availability(ui, row, visible));
                                 let previous = ui.state(&visual, -1);
                                 let next = row.state as i64;
                                 if previous != next {
@@ -477,8 +462,7 @@ impl Rows<'_> {
                 if reorder {
                     self.drop_target(ui, &root.handle, index, intent);
                 }
-            },
-        );
+            }));
         entry.row(ui, &visual, index);
     }
 }

@@ -47,7 +47,7 @@ pub(super) fn popup(
 }
 
 /// The folder options menu: rows on the paper fill (`MENU_PANEL`), focused by a press.
-const OPTIONS: Menu<'static> = super::songs::MENU.width(220.0).name("Folder options").variant(MENU_PANEL).focus_on_click(true);
+const OPTIONS: Menu<'static> = super::songs::MENU.w_px(220.0).name("Folder options").variant(MENU_PANEL).focus_on_click(true);
 // The folder options' and folder actions' row ids.
 const OPEN: i64 = 0;
 const RESCAN: i64 = 1;
@@ -72,8 +72,8 @@ pub(super) fn confirm_remove(
         })
     });
     let enabled = folder.is_some() && player.files.is_some_and(|files| !files.busy);
-    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().default().enabled(enabled)];
-    let sheet = ui.dialog("remove-source", "Remove folder?", &buttons, &Dialog::DEFAULT.width(width), &mut |ui| {
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().primary().enabled(enabled)];
+    let sheet = ui.dialog("remove-source", "Remove folder?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
         let name = folder.map_or("This folder changed. Reload folders and try again.", |folder| folder.name.as_str());
         settings::paragraph(ui, "folder-name", name, width - 40.0, 15.0, ui.color(INK));
         let consequences = "Its songs leave the library. Files are not deleted.";
@@ -398,7 +398,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         if link(ui, "back", "Back", "‹ Back", 64.0) {
             *intent = Some(up(directory));
         }
-        ui.box_("top-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
+        ui.node("top-space".into(), Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
         if action(ui, "import", "Import folder", 108.0, !files.busy, (PANEL, INK)) {
             *intent = Some(Intent::Files(Request::Import(location)));
         }
@@ -435,7 +435,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         if tool(ui, Action::Offline(directory.kept), ready) {
             *intent = Some(Intent::KeepFolder);
         }
-        ui.box_("tools-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
+        ui.node("tools-space".into(), Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
         if !compact {
             legend(ui);
         }
@@ -552,7 +552,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         if ui.signal(&back).clicked {
             *intent = Some(up(directory));
         }
-        ui.box_("top-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
+        ui.node("top-space".into(), Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
         ui.label(&directory.detail, MONO_DIM);
         if directory.songs.is_empty() {
             return;

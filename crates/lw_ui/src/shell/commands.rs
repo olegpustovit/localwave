@@ -479,7 +479,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                                     },
                                 );
                                 ui.text_line_box(&node, label, &KEY_LABEL, &[]).unwrap();
-                                ui.box_("fill", BoxOpts::default().w(Size::Grow));
+                                ui.node("fill".into(), Node::DEFAULT.w(Size::Grow));
                                 ui.label(key, MONO_DIM);
                             });
                         }

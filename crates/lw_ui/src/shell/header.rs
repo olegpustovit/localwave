@@ -62,19 +62,11 @@ pub(super) fn header(
             }
         });
         if state.route == Route::Find && !results {
-            ui.view(
-                "find-query",
-                state.query_revision,
-                Size::Grow,
-                Size::Px(44.0),
-                &mut |ui| {
+            ui.column("find-query", Node::column().h_px(44.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                     let row =
                         container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
                     ui.within(&row, &mut |ui| {
-                        let field = ui.box_(
-                            "query-field",
-                            BoxOpts::default().w(Size::Grow).h(Size::Grow),
-                        );
+                        let field = ui.node("query-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                         ui.within(&field, &mut |ui| {
                             if let Some(value) = ui
                                 .text_field("find-songs", state.query.as_str(), &FIND)
@@ -89,8 +81,7 @@ pub(super) fn header(
                             *intent = Some(Intent::Search(Query::default()));
                         }
                     });
-                },
-            );
+                }); });
             find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
@@ -139,7 +130,7 @@ pub(super) fn compact_find(
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
-    ui.view("page-heading", revision, Size::Grow, Size::Fit, &mut |ui| {
+    ui.column("page-heading", Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
         // Select mode swaps the whole heading for Swift's selection header.
         if state.selecting {
             let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
@@ -159,18 +150,10 @@ pub(super) fn compact_find(
             },
             |ui| {
                 ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
-                ui.view(
-                    "find-query",
-                    state.query_revision,
-                    Size::Grow,
-                    Size::Px(56.0),
-                    &mut |ui| {
+                ui.column("find-query", Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                         let row = Node::row().align(Align::Center).w(Size::Grow).h(Size::Grow);
                         ui.row("query-row", row, |ui| {
-                            let field = ui.box_(
-                                "query-field",
-                                BoxOpts::default().w(Size::Grow).h(Size::Grow),
-                            );
+                            let field = ui.node("query-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                             ui.within(&field, &mut |ui| {
                                 let mut edit = |ui: &mut Ui| {
                                     if let Some(value) = ui
@@ -203,8 +186,7 @@ pub(super) fn compact_find(
                                 }
                             });
                         });
-                    },
-                );
+                    }); });
                 container(
                     ui,
                     "query-rule",
@@ -234,7 +216,7 @@ pub(super) fn compact_find(
                 }
             },
         );
-    });
+    }); });
 }
 
 /// "Search spans every source..." with Swift's bold filter examples, wrapped to the page width.
@@ -284,9 +266,9 @@ pub(super) fn header_view(
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
-    ui.view("page-heading", revision, Size::Grow, Size::Fit, &mut |ui| {
+    ui.column("page-heading", Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
         header(ui, catalog, state, width, intent)
-    });
+    }); });
 }
 
 pub(super) fn content(
@@ -313,12 +295,7 @@ pub(super) fn find_tokens(
 ) {
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
     let revision = crate::hash((state.query_revision, width.to_bits()));
-    ui.view(
-        "find-tokens",
-        revision,
-        Size::Px(width),
-        Size::Fit,
-        &mut |ui| {
+    ui.column("find-tokens", Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
             let flow = Node {
                 wrap: true,
                 row_gap: 6.0,
@@ -367,6 +344,5 @@ pub(super) fn find_tokens(
                     }
                 }
             });
-        },
-    );
+        }); });
 }

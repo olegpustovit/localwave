@@ -55,7 +55,7 @@ pub const fn steps(count: u32, duration: f32) -> Curve {
 /// Animate retained contents once per navigation, without rebuilding them on motion ticks.
 pub(crate) fn enter(
     ui: &mut pxui::Ui,
-    view: &pxui::PxuiBox,
+    view: &pxui::Handle,
     generation: u64,
     offset: (f32, f32),
     duration: f32,
@@ -103,7 +103,7 @@ impl Page {
             entering: now - start < (SLOW + 15.0 * STAGGER) as f64,
         }
     }
-    pub fn row(&self, ui: &mut pxui::Ui, view: &pxui::PxuiBox, index: usize) {
+    pub fn row(&self, ui: &mut pxui::Ui, view: &pxui::Handle, index: usize) {
         if self.entering && index < 16 {
             enter(
                 ui,

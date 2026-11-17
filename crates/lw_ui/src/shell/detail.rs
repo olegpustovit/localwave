@@ -172,12 +172,7 @@ pub(super) fn header(
         folder,
         player.artwork.map_or(0, crate::artwork::Images::revision),
     ));
-    ui.view(
-        "page-heading",
-        revision,
-        Size::Grow,
-        Size::Px(height(width, route, cards.len(), folder)),
-        &mut |ui| {
+    ui.column("page-heading", Node::column().h_px(height(width, route, cards.len(), folder)), |ui| { ui.view_of("page-heading", &revision, |ui| {
             let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
             ui.within(&column, &mut |ui| {
                 back_row(ui, if album { Route::Albums } else { Route::Artists }, intent);
@@ -211,8 +206,7 @@ pub(super) fn header(
                     album_grid(ui, catalog, player, cards, width, intent);
                 }
             });
-        },
-    );
+        }); });
 }
 
 #[allow(clippy::too_many_arguments)]

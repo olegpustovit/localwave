@@ -131,7 +131,7 @@ pub(super) fn song_row_looks(ui: &Ui) -> States {
     lit(PAPER_FILL, Look::NONE.fill(ui.color(PANEL).with_alpha(153)))
 }
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
-pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton {
+pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton<'static> {
     pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)
 }
 /// The icon key sizes LocalWave repeats: 28, 36 and 44 points square, and 44 by 40.

@@ -97,7 +97,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             });
             rule(ui, "step-rule", false);
         }
-        ui.box_("onboarding-flex", BoxOpts::default().h(Size::Grow));
+        ui.node("onboarding-flex".into(), Node::DEFAULT.h(Size::Grow));
         ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
         spacer(ui, "choose-gap", 12.0);
         let node = Node::row().w(Size::Grow).h_px(52.0).center().role(Role::Button);
@@ -114,7 +114,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             if underlined(ui, "pick-files", "Pick some files") {
                 *intent = Some(Intent::ChooseAudio);
             }
-            ui.box_("links-flex", BoxOpts::default().w(Size::Grow));
+            ui.node("links-flex".into(), Node::DEFAULT.w(Size::Grow));
             if underlined(ui, "explore", "Explore the library") {
                 *intent = Some(Intent::Navigate(Route::Albums));
             }

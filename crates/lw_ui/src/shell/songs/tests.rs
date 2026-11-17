@@ -328,16 +328,16 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
         let mut song = catalog.row(0);
         song.state = lw_core::FileState::CopyPending;
         let mut build = |ui: &mut Ui| {
-            ui.view("indicator", 0, Size::Px(14.0), Size::Px(11.0), &mut |ui| {
+            ui.column("indicator", Node::column().w_px(14.0).h_px(11.0), |ui| { ui.view_of("indicator", &0, |ui| {
                 row::equalizer(ui, true, true, song.id)
-            });
-            ui.view("file-state", 0, Size::Px(10.0), Size::Px(10.0), &mut |ui| {
+            }); });
+            ui.column("file-state", Node::column().w_px(10.0).h_px(10.0), |ui| { ui.view_of("file-state", &0, |ui| {
                 row::availability(ui, song, true)
-            });
+            }); });
         };
         ui.frame(&frame, &mut build).unwrap();
         ui.frame(&frame, &mut build).unwrap();
-        let indicator = pxui::ui::key_of(pxui::ui::ROOT_KEY, "indicator");
+        let indicator = pxui::ui::key_of(pxui::ui::key_of(pxui::ui::ROOT_KEY, "indicator"), "indicator");
         let equalizer = pxui::ui::key_of(indicator, "equalizer");
         let bars = ["bar-0", "bar-1", "bar-2"].map(|key| {
             let position = pxui::ui::key_of(equalizer, key);
@@ -402,13 +402,7 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             frame.time = time;
             frame.reduced_motion = reduced;
             ui.frame(&frame, &mut |ui| {
-                ui.view(
-                    "file-state",
-                    state_revision,
-                    Size::Px(10.0),
-                    Size::Px(10.0),
-                    &mut |ui| row::availability(ui, song, true),
-                );
+                ui.column("file-state", Node::column().w_px(10.0).h_px(10.0), |ui| { ui.view_of("file-state", &state_revision, |ui| row::availability(ui, song, true)); });
             })
             .unwrap();
             assert_eq!(

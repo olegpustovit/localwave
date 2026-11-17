@@ -20,8 +20,8 @@ pub(super) enum Action {
     Offline(bool),
 }
 
-fn background(ui: &mut Ui, key: &str, color: Rgba, shown: bool, immediate: bool) {
-    let view = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
+fn background(ui: &mut Ui, key: &'static str, color: Rgba, shown: bool, immediate: bool) {
+    let view = ui.view_of(key, &0, |ui| {
         ui.node(
             "fill".into(),
             Node {

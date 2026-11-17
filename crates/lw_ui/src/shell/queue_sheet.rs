@@ -178,10 +178,7 @@ pub(super) fn queue_sheet(
                         ui.color(PAPER),
                     );
                     ui.within(&row, &mut |ui| {
-                        let field = ui.box_(
-                            "playlist-name-field",
-                            BoxOpts::default().w(Size::Grow).h(Size::Grow),
-                        );
+                        let field = ui.node("playlist-name-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                         ui.within(&field, &mut |ui| {
                             if let Some(value) = ui
                                 .text_field("playlist-name", state.playlist_name.as_str(), &PLAYLIST_NAME)

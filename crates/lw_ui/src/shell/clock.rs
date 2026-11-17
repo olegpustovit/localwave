@@ -119,15 +119,10 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         let revision = crate::hash((shown, before));
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
-            ui.view(key, revision, Size::Grow, Size::Px(unit), &mut |ui| {
+            ui.column(key, Node::column().h_px(unit), |ui| { ui.view_of(key, &revision, |ui| {
                 ui.stack("row", Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
                     for changing in [false, true] {
-                        let visual = ui.view(
-                            if changing { "changed" } else { "stable" },
-                            revision,
-                            Size::Grow,
-                            Size::Grow,
-                            &mut |ui| {
+                        let visual = ui.view_of(if changing { "changed" } else { "stable" }, &revision, |ui| {
                                 let cells = ui.node("cells".into(), Node::column().w(Size::Grow).h(Size::Grow));
                                 ui.canvas(&cells, move |paint, rect| {
                                     let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
@@ -149,8 +144,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                                         x += (count + 1) as f32 * unit;
                                     }
                                 });
-                            },
-                        );
+                            });
                         if changing && old != seconds && !ui.tokens().reduced_motion {
                             let delay = row as f32 * 0.016;
                             let curve = crate::motion::steps(2, crate::motion::QUICK);
@@ -166,7 +160,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                         }
                     }
                 });
-            });
+            }); });
         }
     });
 }

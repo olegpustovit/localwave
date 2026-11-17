@@ -524,12 +524,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         player.artwork.map_or(0, crate::artwork::Images::revision),
         select_revision(state),
     ));
-    ui.view(
-        "artist-lead",
-        revision,
-        Size::Grow,
-        Size::Px(artist_lead_height(catalog, artist, width)),
-        &mut |ui| {
+    ui.column("artist-lead", Node::column().h_px(artist_lead_height(catalog, artist, width)), |ui| { ui.view_of("artist-lead", &revision, |ui| {
             let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
             ui.within(&column, &mut |ui| {
                 nav_row(ui, cx, "Library", Route::Artists, intent);
@@ -612,8 +607,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                     },
                 );
             });
-        },
-    );
+        }); });
 }
 
 /// Swift's detail back row: chevron and the parent's name, 44 pt tall.
@@ -867,7 +861,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         player.artwork.map_or(0, crate::artwork::Images::revision),
         select_revision(state),
     ));
-    ui.view("album-lead", revision, Size::Grow, Size::Px(album_lead_height()), &mut |ui| {
+    ui.column("album-lead", Node::column().h_px(album_lead_height()), |ui| { ui.view_of("album-lead", &revision, |ui| {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Library", Route::Albums, intent);
@@ -893,7 +887,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
             spacer(ui, "keys-gap", 16.0);
             play_keys(ui, offline_state(cx), intent);
         });
-    });
+    }); });
 }
 
 /// Compact list page lead-in (playlists, Favorites and the other automatic lists).
@@ -908,7 +902,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         select_revision(state),
     ));
-    ui.view("collection-lead", revision, Size::Grow, Size::Px(collection_lead_height()), &mut |ui| {
+    ui.column("collection-lead", Node::column().h_px(collection_lead_height()), |ui| { ui.view_of("collection-lead", &revision, |ui| {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Lists", Route::Lists, intent);
@@ -917,7 +911,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
             play_keys(ui, offline_state(cx), intent);
             spacer(ui, "list-gap", 16.0);
         });
-    });
+    }); });
 }
 
 /// Swift's playKeyButtons: a 52 pt key, ink for Play.

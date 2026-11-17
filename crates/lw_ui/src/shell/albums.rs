@@ -48,7 +48,7 @@ pub(super) fn toolbar(
                 *intent = Some(Intent::SortAlbums(value));
             }
         }
-        ui.box_("flex", BoxOpts::default().w(Size::Grow));
+        ui.node("flex".into(), Node::DEFAULT.w(Size::Grow));
         let node = Node::row().w(Size::Fit).h_px(30.0).gap(6.0).pad_x(10.0).align(Align::Center).role(Role::Button);
         let button = ui.pressable("shuffle-all", node, &PLAIN.enabled(!catalog.is_empty()), |ui, _| {
             let icon = ui.node("icon".into(), Node::column().w_px(16.0).h_px(16.0));

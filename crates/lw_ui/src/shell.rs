@@ -933,7 +933,7 @@ pub fn shell(
     /// The phone song menu's backdrop: near-black at a quarter alpha, the same in both appearances.
     const SCRIM: Look = Look::NONE.fill(Rgba { r: 10, g: 10, b: 10, a: 64 });
     if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
-        let scrim = ui.view("song-menu-backdrop", 0, Size::Grow, Size::Grow, &mut |ui| {
+        let scrim = ui.view_of("song-menu-backdrop", &0, |ui| {
             ui.node(
                 "scrim".into(),
                 Node {

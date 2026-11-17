@@ -170,21 +170,10 @@ pub(super) fn desktop(
                 u64::from(state.carried.get()) * 2
             };
             let revision = crate::hash((state.revision, catalog.all.is_some(), carry));
-            ui.view(
-                "sidebar",
-                revision,
-                Size::Px(sidebar_width),
-                Size::Grow,
-                &mut |ui| sidebar(ui, catalog, state, sidebar_width, intent),
-            );
+            ui.column("sidebar", Node::column().w_px(sidebar_width).h(Size::Grow), |ui| { ui.view_of("sidebar", &revision, |ui| sidebar(ui, catalog, state, sidebar_width, intent)); });
             rule(ui, "sidebar-divider", true);
             let library_revision = library_revision(player, catalog, state);
-            let page = ui.view(
-                "library",
-                library_revision,
-                Size::Grow,
-                Size::Grow,
-                &mut |ui| {
+            let page = ui.view_of("library", &library_revision, |ui| {
                     let route_key = if let Some(group) = catalog
                         .collection(state.route)
                         .filter(|_| state.route != Route::Find)
@@ -206,8 +195,7 @@ pub(super) fn desktop(
                             content(ui, catalog, state, player, content_width, intent);
                         }
                     });
-                },
-            );
+                });
             ui.view_clip(
                 &page,
                 Some(Rect {
@@ -270,17 +258,7 @@ pub(super) fn desktop(
             }
         });
         rule(ui, "transport-divider", false);
-        ui.view(
-            "transport",
-            crate::hash((
-                (player.revision, position.to_bits(), panel),
-                (player.playing, player.shuffled, player.repeat as u8),
-                (player.duration.to_bits(), width.to_bits()),
-            )),
-            Size::Grow,
-            Size::Px(71.0),
-            &mut |ui| transport(ui, player, position, panel, intent),
-        );
+        ui.column("transport", Node::column().h_px(71.0), |ui| { ui.view_of("transport", &(crate::hash(( (player.revision, position.to_bits(), panel), (player.playing, player.shuffled, player.repeat as u8), (player.duration.to_bits(), width.to_bits()), ))), |ui| transport(ui, player, position, panel, intent)); });
     });
     // A carry a row starts mid-build shows from the next frame; one that ended shows its last view once.
     state.carried.set(ui.carrying().is_some());

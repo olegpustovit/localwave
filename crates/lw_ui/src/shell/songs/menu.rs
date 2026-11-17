@@ -101,7 +101,7 @@ const DELETE: i64 = 12;
 const REMOVE: i64 = 13;
 
 /// LocalWave's context menus: 36-point rows from 200 points wide, no spacer above the first row or below the last.
-pub(in crate::shell) const MENU: Menu<'static> = Menu::DEFAULT.row_h(36.0).width(200.0).padding(0.0);
+pub(in crate::shell) const MENU: Menu<'static> = Menu::DEFAULT.row_h(36.0).w_px(200.0).padding(0.0);
 /// An "Add to list" panel: at most eight rows tall, its edges included; the rest scroll.
 pub(in crate::shell) const LISTS_MENU: Menu<'static> = MENU.name("Add to list").max_h(8.0 * 36.0);
 /// The row id of "New list…" in an "Add to list" panel, whose other rows are keyed by playlist id.

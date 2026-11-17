@@ -276,7 +276,7 @@ pub(super) fn popup(
     intent: &mut Option<Intent>,
 ) {
     let s = player.settings;
-    let choice = |item: MenuItem<'static>, current: bool| if current { item.selected() } else { item };
+    let choice = |item: MenuItem<'static>, current: bool| item.selected(current);
     let cache = [choice(CACHE_2, s.cache_gb == 2), choice(CACHE_32, s.cache_gb == 32)];
     let look = [
         choice(BLUE, s.signal == Signal::Blue),
@@ -302,7 +302,7 @@ pub(super) fn popup(
     }
 }
 /// The settings choice menus: the current choice on the selected fill (`MENU_CHOICE`), rows focused by a press.
-const CHOICES: Menu<'static> = super::songs::MENU.width(220.0).name("Settings options").variant(MENU_CHOICE).focus_on_click(true);
+const CHOICES: Menu<'static> = super::songs::MENU.w_px(220.0).name("Settings options").variant(MENU_CHOICE).focus_on_click(true);
 // The choices; a cache row's id is its size in GB.
 const CACHE_2: MenuItem = MenuItem::new("Use 2 GB").id(2);
 const CACHE_32: MenuItem = MenuItem::new("Use 32 GB").id(32);

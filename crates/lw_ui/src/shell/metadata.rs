@@ -38,7 +38,7 @@ pub(super) fn editor(
                 ui.label("Edit Metadata", TEXT_24.grow().h_px(36.0).color(INK));
                 for (index, (label, key, input)) in FIELDS.into_iter().enumerate() {
                     ui.label(label, TEXT_12.grow().h_px(16.0).color(SECONDARY));
-                    let field = ui.box_(key, BoxOpts::default().w(Size::Grow).h(Size::Px(32.0)));
+                    let field = ui.node(key.into(), Node::DEFAULT.w(Size::Grow).h(Size::Px(32.0)));
                     ui.within(&field, &mut |ui| {
                         let current = *edit.field_mut(index).expect("field index is in range");
                         if let Some(value) = ui
@@ -90,7 +90,7 @@ pub(super) fn confirm_delete(
         .row_index(song)
         .map(|index| catalog.row(index).title);
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete Song").danger().enabled(title.is_some())];
-    let sheet = ui.dialog("delete-song", "Delete song?", &buttons, &Dialog::DEFAULT.width(width), &mut |ui| {
+    let sheet = ui.dialog("delete-song", "Delete song?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
         settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
         let consequences = "It leaves your library and lists. The audio file is not deleted.";
         settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));

@@ -52,8 +52,8 @@ pub(super) fn container(
         },
     )
 }
-pub(super) fn spacer(ui: &mut Ui, key: &str, height: f32) {
-    ui.box_(key, BoxOpts::default().h(Size::Px(height)));
+pub(super) fn spacer(ui: &mut Ui, key: &'static str, height: f32) {
+    ui.node(key.into(), Node::DEFAULT.h(Size::Px(height)));
 }
 pub(super) fn rule(ui: &mut Ui, key: &'static str, vertical: bool) {
     container(
