@@ -140,7 +140,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.12 | LocalWave review cleanups: id keys, named styles, theme bound once, press state in button contents | done | 0172279 |
 | DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | 73512bf |
 | DX4.15 | Shadow theme deleted: every look a named const over Rgba::token; colours stay the theme (gap: token with alpha) | done | a3c8ea1 |
-| DX4.16 | Stable id keys instead of display text (song columns, settings back/options) | done | ff6ec54 |
+| DX4.16 | Stable id keys instead of display text (song columns, settings back/options) | done | ad48bd3 |
 | DX5.1 | Pinned glyph entries; label_digits | done | 9260c34 |
 | DX5.2 | Debug report for prepared/requested style mismatch | done | f129f4e + pxui ef803a6 |
 | DX5.3 | Viewport-distance eviction for list entries | done | de53440 + pxui 5340fe9 |

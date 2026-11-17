@@ -1,0 +1,62 @@
+diff --git a/crates/public/pxui/src/lib.rs b/crates/public/pxui/src/lib.rs
+index 5e63421..6602ad6 100644
+--- a/crates/public/pxui/src/lib.rs
++++ b/crates/public/pxui/src/lib.rs
+@@ -427,6 +427,7 @@ impl Ui {
+ 
+     fn framed(&mut self, rc:i32, out:FrameOut)->Result<Frame<'_>,Error> {
+         composite::resume_deferred();
++        if rc==0 { golden_dump(self); }
+         if rc==0 { Ok(Frame { out, _ui:PhantomData }) } else { Err(Error::from_code(rc)) }
+     }
+ 
+@@ -733,3 +734,49 @@ fn lent_string(value: Str) -> String { lent_str(value).to_owned() }
+ 
+ #[inline]
+ fn status(rc:i32)->Result<(),Error>{ if rc==0 { Ok(()) } else { Err(Error::from_code(rc)) } }
++
++// TEMP golden dump (never commit)
++fn golden_dump(ui: &Ui) {
++    use std::io::Write;
++    static FILE: std::sync::OnceLock<Option<std::sync::Mutex<std::fs::File>>> = std::sync::OnceLock::new();
++    let file = FILE.get_or_init(|| std::env::var_os("PXUI_DUMP").map(|p| std::sync::Mutex::new(std::fs::OpenOptions::new().create(true).append(true).open(p).unwrap())));
++    let Some(file) = file else { return };
++    thread_local! { static N: core::cell::Cell<u64> = const { core::cell::Cell::new(0) }; }
++    let n = N.with(|c| { let v = c.get(); c.set(v + 1); v });
++    let fnv = |h: &mut u64, b: &[u8]| for x in b { *h ^= *x as u64; *h = h.wrapping_mul(0x100000001b3); };
++    let (mut g, mut f, mut a) = (0xcbf29ce484222325u64, 0xcbf29ce484222325u64, 0xcbf29ce484222325u64);
++    let mut count = 0usize;
++    for layer in ui.layers() {
++        for i in layer.instances {
++            count += 1;
++            for v in i.rect { fnv(&mut g, &v.to_bits().to_le_bytes()); }
++            for v in i.clip { fnv(&mut g, &v.to_le_bytes()); }
++            fnv(&mut g, &i.color); fnv(&mut g, &i.color2);
++            for v in i.radii { fnv(&mut g, &v.to_le_bytes()); }
++            fnv(&mut g, &i.width.to_le_bytes()); fnv(&mut g, &[i.kind, i.flags]);
++            let bytes: [u8; 64] = unsafe { core::mem::transmute(*i) };
++            fnv(&mut f, &bytes);
++        }
++    }
++    for node in ui.a11y_nodes() {
++        fnv(&mut a, &node.role.to_le_bytes());
++        fnv(&mut a, ui.a11y_name_of(node).as_bytes());
++        for v in [node.rect.x, node.rect.y, node.rect.w, node.rect.h] { fnv(&mut a, &v.to_bits().to_le_bytes()); }
++        fnv(&mut a, &node.states.to_le_bytes());
++        fnv(&mut a, &node.actions.to_le_bytes());
++    }
++    if std::env::var("PXUI_DETAIL").ok().and_then(|v| v.parse::<u64>().ok()) == Some(n) {
++        let mut out = String::new();
++        use std::fmt::Write as _;
++        for layer in ui.layers() { for i in layer.instances { let _ = writeln!(out, "I {:?} {:?} {:?} {:?} {:?} {} {} {}", i.rect, i.clip, i.color, i.color2, i.radii, i.width, i.kind, i.flags); } }
++        for node in ui.a11y_nodes() { let _ = writeln!(out, "A {} {:?} {} {} {} {} {}", node.role, ui.a11y_name_of(node), node.rect.x, node.rect.y, node.rect.w, node.rect.h, node.states); }
++        let _ = file.lock().unwrap().write_all(out.as_bytes());
++    }
++    let t = std::thread::current();
++    let name = t.name().unwrap_or("?");
++    let mut buf = [0u8; 512];
++    let mut cur = std::io::Cursor::new(&mut buf[..]);
++    let _ = writeln!(cur, "{name}\t{n}\t{count}\t{g:016x}\t{f:016x}\t{a:016x}");
++    let len = cur.position() as usize;
++    let _ = file.lock().unwrap().write_all(&buf[..len]);
++}
