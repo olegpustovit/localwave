@@ -1,0 +1,1982 @@
+
+
+pxui Unification Plan
+
+pxui Unification Plan
+
+v3 · 17 Nov 2026 · base LocalWave fb16eaa (rust-port) · pxui d6b4182b (ABI 1.72) · reference spec: pxui API Redesign + docs/dx-checkpoint/api_spec.md · replaces every open DX row · v3 folds in two rounds of independent review (coverage and soundness: 57 findings, then 21 more)
+
+In one paragraph. One implementer (an Opus subagent) works through twelve packages, one at a time, never in parallel. The orchestrator (Claude, main session) writes each brief, stops the implementer at fixed review points, reviews every diff against the ledger (§5) and the checklist (§13), and lands the work. Order: reset and measure (U0) → make the existing pxui surface one shape per job (U1a–c) → finish the widget set and map every LocalWave site to its final call (U2a–b) → LocalWave looks, literals and keys (U3) → move every LocalWave control onto its pxui widget with registered bodies (U4a–b) → cut ABI 2.0 (U5a–b) → documentation and freeze (U6). Each call gets its final signature in exactly one step, and each LocalWave site is touched once. Zero warm allocations, frame budgets and build speed are measured at CP0, CP1 and CP2 plus four narrow targeted runs, and must not regress. Wide mechanical edits are codemod scripts. Every outstanding finding has one destination in §11.
+
+Owner sign-off (approved 17 Nov 2026). U0.6 writes these into AGENTS.md and pxui/AGENTS.md:
+
+No Swift work. The Swift app is no longer developed. No Swift/Xcode checks run in this plan, and AGENTS.md's Swift sections are marked historical in U0.6.
+
+Commit checks. Each commit runs targeted Tier A. The bounded suite and make check run at the end of each package and at checkpoints. Review fixes are separate [U<N>.<k> fix] commits, and the orchestrator's [U<N>] status commit counts as part of the step it records. The freeze (U6.7) reuses CP2's numbers, with mechanical evidence that runtime code is unchanged; this replaces the usual PERF run for that step.
+
+Pointers. A u<N> branch may record pointers to unpublished pxui u<N> commits. At landing, pxui is pushed first and checked as fetchable before LocalWave is pushed.
+
+Build-time meter. tools/dx/buildtime.sh may use its own target directories, clean builds and a temporary worktree.
+
+Breaking changes are welcome. No compatibility layers or deprecation periods, in the Rust API or the C ABI. The target is a solid end state, and the only constraints are performance, build speed and zero allocations. pxui/AGENTS.md's "additive changes only" rule is lifted until the 2.0 freeze.
+
+1. Where we are
+
+2. What went wrong → rule
+
+3. Non-negotiables
+
+4. Decisions
+
+5. API ledger: one public UI
+
+5b. Where it lands: case studies
+
+5c. Locked shape vs SwiftUI, gpui, rune
+
+6. How LocalWave uses pxui
+
+7. Process
+
+8. Tests and checkpoints
+
+9. Codemods
+
+10. Packages U0–U6
+
+11. Traceability
+
+12. Implementer brief
+
+13. Review checklist
+
+14. Risks
+
+1. Where we are
+
+pxui public surface at d6b4182b (P/ = pxui/crates/public/pxui/src/)
+
+AreaFinding
+
+Shim modulesui_core (P/lib.rs:36-43; free key() :42), ui_text (:44-62), ui_widgets (:63), a11y shim (:32-35) still exist and are glob re-exported by pxui::ui. Public modules without //!: widgets, composite, overlays, collections, kit, interaction, a11y.
+
+Twinsset_theme_source/set_theme (lib.rs:544/546); use_theme/themed (theme_scope.rs:49/99); set_colors; two Theme names; frame/input_frame (lib.rs:403/413); Ui::new→Option and Ui::create panics (:365/:372); enter/leave beside within (interaction.rs:161/165); set_look/style; view_clip/view_backdrop_* beside set_view; three measurement shapes (text_width/text_top/cap_width(Option<i64>), Text::measure(TextStyle), Paint::text_metrics(TextStyle)); ui_core::key vs Handle.box_key.
+
+Tuple / bool returnsradio, tabs, dropdown, slider → (Response, _); panel → (); popup/modal → bool (true while open); toasts → Option<usize>; split → Option<f32> (7 positional args, &str key); menu_bar → Option<(usize,usize)>; ime(); a11y_tree(); button(text) and toggle(text, on) → bool.
+
+Text / raw keyssplit, menu_bar, expanded(&str), hover_delay(&str), tooltip (keyed by its own text), load_text_edit(i64), box_of_key(i64), root_at(&[i64]), part_box/part_rect(owner: i64), image(name, ..).
+
+Raw codes / unitskey_down(u32), key_pressed(impl Into<u32>, Option<u32>), testing::key(u32), system_appearance()→u32, set_role(.., u32); sizes in i64: font_size, row_height, density, set_font_size, Font::size (pxui_types theme.rs:803), PanelOpts.padding; positions as (f32, f32) tuples.
+
+Builder vocabulary (audit 3, 33)Overlay::w(f32) vs Node::w(Size); Label::grow()/Segmented::grow() (no arg) vs Node::grow(f32); ValueField::size(usize).
+
+ErrorsString errors: Renderer::new, Theme::set/apply/load, register_*_body (macro-generated, bodies.rs:132), pxui_host Graphics::open/close, Accessibility::open, Platform::apply; A11yBridge::connect→Option; Ui::layer asserts; verify_new_views assert_eq.
+
+Build speed (Batch K)Generic bodies: node_mut<R> (box_ops.rs:850), key_pressed (ui_state.rs:210), canvas_with<F> (paint.rs:674) + trampolines, generic extern "C" trampolines (kit.rs:78/87, composite.rs:42). Shims forward into #[inline(always)] bodies (kit_ext.rs:104/144) or #[inline] bodies (menu.rs:38, dialog.rs:31/42, layout.rs:122, press.rs:174, text.rs:123). Note: layout.rs:117-119 records that an out-of-line container costs 2.2% on the abi_bench Author page (1% limit). Gate exemption (tools/gate/src/policy.rs:202-221) admits whole generic bodies outside author/.
+
+Process-global stateMENU_COLUMNS grows forever (overlays.rs:91/209/268); ORPHANS (lib.rs:319); ROWS (overlays.rs:85); POOL bounded (paint.rs:636); VERIFY_NEW_VIEWS (pxui_abi ui_state.rs:152); PENDING/CALLBACK_PANIC (composite.rs:24-26).
+
+Bodies40 kinds (pxui_types theme.rs:302-341). Bypass: inspector_toggle/inspector_button hand-build from nodes and format! per frame (core kit_ext.rs:740-768). No kind: anchored, text_area, scrub, image, lists, Rays inspector bar/header/body/message.
+
+Missing buildersFrameIn::new, Event constructors, TextSpan::new, Image::rgba8, ThemeSource, Str/Slice From, Touch/Keyboard/Environment, Look (gradient, angle, border_w, sides, shadows, opacity, ring, selection, caret, dashed), State, SectionList .trail/.overlay_scrollbar, TreeNode::new, Edges::new + per-side, Node .state/.transition, Font .tracking.
+
+Literals (Batch H)≈946 struct literals: 105 in ///, 659 in tests (FrameIn 222, Event 97, Node 90, Str 41…), 180 in pxui_gallery, 2 in abi_bench.
+
+Docs (Batch J)No deny(missing_docs). Undocumented: 52/779 fns, 91/323 types, 101/306 consts, 787/1249 fields (619 in ffi.rs), 23/187 variants. Docs-gate blind spots: same-line #[inline] #[track_caller] pub fn; stops at the first column-0 #[cfg(test)] (hides most of both lib.rs); never checks types/fields/consts/variants/module docs.
+
+Proposal items not landedDX7.7 record changes (ThemeSnapshot growing part last; A11yTree.node_stride; TextSpans fixed 8 → slice, text.rs:489-493; enum range checks); version check at create accepts abi_built == 0 and checks major only (pxui_abi ui.rs:76); verify_views on by default in debug. Landed: tripwire, label_fmt/digits, view_of, testing, identity vectors (DX7.5), surface field reserved (DX7.6), min-size rule (DX7.4), fixtures (DX7.11).
+
+LocalWave (crates/lw_ui/src/shell/)
+
+All 50 drift rows of the widget-reuse audit are still drift: 24 were never blocked, 11 are unblocked by DX3.18 (Button icon/detail/accessory, IconButton::selected, DialogButton::detail, none used yet), 15 still wait on a pxui gap (#1, 7*, 8*, 9, 14, 15, 19, 21, 28, 44, 61, 73, 78, 80*, 82).
+
+11 new sites N1–N11. ≈200 struct literals of pxui types in fn bodies (≈60 partial Edges literals have no builder). 128 ui.color( calls, many through kit::container(fill: Rgba). Per-call Label/Look construction in detail::line/link, compact::line, settings::paragraph, artists::label, songs::label, theme::song_row_looks.
+
+6 keys from display text, 28 wrapper helpers recreating widgets, 4 registered bodies (crates/lw_ui/src/commands.rs:18-21).
+
+Already in make check: crates/lw_ui/tests/api_conformance.rs (DX4.13, rules R1–R5) with a shrink-only api-conformance-allowlist.tsv (18 lines). This plan extends it rather than adding a second meter.
+
+Good: no heap allocation in any shell/ frame path.
+
+Branches
+
+BranchVerdictStep
+
+pxui dx1.12i 3201fa20 (35 conflict hunks)Redo on HEAD with the rescued codemod_i.pyU1a
+
+pxui dx3.22 96ceb76fRebase and land, id→row_keyU2a.1
+
+pxui dx3.19 f3d19710Rebase, convert to final shape (Segment items, Tabs style, PickResponse)U2a.2
+
+pxui dx3.20 41bd6ea9Salvage engine and tests, fix 5 shape deviationsU2a.3
+
+pxui dx3.21 b9f0051f (~40%)Salvage types and placement; per-row PickRow; finishU2a.4
+
+pxui dx3.22-wipIdea only; redoU2b.2
+
+LW lw-dx1.12iRedo by codemodU1a
+
+LW dx4.6a-chips-wipSalvage body + callU4a.7
+
+LW dx4.11-lwDrop (review FAIL; sites move to U4)U0.4
+
+39 other local pxui branches; ≈25 LW dx*/lw-*/os-* branchespxui: landed or superseded. LW: show "unmerged" only because landing amended pointers/status; verify each by its row idU0.4
+
+Performance, build speed, tooling
+
+Last measured: make performance at DX5.3 (LW de53440, pxui 5340fe9): 20 gated workloads pass, zero warm allocations; first navigation 1,244 and first menu 151 are measured-only. Since then 101 LW and 61 pxui commits (+20k pxui lines) are unmeasured. de53440 is the "before the mess" reference (reported, not gated).
+
+No build-time measurement exists. Codemods from the last run were in /tmp; rescued to /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/439fa08c-eb2b-4fe2-904d-20cdf233f9c0/scratchpad/old_dx_impl/ (committed in U0.1). Landing scripts hard-code the old scratchpad. cargo t --all calls a Rays-only buildtime crate. Stale lock /private/tmp/claude-501/dx-macbench.lock.
+
+Flaky: LW prewarmed_song_cells… (songs/tests.rs:842, 116 vs 112 frames); pxui_core::layout_scaling under load.
+
+2. What went wrong → the rule that replaces it
+
+Cause (CHECKPOINT §4)Rule
+
+Up to 5 parallel lanes, load 375, landing lockOne implementer at a time; the orchestrator runs nothing while it works; no worktrees, locks or lane scripts.
+
+Audits added ≈50 findings mid-flight; rows redoneLedger (§5) and traceability (§11) fixed before U1. New findings go to the report's Found list; the orchestrator assigns them. Gaps found in U4 follow the gap protocol (§7).
+
+Sites migrated twice; calls reshaped twiceEach public call gets its final signature in exactly one step (§5 "Step" column). Each LocalWave site is touched once, after pxui is complete and the site map (U2b.9) is approved.
+
+Fingerprint-identical rule blocked rows over correct a11y changesD9: listed widget-behaviour diffs allowed; lost names/actions fail mechanically.
+
+Agents drifted from the specShape stops on an uncommitted diff; surface snapshot from rustdoc JSON; extended api_conformance test; checklist in the brief.
+
+Docs split per file against moving signaturesDocs once, in U6, after the cut.
+
+Benchmarks and full suites per rowTier A per commit, Tier B per package, Tier C at three checkpoints, plus four named targeted runs.
+
+Tooling traps (doctests, stash, locks, pointer drift, lost scripts)U0 fixes them; scripts in the repo; fix-up commits instead of amends; orchestrator alone lands.
+
+3. Non-negotiables
+
+ContractRuleChecked by
+
+Zero allocationsWarm input/build/draw frames allocate zero Rust heap objects in app and libpxui, both sides of the ABI. One exception: first-time shaping during a fast fling (FLING_CEILING, only goes down). Never extend warm-up or drop input to pass.Counting-allocator test per new or changed per-frame path (Tier A); make performance (CP).
+
+Frame budgets10k songs on the M1: build CPU p99 < 1.5 ms, frame CPU p99 < 2.5 ms, frame work wall p99 < 8 ms. Never loosened. No per-frame formatting, sorting, string hashing, decoding or fresh resource wrappers.CP0/CP1/CP2 and the targeted runs.
+
+Runtime cost of the APIabi_bench page limits (Author 1%, Bodies, instances) never loosened.Release abi_bench at U1c, U2b, CP1, CP2.
+
+Build speedNo new dependency, proc macro or new macro_rules!. Public generics only as one-expression forwarding shells (K: Into<Key>, F: FnMut(..), T: Hash, lifetimes) into a non-generic body; #[inline(always)] behind a shim is forbidden; #[inline] on a callee only where abi_bench shows > 1% without it (container, press, label_body today). Style values Copy with const fn builders. Each buildtime.sh number stays within max(5%, 0.3 s) of CP0; growth from new pxui engine code in U2 is reported and needs a one-line reason.gate shape (tightened U1c); buildtime.sh at every package end.
+
+One APIOne function per job; no twins, shims, adapters, aliases or second shapes in pxui or LocalWave. Interactive calls are key-first (static id or item id, never display text) and return Response or one small result struct.Surface diff vs ledger; review.
+
+BodiesEvery widget with a body kind is built through it; a custom-body test proves an app body replaces its structure.Per-widget test; gallery bodies page; abi_bench bodies page.
+
+OS-gradeos_criteria.md 1–8.Review; fuzz every export; U5.
+
+BehaviourNo LocalWave feature, shortcut, accessibility name/role/action or touch gesture regresses; Swift-compatible data untouched.Fingerprints (D9), shortcut tests (U1a.4), bounded suite, iOS probes at CP1.
+
+4. Decisions
+
+Settled so the implementer never stops for them. The owner may override any before U1 begins; after that a change becomes its own step after U6.
+
+#QuestionDecisionStep
+
+D1Theme entry pointsOne setter Ui::set_theme(&ThemeHandle), one scoped form Ui::themed(&ThemeHandle, f). ThemeHandle::parse(&str) -> Result<ThemeHandle, Error>, .set_color(ColorToken, Rgba), .density(f32), .reduced_motion(bool). Deleted: set_theme_source, use_theme, Ui::set_colors, Theme::set/apply/load. The handle type is ThemeHandle; the record stays pxui::theme::Theme (module theme stays public, D2).U1a.2
+
+D2Public modulesPublic after U1a: ui (prelude), bodies, ext (D6), testing, images (namespace avoids a Key clash), theme, geom, draw (value-type namespaces from pxui_types), guide (docs only); doc #[doc(hidden)]. Deleted: a11y shim, ui_core, ui_text, ui_widgets. Private with items re-exported at the root: text, paint, widgets, composite, overlays, collections, image, kit. pxui_types keeps its modules (it is the types crate); text::pragmasevka → root re-export.U1a.1
+
+D3library_counter / pxui_counterRust library_counter: fn(u32) -> u64 keeps its shape (the mem_sys::set_peer protocol, ≈150 sites); documented. The C pxui_counter and its reset move to the extension manifest as diagnostics (OS-10/39), out of the frozen 2.0 set.U1a.2, U5.9
+
+D4Pick-one controlsOne item type Segment (text, id, detail/count, name) for segmented, tabs, radio and dropdown (dx3.19's Tab becomes Segment). One style type per widget: Segmented, Tabs, Radio, Dropdown (Choice is split and deleted). One result PickResponse { response: Response, chosen: Option<usize>, chosen_id: Option<i64>, secondary: Option<usize> } (secondary = the option a right-click or long-press began on, as SegmentedResponse reports today) for these and section_index. segmented_with → segmented (no _with names, D25). Chosen stays for menu, menu bar, dialog and toasts.U1b.1 (radio, dropdown, segmented), U2a.2 (tabs), U2a.3 (section_index)
+
+D5Collectionstable_view → table, reshaped once in U2b.1. list stays as the spec's short form of section_list. Both list calls return ListResponse (they gain reorder/drop results). selection_list, grid_list, tree keep names.U2b.1–U2b.3
+
+D6Rays extension set (OS C1.4)Moves to pxui::ext, out of the prelude; C exports in abi/pxui.ext.txt with no stability promise; inspector_toggle/inspector_button rebuilt through the toggle/button bodies (also removes their per-frame format!). Physical move to the Rays repository after the freeze.U1c.3, U5.10
+
+D7G11 inline links in wrapped textDeferred past 2.0 (append-only). byline.rs pressables stay, allowlisted with this reason.U4a.10
+
+D8ffi.rs docsEvery field one line, from pxui.h comments by script, the rest hand-written. No exemption.U6.3
+
+D9Fingerprint policyFrame + a11y fingerprints identical by default. Allowed when listed in the commit with a reason: focus on press vs click; enabled/disabled/checked/selected bits; the widget's own role; names/values the widget formats; focus/tab order changes inside one widget. gcmp.py fails automatically if any node loses its name or an action bit. Pixel diffs only for listed bug fixes.U3, U4
+
+D10slider vs scrubTwo forms of one job (like button/button_content): slider (body-drawn) and scrub (caller-painted). Both keep their runtime parameters (text, value, range) and their own style (Slider, Scrubber), and return one SliderResponse { response, value, preview, commit }.U1b.1
+
+D11Caller-owned collection state&mut [u8] selection/open slices, &mut [f32] column widths and &mut [u32] visible rows stay as parameters. table moves to &mut [u8] multi-selection like selection_list.U2b.1
+
+D12BenchmarksCP0 (U0.7), CP1 (U4b.6), CP2 (end of U5b). Targeted: release abi_bench Author page (U1c.1), release abi_bench all pages (U2b.10), queue workloads (U4a.5), song workloads (U4a.6).§8
+
+D13Swift work and the S, I1, I2, D phasesNo Swift work (owner, 17 Nov). The other phases do not run during this plan; the Rust iOS build is still compiled and smoke-tested at checkpoints.U0.6
+
+D14Open DX rowsMarked "superseded by U…": DX1.12, DX6.12, 6.13, 6.14, 6.16, 6.20–6.25, DX7.7, 7.9, 7.10, 7.12.U0.6
+
+D15Grid 'static tracksKeep, documented (the engine keeps tracks across frames).U2b.8
+
+D16Raw worker/shaper handles (OS-27)Accepted, documented in the header.U5.9
+
+D17Versioning until the cutpxui stays 1.x through U4; each ABI-changing commit takes the next minor and regenerates manifests with gate -- abi-snapshot --write (never hand-edited). Collapses to 2.0 in U5.all
+
+D18Body config carries the iconButton / IconButton body configs carry the Icon value, so an app body draws its own icon by id.U2b.7
+
+D19Colour token with alpha (G14)Rgba::token(T).alpha(a). Encoding: marker stays r = 0x54, a = 0; b = token id; g = alpha. During 1.x g = 0x4B (the old marker) reads as 255, so .alpha(0x4B) is rounded to 0x4C and documented. In 2.0, g is the alpha and the 0x4B rule is removed (U5.6). Known collision: a fully transparent plain colour with r = 0x54 — documented; Rgba::TRANSPARENT is all zero.U2b.7, U5.6
+
+D20Text pathsTextStyle (resolved, Copy + Send), Text, TextWorker, PreparedText, RetiredText, UiText::fork/install, prewarm_text, set_text_worker and Ui::resolve(&Label) -> TextStyle stay public: they are LocalWave's worker pipeline (catalog.rs, song_table.rs, song_text.rs, shell.rs:964). In-frame text has one service: UiText, reached with Ui::text_service() and Paint::text_service(). It owns measure, measure_spans, width, rasterize_rgba, quads, add_font and enable_system_fonts, all taking Label. Text is the off-thread form taking &TextStyle. Deleted: Ui::text_width/text_top/cap_width(Option<i64>), Paint::text_metrics(TextStyle), Ui::enable_system_fonts (it moves to the service). No new Ui::measure. LocalWave callers: find.rs:63, kit.rs:250, byline.rs:54, commands.rs:446, settings.rs:49, songs/tests.rs:832.U1b.3
+
+D21Small U1 choicesrect (surface space) and local_rect (parent space) both stay, documented as two coordinate spaces. input_frame/routed_input deleted (routing folds into FrameIn, as dx1.12i did). Style values take Label by value (spec: ui.label(text, TITLE.grow())); all other style values by reference (gesture(&Handle, &GestureOpts) moves in U1b.2). Paint::theme() is renamed Paint::tokens() to match Ui::tokens() (U1b.4). Signal/signal stay public for bodies and custom controls; app code uses Response (documented). Positions are Point, not tuples. Builder vocabulary: w/h(Size) and w_px/h_px(f32) everywhere (Overlay::w → w_px); .grow() on style values means weight 1, Node::grow(f32) takes the weight.U1a, U1b
+
+D22verify_viewsPer-Ui, on by default under debug_assertions (proposal guard rail); pxui_ui_verify_views stays in the frozen 2.0 set (not the diagnostics extension), so the wrapper's debug default never depends on an unstable export; Ui::verify_new_views and the process flag deleted; callers (lw_bin/tests/window_input.rs:656/887, lw_bin/src/library/find.rs:810, lw_ui/src/lib.rs:356) migrated.U1c.2
+
+D23KeysKeyCode: Char(char) (case-folded as today) plus named keys; Mods: Mods::ANY keeps today's None meaning (any modifiers), Mods::NONE, META, SHIFT, ALT, CTRL, combinable with .with(). key_pressed(KeyCode, Mods) -> bool, key_down(KeyCode) -> bool, non-generic.U1a.4
+
+D25Locked call shape (after comparing SwiftUI, gpui, rune; §5c)
+
+Keyless layout containers. row/column/stack(Node, f) take no key; their identity is position among siblings, as labels already work. ui.id(key, f) keys a subtree where identity must survive siblings appearing or disappearing (conditional or animated content), like gpui's .id() and rune's .key(). Interactive widgets, node, view_of and list rows stay key-first.
+
+Inline style values allowed. Name a const when a style is reused. A one-off style or runtime field (&BUTTON.disabled(!ok), Node::row().gap(8.0)) may be written inline. These are Copy stack values with no allocation and no generics; struct literals stay banned.
+
+App-owned collection state. ListState holds selection and anchor. TableState holds widths, sort and selection. Each is passed as one &mut instead of three parameters.
+
+PickResponse.chosen_id: Option<i64>: the chosen Segment.id, so the app maps straight to its enum.
+
+Style scope = ui.themed. A subtree-wide style is a derived ThemeHandle that sets <kind>.body/variant and looks; there is no new call. SwiftUI's environment covers this; gpui and rune style per element.
+
+One name per widget. button(key, text, &Button) and toggle(key, text, on, &Toggle). The _with forms and the keyless short forms are deleted, like gpui's Button::new(id, label) and rune-kit's Button::new("Save"). This departs from the reference spec's button_with/toggle_with, deliberately.
+
+.disabled(bool) on every style value, replacing .enabled(bool), to match ui.disabled(..), SwiftUI and gpui.
+
+Kept on purpose.
+
+ Results are returned (Response), not handler closures. No closure is stored per frame, which keeps frames at zero allocations and the API non-generic.
+
+ Styles are const values, not trait builders on elements.
+
+ Structure comes from registered bodies, which reach C callers too.
+
+U1b.6, U2b.1
+
+D24GPU device per window (OS-6)Deferred past 2.0: it lives in pxui_host (not ABI), LocalWave has one window, and it is a host/render change that needs its own perf qualification.after U6
+
+5. The API ledger: one public UI
+
+The target public surface. Rule: a call not marked with a step keeps its HEAD signature exactly. A call marked with a step changes once, in that step, to the signature shown. U0.3 generates the full HEAD → ledger delta from tools/dx/surface.py, and every delta line must carry a step id here (otherwise it reverts to HEAD). K: Into<Key> and F: FnMut(..) are the one-line shells; &mut self is omitted.
+
+Rules every row obeys
+
+Style values are Copy, have DEFAULT and presets, const fn builders taking self; looks borrowed (Option<&'a States>) in every style value that has looks. No call site writes a struct literal. Reused styles are named consts; one-offs and runtime fields may be built inline (D25.2).
+
+Labels are keyless leaves (text, Label). Interactive calls: key first, return Response (clicked, secondary, hovered, held, focused, activated, changed, handle) or one result struct. Runtime data (value, range, title, anchor, widths, selection) stays a parameter; style values hold only constants.
+
+Sizes f32, positions Point. Result<_, Error> for fallible-by-data calls, Option for "absent", panics only for documented caller bugs.
+
+Build-time setters (text, style, set_view) set state during the build; the patch_* family (patch_text, patch_look, patch_rect, patch_mark, patch_field) updates retained nodes without a rebuild. Both families are documented as such.
+
+JobSignature (target)Body kindStep
+
+Containersrow/column/stack<F>(node: Node, f: F) -> Handle (keyless, D25.1); id<K, F>(key, f) keys a subtree; node<K>(key: K, node: Node) -> Handle (HEAD takes Key; becomes key-first generic like every other call, codemod drops .into()); within(&Handle, &mut dyn FnMut(&mut Ui))—keyless + id U1b.6; node U1b.2; enter/leave → crate-private U1a.3
+
+Pressable / disabledpressable<K, F>(key, node: Node, &Pressable, f: F /* (ui, State) */) -> Response; disabled<F>(bool, f)—HEAD
+
+Retained viewview_of<K, T: Hash, F>(key, inputs: &T, f) -> Handle; set_view(&Handle, &ViewTransform) (clip, blur, saturation become fields)—U1b.4
+
+Scrollscroll_view<K, F>(key, node: Node, f) -> Handle; scroll(&Handle) -> Scroll; set_scroll_offset; revealscroll_viewU1b.5
+
+Splitsplit<K>(key, ratio: f32, &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse { response, ratio: Option<f32> }; Split holds axis, min_a, min_bsplitU1b.1
+
+Textlabel(&str, Label) -> Handle, label_fmt(Arguments, Label), label_digits(Arguments, Label); text(&Handle, &str); text_spans, text_line_box take LabellabelHEAD; spans U1b.3
+
+Measure (D20)Ui::text_service() -> &UiText and Paint::text_service(); UiText::measure(&str, Label, max_w: Option<f32>) -> Result<TextMetrics, Error>, measure_spans, width, rasterize_rgba, quads, add_font, enable_system_fonts; worker form Text::measure(&str, &TextStyle, max_w)—U1b.3
+
+Text workerTextStyle, Text, TextWorker, PreparedText, RetiredText, UiText::fork/install, prewarm_text, set_text_worker, resolve(&Label) -> TextStyle—HEAD (D20)
+
+Buttonbutton<K>(key, text: &str, &Button) -> Response (D25: one name, no short form, no _with); button_content<K, F>(key, &Button, f /* (ui, State) */) -> Response. Button: icon, icon_size, detail, accessory, label(Label), selected, disabled, danger, align, pad, axis, variant, lookbuttonname + disabled U1b.6; icon_size U2b.7
+
+Icon buttonicon_button<K>(key, Icon, name: &str, &IconButton) -> Responseicon_buttonHEAD
+
+Toggletoggle<K>(key, text, on: bool, &Toggle) -> Response (D25)toggleU1b.6
+
+Checkboxcheckbox<K>(key, text, on: bool, &Checkbox) -> Response; Checkbox<'a>: look (borrowed), size, disabled(bool), passive(bool), variantcheckboxU2a.3
+
+Pick one (D4)segmented<K>(key, &[Segment], selected: Option<usize>, &Segmented) -> PickResponse; tabs<K>(key, &[Segment], Option<usize>, &Tabs) -> PickResponse; radio<K>(key, &[Segment], Option<usize>, &Radio) -> PickResponse; dropdown<K>(key, text, &[Segment], Option<usize>, &Dropdown) -> PickResponse; Segment::new(text).id(i64).detail(&str).name(&str)segmented / tabs / radio / dropdownU1b.1 (segmented, radio, dropdown); U2a.2 (tabs)
+
+Section indexsection_index<K>(key, letters: &[&str], &SectionIndex) -> PickResponsesection_index (new)U2a.3
+
+Disclosuredisclosure<K>(key, text: &str, open: bool, &Disclosure, f: &mut dyn FnMut(&mut Ui)) -> Response (changed = toggled)disclosure (section engine)U2a.3
+
+Slider (D10)slider<K>(key, text, value: f32, range: RangeInclusive<f32>, &Slider) -> SliderResponse; scrub<K>(key, value, range, &Scrubber) -> SliderResponseslider (scrub: caller-painted)U1b.1
+
+Progress / spinner / badgeprogress<K>(key, text, value: Option<f32>, &Progress) -> Handle; spinner<K>(key, name, &Spinner) -> Handle; badge<K>(key, name, text, &Badge) -> Handle (argument order as HEAD)progress / spinner / badgeU1b.5
+
+Menumenu<K>(key, at: Point, &[MenuItem], &Menu) -> Chosen; menu_bar<K>(key, &[MenuBarMenu], &MenuBar) -> Chosen (item identity via MenuItem::id); MenuBarMenu::new(title, &[MenuItem])menu_row / menu_item / menu_barU1b.1
+
+Dialogdialog<K>(key, title: &str, &[DialogButton], &Dialog, body: &mut dyn FnMut(&mut Ui)) -> ChosendialogHEAD
+
+Overlayspanel/popup/modal<K, F>(key, &Overlay, f) -> OverlayResponse { handle, open: bool }; anchored<K, F>(key, anchor: Rect, &Overlay, f) -> OverlayResponse; sheets via Overlay::present(Presentation::{Centered, Bottom, Full}) + .dismiss(DismissOpts); tooltip(&Handle, &str) keyed by the owner; toasts<K>(key, &[Toast], seconds: f64) -> Chosenpanel / popup / modal / tooltip / toastsU1b.1 (results, tooltip key); U2a.4 (present)
+
+Listslist<K, F>(key, count, row_h: f32, row_key: &dyn Fn(usize) -> i64, f) -> ListResponse; section_list<K>(key, &SectionList, row_key, build) -> ListResponse; grid_list<K>(key, count, &GridList, build) -> Handle; ListResponse { handle, activated, secondary, row: Option<Handle>, moved: Option<(usize, usize)>, drop_at: Option<usize> }— (rows are app content)U1b.5 (grid_list); U2b.2–U2b.3 (ListResponse)
+
+Selection listselection_list<K>(key, count, row_key, state: &mut ListState /* selection, anchor; D25.3 */, &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize, CellState)) -> ListResponse; sections, header, measured rows, per-row enabled; selection semantics (click, Meta-toggle, Shift-range, double-click, keyboard) in the widgetselection_listU2a.1 (row_key), U2b.1 (rest)
+
+Tabletable<K>(key, &[Column], rows, row_key, state: &mut TableState /* widths, sort, selection; D25.3 */, &Table, cell: &mut dyn FnMut(&mut Ui, usize, usize, CellState)) -> TableResponse; table_head<K>(key, &[Column], state: &mut TableState, &TableHead) -> HeadResponse { response, sort: Option<(usize, Sort)> }; Column::new(title).sortable(bool).share(f32).id(i64); Sort::{Ascending, Descending}, None = original ordertable_row / table_head / table_cellU2b.1
+
+Treetree<K>(key, &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell) -> TreeResponse; TreeNode::newtreeHEAD; builder U1b.5
+
+Pickerpicker<K>(key, placeholder, query, &Picker, fill: &mut dyn FnMut(&str, &mut PickRows)) -> PickerResponse; PickRows::push(PickRow); PickRow::new(label).detail(..).art(PickArt).heading(..); PickerOpts → PickerpickerU1b.1 (rename); U2a.4 (rows)
+
+Text inputtext_field<K>(key, value: &str, &TextField) -> TextFieldResponse; search_field<K>(key, value, &SearchField) -> SearchFieldResponse (+ variant, return key); text_area<K>(key, value, node: Node, &TextArea, &AreaCallbacks) -> TextAreaResponsetext_field / search_fieldHEAD; text_area U1b.5; SearchField U2b.7
+
+Gestures, drag, dropgesture, gesture_state, close_swipe, end_refresh, carry, carrying, transfer_carry, cancel_carry, drop_target (any node), States gains dropping; GestureOpts, SwipeActions, DismissOpts—HEAD; drop U2b.2
+
+Keys (D23)key_pressed(KeyCode, Mods) -> bool, key_down(KeyCode) -> bool, testing::key(KeyCode)—U1a.4
+
+Local statestate/set_state(&Handle, ..), text_state/set_text_state, expanded<K>(key) -> Option<bool>, hover_delay<K>(key) -> bool, load_text_edit<K>(key, ..), box_of_key<K>(key), root_at(Point, &[Key]), part_box/part_rect(&Handle, ..)—U1b.2
+
+Paintcanvas/canvas_over(&Handle, f); Paint shapes Rect + Fill/Stroke; Paint::text/text_chars/text_spans/measure take Label; Paint::image(Rect, &Image, &ImageStyle)—U1b.3 (text), U1b.2 (image)
+
+Looksstyle(&Handle, &States, State) (set_look folded in, States::of(Look)); patch_* family—U1b.4
+
+Animationanimate(&Handle, Target, Curve), animate_keys(&Handle, &[Keyframe], &Keyframes) (two jobs)—HEAD
+
+Imagesimage<K>(key, &Image, &ImageStyle) -> Result<Handle, Error>; Image::rgba8; images::{Want, Request}, Images::store/get/requests—U1b.2; builder U1b.5
+
+A11ya11y_name/a11y_value/a11y_number(&Handle, ..) -> bool (applied); set_role(&Handle, Role, A11yStates); a11y_tree() -> A11yTree; a11y_nodes, a11y_name_of, a11y_value_of, box_of_a11y—U1a.3 (rule), U1b.4 (types)
+
+Themeset_theme(&ThemeHandle), themed(&ThemeHandle, f), theme(), tokens(), ThemeHandle::parse/set_color/density/reduced_motion; bodies::register_<kind>_body(..) -> Result<BodyId, Error>; Rgba::token(T).alpha(a) (D19); ColorToken::ACCENT; Appearance; sizes f32 (font_size, row_height, density, set_font_size)—U1a.2; U1b.3 (units); U2b.7 (alpha, accent)
+
+Frame / lifecycleUi::new(&UiDesc) -> Result<Ui, Error> with UiDesc::new(Platform).font_size(f32).fonts(&[FontData]) (carries what Ui::create(Platform, Some(15), &[FONT, MONO]) passes today: lw_bin/src/library.rs:35, app/actions.rs:687, tests/window_input.rs:657/888/1011 …; UiDesc::DEFAULT for tests); frame(&FrameIn, build); FrameIn::new(w, h) + builders; layer(i) -> Option<Layer>; layers() -> &[Layer] (or a named iterator)—U1a.3
+
+Host integrationRenderer::new -> Result<_, Error>; A11yBridge::connect -> Option; Gpu, Pass, Commands, Input, Output, Platform, Bytes; pxui_host Graphics::open/close, Accessibility::open, Platform::apply → Result<_, Error>—U1a.3
+
+Diagnosticsphase_times, phase_cpu_times, set_timing, repaint_after, wants_frame, library_counter (D3), verify_views (D22)—HEAD; U1c.2
+
+Getterskeyboard(), environment(), text_traits() (was text_input_options), ime() -> Option<Ime>, platform(), now(), frame_index(), system_appearance() -> Appearance—U1a.4 (appearance), U1b.2
+
+Signalssignal, signal_keys → Signal: documented as the body/custom-control layer—HEAD
+
+Hover / press querieshovered(&Handle, within: bool) -> bool replaces the hovered_exactly/hovered_within twin; press_keys, last_press_within, context_at(&Handle) -> Option<Point>, free context_clicked—U1b.2
+
+Kept as HEAD (listed so the two-way check passes)Build/retained: set_at, to_front, node_layout/set_node_layout, node_mut (made non-generic U1c.1), cached_label, busy_step, set_dir, rtl, view_size (→ Size U1b.3). Input/text: captured, clipboard_request, paste_requested, passed_undo, text_input_focused, text_undo_bytes, unfocus, remember<K>(key, ..) (key-first with load_text_edit, U1b.2), event_text, dismiss_popup. Frame/diagnostics: request_frame, request_cursor, arranged_nodes, built_nodes, rebuilt_views, rebuilt_named, draw_calls, draw_revision, text_layout_count, verifying, abi_version. A11y: set_a11y, inject_a11y.—HEAD unless noted
+
+Testingtesting::{frame, click, click_node, key, find}—U1a.4
+
+Extension set (no stability)pxui::ext::{inspector_*, footer, line_field, value_field, grip, field_drag, inspector_width, inspector_label_x}through bodiesU1c.3
+
+2.0 additionsError/diagnostics export and font list at create (C, U5.9); pxui_supports baseline (U5.8); surface registration (U5.2)—U5
+
+5b. Where it lands: case studies (reference)
+
+Each case compares three versions of the same control:
+
+Before: real LocalWave code at fb16eaa (trimmed, file:line given).
+
+After: the same control at the end of the plan, written against the ledger. Builder names may shift slightly at the U1/U2 shape stops; the shape will not.
+
+SwiftUI: the closest idiomatic equivalent.
+
+All "after" code allocates nothing per frame: styles are const, item arrays live on the stack, and display strings come from the snapshot.
+
+1 · A link-style button (settings back, audit #62)
+
+Before · shell/settings.rs:13 (12 lines + 4 callers)
+fn back(ui: &mut Ui, key: &'static str,
+        name: &'static str) -> bool {
+    let button = ui.node(key.into(), Node {
+        look: BACK_TEXT,
+        ..Node::column().w(Size::Grow).h_px(44.0)
+            .role(Role::Button)
+            .flags(Flags::CLICKABLE | Flags::FOCUSABLE)
+    });
+    ui.text(&button, name);
+    ui.a11y_name(&button, name);
+    ui.signal(&button).clicked
+}
+
+After
+// theme.rs, once
+const BACK: Button = Button::DEFAULT
+    .variant(LINK)            // localwave-button body
+    .size(Size::Grow, Size::Px(44.0))
+    .align(Justify::Start);
+
+// call site
+if ui.button("back", "‹ Settings", &BACK).clicked {
+    intent = Some(Intent::Back);
+}
+
+SwiftUI
+Button("‹ Settings") { back() }
+    .buttonStyle(.link)
+    .frame(maxWidth: .infinity,
+           minHeight: 44,
+           alignment: .leading)
+
+The helper is deleted. Role, name, focus and keyboard activation now come from the widget, so nothing is set by hand. The look comes from the theme, the structure from the registered localwave-button body (LINK variant).
+
+2 · Tabs with counts (compact library mode, audit #19)
+
+Before · shell/compact.rs:22 (13 lines per tab)
+fn mode_tab(ui: &mut Ui, key: &'static str,
+    label: &'static str, count: &str,
+    active: bool) -> bool {
+  let ink = if active { INK } else { SECONDARY };
+  let tab = MODE_TAB.selected(active).name(label);
+  ui.button_content(key, &tab, |ui, _| {
+    ui.column("tab", Node::column()…, |ui| {
+      ui.row("content", Node::row()…, |ui| {
+        ui.label(label, TEXT_15.color(ink));
+        ui.label(count, CAPTION);
+      });
+      container(ui, "underline", Axis::Row,
+        Size::Grow, Size::Px(2.0),
+        if active { ui.color(INK) }
+        else { ui.color(PAPER) });
+    });
+  }).clicked
+}
+
+After
+const MODE: Tabs = Tabs::DEFAULT.variant(MODE_TABS);
+
+let tabs = [
+  Segment::new("Albums").id(ALBUMS)
+      .detail(&snap.album_count),
+  Segment::new("Artists").id(ARTISTS)
+      .detail(&snap.artist_count),
+  Segment::new("Songs").id(SONGS)
+      .detail(&snap.song_count),
+];                                  // stack array
+let r = ui.tabs("library-mode", &tabs,
+                Some(mode.index()), &MODE);
+if let Some(id) = r.chosen_id {
+    intent = Some(Intent::Mode(Mode::from_id(id)));
+}
+
+SwiftUI
+Picker("Library", selection: $mode) {
+  ForEach(Mode.allCases) { m in
+    Text("\(m.title) \(m.count)").tag(m)
+  }
+}
+.pickerStyle(.segmented)
+// or a custom TabBarStyle for
+// label + count + underline
+
+The label, count and underline are drawn by the localwave-tabs body (MODE variant), which receives the count through Segment.detail (gap G1, U2a.2). The same widget also serves the bottom tab bar, passing None while Settings is showing, and the Files filters.
+
+3 · Filter chips (find tokens, audit #9)
+
+Before · shell/header.rs:316-344 (≈30 lines)
+let node = Node { max_w: width,
+  ..Node::column().w(Size::Fit).h_px(32.0)
+    .pad_x(12.0).role(Role::Toggle)
+    .flags(Flags::CLIP) };
+let chip = ui.pressable(token, node,
+  &PLAIN.look(if selected { &INK_LOOKS }
+              else { &PANEL_LOOKS }), |ui, _| {
+  let label = ui.node("label".into(), Node {
+    look: if selected { CHIP_TEXT_ON }
+          else { CHIP_TEXT },
+    ..Node::column()….flags(Flags::FIT_TEXT) });
+  ui.text(&label, token);
+});
+ui.set_role(&chip.handle, Role::Toggle,
+  CHECKABLE | if selected { CHECKED } else { 0 });
+ui.a11y_name(&chip.handle, token);
+if chip.clicked { … }
+
+After
+const CHIP: Checkbox = Checkbox::DEFAULT
+    .variant(CHIP);           // localwave-chip body
+
+for (i, token) in TOKENS.iter().enumerate() {
+  let on = state.query.has_token(token);
+  if ui.checkbox(i as i64, token, on, &CHIP)
+       .changed {
+    intent = Some(state.query.toggle_token(token)
+      .map_or(Intent::SearchTooLong,
+              Intent::Search));
+  }
+}
+
+SwiftUI
+ForEach(tokens, id: \.self) { token in
+  Toggle(token, isOn: binding(token))
+    .toggleStyle(.button)
+    .buttonStyle(ChipStyle())
+}
+
+The key is the token's index, not its text. Checked/checkable state comes from the widget, the pill shape from the body and the colours from theme looks, so the look swap and set_role are gone.
+
+4 · Sortable table heading (songs, audit #14)
+
+Before · shell/songs/mod.rs:169-262 (≈90 lines)
+let heading = ui.pressable(column as i64, node,
+                           &PLAIN, |ui, _| { … });
+…
+let action = match (sort, selected) {
+  (Sort::Original, _) => "Sort by original order",
+  (Sort::Title, None) => "Sort by Title",
+  (Sort::Title, Some((_, true))) =>
+      "Sort by Title, ascending",
+  (Sort::Title, _) => "Sort by Title, descending",
+  … 12 more arms …
+};
+ui.a11y_name(&button, action);
+if clicked { *intent = Some(Intent::Sort(sort)); }
+
+After
+const COLUMNS: [Column; 5] = [
+  Column::new("Title").id(TITLE).share(3.0),
+  Column::new("Artist").id(ARTIST).share(2.0),
+  Column::new("Album").id(ALBUM).share(2.0),
+  Column::new("Format").id(FORMAT).share(1.0),
+  Column::new("Time").id(TIME).px(56.0),
+];
+let head = ui.table_head("songs-head", &COLUMNS,
+    &mut state.table, &HEAD);   // widths + sort
+if let Some(sort) = head.sort {
+    intent = Some(Intent::Sort(sort));
+}
+// rows: ui.selection_list(.., row_key,
+//   &mut state.list, …); selection is the widget's
+
+SwiftUI
+Table(songs, selection: $selected,
+      sortOrder: $order) {
+  TableColumn("Title", value: \.title)
+  TableColumn("Artist", value: \.artist)
+  TableColumn("Album", value: \.album)
+  TableColumn("Format", value: \.format)
+  TableColumn("Time", value: \.duration)
+    .width(56)
+}
+
+Tri-state sort, the "Sort by X, ascending" accessible name, weighted widths and Meta/Shift selection all move into pxui (U2b.1), and the Swift heading look comes from the localwave-heading body. This is the one site that gets a targeted performance run at 10k rows (U4a.6).
+
+5 · Buttons with tone and enabled state (Files, audit #67)
+
+Before · shell/files.rs:98-128 (4 helpers, 30 lines)
+fn button_node(width: f32, height: f32,
+    enabled: bool, fill: ColorToken) -> Node {
+  Node { look: Look::NONE.fill(Rgba::token(fill)),
+    ..Node::row().w_px(width).h_px(height).center()
+      .role(Role::Button)
+      .flags(if enabled
+        { Flags::CLICKABLE | Flags::FOCUSABLE }
+        else { Flags::NONE }) }
+}
+fn button_face(ui: &mut Ui, button: &Handle,
+    label: &str, enabled: bool, ink: ColorToken) {
+  ui.a11y_name(button, label);
+  ui.set_role(button, Role::Button,
+    if enabled { ENABLED } else { 0 });
+  ui.within(button, &mut |ui| ui.label(label,
+    TEXT_13.color(if enabled { ink }
+                  else { SECONDARY })…));
+}
+
+After
+const FILE_KEY: Button = Button::DEFAULT
+    .size(Size::Px(100.0), Size::Px(36.0))
+    .look(&looks::PANEL_KEY);
+const FILE_KEY_PRIMARY: Button =
+    FILE_KEY.look(&looks::INK_KEY);
+
+if ui.button("import", "Import",
+       &FILE_KEY_PRIMARY.disabled(!can_import))
+     .clicked {
+    intent = Some(Intent::Import);
+}
+
+SwiftUI
+Button("Import") { importFiles() }
+  .buttonStyle(.borderedProminent)
+  .frame(width: 100, height: 36)
+  .disabled(!canImport)
+
+All five Files helpers (button, sized_button, button_node, button_face, action) are deleted. The disabled ink, the ENABLED bit and focusability come from the widget, and the colours come from the theme's disabled look state.
+
+6 · Bottom sheet (queue sheet, audit #52)
+
+Before · shell/queue_sheet.rs:110-140
+// The sheet takes the pointer for its dismiss
+// gesture but is no tab stop.
+let sheet = ui.pressable("queue-sheet",
+    sheet_node, &PLAIN.tab_stop(false), |ui, _| {
+  let handle = container(ui, "queue-handle",
+      Axis::Stack, Size::Grow, Size::Px(21.0),
+      ui.color(PAPER));
+  ui.canvas(&handle, move |paint, rect| {
+    paint.fill(Rect::new(…, 36.0, 5.0),
+               Fill::new(paint.color(LINE)));
+  });
+  ui.row("full-queue-header", Node {
+      padding: Edges { l: 16.0, r: 6.0,
+                       t: 12.0, b: 8.0 },
+      ..Node::row().w(Size::Grow).h_px(66.2) },
+    |ui| { … });
+  …
+});
+// + Role::Dialog / MODAL by hand, own drag
+
+After
+const QUEUE_SHEET: Overlay = Overlay::DEFAULT
+    .present(Presentation::Bottom)
+    .dismiss(DismissOpts::DRAG);
+const HEADER: Node = Node::row().w(Size::Grow)
+    .h_px(66.2).padding(Edges::new(16.0, 12.0,
+                                   6.0, 8.0));
+
+let sheet = ui.modal("queue-sheet", &QUEUE_SHEET,
+    |ui| {
+  ui.row(HEADER, |ui| { … });          // keyless
+  queue_rows(ui, snap, &mut intent);
+});
+if !sheet.open { intent = Some(Intent::CloseQueue); }
+
+SwiftUI
+.sheet(isPresented: $showQueue) {
+  QueueView()
+    .presentationDetents([.large])
+    .presentationDragIndicator(.visible)
+}
+
+Drag-to-dismiss, the grab handle, the dialog and modal roles, and focus containment all come from pxui (G6, U2a.4). The Node { .. } and Edges { .. } literals become const builders (U3.2).
+
+7 · Pick one (pxui itself, today vs landed)
+
+Before · pxui author/kit.rs:54/76, author/toggle.rs:233
+// three shapes for one job
+let (r, i) = ui.radio("speed", &["1×", "2×"],
+                      sel, &Choice::DEFAULT);
+let (r, i) = ui.tabs("mode", &["A", "B"],
+                     sel, &Choice::DEFAULT);
+let r = ui.segmented_with("sort", &SEGMENTS,
+                          Some(sel), &SORT);
+if let Some(i) = r.chosen { … }
+
+After
+// one item type, one result, a style per widget
+let r = ui.radio("speed", &SPEEDS, Some(sel),
+                 &Radio::DEFAULT);
+let r = ui.tabs("mode", &MODES, Some(sel),
+                &Tabs::DEFAULT);
+let r = ui.segmented("sort", &SORTS, Some(sel),
+                     &SORT);
+if let Some(i) = r.chosen { … }        // PickResponse
+if let Some(i) = r.secondary { menu(i) }
+
+SwiftUI
+Picker("Speed", selection: $speed) { … }
+  .pickerStyle(.radioGroup)
+Picker("Mode", selection: $mode) { … }
+  .pickerStyle(.segmented)
+TabView(selection: $tab) { … }
+
+D4 applies to the whole surface. There is one item type (Segment), one result (PickResponse) and a style value per widget; no tuples, and no _with names at all (D25).
+
+8 · App setup: create, theme, bodies (pxui + LocalWave)
+
+Before · lw_bin/src/library.rs:35, kit.rs:35/524
+let ui = pxui::Ui::create(Platform::Apple,
+    Some(15), &[FONT, MONO]);      // panics
+ui.set_colors(&COLORS);            // shadow path
+ui.set_theme(&ThemeSource {
+    text: THEME, flags: …,
+    ..Default::default() });
+// 4 bodies registered in commands.rs,
+// key presses: key_pressed('o' as u32,
+//                          Some(META))
+
+After
+const DESC: UiDesc = UiDesc::new(Platform::Apple)
+    .font_size(15.0).fonts(&[FONT, MONO]);
+let mut ui = Ui::new(&DESC)?;
+let theme = ThemeHandle::parse(APP_THEME)?;
+ui.set_theme(&theme);
+theme::register_bodies(&mut ui)?; // localwave-*
+
+// in a frame
+if ui.key_pressed(KeyCode::Char('o'), Mods::META) {
+    intent = Some(Intent::Open);
+}
+
+SwiftUI
+@main struct LocalWave: App {
+  var body: some Scene {
+    WindowGroup { ContentView() }
+      .environment(\.font, .body)
+      .tint(.accent)
+      .commands { CommandGroup(…) {
+        Button("Open…") { open() }
+          .keyboardShortcut("o") } }
+  }
+}
+
+Errors are Results, not panics. There is one theme entry point, and key codes are typed. Theme files carry the tokens and the <kind>.body = localwave-… lines. Structural customisation is a registered body function, plain data in and nodes out, with no generics.
+
+What a registered body looks like (structural customisation)
+
+Theme file (app-light.theme)
+button.body      = localwave-button
+tabs.body        = localwave-tabs
+checkbox.body    = localwave-chip
+progress.body    = localwave-progress
+search_field.body= localwave-search
+picker.body      = localwave-palette
+color.ink        = #1d1c1a
+color.panel      = #f2f0ec
+
+Body (theme.rs)
+/// LocalWave tabs: label, count, 2 pt underline.
+fn tabs_body(ui: &mut Ui, c: &TabsConfig) {
+  ui.row(TAB_ROW, |ui| {
+    ui.label(c.text(), TAB_LABEL.selected(c.on()));
+    ui.label(c.detail(), CAPTION);
+  });
+  ui.node("underline", UNDERLINE
+      .look(if c.on() { &looks::INK }
+            else { &looks::NONE }));
+}
+
+SwiftUI analogue
+struct TabStyle: PrimitiveButtonStyle {
+  func makeBody(configuration: Configuration)
+      -> some View {
+    VStack(spacing: 0) {
+      configuration.label
+      Rectangle().frame(height: 2)
+        .opacity(isOn ? 1 : 0)
+    }
+  }
+}
+
+This is the counterpart of SwiftUI's ButtonStyle/ToggleStyle. The body is a plain function the engine calls through a function pointer, so it adds no generics and no build cost. It reads a sealed config record and builds nodes with const styles, and every widget with a body kind accepts one (U1–U2 test each).
+
+Totals the plan expects
+
+MeasureBefore (fb16eaa / d6b4182b)After (U6)
+
+LocalWave controls rebuilt from nodes or pressables50 drift + 11 new sites0 (composite rows and D7 allowlisted)
+
+App wrapper helpers recreating widgets280
+
+pxui struct literals in LocalWave fn bodies≈2000
+
+ui.color( in LocalWave build paths1280 (listed dynamic cases only)
+
+Registered LocalWave bodies4≈16
+
+pxui result idioms for interactive callsResponse, tuples, bool, Option, 4 structsResponse + PickResponse, SliderResponse, OverlayResponse, ListResponse, TableResponse, HeadResponse, Chosen
+
+Ways to set a theme / create a Ui / enter a frame4 / 2 / 21 / 1 / 1
+
+Public generic fns with real bodies3 + 7 inline bodies behind shims0 (one documented canvas trampoline)
+
+Warm-frame heap allocations0 (measured at DX5.3)0 (CP0, CP1, CP2)
+
+5c. Locked shape vs SwiftUI, gpui and rune
+
+This section exists to lock the public call shape. gpui is Zed's framework (code from zed-industries/zed main: crates/gpui/examples, crates/ui/src/components). rune is anomalyco/rune (branch dev). Rune snippets marked "style of the repo" are written from its README patterns (el()/col()/text(), .key, .on_press(|s: &mut S| ..), rune-kit Button::new(..).build(k)); the others are verbatim or near-verbatim. pxui shows the shape after D25.
+
+The four models in one table
+
+pxui (locked)SwiftUIgpuirune
+
+ModelImmediate-mode calls over a retained engine; retained views (view_of) skip rebuilds; idle draws zero framesDeclarative value tree, diffed; state via property wrappersRetained entities; element tree rebuilt and dropped every frameview(&S) -> El re-run after commits; retained tree diffed by key; hover/press only retarget animations
+
+EventsReturned values: if ui.button(..).clickedAction closures, $binding.on_click(cx.listener(..)), 'static closures.on_press(|s: &mut S| ..), queued between frames
+
+IdentityKey-first on interactive widgets and rows; layout positional; ui.id(key, f)Structural, plus .id() / ForEach(id:)Optional .id(), unique among children of the nearest id'd ancestorOptional .key(".."), required for virtual rows
+
+Stylingconst style values + theme tokens + looks; inline builders for one-offsModifiers, environment, ButtonStyleTailwind-like Styled builders (.flex().gap_2().p_3()), theme crateElement builders (.fill().radius().gap()), OKLCH tokens, Kit semantic palette
+
+Structural customisationRegistered bodies per widget kind + variants, selectable from theme files, usable from CButtonStyle/ToggleStyle makeBodyRenderOnce components, ButtonStyle enum variantsPlain functions returning El; rune-kit escape hatches (label_with, trailing)
+
+Collectionslist/section_list/selection_list/table virtualised; app-owned ListState/TableStateList, Table(data, selection:, sortOrder:)uniform_list(id, n, processor(range)) returning a Vec of rowsTable::new(get, get_mut, len, row_id); README: "view construction still visits every row"
+
+Per-frame heapZero warm allocations, both sides of the ABI (gated)Not a goalArena-boxed AnyElements, closures, Vecs, format! in examplesNo statement found
+
+Generics / buildNon-generic library; only one-expression K/F/T: Hash shims; no proc macros (gated)Heavy generics (some View), compiler-specificimpl IntoElement, impl Into<..> everywhere, derive macrosNo statement found
+
+Stable C ABIYes (2.0 freeze), validated for untrusted callersNoNoNo
+
+A · A pressable list row
+
+pxui (locked)
+const ROW: Node = Node::row().h_px(44.0)
+    .gap(8.0).center();
+let row = ui.pressable(song.id, ROW, &LIST_ROW,
+  |ui, _| {
+    ui.label(&song.title, TITLE.grow());
+    ui.label(&song.duration_text, DIM);
+  });
+if row.clicked {
+    intent = Some(Intent::Play(song.id));
+}
+
+gpui
+div()
+  .id(song.id)
+  .flex().h(px(44.)).gap_2().items_center()
+  .hover(|s| s.bg(colors.element_hover))
+  .on_click(cx.listener(move |this, _, _, cx| {
+      this.play(id, cx)
+  }))
+  .child(Label::new(song.title.clone())
+           .flex_1())
+  .child(Label::new(song.duration.clone())
+           .color(Color::Muted))
+
+rune (style of the repo)
+row().key(id).h(44.0).gap(8.0).center()
+  .role("button").focusable(true)
+  .on_press(move |s: &mut App| s.play(id))
+  .child(text(&song.title)
+           .font(type_::BODY).color(t.text))
+  .child(text(&song.duration)
+           .color(t.text_dim))
+
+gpui and rune clone strings into the tree and box a closure per row per frame. pxui borrows &str, keeps the hover look in the theme, and returns clicked, so it allocates nothing. SwiftUI: Button { play(id) } label: { HStack(spacing: 8) { Text(title); Text(time).foregroundStyle(.secondary) } }.
+
+B · A button with a variant and a disabled state
+
+pxui (locked)
+if ui.button("import", "Import",
+       &PRIMARY.disabled(!can_import)).clicked {
+    intent = Some(Intent::Import);
+}
+
+gpui (crates/ui Button)
+Button::new("import", "Import")
+    .style(ButtonStyle::Filled)
+    .disabled(!can_import)
+    .on_click(cx.listener(|this, _, _, cx| {
+        this.import(cx)
+    }))
+
+rune-kit (style of the repo)
+Button::new("Import")
+    .variant(ButtonVariant::Contrast)
+    .on_press(|s: &mut App| s.import())
+    .build(k)
+// "disabled components drop their handlers"
+
+After D25 all four read alike: one widget name, key first, variant from the style value, disabled. SwiftUI: Button("Import", action: importFiles).buttonStyle(.borderedProminent).disabled(!canImport).
+
+C · Layout containers
+
+pxui (locked)
+ui.column(Node::column().gap(16.0).center(),
+  |ui| {
+    ui.label(status, TITLE);
+    if ui.toggle("lights", "Lights", on,
+                 &SWITCH).changed {
+        intent = Some(Intent::ToggleLights);
+    }
+  });
+
+gpui
+div()
+  .flex().flex_col().gap_4()
+  .justify_center().items_center()
+  .child(Label::new(status))
+  .child(Switch::new("lights", state)
+      .on_click(cx.listener(|this, s, _, cx| {
+          this.set_lights(s, cx)
+      })))
+
+rune (repo examples/hello)
+col().w_full().h_full().center().gap(16.0)
+  .fill(t.bg)
+  .child(label)
+  .child(switch)   // hand-built el() with
+                   // .on_press(|s| s.on = !s.on)
+
+With keyless containers (D25.1), pxui's layout reads like SwiftUI's VStack(spacing: 16) { … }. Children are calls inside a closure rather than .child(..) chains, which is what keeps them off the heap.
+
+D · A virtualised, sortable table
+
+pxui (locked)
+let r = ui.table("songs", &COLUMNS,
+    songs.len(), &|i| songs[i].id,
+    &mut state.table, &TABLE,
+    &mut |ui, row, col, cell| {
+        song_cell(ui, &songs[row], col, cell)
+    });
+if let Some(sort) = r.sort {
+    intent = Some(Intent::Sort(sort));
+}
+
+gpui (examples/uniform_list.rs)
+uniform_list("entries", 50,
+  cx.processor(|_this, range, _w, _cx| {
+    let mut items = Vec::new();
+    for ix in range {
+      items.push(div().id(ix).px_2()
+        .on_click(move |_e, _w, _cx| { … })
+        .child(format!("Item {}", ix + 1)));
+    }
+    items
+  }))
+// sorting / columns: app-built
+
+rune-kit (README)
+Table::new(get, get_mut, len, row_id)
+// virtualised: only the overscanned window
+// is laid out and shaped; "view
+// construction still visits every row"
+
+pxui and SwiftUI (Table(songs, selection: $sel, sortOrder: $order) { TableColumn(..) }) put sorting, selection and column widths in the widget. gpui builds rows into a fresh Vec per frame. pxui visits only visible rows and keeps state in one app-owned struct.
+
+What we took, and what we refuse
+
+Taken into the locked shape (D25)From
+
+Optional identity for layout; explicit only where neededgpui .id(), rune .key(), SwiftUI structural identity
+
+Inline style builders for one-offsall three
+
+One widget name: button(key, text, &style)gpui Button::new(id, label), rune-kit Button::new
+
+.disabled(bool)SwiftUI, gpui Disableable
+
+Collection state in one valueSwiftUI Table(selection:, sortOrder:), rune Table::new(.., row_id)
+
+Selection by your id, not an indexSwiftUI .tag()
+
+RefusedWhy
+
+Handler closures (on_click(..)) stored per elementA boxed closure per element per frame breaks zero allocation; 'static captures force clones
+
+.child(impl IntoElement) chains, impl Into<..> parameters, RenderOnce/derive macrosGeneric, monomorphised per call site, proc macros. That is the 3× build-time cost the proposal measured
+
+Tailwind shorthands (gap_2, p_3)Hundreds of methods for one concept; pxui keeps gap(8.0) + theme spacing tokens
+
+$binding two-way stateLocalWave's snapshot + intent model; immutable snapshots across worker delivery
+
+Per-element style objects without a C formpxui is an OS base: bodies and looks must reach C callers too
+
+6. How LocalWave uses pxui (the end state)
+
+Appearance = theme. Colour tokens in themes/app-{light,dark}.theme; every look a named const in crates/lw_ui/src/shell/theme.rs built from Rgba::token(..) (with .alpha(a) where Swift used opacity). No ui.color(X) in build paths except genuinely dynamic values listed in the allowlist (e.g. the run-time scrim at shell.rs:957). No struct literals of pxui types.
+
+Structure = registered bodies + variants. Every distinctive control is the standard pxui call plus a localwave-* body selected by a theme line (<kind>.body) or .variant(n). Bodies are the only place raw nodes build interactive structure; they draw only from the config they receive.
+
+Composite content (album cards, artist rows, mini player, compact song rows, play-queued body, source card) stays pressable + labels, allowlisted with the reason "composite".
+
+Keys are static ids or item ids; styles are app consts; helpers that recreate a widget are deleted.
+
+Gaps stop the step (gap protocol, §7). Never a workaround.
+
+7. Process
+
+Roles
+
+RoleWhoDoesNever
+
+ImplementerOne fresh Opus subagent per package, in the backgroundReads its package, the named code and callers; writes codemods and code; one step per commit on branch u<N> in both repos; Tier A per commit, Tier B at the end; stops at the review stops with the §12 reportPushes; edits status rows; amends or rebases after a review stop; touches anything outside its steps; adds API not in the ledger; works around a gap
+
+OrchestratorClaude, main sessionWrites briefs (§12); reviews at each stop (§13); sends findings to the same implementer; lands; updates status; runs CPsRuns any build or git command while the implementer is active; lands with an open finding; softens a finding
+
+Independent reviewerFresh subagent, U1a, U1b, U2a, U2b, U5a, U5b onlyReads the diff, brief_review.md and the ledger, without the implementer's reasoning; PASS or numbered mismatchesEdits code
+
+Package lifecycle
+
+Brief from the §12 template: the package section, the decisions it touches, the previous package's report.
+
+Shape stop (U1a, U1b, U2a, U2b, U5a): the implementer writes the new public signatures and their docs as an uncommitted diff (saved with git diff > scratch/u<N>-shape.diff in both repos), reports the surface delta, and waits. Nothing that fails to build is committed. U2b's shape stop also delivers the site map (U2b.9). Pattern stop (U3, U4a, U4b): the first area fully converted and committed.
+
+Final stop: all steps done, Tier B green (LocalWave with LOCALWAVE_OFFLINE=1, because pxui is not pushed yet), §13 self-review, report.
+
+Review: orchestrator (plus the independent reviewer where listed). Findings → same implementer. Fixes are new commits [U<N>.<k> fix] …, never amends, so recorded pointers stay valid. A check failing twice for the same cause → BLOCKED: <one sentence>.
+
+Land (orchestrator): fast-forward pxui rust-port to u<N>, push, run tools/check-pxui-remote.sh (no offline flag); fast-forward LocalWave rust-port, run make check once online, push; one [U<N>] status commit sets the package's rows to done with hashes; delete the branches.
+
+Gap protocol (U3–U4)
+
+If a LocalWave site can't be expressed with the ledger, the implementer stops with GAP: file:line — what is missing. The orchestrator writes a gap step U2b.4.<n> and adds it to the ledger with that id. The same implementer builds it on the current u<N> branches (a pxui commit plus its LocalWave pointer commit). The orchestrator reviews it as a mini shape check (signature + docs + tests), then the package resumes. The gap step lands with the package, so nothing lands on rust-port mid-package and both branches stay fast-forwardable.
+
+Commits
+
+One step = one commit per repo; subject starts with the step id; LocalWave commits carry the pxui pointer; evidence (tests, counts, D9 diffs, build times) in the message. A large step may use several commits named [U1a.1/2], [U1a.1/3]…, each building.
+
+ABI-changing pxui commits take the next minor and regenerate manifests (D17).
+
+Main checkouts only, branch u<N>; no worktrees (except inside buildtime.sh --compare), no stash, one target dir, CARGO_BUILD_JOBS unset.
+
+Scope
+
+The step list is the scope. Other findings → the Found list. Refactor steps move code verbatim. Ponytail: smallest change that meets "done when"; an existing pxui function before a new one; nothing the step does not name.
+
+8. Tests and checkpoints
+
+TierWhenCommandsBudget
+
+AEvery commitpxui: cargo t -p <touched> [filter]; cargo t -p pxui --features static if pxui touched; cargo check --workspace --tests; cargo check -p abi_bench -p pxui_gallery --tests (and --no-default-features); gate shape, deps, abi-header, abi-snapshot.
+LocalWave: cargo t -p lw_ui [filter]; cargo t -p lw_ui --test api_conformance; cargo build -q -p lw_bin; cargo check -p lw_bin --tests; python3 tools/dx/surface.py --check; git diff --check.≤ 3 min warm
+
+BEnd of every packagepxui: whole-workspace cargo t; cargo t -p pxui --features static; cargo t -p pxui --doc; cargo t -p pxui_gallery; gate docs, abi-exports, abi-frozen, abi-compat.
+LocalWave: LOCALWAVE_OFFLINE=1 make check; tools/dx/buildtime.sh --compare <CP0 commit> (alternating rounds against CP0, so noise cancels).≤ 30 min
+
+C (CP)CP0 (U0.7), CP1 (U4b.6), CP2 (U5.12)Tier B + make performance (replaces the status table); release abi_bench both modes (RAYS_SLOW=1 cargo t --release -p pxui_gallery [--no-default-features] abi_bench); make ios-build; tools/dx/buildtime.sh --compare de53440 (de53440 reported, not gated). CP1 adds the pxui ios_spike simulator probes (PXUI_IOS_TOUCH_CHECK, PXUI_IOS_LIFECYCLE_CHECK) and a make ios-run smoke of LocalWave's compact flows: switch tabs; open and drag-dismiss the queue sheet and the expanded player; reorder a queue row; scrub the seek bar; use the A–Z index; swipe a row; long-press menu; select mode. Pass/fail per flow goes in the CP1 commit. Real-device qualification stays explicitly deferred.≈ 1 h
+
+Targeted runs (the only other measurements)
+
+WhenCommandWhy
+
+U1c.1RAYS_SLOW=1 cargo t --release -p pxui_gallery abi_bench_author (Author page; exact case name from tests/abi_bench.rs)out-of-line callees can cost > 1% (layout.rs:117-119)
+
+U2b.10release abi_bench, all pages, both modespxui runtime regression found before LocalWave work starts
+
+U4a.5make bundle PROFILE=release COUNTING=1, then target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-queue-drag and --performance-queue-sheetqueue sheet becomes a modal sheet with reorder
+
+U4a.6same bundle; --performance-check plus --performance-long-scroll, --performance-fling, --performance-jump, --performance-song-drag, --performance-song-indicators, --performance-reverse-scrollsongs list moves to selection_list + table_head at 10k rows
+
+Regression rule. Any warm allocation, failed budget, abi_bench limit or build time over the allowance stops the plan; the orchestrator bisects the commits since the last measurement and the fix lands before the next package.
+
+Flaky tests are fixed in U0.5, not retried.
+
+Fingerprints. U0.1 moves the dump into LocalWave's test frame helper (permanent, opt-in with LW_FINGERPRINT=<path>), so no pxui patch is needed across pxui changes. tools/dx/gcmp.py compares two dumps and fails on lost names/actions (D9).
+
+9. Codemods
+
+A change touching more than ~5 sites the same way is a script in tools/dx/codemods/ (stdlib Python), or rust-analyzer ssr for expression rewrites. ssr needs resolving code, so run it before changing the signature, in the workspace where the callers live.
+
+Every script: --dry-run per-file counts; runs over pxui and LocalWave; prints the sites it skipped; committed in its step. Afterwards: compile, targeted tests, read the diff once, hand-edit the skipped sites.
+
+Python rewriters use a small tokenizer that understands strings, char vs lifetime, and comments. Field → builder tables are written by hand (names are not 1:1: w vs w_px, axis → Node::row(), ..base spreads).
+
+Manifests are never edited by scripts; gate -- abi-snapshot --write regenerates them. Never rustfmt pxui or pxui_types.
+
+Starting points: tools/dx/codemods/archive/ (codemod_a…g, codemod_dx1.12c, codemod_dx3.22a.py, codemod_i.py, bc_closures.py, split_items.py, perftable.py).
+
+CodemodStepRewrite
+
+namespace.py (from codemod_i.py)U1a.1–U1a.3module paths → pxui::ui::/root; Theme handle → ThemeHandle; Ui::create(p, size, fonts) → Ui::new(&UiDesc::new(p).font_size(size).fonts(fonts)) (arguments carried over, never dropped), Ui::new() → Ui::new(&UiDesc::DEFAULT); set_theme_source(&ThemeSource{..}) → set_theme(&ThemeHandle::parse(..)?); FrameIn { width, height, ..Default::default() } → FrameIn::new(w, h)
+
+keys.pyU1a.4KEY_SPECIAL + n → named KeyCode; key_pressed('o' as u32, Some(META)) → key_pressed(KeyCode::Char('o'), Mods::META); None → Mods::ANY
+
+results.pyU1b.1let (r, i) = ui.radio/dropdown/slider(..); → let r = ui.radio(..); let i = r.chosen; (no scope analysis; the compiler flags misses); segmented_with → segmented; if ui.popup/modal(..) → .open (meaning preserved)
+
+shapes.pyU1b.6Containers: drop the key from ui.row/column/stack(key, node, f). Wrap in ui.id(key, ..) when the call sits under if/match/for or holds an animate, and print those sites for review. button_with → button, toggle_with → toggle. Short forms ui.button(t)/ui.toggle(t, on) → keyed calls with &Button::DEFAULT/&Toggle::DEFAULT, using a static key derived from the call site's variable name, never the text. .enabled(x) → .disabled(!x).
+
+units.pyU1b.3text_width(Some(n), ..)/text_top/cap_width → measure(.., LABEL, ..)? fields; i64 sizes → f32; (x, y) positions → Point::new
+
+literals.pyU3.2, U6.2Node/Edges/Look/Rgba/Font/State/FrameIn/Event/TextSpan/Image/SectionList literals → builders; hoist to const when all arguments are const; skip and report ..base spreads with non-DEFAULT bases
+
+looks.pyU3.1container(ui, key, node, ui.color(T)) → container(ui, key, node, &looks::T_FILL); per-call Label construction in line/paragraph/label helpers → const Labels + ui.label
+
+(by hand)U4a, U4bInlining helpers into callers and deleting them: ≈10 helpers, ≤ 10 callers each; receiver/shadowing/evaluation-order issues make a script riskier than the edits
+
+abi_drop.pyU5.3Remove listed exports from pxui_abi, pxui.h, fuzz lists and callers; then regenerate manifests
+
+ffi_docs.pyU6.3Copy per-field comments from pxui.h to ffi.rs
+
+10. Packages
+
+Sizes are rough implementer wall times. A package that runs long reports at the end of a step; the orchestrator continues the same agent or hands the report to a fresh one.
+
+U0 · Reset and baseline LW + pxui tools · ≈2–3 h + CP0
+
+U0.1 Tools home. Create tools/dx/. Move docs/dx-checkpoint/scripts/* there, replacing every /private/tmp/…/70341840…/scratchpad/dx_impl path with the repo path. Delete the lane machinery: lock.sh, macbench.sh, lwland_blocked.sh, land.py, pxland.sh, remote.sh, remote_gc.sh (landing is now §7). Copy the rescued scripts (codemod_*, *.py; no logs or diffs) from /private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/439fa08c-eb2b-4fe2-904d-20cdf233f9c0/scratchpad/old_dx_impl/ to tools/dx/codemods/archive/. Remove /private/tmp/claude-501/dx-macbench.lock. Fingerprints: add lw_ui::testing::frame(ui, input, build), which runs the frame and, when LW_FINGERPRINT=<path> is set, appends the layer and a11y dump (the logic of golden_hook.patch). Route the ≈131 .frame(& test call sites in lw_ui (tests.rs, songs/tests.rs, kit.rs, artists.rs, albums.rs, find.rs, byline.rs, song_text.rs) and the lw_bin test drivers to it by codemod, and list any frame drivers left out (e.g. lw_bin/src/app.rs, the production loop). Move gcmp.py to tools/dx/ and make it fail on lost names or action bits.
+
+U0.2 Drift meters.
+
+ tools/dx/surface.py: generates the public surface of pxui and pxui_types from rustdoc JSON (RUSTC_BOOTSTRAP=1 cargo rustdoc -p <crate> --lib -- -Z unstable-options --output-format json --cap-lints warn, verified working on the pinned 1.99.1 toolchain; output in pxui/target/doc/<crate>.json; the script asserts format_version). This includes macro-generated items (register_*_body, configs!, opt!, body_kinds!). One line per item (path, kind, rendered signature), sorted, written to tools/dx/pxui_surface.txt. --check fails if the file is stale. --ledger pxui/docs/api.md compares against the ledger (used from U1c on).
+
+ Extend crates/lw_ui/tests/api_conformance.rs (already in make check, shrink-only allowlist) instead of a new meter:
+
+  R1: add Node, Edges, Look, Rgba, Font, State, States literals outside const items.
+
+  R6: ui.color(/paint.color(/Look::NONE. in fns taking ui: &mut Ui.
+
+  R7: pressable sites, each needing an allowlist reason.
+
+  R8: helper fns whose body is a single pxui widget call.
+
+  Bless the current state into the allowlist. Every later package must shrink it.
+
+U0.3 Build-time meter, ledger, delta. tools/dx/buildtime.sh [--compare <rev>] measures:
+
+ (a) clean pxui workspace debug build (budget 30 s);
+
+ (b) warm cargo check -p pxui_core after a touch (budget < 1 s);
+
+ (c) clean cargo build -p pxui_dylib;
+
+ (d) clean cargo build -p lw_ui with dependencies prebuilt;
+
+ (e) warm cargo check -p lw_ui after touching shell/sidebar.rs;
+
+ (f) warm cargo build -p lw_bin after the same touch.
+
+ It runs 3 alternating rounds and reports the minimum; the allowance is max(5%, 0.3 s). Target dirs are target/buildtime-{a,b}, deleted afterwards (written exception, owner sign-off 4). --compare uses a temporary worktree with git submodule update --init pxui and a symlink to target/sdl, removed afterwards. In the same step:
+
+ Write pxui/docs/api.md (pxui commit) in two parts:
+
+  (1) §5 as the human view;
+
+  (2) a machine-readable target list: one item per line in exactly surface.py's rendering, each tagged @HEAD or @U<step>.
+
+  Start (2) from the current surface, all @HEAD. Then rewrite the lines §5 changes to their target text with the step tag, and mark deletions -@U<step>.
+
+ surface.py --ledger is a plain diff of the generated surface against (2), filtered to items whose step has landed. It reports both directions: surface items missing from the ledger, and ledger items missing from the surface.
+
+ Write the initial result to tools/dx/ledger_delta.txt. Every changed line must carry a step id. Report any untagged line at the U0 final stop, so the orchestrator fixes the ledger before U1.
+
+U0.4 Branches. pxui: delete the landed/superseded branches (dx-bug1, dx-perf2, dx6docs, dx6a, dx6a-old, dx6b, dx7.4, dx7prep, dx5.5, os-b2b, dx1.12a/b/c/d/e/f1/f2/g, dx3.8-tip, dx3.10–dx3.18, dx5.4*, dx6.26, os-b1–b4). LocalWave: for each dx*, lw-*, os-* branch, find the landed commit with the same row id on rust-port (git log --grep), delete it if found, and list it otherwise. Delete dx4.11-lw and dx4.11. Keep: pxui dx1.12i, dx3.19, dx3.20, dx3.21, dx3.22, dx3.22-wip; LocalWave lw-dx1.12i, dx4.6a-chips-wip, and all non-DX branches (native-macos, chore/*, fix/*, review/*). Local branches only; names and hashes go in the commit message.
+
+U0.5 Infra traps. pxui tools/t: --all skips buildtime gc when the crate is absent (pxui commit). LocalWave prewarmed_song_cells…: find why the frame count varies (116 vs 112) and make it deterministic with an injected clock or settle condition, never by loosening. layout_scaling: run 5× on the idle machine; record the result (cause, if any, goes to U2b.8).
+
+U0.6 Status and process docs (after owner sign-off). docs/rust-port.md: open DX rows → "superseded by U…" (D14); one row per U step; a "Build time" table under the performance table. AGENTS.md Process: replace the DX wave paragraph with the plan link and sign-offs 1–3. pxui/AGENTS.md: sign-offs 4–5. Move CHECKPOINT.md to docs/dx-checkpoint/.
+
+U0.7 CP0. Tier C on HEAD; replace the performance table; fill the build-time table (HEAD and de53440); measure the popup-layer draw call once (CHECKPOINT §5.7).
+
+U0.8 (only if CP0 fails a hard gate). A warm allocation or failed frame budget: bisect de53440..HEAD and fix before U1. A build-time difference against de53440 is reported only.
+
+Done when: rg 70341840 tools docs AGENTS.md is empty; surface.py --check green; the extended api_conformance is green with a blessed allowlist; ledger_delta.txt fully annotated; the LW flaky test passes 10/10; status has U rows and no open DX rows; CP0 recorded and green.
+
+U1a · pxui: namespace, lifecycle, errors, input pxui + callers · ≈3 h · shape stop · independent review
+
+Batch I, redone on HEAD from git show 3201fa20 with namespace.py. LocalWave's lw-dx1.12i is redone by the same codemod.
+
+U1a.1 Modules (D2). Delete the shim modules and ui_core::key(); make the private modules private with root re-exports; doc hidden; move pxui_types::ui free helpers (ellipsis, hash_range, find_marker, key_of, shown, display, int_key, text_top_for) to pub(crate), or behind their module if an app uses them (list which; E-44).
+
+U1a.2 Theme (D1) and counter (D3). ThemeHandle, one setter, one scoped form. About 65 pxui and 6 LocalWave sites; gallery and GPU goldens must not change. Document library_counter.
+
+U1a.3 Lifecycle and errors.
+
+ Ui::new(&UiDesc) -> Result<Ui, Error> (platform, font size, fonts); create deleted. Every Ui::create(p, size, fonts) call becomes Ui::new(&UiDesc::new(p).font_size(..).fonts(..)) with the same values. A Ui must never silently fall back to the default font or size: the fingerprints and TableStyles::resolve widths prove it.
+
+ Renderer::new, register_*_body (macro), theme parse, pxui_host Graphics::open/close, Accessibility::open and Platform::apply → Result<_, Error>, with &'static str-carrying variants. lw_bin callers updated.
+
+ Ui::layer → Option.
+
+ One frame(&FrameIn); input_frame/routed_input deleted (D21); the gallery moves to FrameIn.
+
+ FrameIn::new + const builders; Layer fields documented.
+
+ enter/leave/focus_box/focused → pub(crate).
+
+ a11y: stale handle → ignored, returns bool; bad data → Error::InvalidInput; a previous-frame-handle test per call.
+
+ Error-policy section in pxui/AGENTS.md.
+
+U1a.4 Input (D23). First add a LocalWave test that presses every shortcut in shell.rs (≈686-695 and the palette list) and asserts the intent. Then KeyCode, Mods, key_pressed, key_down, testing::key with keys.py; Appearance for system_appearance. The shortcut test must pass unchanged.
+
+Done when: rg -n "ui_core|ui_text|ui_widgets|set_theme_source|use_theme|set_colors|input_frame|fn create\b|KEY_SPECIAL \+" pxui/crates/public crates returns only C-export names kept for 1.x; no Result<_, String> in pxui public crates or pxui_host; shortcut test green; Tier B green; gallery goldens unchanged; LocalWave fingerprints identical; buildtime within allowance; independent review PASS.
+
+U1b · pxui: results, keys, measurement, looks, builders pxui + callers · ≈4 h · shape stop · independent review
+
+U1b.1 One result idiom (D4, D10). PickResponse for segmented (renamed from segmented_with), radio (Radio style), dropdown. Items become &[Segment] and selection Option<usize>. Tabs wait for U2a.2. Also:
+
+ SliderResponse for slider/scrub; OverlayResponse for panel/popup/modal/anchored.
+
+ toasts → Chosen; split → SplitResponse (key-first, Split style); menu_bar → Chosen with MenuBarMenu.
+
+ PickerOpts → Picker. (button/toggle naming is U1b.6.)
+
+ tooltip keyed by owner. Its C change takes the next minor.
+
+ Callers move with results.py.
+
+U1b.2 Keys and small returns. node becomes key-first generic (codemod drops .into()); hovered(&Handle, within) replaces the twin; gesture(&Handle, &GestureOpts). Make these key-first: expanded, hover_delay, load_text_edit together with remember, box_of_key, root_at(Point, &[Key]), part_box/part_rect(&Handle, ..), image. Also ime() -> Option<Ime>, a11y_tree() -> A11yTree, text_input_options → text_traits, and Paint::image(Rect, &Image, &ImageStyle). Remaining raw i64 keys become Key (audit 77).
+
+U1b.3 Measurement and units (D20, audit 79). UiText, reached through text_service() on Ui and Paint, is the one in-frame text service. Its measure replaces text_width/text_top/cap_width and Paint::text_metrics. Ui::enable_system_fonts moves to the service. Paint::text_spans takes Label. LocalWave text_service() callers: find.rs:63, kit.rs:250, byline.rs:54, commands.rs:446, settings.rs:49, songs/tests.rs:832. All sizes become f32 (font_size, row_height, density, set_font_size, Font::size, PanelOpts.padding), and positions Point (menu at, context_at). LocalWave: clock.rs and the shell.rs drop overlay place text by baseline from TextMetrics, replacing the measured +0.6 / +3/+1 constants. Fingerprints identical, or a D9 entry with the measured difference.
+
+U1b.4 Looks, views, a11y types. set_look folds into style (States::of). ViewTransform gains clip, blur and saturation, and the three setters go. set_role(&Handle, Role, A11yStates). Paint::theme() → Paint::tokens(). The patch_* family is documented. rect/local_rect are documented (D21).
+
+U1b.5 Builders and vocabulary (audit 3, 33). Builders:
+
+ Edges::new + .l/.t/.r/.b; State builders; Look builders for every field; Node .state/.transition.
+
+ TextSpan::new(..) builders; Image::rgba8; Str/Slice From.
+
+ Touch/Keyboard/Environment::new; Event constructors.
+
+ SectionList .trail/.overlay_scrollbar; TreeNode::new; Font .tracking.
+
+ Style values and call shapes:
+
+ New style values Progress, Spinner, Badge, GridList (DEFAULT + variant).
+
+ scroll_view(K, Node, f); text_area(K, value, Node, ..).
+
+ Vocabulary per D21 (Overlay::w → w_px, the grow rule).
+
+ All const fn. The literal sweep itself waits for U3.2/U6.2.
+
+U1b.6 Call-shape lock (D25).
+
+ Keyless row/column/stack plus ui.id(key, f). Engine identity becomes position among siblings, as for labels.
+
+ Codemod containers.py drops container keys and wraps in ui.id only the containers under an if/match/loop or holding an animation, and prints those sites for review.
+
+ button_with → button and toggle_with → toggle; the short forms are deleted.
+
+ .enabled(b) → .disabled(!b) on every style value.
+
+ PickResponse.chosen_id.
+
+ api_conformance R1 relaxed per D25.2 (inline builders allowed, literals still banned).
+
+ The review checklist gains: a conditional or animated subtree without ui.id is a finding.
+
+ Proof that identity didn't regress: fingerprints identical; a test that inserts and removes a conditional sibling before a keyed and an unkeyed animated container.
+
+Done when: no public fn returns a tuple or a bare bool where the ledger says Response (checked on pxui_surface.txt); every U1b ledger row is true; Tier B green; gallery goldens unchanged; LocalWave fingerprints identical or D9-listed; allocation tests for every changed per-frame path; buildtime within allowance; independent review PASS.
+
+U1c · pxui: build speed, globals, extension set, spec sync pxui (+ gate) · ≈2–3 h
+
+U1c.1 Generics (Batch K) and the gate.
+
+ node_mut → &mut dyn FnMut(&mut Node).
+
+ layers() → slice or named iterator.
+
+ Generic extern "C" trampolines (kit.rs:78/87, composite.rs:42) → &mut dyn trampolines.
+
+ canvas_with<F> → one-expression shell into a non-generic body. Only its boxed retained-closure trampoline may stay, as one allowlisted, commented row.
+
+ Shim callees: #[inline(always)] removed everywhere (kit_ext.rs:104/144, menu, dialog). #[inline] kept only on container, press, label_body, or wherever the release abi_bench Author page shows > 1% without it; each kept one gets a comment citing the number.
+
+ Gate shape: the author-shim rule (one expression ≤ 40 tokens, allowed bounds) applies to every generic fn in crates/public/pxui/src, and a shim whose callee is #[inline(always)] is rejected. Allowlist rows this frees are deleted.
+
+ Run buildtime.sh and the Author page before and after; record both.
+
+U1c.2 Globals (OS-2/4) and verify (D22). MENU_COLUMNS bounded at the menu row cap with a documented refusal + test (DX3.13a OS4). ROWS bounded and documented. VERIFY_NEW_VIEWS and Ui::verify_new_views deleted; per-Ui verify_views on under debug_assertions; callers migrated. ORPHANS, PENDING, CALLBACK_PANIC, POOL documented in one place with bounds and thread rule (OS-13).
+
+U1c.3 Extension set (D6). Move inspector_*, footer, line_field, value_field, grip, field_drag and the inspector getters to pxui::ext. inspector_toggle/inspector_button are built through the toggle/button bodies, with a custom-body test and no per-frame format!. Gallery and abi_bench callers updated.
+
+U1c.4 Spec sync. Update pxui/docs/api.md and docs/dx-checkpoint/api_spec.md to what landed (row_key, Chosen, PickResponse, ThemeHandle…). Regenerate pxui_surface.txt. surface.py --ledger is green for every row marked U1.
+
+Done when: gate shape rejects a fixture with a generic body and one with an inline(always) callee; allowlist rows only shrink; Author page within its 1% limit; buildtime within allowance (expected lower); MENU_COLUMNS test green; Tier B green.
+
+U2a · pxui: land and finish the gap branches pxui · ≈4 h · shape stop · independent review
+
+Rebase each branch onto U1c's head. Each converts directly to the ledger shape before it lands. ABI minors follow in landing order (D17).
+
+Rebase method (where drift would otherwise creep in):
+
+Cherry-pick the branch commit onto u2a, taking the branch side in every conflicting hunk.
+
+Re-run namespace.py, keys.py, results.py and units.py over the result.
+
+Hand-fix what remains until it compiles.
+
+Compare against the branch's original diff, so no behaviour is lost.
+
+Codemod skip counts and hand-fixed hunks go in the shape-stop report.
+
+U2a.1 Row keys (dx3.22). id → row_key; base side in settled.rs plus &|i| i as i64; callers added since its base. selection_list gains row_key. The table_view half lands as is and is reshaped in U2b.1 (pxui tests and gallery only; LocalWave has no callers).
+
+U2a.2 Tabs (dx3.19, G1). tabs(K, &[Segment], Option<usize>, &Tabs) -> PickResponse; dx3.19's Tab is folded into Segment (id, detail). Focus on press stays put when the caller refuses the choice. The style is Tabs (the old Choice::focus_on_click moves to Tabs/Segmented). Re-verify the three fixes the old review never re-checked. Legacy pxui_ui_tabs and choice_keyed kind 1 → U5.3.
+
+U2a.3 Checkbox, disclosure, section index (dx3.20; G5, G9, G10). Keep its engine and tests; fix 5 deviations:
+
+ Checkbox<'a> borrows its look.
+
+ passive(bool).
+
+ section_index → PickResponse.
+
+ disclosure(K, text, open, &Disclosure, f) -> Response; inspector_section only in ext.
+
+ pxui_ui_checkbox_keyed → U5.3.
+
+ Gallery and abi_bench bodies pages override the new section_index kind.
+
+U2a.4 Sheets and picker rows (dx3.21; G6, G12).
+
+ Keep: Presentation, DismissOpts in pxui_types, Overlay::present/.dismiss, placement, drag-to-dismiss.
+
+ Replace the stateful PickRows::heading()/art() with PickRows::push(PickRow). PickArt::{Glyph(char), Image(id)}, ids matching the images-by-id type; PxuiPickRow::new made const.
+
+ The picker engine draws headings and art.
+
+ One C route for sheets (a new export or growth of the modal desc, chosen at the shape stop) with validation and fuzz.
+
+ Wrapper, manifests and header.
+
+ Tests: custom body, placement, drag, zero allocations.
+
+Done when: the four branches are landed in ledger shape and deleted; each new widget has a custom-body test, a warm-allocation test, an a11y role/state test, a gallery entry and a bodies-page override; existing gallery goldens unchanged; Tier B green; independent review PASS.
+
+U2b · pxui: lists, tables, drop, reorder, theme gaps, bugs, site map pxui · ≈5 h · shape stop (with site map) · independent review
+
+U2b.1 Selection list and table (rest of G4). App-owned ListState and TableState (D25.3).
+
+ selection_list: sections, leading header, measured rows, ListResponse.secondary, per-row handle, cells get CellState (selected, enabled, focused), per-row enabled.
+
+ table_view → table with &[Column] (sortable, share weighted widths beside point widths + grips, id), &mut [u8] multi-selection (D11), CellState.
+
+ Standalone table_head with tri-state sort, usable as a section_list/selection_list header and sharing widths.
+
+ Selection semantics live in the widget: click, Meta-toggle, Shift-range, double-click activate, keyboard.
+
+U2b.2 Drop zones (G7). drop_target works on non-clickable nodes (dx3.22-wip idea, rewritten); States dropping look state; ListResponse.drop_at; insertion line drawn by the list row body.
+
+U2b.3 Reorder (G8). SectionList::reorder(true) / SelectionList::reorder(true); Part::HANDLE row part; ListResponse.moved; displacement animation; keyboard and a11y move actions; zero allocation while dragging. list/section_list now return ListResponse (D5).
+
+U2b.4 (reserved for gap steps raised during U3–U4).
+
+U2b.5 Top-anchored overlay. Check that Overlay can place a modal at a fraction of the surface height (the palette at 12%, N10). Add a placement builder if it can't.
+
+U2b.6 Picker fill contract. Check that rows filled from a worker's query result meet fill(query, rows) without per-frame allocation (#82). Document the contract.
+
+U2b.7 Value and theme gaps.
+
+ D19 token alpha; ColorToken::ACCENT (N11).
+
+ SearchField.variant + return key.
+
+ Button::icon_size; the icon stacks above the label with axis(Column) (verify, fix).
+
+ Look transitions fade fills between states (verify; add a Look transition if not, so hover washes need no app animation).
+
+ D18 icon in the Button/IconButton body configs.
+
+U2b.8 Recorded engine bugs.
+
+ state/set_state on a gone node's slot → ignored (previous-frame handle test).
+
+ Submenu placed beside the 180-pt sheet width, not the measured width (listed golden change).
+
+ Paint::text_spans origin contract ("at is the layout top; measure().baseline the first baseline below it"), with a 12-sample CoreText test.
+
+ Tokens::transition/moves honour motion.slow.
+
+ D15 Grid doc.
+
+ Tooltip text_at body path test.
+
+ layout_scaling, if U0.5 found a cause.
+
+U2b.9 Site map (delivered at the shape stop, file tools/dx/site_map.md). For each of the 50 drift rows, N1–N11, the composite rows and the 28 helpers, one row: file:line, target call with full arguments, style const name, body name and variant, a11y expectation, D9 diffs expected. Any row that can't be written exposes a gap now.
+
+U2b.10 Gallery, spec, bench. New widgets on gallery and bodies pages (only new goldens). api.md/pxui_surface.txt current. Release abi_bench, all pages, both modes (targeted run).
+
+Done when: gaps G1, G4–G10, G12, G14 closed (G2/G3/G13 landed in DX3.18; G11 deferred, D7). The site map is approved with no open gap. abi_bench limits hold. Tier B green. Buildtime within allowance (or reported engine growth with a reason). Independent review PASS.
+
+U3 · LocalWave: looks, literals, keys LocalWave · ≈3 h · pattern stop
+
+No visible change. Fingerprints must be identical; any diff is a bug. Bodies are not added here (each arrives with its first call site in U4).
+
+U3.1 Looks are consts.
+
+ kit::container(.., fill: Rgba) → &'static Look (looks.py).
+
+ theme::song_row_looks and the artists.rs hover Rgba{a:153,..} → consts with token alpha.
+
+ shell.rs:972 (a:240 of PAPER) → token alpha. shell.rs:957 (run-time dim, hard-coded rgb) stays dynamic: allowlisted with its reason, or a token + run-time alpha if pxui allows.
+
+ detail::line (16 callers), compact::line (10), settings::paragraph (7), artists::label, songs::label, find::background → const Labels + ui.label. Helpers that become one call are deleted. paragraph stays only if its modal-placement reason holds, then taking a const Label. The unused flags parameter of detail::line goes.
+
+ clock.rs:63/86 (matrix_digits/matrix_clock taking color: Rgba) take a ColorToken.
+
+ settings::notice → ColorToken::ACCENT.
+
+ Runtime Button::DEFAULT… at compact.rs:458, compact/list.rs:354, find.rs:63, queue_sheet.rs:19, onboarding.rs:55 → consts.
+
+U3.2 Literal codemod. literals.py over crates/lw_ui: ≈200 literals (files.rs 42, compact/list.rs 22, compact.rs 20, queue_sheet.rs 18, header.rs 14, settings.rs 12, commands.rs 12, detail.rs 9, sidebar.rs 8, transport.rs 7, onboarding.rs 6, songs/row.rs 5, now.rs 4, artists.rs 4, shell.rs 4, songs/mod.rs 3, kit.rs 3, byline.rs 2, metadata/lists/find/albums 1 each, theme.rs States{} 1). Hoist to consts where possible.
+
+U3.3 Keys. Text-derived keys become ids:
+
+ settings.rs:193 section keys → static ids.
+
+ artists.rs:122-124 heading keys and files.rs:458/485-512 cell keys → column ids.
+
+ header.rs:316 chip → token index.
+
+ files.rs:544 → "back".
+
+ compact/list.rs:452 letters disappear with the section index (U4b.2).
+
+ ArtworkReady::key (lw_bin/src/library/artwork.rs:37) is renamed to artwork_id.
+
+Done when: api_conformance R1 (literals) and R6 (colours in build paths) are allowlisted only for listed dynamic cases; R4 (text keys) has nothing left except compact/list.rs:452; allowlist shrunk; fingerprints identical in light and dark; Tier B green.
+
+U4a · LocalWave: desktop shell LocalWave · ≈4–5 h · pattern stop
+
+Per site, following the approved site map:
+
+Register the needed localwave-* body the first time a step uses it: a test proving the body's structure is used, selected by a theme line or variant, registered from one register_bodies(ui) in theme.rs that replaces crates/lw_ui/src/commands.rs:18-21.
+
+Replace the site, or the helper's body, with the target call.
+
+Fingerprint before and after; list any D9 diffs.
+
+Inline one-call helpers by hand and delete them.
+
+Row numbers refer to the widget-reuse audit; line numbers are at fb16eaa.
+
+StepSites → target (bodies introduced)
+
+U4a.1 sidebar.rs#1 side_item (:26; pressable :44; callers :14, :114, :140) → selection_list + localwave-side-row; .secondary opens the list menu; the per-row handle is the song drop target. #2 (:47-49) → badge + localwave-badge. #3 add_row (:77) → button ROW. #4 Search (:98-106) → button(.., &SEARCH.accessory("⌘K")). #6 shortcuts (:169-180) → button + icon; localwave-button (ROW variant). #5 meter (:158-168) → progress + localwave-progress.
+
+U4a.2 header.rs, find.rs#7 desktop find (:65-84) → search_field + localwave-search DESKTOP. #9 chips (find_tokens :290; pressable :316) → checkbox + localwave-chip CHIP, keyed by token index. #83 find::button (:48; callers find.rs:107/114, files.rs:429/432/435) → button TOOL .icon().selected(kept).disabled(!e); the hand-animated washes are deleted.
+
+U4a.3 albums.rs, artists.rs#10 sort (:19-50) → segmented + localwave-segmented SORT. #11 shuffle all (:52-63) → button KEY + icon + .disabled(..). Artists hover wash (#13) → the look's hover state + transition.
+
+U4a.4 transport.rs, now.rsN6 (:66, :75, :100) → IconButton.selected(on) + localwave-icon; look swap deleted. N7 favourite (now.rs:175) → .selected(on). #49 up-next drop (:242) → drop_target on a plain node + dropping look. #50 seek stays scrub (D10).
+
+U4a.5 queue_sheet.rs#51 queue_action (:11; 5 callers) → button QUEUE. #52 sheet root (:122/317) → modal Presentation::Bottom + dismiss drag; hand-set Dialog/MODAL roles deleted. #53 titles (:142-162) → button(.., &TITLES.detail(from)), with from prepared in the snapshot (no per-frame join). #55 clear (:286-299) → button. #56/#57 rows + grip (:460/540, :461) → reorderable list + drop_at. Then the queue targeted run.
+
+U4a.6 songs/mod.rs, songs/row.rsThe songs list becomes selection_list (multi, sections, measured rows) with table_head + localwave-heading as its header, sharing widths. #14 headings (heading :169; pressable :223; hand a11y :240-256) → tri-state table_head. #15 app selection logic (row.rs:449-458) → widget selection; intents stay app-side. #16 actions (row.rs:370-387) → icon_button More. #17 grip (:427) → reorder. #18 drop line (:194) → drop_at. Then the songs targeted run.
+
+U4a.7 settings.rs#62 back (:13; callers :179, :198, :199, :264) → button LINK. #63 option (:108; callers :226, :240) → segmented CHIPS (salvage dx4.6a-chips-wip), .secondary for the context menu. #66 rescan (:245-261) → button(.., &ROW.detail(..).accessory(..)).
+
+U4a.8 onboarding.rs#59 underlined (:54; callers :114, :118) → LINK. #60 choose folder (:103-109) → button PRIMARY. #61 Drive box (:129; pressable :146) → disclosure + localwave-disclosure.
+
+U4a.9 commands.rs, metadata.rs, lists.rs#82 palette (palette_view :211; arrows/enter :233-243, :260; result_row :317) → picker + localwave-palette (PickRow art + headings). N10 overlay (:167; callers :223, :451) → modal top-anchored (U2b.5). N9 metadata.rs:66/69, lists.rs:119/122 → dialog buttons or button.
+
+U4a.10 byline.rs#44 stays (D7); allowlisted.
+
+Pattern stop after U4a.1.
+
+Done when: every desktop row is on its widget per the site map; api_conformance R2/R7/R8 allowlists contain only composite and D7 rows for these files; helpers side_item, side_row, add_row, find::button, queue_action, settings::back, settings::option, underlined, result_row, commands::overlay are deleted; D9 diffs listed; both targeted runs green; Tier B green.
+
+U4b · LocalWave: compact, files, detail LocalWave · ≈4–5 h + CP1 · pattern stop
+
+StepSites → target (bodies introduced)
+
+U4b.1 compact.rs#19 mode_tab (:22; caller :216) → tabs + localwave-tabs MODE with counts. #21 tab bar (:298-325) → tabs TABBAR; None while Settings shows; N8 (:316) goes with it. #20 gear (:157-170) → icon_button. N1 mode_key (:450; callers :604, :618, :636) → button KEY .icon().selected(active); Queue's "N up next" uses accessory or detail. #25 expanded player root (:524/700) → modal Presentation::Full + dismiss drag.
+
+U4b.2 compact/list.rs#28 mark (:778; callers list.rs:154, files.rs:684) → passive checkbox MARK, or the selection_list row body. #29 grip (:334) → reorder. #30 swipe_action (:352) → button. #31 more_button (:365; callers :212, :728) → icon_button. #33 rail (:426; letters :452) → section_index + localwave-index. #37 word (:766; callers header.rs:212, compact.rs:225, list.rs:723/743/750) → button WORD. #38 deck (:793; callers :838, files.rs:729) → button DECK .icon().disabled(..), with Remove .danger(). N2 back_row (:614) → KEY + Back icon. N3 offline_key (:686; callers list.rs:674, detail.rs:322) → KEY .selected(kept). N4 key (:918; 7 callers) → KEY + icon. #39 link caller (:877) → LINK.
+
+U4b.3 detail.rs#39 link (:124; caller :255) → button LINK with Button.label(Label). #42 folder link (:280-292) → LINK underline. N5/#41 back_row (:68) → KEY + Back icon.
+
+U4b.4 files.rs#67 button/sized_button/button_node/button_face/action (:98-146; callers :10, :254, :361, :365, :402, :412, :505, :589, :795) → button with theme looks; helpers deleted (sheet_body :140 is a registered body and stays). #69 link (:159) → LINK. #70 add music (:274-284) → icon_button with a new app Icon::Add. #71 source_card (:325) → pressable(Key::Id(folder.id)) (composite). #72 meters (:317-319, :372-374) → progress. #73 desktop table (:448-516) → table + table_head (weighted widths; plain files disabled per row); cell (:174) deleted. #74 Back (:544-554) → KEY + icon. #75 Select (:560-565) → WORD. #76 more (:571-578, :688-695, :698-705) → icon_button. #77 52 pt keys (:599-611) → icon_button.selected(kept). #78 filters (:619-644) → tabs FILTER with counts. #79 show (:655-660) → LINK. #80 compact rows (:664-718) → pressable(Key::Id(entry.id)); select mode → selection_list multi. #81 add-music choices (:781-793) → dialog with DialogButton::detail.
+
+U4b.5 Lock-inapi_conformance allowlist at its final size: only composite pressables, D7 and listed dynamic colours. The orchestrator re-runs the widget-reuse audit table and it shows zero "b".
+
+U4b.6 CP1Tier C (orchestrator) + iOS probes. Any regression → stop and bisect U1a–U4b.
+
+Pattern stop after U4b.1.
+
+Done when: all 50 drift rows and N1–N11 are closed or allowlisted with D7/composite reasons; the 28 helpers are gone or justified in one line each; CP1 green (performance, abi_bench, ios-build, ios-run smoke, simulator probes, buildtime).
+
+U5a / U5b · ABI 2.0 cut pxui + LocalWave packaging · two packages · ≈3 h each + CP2
+
+Two packages, each with its own implementer and independent review.
+
+U5a, records and events: U5.1, U5.2, U5.4, U5.5, U5.6, with a shape stop on the record layouts.
+
+U5b, drops, names and re-baseline: U5.3, U5.7–U5.11, then CP2 (U5.12).
+
+Sources: abi2_cut.md; os_audit.md C1.1–C1.6, "2.0 cut items → Exports to drop" and the re-baseline steps (:252-263, :347-364); proposal "Stable ABI".
+
+U5.1 Events and surfaces (OS-1, 32–34).
+
+ Event: size-prefixed, per-event surface id, one kind per event (twin kinds removed).
+
+ Event text borrowed for the frame call only, documented and enforced (fixes the dangling FrameIn.events pointers).
+
+ Surfaces are registered on a Ui; an unknown surface → PXUI_ERR_ARGUMENT.
+
+ The header states focus, a11y, IME and keyboard are per surface.
+
+U5.2 Frames and handles. FrameIn surface id. One C frame entry (pxui_ui_frame twin removed). Handle/PxuiBox carries the Ui serial and every export validates it.
+
+U5.3 Drop legacy exports (abi_drop.py; the union of both lists).
+
+ From abi2_cut.md:
+
+  pxui_label, pxui_ui_label, pxui_ui_button_response, pxui_ui_tooltip, pxui_ui_inspector_section_view, pxui_ui_inspector_toggle_value, pxui_ui_animate_keys_repeat;
+
+  the context_menu has_selected/selected/lead_from fields;
+
+  pxui_text_field_with_options, pxui_col, pxui_scope;
+
+  text inputs pxui_text_field, pxui_ui_search_field, pxui_ui_line_field, pxui_ui_value_field, pxui_ui_text_area* (superseded forms);
+
+  F1 pxui_ui_checkbox/_radio/_tabs/_dropdown/_slider, plus the label-keyed progress/spinner/badge/popup/modal/anchored/section_list/tree/table_view/scroll_view/toasts/picker exports;
+
+  segmented pxui_ui_segmented, _plain, _response, choice kind 2;
+
+  pxui_paint_image.
+
+ From os_audit.md:
+
+  survivor merges for create/button/icon_button/toggle/dialog (the survivor takes the plain name);
+
+  the list_view/tree/table_view text-callback forms and pxui_ui_table;
+
+  pxui_ui_text/_text_spans/_text_top and the measurement exports with their key parameter;
+
+  the pxui_paint_text* family; pxui_ui_key_pressed, pxui_ui_hovered*, pxui_ui_set_theme;
+
+  pxui_ui_variant (OS-42: variant becomes a field of each desc);
+
+  prefix renames of pxui_panel, within, part, part_box, slot.
+
+ From this plan: choice_keyed kind 1 (U2a.2), pxui_ui_checkbox_keyed (U2a.3), pxui_verify_new_views (D22), pxui_theme_load (OS-28), anything U1–U2 marked "cut at 2.0".
+
+U5.4 Sizes (OS-36). Size prefix on PxuiEvent, Touch, A11yNode/Action/Tree, TextInputOptions, AnchorDesc, Look, Tokens/ThemeSnapshot/States, PxuiBodies, CurveDesc, TextMetrics, LayerInfo, StateDesc, Environment and Keyboard. Arrays cross as {ptr, len, stride}. Old-size reads are removed:
+
+ button 96/104 and icon button 96;
+
+ toggle/segmented/menu-extra pre-growth sizes (OS5);
+
+ FrameIn 152;
+
+ PxuiNode pre-1.39 sizes 488/600;
+
+ the grown-at-end Pxui*Config tails (Label 56→144, Button →232 …; bodies may assume the full record);
+
+ TextStyle's legacy measure/quads/raster/canvas prefix reads (pxui_abi text.rs:1-6);
+
+ PxuiListViewWithDesc 64, PxuiTableViewWithDesc 96, PxuiSectionListDesc/PxuiMeasuredSectionDesc 64.
+
+  The DX7.4 minimum-size rule is kept for growth after 2.0, with a test.
+
+U5.5 Record changes (DX7.7). ThemeSnapshot's growing part goes last. A11yTree.node_stride. TextSpans fixed 8 → slice (TextSpans::new no longer returns Option). Enum values range-checked on input.
+
+U5.6 Encodings (OS-41).
+
+ D19 token alpha final (the 0x4B rule removed).
+
+ Placement.align/AnchorDesc.align 3/4 refused; legacy_anchor_align deleted.
+
+ Flag bit sharing LIGHT=TOP, INNER=AREA resolved.
+
+ An explicit is_dark instead of the panel colour sum.
+
+ SIZE_MAX "none", the text key 0 parameter, "0 = theme default" vs SET bits and repaint_at = INFINITY each get one documented, tested rule.
+
+U5.7 C vocabulary and menu rows. PxuiBodies/BodyKind/Pxui*Config names follow DX1.12G (menu_row, selection_list, table_row, table_cell, tabs, segmented, toasts, tooltip) with _Static_asserts. PxuiMenuExtra parallel columns → one per-row record.
+
+U5.8 Features. PXUI_FEATURE_* reset to the 2.0 baseline; pxui_supports; no version-named features.
+
+U5.9 OS remainder. Error model and diagnostics export, with pxui_counter moving to the extension manifest (D3; OS-10/39/40). D16 in the header (OS-27). Font list at create (OS-46). Thread/lifetime contract in the header (OS-47–50). ORPHANS per renderer (OS-12). No "LocalWave" in the header or docs/abi.md (OS-45). C halves of OS-2, 3, 5, 8, 9. OS-6 deferred (D24).
+
+U5.10 Extension set. pxui.ext.txt holds the Rays set and diagnostics, no stability promise; extension body kinds documented (OS-43).
+
+U5.11 Re-baseline. Major 2:
+
+ ABI_VERSION, library name libpxui.2, Mach-O compatibility/current versions and ELF soname (DX7.10).
+
+ Every consumer of the name updated: Makefile:17, packaging/bundle-macos.sh, tools/check-macos-bundle.sh, packaging/test_ios.py, tools/reference-goldens.sh, pxui tools/t/src/main.rs:287.
+
+ Version check at create (pxui_abi ui.rs:76): the minor is checked and abi_built == 0 is rejected, with a test that a newer app is refused cleanly.
+
+ Manifests rewritten as the 2.0 baseline; fixtures/abi/2.0/. The 1.x old-app fixtures are replaced by a test that a 1.x app is refused cleanly at create.
+
+ docs/abi.md history collapsed to one 2.0 row.
+
+U5.12 CP2. Tier C (orchestrator): make performance, release abi_bench, make bundle + tools/check-macos-bundle.sh, make ios-build, buildtime. The perf table is replaced.
+
+Done when: every abi2_cut.md bullet and OS finding assigned here is done or written as a decision; every export is validated and fuzzed; gates abi-header/snapshot/frozen/compat/exports are green on the 2.0 baseline; LocalWave runs on libpxui.2 (bounded suite, bundle check, fingerprints identical); CP2 green; independent review PASS.
+
+U6 · Docs, sweep, freeze pxui + LocalWave · ≈4 h
+
+U6.1 Docs gate. Fix the blind spots: same-line attribute fns, and the column-0 #[cfg(test)] stop (skip only the test module's braces). Add checks for types, fields, consts, variants and //! module docs.
+
+U6.2 Literal sweep (Batch H). literals.py over /// examples, tests, pxui_gallery and abi_bench (≈946). pxui::doc hidden. Stale vocabulary removed: "context_menu body" (author/menu.rs:11), deleted calls.
+
+U6.3 Docs (Batch J). Every public item: a one-sentence summary. Functions also get Allocates:, Panics:, Identity: (key/label params) and a runnable example. Fields, variants and consts get one line (D8: ffi_docs.py). Every public module gets a //!. Fix the finding-76 mismatches, the image eviction wording vs docs/abi.md (OS-11) and the Images::configure wording. Remove "LocalWave" from pxui docs (author/toggle.rs ×2, author/icon_button.rs; OS-45). Refresh the guide prose (crates/public/pxui/src/guide/SKILL.md), pxui README and specification/pxui.md.
+
+U6.4 #![deny(missing_docs)] in pxui and pxui_types; docs-allowlist.tsv deleted.
+
+U6.5 Records lint (DX7.9). A gate check: no struct literal of a pxui style/record type outside pxui_types in pxui crates and tools. LocalWave is already covered by api_conformance.
+
+U6.6 Ledger check. surface.py --ledger pxui/docs/api.md passes both ways; names in api_spec.md and the reference artifact agree (differences listed).
+
+U6.7 Freeze (DX7.12). Tier B + buildtime + release abi_bench, both modes. Runtime code must be unchanged since CP2. tools/dx/runtime_diff.py strips ///, //!, #[cfg(test)] module bodies and the tests/, tools/ and docs/ trees from both sides, and requires an empty diff. CP2's make performance numbers then stand (owner-approved exception to the PERF rule). Tag pxui v2.0.0 on rust-port (orchestrator).
+
+U6.8 Close-out. All U rows done. Remaining dx*/lw-*/u* branches deleted (other branches untouched). docs/dx-checkpoint/ cut down to what is still referenced.
+
+Done when: deny(missing_docs) builds; the doc runner is green in both link modes; zero pxui-type literals in pxui examples, tests and tools; the ledger ⇔ surface check is green; the tag is pushed.
+
+11. Traceability: nothing is lost
+
+CHECKPOINT.md §5 and follow-ups
+
+ItemDestination
+
+Land in-flight workdx1.12i U1a; 3.22a U2a.1; 3.19 U2a.2; 3.20 U2a.3; 3.21 U2a.4; 3.22-wip U2b.2; 4.6a U4a.7; 4.11 dropped U0.4
+
+Gap rows, DX3.22b/c, DX1.12KU2b.1–U2b.3, U1c.1
+
+Batches H, JU6.2, U6.3
+
+LocalWave migration, 4.6a chipsU4a, U4b
+
+Docs DX6.12–6.25, deny(missing_docs)U6.3, U6.4
+
+2.0 cut; DX7.7/7.9/7.10/7.12U5; U5.5, U6.5, U5.11, U6.7
+
+Checkpoints; popup-layer draw callCP0 (U0.7, incl. draw call), CP1, CP2
+
+Clock/drop overlay by baselineU1b.3
+
+Grid 'static · submenu bug · flaky tests · detail::line flagsD15/U2b.8 · U2b.8 · U0.5 · U3.1
+
+G14; ≈128 ui.color; 2 R2 Look literalsD19/U2b.7; U3.1; U3.2
+
+dx1.12i decisions; follow-ups (gone slot, String errors, dangling events, PxuiBox identity)D1–D3; U2b.8, U1a.3, U5.1, U5.2
+
+DX3.19 legacy exports; DX3.20 inspector_sectionU5.3; U2a.3
+
+DX1.12B leftovers (integer text sizes, ArtworkReady::key)U1b.3, U3.3
+
+DX3.18 G11; body can't draw app IconD7; D18/U2b.7
+
+DX1.12G tooltip text_at; layout_scalingU2b.8; U0.5
+
+DX1.12D spec textU1c.4
+
+ABI numbering collisionD17
+
+DX1.12 audit (A–G landed; open items)
+
+FindingDestination
+
+3, 33 builder vocabularyU1b.5 (D21)
+
+A-4/A-5 measurement shapesU1b.3 (D20 keeps the worker path)
+
+C-26 set_role statesU1b.4
+
+35 Signal vs ResponseD21 (documented layers)
+
+E-44 free helpersU1a.1
+
+F-50 menu_barU1b.1
+
+F-56 view settersU1b.4
+
+61 literals and buildersU1b.5, U3.2, U6.2
+
+62 testing/docD2, U6.2
+
+63 stale vocabularyU6.2
+
+64 namespacesU1a.1
+
+65 theme twinsU1a.2
+
+66 errorsU1a.3
+
+67 a11y dead boxU1a.3
+
+68 frame entriesU1a.3, U5.2
+
+69 C record builders, Layer, counterU1a.3, U1b.5, D3
+
+70 raw key codesU1a.4
+
+71 enter/leaveU1a.3
+
+72–75 docsU6.3
+
+76 doc/behaviour mismatchesU2b.8, U6.3
+
+77 Key typesU1b.2
+
+78 result idiomsU1b.1
+
+79 unitsU1b.3
+
+80 text identitiesU1b.1, U1b.2, U1c.3
+
+81 body testsU1c.3, U2a, U2b
+
+Batch KU1c.1
+
+OS audit (remaining)
+
+FindingDestination
+
+1U5.1, U5.2
+
+2, 3, 5, 8, 9 C halvesU5.9
+
+6 device per windowD24 (deferred)
+
+10, 39, 40 counters, diagnostics, error modelD3, U5.9
+
+11 eviction wordingU6.3
+
+12 ORPHANSU1c.2, U5.9
+
+13 pools docU1c.2
+
+27 handlesD16
+
+28 theme_loadU5.3
+
+32–35 events, frame entries, supportsU5.1, U5.2, U5.8
+
+36 size prefixesU5.4
+
+37–38 legacy exports, extension setU5.3, U5.10
+
+41 sentinelsU5.6
+
+42 pxui_ui_variantU5.3
+
+43 kit_ext outU1c.3, U5.10
+
+45 LocalWave namedU5.9, U6.3
+
+46 font listU5.9
+
+47–50 thread/lifetime contractU5.9
+
+DX3.13a OS4/OS5U1c.2, U5.4
+
+3, 4, 7, 14–26, 29–31, 44, 51 and the host halves of 2/3landed (OS-B1 b1a43104, B2a c03699f3, B2b 5d11b7e1, B3 84752ba3, B4 93c7d200)
+
+abi2_cut.md and dx1.12_notes.md
+
+BulletDestination
+
+Legacy exports (all groups)U5.3
+
+Old-size readsU5.4
+
+Event recordU5.1
+
+Token sentinelD19, U5.6
+
+Manifests/fixtures/abi.mdU5.11
+
+Menu per-row recordU5.7
+
+Feature baselineU5.8
+
+Worker handle exceptionD16
+
+Rays set outD6
+
+Align 3/4U5.6
+
+pxui_paint_imageU5.3
+
+Body vocabulary C namesU5.7
+
+DialogButton lifetime; unsound body accessors; Pressable borrowed looks; doctest split; text_field twinlanded (Checkbox follows in U2a.3; TextInputOptions u32 codes checked in U1a)
+
+DX4.2–4.4 trial noteslanded DX3.10/DX4.15; re-verified by U4 fingerprints
+
+DX6 doc bugslanded except a11y dead box U1a.3, Tokens.slow U2b.8, Placement.align and flags U5.6, Images::configure wording U6.3
+
+text_spans baselineU2b.8
+
+Doctests never ranTier B --doc
+
+Docs gate missesU6.1
+
+list vs list_viewD5
+
+SubmenuU2b.8
+
+Clock/drop overlayU1b.3
+
+MENU_COLUMNSU1c.2
+
+Flaky prewarmedU0.5
+
+Grid 'staticD15
+
+DX3.19 focus on pressU2a.2
+
+DX1.12KU1c.1
+
+Widget-reuse audit: 85 rows, N1–N11, gaps
+Drift rows:
+
+U4a.1: #1–6.
+
+U4a.2: #7, 8 (compact variant), 9, 83.
+
+U4a.3: #10, 11.
+
+U4a.5: #51, 53, 55.
+
+U4a.6: #14–16.
+
+U4a.7: #62, 63, 66.
+
+U4a.8: #59–61.
+
+U4a.9: #82.
+
+U4b.1: #19–21.
+
+U4b.2: #28, 30, 31, 37, 38, 39.
+
+U4b.3: #39, 42.
+
+U4b.4: #67, 69–81.
+
+#44: D7.
+
+Correct rows that change:
+
+U4a.3: #13.
+
+U4a.4: #46 (N7), 48 (N6), 49, 50.
+
+U4a.5: #52, 56, 57.
+
+U4a.6: #17, 18.
+
+U4b.1: #24 (N1), 25.
+
+U4b.2: #29, 33, 35, 36, 40 (N2–N4).
+
+U4b.3: #41 (N5).
+
+Correct rows that stay: #12, 22, 23, 26, 27, 32, 34, 43, 45, 47, 54, 58, 64, 65, 68, 84, 85 (allowlisted where they use pressable).
+
+New sites:
+
+U4a.4: N6, N7.
+
+U4a.9: N9, N10.
+
+U4b.1: N1, N8.
+
+U4b.2: N2–N4.
+
+U4b.3: N5.
+
+U3.1: N11.
+
+Gaps:
+
+Landed in DX3.18: G2, G3, G13.
+
+U2a: G1 (U2a.2), G5, G9, G10 (U2a.3), G6, G12 (U2a.4).
+
+U2b: G4 (with U2a.1), G7, G8, G14; also SearchField variant, Button icon size, Column icon, look transitions, accent token.
+
+U1b.5: Edges, Font tracking and State builders.
+
+Top-anchored overlay (U2b.5) and picker fill (U2b.6).
+
+G11: deferred (D7).
+
+Related: shadow theme (landed DX4.15), Look literals U3.2, text keys U3.3.
+
+Proposal (mr55jcx8k90t) commitments
+Landed: authoring layer, gate rule, tripwire, label_fmt/digits, view_of, testing harness, DX7.4–7.6, 7.8, 7.11.
+
+Open → here:
+
+U5.5: DX7.7 records (ThemeSnapshot, a11y stride, span slice, enum checks).
+
+U5.11: minor version check at create.
+
+D22: verify_views in debug.
+
+U5.11: Mach-O versions (DX7.10).
+
+U6.5: records lint (DX7.9).
+
+U6.7: freeze (DX7.12).
+
+U1c.3: Rays vocabulary out.
+
+Fling shaping exception: unchanged (§3).
+
+Status rows superseded
+
+DX1.12 → U1a–U1c, U6.
+
+DX6.12, 6.13, 6.14, 6.16, 6.20–6.24 → U6.3.
+
+DX6.25 → U6.4.
+
+DX7.7 → U5.5.
+
+DX7.9 → U6.5.
+
+DX7.10 → U5.11.
+
+DX7.12 → U6.7.
+
+Branch-only rows: DX3.19–3.22 → U2a/U2b; DX4.6a → U4a.7; DX4.11-interim → U0.4.
+
+12. Implementer brief template
+
+You are the implementer for package U<N> of the pxui Unification Plan.
+Plan: <artifact URL>. Read sections 3–9 and your package section in full,
+plus AGENTS.md, pxui/AGENTS.md, docs/dx-checkpoint/api_spec.md, os_criteria.md,
+tools/dx/site_map.md (LocalWave packages), the previous package's report,
+and every file and caller your steps name before changing them.
+
+Work in /Users/snowbear/WORK/GIT/localwave and its pxui/ checkout on branch u<N>
+(both repos, from rust-port). One step = one commit per repo, subject
+"[U<N>.<k>] …"; LocalWave commits carry the pxui pointer; every commit builds.
+Never push, amend after a stop, stash, rustfmt pxui/pxui_types, edit status rows,
+or hand-edit ABI manifests.
+
+Scope = your steps. Other findings go to Found. If the ledger cannot express a
+design: stop with "GAP: file:line — what is missing". If a check fails twice for
+the same cause: stop with "BLOCKED: <one sentence>". Never raise a deadline,
+extend warm-up, drop input, loosen a budget or limit, add a dependency, add a
+twin/shim/alias/compat layer, or add public API outside the ledger.
+
+Wide mechanical edits: a codemod in tools/dx/codemods/ (stdlib Python or
+rust-analyzer ssr), over pxui and LocalWave, committed with its step.
+
+Per commit: Tier A. At the end: Tier B (LocalWave with LOCALWAVE_OFFLINE=1),
+tools/dx/buildtime.sh, surface.py --check, api_conformance, and the §13
+checklist on your own diff. After a review, fixes are new "[U<N>.<k> fix]" commits.
+
+Stops: <shape stop: uncommitted diff saved to scratch | pattern stop: first area
+committed>, then final. At each stop end your turn with:
+  Stop: shape | pattern | final
+  Commits: <repo> <hash> <subject>
+  Done-when evidence: one line per item (test names, numbers)
+  Commands run: command → pass/fail
+  Surface delta (pxui) / api_conformance allowlist delta (LocalWave)
+  Fingerprint diffs (D9): site → diff → reason
+  Build time: before → after (each buildtime.sh number)
+  Codemods: path, sites changed, sites skipped
+  Found: file:line — one sentence each
+  Open questions: none, or one line each
+
+13. Orchestrator review checklist
+
+Plan fidelity. Every step done or reported blocked; nothing outside the steps; Found list present; no "deferred" the plan does not allow.
+
+Ledger. The surface delta matches exactly the ledger rows for this package. No twin, _with/_opts/_keyed form, alias, shim or re-export of an old name. No runtime data moved into a style value.
+
+Shape. Copy styles, DEFAULT, const builders, borrowed looks; key first; Response or one result struct; f32 sizes, Point positions; error policy.
+
+Bodies. Each widget built through its body; custom-body test per touched widget; gallery and bodies pages.
+
+Allocations. Counting-allocator test for every new or changed per-frame path; no Vec, String, format, collect, sort, string hash or boxed closure per frame.
+
+Build speed. Gate shape green, no new allowlist rows; no generic body; no inline(always) behind a shim; #[inline] only with an abi_bench reason; buildtime within allowance.
+
+OS. No new global mutable state; C inputs validated and fuzzed; caches bounded; no app policy in pxui.
+
+LocalWave. api_conformance allowlist shrank to the package target. No ui.color, literal or text key introduced. Looks are theme consts; structure is a registered body with a test. Helpers deleted. D9 diffs listed and acceptable; gcmp shows no lost names or actions.
+
+Tests. Tier A per commit, Tier B at the end, outputs shown; no assertion, deadline, budget or manifest weakened (diff of tests reviewed).
+
+Docs. New public items documented per pxui/AGENTS.md; ledger and api_spec.md updated.
+
+Commits. One step per commit; ids in subjects; every commit builds; pointers match pxui commits on u<N>; fixes are fix commits.
+
+14. Risks
+
+RiskMitigation
+
+Songs list on selection_list + table_head costs frame time at 10k rowsTargeted run right after U4a.6; stop on any regression.
+
+A package outgrows one implementer contextPackages are split (U1a–c, U2a–b, U4a–b); a long package reports at a step boundary and continues with the same agent or a fresh one briefed with the report.
+
+Gaps surface during migrationSite map at the U2b shape stop; gap protocol for anything left.
+
+Fingerprint noise from correct widget behaviourD9 list; gcmp fails on lost names/actions.
+
+Codemods miss multi-line or unusual sitesScripts report skipped sites; the compiler and api_conformance find the rest.
+
+CP0 shows a regression from the last 160 commitsU0.8 bisects and fixes before U1 (hard gates only).
+
+The 2.0 cut breaks RaysOutside this plan; Rays' exports stay in the extension manifest; Rays moves after the freeze (D6).
+
+rustdoc JSON format changesToolchain pinned by rust-toolchain.toml; surface.py asserts the format version.
+
+Decisions overridden lateAll fixed before U1; a later change is its own step after U6.
+

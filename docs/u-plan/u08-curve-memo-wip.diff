@@ -1,0 +1,97 @@
+diff --git a/crates/private/pxui_core/src/ui_core.rs b/crates/private/pxui_core/src/ui_core.rs
+index 553eefa9..60720e0e 100644
+--- a/crates/private/pxui_core/src/ui_core.rs
++++ b/crates/private/pxui_core/src/ui_core.rs
+@@ -1233,6 +1233,9 @@ pub struct Ui {
+     /// sizes a build read before layout (slot, width, height; NaN: not read): layout disagreeing
+     /// settles the frame
+     expected: std::cell::Cell<Vec<(usize, f32, f32)>>,
++    /// the last `Curve::at` a pose read (curve, seconds, progress): the tweens one change starts share
++    /// their curve and start, so one bisection serves them all
++    curve_memo: std::cell::Cell<(Curve, f32, f32)>,
+     /// `grow_line`'s pass stamp (`BoxRec::frozen`)
+     grow_pass: u32,
+     /// the text atlas's retirements and misses seen
+@@ -1465,6 +1468,7 @@ impl Ui {
+             list_heights: HashMap::new(),
+             list_rows: Vec::new(),
+             expected: std::cell::Cell::new(Vec::new()),
++            curve_memo: std::cell::Cell::new((Curve::Spring { omega: f32::NAN }, 0.0, 0.0)), // NaN never matches
+             a11y_copied: false,
+             grid_rows: std::cell::Cell::new(Vec::new()),
+             shifts: 0,
+@@ -6739,14 +6743,14 @@ impl Ui {
+                 let t = &self.tweens[i];
+                 let elapsed = at - t.start;
+                 let (from, to, p) = match self.keyframes.get(t.keys as usize) {
+-                    None => (&t.from, &t.to, t.curve.at(elapsed as f32)),
++                    None => (&t.from, &t.to, self.curve_at(&t.curve, elapsed as f32)),
+                     Some(k) => {
+                         let elapsed = k.time(elapsed);
+                         // the segment the run is in: from the stop before (the start for the first)
+                         let j = k.t[..k.n].iter().position(|&end| elapsed < end).unwrap_or(k.n - 1);
+                         let (from, t0) = if j == 0 { (&t.from, 0.0) } else { (&k.pose[j - 1], k.t[j - 1]) };
+                         let curve = k.curve[j].with_duration(k.t[j] - t0);
+-                        (from, &k.pose[j], curve.at(elapsed - t0))
++                        (from, &k.pose[j], self.curve_at(&curve, elapsed - t0))
+                     }
+                 };
+                 let f = |a: f32, b: f32| a + (b - a) * p;
+@@ -6756,6 +6760,17 @@ impl Ui {
+         }
+     }
+ 
++    /// `curve.at(t)`, memoised for the next pose at the same point of the same curve.
++    fn curve_at(&self, curve: &Curve, t: f32) -> f32 {
++        let (last, at, p) = self.curve_memo.get();
++        if at.to_bits() == t.to_bits() && last == *curve {
++            return p;
++        }
++        let p = curve.at(t);
++        self.curve_memo.set((*curve, t, p));
++        p
++    }
++
+     fn start_tween(&mut self, slot: usize, curve: Curve, from: Pose, to: Pose) {
+         let v = self.slots[slot].view;
+         let view_only = v != NO_VIEW && self.views[v as usize].index != 0 && from.look == to.look;
+@@ -6793,28 +6808,31 @@ impl Ui {
+         let damage = self.damage;
+         let mut i = 0;
+         while i < self.tweens.len() {
+-            let t = self.tweens[i];
+-            let s = &self.slots[t.slot];
++            // the fields it reads, not the whole tween (two poses and a curve) per tween per frame
++            let t = &self.tweens[i];
++            let (slot, view_only) = (t.slot, t.view_only);
++            let s = &self.slots[slot];
+             if s.key == 0 || s.generation != t.generation || s.tween != i as u32 {
+                 self.drop_tween(i);
+                 continue;
+             }
+             let done = self.keyframes.get(t.keys as usize).map_or_else(|| t.curve.finished((self.now - t.start) as f32), |k| k.finished(self.now - t.start));
+             if done {
+-                let s = &mut self.slots[t.slot];
+-                (s.node.look, s.pose) = (t.to.look, (t.to.dx, t.to.dy, t.to.opacity));
+-                if s.view != NO_VIEW { self.views[s.view as usize].scale_pose = [t.to.scale[0], t.to.scale[1], t.to.anchor[0], t.to.anchor[1]]; }
++                let to = &self.tweens[i].to;
++                let s = &mut self.slots[slot];
++                (s.node.look, s.pose) = (to.look, (to.dx, to.dy, to.opacity));
++                if s.view != NO_VIEW { self.views[s.view as usize].scale_pose = [to.scale[0], to.scale[1], to.anchor[0], to.anchor[1]]; }
+                 self.drop_tween(i);
+             } else {
+                 i += 1;
+             }
+             // a node of a view verified this frame was painted as of the kept build (`verify_time`):
+             // it shows now what a fresh paint would, which is no patch for the next check to skip
+-            let owner = self.slots[t.slot].owner as usize;
++            let owner = self.slots[slot].owner as usize;
+             let verified = owner != 0 && self.views[owner].verify && self.views[owner].built == self.frame_number;
+-            if !t.view_only && (done || verified || self.slots[t.slot].painted != self.frame_number) {
++            if !view_only && (done || verified || self.slots[slot].painted != self.frame_number) {
+                 let patched = self.views[owner].patched;
+-                self.repaint_node(t.slot);
++                self.repaint_node(slot);
+                 if verified {
+                     self.views[owner].patched = patched;
+                 }
