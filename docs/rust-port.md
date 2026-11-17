@@ -114,7 +114,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.5 | Menus to menu | todo |  |
 | DX4.6 | Settings switch and chips to toggle_with/segmented_with | todo |  |
 | DX4.7 | Confirmation sheets to dialog_with; field variant | todo |  |
-| DX4.7a | Field body picks the Find structure by variant (part of DX4.7) | done | HEAD |
+| DX4.7a | Field body picks the Find structure by variant (part of DX4.7) | done | 3181aa4 |
 | DX4.8 | Codemod A: Node literals to builders | done | 4091362 |
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
@@ -125,6 +125,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.4 | Engine prepare queue; fling exception ceiling | todo |  |
 | DX5.5 | Reusable layout storage for fresh shapes | todo |  |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | todo |  |
+| DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | HEAD + pxui 3cf7de3 |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
