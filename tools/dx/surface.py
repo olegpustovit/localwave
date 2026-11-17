@@ -6,8 +6,9 @@
   surface.py --ledger [pxui/docs/api.md] [--all]
                         diff the surface against the ledger's machine list (part 2), both directions; lines
                         whose step has not landed are skipped (a step has landed when a commit subject on
-                        HEAD of pxui or LocalWave starts with "[<step>"), --all compares every line.
-                        Writes tools/dx/ledger_delta.txt; exits 1 on any difference.
+                        HEAD of pxui or LocalWave starts with "[<step>"); exits 1 on any difference.
+                        --all compares the whole target (the planned HEAD -> ledger delta) and exits 1 only
+                        on untagged delta lines. Both write tools/dx/ledger_delta.txt.
 
 One line per item: `<path> <kind> <signature>`, sorted. Items reachable from each crate root through
 public modules and `pub use` re-exports, including macro-generated ones; inherent methods and associated
@@ -284,27 +285,44 @@ def landed(step):
     return False
 
 
-def ledger(api, everything):
+def ledger(api, surface, everything):
+    """Delta lines between the surface and the ledger's machine list, each with its step tag when it has one.
+
+    Target T = @HEAD lines, landed @U lines, and unlanded deletions (still expected). A surface line missing
+    from T is `- line`, tagged with the step of a ledger line of the same path (a pending or landed change);
+    with landed steps only, lines whose path has a pending step are skipped. A T line missing from the
+    surface is `+ line @step`. Untagged delta lines are what the ledger must still explain."""
     text = open(api).read()
-    start = text.index("<!-- surface -->")
-    body = text[start:].split("```")[1]
-    want, untagged, cache = set(), [], {}
+    body = text[text.index("<!-- surface -->"):].split("```")[1].split("\n", 1)[1]
+    target, pending, step_of, untagged, cache = set(), set(), {}, [], {}
     for raw in body.splitlines():
-        if not raw.strip() or raw.startswith("#"):
+        if not raw.strip():
             continue
         m = TAG.match(raw)
         if not m:
-            untagged.append(raw)
+            untagged.append(f"? untagged: {raw}")
             continue
         minus, line, step = m.groups()
+        p = line.split(" ", 1)[0]
         done = step == "HEAD" or everything or cache.setdefault(step, landed(step))
-        # HEAD lines and landed targets must exist; a landed deletion must be gone; an unlanded change keeps HEAD's line.
-        if minus:
+        if step != "HEAD":
+            step_of.setdefault(p, step)
             if not done:
-                want.add(line)
-        elif done:
-            want.add(line)
-    return want, untagged
+                pending.add(p)
+        if (minus and not done) or (not minus and done):
+            target.add((line, step))
+    lines = {l for l, _ in target}
+    have = set(surface.splitlines())
+    out = []
+    for l in sorted(have - lines):
+        p = l.split(" ", 1)[0]
+        if p in pending and not everything:
+            continue
+        out.append(f"- {l} @{step_of[p]}" if p in step_of else f"- {l} (untagged)")
+    for l, step in sorted(target):
+        if l not in have:
+            out.append(f"+ {l} @{step}" if step != "HEAD" else f"+ {l} (untagged: HEAD line missing)")
+    return out + untagged
 
 
 if __name__ == "__main__":
@@ -318,12 +336,13 @@ if __name__ == "__main__":
         print("surface ok:", surface.count("\n"), "items")
     elif "--ledger" in argv:
         rest = [a for a in argv if a not in ("--ledger", "--all")]
-        want, untagged = ledger(rest[0] if rest else os.path.join(PXUI, "docs", "api.md"), "--all" in argv)
-        have = set(surface.splitlines())
-        out = [f"- {l}" for l in sorted(want - have)] + [f"+ {l}" for l in sorted(have - want)] + [f"? untagged: {l}" for l in untagged]
+        everything = "--all" in argv
+        out = ledger(rest[0] if rest else os.path.join(PXUI, "docs", "api.md"), surface, everything)
         open(DELTA, "w").write("".join(l + "\n" for l in out))
-        print(f"ledger delta: {len(want - have)} ledger items missing from the surface, {len(have - want)} surface items missing from the ledger, {len(untagged)} untagged")
-        sys.exit(1 if out else 0)
+        bad = [l for l in out if "untagged" in l]
+        print(f"ledger delta: {len(out)} lines ({sum(l.startswith('-') for l in out)} -, {sum(l.startswith('+') for l in out)} +), {len(bad)} untagged; written to tools/dx/ledger_delta.txt")
+        # --all lists the planned delta: only untagged lines fail. Landed-only: any difference fails.
+        sys.exit(1 if (bad if everything else out) else 0)
     else:
         open(OUT, "w").write(surface)
         print("wrote", OUT, surface.count("\n"), "items")
