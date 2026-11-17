@@ -282,10 +282,7 @@ pub(super) fn queue_sheet(
                             if let Some(value) = ui.text_field_with_options(
                                 "Playlist name",
                                 state.playlist_name.as_str(),
-                                pxui::TextInputOptions {
-                                    action: pxui::TextInputOptions::DONE,
-                                    ..Default::default()
-                                },
+                                pxui::TextInputOptions::DEFAULT.action(pxui::TextInputOptions::DONE),
                             ) {
                                 *intent =
                                     Some(Query::new(value).map_or(

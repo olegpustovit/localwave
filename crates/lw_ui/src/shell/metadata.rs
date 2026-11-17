@@ -49,10 +49,7 @@ pub(super) fn editor(
                         if let Some(value) = ui.text_field_with_options(
                             label,
                             current.as_str(),
-                            pxui::TextInputOptions {
-                                action: pxui::TextInputOptions::DONE,
-                                ..Default::default()
-                            },
+                            pxui::TextInputOptions::DEFAULT.action(pxui::TextInputOptions::DONE),
                         ) {
                             *intent =
                                 Some(Query::new(value).map_or(Intent::MetadataTooLong, |q| {

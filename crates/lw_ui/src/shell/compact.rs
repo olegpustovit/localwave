@@ -1824,10 +1824,7 @@ mod tests {
                 if step == 0 {
                     assert_eq!(
                         ui.text_input_options(),
-                        pxui::TextInputOptions {
-                            action: pxui::TextInputOptions::DONE,
-                            ..pxui::TextInputOptions::SEARCH_FIELD
-                        }
+                        pxui::TextInputOptions::SEARCH_FIELD.action(pxui::TextInputOptions::DONE)
                     );
                 }
                 if tick >= 82 {

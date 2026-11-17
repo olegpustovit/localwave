@@ -196,10 +196,7 @@ pub(super) fn name_dialog(
                     if let Some(value) = ui.text_field_with_options(
                         "List name",
                         state.playlist_name.as_str(),
-                        pxui::TextInputOptions {
-                            action: pxui::TextInputOptions::DONE,
-                            ..Default::default()
-                        },
+                        pxui::TextInputOptions::DEFAULT.action(pxui::TextInputOptions::DONE),
                     ) {
                         *intent = Some(
                             Query::new(value)
