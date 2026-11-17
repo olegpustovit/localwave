@@ -71,28 +71,29 @@ pub(super) fn draw(
         for index in [0, 2, 4] {
             let rect = rects[index];
             let link = index != 2;
-            let node = ui.node(
-                ["artist", "space-one", "separator", "space-two", "album"][index].into(),
-                Node {
-                    at: Some((rect.x, rect.y)).into(),
-                    inset: Edges {
-                        t: if link { 2.0 } else { 0.0 },
-                        ..Edges::ZERO
-                    },
-                    look: Look {
-                        text: ui.color(SECONDARY),
-                        ..Look::NONE
-                    },
-                    ..Node::column()
-                        .w_px(rect.w)
-                        .h_px(rect.h)
-                        .role(if link { Role::Button } else { Role::Label })
-                        .flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
+            let key = ["artist", "space-one", "separator", "space-two", "album"][index];
+            let node = Node {
+                at: Some((rect.x, rect.y)).into(),
+                inset: Edges {
+                    t: if link { 2.0 } else { 0.0 },
+                    ..Edges::ZERO
                 },
-            );
-            ui.text_line_box(&node, values[index], &labels[index], &[])
+                look: Look {
+                    text: ui.color(SECONDARY),
+                    ..Look::NONE
+                },
+                ..Node::column().w_px(rect.w).h_px(rect.h).role(if link { Role::Button } else { Role::Label })
+            };
+            // Only the artist and album are links; the separator is a plain label.
+            let (handle, clicked) = if link {
+                let node = ui.pressable(key, node, &PLAIN, |_, _| {});
+                (node.handle, node.clicked)
+            } else {
+                (ui.node(key.into(), node), false)
+            };
+            ui.text_line_box(&handle, values[index], &labels[index], &[])
                 .unwrap();
-            if link && ui.signal(&node).clicked {
+            if clicked {
                 let route = player.current_id.and_then(|id| {
                     let row = catalog.row(catalog.row_index(id)?);
                     let matches = if index == 0 {
