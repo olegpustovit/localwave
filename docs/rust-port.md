@@ -89,7 +89,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | 1cb17d5 + pxui 1089fe5 |
 | DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | done | 8709c75 + pxui 5c16fdb |
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
-| DX1.12F2 | Audit batch F2: Keyframes/Repeat/Keyframe constructors, gesture option builders, borrowed carry/drop, Ui::scroll, Ui::set_view | done | HEAD |
+| DX1.12F2 | Audit batch F2: Keyframes/Repeat/Keyframe constructors, gesture option builders, borrowed carry/drop, Ui::scroll, Ui::set_view | done | 2f5ac3d |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -168,7 +168,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.2 | Size-prefix negative table | done | 9770273 + pxui 7a15162 |
 | DX7.2a | Read PxuiGestureIn/PxuiSaved after their size check (found by DX7.2) | done | b399fd6 + pxui 61e0cf6 |
 | DX7.3 | ABI policy in docs/abi.md | done | 337cd1f + pxui e387123 |
-| DX7.4 | Minimum-size rule; abi_built; pxui_supports | todo |  |
+| DX7.4 | Minimum-size rule; abi_built; pxui_supports | done | HEAD + pxui 2d2a3db |
 | DX7.5 | Frozen identity hash; parent-scoped integer keys | done | ffe72c6 + pxui 6d85f9c |
 | DX7.6 | Reserved surface id | done | 53377e7 + pxui e5be793 |
 | DX7.7 | Record changes before freeze | todo |  |
