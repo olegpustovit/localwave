@@ -120,14 +120,14 @@ pub(in crate::shell) fn popup(
         &mut |ui| {
             if lists {
                 {
-                    let item = ui.node("new-list", item_node(ui, present));
+                    let item = ui.node("new-list".into(), item_node(ui, present));
                     ui.text(&item, "New list…");
-                    if present && ui.signal_state(&item).clicked {
+                    if present && ui.signal(&item).clicked {
                         *intent = Some(Intent::NewList(Some(target.1)));
                         accepted = true;
                     }
                     if others == 0 {
-                        let item = ui.node("none", item_node(ui, false));
+                        let item = ui.node("none".into(), item_node(ui, false));
                         ui.text(&item, "No other lists");
                     }
                     for collection in &catalog.collections {
@@ -139,9 +139,9 @@ pub(in crate::shell) fn popup(
                         if Some(*id) == list {
                             continue;
                         }
-                        let item = ui.node_keyed(pxui::ui::int_key(*id, 7), item_node(ui, present));
+                        let item = ui.node(Key::Id(*id), item_node(ui, present));
                         ui.text(&item, &collection.title);
-                        if present && ui.signal_state(&item).clicked {
+                        if present && ui.signal(&item).clicked {
                             *intent = Some(Intent::AddToList {
                                 song: target.1,
                                 list: *id,
@@ -154,9 +154,9 @@ pub(in crate::shell) fn popup(
             }
             for (label, enabled, action) in items[..count].iter().flatten().copied() {
                 let enabled = enabled && present;
-                let item = ui.node(label, item_node(ui, enabled));
+                let item = ui.node(label.into(), item_node(ui, enabled));
                 ui.text(&item, label);
-                if enabled && ui.signal_state(&item).clicked {
+                if enabled && ui.signal(&item).clicked {
                     *intent = Some(action);
                     // Opening the list panel keeps this popup.
                     accepted = action != Intent::SongMenuLists;

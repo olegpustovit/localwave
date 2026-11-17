@@ -5,7 +5,7 @@ use crate::files::Location;
 
 pub(super) fn side_row(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     label: (&str, &str),
     route: Route,
     state: &ShellState,
@@ -25,7 +25,7 @@ enum Go {
 #[allow(clippy::too_many_arguments)]
 fn side_item(
     ui: &mut Ui,
-    (key, id): (&str, i64),
+    (key, id): (&'static str, i64),
     label: (&str, &str),
     go: Go,
     badge: &str,
@@ -46,11 +46,11 @@ fn side_item(
         .role(Role::Button)
         .flags(Flags::CLICKABLE | Flags::TAB_STOP);
     let node = if id == 0 {
-        ui.node(key, spec)
+        ui.node(key.into(), spec)
     } else {
-        ui.node_keyed(int_key(Ui::key_of(0, key), id), spec)
+        ui.node(Key::Id(int_key(Ui::key_of(0, key), id)), spec)
     };
-    let signal = ui.signal_state(&node);
+    let signal = ui.signal(&node);
     let dropping = list.and_then(|_| super::songs::song_drop(ui, &node));
     ui.set_look(
         &node,
@@ -109,14 +109,14 @@ fn side_item(
 }
 
 /// A Swift group label.
-fn group(ui: &mut Ui, key: &str, title: &str) {
+fn group(ui: &mut Ui, key: &'static str, title: &str) {
     text(ui, key, title, 12, ui.color(SECONDARY), (Size::Grow, 30.0), false);
 }
 
 /// A plain "+ label" action row (Swift's Add folder or files, New list).
-fn add_row(ui: &mut Ui, key: &str, title: &str, name: &str) -> bool {
+fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
     let row = ui.node(
-        key,
+        key.into(),
         Node {
             padding: Edges { l: 8.0, ..Edges::ZERO },
             look: Look { text: ui.color(SECONDARY), font: Font { size: 14, ..Font::BODY }, ..Look::NONE },
@@ -125,7 +125,7 @@ fn add_row(ui: &mut Ui, key: &str, title: &str, name: &str) -> bool {
     );
     ui.text(&row, title);
     ui.a11y_name(&row, name);
-    ui.signal_state(&row).clicked
+    ui.signal(&row).clicked
 }
 
 pub(super) fn sidebar(
@@ -138,7 +138,7 @@ pub(super) fn sidebar(
     ui.column("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0), |ui| {
         spacer(ui, "sidebar-top", 28.0);
         let search = ui.node(
-            "search",
+            "search".into(),
             Node::row()
                 .w(Size::Grow)
                 .h_px(34.0)
@@ -147,7 +147,7 @@ pub(super) fn sidebar(
                 .role(Role::Button)
                 .flags(Flags::CLICKABLE | Flags::TAB_STOP),
         );
-        let signal = ui.signal_state(&search);
+        let signal = ui.signal(&search);
         ui.set_look(&search, Look { fill: if signal.hovered { ui.color(SELECTED) } else { ui.color(PANEL) }, ..Look::NONE }, State::default());
         ui.a11y_name(&search, "Search");
         ui.within(&search, &mut |ui| {
@@ -220,7 +220,7 @@ pub(super) fn sidebar(
             },
         );
         let shortcuts = ui.node(
-            "shortcuts",
+            "shortcuts".into(),
             Node {
                 padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },
                 ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
@@ -231,7 +231,7 @@ pub(super) fn sidebar(
             text(ui, "key", "?", 11, ui.color(SECONDARY), (Size::Px(14.0), 16.0), true);
             text(ui, "label", "shortcuts", 12, ui.color(SECONDARY), (Size::Fit, 16.0), false);
         });
-        if ui.signal_state(&shortcuts).clicked {
+        if ui.signal(&shortcuts).clicked {
             *intent = Some(Intent::ShowShortcuts);
         }
     });

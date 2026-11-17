@@ -5,9 +5,9 @@
 //!
 use super::*;
 
-fn label(ui: &mut Ui, key: &str, value: &str, rect: Rect, style: pxui::TextStyle, color: Rgba) {
+fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label, color: Rgba) {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             at: Some((rect.x, rect.y)).into(),
             look: Look {
@@ -19,6 +19,10 @@ fn label(ui: &mut Ui, key: &str, value: &str, rect: Rect, style: pxui::TextStyle
     );
     ui.text_line_box(&node, value, &style, &[]).unwrap();
 }
+
+/// An artist row's name and figures: one ellipsized line; counts and minutes in the mono face, wrapping.
+const CELL: Label = Label::BODY.line_height(19.6).lines(1).ellipsis();
+const CELL_MONO: Label = Label::BODY.font(1).size(12.0).line_height(16.8).wrap_spaces();
 
 fn row_layout(
     ui: &mut Ui,
@@ -32,13 +36,7 @@ fn row_layout(
         (0.0, 0.0),
         (0.0, 0.0),
     ];
-    let style = pxui::TextStyle {
-        font: 1,
-        size_points: 12.0,
-        line_height: 16.8,
-        wrap: pxui::TextStyle::WRAP_WORD_SPACES,
-        ..Default::default()
-    };
+    let style = ui.resolve(&CELL_MONO);
     for (index, value) in [count, summary.minutes.as_str()].into_iter().enumerate() {
         sizes[index + 2] = table_text_size(
             ui,
@@ -121,11 +119,12 @@ pub(super) fn table(
             trailing_height: 0.0,
             overlay_scrollbar: true,
         },
+        &|i| i as i64,
         &mut |ui, part, _| match part {
             SectionPart::Leading => header_view(ui, catalog, state, width, intent),
             SectionPart::Header => {
                 let head = ui.node(
-                    "artist-columns",
+                    "artist-columns".into(),
                     Node {
                         look: Look {
                             fill: ui.color(PAPER),
@@ -155,18 +154,7 @@ pub(super) fn table(
                                 w: heading_sizes[index].0,
                                 h: heading_sizes[index].1,
                             },
-                            pxui::TextStyle {
-                                size_points: 12.0,
-                                line_height: 16.8,
-                                weight: 500,
-                                wrap: pxui::TextStyle::WRAP_WORD_SPACES,
-                                align: if index == 3 {
-                                    pxui::TextStyle::ALIGN_RIGHT
-                                } else {
-                                    pxui::TextStyle::ALIGN_LEFT
-                                },
-                                ..Default::default()
-                            },
+                            if index == 3 { TABLE_HEADING.end() } else { TABLE_HEADING },
                             ui.color(SECONDARY),
                         );
                         x += columns[index];
@@ -192,7 +180,7 @@ pub(super) fn table(
                     Size::Fit,
                     &mut |ui| {
                         let row = ui.node(
-                            "artist",
+                            "artist".into(),
                             Node::column()
                                 .w(Size::Grow)
                                 .h_px(row_height)
@@ -200,7 +188,7 @@ pub(super) fn table(
                                 .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                         );
                         ui.a11y_name(&row, name);
-                        let signal = ui.signal_state(&row);
+                        let signal = ui.signal(&row);
                         ui.set_look(
                             &row,
                             Look {
@@ -236,7 +224,7 @@ pub(super) fn table(
                             }
 
                             let art = ui.node(
-                                "artist-artwork",
+                                "artist-artwork".into(),
                                 Node {
                                     at: Some((32.0, top)).into(),
                                     look: Look {
@@ -281,27 +269,9 @@ pub(super) fn table(
                                         w: body_sizes[column].0,
                                         h: body_sizes[column].1,
                                     },
-                                    pxui::TextStyle {
-                                        font: u16::from(mono),
-                                        size_points: if mono { 12.0 } else { 14.0 },
-                                        line_height: if mono { 16.8 } else { 19.6 },
-                                        max_lines: if mono { 0 } else { 1 },
-                                        ellipsis: if mono {
-                                            pxui::TextStyle::ELLIPSIS_NONE
-                                        } else {
-                                            pxui::TextStyle::ELLIPSIS_END
-                                        },
-                                        wrap: if mono {
-                                            pxui::TextStyle::WRAP_WORD_SPACES
-                                        } else {
-                                            pxui::TextStyle::WRAP_NONE
-                                        },
-                                        align: if column == 3 {
-                                            pxui::TextStyle::ALIGN_RIGHT
-                                        } else {
-                                            pxui::TextStyle::ALIGN_LEFT
-                                        },
-                                        ..Default::default()
+                                    {
+                                        let style = if mono { CELL_MONO } else { CELL };
+                                        if column == 3 { style.end() } else { style }
                                     },
                                     if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
                                 );

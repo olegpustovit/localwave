@@ -87,7 +87,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.8 | pxui::doc::frames and pxui::testing | done | c8ad0eb + pxui 9cd2dcb |
 | DX1.9 | header.rs reference conversion (PERF) | done | 0292834 |
 | DX1.10 | Text API matches the proposal: ui.label(text, Label) with const builders | done | 1cb17d5 + pxui 1089fe5 |
-| DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | todo |  |
+| DX1.11 | One shape per job: remove twins (signal_state, i64 flags, list forms, allocating text twins, _with pairs), set_colors pairs, local_* stale default | done | HEAD + pxui 5c16fdb |
 | DX1.12 | Full public-surface audit against the proposal before the freeze (blocks DX7) | todo |  |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |

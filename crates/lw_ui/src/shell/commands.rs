@@ -134,24 +134,23 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
             (view - 32.0).clamp(0.0, 600.0) - 40.0
         };
         let placeholder = ui.node(
-            "prompt",
+            "prompt".into(),
             Node {
                 at: Some((if find { 0.0 } else { 20.0 }, 0.0)).into(),
                 ..Node::row().w_px(room.max(1.0)).h_px(height).align(Align::Center)
             },
         );
-        let style = pxui::TextStyle {
-            size_points: size as f32,
-            line_height: size as f32 * 1.4,
-            weight: font.weight,
-            tracking: font.tracking,
-            max_lines: 1,
-            ellipsis: pxui::TextStyle::ELLIPSIS_END,
-            ..Default::default()
-        };
+        // the prompt's tracking in ems (the editor font's -0.52 points at 26)
+        let style = Label::BODY
+            .size(size as f32)
+            .line_height(size as f32 * 1.4)
+            .weight(font.weight)
+            .tracking(if find { -0.02 } else { 0.0 })
+            .lines(1)
+            .ellipsis();
         ui.within(&placeholder, &mut |ui| {
             let line = ui.node(
-                "line",
+                "line".into(),
                 Node {
                     look: Look {
                         text: if find { ui.color(TERTIARY) } else { ui.color(SECONDARY) },
@@ -199,7 +198,7 @@ fn overlay(
         label,
         &mut |ui| {
             let card = ui.node(
-                "card",
+                "card".into(),
                 Node {
                     max_h: max_height,
                     look: Look {
@@ -244,10 +243,10 @@ pub(super) fn palette_view(
         &mut |ui, intent| {
             let mut selected = state.command_selected.min(items.len().saturating_sub(1));
             if !items.is_empty() {
-                if ui.key_pressed(input::Key::ArrowDown) {
+                if ui.key_pressed(input::Key::ArrowDown, None) {
                     selected = (selected + 1) % items.len();
                 }
-                if ui.key_pressed(input::Key::ArrowUp) {
+                if ui.key_pressed(input::Key::ArrowUp, None) {
                     selected = (selected + items.len() - 1) % items.len();
                 }
                 if selected != state.command_selected {
@@ -271,13 +270,23 @@ pub(super) fn palette_view(
                 field(ui);
             }
             rule(ui, "input-divider", false);
-            if ui.key_pressed(input::Key::Enter)
+            if ui.key_pressed(input::Key::Enter, None)
                 && (intent.is_none() || matches!(intent, Some(Intent::CommandSelect(_))))
                 && let Some(item) = items.get(selected)
             {
                 *intent = Some(Intent::ActivateCommand(item.key));
             }
-            let list = ui.list_measured("results", items.len().max(1), 44.0, &mut |ui, index| {
+            const RESULTS: SectionList = SectionList {
+                count: 0,
+                row_height: 44.0,
+                leading_height: 0.0,
+                header_height: 0.0,
+                trailing_height: 0.0,
+                overlay_scrollbar: false,
+            };
+            let rows = SectionList { count: items.len().max(1), ..RESULTS };
+            let list = ui.section_list_measured("results", &rows, &|i| items.get(i).map_or(0, |item| item.key as i64), &mut |ui, part, _| {
+                let SectionPart::Row(index) = part else { return };
                 let Some(item) = items.get(index) else {
                     text(
                         ui,
@@ -296,8 +305,8 @@ pub(super) fn palette_view(
                     );
                     return;
                 };
-                let row = ui.node_keyed(
-                    int_key(Ui::key_of(0, "localwave-command-row"), item.key as i64),
+                let row = ui.node(
+                    Key::Id(item.key as i64),
                     Node::column().w(Size::Grow).h(Size::Fit),
                 );
                 ui.within(&row, &mut |ui| {
@@ -357,7 +366,7 @@ fn result_row(
     intent: &mut Option<Intent>,
 ) {
     let row = ui.node(
-        "item",
+        "item".into(),
         Node {
             look: Look {
                 fill: if selected {
@@ -388,7 +397,7 @@ fn result_row(
             },
     );
     ui.a11y_name(&row, &item.label);
-    if ui.signal_state(&row).clicked
+    if ui.signal(&row).clicked
         && (intent.is_none() || matches!(intent, Some(Intent::CommandSelect(_))))
     {
         *intent = Some(Intent::ActivateCommand(item.key));
@@ -496,12 +505,8 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
     let card = (width - 32.0).clamp(0.0, 520.0);
     // Swift's Grid gives label and key columns equal halves; labels wrap inside theirs (phone).
     let half = ((card - 48.0 - 16.0) * 0.5).max(1.0);
-    let style = pxui::TextStyle {
-        size_points: 14.0,
-        line_height: 19.6,
-        wrap: pxui::TextStyle::WRAP_WORD_SPACES,
-        ..Default::default()
-    };
+    const KEY_LABEL: Label = Label::BODY.line_height(19.6).wrap_spaces();
+    let style = ui.resolve(&KEY_LABEL);
     let mut heights = [19.6_f32; ROWS.len()];
     for (height, (label, _)) in heights.iter_mut().zip(ROWS) {
         *height = ui
@@ -522,7 +527,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
         intent,
         &mut |ui, _| {
             ui.scroll_view("shortcuts", Size::Grow, Size::Grow, &mut |ui| {
-                let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
+                let body = ui.node("body".into(), Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
                     text(
                         ui,
@@ -535,13 +540,13 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                     );
                     ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
-                            let row = ui.node_keyed(
-                                int_key(body.box_key, index as i64),
+                            let row = ui.node(
+                                Key::Id(index as i64),
                                 Node::row().w(Size::Grow).h_px(heights[index]).gap(16.0),
                             );
                             ui.within(&row, &mut |ui| {
                                 let node = ui.node(
-                                    "label",
+                                    "label".into(),
                                     Node {
                                         look: Look {
                                             text: ui.color(INK),
@@ -550,7 +555,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                                         ..Node::column().w_px(half).h_px(heights[index]).role(Role::Label)
                                     },
                                 );
-                                ui.text_line_box(&node, label, &style, &[]).unwrap();
+                                ui.text_line_box(&node, label, &KEY_LABEL, &[]).unwrap();
                                 ui.box_("fill", BoxOpts::default().w(Size::Grow));
                                 text(ui, "key", key, 12, ui.color(SECONDARY), (Size::Fit, 16.8), true);
                             });

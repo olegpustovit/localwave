@@ -51,9 +51,9 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
     root
 }
 
-fn underlined(ui: &mut Ui, key: &str, label: &'static str) -> bool {
+fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
     let link = ui.node(
-        key,
+        key.into(),
         Node {
             justify: Justify::Center,
             ..Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP)
@@ -64,7 +64,7 @@ fn underlined(ui: &mut Ui, key: &str, label: &'static str) -> bool {
         text(ui, "label", label, 15, ui.color(INK), (Size::Fit, 21.0), false);
         rule(ui, "underline", false);
     });
-    ui.signal_state(&link).clicked
+    ui.signal(&link).clicked
 }
 
 /// Returns true when the Google Drive disclosure was toggled.
@@ -120,7 +120,7 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
         );
         spacer(ui, "choose-gap", 12.0);
         let choose = ui.node(
-            "choose-folder",
+            "choose-folder".into(),
             Node {
                 look: Look { fill: ui.color(INK), ..Look::NONE },
                 ..Node::row()
@@ -135,7 +135,7 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
         ui.within(&choose, &mut |ui| {
             text(ui, "label", "Choose a folder", 15, ui.color(PAPER), (Size::Fit, 21.0), false);
         });
-        if ui.signal_state(&choose).clicked {
+        if ui.signal(&choose).clicked {
             *intent = Some(Intent::ChooseFolder);
         }
         spacer(ui, "links-gap", 4.0);
@@ -158,7 +158,7 @@ fn page(ui: &mut Ui, column: f32, drive: bool, intent: &mut Option<Intent>) -> b
 /// Swift's "Google Drive not in the list?" disclosure with its bordered 1px frame.
 fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
     let frame = ui.node(
-        "drive-frame",
+        "drive-frame".into(),
         Node {
             look: Look { fill: ui.color(LINE), ..Look::NONE },
             ..Node::column().w(Size::Grow).h(Size::Fit).pad(1.0)
@@ -174,12 +174,12 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
             },
             |ui| {
                 let header = ui.node(
-                    "drive-toggle",
+                    "drive-toggle".into(),
                     Node::row().w(Size::Grow).h_px(19.5).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                 );
                 ui.a11y_name(&header, "Google Drive not in the list?");
                 ui.within(&header, &mut |ui| {
-                    let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
+                    let marker = ui.node("marker".into(), Node::column().w_px(40.0 / 3.0).h_px(19.5));
                     let ink = ui.color(INK);
                     ui.draw(&marker, move |paint, rect| {
                         // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
@@ -194,7 +194,7 @@ fn drive_box(ui: &mut Ui, column: f32, expanded: bool) -> bool {
                     });
                     text(ui, "title", "Google Drive not in the list?", 13, ui.color(INK), (Size::Grow, 19.5), false);
                 });
-                clicked = ui.signal_state(&header).clicked;
+                clicked = ui.signal(&header).clicked;
                 if expanded {
                     spacer(ui, "drive-help-gap", 8.0);
                     settings::paragraph(

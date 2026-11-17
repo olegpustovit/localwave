@@ -14,7 +14,7 @@ pub(super) fn toolbar(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
-    let row = ui.node("album-tools", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
+    let row = ui.node("album-tools".into(), Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
     ui.within(&row, &mut |ui| {
         for (value, title) in [
             (AlbumSort::Artist, "Artist"),
@@ -23,7 +23,7 @@ pub(super) fn toolbar(
         ] {
             let selected = state.album_sort == value;
             let button = ui.node(
-                title,
+                title.into(),
                 Node {
                     look: Look {
                         fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
@@ -73,13 +73,13 @@ pub(super) fn toolbar(
                     );
                 });
             }
-            if ui.signal_state(&button).clicked {
+            if ui.signal(&button).clicked {
                 *intent = Some(Intent::SortAlbums(value));
             }
         }
         ui.box_("flex", BoxOpts::default().w(Size::Grow));
         let button = ui.node(
-            "shuffle-all",
+            "shuffle-all".into(),
             Node {
                 state: State {
                     disabled: catalog.is_empty(),
@@ -101,7 +101,7 @@ pub(super) fn toolbar(
         );
         ui.a11y_name(&button, "Shuffle all");
         ui.within(&button, &mut |ui| {
-            let icon = ui.node("icon", Node::column().w_px(16.0).h_px(16.0));
+            let icon = ui.node("icon".into(), Node::column().w_px(16.0).h_px(16.0));
             ui.draw(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
@@ -115,7 +115,7 @@ pub(super) fn toolbar(
                 false,
             );
         });
-        if ui.signal_state(&button).clicked {
+        if ui.signal(&button).clicked {
             *intent = Some(Intent::ShuffleAll);
         }
     });
@@ -162,6 +162,8 @@ pub(super) fn gallery(
             trailing_height: 12.0,
             overlay_scrollbar: true,
         },
+        // a row is a line of cards
+        &|line| line as i64,
         &mut |ui, part| match part {
             SectionPart::Leading => {
                 if !compact {
@@ -172,7 +174,7 @@ pub(super) fn gallery(
             SectionPart::Header => {}
             SectionPart::Row(line) => {
                 ui.column("gallery-inset", Node::column().w(Size::Grow).h(Size::Grow).pad_x(inset), |ui| {
-                    let row = ui.node("group-row", Node::row().w(Size::Grow).h(Size::Grow).gap(gap));
+                    let row = ui.node("group-row".into(), Node::row().w(Size::Grow).h(Size::Grow).gap(gap));
                     ui.within(&row, &mut |ui| {
                         for (column, index) in order
                             .iter()
@@ -181,8 +183,8 @@ pub(super) fn gallery(
                             .take(columns)
                             .enumerate()
                         {
-                            let holder = ui.node_keyed(
-                                int_key(row.box_key, index as i64),
+                            let holder = ui.node(
+                                Key::Id(index as i64),
                                 Node::column().w_px(cell).h_px(card_height),
                             );
                             ui.within(&holder, &mut |ui| {
@@ -192,7 +194,7 @@ pub(super) fn gallery(
                                     &row_revision,
                                     |ui| {
                                         let node = ui.node(
-                                            "group",
+                                            "group".into(),
                                             Node {
                                                 padding: Edges::ZERO,
                                                 ..Node::column()
@@ -203,7 +205,7 @@ pub(super) fn gallery(
                                             },
                                         );
                                         ui.a11y_name(&node, &group.title);
-                                        let signal = ui.signal_state(&node);
+                                        let signal = ui.signal(&node);
                                         ui.set_look(
                                             &node,
                                             Look {
@@ -243,14 +245,7 @@ pub(super) fn gallery(
                                             ui.text_line_box(
                                                 &name,
                                                 &group.title,
-                                                &pxui::TextStyle {
-                                                    size_points: 14.0,
-                                                    line_height: 17.5,
-                                                    weight: 500,
-                                                    max_lines: 1,
-                                                    ellipsis: pxui::TextStyle::ELLIPSIS_END,
-                                                    ..Default::default()
-                                                },
+                                                &Label::BODY.line_height(17.5).weight(500).lines(1).ellipsis(),
                                                 &[],
                                             )
                                             .unwrap();

@@ -11,9 +11,9 @@ pub(super) struct Viewport {
 
 pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64) {
     use pxui::kit::{AnimationTarget as Target, Keyframe, Repeat};
-    let root = ui.node("equalizer", Node::column().w_px(14.0).h_px(11.0).role(Role::Image));
+    let root = ui.node("equalizer".into(), Node::column().w_px(14.0).h_px(11.0).role(Role::Image));
     ui.a11y_name(&root, if playing { "Playing" } else { "Paused" });
-    let song = ui.node("equalizer-song", Node::column().w_px(0.0).h_px(0.0));
+    let song = ui.node("equalizer-song".into(), Node::column().w_px(0.0).h_px(0.0));
     let active = playing && visible && !ui.tokens().reduced_motion;
     let changed = ui.state(&root, -1) != i64::from(active) || ui.state(&song, i64::MIN) != id;
     ui.set_state(&root, i64::from(active));
@@ -28,7 +28,7 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                 },
                 |ui| {
                     let bar = ui.view("bar", 0, Size::Grow, Size::Grow, &mut |ui| {
-                        let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
+                        let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
                         ui.draw(&fill, move |paint, rect| {
                             paint.fill_fractional(rect.x, rect.y, rect.w, rect.h, accent)
@@ -91,7 +91,7 @@ pub(in crate::shell) fn glyph(
     visible: bool,
 ) {
     use lw_core::{FileAvailability, FileState};
-    let root = ui.node("availability", Node::stack().w_px(10.0).h_px(10.0).role(Role::Image));
+    let root = ui.node("availability".into(), Node::stack().w_px(10.0).h_px(10.0).role(Role::Image));
     let label = match state {
         FileState::CopyPending => "Preparing offline copy",
         FileState::Failed => "File unavailable — retry",
@@ -150,7 +150,7 @@ pub(in crate::shell) fn glyph(
         ui.within(&root, &mut |ui| {
             for (index, key) in ["left", "right"].into_iter().enumerate() {
                 let half = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
+                    let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.draw(&fill, move |paint, rect| {
                         paint.fill_fractional(
@@ -238,7 +238,7 @@ pub(in crate::shell) fn drop_target(ui: &mut Ui, visual: &Handle, index: usize, 
     };
     let (dropped, from) = drop;
     let after =
-        ui.signal_state(visual).pointer.1 >= ui.rect(visual).y + ui.rect(visual).h * 0.5;
+        ui.signal(visual).pointer.1 >= ui.rect(visual).y + ui.rect(visual).h * 0.5;
     let before = index + usize::from(after);
     // Final position once the dragged row leaves its slot.
     let to = if from < before { before - 1 } else { before };
@@ -321,7 +321,7 @@ impl Rows<'_> {
             &mut |ui| {
                 let row = catalog.row(collection.rows[index]);
                 let root = ui.node(
-                    "song",
+                    "song".into(),
                     Node::column()
                         .w(Size::Grow)
                         .h_px(layout.height)
@@ -329,7 +329,7 @@ impl Rows<'_> {
                         .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                 );
                 ui.a11y_name(&root, row.title);
-                let signal = ui.signal_state(&root);
+                let signal = ui.signal(&root);
                 ui.set_look(
                     &root,
                     Look {
@@ -393,7 +393,7 @@ impl Rows<'_> {
                                         w: fit,
                                         h,
                                     },
-                                    body_style(column, current),
+                                    body_label(column, current),
                                     if column == Column::Title {
                                         ui.color(INK)
                                     } else {
@@ -474,7 +474,7 @@ impl Rows<'_> {
                     }
                     let x = widths[..7].iter().sum::<f32>();
                     let more = ui.node(
-                        "actions",
+                        "actions".into(),
                         Node {
                             at: Some((x, (layout.height - 32.0) * 0.5)).into(),
                             ..Node::column()
@@ -495,7 +495,7 @@ impl Rows<'_> {
                             );
                         }
                     });
-                    if ui.signal_state(&more).clicked {
+                    if ui.signal(&more).clicked {
                         let at = ui.rect(&more);
                         *intent = Some(Intent::SongMenu(
                             index,
@@ -506,7 +506,7 @@ impl Rows<'_> {
                     }
                     if reorder {
                         let grip = ui.node(
-                            "reorder-listed",
+                            "reorder-listed".into(),
                             Node {
                                 at: Some((2.0, 0.0)).into(),
                                 ..Node::column()
@@ -530,7 +530,7 @@ impl Rows<'_> {
                                 }
                             }
                         });
-                        let signal = ui.signal_state(&grip);
+                        let signal = ui.signal(&grip);
                         if signal.held || signal.clicked {
                             let mut digits = [0u8; 24];
                             let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();

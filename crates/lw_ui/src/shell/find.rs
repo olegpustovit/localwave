@@ -23,7 +23,7 @@ pub(super) enum Action {
 fn background(ui: &mut Ui, key: &str, color: Rgba, shown: bool, immediate: bool) {
     let view = ui.view(key, 0, Size::Grow, Size::Grow, &mut |ui| {
         ui.node(
-            "fill",
+            "fill".into(),
             Node {
                 look: Look {
                     fill: color,
@@ -71,7 +71,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let label_width =
         (ui.text_service().width(label, &style, 0.0).unwrap() * density).ceil() / density;
     let root = ui.node(
-        key,
+        key.into(),
         Node {
             state: State {
                 disabled: !enabled,
@@ -100,7 +100,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             (0, 0),
         );
     }
-    let signal = ui.signal_state(&root);
+    let signal = ui.signal(&root);
     let before = ui.state(&root, -1);
     ui.set_state(&root, i64::from(selected));
     ui.within(&root, &mut |ui| {
@@ -115,7 +115,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
         ui.view_of("action-copy", &(label, selected), |ui| {
             ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
                 let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
-                let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
+                let icon = ui.node("icon".into(), Node::column().w_px(icon_size).h_px(icon_size));
                 ui.draw(&icon, move |paint, rect| match action {
                     Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
                     Action::Shuffle => crate::icons::shuffle(paint, rect, color),
@@ -147,7 +147,7 @@ pub(super) fn toolbar(
     let summary = collection
         .and(catalog.view.as_ref())
         .and_then(|view| view.find.as_ref());
-    let tools = ui.node("find-tools", Node::column().w(Size::Grow).h_px(45.0));
+    let tools = ui.node("find-tools".into(), Node::column().w(Size::Grow).h_px(45.0));
     ui.within(&tools, &mut |ui| {
         ui.row("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0), |ui| {
             if button(
@@ -221,7 +221,7 @@ mod tests {
         state: &ShellState,
         intent: &mut Option<Intent>,
     ) -> Handle {
-        let root = ui.node("root", Node::column().w_px(400.0).h_px(45.0).pad_x(32.0));
+        let root = ui.node("root".into(), Node::column().w_px(400.0).h_px(45.0).pad_x(32.0));
         ui.within(&root, &mut |ui| {
             toolbar(ui, catalog, state, intent)
         });

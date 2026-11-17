@@ -129,7 +129,7 @@ mod tests {
                         ..Default::default()
                     },
                     &mut |ui| {
-                        let node = ui.node("icon", pxui::ui::Node::column().w_px(size).h_px(size));
+                        let node = ui.node("icon".into(), pxui::ui::Node::column().w_px(size).h_px(size));
                         ui.draw(&node, |paint, rect| {
                             shuffle(
                                 paint,

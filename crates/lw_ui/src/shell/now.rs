@@ -86,7 +86,7 @@ pub(super) fn now_panel(
                     Size::Fit,
                     &mut |ui| {
                         let title = ui.node(
-                            "current-track",
+                            "current-track".into(),
                             Node {
                                 min_h: 22.8,
                                 look: Look {
@@ -106,14 +106,7 @@ pub(super) fn now_panel(
                         ui.text_line_box(
                             &title,
                             value,
-                            &pxui::TextStyle {
-                                size_points: 19.0,
-                                weight: 500,
-                                tracking: -0.285,
-                                line_height: 22.8,
-                                wrap: 1,
-                                ..Default::default()
-                            },
+                            &Label::BODY.size(19.0).weight(500).tracking(-0.015).line_height(22.8).wrap(),
                             &[],
                         )
                         .unwrap();
@@ -199,7 +192,7 @@ pub(super) fn now_panel(
                     player.artwork.map_or(0, crate::artwork::Images::revision),
                     carry,
                 ),
-                |ui| queue_rows(ui, catalog, false, 279.0, player.artwork, intent),
+                |ui| queue_rows(ui, catalog, false, player.artwork, intent),
             );
         },
     );
@@ -218,7 +211,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     ];
     let on = current.is_some_and(|(_, on)| on);
     let node = ui.node(
-        "favorite",
+        "favorite".into(),
         Node {
             state: State {
                 disabled: current.is_none(),
@@ -235,7 +228,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
                 })
         },
     );
-    let signal = ui.signal_state(&node);
+    let signal = ui.signal(&node);
     ui.a11y_name(
         &node,
         if on {
@@ -255,7 +248,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
     ui.within(&node, &mut |ui| {
         let heart = ui.view_of("heart", &(on, signal.hovered, signal.held, current.is_some()), |ui| {
-            let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
+            let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
             ui.draw(&surface, move |paint, rect| {
                 let side = 20.0;
                 let area = Rect {
@@ -270,7 +263,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         let _ = heart;
         for (key, dx, dy) in RAYS {
             let slot = ui.node(
-                key,
+                key.into(),
                 Node {
                     at: Some((16.0, 12.0)).into(),
                     ..Node::column().w_px(4.0).h_px(4.0)
@@ -279,7 +272,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
             let mut ray = None;
             ui.within(&slot, &mut |ui| {
                 ray = Some(ui.view("ray", 0, Size::Grow, Size::Grow, &mut |ui| {
-                    let dot = ui.node("dot", Node::column().w(Size::Grow).h(Size::Grow));
+                    let dot = ui.node("dot".into(), Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.draw(&dot, move |paint, rect| {
                         paint.fill(rect.x, rect.y, rect.w, rect.h, accent)
@@ -354,7 +347,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                     ("file", "File", &info.file, ui.color(INK)),
                     ("plays", "Plays", &info.plays, ui.color(SECONDARY)),
                 ] {
-                    let row = ui.node(key, Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
+                    let row = ui.node(key.into(), Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
                     ui.within(&row, &mut |ui| {
                         text(
                             ui,

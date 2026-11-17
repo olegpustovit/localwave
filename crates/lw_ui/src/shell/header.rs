@@ -50,14 +50,7 @@ pub(super) fn header(
             ui.text_line_box(
                 &heading,
                 title,
-                &pxui::TextStyle {
-                    size_points: 34.0,
-                    line_height: 34.0,
-                    weight: 500,
-                    tracking: -0.85,
-                    max_lines: 1,
-                    ..Default::default()
-                },
+                &Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1),
                 &[],
             )
             .unwrap();
@@ -156,7 +149,7 @@ pub(super) fn header(
         }
         if state.route == Route::Albums {
             ui.node(
-                "heading-divider",
+                "heading-divider".into(),
                 Node {
                     margin: Edges {
                         l: -32.0,
@@ -303,7 +296,7 @@ pub(super) fn compact_find(
                     spacer(ui, "songs-gap", 7.0);
                     ui.row("songs-row", Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
                         ui.column("songs-text", Node::column().w(Size::Grow).h(Size::Fit), |ui| {
-                            detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), 0);
+                            detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
                         });
                         if super::compact::list::word(ui, "select", "Select", false) {
                             *intent = Some(Intent::SelectMode(true));
@@ -328,18 +321,14 @@ fn hint(ui: &mut Ui, width: f32) {
         }
     };
     let spans = [bold("flac"), bold("cloud")];
-    let style = pxui::TextStyle {
-        size_points: 14.0,
-        line_height: 19.6,
-        wrap: pxui::TextStyle::WRAP_WORD,
-        ..Default::default()
-    };
+    const HINT: Label = Label::BODY.line_height(19.6).wrap();
+    let style = ui.resolve(&HINT);
     let height = ui
         .text_service()
         .measure_spans(TEXT, &style, width, &spans)
         .map_or(19.6, |m| m.height.max(19.6));
     let node = ui.node(
-        "hint",
+        "hint".into(),
         Node {
             margin: Edges {
                 t: 28.0, // 40 less find_tokens' 12 pt tail
@@ -352,7 +341,7 @@ fn hint(ui: &mut Ui, width: f32) {
             ..Node::column().w(Size::Grow).h_px(height).role(Role::Paragraph)
         },
     );
-    ui.text_line_box(&node, TEXT, &style, &spans).unwrap();
+    ui.text_line_box(&node, TEXT, &HINT, &spans).unwrap();
 }
 
 pub(super) fn header_view(
@@ -419,7 +408,7 @@ pub(super) fn find_tokens(
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
                     let chip = ui.node(
-                        token,
+                        token.into(),
                         Node {
                             max_w: width,
                             look: Look {
@@ -447,7 +436,7 @@ pub(super) fn find_tokens(
                     ui.a11y_name(&chip, token);
                     ui.within(&chip, &mut |ui| {
                         let label = ui.node(
-                            "label",
+                            "label".into(),
                             Node {
                                 look: Look {
                                     text: if selected { ui.color(PAPER) } else { ui.color(SECONDARY) },
@@ -462,7 +451,7 @@ pub(super) fn find_tokens(
                         );
                         ui.text(&label, token);
                     });
-                    if ui.signal_state(&chip).clicked {
+                    if ui.signal(&chip).clicked {
                         *intent = Some(
                             state
                                 .query

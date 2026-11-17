@@ -18,42 +18,32 @@ pub(super) const fn rgb(hex: u32) -> Rgba {
         a: 255,
     }
 }
-const LIGHT_COLORS: [Rgba; 9] = [
-    rgb(0xF3F3F3),
-    rgb(0xE6E6E6),
-    rgb(0xD3D3D3),
-    rgb(0x111111),
-    rgb(0x585858),
-    rgb(0xA0A0A0),
-    rgb(0xDADADA),
-    rgb(0xFBFBFB),
-    rgb(0xD21A1A),
-];
-const DARK_COLORS: [Rgba; 9] = [
-    rgb(0x101010),
-    rgb(0x1A1A1A),
-    rgb(0x2A2A2A),
-    rgb(0xEDEDED),
-    rgb(0x9B9B9B),
-    rgb(0x5A5A5A),
-    rgb(0x262626),
-    rgb(0x1F1F1F),
-    rgb(0xD21A1A),
+/// The (light, dark) pair of each token, in token order.
+const COLORS: [(Rgba, Rgba); 9] = [
+    (rgb(0xF3F3F3), rgb(0x101010)),
+    (rgb(0xE6E6E6), rgb(0x1A1A1A)),
+    (rgb(0xD3D3D3), rgb(0x2A2A2A)),
+    (rgb(0x111111), rgb(0xEDEDED)),
+    (rgb(0x585858), rgb(0x9B9B9B)),
+    (rgb(0xA0A0A0), rgb(0x5A5A5A)),
+    (rgb(0xDADADA), rgb(0x262626)),
+    (rgb(0xFBFBFB), rgb(0x1F1F1F)),
+    (rgb(0xD21A1A), rgb(0xD21A1A)),
 ];
 /// Installs LocalWave's light and dark colour tables; call once between frames, beside the themes.
 pub fn set_colors(ui: &mut Ui) {
-    ui.set_colors(&LIGHT_COLORS, &DARK_COLORS);
+    ui.set_colors(&COLORS);
 }
 pub(super) fn container(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     axis: Axis,
     w: Size,
     h: Size,
     fill: Rgba,
 ) -> Handle {
     ui.node(
-        key,
+        key.into(),
         Node {
             axis,
             look: Look { fill, ..Look::NONE },
@@ -63,23 +53,16 @@ pub(super) fn container(
 }
 pub(super) fn text(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     value: &str,
     size: i64,
     color: Rgba,
     dimensions: (Size, f32),
     mono: bool,
 ) -> Handle {
-    let style = pxui::TextStyle {
-        font: u16::from(mono),
-        size_points: size as f32,
-        line_height: size as f32 * 1.4,
-        max_lines: 1,
-        ellipsis: pxui::TextStyle::ELLIPSIS_END,
-        ..Default::default()
-    };
+    let style = Label::BODY.font(u16::from(mono)).size(size as f32).line_height(size as f32 * 1.4).lines(1).ellipsis();
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look {
                 text: color,
@@ -103,7 +86,7 @@ pub(super) fn text(
 pub(super) fn spacer(ui: &mut Ui, key: &str, height: f32) {
     ui.box_(key, BoxOpts::default().h(Size::Px(height)));
 }
-pub(super) fn rule(ui: &mut Ui, key: &str, vertical: bool) {
+pub(super) fn rule(ui: &mut Ui, key: &'static str, vertical: bool) {
     container(
         ui,
         key,
@@ -264,7 +247,7 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
 }
 pub(super) fn icon_button(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     label: &str,
     icon: Icon,
     dimensions: (f32, f32),
@@ -272,14 +255,14 @@ pub(super) fn icon_button(
     plate: bool,
 ) -> bool {
     let node = ui.node(
-        key,
+        key.into(),
         Node::column()
             .w_px(dimensions.0)
             .h_px(dimensions.1)
             .role(Role::Button)
             .flags(Flags::CLICKABLE | Flags::TAB_STOP),
     );
-    let signal = ui.signal_state(&node);
+    let signal = ui.signal(&node);
     ui.a11y_name(&node, label);
     let fill = if inverse {
         ui.color(INK)
@@ -293,7 +276,7 @@ pub(super) fn icon_button(
     let color = ui.color(if inverse { PAPER } else { INK });
     ui.within(&node, &mut |ui| {
         let visual = ui.view_of("visual", &(icon as u8, inverse, signal.hovered, signal.held), |ui| {
-            let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
+            let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
             ui.set_look(
                 &surface,
                 Look { fill, ..Look::NONE },
@@ -337,15 +320,13 @@ pub(super) fn heading_size(ui: &mut Ui, value: &str, available: f32, natural: f3
         value,
         available,
         natural,
-        &pxui::TextStyle {
-            size_points: 12.0,
-            line_height: 16.8,
-            weight: 500,
-            wrap: pxui::TextStyle::WRAP_WORD_SPACES,
-            ..Default::default()
-        },
+        &ui.resolve(&TABLE_HEADING),
     )
 }
+/// A table column heading: 12 points, medium, wrapping at words.
+pub(super) const TABLE_HEADING: Label = Label::BODY.size(12.0).line_height(16.8).weight(500).wrap_spaces();
+/// -0.03 em, one f32 step past it so 24 and 40 point text resolve to exactly -0.72 and -1.2 points of tracking.
+pub(crate) const TIGHT_3: f32 = -0.030_000_001;
 pub(super) fn table_text_size(
     ui: &mut Ui,
     value: &str,
@@ -708,7 +689,7 @@ pub(super) mod button_tests {
             (ui.rect(&surface).w - original.w * 0.96).abs() < 0.001,
             "reduced motion: surface {:?}, button held {}",
             ui.rect(&surface),
-            ui.signal_state(&button).held
+            ui.signal(&button).held
         );
         ui.frame(
             &input(7.01, &[pointer(input::wire::POINTER_RELEASED)]),

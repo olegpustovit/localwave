@@ -14,6 +14,7 @@
 use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView, Selection};
+use pxui::Label;
 use pxui::theme::ColorToken;
 use pxui::ui::*;
 
@@ -682,16 +683,16 @@ fn global_shortcut(
             .iter()
             .all(|&m| m == modifier || !ui.key_down(m));
         if modifier == 0 {
-            ui.key_pressed(key) && exact
+            ui.key_pressed(key, None) && exact
         } else {
-            exact && (ui.key_pressed_with(key, modifier) || ui.key_pressed_with(upper, modifier))
+            exact && (ui.key_pressed(key, Some(modifier)) || ui.key_pressed(upper, Some(modifier)))
         }
     };
     // ⇧⌘O is Add Files; Add Folder (⌘O) stays exact above.
     if ui.key_down(shift)
         && !ui.key_down(alt)
         && !ui.key_down(ctrl)
-        && (ui.key_pressed_with('o' as u32, meta) || ui.key_pressed_with('O' as u32, meta))
+        && (ui.key_pressed('o' as u32, Some(meta)) || ui.key_pressed('O' as u32, Some(meta)))
     {
         return Some(Intent::ChooseAudio);
     }
@@ -777,7 +778,7 @@ fn back_pressed(ui: &Ui) -> bool {
         input::Key::Meta.code(),
         [input::Key::Shift, input::Key::Alt, input::Key::Ctrl],
     );
-    ui.key_pressed_with('[' as u32, meta) && !others.iter().any(|k| ui.key_down(k.code()))
+    ui.key_pressed('[' as u32, Some(meta)) && !others.iter().any(|k| ui.key_down(k.code()))
 }
 
 /// ⌘[ Back: detail to its index, folder to its parent (source root to the source list).
@@ -803,7 +804,7 @@ fn selection_shortcut(
 ) -> Option<Intent> {
     let len = state.collection(catalog)?.rows.len();
     let (meta, shift) = (input::Key::Meta.code(), input::Key::Shift.code());
-    if ui.key_pressed_with('a' as u32, meta) || ui.key_pressed_with('A' as u32, meta) {
+    if ui.key_pressed('a' as u32, Some(meta)) || ui.key_pressed('A' as u32, Some(meta)) {
         return (len > 0).then_some(Intent::Select(Selection::All(len)));
     }
     if state.marked.is_empty() {
@@ -814,14 +815,14 @@ fn selection_shortcut(
     if down(input::Key::Shift)
         && !down(input::Key::Alt)
         && !down(input::Key::Ctrl)
-        && (ui.key_pressed_with('n' as u32, meta) || ui.key_pressed_with('N' as u32, meta))
+        && (ui.key_pressed('n' as u32, Some(meta)) || ui.key_pressed('N' as u32, Some(meta)))
     {
         return state
             .selected_song_ids(catalog)
             .next()
             .map(|song| Intent::NewList(Some(song)));
     }
-    if ui.key_pressed(input::Key::Backspace.code())
+    if ui.key_pressed(input::Key::Backspace.code(), None)
         && ![input::Key::Meta, input::Key::Shift, input::Key::Alt, input::Key::Ctrl]
             .into_iter()
             .any(down)
@@ -834,7 +835,7 @@ fn selection_shortcut(
             .map(|song| Intent::RemoveFromList { song, list: *id });
     }
     // Esc that cancels a drag is spent on the drag.
-    if !carrying && ui.key_pressed(input::Key::Escape.code()) {
+    if !carrying && ui.key_pressed(input::Key::Escape.code(), None) {
         return Some(Intent::Select(Selection::Clear));
     }
     if ui.view_size().0 < compact::BREAKPOINT {
@@ -844,8 +845,8 @@ fn selection_shortcut(
         .iter()
         .any(|&m| ui.key_down(m));
     for (key, delta) in [(input::Key::ArrowUp, -1), (input::Key::ArrowDown, 1)] {
-        let extend = ui.key_pressed_with(key.code(), shift);
-        if extend || (plain && ui.key_pressed(key.code())) {
+        let extend = ui.key_pressed(key.code(), Some(shift));
+        if extend || (plain && ui.key_pressed(key.code(), None)) {
             return Some(Intent::Select(Selection::Move { delta, extend, len }));
         }
     }
@@ -862,7 +863,7 @@ pub fn shell(
 ) {
     let input_was_focused = ui.text_input_focused();
     let carrying = ui.carrying_ref().is_some();
-    if ui.key_pressed(input::Key::Escape.code()) {
+    if ui.key_pressed(input::Key::Escape.code(), None) {
         ui.cancel_carry();
     }
     if state.commands_visible {
@@ -932,7 +933,7 @@ pub fn shell(
     if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
         let scrim = ui.view("song-menu-backdrop", 0, Size::Grow, Size::Grow, &mut |ui| {
             ui.node(
-                "scrim",
+                "scrim".into(),
                 Node {
                     look: Look {
                         fill: Rgba {
@@ -985,17 +986,19 @@ pub fn shell(
                     }
                 }
             }
-            for (text, size, at, color) in [
-                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0, paint.color(INK)),
+            const TITLE: pxui::Label = pxui::Label::BODY.size(40.0).color(INK);
+            const NOTE: pxui::Label = pxui::Label::BODY.size(14.0).color(SECONDARY);
+            for (text, size, at, style) in [
+                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0, &TITLE),
                 (
                     "Folders are indexed. Audio files join Added Files.",
                     14,
                     rect.y + rect.h * 0.5 + 22.0,
-                    paint.color(SECONDARY),
+                    &NOTE,
                 ),
             ] {
                 let width = paint.text_width(Some(size), text);
-                paint.text_s((rect.x + (rect.w - width) * 0.5, at), size, color, text);
+                paint.text_styled((rect.x + (rect.w - width) * 0.5, at), style, 0.0, text);
             }
         });
     }
@@ -1010,7 +1013,7 @@ pub fn shell(
         && state.metadata.is_none()
         && state.delete_song.is_none()
         && state.remove_source.is_none()
-        && ui.key_pressed(input::Key::Enter)
+        && ui.key_pressed(input::Key::Enter, None)
         && !input_was_focused
         && !ui.text_input_focused()
         && let Some(collection) = state.collection(catalog)
@@ -1022,7 +1025,7 @@ pub fn shell(
             *intent = Some(Intent::PlayRow(index));
         }
     }
-    let settings_shortcut = ui.key_pressed_with(',' as u32, input::Key::Meta.code());
+    let settings_shortcut = ui.key_pressed(',' as u32, Some(input::Key::Meta.code()));
     if !state.commands_visible && !state.shortcuts_visible && settings_shortcut {
         *intent = Some(Intent::ShowSettings);
     }
@@ -1056,12 +1059,12 @@ pub fn shell(
         };
     }
     if !state.commands_visible && !state.shortcuts_visible && !state.queue_visible {
-        if ui.key_pressed_with('k' as u32, input::Key::Meta.code())
-            || ui.key_pressed_with('K' as u32, input::Key::Meta.code())
-            || (!ui.text_input_focused() && ui.key_pressed('/'))
+        if ui.key_pressed('k' as u32, Some(input::Key::Meta.code()))
+            || ui.key_pressed('K' as u32, Some(input::Key::Meta.code()))
+            || (!ui.text_input_focused() && ui.key_pressed('/', None))
         {
             *intent = Some(Intent::ShowCommands);
-        } else if !ui.text_input_focused() && ui.key_pressed('?') {
+        } else if !ui.text_input_focused() && ui.key_pressed('?', None) {
             *intent = Some(Intent::ShowShortcuts);
         }
     }
@@ -1080,7 +1083,7 @@ pub fn shell(
         && state.list_dialog.is_none()
         && state.delete_list.is_none()
         && ui.view_size().0 < compact::BREAKPOINT
-        && ui.key_pressed(input::Key::Escape.code())
+        && ui.key_pressed(input::Key::Escape.code(), None)
     {
         *intent = Some(Intent::TogglePlayer);
     }
@@ -1088,7 +1091,7 @@ pub fn shell(
         && !state.shortcuts_visible
         && state.settings_visible
         && !state.queue_visible
-        && ui.key_pressed(input::Key::Escape.code())
+        && ui.key_pressed(input::Key::Escape.code(), None)
     {
         *intent = Some(if state.settings_menu.is_some() {
             Intent::CloseSettingsMenu
@@ -1101,6 +1104,8 @@ pub fn shell(
 }
 mod kit;
 pub use kit::set_colors;
+#[cfg(test)]
+pub(crate) use kit::TIGHT_3;
 use kit::*;
 mod sidebar;
 use sidebar::*;

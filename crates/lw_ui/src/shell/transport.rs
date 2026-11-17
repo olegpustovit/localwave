@@ -175,7 +175,7 @@ pub(super) fn desktop(
     let sidebar_width = if width >= 900.0 { 231.0 } else { 180.0 };
     let content_width = (width - sidebar_width - 1.0 - if panel { 320.0 } else { 0.0 }).max(100.0);
     let root = ui.node(
-        "shell",
+        "shell".into(),
         Node {
             padding: Edges {
                 l: safe_left,
@@ -235,8 +235,8 @@ pub(super) fn desktop(
                     } else {
                         crate::hash((false, state.route))
                     };
-                    let route = ui.node_keyed(
-                        int_key(Ui::key_of(0, "localwave-library-route"), route_key as i64),
+                    let route = ui.node(
+                        Key::Id(route_key as i64),
                         Node::column().w(Size::Grow).h(Size::Grow),
                     );
                     ui.within(&route, &mut |ui| {
@@ -271,10 +271,10 @@ pub(super) fn desktop(
                 rule(ui, "panel-divider", true);
                 // The drop target wraps the cached panel: hover and drops never rebuild its view.
                 let target = ui.node(
-                    "up-next-drop",
+                    "up-next-drop".into(),
                     Node {
                         // Hit-registered so drops on its empty areas reach it.
-                        flags: CLICKABLE,
+                        flags: Flags::CLICKABLE,
                         ..Node::column().w_px(319.0).h(Size::Grow)
                     },
                 );

@@ -48,7 +48,7 @@ pub(super) fn menu(
                 ("Delete list", Intent::ConfirmDeleteList(list), ui.color(DANGER)),
             ] {
                 let item = ui.node(
-                    label,
+                    label.into(),
                     Node {
                         state: State {
                             disabled: !present,
@@ -71,7 +71,7 @@ pub(super) fn menu(
                     },
                 );
                 ui.text(&item, label);
-                if present && ui.signal_state(&item).clicked {
+                if present && ui.signal(&item).clicked {
                     *intent = Some(action);
                     accepted = true;
                 }
@@ -150,7 +150,7 @@ pub(super) fn confirm_delete(
                         100.0,
                         title.is_some(),
                         (PANEL, DANGER),
-                    ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code()))
+                    ) || (title.is_some() && ui.key_pressed(input::Key::Enter.code(), None))
                     {
                         *intent = Some(Intent::DeleteList(list));
                     }
@@ -235,7 +235,7 @@ pub(super) fn name_dialog(
                         *intent = Some(Intent::CancelPlaylistName);
                     }
                     if files::action(ui, "confirm-list-name", confirm, 100.0, valid, (PANEL, INK))
-                        || (valid && ui.key_pressed(input::Key::Enter.code()))
+                        || (valid && ui.key_pressed(input::Key::Enter.code(), None))
                     {
                         let name = state.playlist_name;
                         *intent = Some(match dialog {

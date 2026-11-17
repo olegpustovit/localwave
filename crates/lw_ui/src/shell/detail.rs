@@ -66,10 +66,10 @@ pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f
         + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
 }
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
-    let row = ui.node("back-row", Node::column().w(Size::Grow).h_px(BACK));
+    let row = ui.node("back-row".into(), Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
         let button = ui.node(
-            "back",
+            "back".into(),
             Node {
                 padding: Edges { l: 26.0, ..Edges::ZERO },
                 ..Node::row()
@@ -83,26 +83,27 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
         );
         ui.a11y_name(&button, "Back");
         ui.within(&button, &mut |ui| {
-            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
+            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(SECONDARY);
             ui.draw(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
             text(ui, "label", "Back", 14, ui.color(SECONDARY), (Size::Fit, 19.6), false);
         });
-        if ui.signal_state(&button).clicked {
+        if ui.signal(&button).clicked {
             *intent = Some(Intent::Navigate(parent));
         }
     });
 }
 pub(super) fn line(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     value: &str,
+    // tracking in ems
     (size, line_height, weight, tracking): (f32, f32, u16, f32),
     color: Rgba,
-    flags: i64,
+    flags: Flags,
 ) -> Handle {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             flags,
             look: Look {
@@ -112,7 +113,7 @@ pub(super) fn line(
             ..Node::column()
                 .w(Size::Grow)
                 .h_px(line_height)
-                .role(if flags == 0 {
+                .role(if flags == Flags::NONE {
                     Role::Label
                 } else {
                     Role::Button
@@ -122,15 +123,7 @@ pub(super) fn line(
     ui.text_line_box(
         &node,
         value,
-        &pxui::TextStyle {
-            size_points: size,
-            line_height,
-            weight,
-            tracking,
-            max_lines: 1,
-            ellipsis: pxui::TextStyle::ELLIPSIS_END,
-            ..Default::default()
-        },
+        &Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
         &[],
     )
     .unwrap();
@@ -176,7 +169,7 @@ pub(super) fn header(
                 back_row(ui, if album { Route::Albums } else { Route::Artists }, intent);
                 let row = album && wide(width) || !album && !stacked(width);
                 let root = ui.node(
-                    "detail-header",
+                    "detail-header".into(),
                     Node {
                         axis: if row { Axis::Row } else { Axis::Column },
                         padding: if album {
@@ -234,7 +227,7 @@ fn header_body(
             if !album {
                 spacer(ui, "kind-gap", 6.0);
             }
-            line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), 0);
+            line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
             let title = match (album, group.title.is_empty()) {
                 (false, true) => "Unknown artist",
                 _ => &group.title,
@@ -243,16 +236,16 @@ fn header_body(
                 ui,
                 "title",
                 title,
-                if album { (40.0, 40.8, 500, -1.2) } else { (48.0, 48.0, 500, -1.2) },
+                if album { (40.0, 40.8, 500, TIGHT_3) } else { (48.0, 48.0, 500, -0.025) },
                 ui.color(INK),
-                0,
+                Flags::NONE,
             );
             if let PlaybackContext::Album { artist, .. } = group.context.as_ref()
                 && !artist.is_empty()
             {
                 spacer(ui, "artist-gap", 6.0);
-                let link = line(ui, "artist", artist, (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), CLICKABLE | TAB_STOP);
-                if ui.signal_state(&link).clicked
+                let link = line(ui, "artist", artist, (18.0, 25.2, 400, 0.0), ui.color(SECONDARY), Flags::CLICKABLE | Flags::TAB_STOP);
+                if ui.signal(&link).clicked
                     && let Some(index) = catalog.library.artists.iter().position(|a| a.title == *artist)
                 {
                     *intent = Some(Intent::Navigate(Route::Artist(index)));
@@ -273,7 +266,7 @@ fn header_body(
                     &group.summary,
                     if album { (13.0, 18.2, 400, 0.0) } else { (14.0, 19.6, 400, 0.0) },
                     ui.color(SECONDARY),
-                    0,
+                    Flags::NONE,
                 );
             }
             if let Some(target) = &group.folder {
@@ -281,7 +274,7 @@ fn header_body(
                 ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
                     text(ui, "caption", "Folder:", 13, ui.color(SECONDARY), (Size::Fit, 18.2), false);
                     let link = ui.node(
-                        "link",
+                        "link".into(),
                         Node::column().w(Size::Fit).h_px(18.2).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                     );
                     ui.a11y_name(&link, &target.label);
@@ -289,7 +282,7 @@ fn header_body(
                         text(ui, "label", &target.label, 13, ui.color(INK), (Size::Fit, 17.2), false);
                         container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
                     });
-                    if ui.signal_state(&link).clicked {
+                    if ui.signal(&link).clicked {
                         *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
                     }
                 });
@@ -339,7 +332,7 @@ fn album_grid(
 ) {
     let (columns, cell) = grid(width);
     let grid = ui.node(
-        "album-grid",
+        "album-grid".into(),
         Node {
             padding: Edges { l: 32.0, r: 32.0, b: 40.0, ..Edges::ZERO },
             ..Node::column().w(Size::Grow).h_px(grid_height(width, cards.len())).gap(ROW_GAP)
@@ -347,15 +340,15 @@ fn album_grid(
     );
     ui.within(&grid, &mut |ui| {
         for (line_index, chunk) in cards.chunks(columns).enumerate() {
-            let cards_row = ui.node_keyed(
-                int_key(grid.box_key, line_index as i64),
+            let cards_row = ui.node(
+                Key::Id(line_index as i64),
                 Node::row().w(Size::Grow).h_px(card_height(cell)).gap(CARD_GAP),
             );
             ui.within(&cards_row, &mut |ui| {
                 for &index in chunk {
                     let group = &catalog.albums[index];
-                    let card = ui.node_keyed(
-                        int_key(cards_row.box_key, index as i64),
+                    let card = ui.node(
+                        Key::Id(index as i64),
                         Node::column().w_px(cell).h(Size::Grow).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
                     );
                     ui.a11y_name(&card, &group.title);
@@ -363,14 +356,14 @@ fn album_grid(
                         let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), ui.color(PANEL));
                         paint_artwork(ui, &art, group.artwork_row.map(|row| catalog.row(row)), cell, player.artwork);
                         spacer(ui, "art-gap", 8.0);
-                        line(ui, "name", &group.title, (14.0, 17.5, 500, 0.0), ui.color(INK), 0);
+                        line(ui, "name", &group.title, (14.0, 17.5, 500, 0.0), ui.color(INK), Flags::NONE);
                         let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
                         let mut digits = [0u8; 24];
                         let year = stack_fmt(&mut digits, format_args!("{}", year.unwrap_or(0).max(0)));
                         let year = if year == "0" { "\u{2014}" } else { year };
-                        line(ui, "year", year, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), 0);
+                        line(ui, "year", year, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
                     });
-                    if ui.signal_state(&card).clicked {
+                    if ui.signal(&card).clicked {
                         *intent = Some(Intent::Navigate(Route::Album(index)));
                     }
                 }

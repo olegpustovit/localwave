@@ -15,19 +15,19 @@
 //!
 use super::*;
 use crate::catalog::SongColumn as Column;
-use crate::song_text::{body_style, body_value};
+use crate::song_text::{body_label, body_style, body_value};
 
 fn label(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     value: &str,
     rect: Rect,
-    style: pxui::TextStyle,
+    style: Label,
     color: Rgba,
     role: Role,
 ) -> Handle {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             at: Some((rect.x, rect.y)).into(),
             look: Look {
@@ -176,7 +176,7 @@ fn heading(
     intent: &mut Option<Intent>,
 ) -> Handle {
     let root = ui.node(
-        "song-columns",
+        "song-columns".into(),
         Node {
             look: Look {
                 fill: ui.color(PAPER),
@@ -197,7 +197,7 @@ fn heading(
                 let available = (w - left - 8.0).max(0.0);
                 let (fit, height) = layout.sizes[column as usize];
                 let button = ui.node(
-                    column.title(),
+                    column.title().into(),
                     Node {
                         at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
                         look: Look {
@@ -220,13 +220,7 @@ fn heading(
                     },
                 );
                 let value = heading_value(column, applied);
-                let style = pxui::TextStyle {
-                    size_points: 12.0,
-                    line_height: 16.8,
-                    weight: 500,
-                    wrap: pxui::TextStyle::WRAP_WORD_SPACES,
-                    ..Default::default()
-                };
+                let style = TABLE_HEADING;
                 if column == Column::Time {
                     ui.within(&button, &mut |ui| {
                         label(
@@ -269,7 +263,7 @@ fn heading(
                         (Sort::Duration, _) => "Sort by Time, descending",
                     };
                     ui.a11y_name(&button, action);
-                    if ui.signal_state(&button).clicked {
+                    if ui.signal(&button).clicked {
                         *intent = Some(Intent::Sort(sort));
                     }
                 }
@@ -349,14 +343,11 @@ pub(super) fn table(
     if find {
         header_view(ui, catalog, state, width, intent);
     }
-    let scope = ui.node("song-results-scope", Node::column().w(Size::Grow).h(Size::Grow));
+    let scope = ui.node("song-results-scope".into(), Node::column().w(Size::Grow).h(Size::Grow));
     let (mut first, mut end) = (usize::MAX, 0);
     ui.within(&scope, &mut |ui| {
-        let results = ui.node_keyed(
-            int_key(
-                scope.box_key,
-                if find { state.query_revision as i64 } else { 0 },
-            ),
+        let results = ui.node(
+            Key::Id(if find { state.query_revision as i64 } else { 0 }),
             Node::column().w(Size::Grow).h(Size::Grow),
         );
         ui.within(&results, &mut |ui| {
@@ -385,6 +376,7 @@ pub(super) fn table(
                     trailing_height: 0.0,
                     overlay_scrollbar: true,
                 },
+                &|i| if placeholder { 0 } else { collection.row_keys[i] },
                 &mut |ui, part, content_y| match part {
                     SectionPart::Leading if detail => {
                         super::detail::header(ui, catalog, state, player, width, intent)
@@ -418,8 +410,8 @@ pub(super) fn table(
                     SectionPart::Row(index) => {
                         first = first.min(index);
                         end = end.max(index + 1);
-                        let identity = ui.node_keyed(
-                            int_key(list_key, collection.row_keys[index]),
+                        let identity = ui.node(
+                            Key::Id(collection.row_keys[index]),
                             Node::column().w(Size::Grow).h(Size::Fit),
                         );
                         ui.within(&identity, &mut |ui| {

@@ -5,13 +5,13 @@ use crate::{Intent, PlayerView};
 
 pub(super) fn queue_action(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     label: &str,
     name: &str,
     width: f32,
 ) -> bool {
     let button = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look {
                 text: ui.color(SECONDARY),
@@ -30,7 +30,7 @@ pub(super) fn queue_action(
     );
     ui.text(&button, label);
     ui.a11y_name(&button, name);
-    ui.signal_state(&button).clicked
+    ui.signal(&button).clicked
 }
 
 /// Row metrics: the Now panel's Up next (Swift `desktop`) and the bottom sheet's.
@@ -131,7 +131,7 @@ pub(super) fn queue_sheet(
                     .role(Role::Dialog)
                     .flags(Flags::BLOCKING | Flags::CLIP | Flags::CLICKABLE)
             };
-            let sheet = ui.node("queue-sheet", sheet_node);
+            let sheet = ui.node("queue-sheet".into(), sheet_node);
             let drag = ui.gesture(
                 &sheet,
                 pxui::GestureOpts {
@@ -178,7 +178,7 @@ pub(super) fn queue_sheet(
                     |ui| {
                         // Swift reaches Save as list from this header's context menu and an a11y action.
                         let titles = ui.node(
-                            "queue-titles",
+                            "queue-titles".into(),
                             Node::column()
                                 .w(Size::Grow)
                                 .h(Size::Grow)
@@ -186,7 +186,7 @@ pub(super) fn queue_sheet(
                                 .flags(Flags::CLICKABLE | Flags::TAB_STOP),
                         );
                         ui.a11y_name(&titles, "Save queue as playlist");
-                        let signal = ui.signal_state(&titles);
+                        let signal = ui.signal(&titles);
                         if queue.is_some_and(|queue| !queue.entries.is_empty())
                             && (signal.clicked || (signal.pressed && signal.button == Some(1)))
                         {
@@ -436,7 +436,6 @@ pub(super) fn queue_sheet(
                                     ui,
                                     catalog,
                                     true,
-                                    width - 20.0,
                                     player.artwork,
                                     intent,
                                 )
@@ -444,7 +443,7 @@ pub(super) fn queue_sheet(
                         );
                     });
                     let clear = ui.node(
-                        "clear",
+                        "clear".into(),
                         Node {
                             padding: Edges {
                                 l: 26.0,
@@ -470,7 +469,7 @@ pub(super) fn queue_sheet(
                             false,
                         );
                     });
-                    if ui.signal_state(&clear).clicked {
+                    if ui.signal(&clear).clicked {
                         *intent = Some(Intent::ClearQueue);
                     }
                 }
@@ -491,7 +490,7 @@ fn now_row(
     width: f32,
 ) {
     let row = ui.node(
-        "queue-now",
+        "queue-now".into(),
         Node {
             padding: Edges {
                 l: 24.0,
@@ -559,7 +558,6 @@ pub(super) fn queue_rows(
     ui: &mut Ui,
     catalog: &Catalog,
     sheet: bool,
-    width: f32,
     images: Option<&crate::artwork::Images>,
     intent: &mut Option<Intent>,
 ) {
@@ -635,12 +633,13 @@ pub(super) fn queue_rows(
         );
         return;
     }
-    let list = ui.grid_list(
+    let list = ui.list(
         "queue-entries",
         entries.len(),
-        width,
         m.row,
-        &mut |ui, index| {
+        // a row is keyed by its occurrence, so it keeps its identity when the queue reorders
+        &|index| entries[index].id as i64,
+        |ui, index| {
             let entry = entries[index];
             let row = catalog
                 .row_index(entry.song_id)
@@ -653,18 +652,8 @@ pub(super) fn queue_rows(
                 }
             });
             let artist = row.map_or("", |row| row.artist);
-            let item = ui.node_keyed(
-                int_key(
-                    Ui::key_of(
-                        0,
-                        if sheet {
-                            "localwave-full-queue-entry"
-                        } else {
-                            "localwave-queue-entry"
-                        },
-                    ),
-                    entry.id as i64,
-                ),
+            let item = ui.node(
+                Key::Id(entry.id as i64),
                 Node {
                     padding: Edges {
                         l: m.lead,
@@ -687,7 +676,7 @@ pub(super) fn queue_rows(
             ui.a11y_name(&item, title);
             ui.within(&item, &mut |ui| {
                 let grip = ui.node(
-                    "reorder-queued",
+                    "reorder-queued".into(),
                     Node::column()
                         .w_px(m.grip)
                         .h_px(m.row)
@@ -702,7 +691,7 @@ pub(super) fn queue_rows(
                         }
                     }
                 });
-                let signal = ui.signal_state(&grip);
+                let signal = ui.signal(&grip);
                 if signal.held || signal.clicked {
                     let mut digits = [0u8; 24];
                     let id = stack_fmt(&mut digits, format_args!("{}", entry.id)).as_bytes();
@@ -728,7 +717,7 @@ pub(super) fn queue_rows(
                 paint_artwork(ui, &art, row, m.art, images);
                 ui.a11y_name(&art, "Track artwork");
                 let play = ui.node(
-                    "play-queued",
+                    "play-queued".into(),
                     Node {
                         padding: Edges {
                             l: 10.0 - m.gap,
@@ -763,7 +752,7 @@ pub(super) fn queue_rows(
                         false,
                     );
                 });
-                if ui.signal_state(&play).clicked {
+                if ui.signal(&play).clicked {
                     *intent = Some(Intent::PlayQueue(entry.id));
                 }
                 // Swift marks songs that are not on this device, or kept offline.
@@ -810,7 +799,7 @@ pub(super) fn queue_rows(
                     .map(|id| (dropped, id))
             });
             if let Some((dropped, occurrence)) = drop {
-                let after = ui.signal_state(&item).pointer.1 >= ui.rect(&item).y + m.row / 2.0;
+                let after = ui.signal(&item).pointer.1 >= ui.rect(&item).y + m.row / 2.0;
                 let before = if after {
                     entries.get(index + 1).map(|entry| entry.id)
                 } else {

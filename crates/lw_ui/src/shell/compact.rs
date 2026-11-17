@@ -12,9 +12,9 @@ pub(super) mod page;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
-fn button(ui: &mut Ui, key: &str, label: &str, selected: bool) -> bool {
+fn button(ui: &mut Ui, key: &'static str, label: &str, selected: bool) -> bool {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look {
                 fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
@@ -46,13 +46,13 @@ fn button(ui: &mut Ui, key: &str, label: &str, selected: bool) -> bool {
             0
         },
     );
-    ui.signal_state(&node).clicked
+    ui.signal(&node).clicked
 }
 
 /// Swift's library mode: label and count, ink with a 2 pt underline when active.
 fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool {
     let node = ui.node(
-        label,
+        label.into(),
         Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::TAB_STOP),
     );
     let ink = if active { ui.color(INK) } else { ui.color(SECONDARY) };
@@ -69,12 +69,12 @@ fn mode_tab(ui: &mut Ui, label: &'static str, count: &str, active: bool) -> bool
         Role::Button,
         if active { pxui::a11y::state::SELECTED } else { 0 },
     );
-    ui.signal_state(&node).clicked
+    ui.signal(&node).clicked
 }
 
-fn line(ui: &mut Ui, key: &str, value: &str, size: f32, color: Rgba) {
+fn line(ui: &mut Ui, key: &'static str, value: &str, size: f32, color: Rgba) {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look {
                 text: color,
@@ -86,13 +86,7 @@ fn line(ui: &mut Ui, key: &str, value: &str, size: f32, color: Rgba) {
     ui.text_line_box(
         &node,
         value,
-        &pxui::TextStyle {
-            size_points: size,
-            line_height: size * 1.4,
-            max_lines: 1,
-            ellipsis: pxui::TextStyle::ELLIPSIS_END,
-            ..Default::default()
-        },
+        &Label::BODY.size(size).line_height(size * 1.4).lines(1).ellipsis(),
         &[],
     )
     .unwrap();
@@ -140,7 +134,7 @@ pub(super) fn view(
     );
     let width = (width - left - right).max(1.0);
     let root = ui.node(
-        "compact-shell",
+        "compact-shell".into(),
         Node {
             padding: Edges {
                 t: top.max(state.top_inset),
@@ -205,10 +199,10 @@ pub(super) fn view(
                                 let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
                                 list::selection_header(ui, state.marked.len(), rows, rows, intent);
                             } else if library {
-                                detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -1.12), ui.color(INK), 0);
+                                detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
                                 // Swift's header gear; Settings stays one tap away.
                                 let settings = ui.node(
-                                    "settings",
+                                    "settings".into(),
                                     Node::column()
                                         .w_px(44.0)
                                         .h_px(44.0)
@@ -226,7 +220,7 @@ pub(super) fn view(
                                         color,
                                     )
                                 });
-                                if ui.signal_state(&settings).clicked {
+                                if ui.signal(&settings).clicked {
                                     *intent = Some(Intent::ShowSettings);
                                 }
                             } else {
@@ -262,7 +256,7 @@ pub(super) fn view(
                             },
                         );
                         let tabs = ui.node(
-                            "library-tabs",
+                            "library-tabs".into(),
                             Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
                         ui.set_role(&tabs, Role::Group, 0);
@@ -315,8 +309,8 @@ pub(super) fn view(
                             },
                         ));
                         ui.within(&body, &mut |ui| {
-                            let page = ui.node_keyed(
-                                int_key(body.box_key, route_key as i64),
+                            let page = ui.node(
+                                Key::Id(route_key as i64),
                                 Node::column().w(Size::Grow).h(Size::Grow),
                             );
                             ui.within(&page, &mut |ui| {
@@ -409,7 +403,7 @@ fn mini(
         },
         |ui| {
             let open = ui.node(
-                "open-player",
+                "open-player".into(),
                 Node::row()
                     .w(Size::Grow)
                     .h_px(48.0)
@@ -443,7 +437,7 @@ fn mini(
                     line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
                 });
             });
-            if ui.signal_state(&open).clicked {
+            if ui.signal(&open).clicked {
                 *intent = Some(Intent::TogglePlayer);
             }
             play(ui, player, (44.0, 44.0), intent);
@@ -511,7 +505,7 @@ fn groups(
         &mut |ui, index| {
             let group = &groups[index];
             let node = ui.node(
-                "group",
+                "group".into(),
                 Node::row()
                     .w(Size::Grow)
                     .h(Size::Grow)
@@ -530,7 +524,7 @@ fn groups(
                     line(ui, "count", &group.count, 12.0, ui.color(SECONDARY));
                 });
             });
-            if ui.signal_state(&node).clicked {
+            if ui.signal(&node).clicked {
                 *intent = Some(Intent::Navigate(if artists {
                     Route::Artist(index)
                 } else {
@@ -544,14 +538,14 @@ fn groups(
 /// Swift's `WaveModeKeys` (compact): icon + label key on a light fill, ink when active.
 fn mode_key(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     label: &str,
     icon: Icon,
     active: bool,
     mut inner: impl FnMut(&mut Ui),
 ) -> bool {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look {
                 fill: if active { ui.color(INK) } else { ui.color(KEY) },
@@ -568,14 +562,14 @@ fn mode_key(
     );
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
     ui.within(&node, &mut |ui| {
-        let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
+        let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
         ui.draw(&glyph, move |paint, rect| {
             kit::paint_icon(paint, icon, rect.x, rect.y, color)
         });
         inner(ui);
     });
     ui.a11y_name(&node, label);
-    ui.signal_state(&node).clicked
+    ui.signal(&node).clicked
 }
 
 #[allow(clippy::too_many_arguments)] // Keep ticking position separate from stable player data.
@@ -596,7 +590,7 @@ fn expanded(
         },
         ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)
     };
-    let root = ui.node("expanded-player", root_node);
+    let root = ui.node("expanded-player".into(), root_node);
     // Drag down to dismiss (UIKit sheet thresholds); the button below stays the alternative.
     let drag = ui.gesture(
         &root,
@@ -663,12 +657,12 @@ fn expanded(
                 ..Node::column().w(Size::Grow).h(Size::Grow)
             },
             |ui| {
-                let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
+                let info = ui.node("title-row".into(), Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
                 ui.within(&info, &mut |ui| {
                     let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                     ui.within(&names, &mut |ui| {
                         let title = ui.node(
-                            "title",
+                            "title".into(),
                             Node {
                                 look: Look { text: ui.color(INK), ..Look::NONE },
                                 ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
@@ -677,15 +671,7 @@ fn expanded(
                         ui.text_line_box(
                             &title,
                             if player.title.is_empty() { "Nothing playing" } else { player.title },
-                            &pxui::TextStyle {
-                                size_points: 24.0,
-                                weight: 500,
-                                tracking: -0.72,
-                                line_height: 27.6,
-                                max_lines: 1,
-                                ellipsis: pxui::TextStyle::ELLIPSIS_END,
-                                ..Default::default()
-                            },
+                            &Label::BODY.size(24.0).weight(500).tracking(TIGHT_3).line_height(27.6).lines(1).ellipsis(),
                             &[],
                         )
                         .unwrap();

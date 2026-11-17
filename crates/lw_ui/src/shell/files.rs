@@ -4,7 +4,7 @@ use crate::files::{Folder, Location, Request, Target};
 
 fn options(ui: &mut Ui, target: Target, intent: &mut Option<Intent>) {
     let button = button(ui, "source-options", "Folder options", 118.0, true, (PANEL, INK));
-    if ui.signal_state(&button).clicked {
+    if ui.signal(&button).clicked {
         let at = ui.rect(&button);
         *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
     }
@@ -52,7 +52,7 @@ pub(super) fn popup(
             {
                 let enabled = present && (index == 0 || !busy);
                 let item = ui.node(
-                    label,
+                    label.into(),
                     Node {
                         look: Look {
                             fill: ui.color(PAPER),
@@ -87,7 +87,7 @@ pub(super) fn popup(
                         0
                     },
                 );
-                if enabled && ui.signal_state(&item).clicked {
+                if enabled && ui.signal(&item).clicked {
                     let location = Location {
                         user: target.user,
                         source: target.source,
@@ -187,7 +187,7 @@ pub(super) fn confirm_remove(
                         100.0,
                         enabled,
                         (PANEL, DANGER),
-                    ) || (enabled && ui.key_pressed(input::Key::Enter.code()))
+                    ) || (enabled && ui.key_pressed(input::Key::Enter.code(), None))
                     {
                         *intent = Some(Intent::Files(Request::Remove(target)));
                     }
@@ -208,13 +208,13 @@ pub(super) fn up(directory: &crate::files::Directory) -> Intent {
     }))
 }
 
-fn button(ui: &mut Ui, key: &str, label: &str, width: f32, enabled: bool, tone: (ColorToken, ColorToken)) -> Handle {
+fn button(ui: &mut Ui, key: &'static str, label: &str, width: f32, enabled: bool, tone: (ColorToken, ColorToken)) -> Handle {
     let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 36.0 };
     sized_button(ui, key, label, width, height, enabled, tone)
 }
-fn sized_button(ui: &mut Ui, key: &str, label: &str, width: f32, height: f32, enabled: bool, (fill, ink): (ColorToken, ColorToken)) -> Handle {
+fn sized_button(ui: &mut Ui, key: &'static str, label: &str, width: f32, height: f32, enabled: bool, (fill, ink): (ColorToken, ColorToken)) -> Handle {
     let button = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look { fill: ui.color(fill), ..Look::NONE },
             ..Node::row()
@@ -235,21 +235,21 @@ fn sized_button(ui: &mut Ui, key: &str, label: &str, width: f32, height: f32, en
 }
 pub(super) fn action(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     label: &str,
     width: f32,
     enabled: bool,
     tone: (ColorToken, ColorToken),
 ) -> bool {
     let button = button(ui, key, label, width, enabled, tone);
-    ui.signal_state(&button).clicked && enabled
+    ui.signal(&button).clicked && enabled
 }
 
 /// Swift's plain secondary text link (Back).
-fn link(ui: &mut Ui, key: &str, label: &str, width: f32) -> bool {
+fn link(ui: &mut Ui, key: &'static str, label: &str, width: f32) -> bool {
     let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 40.0 };
     let link = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look { text: ui.color(SECONDARY), font: Font { size: 14, ..Font::BODY }, ..Look::NONE },
             ..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
@@ -257,13 +257,13 @@ fn link(ui: &mut Ui, key: &str, label: &str, width: f32) -> bool {
     );
     ui.text(&link, label);
     ui.a11y_name(&link, key);
-    ui.signal_state(&link).clicked
+    ui.signal(&link).clicked
 }
 
 /// A table cell: fixed `Some(width)` or a weighted share of the remaining row.
-fn cell(ui: &mut Ui, key: &str, fixed: Option<f32>, share: f32, end: bool, build: &mut dyn FnMut(&mut Ui)) {
+fn cell(ui: &mut Ui, key: &'static str, fixed: Option<f32>, share: f32, end: bool, build: &mut dyn FnMut(&mut Ui)) {
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             justify: if end { Justify::End } else { Justify::Start },
             padding: Edges { l: 8.0, r: if end { 20.0 } else { 8.0 }, ..Edges::ZERO },
@@ -275,7 +275,7 @@ fn cell(ui: &mut Ui, key: &str, fixed: Option<f32>, share: f32, end: bool, build
 
 /// Swift's folder/file marks in the # column, drawn as outlines.
 fn mark(ui: &mut Ui, directory: bool, color: Rgba) {
-    let node = ui.node("mark", Node::column().w_px(16.0).h_px(16.0));
+    let node = ui.node("mark".into(), Node::column().w_px(16.0).h_px(16.0));
     ui.draw(&node, move |paint, rect| {
         let (x, y, w, h) = if directory { (rect.x + 1.0, rect.y + 3.0, 14.0, 10.0) } else { (rect.x + 3.0, rect.y + 1.0, 10.0, 14.0) };
         paint.fill_fractional(x, y, w, 1.5, color);
@@ -363,14 +363,14 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
                 text(ui, "files-detail", &files.source_count, 13, ui.color(SECONDARY), (Size::Grow, 18.2), false);
             });
             // Swift's "+" opens an Add music sheet; its two choices are the picker intents.
-            let add = ui.node("add-music", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
+            let add = ui.node("add-music".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
             ui.a11y_name(&add, "Add music");
             let color = ui.color(INK);
             ui.draw(&add, move |paint, rect| {
                 paint.fill(rect.x + 10.0, rect.y + 21.25, 24.0, 1.5, color);
                 paint.fill(rect.x + 21.25, rect.y + 10.0, 1.5, 24.0, color);
             });
-            if enabled && ui.signal_state(&add).clicked {
+            if enabled && ui.signal(&add).clicked {
                 *intent = Some(Intent::ShowAddMusic);
             }
         },
@@ -386,7 +386,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
         text(ui, "empty-heading", "Point it at a folder.", 28, ui.color(INK), (Size::Grow, 48.0), false);
         settings::paragraph(ui, "empty-description", "Your files stay where they are. Nothing is uploaded.", width, 14.0, ui.color(SECONDARY));
         for (index, step) in ADD_STEPS.iter().enumerate() {
-            let row = ui.node_keyed(int_key(Ui::key_of(0, "files-step"), index as i64), Node::row().w(Size::Grow).h_px(44.0).gap(16.0).align(Align::Center));
+            let row = ui.node(Key::Id(index as i64), Node::row().w(Size::Grow).h_px(44.0).gap(16.0).align(Align::Center));
             ui.within(&row, &mut |ui| {
                 text(ui, "number", &["1", "2", "3"][index], 13, ui.color(SECONDARY), (Size::Px(12.0), 18.2), true);
                 text(ui, "step", step, 15, ui.color(INK), (Size::Grow, 24.0), false);
@@ -416,8 +416,8 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
 fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut Option<Intent>) {
     let target = Target { user, source: folder.id, root: folder.root };
     let error = folder.error.is_some();
-    let card = ui.node_keyed(
-        int_key(Ui::key_of(0, "files-source"), folder.id),
+    let card = ui.node(
+        Key::Id(folder.id),
         Node {
             margin: Edges { b: 8.0, ..Edges::ZERO },
             look: Look { fill: ui.color(PAPER), border: if error { ui.color(INK) } else { ui.color(LINE) }, border_w: 1.0, ..Look::NONE },
@@ -441,7 +441,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
         });
         if let Some(message) = &folder.error {
             spacer(ui, "error-gap", 12.0);
-            let row = ui.node("source-error", Node::row().w(Size::Grow).h_px(20.0).gap(8.0).align(Align::Center));
+            let row = ui.node("source-error".into(), Node::row().w(Size::Grow).h_px(20.0).gap(8.0).align(Align::Center));
             ui.within(&row, &mut |ui| {
                 super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
                 text(ui, "message", message, 13, ui.color(INK), (Size::Grow, 18.9), false);
@@ -450,11 +450,11 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
             ui.row("source-buttons", Node::row().w(Size::Grow).h_px(44.0).gap(2.0), |ui| {
                 let half = ((width - 34.0 - 2.0) / 2.0).floor().max(1.0);
                 let reconnect = sized_button(ui, "reconnect", "Reconnect folder", half, 44.0, true, (INK, PAPER));
-                if ui.signal_state(&reconnect).clicked {
+                if ui.signal(&reconnect).clicked {
                     *intent = Some(Intent::ReconnectSource(target));
                 }
                 let options = sized_button(ui, "source-options", "Options", half, 44.0, true, (PANEL, INK));
-                if ui.signal_state(&options).clicked {
+                if ui.signal(&options).clicked {
                     let at = ui.rect(&options);
                     *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
                 }
@@ -470,7 +470,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
             });
         }
     });
-    let signal = ui.signal_state(&card);
+    let signal = ui.signal(&card);
     if signal.pressed && signal.button == Some(1) {
         *intent = Some(Intent::SourceMenu(target, signal.pointer));
     } else if !error && intent.is_none() && signal.clicked {
@@ -496,7 +496,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         options(ui, target, intent);
     });
     if let Some(message) = &directory.error {
-        let row = ui.node("folder-error", Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: Look { border: ui.color(INK), border_w: 1.5, ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
+        let row = ui.node("folder-error".into(), Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: Look { border: ui.color(INK), border_w: 1.5, ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
         ui.within(&row, &mut |ui| {
             super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
             text(ui, "message", message, 14, ui.color(INK), (Size::Grow, 20.0), false);
@@ -514,7 +514,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         spacer(ui, "summary-gap", 6.0);
         text(ui, "summary", &directory.summary, 14, ui.color(SECONDARY), (Size::Grow, 19.6), false);
     });
-    let tools = ui.node("folder-tools", Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
+    let tools = ui.node("folder-tools".into(), Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
     ui.within(&tools, &mut |ui| {
         let ready = !directory.songs.is_empty() && !files.busy;
         if tool(ui, Action::Folder, ready) {
@@ -537,7 +537,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         text(ui, "empty-directory", "Nothing here.", 14, ui.color(SECONDARY), (Size::Grow, 48.0), false);
         return;
     }
-    let head = ui.node("folder-columns", Node::row().w(Size::Grow).h_px(38.0));
+    let head = ui.node("folder-columns".into(), Node::row().w(Size::Grow).h_px(38.0));
     ui.within(&head, &mut |ui| {
         cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
             text(ui, "label", "#", 12, ui.color(SECONDARY), (Size::Fit, 16.8), false);
@@ -554,7 +554,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     ui.draw_over(&head, move |paint, rect| paint.fill_fractional(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0, paint.color(LINE)));
     // The parent participates in the identity, giving each destination its own scroll state.
     let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
-    let list = ui.node_keyed(key, Node::column().w(Size::Grow).h(Size::Grow));
+    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
     // Desktop lists every file greyed (Swift); the compact list honours Show non-audio files.
     let shown = directory.entries.len() - if compact && !directory.show_non_audio { directory.non_audio } else { 0 };
     ui.within(&list, &mut |ui| {
@@ -563,12 +563,12 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
             let other = !entry.directory && !entry.audio;
             let color = if other { ui.color(TERTIARY) } else { ui.color(SECONDARY) };
             let ink = if other { ui.color(TERTIARY) } else { ui.color(INK) };
-            let row = ui.node_keyed(
-                int_key(Ui::key_of(0, "files-entry"), entry.id),
+            let row = ui.node(
+                Key::Id(entry.id),
                 Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),
             );
             ui.a11y_name(&row, &entry.name);
-            let signal = ui.signal_state(&row);
+            let signal = ui.signal(&row);
             ui.within(&row, &mut |ui| {
                 cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
                     if entry.audio {
@@ -623,7 +623,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     use super::kit::{Icon, paint_icon};
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
-    let top = ui.node("folder-top", Node::row().w(Size::Grow).h_px(44.0).align(Align::Center));
+    let top = ui.node("folder-top".into(), Node::row().w(Size::Grow).h_px(44.0).align(Align::Center));
     if selecting {
         // Swift's selection header replaces the back row and the title.
         ui.within(&top, &mut |ui| {
@@ -631,15 +631,15 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         });
     } else {
     ui.within(&top, &mut |ui| {
-        let back = ui.node("Back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+        let back = ui.node("Back".into(), Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
         ui.a11y_name(&back, "Back");
         ui.within(&back, &mut |ui| {
-            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
+            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(SECONDARY);
             ui.draw(&glyph, move |paint, rect| paint_icon(paint, Icon::Back, rect.x, rect.y, color));
             text(ui, "label", if directory.up.is_some() { "Back" } else { "Folders" }, 15, ui.color(SECONDARY), (Size::Fit, 21.0), false);
         });
-        if ui.signal_state(&back).clicked {
+        if ui.signal(&back).clicked {
             *intent = Some(up(directory));
         }
         ui.box_("top-space", BoxOpts::default().w(Size::Grow).h(Size::Px(1.0)));
@@ -647,22 +647,22 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         if directory.songs.is_empty() {
             return;
         }
-        let select = ui.node("select", Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+        let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
         ui.within(&select, &mut |ui| { text(ui, "label", "Select", 16, ui.color(INK), (Size::Fit, 22.4), false); });
         ui.a11y_name(&select, "Select");
-        if ui.signal_state(&select).clicked {
+        if ui.signal(&select).clicked {
             *intent = Some(Intent::SelectMode(true));
         }
     });
     }
     if !selecting {
     ui.row("folder-titles", Node::row().w(Size::Grow).h_px(48.0).align(Align::Center), |ui| {
-        ui.column("name", Node::column().w(Size::Grow).h(Size::Fit), |ui| { super::detail::line(ui, "title", &directory.title, (32.0, 33.6, 500, -1.12), ui.color(INK), 0); });
-        let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+        ui.column("name", Node::column().w(Size::Grow).h(Size::Fit), |ui| { super::detail::line(ui, "title", &directory.title, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); });
+        let more = ui.node("source-options".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
         ui.a11y_name(&more, "Folder options");
         let color = ui.color(INK);
         ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
-        if ui.signal_state(&more).clicked {
+        if ui.signal(&more).clicked {
             let at = ui.rect(&more);
             *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
         }
@@ -672,7 +672,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         text(ui, "breadcrumb", &directory.breadcrumb, 13, ui.color(SECONDARY), (Size::Grow, 24.0), false);
     }
     if let Some(message) = &directory.error {
-        let row = ui.node("folder-error", Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: Look { border: ui.color(INK), border_w: 1.5, ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
+        let row = ui.node("folder-error".into(), Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: Look { border: ui.color(INK), border_w: 1.5, ..Look::NONE }, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
         ui.within(&row, &mut |ui| {
             super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
             text(ui, "message", message, 13, ui.color(INK), (Size::Grow, 18.9), false);
@@ -688,14 +688,14 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         }
         for (id, name, offline) in [("shuffle", "Shuffle folder", false), ("keep-offline", if directory.kept { "Kept offline" } else { "Keep folder offline" }, true)] {
             let kept = offline && directory.kept;
-            let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+            let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
             ui.a11y_name(&node, name);
             let color = if kept { ui.color(PAPER) } else { ui.color(INK) };
             ui.draw(&node, move |paint, rect| {
                 let rect = pxui::geom::Rect { x: rect.x + 16.0, y: rect.y + 16.0, w: 20.0, h: 20.0 };
                 if offline { crate::icons::offline(paint, rect, kept, color) } else { crate::icons::shuffle(paint, rect, color) }
             });
-            if ui.signal_state(&node).clicked && ready {
+            if ui.signal(&node).clicked && ready {
                 *intent = Some(if offline { Intent::KeepFolder } else { Intent::ShuffleFolder });
             }
         }
@@ -706,13 +706,13 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         return;
     }
     // Swift's All / Offline / In cloud tabs; the worker listed what each shows.
-    let tabs = ui.node("filter-tabs", Node::row().w(Size::Grow).h_px(44.0).gap(20.0));
+    let tabs = ui.node("filter-tabs".into(), Node::row().w(Size::Grow).h_px(44.0).gap(20.0));
     ui.set_role(&tabs, Role::Group, 0);
     ui.a11y_name(&tabs, "Availability filter");
     ui.within(&tabs, &mut |ui| {
         for (filter, label, count) in [(FilesFilter::All, "All", 0), (FilesFilter::Offline, "Offline", 1), (FilesFilter::Cloud, "In cloud", 2)] {
             let active = filter == files_filter;
-            let tab = ui.node(label, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+            let tab = ui.node(label.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
             let ink = if active { ui.color(INK) } else { ui.color(SECONDARY) };
             ui.within(&tab, &mut |ui| {
                 ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
@@ -723,25 +723,25 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             });
             ui.a11y_name(&tab, label);
             ui.set_role(&tab, Role::Button, if active { pxui::a11y::state::SELECTED } else { 0 });
-            if ui.signal_state(&tab).clicked {
+            if ui.signal(&tab).clicked {
                 *intent = Some(Intent::FilesFilter(filter));
             }
         }
     });
     let key = int_key(int_key(Ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
-    let list = ui.node_keyed(key, Node::column().w(Size::Grow).h(Size::Grow));
+    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
     // Swift's "N non-audio files hidden · show" closes the list while the setting is off.
     let footer = !show_non_audio && directory.non_audio > 0;
     ui.within(&list, &mut |ui| {
         ui.grid_list("directory-entries", shown + usize::from(footer), width, 56.0, &mut |ui, index| {
             if index == shown {
-                let row = ui.node("hidden-footer", Node::row().w(Size::Grow).h_px(56.0).gap(4.0).align(Align::Center));
+                let row = ui.node("hidden-footer".into(), Node::row().w(Size::Grow).h_px(56.0).gap(4.0).align(Align::Center));
                 ui.within(&row, &mut |ui| {
                     text(ui, "hidden", &directory.hidden_label, 14, ui.color(SECONDARY), (Size::Fit, 19.6), false);
-                    let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+                    let show = ui.node("show".into(), Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
                     ui.within(&show, &mut |ui| { text(ui, "label", "show", 14, ui.color(SECONDARY), (Size::Fit, 19.6), false); });
                     ui.a11y_name(&show, "Show non-audio files");
-                    if ui.signal_state(&show).clicked {
+                    if ui.signal(&show).clicked {
                         *intent = Some(Intent::Setting(lw_core::preferences::Change::ToggleShowNonAudio));
                     }
                 });
@@ -749,12 +749,12 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             }
             let Some(entry) = directory.entry(files_filter, index) else { return };
             let other = !entry.directory && !entry.audio;
-            let row = ui.node_keyed(
-                int_key(Ui::key_of(0, "files-entry"), entry.id),
+            let row = ui.node(
+                Key::Id(entry.id),
                 Node { padding: Edges { r: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
             );
             ui.a11y_name(&row, &entry.name);
-            let signal = ui.signal_state(&row);
+            let signal = ui.signal(&row);
             ui.within(&row, &mut |ui| {
                 ui.column("mark-cell", Node::column().w_px(16.0).h_px(16.0), |ui| match entry.glyph {
                     Some(glyph) if entry.audio => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
@@ -771,21 +771,21 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     }
                 } else if entry.directory {
                     // Folder rows: Open folder / Play folder / Shuffle folder.
-                    let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+                    let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
                     ui.a11y_name(&more, "Actions for folder");
                     let color = ui.color(SECONDARY);
                     ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
-                    if ui.signal_state(&more).clicked {
+                    if ui.signal(&more).clicked {
                         let at = ui.rect(&more);
                         *intent = Some(Intent::FolderMenu(entry.id, (at.x + at.w - 44.0, at.y)));
                     }
                 // Swift's per-file "…"; only saved songs have actions here.
                 } else if let Some(song) = entry.song {
-                    let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+                    let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
                     ui.a11y_name(&more, "Actions for file");
                     let color = ui.color(SECONDARY);
                     ui.draw(&more, move |paint, rect| paint_icon(paint, Icon::More, rect.x + 12.0, rect.y + 12.0, color));
-                    if ui.signal_state(&more).clicked {
+                    if ui.signal(&more).clicked {
                         let at = ui.rect(&more);
                         *intent = Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
                     }
@@ -844,9 +844,9 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
             ("Play folder", filled, Intent::PlayEntryFolder(entry)),
             ("Shuffle folder", filled, Intent::ShuffleEntryFolder(entry)),
         ] {
-            let node = ui.node(label, super::songs::item_node(ui, enabled));
+            let node = ui.node(label.into(), super::songs::item_node(ui, enabled));
             ui.text(&node, label);
-            if enabled && ui.signal_state(&node).clicked {
+            if enabled && ui.signal(&node).clicked {
                 *intent = Some(action);
                 accepted = true;
             }
@@ -867,20 +867,20 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
     let open = ui.modal(Some(width), "Add music", &mut |ui| {
         ui.column("add-music-body", Node { look: Look { fill: ui.color(PAPER), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0) }, |ui| {
-            super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.2), ui.color(INK), 0);
+            super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
             text(ui, "subtitle", "Files stay where they are", 13, ui.color(SECONDARY), (Size::Grow, 18.2), false);
             spacer(ui, "gap", 4.0);
             for (key, title, detail, action) in [
                 ("add-folder", "A folder", "Watched for changes. iCloud Drive, Google Drive, Dropbox, On My iPhone, USB drives, SMB servers.", Intent::ChooseFolder),
                 ("add-files", "Some files", "Play them now; they join the library too.", Intent::ChooseAudio),
             ] {
-                let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+                let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
                 ui.a11y_name(&option, title);
                 ui.within(&option, &mut |ui| {
-                    super::detail::line(ui, "title", title, (17.0, 23.8, 500, 0.0), ui.color(INK), 0);
+                    super::detail::line(ui, "title", title, (17.0, 23.8, 500, 0.0), ui.color(INK), Flags::NONE);
                     settings::paragraph(ui, "detail", detail, width - 56.0, 13.0, ui.color(SECONDARY));
                 });
-                if enabled && ui.signal_state(&option).clicked {
+                if enabled && ui.signal(&option).clicked {
                     *intent = Some(action);
                 }
             }

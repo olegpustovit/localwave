@@ -169,6 +169,7 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                     line_height: line,
                     ..Default::default()
                 };
+                let label = pxui::Label::BODY.font(font).size(size).line_height(line);
                 ui.frame(
                     &FrameIn {
                         width: 400.0,
@@ -179,7 +180,7 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                     },
                     &mut |ui| {
                         let a = ui.node(
-                            "line-box",
+                            "line-box".into(),
                             pxui::ui::Node {
                                 at: Some((20.0, 20.0)).into(),
                                 look: pxui::ui::Look {
@@ -194,9 +195,9 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                                 ..pxui::ui::Node::column().w_px(200.0).h_px(line).role(pxui::ui::Role::Label)
                             },
                         );
-                        ui.text_line_box(&a, "Ag01", &style, &[]).unwrap();
+                        ui.text_line_box(&a, "Ag01", &label, &[]).unwrap();
                         let b = ui.node(
-                            "reference",
+                            "reference".into(),
                             pxui::ui::Node {
                                 at: Some((20.0, 20.0)).into(),
                                 ..pxui::ui::Node::column().w_px(200.0).h_px(line)

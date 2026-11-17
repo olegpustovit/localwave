@@ -9,9 +9,9 @@ use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
 
-fn back(ui: &mut Ui, name: &str) -> bool {
+fn back(ui: &mut Ui, name: &'static str) -> bool {
     let button = ui.node(
-        name,
+        name.into(),
         Node {
             look: Look {
                 text: ui.color(SECONDARY),
@@ -26,34 +26,30 @@ fn back(ui: &mut Ui, name: &str) -> bool {
     );
     ui.text(&button, name);
     ui.a11y_name(&button, name);
-    ui.signal_state(&button).clicked
+    ui.signal(&button).clicked
 }
 fn context(ui: &Ui, node: &Handle, menu: SettingsMenu, intent: &mut Option<Intent>) {
-    let signal = ui.signal_state(node);
+    let signal = ui.signal(node);
     if signal.pressed && signal.button == Some(1) {
         *intent = Some(Intent::SettingsMenu(menu, signal.pointer));
     }
 }
 pub(super) fn paragraph(
     ui: &mut Ui,
-    key: &str,
+    key: &'static str,
     value: &str,
     width: f32,
     size: f32,
     color: Rgba,
 ) -> Handle {
-    let style = pxui::TextStyle {
-        size_points: size,
-        line_height: size * 1.4,
-        wrap: pxui::TextStyle::WRAP_WORD,
-        ..Default::default()
-    };
+    let label = Label::BODY.size(size).line_height(size * 1.4).wrap();
+    let style = ui.resolve(&label);
     let metrics = ui
         .text_service()
         .measure(value, &style, width.max(1.0))
         .unwrap();
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             look: Look {
                 text: color,
@@ -62,13 +58,13 @@ pub(super) fn paragraph(
             ..Node::column().w(Size::Grow).h_px(metrics.height.max(style.line_height)).role(Role::Paragraph)
         },
     );
-    ui.text_line_box(&node, value, &style, &[]).unwrap();
+    ui.text_line_box(&node, value, &label, &[]).unwrap();
     node
 }
 fn row(
     ui: &mut Ui,
-    key: &str,
-    labels: (&str, &str),
+    key: &'static str,
+    labels: (&'static str, &str),
     width: f32,
     control: (Option<(bool, Change)>, Option<SettingsMenu>, bool),
     intent: &mut Option<Intent>,
@@ -92,12 +88,8 @@ fn row(
             182.0
         })
     .max(1.0);
-    let label_style = pxui::TextStyle {
-        size_points: 13.0,
-        line_height: 18.2,
-        wrap: pxui::TextStyle::WRAP_WORD,
-        ..Default::default()
-    };
+    const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap();
+    let label_style = ui.resolve(&DETAIL);
     let detail_height = if detail.is_empty() {
         0.0
     } else {
@@ -113,7 +105,7 @@ fn row(
         60.0f32.max(label_height)
     };
     let node = ui.node(
-        key,
+        key.into(),
         Node {
             axis: if stacked { Axis::Column } else { Axis::Row },
             ..Node::column()
@@ -166,7 +158,7 @@ fn row(
                 text(ui, "title", title, 15, ui.color(INK), (Size::Grow, 21.0), false);
                 if !detail.is_empty() {
                     let label = ui.node(
-                        "detail",
+                        "detail".into(),
                         Node {
                             look: Look {
                                 text: ui.color(SECONDARY),
@@ -175,7 +167,7 @@ fn row(
                             ..Node::column().w(Size::Grow).h_px(detail_height).role(Role::Label)
                         },
                     );
-                    ui.text_line_box(&label, detail, &label_style, &[]).unwrap();
+                    ui.text_line_box(&label, detail, &DETAIL, &[]).unwrap();
                 }
             },
         );
@@ -191,7 +183,7 @@ fn row(
                 },
                 |ui| {
                     ui.node(
-                        "knob",
+                        "knob".into(),
                         Node {
                             at: Some((if on { 23.0 } else { 3.0 }, 3.0)).into(),
                             look: Look {
@@ -208,12 +200,12 @@ fn row(
         }
     });
     if let Some((_, change)) = toggle {
-        let signal = ui.signal_state(&node);
+        let signal = ui.signal(&node);
         if signal.clicked && signal.button != Some(1) {
             *intent = Some(Intent::Setting(change));
         }
     }
-    if tap && ui.signal_state(&node).clicked {
+    if tap && ui.signal(&node).clicked {
         *intent = Some(Intent::Files(crate::files::Request::Roots));
     }
     ui.draw(&node, move |paint, rect| {
@@ -228,7 +220,7 @@ fn row(
 }
 fn option(
     ui: &mut Ui,
-    labels: (&str, &str),
+    labels: (&'static str, &str),
     selected: bool,
     action: (Change, SettingsMenu),
     intent: &mut Option<Intent>,
@@ -236,7 +228,7 @@ fn option(
     let (label, name) = labels;
     let (change, menu) = action;
     let button = ui.node(
-        label,
+        label.into(),
         Node {
             min_w: 40.0,
             look: Look {
@@ -269,7 +261,7 @@ fn option(
             },
     );
     context(ui, &button, menu, intent);
-    let signal = ui.signal_state(&button);
+    let signal = ui.signal(&button);
     if signal.clicked && signal.button != Some(1) {
         *intent = Some(Intent::Setting(change));
     }
@@ -282,7 +274,7 @@ pub(super) fn view(
     intent: &mut Option<Intent>,
 ) {
     let page = ui.node(
-        "settings-page",
+        "settings-page".into(),
         Node {
             padding: Edges {
                 t: 10.0,
@@ -306,8 +298,8 @@ pub(super) fn view(
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
-        let title = ui.node("settings-title", Node::column().w(Size::Grow).h_px(56.0).pad_x(16.0).role(Role::Heading));
-        ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -1.12), ui.color(INK), 0); });
+        let title = ui.node("settings-title".into(), Node::column().w(Size::Grow).h_px(56.0).pad_x(16.0).role(Role::Heading));
+        ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); });
         ui.a11y_name(&title, heading);
         if state.privacy_visible {
             for (title, body) in [
@@ -346,7 +338,7 @@ pub(super) fn view(
             }});
         });
         row(ui, "rescan", ("Rescan all sources", "Usually not needed — folders are watched"), width, (None, None, true), intent, &mut |ui, _| {
-            let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
+            let glyph = ui.node("chevron".into(), Node::column().w_px(18.0).h_px(18.0));
             let color = ui.color(INK);
             ui.draw(&glyph, move |paint, rect| {
                 for step in 0..6 {
@@ -432,7 +424,7 @@ pub(super) fn popup(
             };
             for &(change, label, selected) in items {
                 let node = ui.node(
-                    label,
+                    label.into(),
                     Node {
                         look: Look {
                             fill: if selected { ui.color(SELECTED) } else { ui.color(PAPER) },
@@ -462,7 +454,7 @@ pub(super) fn popup(
                             0
                         },
                 );
-                if ui.signal_state(&node).clicked {
+                if ui.signal(&node).clicked {
                     *intent = Some(Intent::Setting(change));
                 }
             }

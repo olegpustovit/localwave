@@ -44,12 +44,10 @@ pub(super) fn draw(
     intent: &mut Option<Intent>,
 ) {
     let values = [player.artist, " ", "—", " ", player.album];
-    let styles = std::array::from_fn::<_, 5, _>(|index| pxui::TextStyle {
-        size_points: if matches!(index, 1 | 3) { 15.0 } else { 14.0 },
-        line_height: if matches!(index, 1 | 3) { 21.0 } else { 19.6 },
-        wrap: pxui::TextStyle::WRAP_WORD_SPACES,
-        ..Default::default()
-    });
+    const NAME: Label = Label::BODY.line_height(19.6).wrap_spaces();
+    const SPACE: Label = Label::BODY.size(15.0).line_height(21.0).wrap_spaces();
+    let labels = std::array::from_fn::<_, 5, _>(|index| if matches!(index, 1 | 3) { SPACE } else { NAME });
+    let styles = labels.map(|label| ui.resolve(&label));
     let density = ui.density() as f32;
     let sizes = std::array::from_fn(|index| {
         let service = &mut ui.text_service();
@@ -73,7 +71,7 @@ pub(super) fn draw(
             let rect = rects[index];
             let link = index != 2;
             let node = ui.node(
-                ["artist", "space-one", "separator", "space-two", "album"][index],
+                ["artist", "space-one", "separator", "space-two", "album"][index].into(),
                 Node {
                     at: Some((rect.x, rect.y)).into(),
                     inset: Edges {
@@ -91,9 +89,9 @@ pub(super) fn draw(
                         .flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
                 },
             );
-            ui.text_line_box(&node, values[index], &styles[index], &[])
+            ui.text_line_box(&node, values[index], &labels[index], &[])
                 .unwrap();
-            if link && ui.signal_state(&node).clicked {
+            if link && ui.signal(&node).clicked {
                 let route = player.current_id.and_then(|id| {
                     let row = catalog.row(catalog.row_index(id)?);
                     let matches = if index == 0 {

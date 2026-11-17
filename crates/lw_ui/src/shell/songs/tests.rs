@@ -893,8 +893,8 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                             widths,
                             current,
                         );
-                        let root = ui.node_keyed(
-                            int_key(91, position as i64),
+                        let root = ui.node(
+                            Key::Id(position as i64),
                             Node::column().w_px(width).h_px(layout.height),
                         );
                         ui.within(&root, &mut |ui| {
@@ -923,7 +923,7 @@ fn prepared_song_cells_match_normal_wrapping_density_current_weight_and_album_nu
                                         w,
                                         h,
                                     },
-                                    body_style(column, current),
+                                    body_label(column, current),
                                     Rgba {
                                         r: 17,
                                         g: 33,
