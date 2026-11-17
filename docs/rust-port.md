@@ -130,8 +130,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
-| DX6.0a | Doctests really run (rays-t ran none) and run split by module | done | HEAD + pxui 6662f51 |
-| DX6.0b | Fix the 13 doctest examples that never ran | todo |  |
+| DX6.0a | Doctests really run (rays-t ran none) and run split by module | done | 5123918 + pxui 6662f51 |
+| DX6.0b | Fix the 13 doctest examples that never ran | done | HEAD + pxui 369fe6c |
 | DX6.4 | Docs: model and frame | todo |  |
 | DX6.5 | Docs: nodes and state | todo |  |
 | DX6.6 | Docs: views, overlays, animation | todo |  |
