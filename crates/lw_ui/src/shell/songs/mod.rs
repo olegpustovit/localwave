@@ -197,49 +197,52 @@ fn heading(
                 let left = if column == Column::Number { 32.0 } else { 8.0 };
                 let available = (w - left - 8.0).max(0.0);
                 let (fit, height) = layout.sizes[column as usize];
-                let button = ui.node(
-                    column.title().into(),
-                    Node {
-                        at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
-                        look: Look {
-                            text: ui.color(SECONDARY),
-                            ..Look::NONE
-                        },
-                        ..Node::column()
-                            .w_px(available)
-                            .h_px(height)
-                            .role(if column.sort().is_some() {
-                                Role::Button
-                            } else {
-                                Role::Label
-                            })
-                            .flags(if column.sort().is_some() {
-                                Flags::CLICKABLE | Flags::TAB_STOP
-                            } else {
-                                Flags::NONE
-                            })
+                let node = Node {
+                    at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
+                    look: Look {
+                        text: ui.color(SECONDARY),
+                        ..Look::NONE
                     },
-                );
+                    ..Node::column()
+                        .w_px(available)
+                        .h_px(height)
+                        .role(if column.sort().is_some() { Role::Button } else { Role::Label })
+                };
                 let value = heading_value(column, applied);
                 let style = TABLE_HEADING;
-                if column == Column::Time {
-                    ui.within(&button, &mut |ui| {
-                        label(
-                            ui,
-                            "time-label",
-                            value,
-                            Rect {
-                                x: available - fit,
-                                y: 0.0,
-                                w: fit,
-                                h: height,
-                            },
-                            style,
-                            ui.color(SECONDARY),
-                            Role::Unknown,
-                        );
+                // The Time heading is a right-aligned child label; the others are the node's own line box.
+                let time_label = |ui: &mut Ui| {
+                    label(
+                        ui,
+                        "time-label",
+                        value,
+                        Rect {
+                            x: available - fit,
+                            y: 0.0,
+                            w: fit,
+                            h: height,
+                        },
+                        style,
+                        ui.color(SECONDARY),
+                        Role::Unknown,
+                    );
+                };
+                // Only sortable headings are buttons; the rest are plain labels.
+                let (button, clicked) = if column.sort().is_some() {
+                    let heading = ui.pressable(column.title(), node, &PLAIN, |ui, _| {
+                        if column == Column::Time {
+                            time_label(ui);
+                        }
                     });
+                    (heading.handle, heading.clicked)
                 } else {
+                    let heading = ui.node(column.title().into(), node);
+                    if column == Column::Time {
+                        ui.within(&heading, &mut |ui| time_label(ui));
+                    }
+                    (heading, false)
+                };
+                if column != Column::Time {
                     ui.text_line_box(&button, value, &style, &[]).unwrap();
                 }
                 if let Some(sort) = column.sort() {
@@ -264,7 +267,7 @@ fn heading(
                         (Sort::Duration, _) => "Sort by Time, descending",
                     };
                     ui.a11y_name(&button, action);
-                    if ui.signal(&button).clicked {
+                    if clicked {
                         *intent = Some(Intent::Sort(sort));
                     }
                 }
