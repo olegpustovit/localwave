@@ -5,6 +5,7 @@
 //! Preserve overlapping menu presses and warm storage_busy alternation without extending warm-up.
 //! Expose only connected actions.
 //!
+use pxui::bodies::BodyConfig;
 use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
@@ -84,13 +85,13 @@ fn hairline(ui: &mut Ui, node: &Handle) {
 }
 /// LocalWave's settings switch row (registered as `localwave-toggle`): a settings row whose control is the 48 x 28 switch, ink when
 /// on, the line colour when off, with a 22-point paper knob.
-pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::PxuiToggleConfig) {
+pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     // The switch shows the stored value until the controller applies the flip.
-    let (on, title) = (c.stored != 0, pxui::bodies::text_of(&c.label));
+    let (on, title) = (c.stored != 0, c.text_of(&c.label));
     ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
     ui.a11y_name(&c.row, title);
     ui.set_role(&c.row, Role::Toggle, pxui::a11y::state::CHECKABLE | if on { pxui::a11y::state::CHECKED } else { 0 });
-    labels(ui, title, pxui::bodies::text_of(&c.detail));
+    labels(ui, title, c.text_of(&c.detail));
     let track = if on { TRACK_ON } else { TRACK };
     ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
         let at = Some((if on { 23.0 } else { 3.0 }, 3.0)).into();

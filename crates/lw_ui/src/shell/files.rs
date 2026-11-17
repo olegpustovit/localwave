@@ -1,3 +1,4 @@
+use pxui::bodies::BodyConfig;
 use super::*;
 use crate::FilesFilter;
 use crate::files::{Folder, Location, Request, Target};
@@ -125,11 +126,11 @@ fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: Co
 }
 /// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
 /// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row.
-pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::PxuiDialogConfig) {
+pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
     const SHEET: Node =
         Node { look: PAPER_FILL, ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0) };
     ui.column("sheet", SHEET, |ui| {
-        ui.label(pxui::bodies::text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
+        ui.label(c.text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
         ui.slot(c.content);
         let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), Rgba::token(PAPER));
         ui.within(&actions, &mut |ui| {
@@ -137,7 +138,7 @@ pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::PxuiDialogConfig) {
             for i in 0..c.buttons.len {
                 let (enabled, ink) = (c.disabled >> i & 1 == 0, if c.danger >> i & 1 != 0 { DANGER } else { INK });
                 let button = ui.part(pxui::Part::button(i as u8), button_node(100.0, height, enabled, PANEL));
-                button_face(ui, &button, pxui::bodies::text_at(&c.buttons, i), enabled, ink);
+                button_face(ui, &button, c.text_at(&c.buttons, i), enabled, ink);
             }
         });
     });

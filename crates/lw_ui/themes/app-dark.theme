@@ -1,4 +1,4 @@
-context_menu.body = localwave-menu
+menu_row.body = localwave-menu
 popup.idle.border = #262626
 toggle.body = localwave-toggle
 dialog.body = localwave-sheet

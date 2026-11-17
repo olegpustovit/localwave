@@ -94,6 +94,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX1.12E | Audit batch E: text inputs — TextField style, one keyed text_field, key-first field widgets with response structs, call-scoped callbacks, zero warm allocations | done | c6cd355 + pxui cf953b3 |
 | DX1.12A | Audit batch A: Label is the one text-style input (TextStyle opaque, from resolve), enums for wrap/ellipsis/align, label exports resolve in-call | done | 1efcf4d + pxui 763df85 |
 | DX1.12F1 | Audit batch F1: old-shape widgets key-first with Copy styles and Response; keyed size-prefixed C records (no in-band key encoding); one checkbox/table/picker; overlays share Overlay | done | 0cd725a + pxui b6958651 |
+| DX1.12G | Audit batch G: body vocabulary follows the public calls; sealed per-kind body config wrappers | done | HEAD + pxui 98ca495 |
 | DX2.1 | Borrowed key signals | done | d7aa1d9 + pxui 4e0de1f |
 | DX2.2 | Borrowed text results | done | 1667f9e + pxui 5e0e4a3 |
 | DX2.2a | Gallery and abi_bench build again after DX2.2 (shared pages.rs) | done | 5ed6818 + pxui 769f444 |
@@ -131,7 +132,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX4.8 | Codemod A: Node literals to builders | done | 4091362 |
 | DX4.9 | Codemod B: hashed view to view_of | done | ccbe842 |
 | DX4.10 | Codemod C: node+within to containers | done | 51e19dc |
-| DX4.11 | Hand conversion to pressable, one commit per file | done | HEAD |
+| DX4.11 | Hand conversion to pressable, one commit per file | done | ad48bd3 |
 | DX4.12 | LocalWave review cleanups: id keys, named styles, theme bound once, press state in button contents | done | 0172279 |
 | DX4.13 | API-conformance check in make check (lw_ui/tests/api_conformance.rs, shrinking allowlist; empty when DX4 completes) | done | 73512bf |
 | DX4.15 | Shadow theme deleted: every look a named const over Rgba::token; colours stay the theme (gap: token with alpha) | done | a3c8ea1 |

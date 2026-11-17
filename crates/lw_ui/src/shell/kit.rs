@@ -1,3 +1,4 @@
+use pxui::bodies::BodyConfig;
 use super::*;
 
 // LocalWave's colour tokens (`Ui::set_colors`), read with `ui.color` and `paint.color`; the accent is the theme's own.
@@ -284,7 +285,7 @@ pub(super) const MENU_PANEL: u16 = 1;
 pub(super) const MENU_CHOICE: u16 = 2;
 /// LocalWave's context menu row (registered as `localwave-menu`): 13-point text 12 points in, ink or the danger red; `MENU_PANEL`
 /// and `MENU_CHOICE` rows also take the paper (or selected) fill and their own accessible role and states.
-pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::PxuiMenuRowConfig) {
+pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
     let (enabled, selected) = (c.state.disabled == 0, c.state.checked != 0);
     ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0));
     let ink = if c.danger != 0 { DANGER } else { INK };
@@ -296,7 +297,7 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::PxuiMenuRowConfig) {
         let look = MENU_ROW.fill(fill).text(Rgba::token(if enabled { ink } else { SECONDARY }));
         ui.set_look(&c.row, look, State::default());
     }
-    ui.text(&c.row, pxui::bodies::text_of(&c.text));
+    ui.text(&c.row, c.text_of(&c.text));
     use pxui::a11y::state::{CHECKABLE, CHECKED, ENABLED};
     match c.variant {
         MENU_PANEL => ui.set_role(&c.row, Role::MenuItem, if enabled { ENABLED } else { 0 }),

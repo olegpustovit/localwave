@@ -2,6 +2,7 @@
 //! focus restoration and dismissal. Read scalar signals instead of owned key vectors. Raw key
 //! queries do not consume events; focus/modal ownership must be arbitrated by the caller.
 //!
+use pxui::bodies::BodyConfig;
 use super::*;
 use crate::commands::{Action, Command, Results};
 
@@ -84,7 +85,7 @@ pub(super) const FIND_FIELD: u16 = 1;
 /// The command palette's input: no autocorrect or capitalization, the Search key.
 const PALETTE_FIELD: pxui::TextField = pxui::TextField::SEARCH.name("Search and commands");
 
-pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
+pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     // One registered body serves the palette (20 pt, 59 pt tall) and Swift's phone Find field (26 pt medium, 56 pt).
     let find = c.variant == FIND_FIELD;
     let (size, height, inset, hint) = if find {
@@ -123,7 +124,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PxuiTextFieldConfig) {
             ..Node::column().w(Size::Grow).h_px(height)
         },
     );
-    let value = pxui::bodies::text_of(&c.value);
+    let value = c.text_of(&c.value);
     if c.state.focused == 0 {
         ui.text(&editor, value);
     }
