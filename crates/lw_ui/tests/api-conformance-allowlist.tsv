@@ -1,5 +1,4 @@
 lw_ui/src/shell/albums.rs	R2	Flags::CLICKABLE | Flags::TAB_STOP
-lw_ui/src/shell/artists.rs	R2	.flags(Flags::CLICKABLE | Flags::TAB_STOP),
 lw_ui/src/shell/byline.rs	R2	.flags(if link { Flags::CLICKABLE | Flags::TAB_STOP } else { Flags::NONE })
 lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
 lw_ui/src/shell/compact.rs	R2	..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::CLICKABLE)

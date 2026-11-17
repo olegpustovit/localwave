@@ -164,25 +164,8 @@ pub(super) fn table(
                     Size::Grow,
                     Size::Fit,
                     &mut |ui| {
-                        let row = ui.node(
-                            "artist".into(),
-                            Node::column()
-                                .w(Size::Grow)
-                                .h_px(row_height)
-                                .role(Role::Button)
-                                .flags(Flags::CLICKABLE | Flags::TAB_STOP),
-                        );
-                        ui.a11y_name(&row, name);
-                        let signal = ui.signal(&row);
-                        ui.set_look(
-                            &row,
-                            Look {
-                                fill: ui.color(PAPER),
-                                ..Look::NONE
-                            },
-                            State::default(),
-                        );
-                        ui.within(&row, &mut |ui| {
+                        let node = Node::column().w(Size::Grow).h_px(row_height).role(Role::Button);
+                        let row = ui.pressable("artist", node, &PLAIN.look(&looks(ui).paper), |ui, state| {
                             let hover = ui.view("hover", 0, Size::Grow, Size::Grow, &mut |ui| {
                                 container(
                                     ui,
@@ -194,7 +177,7 @@ pub(super) fn table(
                                 );
                             });
                             let previous = ui.state(&hover, -1);
-                            let shown = i64::from(signal.hovered);
+                            let shown = i64::from(state.hovered);
                             if previous != shown {
                                 ui.set_state(&hover, shown);
                                 ui.animate(
@@ -263,8 +246,9 @@ pub(super) fn table(
                                 x += columns[column];
                             }
                         });
+                        ui.a11y_name(&row.handle, name);
                         let last = index + 1 == catalog.artists.len();
-                        ui.draw_over(&row, move |paint, rect| {
+                        ui.draw_over(&row.handle, move |paint, rect| {
                             paint.fill_fractional(rect.x, rect.y.floor(), rect.w, 1.0, paint.color(LINE));
                             if last {
                                 paint.fill_fractional(
@@ -276,7 +260,7 @@ pub(super) fn table(
                                 );
                             }
                         });
-                        if signal.clicked {
+                        if row.clicked {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
                     },
