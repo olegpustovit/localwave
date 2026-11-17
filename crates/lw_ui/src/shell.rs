@@ -988,12 +988,14 @@ pub fn shell(
             }
             const TITLE: pxui::Label = pxui::Label::BODY.size(40.0).color(INK);
             const NOTE: pxui::Label = pxui::Label::BODY.size(14.0).color(SECONDARY);
+            // `text_styled` places the layout top at `at`; these were tuned to the Swift app with the em-box top, which sits
+            // above the layout top by about the first line's half-leading (measured: 3 pt at 40 pt, 1 pt at 14 pt).
             for (text, size, at, style) in [
-                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0, &TITLE),
+                ("Drop to play", 40, rect.y + rect.h * 0.5 - 34.0 + 3.0, &TITLE),
                 (
                     "Folders are indexed. Audio files join Added Files.",
                     14,
-                    rect.y + rect.h * 0.5 + 22.0,
+                    rect.y + rect.h * 0.5 + 22.0 + 1.0,
                     &NOTE,
                 ),
             ] {

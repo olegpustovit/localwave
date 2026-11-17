@@ -131,6 +131,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX5.5 | Reusable layout storage for fresh shapes | done | 71d78a2 + pxui 8bbb922 |
 | DX5.6 | Remove remaining caller allocations in DX0.3 workloads | done | 39c4d96 (fling, reverse-scroll, scroll-jump, non-song-lists, search-typing, text-typing, resize, theme-switch gated at 0; first-navigation and first-menu-open stay measured: all their allocations are first-time shaping, glyph rasterising and node creation for never-drawn content) |
 | DX-PERF2 | abi_bench: Overlays wrapper saving; stable small-page and start-up estimates (no limit changed) | done | eaa6541 + pxui 3cf7de3 |
+| DX-BUG1 | Bugs found by the docs work: Images::insert mapping, a11y_value char boundaries, paint text layout-top placement, hex_exn twin | done | HEAD + pxui f51852f |
 | DX6.1 | Public API documentation section; ABI text only in docs/abi.md | done | 7765686 + pxui 629c3be |
 | DX6.2 | One item per line in pxui and pxui_types | done | 8447600 + pxui 08d4efd |
 | DX6.3 | gate -- docs with shrinking allowlist | done | 10dc9a5 + pxui 74a81f8 |
@@ -171,7 +172,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX7.8 | Rays vocabulary to extension manifest | done | 7a93fa3 + pxui 3d16c6b |
 | DX7.9 | Lint: records built from DEFAULT | todo |  |
 | DX7.10 | Mach-O and ELF versions | todo |  |
-| DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | done | HEAD + pxui 6f2df11 |
+| DX7.11 | Old-app fixture; abi-compat and abi-frozen gates | done | 3a07463 + pxui 6f2df11 |
 | DX7.12 | Freeze 1.N (PERF) | todo |  |
 
 ## Latest performance

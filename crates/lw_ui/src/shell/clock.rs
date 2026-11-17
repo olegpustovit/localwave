@@ -41,7 +41,9 @@ pub(super) fn small_clock(
     const CLOCK: pxui::Label = pxui::Label::BODY.font(1).size(12.0);
     ui.draw(&node, move |paint, rect| {
         let text = std::str::from_utf8(&buffer[..len]).unwrap_or("");
-        paint.text_chars((rect.x, rect.y + 4.0), &CLOCK.color(color), text);
+        // `text_chars` places the layout top at `at`; the 4 pt em-box top tuned to Swift sits about 0.6 pt (the first line's
+        // half-leading at 12 pt) above it, so the same glyph pixels need the layout top 0.6 pt lower.
+        paint.text_chars((rect.x, rect.y + 4.6), &CLOCK.color(color), text);
     });
     node
 }
