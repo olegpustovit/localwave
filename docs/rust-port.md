@@ -74,7 +74,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX0.7b | Stale view `visual (kit button press scale)`: revision misses an input (found by DX0.7) | done | 49ae7ec |
 | DX0.7c | Stale view `transport`: revision misses an input (found by DX0.7) | done | 5e77922 |
 | DX0.7d | Stale view `sidebar`: revision misses an input (found by DX0.7) | done | 4fb54b0 |
-| DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | done | HEAD |
+| DX0.7e | Stale view `now-panel`: revision misses an input (found by DX0.7) | done | dfc7b42 |
 | DX0.7f | Stale view `up-next`: revision misses an input (found by DX0.7) | done | 0754b76 |
 | DX0.7g | pxui verify_views: replay transitions started in a body and nested-view draw segments under a11y (blocks DX0.7b/e) | done | 8c5158c + pxui 4670ad6 |
 | DX1.1 | const fn builders on Node, Look, Edges, Font | done | 254361b + pxui 86c1601 |
@@ -104,7 +104,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | DX3.5a | abi_bench back within limits after DX3.2/3.4/1.10/3.5 (no limit or baseline changed) | done | 712627d + pxui b999ffd |
 | DX3.6 | menu with MenuItem | done | ab60a7b + pxui 759c84a |
 | DX3.7 | toggle_with, segmented_with, disabled scope | done | bf5780a + pxui 30260fb |
-| DX3.8 | dialog_with | todo |  |
+| DX3.8 | dialog_with | done | HEAD + pxui d45155b |
 | DX3.9 | Per-call widget body variants | done | 1dbb163 + pxui ddb538f |
 | DX4.1 | Palette to colour tokens | done | fbfe4be |
 | DX4.2 | kit::text and settings::paragraph to label | todo |  |
