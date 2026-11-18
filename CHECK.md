@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-18. Resume at [U1c](#next-u1c).
+Updated 2026-11-18. Resume at [U2a](#next-u2a-shape-stop).
 
 ## What we're doing
 
@@ -131,38 +131,31 @@ only within 0.5 of the integer field); keyed `node` + `within` stays where tests
 query children; `tooltip_legacy`/`anchored_legacy` serve only 1.x C exports;
 the six-look `style` cost is measured at CP1.
 
-## NEXT: U1c review (U1c.5 round 2 stopped BLOCKED)
+### U1c landed on `rust-port`
 
-U1c is on branch `u1c` in both repos: LocalWave carries the pxui pointer 3d63d11a. Round 1 of U1c.5 is ff71546e through 79b83bf5.
-Round 2 added five commits:
-- 9475e7ab: widget states resolve colour tokens in place.
-- 24346a6f: hot Shared fields first; a static label node is checked once.
-- 9c6ae609: key hashing has no memcpy call or pattern search.
-- 702b566a: the text engine is boxed out of the per-frame Paint moves.
-- 3d63d11a: f16 handles exact halves directly.
+LocalWave c33d0af..687730d and pxui 81487978..3d63d11a (see `docs/rust-port.md` rows U1c.1–U1c.5).
+Generics and the shape gate, bounded globals, the `pxui::ext` extension set and the ledger sync are done.
+Tier B, 289 online LocalWave checks, fingerprints (no D9) and build times (within 0.25 s of CP0) passed.
 
-Tier B is green:
-- pxui `cargo t --all` 985; static 237; doctests 470/453; gallery 17 with goldens; gates docs, abi-exports, abi-frozen, abi-compat.
-- Offline `make check` 289.
-- surface 6054, unchanged; buildtime against 16dc635 exits 0, every step within 0.25 s.
-- gcmp against U1a: no D9 diff.
-
-**Passing now:** abi_bench_bodies (Kit 0.99468, Controls 1.00511, Overlays 0.98892) and Author (static 0.99022, dynamic 0.99055).
-
-**BLOCKED:** these pages are still over (gate configuration, retired instructions):
+**D27 (owner, 18 Nov): abi_bench carried to CP1.** Author and every bodies page pass. Kit, Controls,
+Overlays and Layout stay over in both modes with unchanged limits:
 
 | Mode | Kit | Controls | Overlays | Layout |
 |---|---|---|---|---|
 | static | 1.01631 (1.013) | 1.01422 (1.01) | 1.02103 (1.011) | 1.01626 (1.01) |
 | dynamic | 1.03028 (1.03) | 1.04084 (1.03) | 1.03692 (1.03) | 1.04965 (1.045) |
 
-The wrapper's own excess fell on every page. The engine changes shrank the direct side too, which raised some ratios.
-`scratch/u1c-final-report.md` "U1c.5 round 2" has:
-- the exact single-stepped costs: fixed frame static +704 and dynamic +855, node 48, and value_field 1,081 by part;
-- why the typed-key and integer-key ideas were dropped (no measured page crosses an Id key; the typed static entry measured worse);
-- two owner questions: a static value_field/text_area path, and the container callback layers.
+The dynamic Kit small-page wall gate is also over (1.54 µs against 1.5). U2b.10 owns all of it and must pass it before CP1, against the
+final U2 panel, pick-item and field shapes. Cost breakdown and the dropped typed-key experiment are in the U1c report
+(`scratch/u1c-final-report.md`, local only): per-item radio/dropdown validation, panels ~190/420, nodes ~48/100, and the static
+value_field/text_area path (reference-counted field callbacks).
 
-## Found (separate fixes later, not U1b scope)
+## NEXT: U2a shape stop
+
+Branch `u2a` in both repos from `rust-port`. U2a lands the four gap branches (row keys, tabs, checkbox/disclosure/section index,
+sheets and picker rows) in ledger shape; shape stop with an independent review.
+
+## Found (separate fixes later)
 
 - `pxui_core/src/ui_core.rs` `tooltip_sheet`: a shown tooltip formats and wraps its text into a `String`/`Vec` every frame.
 - `pxui_core/src/ui_text.rs:1733`: the text area's doc tooltip keys its wait with a `format!`ed string every frame.

@@ -252,6 +252,8 @@ D24GPU device per window (OS-6)Deferred past 2.0: it lives in pxui_host (not ABI
 
 D26 CP0 outcome (17 Nov) (1) Release abi_bench instruction ratios fail on Kit/Controls/Overlays (static) and Kit/Controls/Overlays/Layout (dynamic); deterministic, introduced by pxui cf953b35 (DX1.12E) and b6958651 (DX1.12F) out-of-line key-first shims. Folded into U1c.1, whose done-when becomes: release abi_bench all pages, both modes, within limits. (2) Build CPU p99 > 1.5 ms on resize, theme-switch (p50 already over), non-song-lists, reverse-scroll, scroll-jump: real; U0.8 bisects de53440..HEAD and fixes before U1. (3) Popup layer draws 2 calls on the Layout page (baseline 1): U2b.8, fixed before U2b.10. (4) Ui::id() -> usize becomes instance_id() in U1b.6 so ui.id(key, f) names one thing. U0.8, U1b.6, U1c.1, U2b.8
 
+D27 abi_bench carried to CP1 (owner, 18 Nov) U1c.5 recovered Author and every bodies page and cut the wrapper's own cost (static Layout 16.1k → 13.8k instructions/frame), but Kit, Controls, Overlays and Layout stay over in both modes (static 1.0142–1.0210 against 1.01–1.013; dynamic 1.0303–1.0497 against 1.03–1.045), as does the dynamic Kit small-page wall gate (1.54 µs against 1.5). Limits stay unchanged. U1c lands with this red gate; U2b.10 owns it and it must pass before CP1 (U4b), worked against the final U2 panel, pick-item and field shapes. Remaining costs: per-item C validation of radio/dropdown items, panel ~190/420 instructions, node ~48/100, the static value_field/text_area path (the engine's field options hold reference-counted callbacks). U1c.5, U2b.10
+
 5. The API ledger: one public UI
 
 The target public surface. Rule: a call not marked with a step keeps its HEAD signature exactly. A call marked with a step changes once, in that step, to the signature shown. U0.3 generates the full HEAD → ledger delta from tools/dx/surface.py, and every delta line must carry a step id here (otherwise it reverts to HEAD). K: Into<Key> and F: FnMut(..) are the one-line shells; &mut self is omitted.
@@ -1352,7 +1354,7 @@ U2b.8 Recorded engine bugs.
 
 U2b.9 Site map (delivered at the shape stop, file tools/dx/site_map.md). For each of the 50 drift rows, N1–N11, the composite rows and the 28 helpers, one row: file:line, target call with full arguments, style const name, body name and variant, a11y expectation, D9 diffs expected. Any row that can't be written exposes a gap now.
 
-U2b.10 Gallery, spec, bench. New widgets on gallery and bodies pages (only new goldens). api.md/pxui_surface.txt current. Release abi_bench, all pages, both modes (targeted run).
+U2b.10 Gallery, spec, bench. New widgets on gallery and bodies pages (only new goldens). api.md/pxui_surface.txt current. Release abi_bench, all pages, both modes (targeted run); per D27 every page within its unchanged limit in both modes, and the dynamic Kit small-page wall gate.
 
 Done when: gaps G1, G4–G10, G12, G14 closed (G2/G3/G13 landed in DX3.18; G11 deferred, D7). The site map is approved with no open gap. abi_bench limits hold. Tier B green. Buildtime within allowance (or reported engine growth with a reason). Independent review PASS.
 

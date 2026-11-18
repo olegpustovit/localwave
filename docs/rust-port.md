@@ -222,10 +222,11 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U1b.4 | Looks, views, a11y types | done | LocalWave 0da9123, pxui 5444131b. style(States::of), ViewTransform builders, A11yStates and borrowed A11yTree, Paint::tokens. ABI 1.79. |
 | U1b.5 | Builders and vocabulary | done | LocalWave e7e9687, pxui 3f1afb57. Const builders, Progress/Spinner/Badge/GridList styles, Node-based scroll_view and text_area. ABI 1.80. |
 | U1b.6 | Call-shape lock (D25) | done | LocalWave dada1a1, 1419a82, 13f5428, c2eeb47, 7224eca, 058f687 and 1a999a1, pxui 4ebb0002, 7e3c42e0 and 3805ffcd. Keyless containers plus ui.id, internal positional key namespace, single button/toggle, disabled, chosen_id; engine mirrors deleted; allowlist 439 → 308. ABI 1.81. Surface 6,071 items matches the ledger; fingerprints match U1a; gallery goldens unchanged; Tier B, independent review and 289 online LocalWave checks passed; all six build-time values meet the CP0 allowance. |
-| U1c.1 | Generics (Batch K) and the gate | todo |  |
-| U1c.2 | Globals (OS-2/4) and verify (D22) | todo |  |
-| U1c.3 | Extension set (D6) | todo |  |
-| U1c.4 | Spec sync | todo |  |
+| U1c.1 | Generics (Batch K) and the gate | done | LocalWave c33d0af, pxui 81487978. node_mut and trampolines non-generic, canvas_with shell, no inline(always); gate shape rejects generic bodies and inline(always) callees (fixture test); shape allowlist 115 → 113. |
+| U1c.2 | Globals (OS-2/4) and verify (D22) | done | LocalWave de687fa and 291d69d, pxui 0df757fb, 8731a0c9 and 81e96ee0. Menu rows capped at 4096 with a refusal test; per-Ui verify_views in debug; wrapper globals documented with bounds and thread rules. |
+| U1c.3 | Extension set (D6) | done | LocalWave 821a549 and 6ab2781, pxui dc18bb81 and 9f36189d. 16 extension calls in pxui::ext; inspector toggle and button through their bodies with a custom-body test. |
+| U1c.4 | Spec sync | done | LocalWave 6b2b34d, pxui 66c79d42. Ledger and api_spec synced; surface.py --ledger green for every U1 row. |
+| U1c.5 | Recover release abi_bench (D26, D27) | partial | LocalWave b982b17, 97bda86 and 687730d, pxui ff71546e through 3d63d11a. Author and every bodies page pass; text inputs answer in one call (ABI 1.82); colour tokens resolved in place; text engine boxed. Kit, Controls, Overlays and Layout stay over in both modes with unchanged limits; per D27 U2b.10 owns them before CP1. Tier B and 289 online LocalWave checks passed; build times within 0.25 s of CP0. |
 | U2a.1 | Row keys (dx3.22) | todo |  |
 | U2a.2 | Tabs (dx3.19, G1) | todo |  |
 | U2a.3 | Checkbox, disclosure, section index (dx3.20; G5, G9, G10) | todo |  |
