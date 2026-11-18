@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-18. Resume at [U2a](#next-u2a-shape-stop).
+Updated 2026-11-18. Resume at [U2a](#next-u2a-review-and-landing).
 
 ## What we're doing
 
@@ -150,10 +150,12 @@ final U2 panel, pick-item and field shapes. Cost breakdown and the dropped typed
 (`scratch/u1c-final-report.md`, local only): per-item radio/dropdown validation, panels ~190/420, nodes ~48/100, and the static
 value_field/text_area path (reference-counted field callbacks).
 
-## NEXT: U2a shape stop
+## NEXT: U2a review and landing
 
-Branch `u2a` in both repos from `rust-port`. U2a lands the four gap branches (row keys, tabs, checkbox/disclosure/section index,
-sheets and picker rows) in ledger shape; shape stop with an independent review.
+U2a final stop on branch `u2a` (both repos): LocalWave 8e75a94..1310c3b, pxui c7e6e27e..404943c2 (ABI 1.83-1.86), with the
+shape-review fixes 1-5 applied in the step commits. Tier B, gcmp (no D9) and buildtime (within allowance) passed; abi_bench is
+unchanged in kind (D27, U2b.10). Report: `scratch/u2a-final-report.md` (local only). Next: orchestrator and independent review,
+then landing; then U2b.
 
 ## Found (separate fixes later)
 
