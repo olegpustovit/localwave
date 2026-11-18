@@ -128,7 +128,6 @@ pxui::Bytes::text_undo field i64
 pxui::COUNTER_ALLOCATIONS const u32
 pxui::Capitalize use pxui_types::Capitalize
 pxui::Checkbox use pxui_types::ui::Checkbox
-pxui::Choice use pxui_types::ui::Choice
 pxui::Chosen use pxui_types::ui::Chosen
 pxui::ColorizeFn type <'a>= dyn Fn(&str) -> Vec<(usize, usize, Rgba)> + 'a
 pxui::Commands use pxui_types::Commands
@@ -738,6 +737,14 @@ pxui::SwipeActions::leading fn const (self, width: f32) -> SwipeActions
 pxui::SwipeActions::trailing fn const (self, width: f32) -> SwipeActions
 pxui::TableResponse use pxui_types::ui::TableResponse
 pxui::TableView use pxui_types::ui::TableView
+pxui::Tabs impl Clone
+pxui::Tabs impl Copy
+pxui::Tabs impl Debug
+pxui::Tabs struct <'a>
+pxui::Tabs::DEFAULT const Tabs<'a>
+pxui::Tabs::focus_on_click fn const (self, focus: bool) -> Tabs<'a>
+pxui::Tabs::name fn const (self, name: &'a str) -> Tabs<'a>
+pxui::Tabs::variant fn const (self, variant: u16) -> Tabs<'a>
 pxui::TargetDesc impl Clone
 pxui::TargetDesc impl Copy
 pxui::TargetDesc impl Default
@@ -1047,7 +1054,7 @@ pxui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
 pxui::Ui::system_appearance fn (&self) -> Appearance
 pxui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
-pxui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, tabs: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
+pxui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, tabs: &Tabs<'_>) -> PickResponse
 pxui::Ui::text fn (&mut self, box_: &Handle, value: &str)
 pxui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, node: Node, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
 pxui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
@@ -1359,7 +1366,6 @@ pxui::ui::* use pxui_types::layout::*
 pxui::ui::Axis use pxui_types::node::Axis
 pxui::ui::Bar use pxui_types::node::Bar
 pxui::ui::Checkbox use pxui_types::ui::Checkbox
-pxui::ui::Choice use pxui_types::ui::Choice
 pxui::ui::Chosen use pxui_types::ui::Chosen
 pxui::ui::CodeContext use pxui_types::ui::CodeContext
 pxui::ui::Completion use pxui_types::ui::Completion
@@ -1803,7 +1809,7 @@ pxui::ui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::ui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
 pxui::ui::Ui::system_appearance fn (&self) -> Appearance
 pxui::ui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
-pxui::ui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, tabs: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
+pxui::ui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, tabs: &Tabs<'_>) -> PickResponse
 pxui::ui::Ui::text fn (&mut self, box_: &Handle, value: &str)
 pxui::ui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, node: Node, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
 pxui::ui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
@@ -3964,6 +3970,16 @@ pxui_types::ffi::PxuiSectionConfig::open field u8
 pxui_types::ffi::PxuiSectionConfig::size field u32
 pxui_types::ffi::PxuiSectionConfig::title field PxuiBox
 pxui_types::ffi::PxuiSectionConfig::variant field u16
+pxui_types::ffi::PxuiSectionIndexConfig impl Clone
+pxui_types::ffi::PxuiSectionIndexConfig impl Copy
+pxui_types::ffi::PxuiSectionIndexConfig struct
+pxui_types::ffi::PxuiSectionIndexConfig::active field usize
+pxui_types::ffi::PxuiSectionIndexConfig::has_active field u8
+pxui_types::ffi::PxuiSectionIndexConfig::letters field Slice<Str>
+pxui_types::ffi::PxuiSectionIndexConfig::node field PxuiBox
+pxui_types::ffi::PxuiSectionIndexConfig::size field u32
+pxui_types::ffi::PxuiSectionIndexConfig::state field PxuiStateDesc
+pxui_types::ffi::PxuiSectionIndexConfig::variant field u16
 pxui_types::ffi::PxuiSectionListDesc impl Clone
 pxui_types::ffi::PxuiSectionListDesc impl Copy
 pxui_types::ffi::PxuiSectionListDesc struct
@@ -4185,6 +4201,7 @@ pxui_types::ffi::PxuiSwipeIn::trailing field f32
 pxui_types::ffi::PxuiTabConfig impl Clone
 pxui_types::ffi::PxuiTabConfig impl Copy
 pxui_types::ffi::PxuiTabConfig struct
+pxui_types::ffi::PxuiTabConfig::detail field Str
 pxui_types::ffi::PxuiTabConfig::index field usize
 pxui_types::ffi::PxuiTabConfig::node field PxuiBox
 pxui_types::ffi::PxuiTabConfig::size field u32
@@ -5565,18 +5582,6 @@ pxui_types::ui::Checkbox struct
 pxui_types::ui::Checkbox::DEFAULT const Checkbox
 pxui_types::ui::Checkbox::variant field u16
 pxui_types::ui::Checkbox::variant fn const (self, variant: u16) -> Checkbox
-pxui_types::ui::Choice impl Clone
-pxui_types::ui::Choice impl Copy
-pxui_types::ui::Choice impl Debug
-pxui_types::ui::Choice impl Eq
-pxui_types::ui::Choice impl PartialEq
-pxui_types::ui::Choice impl StructuralPartialEq
-pxui_types::ui::Choice struct <'a>
-pxui_types::ui::Choice::DEFAULT const Choice<'a>
-pxui_types::ui::Choice::name field &'a str
-pxui_types::ui::Choice::name fn const (self, name: &'a str) -> Choice<'a>
-pxui_types::ui::Choice::variant field u16
-pxui_types::ui::Choice::variant fn const (self, variant: u16) -> Choice<'a>
 pxui_types::ui::Chosen impl Clone
 pxui_types::ui::Chosen impl Copy
 pxui_types::ui::Chosen impl Debug
