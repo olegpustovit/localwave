@@ -4244,9 +4244,11 @@ pxui_types::ffi::PxuiSheetDesc struct
 pxui_types::ffi::PxuiSheetDesc::dismiss_fraction field f32
 pxui_types::ffi::PxuiSheetDesc::dismiss_velocity field f32
 pxui_types::ffi::PxuiSheetDesc::has_width field u8
+pxui_types::ffi::PxuiSheetDesc::max_h field f32
 pxui_types::ffi::PxuiSheetDesc::present field u8
 pxui_types::ffi::PxuiSheetDesc::reserved field [u8; 2]
 pxui_types::ffi::PxuiSheetDesc::size field u32
+pxui_types::ffi::PxuiSheetDesc::top field f32
 pxui_types::ffi::PxuiSheetDesc::width field f32
 pxui_types::ffi::PxuiSignal impl Clone
 pxui_types::ffi::PxuiSignal impl Copy
@@ -6108,6 +6110,7 @@ pxui_types::ui::Presentation impl StructuralPartialEq
 pxui_types::ui::Presentation::Bottom variant
 pxui_types::ui::Presentation::Centered variant
 pxui_types::ui::Presentation::Full variant
+pxui_types::ui::Presentation::Top variant
 pxui_types::ui::ROOT_KEY const i64
 pxui_types::ui::Repeat enum
 pxui_types::ui::Repeat impl Clone
