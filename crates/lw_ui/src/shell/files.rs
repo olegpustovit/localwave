@@ -847,13 +847,11 @@ mod tests {
         *time += 1.0 / 60.0;
         crate::testing::frame(
             ui,
-            &FrameIn {
-                width: size.0,
-                height: size.1,
-                time: *time,
-                events: events.as_ptr(),
-                event_count: events.len(),
-                ..Default::default()
+            &{
+                let mut frame = FrameIn::new(size.0, size.1).time(*time);
+                frame.wire.events = events.as_ptr();
+                frame.wire.event_count = events.len();
+                frame
             },
             &mut |ui| {
                 shell(
@@ -1375,12 +1373,7 @@ mod tests {
             time += if step == 1 { 1.0 } else { 1.0 / 60.0 };
             crate::testing::frame(
                 &mut ui,
-                &FrameIn {
-                    width: 640.0,
-                    height: 480.0,
-                    time,
-                    ..Default::default()
-                },
+                &FrameIn::new(640.0, 480.0).time(time),
                 &mut |ui| {
                     shell(
                         ui,

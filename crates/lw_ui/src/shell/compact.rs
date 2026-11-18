@@ -717,16 +717,10 @@ mod tests {
         let mut intent = None;
         crate::testing::frame(
             ui,
-            &FrameIn {
-                width,
-                height: 844.0,
-                time,
-                environment: pxui::Environment {
+            &FrameIn::new(width, 844.0).time(time).environment(pxui::Environment {
                     safe_area: [59.0, 0.0, 34.0, 0.0],
                     ..Default::default()
-                },
-                ..Default::default()
-            },
+                }),
             &mut |ui| shell(ui, player, position, catalog, state, &mut intent),
         )
         .unwrap();
@@ -1291,13 +1285,11 @@ mod tests {
             mem_sys::local_reset();
             crate::testing::frame(
                 &mut ui,
-                &FrameIn {
-                    width: 390.0,
-                    height: 844.0,
-                    time: 1000.0 + tick as f64 / 60.0,
-                    events: events.as_ptr(),
-                    event_count: events.len(),
-                    ..Default::default()
+                &{
+                    let mut frame = FrameIn::new(390.0, 844.0).time(1000.0 + tick as f64 / 60.0);
+                    frame.wire.events = events.as_ptr();
+                    frame.wire.event_count = events.len();
+                    frame
                 },
                 &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
             )
@@ -1348,13 +1340,11 @@ mod tests {
             mem_sys::local_reset();
             crate::testing::frame(
                 &mut ui,
-                &FrameIn {
-                    width: 390.0,
-                    height: 844.0,
-                    time,
-                    events: &event,
-                    event_count: 1,
-                    ..Default::default()
+                &{
+                    let mut frame = FrameIn::new(390.0, 844.0).time(time);
+                    frame.wire.events = &event;
+                    frame.wire.event_count = 1;
+                    frame
                 },
                 &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
             )
@@ -1492,20 +1482,13 @@ mod tests {
                 let mut intent = None;
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn {
-                        width,
-                        height: 844.0,
-                        time: tick as f64,
-                        environment: pxui::Environment {
+                    &FrameIn::new(width, 844.0).time(tick as f64).environment(pxui::Environment {
                             safe_area: [59.0, 0.0, 34.0, 0.0],
                             ..Default::default()
-                        },
-                        keyboard: pxui::Keyboard {
+                        }).keyboard(pxui::Keyboard {
                             frame: [0.0, bottom, width, 844.0 - bottom],
                             flags: pxui::Keyboard::VALID | pxui::Keyboard::ANIMATING,
-                        },
-                        ..Default::default()
-                    },
+                        }),
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
@@ -1615,14 +1598,11 @@ mod tests {
                 let mut intent = None;
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn {
-                        width: 390.0,
-                        height: 844.0,
-                        time: 10.0,
-                        events: events.as_ptr(),
-                        event_count: 2,
-                        environment: pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() },
-                        ..Default::default()
+                    &{
+                        let mut frame = FrameIn::new(390.0, 844.0).time(10.0).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
+                        frame.wire.events = events.as_ptr();
+                        frame.wire.event_count = 2;
+                        frame
                     },
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
@@ -1682,17 +1662,14 @@ mod tests {
                 let mut intent = None;
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn {
-                        width,
-                        height: 844.0,
-                        time: 2.0 + tick as f64,
-                        events: events.as_ptr(),
-                        event_count: 2,
-                        environment: pxui::Environment {
+                    &{
+                        let mut frame = FrameIn::new(width, 844.0).time(2.0 + tick as f64).environment(pxui::Environment {
                             safe_area: [59.0, 0.0, 34.0, 0.0],
                             ..Default::default()
-                        },
-                        ..Default::default()
+                        });
+                        frame.wire.events = events.as_ptr();
+                        frame.wire.event_count = 2;
+                        frame
                     },
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
@@ -1766,17 +1743,14 @@ mod tests {
         let mut intent = None;
         crate::testing::frame(
             ui,
-            &FrameIn {
-                width: 390.0,
-                height: 844.0,
-                time,
-                events: &event,
-                event_count: 1,
-                environment: pxui::Environment {
+            &{
+                let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment {
                     safe_area: [59.0, 0.0, 34.0, 0.0],
                     ..Default::default()
-                },
-                ..Default::default()
+                });
+                frame.wire.events = &event;
+                frame.wire.event_count = 1;
+                frame
             },
             &mut |ui| shell(ui, &player, 0.0, c, state, &mut intent),
         )
@@ -2001,17 +1975,14 @@ mod tests {
             };
             crate::testing::frame(
                 ui,
-                &FrameIn {
-                    width: 390.0,
-                    height: 844.0,
-                    time,
-                    events: &event,
-                    event_count: 1,
-                    environment: pxui::Environment {
+                &{
+                    let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment {
                         safe_area: [59.0, 0.0, 34.0, 0.0],
                         ..Default::default()
-                    },
-                    ..Default::default()
+                    });
+                    frame.wire.events = &event;
+                    frame.wire.event_count = 1;
+                    frame
                 },
                 &mut |ui| shell(ui, &player, 0.0, &c, &state, &mut None),
             )

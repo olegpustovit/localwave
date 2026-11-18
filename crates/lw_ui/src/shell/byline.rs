@@ -167,11 +167,7 @@ mod tests {
         };
         let mut ui = crate::test_ui(pxui::Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let mut frame = pxui::FrameIn {
-            width: 400.0,
-            height: 400.0,
-            ..Default::default()
-        };
+        let mut frame = pxui::FrameIn::new(400.0, 400.0);
         let mut intent = None;
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             draw(ui, &player, &catalog, 279.0, &mut intent)
@@ -199,7 +195,7 @@ mod tests {
         for cycle in 0..8 {
             mem_sys::local_reset();
             for scale in [1.0, 2.0] {
-                frame.scale = scale;
+                frame.wire.scale = scale;
                 for width in [100.0, 279.0, 400.0] {
                     for (value, route) in [
                         (player.artist, Route::Artist(0)),
@@ -211,7 +207,7 @@ mod tests {
                             action_code: 1,
                             ..Default::default()
                         }]);
-                        frame.time += 0.1;
+                        frame.wire.time += 0.1;
                         intent = None;
                         crate::testing::frame(&mut ui, &frame, &mut |ui| {
                             draw(ui, &player, &catalog, width, &mut intent)

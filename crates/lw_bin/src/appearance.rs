@@ -1,9 +1,9 @@
 //! Parsed themes are retained; system changes select a value without parsing in the frame loop.
 use lw_core::preferences::{Appearance, Settings, Signal};
-use pxui::{FrameIn, ThemeHandle, Ui};
+use pxui::{ThemeHandle, Ui};
 use pxui_sdl::PreferencesSnapshot as Snapshot;
 
-fn prepare_theme_pair(source: &str, accent: &str, dark: bool) -> Result<(ThemeHandle, ThemeHandle), String> {
+fn prepare_theme_pair(source: &str, accent: &str, dark: bool) -> Result<(ThemeHandle, ThemeHandle), pxui::Error> {
     let mut text = String::with_capacity(source.len() + 80);
     // Deriving looks from the selected accent keeps the source's tokens and body names.
     for line in source.lines() {
@@ -15,9 +15,9 @@ fn prepare_theme_pair(source: &str, accent: &str, dark: bool) -> Result<(ThemeHa
     }
     text.push_str("tokens.accent = ");
     text.push_str(accent);
-    let mut root = ThemeHandle::parse(&text).map_err(|error| error.to_string())?;
+    let mut root = ThemeHandle::parse(&text)?;
     text.push_str("\ntext_field.body = localwave-command");
-    let mut field = ThemeHandle::parse(&text).map_err(|error| error.to_string())?;
+    let mut field = ThemeHandle::parse(&text)?;
     lw_ui::apply_palette(&mut root, dark);
     lw_ui::apply_palette(&mut field, dark);
     Ok((root, field))
@@ -28,7 +28,7 @@ pub struct Themes {
     selected: Option<(bool, Signal)>,
 }
 impl Themes {
-    pub fn new(ui: &mut Ui) -> Result<Self, String> {
+    pub fn new(ui: &mut Ui) -> Result<Self, pxui::Error> {
         lw_ui::commands::register(ui)?;
         Ok(Self {
             themes: [
@@ -50,7 +50,7 @@ impl Themes {
     }
     pub fn apply(&mut self, ui: &mut Ui, settings: &Settings, system: Snapshot) {
         let dark = match settings.appearance {
-            Appearance::System => system.appearance == FrameIn::APPEARANCE_DARK,
+            Appearance::System => system.appearance == pxui::Appearance::Dark as u32,
             Appearance::Light => false,
             Appearance::Dark => true,
         };
@@ -69,10 +69,11 @@ impl Themes {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use pxui::FrameIn;
     #[test]
     fn cached_themes_follow_system_and_explicit_preferences_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
-        let mut ui = Ui::new().unwrap();
+        let mut ui = Ui::new(&pxui::UiDesc::DEFAULT).unwrap();
         let mut themes = Themes::new(&mut ui).unwrap();
         let cases = [
             (Appearance::System, 0, false),
@@ -100,13 +101,10 @@ mod tests {
                     );
                     lw_ui::testing::frame(
                         &mut ui,
-                        &FrameIn {
-                            width: 320.0,
-                            height: 240.0,
-                            time: round as f64,
-                            appearance: system,
-                            reduced_motion: 1,
-                            ..FrameIn::default()
+                        &{
+                            let mut frame = FrameIn::new(320.0, 240.0).time(round as f64).reduced_motion(true);
+                            frame.wire.appearance = system;
+                            frame
                         },
                         &mut |_| {},
                     )

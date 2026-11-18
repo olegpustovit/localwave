@@ -18,13 +18,21 @@ use lw_bin::{
     controller::{Command, Controller},
     library::LibraryWorker,
 };
-use pxui::{FrameIn, Platform, Ui};
+use pxui::{FontData, FrameIn, Platform, Ui, UiDesc};
 use pxui_sdl::{
     Window,
     app::{Schedule, Signal},
 };
 mod actions;
 mod input;
+
+fn graphics_error(ui: &Ui, error: pxui::Error) -> String {
+    if matches!(error, pxui::Error::Host(_)) {
+        return error.to_string();
+    }
+    let detail = ui.last_error();
+    if detail.is_empty() { error.to_string() } else { format!("{error}: {detail}") }
+}
 
 struct Fixture(Option<std::path::PathBuf>);
 impl Drop for Fixture {
@@ -112,7 +120,7 @@ pub(super) fn open(
         chrome
     };
     #[cfg(target_os = "macos")]
-    let accessibility = pxui_host::Accessibility::open(window)?;
+    let accessibility = pxui_host::Accessibility::open(window).map_err(|error| error.to_string())?;
     #[cfg(target_os = "macos")]
     let top_inset = chrome
         .snapshot()
@@ -122,15 +130,15 @@ pub(super) fn open(
     let top_inset = 0.0;
     let environment = window.preferences(wake)?;
     let preferences = environment.snapshot();
-    let mut ui = Ui::create(
-        Platform::Apple,
-        Some(if cfg!(target_os = "ios") { 18 } else { 15 }),
-        &[lw_ui::FONT, lw_ui::MONO],
-    );
+    let desc = UiDesc::new(Platform::Apple)
+        .font_size(if cfg!(target_os = "ios") { 18.0 } else { 15.0 })
+        .fonts(&[FontData(lw_ui::FONT), FontData(lw_ui::MONO)]);
+    let mut ui = Ui::new(&desc).map_err(|error| format!("UI creation failed ({error})"))?;
     perf::setup::configure_ui(&mut ui, workload);
     ui.enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
-    let mut themes = lw_bin::appearance::Themes::new(&mut ui)?;
+    let mut themes = lw_bin::appearance::Themes::new(&mut ui)
+        .map_err(|error| format!("Theme setup failed ({error}): {}", ui.last_error()))?;
     themes.apply(
         &mut ui,
         &lw_core::preferences::Settings::default(),
@@ -139,7 +147,7 @@ pub(super) fn open(
     if trace_frames {
         ui.set_timing(true);
     }
-    let graphics = gpu::Graphics::open(window, &ui)?;
+    let graphics = gpu::Graphics::open(window, &ui).map_err(|error| graphics_error(&ui, error))?;
     let temporary = if smoke || workload.is_some() || reference.is_some() {
         Some(
             lw_apple_sys::preferences::AppPaths::load()
@@ -377,21 +385,15 @@ impl App {
             repeat: status.repeat,
             duration: status.duration,
         };
-        let mut input = FrameIn {
-            width: extent.logical.0 as f32,
-            height: extent.logical.1 as f32,
-            scale: window.scale() as f32,
-            time: now,
-            environment: platform.environment(),
-            keyboard: platform.keyboard(),
-            appearance: preferences.appearance,
-            reduced_motion: u32::from(
-                preferences.reduced_motion != 0 || status.settings.reduce_motion,
-            ),
-            events: wire.as_ptr(),
-            event_count: wire.len(),
-            ..FrameIn::default()
-        };
+        let mut input = FrameIn::new(extent.logical.0 as f32, extent.logical.1 as f32)
+            .scale(window.scale() as f32)
+            .time(now)
+            .environment(platform.environment())
+            .keyboard(platform.keyboard())
+            .reduced_motion(preferences.reduced_motion != 0 || status.settings.reduce_motion);
+        input.wire.appearance = preferences.appearance;
+        input.wire.events = wire.as_ptr();
+        input.wire.event_count = wire.len();
         let mut position = status.position;
         frame.view(&mut view, &mut position, &mut input);
         let seek_duration = view.duration;
@@ -424,14 +426,15 @@ impl App {
         frame.check_capture(ui, &intent)?;
         let before_output = frame.allocations();
         let output_cpu = frame.cpu_time()?;
-        platform.apply(window, ui)?;
+        platform.apply(window, ui).map_err(|error| error.to_string())?;
         frame.finish_output(output_cpu)?;
         frame.output_allocations = frame.allocations() - before_output;
         (*frames) += 1;
         (*repaint) = ui.repaint_at();
         if perf.is_some() || ui.draw_revision() != (*revision) {
             let draw_cpu = frame.cpu_time()?;
-            let drawn = graphics.draw(window, ui, frame.gpu_trace())?;
+            let drawn = graphics.draw(window, ui, frame.gpu_trace())
+                .map_err(|error| graphics_error(ui, error))?;
             frame.finish_frame(ui, draw_cpu, graphics.acquire_wall())?;
             frame.audit(ui, artwork, player);
             if drawn {
@@ -462,7 +465,7 @@ impl App {
     ) -> Result<Schedule, String> {
         if signal == Signal::Finish {
             if let Some(graphics) = self.graphics_slot.take() {
-                graphics.close()?;
+                graphics.close().map_err(|error| error.to_string())?;
             }
             return Ok(Schedule::Exit);
         }
@@ -484,7 +487,7 @@ impl App {
         {
             frame.begin_frame()?;
             self.events.clear();
-            if !self.platform.pump(window, &mut self.events)? {
+            if !self.platform.pump(window, &mut self.events).map_err(|error| error.to_string())? {
                 if self.perf.is_some() || (self.smoke && !self.smoke_finished) {
                     return Err("Window closed before qualification finished".into());
                 }

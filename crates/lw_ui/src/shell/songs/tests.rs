@@ -47,13 +47,7 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
             for width in [399.0, 400.0, 519.0, 520.0, 679.0, 680.0, 888.0] {
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn {
-                        width: width + 552.0,
-                        height: 872.0,
-                        scale,
-                        reduced_motion: 1,
-                        ..Default::default()
-                    },
+                    &FrameIn::new(width + 552.0, 872.0).scale(scale).reduced_motion(true),
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
                 )
                 .unwrap();
@@ -178,13 +172,7 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
             let mut root = None;
             crate::testing::frame(
                 &mut ui,
-                &FrameIn {
-                    width,
-                    height: 100.0,
-                    scale,
-                    reduced_motion: 1,
-                    ..Default::default()
-                },
+                &FrameIn::new(width, 100.0).scale(scale).reduced_motion(true),
                 &mut |ui| {
                     ui.column("component", Node::column().w_px(width).h(Size::Grow), |ui| {
                         let layout = heading_layout(ui, &catalog, columns, None);
@@ -245,11 +233,7 @@ fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
     // Asserts exact rebuild counts, which a verify pass inflates.
     ui.verify_views(false);
     ui.set_a11y(true);
-    let mut frame = FrameIn {
-        width: 1440.0,
-        height: 872.0,
-        ..Default::default()
-    };
+    let mut frame = FrameIn::new(1440.0, 872.0);
     let mut previous = Some(1);
     let mut observed = 0;
     for tick in 0..80 {
@@ -257,7 +241,7 @@ fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
         player.current_id = Some(id);
         player.playing = playing;
         player.revision = tick as u64;
-        frame.time = tick as f64;
+        frame.wire.time = tick as f64;
         mem_sys::local_reset();
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
@@ -321,12 +305,7 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         // Counts rebuilt views, and a verify pass rebuilds every kept view.
         ui.verify_views(false);
-        let mut frame = FrameIn {
-            width: 100.0,
-            height: 100.0,
-            scale,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(100.0, 100.0).scale(scale);
         let mut song = catalog.row(0);
         song.state = lw_core::FileState::CopyPending;
         let mut build = |ui: &mut Ui| {
@@ -351,11 +330,11 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             .flat_map(|layer| layer.instances.iter().copied())
             .collect();
         for tick in 1..61 {
-            frame.time = tick as f64 / 60.0;
+            frame.wire.time = tick as f64 / 60.0;
             mem_sys::local_reset();
             crate::testing::frame(&mut ui, &frame, &mut build).unwrap();
             for (index, bar) in bars.iter().enumerate() {
-                let phase = (frame.time / 0.9 + index as f64 / 3.0).fract() as f32;
+                let phase = (frame.wire.time / 0.9 + index as f64 / 3.0).fract() as f32;
                 let progress = if phase < 0.5 {
                     phase * 2.0
                 } else {
@@ -401,8 +380,8 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             } else {
                 lw_core::FileState::BookmarkOnly
             };
-            frame.time = time;
-            frame.reduced_motion = reduced;
+            frame.wire.time = time;
+            frame.wire.reduced_motion = reduced;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 ui.column("file-state", Node::column().w_px(10.0).h_px(10.0), |ui| { ui.view_of("file-state", &state_revision, |ui| row::availability(ui, song, true)); });
             })
@@ -432,13 +411,9 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     };
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
-    let mut frame = FrameIn {
-        width: 1440.0,
-        height: 872.0,
-        ..Default::default()
-    };
+    let mut frame = FrameIn::new(1440.0, 872.0);
     for time in [0.0, 1.0, 2.0] {
-        frame.time = time;
+        frame.wire.time = time;
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
@@ -475,7 +450,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     let mut previous = ui.draw_revision();
     let mut changes = 0;
     for tick in 1..121 {
-        frame.time = 2.0 + tick as f64 / 60.0;
+        frame.wire.time = 2.0 + tick as f64 / 60.0;
         mem_sys::local_reset();
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
@@ -504,7 +479,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
     }
     assert!(changes > 60);
     player.playing = false;
-    frame.time += 1.0;
+    frame.wire.time += 1.0;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
@@ -514,8 +489,8 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         "paused indicator stops requesting frames"
     );
     player.playing = true;
-    frame.time += 1.0;
-    frame.reduced_motion = 1;
+    frame.wire.time += 1.0;
+    frame.wire.reduced_motion = 1;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
@@ -524,8 +499,8 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         ui.output().repaint_at.is_infinite(),
         "reduced motion stops the indicator"
     );
-    frame.reduced_motion = 0;
-    frame.time += 1.0;
+    frame.wire.reduced_motion = 0;
+    frame.wire.time += 1.0;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
@@ -543,7 +518,7 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
             payload: delta,
             ..Default::default()
         }]);
-        frame.time += 1.0;
+        frame.wire.time += 1.0;
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
@@ -576,12 +551,12 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         payload: 650.0,
         ..Default::default()
     }]);
-    frame.time += 1.0;
+    frame.wire.time += 1.0;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
     .unwrap();
-    frame.time += 1.0;
+    frame.wire.time += 1.0;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalog, &state, &mut None)
     })
@@ -600,12 +575,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
     let player = PlayerView::default();
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
-    let mut frame = FrameIn {
-        width: 1440.0,
-        height: 872.0,
-        reduced_motion: 1,
-        ..Default::default()
-    };
+    let mut frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
     let mut intent = None;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalog, &state, &mut intent)
@@ -632,7 +602,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
                 action_code: 1,
                 ..Default::default()
             }]);
-            frame.time += 0.01;
+            frame.wire.time += 0.01;
             intent = None;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut intent)
@@ -655,7 +625,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
                 action_code: 1,
                 ..Default::default()
             }]);
-            frame.time += 0.01;
+            frame.wire.time += 0.01;
             intent = None;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut intent)
@@ -702,7 +672,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
         action_code: 1,
         ..Default::default()
     }]);
-    frame.time += 0.01;
+    frame.wire.time += 0.01;
     intent = None;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &changed, &state, &mut intent)
@@ -743,11 +713,7 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
     let player = PlayerView::default();
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
-    let mut frame = FrameIn {
-        width: 1440.0,
-        height: 872.0,
-        ..Default::default()
-    };
+    let mut frame = FrameIn::new(1440.0, 872.0);
     let glyph = |ui: &Ui| {
         ui.a11y_nodes()
             .iter()
@@ -766,14 +732,14 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
         mem_sys::local_reset();
         for next in [1, 0] {
             state.refresh(&catalogs[1 - next], &catalogs[next]);
-            frame.time += 1.0;
-            let start = frame.time;
+            frame.wire.time += 1.0;
+            let start = frame.wire.time;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalogs[next], &state, &mut None)
             })
             .unwrap();
             for progress in [0.0, 0.044, 0.205, 0.245, 0.472, 1.0] {
-                frame.time = start + f64::from(crate::motion::BASE * progress);
+                frame.wire.time = start + f64::from(crate::motion::BASE * progress);
                 crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     shell(ui, &player, 0.0, &catalogs[next], &state, &mut None)
                 })
@@ -799,8 +765,8 @@ fn availability_state_pop_matches_native_scale_and_preserves_song_identity_witho
         }
     }
     state.refresh(&catalogs[0], &catalogs[1]);
-    frame.reduced_motion = 1;
-    frame.time += 1.0;
+    frame.wire.reduced_motion = 1;
+    frame.wire.time += 1.0;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, 0.0, &catalogs[1], &state, &mut None)
     })
@@ -865,13 +831,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                 let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
                 let mut reference =
                     crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-                let input = FrameIn {
-                    width: 1200.0,
-                    height: 300.0,
-                    scale,
-                    reduced_motion: 1,
-                    ..Default::default()
-                };
+                let input = FrameIn::new(1200.0, 300.0).scale(scale).reduced_motion(true);
                 crate::testing::frame(&mut ui, &input, &mut |_| {}).unwrap();
                 crate::testing::frame(&mut reference, &input, &mut |_| {}).unwrap();
                 let collection = catalog.collection(route).unwrap();
@@ -1050,16 +1010,11 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
     let mut state = ShellState::default();
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
     ui.set_a11y(true);
-    let mut frame = FrameIn {
-        width: 1440.0,
-        height: 872.0,
-        reduced_motion: 1,
-        ..Default::default()
-    };
+    let mut frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
     let mut intent = None;
     let run =
         |ui: &mut Ui, state: &ShellState, frame: &mut FrameIn, intent: &mut Option<Intent>| {
-            frame.time += 0.01;
+            frame.wire.time += 0.01;
             *intent = None;
             crate::testing::frame(ui, frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, state, intent)
@@ -1189,7 +1144,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
     run(&mut ui, &state, &mut frame, &mut intent);
     assert_eq!(intent, Some(Intent::ShareSong(2, (500.0, 200.0))));
     // A share in flight disables the item, as Swift's `sharing` flag does.
-    frame.time += 0.01;
+    frame.wire.time += 0.01;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         let busy = PlayerView {
             sharing: true,
@@ -1256,14 +1211,15 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
             ..Default::default()
         },
     ];
-    frame.time += 0.01;
+    frame.wire.time += 0.01;
     intent = None;
     crate::testing::frame(
         &mut ui,
-        &FrameIn {
-            events: press.as_ptr(),
-            event_count: press.len(),
-            ..frame
+        &{
+            let mut frame = frame;
+            frame.wire.events = press.as_ptr();
+            frame.wire.event_count = press.len();
+            frame
         },
         &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
     )
@@ -1307,14 +1263,11 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
         time += 0.02;
-        let frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time,
-            reduced_motion: 1,
-            events: events.as_ptr(),
-            event_count: events.len(),
-            ..Default::default()
+        let frame = {
+            let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
+            frame.wire.events = events.as_ptr();
+            frame.wire.event_count = events.len();
+            frame
         };
         let mut intent = None;
         crate::testing::frame(ui, &frame, &mut |ui| {
@@ -1635,14 +1588,11 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         time += 0.02;
-        let frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time,
-            reduced_motion: 1,
-            events: events.as_ptr(),
-            event_count: events.len(),
-            ..Default::default()
+        let frame = {
+            let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
+            frame.wire.events = events.as_ptr();
+            frame.wire.event_count = events.len();
+            frame
         };
         let mut intent = None;
         mem_sys::local_reset();
@@ -1814,13 +1764,11 @@ fn select_all_is_a_no_op_while_find_is_focused() {
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, events: &[pxui::Event]| {
         time += 0.02;
-        let frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time,
-            events: events.as_ptr(),
-            event_count: events.len(),
-            ..Default::default()
+        let frame = {
+            let mut frame = FrameIn::new(1440.0, 872.0).time(time);
+            frame.wire.events = events.as_ptr();
+            frame.wire.event_count = events.len();
+            frame
         };
         let mut intent = None;
         crate::testing::frame(ui, &frame, &mut |ui| {
@@ -1899,13 +1847,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
             mem_sys::local_reset();
             crate::testing::frame(
                 ui,
-                &FrameIn {
-                    width: 1440.0,
-                    height: 872.0,
-                    time: time.get(),
-                    reduced_motion: 1,
-                    ..Default::default()
-                },
+                &FrameIn::new(1440.0, 872.0).time(time.get()).reduced_motion(true),
                 &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent),
             )
             .unwrap();
@@ -1956,13 +1898,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     let mut intent = None;
     crate::testing::frame(
         &mut ui,
-        &FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time: 9.0,
-            reduced_motion: 1,
-            ..Default::default()
-        },
+        &FrameIn::new(1440.0, 872.0).time(9.0).reduced_motion(true),
         &mut |ui| shell(ui, &player, 0.0, &empty, &state, &mut intent),
     )
     .unwrap();
@@ -1976,7 +1912,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
             .id;
         ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..Default::default() }]);
         let mut intent = None;
-        let frame = FrameIn { width: 1440.0, height: 872.0, time, reduced_motion: 1, ..Default::default() };
+        let frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
         crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &empty, &ShellState::default(), &mut intent))
             .unwrap();
         intent
@@ -1995,7 +1931,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     };
     assert!(!has(&show(&mut ui, &empty, &state, &started), "Choose a folder"));
     let mut intent = None;
-    let frame = FrameIn { width: 1440.0, height: 872.0, time: 13.0, reduced_motion: 1, ..Default::default() };
+    let frame = FrameIn::new(1440.0, 872.0).time(13.0).reduced_motion(true);
     crate::testing::frame(&mut ui, &frame, &mut |ui| shell(ui, &player, 0.0, &sourced, &state, &mut intent)).unwrap();
     assert_eq!(intent, Some(Intent::Setting(lw_core::preferences::Change::DidStart)));
     // Exploring leaves onboarding.
@@ -2092,14 +2028,11 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     let damage = Cell::new([0.0f32; 4]);
     let mut run = |ui: &mut Ui, events: &[pxui::Event]| {
         time += 0.02;
-        let frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time,
-            reduced_motion: 1,
-            events: events.as_ptr(),
-            event_count: events.len(),
-            ..Default::default()
+        let frame = {
+            let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
+            frame.wire.events = events.as_ptr();
+            frame.wire.event_count = events.len();
+            frame
         };
         let mut intent = None;
         mem_sys::local_reset();
@@ -2215,13 +2148,7 @@ fn metadata_editor_opens_prefilled_saves_edited_fields_and_delete_confirms_witho
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &ShellState| {
         time += 0.02;
-        let frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time,
-            reduced_motion: 1,
-            ..Default::default()
-        };
+        let frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
         let mut intent = None;
         crate::testing::frame(ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, state, &mut intent)
@@ -2340,14 +2267,11 @@ fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocati
     let mut time = 0.0;
     let mut run = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         time += 0.02;
-        let frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            time,
-            reduced_motion: 1,
-            events: events.as_ptr(),
-            event_count: events.len(),
-            ..Default::default()
+        let frame = {
+            let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
+            frame.wire.events = events.as_ptr();
+            frame.wire.event_count = events.len();
+            frame
         };
         let mut intent = None;
         mem_sys::local_reset();

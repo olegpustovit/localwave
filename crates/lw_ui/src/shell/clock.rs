@@ -34,7 +34,7 @@ pub(super) fn small_clock(
         },
     );
     ui.set_role(&node, Role::Label, 0);
-    ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0);
+    ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid clock value");
     let mut buffer = [0u8; 24];
     let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));
     let len = text.len();
@@ -106,7 +106,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height).role(Role::Label),
     );
     ui.a11y_name(&clock, "Elapsed time");
-    ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0);
+    ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid clock value");
     let old = ui.state(&clock, seconds as i64) as u64;
     ui.set_state(&clock, seconds as i64);
     ui.within(&clock, &mut |ui| {

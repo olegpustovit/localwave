@@ -216,7 +216,7 @@ D19Colour token with alpha (G14)Rgba::token(T).alpha(a). Encoding: marker stays 
 
 D20Text pathsTextStyle (resolved, Copy + Send), Text, TextWorker, PreparedText, RetiredText, UiText::fork/install, prewarm_text, set_text_worker and Ui::resolve(&Label) -> TextStyle stay public: they are LocalWave's worker pipeline (catalog.rs, song_table.rs, song_text.rs, shell.rs:964). In-frame text has one service: UiText, reached with Ui::text_service() and Paint::text_service(). It owns measure, measure_spans, width, rasterize_rgba, quads, add_font and enable_system_fonts, all taking Label. Text is the off-thread form taking &TextStyle. Deleted: Ui::text_width/text_top/cap_width(Option<i64>), Paint::text_metrics(TextStyle), Ui::enable_system_fonts (it moves to the service). No new Ui::measure. LocalWave callers: find.rs:63, kit.rs:250, byline.rs:54, commands.rs:446, settings.rs:49, songs/tests.rs:832.U1b.3
 
-D21Small U1 choicesrect (surface space) and local_rect (parent space) both stay, documented as two coordinate spaces. input_frame/routed_input deleted (routing folds into FrameIn, as dx1.12i did). Style values take Label by value (spec: ui.label(text, TITLE.grow())); all other style values by reference (gesture(&Handle, &GestureOpts) moves in U1b.2). Paint::theme() is renamed Paint::tokens() to match Ui::tokens() (U1b.4). Signal/signal stay public for bodies and custom controls; app code uses Response (documented). Positions are Point, not tuples. Builder vocabulary: w/h(Size) and w_px/h_px(f32) everywhere (Overlay::w → w_px); .grow() on style values means weight 1, Node::grow(f32) takes the weight.U1a, U1b
+D21Small U1 choicesrect (surface space) and local_rect (parent space) both stay, documented as two coordinate spaces. A single Ui::frame(&FrameIn) accepts the event wire record or a borrowed full host Input snapshot. The existing C routes supply their respective validation and input policy. The Rust input_frame and routed_input methods are deleted. U5.1 owns the event and payload lifetime design. Style values take Label by value (spec: ui.label(text, TITLE.grow())); all other style values by reference (gesture(&Handle, &GestureOpts) moves in U1b.2). Paint::theme() is renamed Paint::tokens() to match Ui::tokens() (U1b.4). Signal/signal stay public for bodies and custom controls; app code uses Response (documented). Positions are Point, not tuples. Builder vocabulary: w/h(Size) and w_px/h_px(f32) everywhere (Overlay::w → w_px); .grow() on style values means weight 1, Node::grow(f32) takes the weight.U1a, U1b
 
 D22verify_viewsPer-Ui, on by default under debug_assertions (proposal guard rail); pxui_ui_verify_views stays in the frozen 2.0 set (not the diagnostics extension), so the wrapper's debug default never depends on an unstable export; Ui::verify_new_views and the process flag deleted; callers (lw_bin/tests/window_input.rs:656/887, lw_bin/src/library/find.rs:810, lw_ui/src/lib.rs:356) migrated.U1c.2
 
@@ -334,13 +334,13 @@ Animationanimate(&Handle, Target, Curve), animate_keys(&Handle, &[Keyframe], &Ke
 
 Imagesimage<K>(key, &Image, &ImageStyle) -> Result<Handle, Error>; Image::rgba8; images::{Want, Request}, Images::store/get/requests—U1b.2; builder U1b.5
 
-A11ya11y_name/a11y_value/a11y_number(&Handle, ..) -> bool (applied); set_role(&Handle, Role, A11yStates); a11y_tree() -> A11yTree; a11y_nodes, a11y_name_of, a11y_value_of, box_of_a11y—U1a.3 (rule), U1b.4 (types)
+A11ya11y_name(&Handle, &str) -> bool with UTF-8-safe display clipping; a11y_value/a11y_number(&Handle, ..) -> Result<bool, Error>; set_role(&Handle, Role, A11yStates); a11y_tree() -> A11yTree; a11y_nodes, a11y_name_of, a11y_value_of, box_of_a11y—U1a.3 (rule), U1b.4 (types)
 
 Themeset_theme(&ThemeHandle) -> Result<(), Error>, themed(&ThemeHandle, f), theme(), tokens(), ThemeHandle::parse/set_color/density/reduced_motion; bodies::register_<kind>_body(..) -> Result<BodyId, Error>; Rgba::token(T).alpha(a) (D19); ColorToken::ACCENT; Appearance; sizes f32 (font_size, row_height, density, set_font_size)—U1a.2; U1b.3 (units); U2b.7 (alpha, accent)
 
-Frame / lifecycleUi::new(&UiDesc) -> Result<Ui, Error> with UiDesc::new(Platform).font_size(f32).fonts(&[FontData]) (carries what Ui::create(Platform, Some(15), &[FONT, MONO]) passes today: lw_bin/src/library.rs:35, app/actions.rs:687, tests/window_input.rs:657/888/1011 …; UiDesc::DEFAULT for tests); frame(&FrameIn, build); FrameIn::new(w, h) + builders; layer(i) -> Option<Layer>; layers() -> &[Layer] (or a named iterator)—U1a.3
+Frame / lifecycleUi::new(&UiDesc) -> Result<Ui, Error> with UiDesc::new(Platform).font_size(f32).fonts(&[FontData]) (carries what Ui::create(Platform, Some(15), &[FONT, MONO]) passes today: lw_bin/src/library.rs:35, app/actions.rs:687, tests/window_input.rs:657/888/1011 …; UiDesc::DEFAULT for tests); frame(&FrameIn, build); FrameIn::new(w, h) + builders or unsafe FrameIn::snapshot(&Input); layer(i) -> Option<Layer>; layers() -> Layers; output() -> Output; focus_box(&Handle) for programmatic focus—U1a.3
 
-Host integrationRenderer::new -> Result<_, Error>; A11yBridge::connect -> Option; Gpu, Pass, Commands, Input, Output, Platform, Bytes; pxui_host Graphics::open/close, Accessibility::open, Platform::apply → Result<_, Error>—U1a.3
+Host integrationRenderer::new -> Result<_, Error>; A11yBridge::connect -> Option; Gpu, Pass, Commands, Input, Output, Platform, Bytes; pxui_host Graphics::open/draw/close, Accessibility::open, Platform::pump/apply → Result<_, Error>—U1a.3
 
 Diagnosticsphase_times, phase_cpu_times, set_timing, repaint_after, wants_frame, library_counter (D3), verify_views (D22)—HEAD; U1c.2
 
@@ -685,11 +685,11 @@ ui.set_theme(&ThemeSource {
 
 After
 const DESC: UiDesc = UiDesc::new(Platform::Apple)
-    .font_size(15.0).fonts(&[FONT, MONO]);
+    .font_size(15.0).fonts(&[FontData(FONT), FontData(MONO)]);
 let mut ui = Ui::new(&DESC)?;
-let theme = ThemeHandle::parse(APP_THEME)?;
-ui.set_theme(&theme);
 theme::register_bodies(&mut ui)?; // localwave-*
+let theme = ThemeHandle::parse(APP_THEME)?;
+ui.set_theme(&theme)?;
 
 // in a frame
 if ui.key_pressed(KeyCode::Char('o'), Mods::META) {
@@ -1144,17 +1144,17 @@ U1a.3 Lifecycle and errors.
 
  Ui::new(&UiDesc) -> Result<Ui, Error> (platform, font size, fonts); create deleted. Every Ui::create(p, size, fonts) call becomes Ui::new(&UiDesc::new(p).font_size(..).fonts(..)) with the same values. A Ui must never silently fall back to the default font or size: the fingerprints and TableStyles::resolve widths prove it.
 
- Renderer::new, register_*_body (macro), theme parse, pxui_host Graphics::open/close, Accessibility::open and Platform::apply → Result<_, Error>, with &'static str-carrying variants. lw_bin callers updated.
+ Renderer::new and register_*_body (macro) return a typed status from shared checked constructors. The existing C results remain pointer/id or zero. pxui_host Graphics::open/draw/close, Accessibility::open and Platform::pump/apply use Error with static operation names. lw_bin callers use the typed results.
 
- Ui::layer → Option.
+ Ui::layer → Option and Ui::layers → a named iterator over one output span. Ui::output copies the Output descriptor to accommodate renderer acknowledgment during shared Rust access. The C query and layout stay intact. Published dirty bytes survive shared reads and acknowledgments.
 
- One frame(&FrameIn); input_frame/routed_input deleted (D21); the gallery moves to FrameIn.
+ One frame(&FrameIn); input_frame/routed_input deleted (D21). The gallery supplies its complete Input through the borrowed snapshot route and LocalWave supplies ordered events through the event wire record.
 
- FrameIn::new + const builders; Layer fields documented.
+ FrameIn::new + const builders, including typed Appearance in the descriptor. Layer fields documented.
 
- enter/leave/focus_box/focused → pub(crate).
+ Keep focused crate-private and enter/leave in the engine and C ABI. Keep public focus_box for the registered command palette and compact Find editor body. Changing the focused row ends composition. Refocusing that row preserves it.
 
- a11y: stale handle → ignored, returns bool; bad data → Error::InvalidInput; a previous-frame-handle test per call.
+ a11y_name clips at a UTF-8 boundary and returns bool. a11y_value and a11y_number return Result<bool, Error>. A retired handle is ignored, and malformed text or numeric data returns Error::InvalidInput. Value selections retain normalized UTF-8 offsets. Test each operation with a genuinely retired or recycled handle and preserve legacy C statuses.
 
  Error-policy section in pxui/AGENTS.md.
 

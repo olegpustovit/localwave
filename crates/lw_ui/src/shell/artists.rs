@@ -283,12 +283,7 @@ mod tests {
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Artists));
         let player = PlayerView::default();
-        let mut frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            reduced_motion: 1,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
         let pending = Catalog::new(Vec::new());
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &pending, &state, &mut None)
@@ -391,7 +386,7 @@ mod tests {
                 payload: if cycle % 2 == 0 { 380.0 } else { -380.0 },
                 ..Default::default()
             }]);
-            frame.time += 0.02;
+            frame.wire.time += 0.02;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut None)
             })
@@ -429,13 +424,13 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm artist scrolling");
             }
         }
-        frame.reduced_motion = 0;
-        frame.time += 1.0;
+        frame.wire.reduced_motion = 0;
+        frame.wire.time += 1.0;
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
         .unwrap();
-        let entered = frame.time + 0.01;
+        let entered = frame.wire.time + 0.01;
         let pointer = pxui::Event {
             kind: input::wire::POINTER_MOVED,
             x: (artist.x + 100.0) as f64,
@@ -444,11 +439,11 @@ mod tests {
         };
         crate::testing::frame(
             &mut ui,
-            &FrameIn {
-                time: entered,
-                events: &pointer,
-                event_count: 1,
-                ..frame
+            &{
+                let mut frame = frame.time(entered);
+                frame.wire.events = &pointer;
+                frame.wire.event_count = 1;
+                frame
             },
             &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
         )
@@ -456,10 +451,7 @@ mod tests {
         assert!(ui.repaint_at().is_some());
         crate::testing::frame(
             &mut ui,
-            &FrameIn {
-                time: entered + 0.07,
-                ..frame
-            },
+            &frame.time(entered + 0.07),
             &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
         )
         .unwrap();
@@ -467,7 +459,7 @@ mod tests {
             ui.repaint_at().is_some(),
             "hover is still moving halfway through Swift's quick duration"
         );
-        frame.time = entered + 0.15;
+        frame.wire.time = entered + 0.15;
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut None)
         })
@@ -517,13 +509,7 @@ mod tests {
                 for width in [888.0, 520.0, 400.0, 364.0] {
                     crate::testing::frame(
                         &mut ui,
-                        &FrameIn {
-                            width: width + 552.0,
-                            height: 872.0,
-                            scale,
-                            reduced_motion: 1,
-                            ..Default::default()
-                        },
+                        &FrameIn::new(width + 552.0, 872.0).scale(scale).reduced_motion(true),
                         &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
                     )
                     .unwrap();

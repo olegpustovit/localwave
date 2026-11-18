@@ -4,7 +4,7 @@ import argparse
 import re
 from pathlib import Path
 
-from rs import close, line_of, mask
+from rs import args, close, line_of, mask
 
 
 SHIMS = {
@@ -85,16 +85,125 @@ def themes(source, path):
     return sorted(edits), skipped
 
 
+def lifecycle(source, path, external=False):
+    wrapper = "crate" if not external and "crates/public/pxui/src/" in path.as_posix() else "pxui"
+    visible = mask(source)
+    edits, skipped = [], []
+    calls = re.compile(r"(?<!\w)(?:(pxui|crate)::)?Ui::(new|create)\(")
+    for match in calls.finditer(visible):
+        if visible[max(0, match.start() - 2):match.start()] == "::":
+            continue
+        start = match.end() - 1
+        end = close(visible, start)
+        call = [source[a:b].strip() for a, b in args(visible, start, end)]
+        if match[2] == "new" and not call:
+            edits.append((start + 1, end, f"&{wrapper}::UiDesc::DEFAULT"))
+        elif match[2] == "create" and len(call) == 3:
+            platform, size, fonts = call
+            size = re.fullmatch(r"Some\((\d+)\)|None", size)
+            if not size or not fonts.startswith("&[") or not fonts.endswith("]"):
+                skipped.append(f"{path}:{line_of(source, match.start())}: Ui::create arguments")
+                continue
+            if platform.startswith("if "):
+                skipped.append(f"{path}:{line_of(source, match.start())}: Ui::create platform")
+                continue
+            opened = source.index("[", args(visible, start, end)[2][0])
+            font_args = [source[a:b].strip() for a, b in args(visible, opened, close(visible, opened))]
+            fonts = ", ".join(f"{wrapper}::FontData({font})" for font in font_args)
+            desc = f"{wrapper}::UiDesc::new({platform})"
+            if size[1]:
+                desc += f".font_size({size[1]}.0)"
+            if fonts:
+                desc += f".fonts(&[{fonts}])"
+            ui = (match[1] + "::" if match[1] else "") + "Ui"
+            edits.append((match.start(), end + 1, f'{ui}::new(&{desc}).expect("pxui Ui")'))
+
+    literal = re.compile(r"(?<!\w)(?:(pxui_types|pxui|crate)::)?FrameIn\s*\{")
+    for match in literal.finditer(visible):
+        if visible[:match.start()].rstrip().endswith(("->", "::", "struct", "impl")):
+            continue
+        start = match.end() - 1
+        end = close(visible, start)
+        fields, base = {}, ""
+        for a, b in args(visible, start, end):
+            item = source[a:b].strip()
+            if item.startswith(".."):
+                base = item[2:].strip()
+            elif field := re.match(r"(\w+)\s*:(?!:)\s*(.*)", item, re.S):
+                fields[field[1]] = field[2]
+            elif re.fullmatch(r"\w+", item):
+                fields[item] = item
+            else:
+                skipped.append(f"{path}:{line_of(source, match.start())}: nonliteral frame fields")
+                break
+        else:
+            scope = wrapper if match[1] == "pxui_types" else match[1]
+            name = (scope + "::" if scope else "") + "FrameIn"
+            if not base or re.fullmatch(r"(?:(?:\w+::)*FrameIn|Default)::default\(\)", base):
+                w, h = fields.pop("width", "0.0"), fields.pop("height", "0.0")
+                base = f"{name}::new({w}, {h})"
+            if re.fullmatch(r"(?:\w+::)*size_of::<(?:\w+::)*FrameIn>\(\)\s+as u32", fields.get("size", "")):
+                del fields["size"]
+            for field in ("scale", "time", "environment", "keyboard"):
+                if field in fields:
+                    base += f".{field}({fields.pop(field)})"
+            motion = fields.get("reduced_motion")
+            if motion in ("0", "1"):
+                del fields["reduced_motion"]
+                base += f".reduced_motion({str(motion == '1').lower()})"
+            if fields:
+                variable = "frame"
+                if re.search(r"\bframe\b", " ".join(fields.values())):
+                    variable = "descriptor"
+                line = source.rfind("\n", 0, match.start()) + 1
+                indent = re.match(r"[ \t]*", source[line:])[0]
+                statements = [f"let mut {variable} = {base};"]
+                statements += [f"{variable}.wire.{key} = {value};" for key, value in fields.items()]
+                statements.append(variable)
+                base = "{\n" + "".join(f"{indent}    {s}\n" for s in statements) + indent + "}"
+            edits.append((match.start(), end + 1, base))
+
+    snapshot = re.compile(r"\.input_frame\(")
+    for match in snapshot.finditer(visible):
+        start = match.end() - 1
+        arguments = args(visible, start, close(visible, start))
+        if len(arguments) == 2:
+            first, last = arguments[0]
+            value = source[first:last].strip()
+            edits.append((match.start(), last, f".frame(&unsafe {{ {wrapper}::FrameIn::snapshot({value}) }}"))
+        else:
+            skipped.append(f"{path}:{line_of(source, match.start())}: snapshot arguments")
+    return sorted(edits), skipped
+
+
+DOC_CODE = re.compile(r"^([ \t]*//[!/] )```(?:rust)?\n((?:(?![ \t]*//[!/] ```)[ \t]*//[!/] ?[^\n]*\n)+)\1```", re.M)
+
+
+def lifecycle_docs(source, path):
+    edits, skipped = lifecycle(source, path)
+    for block in DOC_CODE.finditer(source):
+        code = re.sub(r"^[ \t]*//[!/] ?", "", block[2], flags=re.M)
+        migrated, omitted = lifecycle(code, path, external=True)
+        skipped.extend(omitted)
+        if migrated:
+            for start, end, replacement in reversed(migrated):
+                code = code[:start] + replacement + code[end:]
+            edits.append((block.start(2), block.end(2), "".join(block[1] + line for line in code.splitlines(keepends=True))))
+    return sorted(edits), skipped
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--themes", action="store_true")
+    phase = parser.add_mutually_exclusive_group()
+    phase.add_argument("--themes", action="store_true")
+    phase.add_argument("--lifecycle", action="store_true")
     parser.add_argument("files", nargs="+", type=Path)
     options = parser.parse_args()
     total = 0
     for path in options.files:
         source = path.read_text()
-        rewrite = themes if options.themes else modules
+        rewrite = lifecycle_docs if options.lifecycle else themes if options.themes else modules
         edits, skipped = rewrite(source, path)
         for site in skipped:
             print("skipped", site)

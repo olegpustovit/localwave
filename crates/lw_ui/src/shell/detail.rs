@@ -414,12 +414,7 @@ mod tests {
         let player = PlayerView::default();
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let mut frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            reduced_motion: 1,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
         let mut state = ShellState::default();
         let run = |ui: &mut Ui, state: &ShellState, frame: &FrameIn, click: Option<&str>| {
             if let Some(name) = click {
@@ -473,22 +468,22 @@ mod tests {
             );
             assert_eq!(has(&ui, "Alice"), true);
             assert!(has(&ui, rows) && !has(&ui, other), "scoped rows");
-            frame.time += 0.1;
+            frame.wire.time += 0.1;
             assert_eq!(
                 run(&mut ui, &state, &frame, Some("Play")),
                 Some(Intent::PlayRow(0))
             );
-            frame.time += 0.1;
+            frame.wire.time += 0.1;
             assert_eq!(
                 run(&mut ui, &state, &frame, Some("Shuffle")),
                 Some(Intent::ShuffleCollection)
             );
-            frame.time += 0.1;
+            frame.wire.time += 0.1;
             assert_eq!(
                 run(&mut ui, &state, &frame, Some("Back")),
                 Some(Intent::Navigate(if link { Route::Albums } else { Route::Artists }))
             );
-            frame.time += 0.1;
+            frame.wire.time += 0.1;
             if link {
                 assert_eq!(
                     run(&mut ui, &state, &frame, Some("Keep offline")),
@@ -501,7 +496,7 @@ mod tests {
                 ), "album card opens its album");
             }
             if link {
-                frame.time += 0.1;
+                frame.wire.time += 0.1;
                 assert_eq!(
                     run(&mut ui, &state, &frame, Some("Alice")),
                     Some(Intent::Navigate(Route::Artist(0)))
@@ -509,7 +504,7 @@ mod tests {
             }
             for cycle in 0..8 {
                 mem_sys::local_reset();
-                frame.time += 0.1;
+                frame.wire.time += 0.1;
                 run(&mut ui, &state, &frame, None);
                 if cycle >= 3 {
                     assert_eq!(mem_sys::local_alloc_count(), 0, "warm {kind} detail frames");

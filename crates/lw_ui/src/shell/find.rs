@@ -86,7 +86,8 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
         });
     });
     if matches!(action, Action::Offline(_)) {
-        ui.a11y_value(&response.handle, if selected { "Kept offline" } else { "Not kept offline" }, (0, 0));
+        ui.a11y_value(&response.handle, if selected { "Kept offline" } else { "Not kept offline" }, (0, 0))
+            .expect("valid offline status");
     }
     enabled && response.clicked
 }
@@ -205,13 +206,7 @@ mod tests {
                 for (index, catalog) in catalogs.iter().enumerate() {
                     let mut intent = None;
                     let mut root = None;
-                    let frame = FrameIn {
-                        width: 400.0,
-                        height: 100.0,
-                        scale,
-                        reduced_motion: 1,
-                        ..Default::default()
-                    };
+                    let frame = FrameIn::new(400.0, 100.0).scale(scale).reduced_motion(true);
                     crate::testing::frame(&mut ui, &frame, &mut |ui| {
                         root = Some(build(ui, catalog, &state, &mut intent))
                     })
@@ -334,12 +329,7 @@ mod tests {
                 }
             }
             state.apply(Intent::Search(Query::new("other").unwrap()));
-            let frame = FrameIn {
-                width: 400.0,
-                height: 100.0,
-                reduced_motion: 1,
-                ..Default::default()
-            };
+            let frame = FrameIn::new(400.0, 100.0).reduced_motion(true);
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
@@ -381,11 +371,7 @@ mod tests {
         state.apply(Intent::Navigate(Route::Find));
         state.apply(Intent::Search(Query::new("track").unwrap()));
         let mut root = None;
-        let mut frame = FrameIn {
-            width: 400.0,
-            height: 100.0,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(400.0, 100.0);
         for _ in 0..3 {
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 root = Some(build(ui, &catalogs[0], &state, &mut None))
@@ -417,18 +403,18 @@ mod tests {
                     ..Default::default()
                 },
             ];
-            frame.time = base;
-            frame.events = down.as_ptr();
-            frame.event_count = down.len();
+            frame.wire.time = base;
+            frame.wire.events = down.as_ptr();
+            frame.wire.event_count = down.len();
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
-            frame.events = std::ptr::null();
-            frame.event_count = 0;
+            frame.wire.events = std::ptr::null();
+            frame.wire.event_count = 0;
             let mut settled_revision = None;
             for time in [0.07, 0.15, 0.3] {
-                frame.time = base + time;
+                frame.wire.time = base + time;
                 crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     build(ui, &catalogs[0], &state, &mut None);
                 })
@@ -463,19 +449,19 @@ mod tests {
                 y: 15.0,
                 ..Default::default()
             };
-            frame.events = &up;
-            frame.event_count = 1;
-            frame.time = base + 0.4;
+            frame.wire.events = &up;
+            frame.wire.event_count = 1;
+            frame.wire.time = base + 0.4;
             let mut intent = None;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut intent);
             })
             .unwrap();
             assert_eq!(intent, Some(Intent::PlayRow(0)));
-            frame.events = std::ptr::null();
-            frame.event_count = 0;
+            frame.wire.events = std::ptr::null();
+            frame.wire.event_count = 0;
             for time in [0.47, 0.55] {
-                frame.time = base + time;
+                frame.wire.time = base + time;
                 crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     build(ui, &catalogs[0], &state, &mut None);
                 })
@@ -492,16 +478,16 @@ mod tests {
                 y: 90.0,
                 ..Default::default()
             };
-            frame.events = &leave;
-            frame.event_count = 1;
-            frame.time = base + 0.6;
+            frame.wire.events = &leave;
+            frame.wire.event_count = 1;
+            frame.wire.time = base + 0.6;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
-            frame.events = std::ptr::null();
-            frame.event_count = 0;
-            frame.time = base + 0.8;
+            frame.wire.events = std::ptr::null();
+            frame.wire.event_count = 0;
+            frame.wire.time = base + 0.8;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })

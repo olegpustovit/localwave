@@ -147,9 +147,9 @@ pub(super) fn clock_120(index: usize) -> f64 {
 /// Forced system appearance of the theme-switch workload: flips every ten frames.
 pub(super) fn appearance(index: usize) -> u32 {
     if (index / 10) % 2 == 0 {
-        pxui::FrameIn::APPEARANCE_LIGHT
+        pxui::Appearance::Light as u32
     } else {
-        pxui::FrameIn::APPEARANCE_DARK
+        pxui::Appearance::Dark as u32
     }
 }
 
@@ -172,7 +172,7 @@ mod tests {
     ];
 
     fn run(workload: Workload) -> Vec<Vec<Event>> {
-        let ui = pxui::Ui::new().unwrap();
+        let ui = pxui::Ui::new(&pxui::UiDesc::DEFAULT).unwrap();
         let mut buffer = Vec::with_capacity(4);
         let mut out = Vec::new();
         let from = super::super::Perf::new(workload, None).measured_from();
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(resize_extent(10), (1040.0, 672.0));
         assert_eq!(resize_extent(20), resize_extent(0));
         assert_eq!(clock_120(120), 1.0);
-        assert_eq!(appearance(0), pxui::FrameIn::APPEARANCE_LIGHT);
-        assert_eq!(appearance(10), pxui::FrameIn::APPEARANCE_DARK);
+        assert_eq!(appearance(0), pxui::Appearance::Light as u32);
+        assert_eq!(appearance(10), pxui::Appearance::Dark as u32);
     }
 }

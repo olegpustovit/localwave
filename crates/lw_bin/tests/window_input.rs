@@ -654,7 +654,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
         pxui_sdl::Window::open_with("LocalWave artwork check", 1440, 872, false, true, true)
             .unwrap();
     pxui::Ui::verify_new_views(true);
-    let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+    let mut ui = pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui");
     let mut theme = pxui::ThemeHandle::default();
     lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
     ui.set_theme(&theme).unwrap();
@@ -739,12 +739,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
         };
         lw_ui::testing::frame(
             &mut ui,
-            &pxui::FrameIn {
-                width: 1440.0,
-                height: 872.0,
-                time: frame as f64 * 0.02,
-                ..Default::default()
-            },
+            &pxui::FrameIn::new(1440.0, 872.0).time(frame as f64 * 0.02),
             &mut |ui| lw_ui::shell(ui, &player, frame as f64, &catalog, &state, &mut None),
         )
         .unwrap();
@@ -788,12 +783,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
         };
         lw_ui::testing::frame(
             &mut ui,
-            &pxui::FrameIn {
-                width: 1440.0,
-                height: 872.0,
-                time: 1.0 + frame as f64 * 0.02,
-                ..Default::default()
-            },
+            &pxui::FrameIn::new(1440.0, 872.0).time(1.0 + frame as f64 * 0.02),
             &mut |ui| lw_ui::shell(ui, &player, frame as f64, &catalog, &state, &mut None),
         )
         .unwrap();
@@ -889,7 +879,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     let mut window =
         pxui_sdl::Window::open_with("LocalWave input check", 1440, 872, false, true, true).unwrap();
     pxui::Ui::verify_new_views(true);
-    let mut ui = pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+    let mut ui = pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui");
     let mut theme = pxui::ThemeHandle::default();
     lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
     ui.set_theme(&theme).unwrap();
@@ -941,13 +931,11 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
         let mut intent = None;
         lw_ui::testing::frame(
             &mut ui,
-            &pxui::FrameIn {
-                width: 1440.0,
-                height: 872.0,
-                time: frame as f64,
-                events: wire.as_ptr(),
-                event_count: wire.len(),
-                ..pxui::FrameIn::default()
+            &{
+                let mut frame = pxui::FrameIn::new(1440.0, 872.0).time(frame as f64);
+                frame.wire.events = wire.as_ptr();
+                frame.wire.event_count = wire.len();
+                frame
             },
             &mut |ui| lw_ui::shell(ui, &player, position, &catalog, &state, &mut intent),
         )
@@ -1015,6 +1003,6 @@ fn main() {
 
 fn prepared_catalog(songs: Vec<lw_core::Song>) -> lw_ui::catalog::Catalog {
     let mut catalog = lw_ui::catalog::Catalog::new(songs);
-    catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]))).unwrap();
+    catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui"))).unwrap();
     catalog
 }

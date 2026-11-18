@@ -248,16 +248,16 @@ impl Frame {
         }
         match self.workload {
             Some(Workload::Resize) => {
-                (input.width, input.height) = super::measured::resize_extent(self.index);
+                (input.wire.width, input.wire.height) = super::measured::resize_extent(self.index);
             }
-            Some(Workload::Clock120) => input.time = super::measured::clock_120(self.index),
+            Some(Workload::Clock120) => input.wire.time = super::measured::clock_120(self.index),
             _ => {}
         }
         if matches!(self.workload, Some(Workload::SongIndicators)) {
             view.revision = (self.index / 20) as u64;
             view.playing = self.index % 40 < 20;
             view.current_id = self.indicator_song;
-            input.reduced_motion = 0;
+            input.wire.reduced_motion = 0;
         }
     }
     pub(crate) fn begin(&self, ui: &Ui) -> Result<Build, String> {
@@ -986,7 +986,7 @@ impl Perf {
                 .ok_or("App graphics have already closed")?
                 .resident_image_bytes();
             if let Some(graphics) = graphics_slot.take() {
-                graphics.close()?;
+                graphics.close().map_err(|error| error.to_string())?;
             }
             self.report(frame.trace_frames, counts, artwork_bytes)?;
             return Ok(Some(Schedule::Exit));
@@ -1001,7 +1001,7 @@ mod tests {
 
     #[test]
     fn long_scroll_keeps_a_new_downward_three_row_step_without_warm_allocations() {
-        let ui = Ui::new().unwrap();
+        let ui = Ui::new(&pxui::UiDesc::DEFAULT).unwrap();
         let mut perf = Perf::new(Workload::LongScroll, None);
         let mut events = Vec::with_capacity(4);
         for index in 2..WARMUP_FRAMES + MEASURED_FRAMES {
@@ -1029,15 +1029,12 @@ mod tests {
             ..Default::default()
         };
         let mut position = 12.5;
-        let mut input = FrameIn {
-            reduced_motion: 1,
-            ..Default::default()
-        };
+        let mut input = FrameIn::new(0.0, 0.0).reduced_motion(true);
         let normal = Frame::new(0, false);
         normal.view(&mut view, &mut position, &mut input);
         assert_eq!((view.revision, position, view.duration), (77, 12.5, 99.0));
         assert_eq!(
-            (view.current_id, view.playing, input.reduced_motion),
+            (view.current_id, view.playing, input.wire.reduced_motion),
             (Some(7), false, 1)
         );
         normal.require_waveform(false).unwrap();
@@ -1062,7 +1059,7 @@ mod tests {
             frame.view(&mut view, &mut position, &mut input);
             assert_eq!(view.revision, 77);
             assert_eq!((position, view.duration), (index as f64, 240.0));
-            assert_eq!((view.current_id, input.reduced_motion), (Some(7), 1));
+            assert_eq!((view.current_id, input.wire.reduced_motion), (Some(7), 1));
             if index >= WARMUP_FRAMES {
                 overlays += usize::from(drop.hovered());
             }
@@ -1082,10 +1079,10 @@ mod tests {
         let mut perf = Perf::new(Workload::SongIndicators, Some(99));
         for index in [0, 19, 20, 39, 40] {
             let frame = perf.inject(index, false);
-            input.reduced_motion = 1;
+            input.wire.reduced_motion = 1;
             frame.view(&mut view, &mut position, &mut input);
             assert_eq!(
-                (view.current_id, view.playing, input.reduced_motion),
+                (view.current_id, view.playing, input.wire.reduced_motion),
                 (Some(99), index % 40 < 20, 0)
             );
             assert_eq!(mem_sys::local_alloc_count(), 0);

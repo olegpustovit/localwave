@@ -315,12 +315,7 @@ pub(super) mod button_tests {
                 for offset in [0.0, 0.069, 0.07, 0.139, 0.14, 0.235, 0.236, 0.3] {
                     crate::testing::frame(
                         &mut ui,
-                        &FrameIn {
-                            width: 400.0,
-                            height: 80.0,
-                            time: time + offset,
-                            ..Default::default()
-                        },
+                        &FrameIn::new(400.0, 80.0).time(time + offset),
                         &mut |ui| matrix_clock(ui, seconds, 43.0, ink),
                     )
                     .unwrap();
@@ -382,13 +377,11 @@ pub(super) mod button_tests {
         ) {
             crate::testing::frame(
                 ui,
-                &FrameIn {
-                    width: 1440.0,
-                    height: 71.0,
-                    time,
-                    events: events.as_ptr(),
-                    event_count: events.len(),
-                    ..Default::default()
+                &{
+                    let mut frame = FrameIn::new(1440.0, 71.0).time(time);
+                    frame.wire.events = events.as_ptr();
+                    frame.wire.event_count = events.len();
+                    frame
                 },
                 &mut |ui| {
                     transport(ui, player, 60.0, true, intent);
@@ -532,13 +525,11 @@ pub(super) mod button_tests {
         let mut build = |ui: &mut Ui| {
             clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&ICON_PLATE_LOOKS)).clicked);
         };
-        let input = |time, events: &[Event]| FrameIn {
-            width: 320.0,
-            height: 240.0,
-            time,
-            events: events.as_ptr(),
-            event_count: events.len(),
-            ..FrameIn::default()
+        let input = |time, events: &[Event]| {
+            let mut frame = FrameIn::new(320.0, 240.0).time(time);
+            frame.wire.events = events.as_ptr();
+            frame.wire.event_count = events.len();
+            frame
         };
         for time in [0.0, 0.1] {
             crate::testing::frame(&mut ui, &input(time, &[]), &mut build).unwrap();

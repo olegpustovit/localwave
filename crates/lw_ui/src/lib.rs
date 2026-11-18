@@ -351,12 +351,15 @@ pub(crate) fn test_table_styles() -> catalog::TableStyles {
     catalog::TableStyles::resolve(&test_ui(pxui::Platform::Apple, None, &[FONT, MONO]))
 }
 
-/// `Ui::create` for tests, with `verify_views` on for every Ui the process creates and LocalWave's colours installed.
+/// Creates a test Ui with view verification and the LocalWave palette.
 #[cfg(test)]
 pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8]]) -> pxui::Ui {
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| pxui::Ui::verify_new_views(true));
-    let mut ui = pxui::Ui::create(platform, size, fonts);
+    let fonts: Vec<_> = fonts.iter().map(|bytes| pxui::FontData(bytes)).collect();
+    let mut desc = pxui::UiDesc::new(platform).fonts(&fonts);
+    if let Some(size) = size { desc = desc.font_size(size as f32); }
+    let mut ui = pxui::Ui::new(&desc).expect("test Ui");
     // The kit's default theme with LocalWave's bodies and their looks, as the app's themes carry them.
     commands::register(&mut ui).unwrap();
     let app = include_str!("../themes/app-light.theme");

@@ -809,19 +809,14 @@ mod tests {
                 state.apply(lw_ui::Intent::Search(Query::new(raw).unwrap()));
                 pxui::Ui::verify_new_views(true);
                 let mut ui =
-                    pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
+                    pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui");
                 let mut theme = pxui::ThemeHandle::default();
                 lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
                 ui.set_theme(&theme).unwrap();
                 ui.set_a11y(true);
                 lw_ui::testing::frame(
                     &mut ui,
-                    &pxui::FrameIn {
-                        width: 1440.0,
-                        height: 872.0,
-                        reduced_motion: 1,
-                        ..Default::default()
-                    },
+                    &pxui::FrameIn::new(1440.0, 872.0).reduced_motion(true),
                     &mut |ui| {
                         lw_ui::shell(
                             ui,

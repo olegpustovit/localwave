@@ -365,12 +365,12 @@ mod tests {
         frame: &mut FrameIn,
         event: Event,
     ) -> Option<Intent> {
-        frame.events = &event;
-        frame.event_count = 1;
-        frame.time += 0.02;
+        frame.wire.events = &event;
+        frame.wire.event_count = 1;
+        frame.wire.time += 0.02;
         let result = build(ui, state, player, 0.0, frame);
-        frame.events = std::ptr::null();
-        frame.event_count = 0;
+        frame.wire.events = std::ptr::null();
+        frame.wire.event_count = 0;
         result
     }
     fn click(
@@ -420,11 +420,7 @@ mod tests {
             cache_usage: "0 bytes cached. Kept songs may exceed the limit; Added Files are never removed.",
             ..Default::default()
         };
-        let mut frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(1440.0, 872.0);
         for _ in 0..3 {
             build(&mut ui, &state, &player, 0.0, &frame);
         }
@@ -523,10 +519,10 @@ mod tests {
         );
         state.apply(Intent::CloseSettingsMenu);
         state.apply(Intent::ShowPrivacy);
-        frame.width = 640.0;
-        let start = frame.time;
+        frame.wire.width = 640.0;
+        let start = frame.wire.time;
         for offset in [0.0, 0.5, 1.0] {
-            frame.time = start + offset;
+            frame.wire.time = start + offset;
             build(&mut ui, &state, &player, 0.0, &frame);
         }
         let paragraph = ui
@@ -596,11 +592,7 @@ mod tests {
             cache_usage: "0 bytes cached. Kept songs may exceed the limit; Added Files are never removed.",
             ..Default::default()
         };
-        let mut frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(1440.0, 872.0);
         for round in 0..8 {
             mem_sys::local_reset();
             let mut trace = [(0u64, 0u64); 18];
@@ -618,7 +610,7 @@ mod tests {
                         player.storage_busy = index.is_multiple_of(2);
                         player.revision += 1;
                         let position = player.revision as f64;
-                        frame.time += 0.02;
+                        frame.wire.time += 0.02;
                         let own = mem_sys::own(mem_sys::COUNT_LOCAL_ALLOCS);
                         let peer = pxui::library_counter(mem_sys::COUNT_LOCAL_ALLOCS);
                         build(&mut ui, &state, &player, position, &frame);
@@ -647,7 +639,7 @@ mod tests {
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);
         let player = PlayerView { initialized: true, cache_usage: "6.6 MB cached.", ..Default::default() };
-        let mut frame = FrameIn { width: 390.0, height: 778.0, ..Default::default() };
+        let mut frame = FrameIn::new(390.0, 778.0);
         for _ in 0..3 {
             build(&mut ui, &state, &player, 0.0, &frame);
         }
@@ -678,7 +670,7 @@ mod tests {
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);
         let player = PlayerView { initialized: true, ..Default::default() };
-        let mut frame = FrameIn { width: 1440.0, height: 872.0, ..Default::default() };
+        let mut frame = FrameIn::new(1440.0, 872.0);
         for _ in 0..3 {
             build(&mut ui, &state, &player, 0.0, &frame);
         }

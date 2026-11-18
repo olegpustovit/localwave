@@ -684,7 +684,7 @@ mod tests {
                 })
                 .collect(),
         );
-        catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]))).unwrap();
+        catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui"))).unwrap();
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(lw_ui::catalog::Route::Songs));
         assert_eq!(&*super::targets(&state, &catalog, 2), &[2]);

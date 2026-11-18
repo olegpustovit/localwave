@@ -179,12 +179,7 @@ mod tests {
         let player = PlayerView::default();
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let mut frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            reduced_motion: 1,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
         for _ in 0..3 {
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, 0.0, &catalog, &state, &mut None)
@@ -210,7 +205,7 @@ mod tests {
                     payload: delta,
                     ..Default::default()
                 }]);
-                frame.time += 0.1;
+                frame.wire.time += 0.1;
                 crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     shell(ui, &player, 0.0, &catalog, &state, &mut None)
                 })
@@ -304,12 +299,7 @@ mod tests {
         let player = PlayerView::default();
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let mut frame = FrameIn {
-            width: 1440.0,
-            height: 872.0,
-            reduced_motion: 1,
-            ..Default::default()
-        };
+        let mut frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
         let find = |ui: &Ui, name: &str| {
             *ui.a11y_nodes()
                 .iter()
@@ -367,7 +357,7 @@ mod tests {
         for cycle in 0..10 {
             mem_sys::local_reset();
             for scale in [1.0, 2.0] {
-                frame.scale = scale;
+                frame.wire.scale = scale;
                 crate::testing::frame(&mut ui, &frame, &mut |ui| {
                     shell(ui, &player, 0.0, &catalog, &state, &mut None)
                 })
@@ -400,7 +390,7 @@ mod tests {
                         action_code: 1,
                         ..Default::default()
                     }]);
-                    frame.time += 0.1;
+                    frame.wire.time += 0.1;
                     let mut intent = None;
                     crate::testing::frame(&mut ui, &frame, &mut |ui| {
                         shell(ui, &player, 0.0, &catalog, &state, &mut intent)

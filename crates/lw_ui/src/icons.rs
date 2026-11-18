@@ -111,18 +111,13 @@ mod tests {
             [(7.0, 17.0), (8.7, 17.0), (9.8, 15.6), (10.7, 13.8)],
             [(13.3, 10.2), (14.2, 8.4), (15.3, 7.0), (17.0, 7.0)],
         ];
-        let mut ui = pxui::Ui::new().unwrap();
+        let mut ui = pxui::Ui::new(&pxui::UiDesc::DEFAULT).unwrap();
         for round in 0..6 {
             mem_sys::local_reset();
             for (size, scale) in [(16.0, 1.0), (20.0, 1.0), (16.0, 2.0), (20.0, 2.0)] {
                 crate::testing::frame(
                     &mut ui,
-                    &pxui::FrameIn {
-                        width: 40.0,
-                        height: 40.0,
-                        scale,
-                        ..Default::default()
-                    },
+                    &pxui::FrameIn::new(40.0, 40.0).scale(scale),
                     &mut |ui| {
                         let node = ui.node("icon".into(), pxui::ui::Node::column().w_px(size).h_px(size));
                         ui.canvas(&node, |paint, rect| {

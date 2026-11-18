@@ -32,7 +32,7 @@ struct Root {
 /// Table styles resolved on a headless `Ui` (no window): for tests and tools that open a `LibraryWorker` without the app's `Ui`.
 /// The app resolves them on its own `Ui` (`TableStyles::resolve`) before opening its workers.
 pub fn headless_table_styles() -> lw_ui::catalog::TableStyles {
-    lw_ui::catalog::TableStyles::resolve(&pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]))
+    lw_ui::catalog::TableStyles::resolve(&pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui"))
 }
 
 /// Construct on the worker: SQLite, defaults and security-scoped grants stay on that thread.

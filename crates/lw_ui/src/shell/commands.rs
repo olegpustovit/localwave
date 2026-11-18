@@ -532,14 +532,11 @@ mod tests {
         let mut intent = None;
         crate::testing::frame(
             ui,
-            &FrameIn {
-                width: 1000.0,
-                height: 700.0,
-                time: *time,
-                reduced_motion: 1,
-                events: events.as_ptr(),
-                event_count: events.len(),
-                ..Default::default()
+            &{
+                let mut frame = FrameIn::new(1000.0, 700.0).time(*time).reduced_motion(true);
+                frame.wire.events = events.as_ptr();
+                frame.wire.event_count = events.len();
+                frame
             },
             &mut |ui| {
                 shell(
@@ -579,13 +576,7 @@ mod tests {
             let mut intent = None;
             crate::testing::frame(
                 &mut ui,
-                &FrameIn {
-                    width: 390.0,
-                    height: 778.0,
-                    time: f64::from(tick),
-                    reduced_motion: 1,
-                    ..Default::default()
-                },
+                &FrameIn::new(390.0, 778.0).time(f64::from(tick)).reduced_motion(true),
                 &mut |ui| shell(ui, &PlayerView::default(), 0.0, &catalog, &state, &mut intent),
             )
             .unwrap();
