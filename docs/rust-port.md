@@ -227,10 +227,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U1c.3 | Extension set (D6) | done | LocalWave 821a549 and 6ab2781, pxui dc18bb81 and 9f36189d. 16 extension calls in pxui::ext; inspector toggle and button through their bodies with a custom-body test. |
 | U1c.4 | Spec sync | done | LocalWave 6b2b34d, pxui 66c79d42. Ledger and api_spec synced; surface.py --ledger green for every U1 row. |
 | U1c.5 | Recover release abi_bench (D26, D27) | partial | LocalWave b982b17, 97bda86 and 687730d, pxui ff71546e through 3d63d11a. Author and every bodies page pass; text inputs answer in one call (ABI 1.82); colour tokens resolved in place; text engine boxed. Kit, Controls, Overlays and Layout stay over in both modes with unchanged limits; per D27 U2b.10 owns them before CP1. Tier B and 289 online LocalWave checks passed; build times within 0.25 s of CP0. |
-| U2a.1 | Row keys (dx3.22) | todo |  |
-| U2a.2 | Tabs (dx3.19, G1) | todo |  |
-| U2a.3 | Checkbox, disclosure, section index (dx3.20; G5, G9, G10) | todo |  |
-| U2a.4 | Sheets and picker rows (dx3.21; G6, G12) | todo |  |
+| U2a.1 | Row keys (dx3.22) | done | LocalWave 8e75a94, pxui c7e6e27e. selection_list and table_view key rows by item id through new row exports. ABI 1.83. |
+| U2a.2 | Tabs (dx3.19, G1) | done | LocalWave 16f3df4 and 395e6c2, pxui df47dc48 and 29bfff24. tabs -> PickResponse with focus kept when a choice is refused; the gate's trailing-append growth rule (library-written or size-checked caller records, library code only); the library refuses an app built for a newer minor. ABI 1.84. |
+| U2a.3 | Checkbox, disclosure, section index (dx3.20; G5, G9, G10) | done | LocalWave 19eb6d7 and a59e3b2, pxui 87afd1f5 and a6e1b98b. Checkbox<'a> with size, look, passive (READ_ONLY) and disabled; disclosure; section_index -> PickResponse with a section_index body kind. ABI 1.85. |
+| U2a.4 | Sheets and picker rows (dx3.21; G6, G12) | done | LocalWave fda5e5f, 1310c3b, bef5c8e and 241ec6e, pxui cde8267a, 404943c2, 39688c00 and e1acbdb9. One validated sheet route with Presentation and DismissOpts; PickRows::push(PickRow) with headings and glyph art; duplicate layout rows fail. ABI 1.86. Each new widget has custom-body, warm-allocation and a11y tests, a gallery entry and a bodies-page override; only the gallery_bodies goldens changed. Tier B, independent review and 289 online LocalWave checks passed; build times within the CP0 allowance. |
 | U2b.1 | Selection list and table (rest of G4) | todo |  |
 | U2b.2 | Drop zones (G7) | todo |  |
 | U2b.3 | Reorder (G8) | todo |  |

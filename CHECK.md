@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-18. Resume at [U2a](#next-u2a-review-and-landing).
+Updated 2026-11-18. Resume at [U2b](#next-u2b-shape-stop-with-site-map).
 
 ## What we're doing
 
@@ -150,14 +150,24 @@ final U2 panel, pick-item and field shapes. Cost breakdown and the dropped typed
 (`scratch/u1c-final-report.md`, local only): per-item radio/dropdown validation, panels ~190/420, nodes ~48/100, and the static
 value_field/text_area path (reference-counted field callbacks).
 
-## NEXT: U2a review and landing
+### U2a landed on `rust-port`
 
-U2a final stop on branch `u2a` (both repos): LocalWave 8e75a94..1310c3b, pxui c7e6e27e..404943c2 (ABI 1.83-1.86), with the
-shape-review fixes 1-5 applied in the step commits. Tier B, gcmp (no D9) and buildtime (within allowance) passed; abi_bench is
-unchanged in kind (D27, U2b.10). Report: `scratch/u2a-final-report.md` (local only). Next: orchestrator and independent review,
-then landing; then U2b.
+LocalWave 8e75a94..241ec6e and pxui c7e6e27e..e1acbdb9 (ABI 1.83–1.86; see `docs/rust-port.md` U2a rows). The four gap
+branches are landed in ledger shape and deleted; `dx3.22-wip` remains for U2b.2. Orchestrator rulings: ABI records grow only
+by trailing append under a minor bump, for library-written or size-checked caller records (gate-enforced, library code only);
+the library refuses an app built for a newer minor (minimum-library rule). abi_bench is unchanged in kind (D27, U2b.10).
+
+## NEXT: U2b shape stop (with site map)
+
+Branch `u2b` in both repos from `rust-port`. U2b's shape stop also delivers `tools/dx/site_map.md` (U2b.9). U2b.6 owns the
+`default_picker_row` per-frame lowercase allocation; U2b.10 owns D27 and should measure the per-row key callback.
 
 ## Found (separate fixes later)
+
+- `default_picker_row` lowercases the query per row every frame (allocates with a non-empty query) → U2b.6.
+- A drag that pushes a sheet fully below the window cancels instead of dismissing.
+- Picker and menu wrappers keep scratch buffers in thread-locals (global state).
+- A C app refused at UI creation only gets null; no error channel exists before a Ui.
 
 - `pxui_core/src/ui_core.rs` `tooltip_sheet`: a shown tooltip formats and wraps its text into a `String`/`Vec` every frame.
 - `pxui_core/src/ui_text.rs:1733`: the text area's doc tooltip keys its wait with a `format!`ed string every frame.
