@@ -131,20 +131,36 @@ only within 0.5 of the integer field); keyed `node` + `within` stays where tests
 query children; `tooltip_legacy`/`anchored_legacy` serve only 1.x C exports;
 the six-look `style` cost is measured at CP1.
 
-## NEXT: U1c review (U1c.5 stopped BLOCKED)
+## NEXT: U1c review (U1c.5 round 2 stopped BLOCKED)
 
-U1c is on branch `u1c` in both repos: LocalWave 97bda86, pxui 79b83bf5. U1c.1–U1c.4 are done; U1c.5 (recover release abi_bench) added
-the Author re-pairing (ff71546e), ABI 1.82 text-input `_response` exports (cd601902), uninitialised pick/string columns and single
-validation of pick items on the dynamic path (8551f890) and a docs-allowlist row (79b83bf5). Tier B is green (pxui `cargo t --all` 983;
-static 237; doctests 470/453; gallery 17 with goldens; gates docs, abi-exports, abi-frozen, abi-compat; offline `make check` 289).
-gcmp against U1a: no D9 diff.
+U1c is on branch `u1c` in both repos: LocalWave carries the pxui pointer 3d63d11a. Round 1 of U1c.5 is ff71546e through 79b83bf5.
+Round 2 added five commits:
+- 9475e7ab: widget states resolve colour tokens in place.
+- 24346a6f: hot Shared fields first; a static label node is checked once.
+- 9c6ae609: key hashing has no memcpy call or pattern search.
+- 702b566a: the text engine is boxed out of the per-frame Paint moves.
+- 3d63d11a: f16 handles exact halves directly.
 
-**BLOCKED:** Author passes (static 0.98659, dynamic 0.98810). Still over, gate configuration: static Kit 1.01656, Controls 1.01424,
-Overlays 1.01928, Layout 1.01860; dynamic (libpxui with `pxui_dylib/counting`, as `cargo t` builds it) Kit 1.03045, Controls 1.04002,
-Overlays 1.03461, Layout 1.05024. abi_bench_bodies: Kit 1.018, Controls 1.043, Overlays 1.062 (engine growth, mainly cac8615a colour
-tokens and U1c.3 inspector bodies). Per-call costs, bisect results and failed experiments: `scratch/u1c-final-report.md` "U1c.5". The
-dynamic ratios in pxui commit messages cd601902/8551f890 were measured against a non-counting libpxui (about 1% low); LocalWave
-97bda86 records the correction. Buildtime compare not run.
+Tier B is green:
+- pxui `cargo t --all` 985; static 237; doctests 470/453; gallery 17 with goldens; gates docs, abi-exports, abi-frozen, abi-compat.
+- Offline `make check` 289.
+- surface 6054, unchanged; buildtime against 16dc635 exits 0, every step within 0.25 s.
+- gcmp against U1a: no D9 diff.
+
+**Passing now:** abi_bench_bodies (Kit 0.99468, Controls 1.00511, Overlays 0.98892) and Author (static 0.99022, dynamic 0.99055).
+
+**BLOCKED:** these pages are still over (gate configuration, retired instructions):
+
+| Mode | Kit | Controls | Overlays | Layout |
+|---|---|---|---|---|
+| static | 1.01631 (1.013) | 1.01422 (1.01) | 1.02103 (1.011) | 1.01626 (1.01) |
+| dynamic | 1.03028 (1.03) | 1.04084 (1.03) | 1.03692 (1.03) | 1.04965 (1.045) |
+
+The wrapper's own excess fell on every page. The engine changes shrank the direct side too, which raised some ratios.
+`scratch/u1c-final-report.md` "U1c.5 round 2" has:
+- the exact single-stepped costs: fixed frame static +704 and dynamic +855, node 48, and value_field 1,081 by part;
+- why the typed-key and integer-key ideas were dropped (no measured page crosses an Id key; the typed static entry measured worse);
+- two owner questions: a static value_field/text_area path, and the container callback layers.
 
 ## Found (separate fixes later, not U1b scope)
 
