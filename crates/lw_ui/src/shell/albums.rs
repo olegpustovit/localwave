@@ -95,6 +95,11 @@ pub(super) fn gallery(
         .max(1.0) as usize;
     let cell = (available - (columns - 1) as f32 * gap) / columns as f32;
     let card_height = cell + 43.7;
+    let card_layout = Node::column().w_px(cell).h_px(card_height);
+    const ARTWORK: Node = Node::stack()
+        .w(Size::Grow)
+        .margin(Edges { b: 8.0, ..Edges::ZERO })
+        .look(PANEL_FILL);
     ui.section_list(
         "groups",
         &SectionList::new(groups.len().div_ceil(columns)).row_h(card_height + 28.0).lead(if compact { 16.0 } else { 172.6 }).trail(12.0).overlay_scrollbar(),
@@ -109,62 +114,41 @@ pub(super) fn gallery(
             }
             SectionPart::Header => {}
             SectionPart::Row(line) => {
-                ui.column("gallery-inset", Node::column().w(Size::Grow).h(Size::Grow).pad_x(inset), |ui| {
-                    let row = ui.node("group-row".into(), Node::row().w(Size::Grow).h(Size::Grow).gap(gap));
-                    ui.within(&row, &mut |ui| {
-                        for (column, index) in order
-                            .iter()
-                            .copied()
-                            .skip(line * columns)
-                            .take(columns)
-                            .enumerate()
-                        {
-                            let holder = ui.node(
-                                Key::Id(index as i64),
-                                Node::column().w_px(cell).h_px(card_height),
-                            );
-                            ui.within(&holder, &mut |ui| {
-                                let group = &groups[index];
-                                let visual = ui.view_of(
-                                    "group-visual",
-                                    &row_revision,
-                                    |ui| {
-                                        let node = Node {
-                                            padding: Edges::ZERO,
-                                            ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
-                                        };
-                                        let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {
-                                            let art = container(
-                                                ui,
-                                                "artwork",
-                                                Axis::Stack,
-                                                Size::Grow,
-                                                Size::Px(cell),
-                                                ui.color(PANEL),
-                                            );
-                                            paint_artwork(
-                                                ui,
-                                                &art,
-                                                group.artwork_row.map(|index| catalog.row(index)),
-                                                cell,
-                                                player.artwork,
-                                            );
-                                            ui.a11y_name(&art, "Album artwork");
-                                            spacer(ui, "artwork-label-gap", 8.0);
-
-                                            ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).grow().h_px(17.5).color(INK));
-                                            ui.label(&group.subtitle, CAPTION.grow());
-                                        });
-                                        ui.a11y_name(&card.handle, &group.title);
-                                        if card.clicked {
-                                            *intent = Some(Intent::Navigate(Route::Album(index)));
-                                        }
-                                    },
+                ui.row("gallery-inset", Node::row().w(Size::Grow).h(Size::Grow).pad_x(inset).gap(gap), |ui| {
+                    for (column, index) in order
+                        .iter()
+                        .copied()
+                        .skip(line * columns)
+                        .take(columns)
+                        .enumerate()
+                    {
+                        let group = &groups[index];
+                        let visual = ui.view_of(Key::Id(index as i64), &row_revision, |ui| {
+                            let node = Node {
+                                padding: Edges::ZERO,
+                                ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
+                            };
+                            let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {
+                                let art = ui.node("artwork".into(), ARTWORK.h_px(cell));
+                                paint_artwork(
+                                    ui,
+                                    &art,
+                                    group.artwork_row.map(|index| catalog.row(index)),
+                                    cell,
+                                    player.artwork,
                                 );
-                                entry.row(ui, &visual, line * columns + column);
+                                ui.a11y_name(&art, "Album artwork");
+                                ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).grow().h_px(17.5).color(INK));
+                                ui.label(&group.subtitle, CAPTION.grow());
                             });
-                        }
-                    });
+                            ui.a11y_name(&card.handle, &group.title);
+                            if card.clicked {
+                                *intent = Some(Intent::Navigate(Route::Album(index)));
+                            }
+                        });
+                        ui.set_node_layout(&visual, &card_layout);
+                        entry.row(ui, &visual, line * columns + column);
+                    }
                 });
             }
         },

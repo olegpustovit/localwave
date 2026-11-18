@@ -926,11 +926,12 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                         let row = catalog.row(index);
                         let current = current == Some(index);
                         let numbered = matches!(route, Route::Album(_));
+                        let number = collection.song_table.as_ref().unwrap().number_label(position);
                         let layout = row_layout(
                             ui,
                             &catalog,
                             index,
-                            position + 1,
+                            (position + 1, number),
                             numbered,
                             widths,
                             current,
@@ -940,8 +941,6 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                             Node::column().w_px(width).h_px(layout.height),
                         );
                         ui.within(&root, &mut |ui| {
-                            let mut digits = [0u8; 24];
-                            let number = stack_fmt(&mut digits, format_args!("{}", position + 1));
                             for column in Column::ALL {
                                 if widths[column as usize] <= 0.0
                                     || matches!(column, Column::Actions | Column::State)

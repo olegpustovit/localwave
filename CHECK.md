@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Read this first. It says where the work stands and what to do next. Updated 2026-11-17.
+Read this first. It says where the work stands and what to do next. Updated 2026-11-18.
 
 ## What we're doing
 
@@ -46,7 +46,7 @@ Each package has the following lifecycle:
 
 ## Where it stands
 
-### U0: landed (rust-port, pushed)
+### U0.1–U0.7: landed (rust-port, pushed)
 
 | Step | LocalWave | pxui |
 |---|---|---|
@@ -64,51 +64,35 @@ Each package has the following lifecycle:
 The plan's §4 table already records D26.
 
 1. **abi_bench.** Release abi_bench instruction ratios fail in both modes (Kit/Controls/Overlays static; Kit/Controls/Overlays/Layout dynamic). The failure is deterministic. It comes from pxui cf953b35 (DX1.12E) and b6958651 (DX1.12F): out-of-line key-first shims. **This is folded into U1c.1**, whose done-when is now: release abi_bench passes all pages in both modes.
-2. **Build CPU p99 > 1.5 ms** on resize, theme-switch, non-song-lists, reverse-scroll and scroll-jump. Warm allocations stay zero everywhere. **This is U0.8, which is in progress (below).**
+2. **Build CPU p99 > 1.5 ms** on resize, theme-switch, non-song-lists, reverse-scroll and scroll-jump. Warm allocations stay zero everywhere. **U0.8 restores the build CPU gate.**
 3. **Popup layer** draws 2 calls on the Layout page (baseline 1). This goes to U2b.8 and must be fixed before U2b.10.
 4. **`Ui::id() -> usize`** becomes `instance_id()` in U1b.6, so `ui.id(key, f)` names one thing. It is already in the ledger.
 
-## NEXT: finish U0.8 (build-CPU gate), then start U1a
+### U0.8 qualified
 
-### U0.8 state
+U0.8 restores the performance budgets through internal pxui changes to text,
+animation, layout and retained views. LocalWave removes redundant row
+containers and prepares packed song numbers on the worker. The public Rust
+surface and ABI match the baseline. All 115 LocalWave UI fingerprints match.
 
-The previous agent was stopped mid-work.
+The final signed run passed all 30 workloads at peak load 2.776. The highest
+gated p99 values were 1.477 ms build CPU, 2.000 ms frame CPU and 3.535 ms work
+wall. All 28 gated workloads had zero warm Rust allocations. The previous
+run of identical machine code missed the build budget on resize (1.546 ms)
+and theme-switch (1.517 ms). Tier A and B checks passed. All six build-time
+measurements met the CP0 allowance, including a 0.98 s warm app relink. The
+clean pxui build took 30.42 s against the 30 s target.
 
-- **pxui:** the checkout is on local branch `u0.8` (= rust-port a64d00ca), with **uncommitted, unverified WIP** in `crates/private/pxui_core/src/ui_core.rs`. That WIP adds a memoised `curve_at` so the tweens one change starts share one curve bisection, and stops copying the whole tween per frame in `step_tweens`. The same diff is saved as `docs/u-plan/u08-curve-memo-wip.diff`. Keep it only if it measurably helps and the tests pass; otherwise run `git -C pxui checkout -- . && git -C pxui checkout rust-port`.
-- **LocalWave:** on `rust-port`, with no U0.8 commits yet.
+See [performance and build times](docs/rust-port.md#latest-performance) and
+the [investigation](docs/u-plan/u08-investigation.txt) for benchmark and
+package evidence.
 
-#### Paired runs
+## NEXT: land U0.8, then start U1a
 
-These are in `docs/u-plan/u08-paired-runs.txt`. Values are build CPU in µs, as p50/p99, at load < 4. "head" is HEAD fb16eaa-era code; "base" is de53440, before the DX API work.
-
-| workload | head p50/p99 | base p50/p99 |
-|---|---|---|
-| resize | ~1505 / ~1770 | ~1317 / ~1464 |
-| theme-switch | ~1508 / ~2050 | ~1364 / ~1775 |
-| non-song-lists | ~660 / ~1815 | ~513 / ~1494 |
-| reverse-scroll | ~1028 / ~1276 | ~911 / ~1092 |
-| scroll-jump | ~530 / ~1608 | ~463 / ~1562 |
-
-- HEAD is **12–15% slower** at p50: a real regression.
-- **theme-switch (and scroll-jump) already exceeded 1.5 ms p99 at de53440**, so fixing the regression alone may not turn the gate green.
-- The bisect over LocalWave commits de53440..HEAD was not finished. `run.sh` and `cmp.sh` in `docs/u-plan/` do alternating paired runs of saved bundles, waiting for load < 4.
-  - Bundles built so far are in `/private/tmp/claude-501/-Users-snowbear-WORK-GIT-localwave/439fa08c-eb2b-4fe2-904d-20cdf233f9c0/scratchpad/u08/` (`head.app`, `base.app`, `b_<commit>.app`). That is a temp dir, so rebuild them if it's gone.
-  - The `sample` profiles there (`head_resize.sample`, `base_resize.sample`) show where resize spends time.
-
-#### Do
-
-1. Bisect de53440..HEAD on resize/theme-switch p50.
-   - Build each candidate with `make bundle PROFILE=release COUNTING=1` in a temp worktree (`git worktree add`, `git -c protocol.file.allow=always submodule update --init pxui`, symlink `target/sdl`), copy the `.app` aside, then remove the worktree.
-2. Name the commit(s) and the hot path. Fix the root cause internally, with **no public pxui signature changes** (U1 owns signatures). If the only fix needs one, stop and add it to the ledger as a U1 step.
-3. Get all gated workloads to build CPU p99 < 1.5 ms and frame CPU p99 < 2.5 ms with zero warm allocations.
-   - Never loosen budgets, extend warm-up, drop input or change workloads.
-   - If theme-switch can't get under budget without a signature change, record the numbers and the cause in `docs/rust-port.md` and ask the owner.
-4. Commit on `u0.8` in both repos with subjects `[U0.8] …`. Include before/after numbers and load averages.
-5. Run Tier B, then a full `make performance` (it must exit 0), then land per the lifecycle above.
-
-#### Then U1a
-
-Read plan §10 "U1a" (namespace, lifecycle, errors, input; it lands dx1.12i). Brief from §12. It has a shape stop.
+Follow the landing sequence above. Start U1a from the updated `rust-port`
+in both repos. Read plan §10 U1a and brief the implementer per §12. Stop at
+the uncommitted namespace, theme, lifecycle, error and input signatures for
+review against the ledger before migrating callers.
 
 ## Commands
 

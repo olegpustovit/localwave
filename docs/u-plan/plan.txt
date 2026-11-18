@@ -250,6 +250,8 @@ U1b.6, U2b.1
 
 D24GPU device per window (OS-6)Deferred past 2.0: it lives in pxui_host (not ABI), LocalWave has one window, and it is a host/render change that needs its own perf qualification.after U6
 
+D26 CP0 outcome (17 Nov) (1) Release abi_bench instruction ratios fail on Kit/Controls/Overlays (static) and Kit/Controls/Overlays/Layout (dynamic); deterministic, introduced by pxui cf953b35 (DX1.12E) and b6958651 (DX1.12F) out-of-line key-first shims. Folded into U1c.1, whose done-when becomes: release abi_bench all pages, both modes, within limits. (2) Build CPU p99 > 1.5 ms on resize, theme-switch (p50 already over), non-song-lists, reverse-scroll, scroll-jump: real; U0.8 bisects de53440..HEAD and fixes before U1. (3) Popup layer draws 2 calls on the Layout page (baseline 1): U2b.8, fixed before U2b.10. (4) Ui::id() -> usize becomes instance_id() in U1b.6 so ui.id(key, f) names one thing. U0.8, U1b.6, U1c.1, U2b.8
+
 5. The API ledger: one public UI
 
 The target public surface. Rule: a call not marked with a step keeps its HEAD signature exactly. A call marked with a step changes once, in that step, to the signature shown. U0.3 generates the full HEAD → ledger delta from tools/dx/surface.py, and every delta line must carry a step id here (otherwise it reverts to HEAD). K: Into<Key> and F: FnMut(..) are the one-line shells; &mut self is omitted.

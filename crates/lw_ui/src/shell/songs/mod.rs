@@ -1,4 +1,4 @@
-//! prepare_tables on the library worker prepares column preferences, numeric widths, pins, action
+//! prepare_tables on the library worker prepares column preferences, number labels and widths, pins, action
 //! labels and per-song occurrence keys. Frames select maxima in bounded work, never scanning
 //! collections or constructing text engines. Formats compare original case and render lowercase.
 //! Stable occurrence scopes survive sorting; duplicate queue entries retain distinct visual state.
@@ -61,14 +61,12 @@ fn row_layout(
     ui: &mut Ui,
     catalog: &Catalog,
     index: usize,
-    number: usize,
+    (number, number_label): (usize, &str),
     numbered: bool,
     widths: [f32; 8],
     current: bool,
 ) -> RowLayout {
     let row = catalog.row(index);
-    let mut digits = [0u8; 24];
-    let number_label = stack_fmt(&mut digits, format_args!("{number}"));
     let mut layout = RowLayout {
         sizes: [(0.0, 0.0); 8],
         ascent: 0.0,
@@ -368,24 +366,19 @@ pub(super) fn table(
                     SectionPart::Row(index) => {
                         first = first.min(index);
                         end = end.max(index + 1);
-                        let identity = ui.node(
-                            Key::Id(collection.row_keys[index]),
-                            Node::column().w(Size::Grow).h(Size::Fit),
-                        );
-                        ui.within(&identity, &mut |ui| {
-                            Rows {
-                                catalog,
-                                collection,
-                                state,
-                                player,
-                                widths,
-                                revision,
-                                numbered,
-                                entry: &entry,
-                                viewport,
-                            }
-                            .row(ui, index, content_y, intent)
-                        });
+                        Rows {
+                            catalog,
+                            collection,
+                            table,
+                            state,
+                            player,
+                            widths,
+                            revision,
+                            numbered,
+                            entry: &entry,
+                            viewport,
+                        }
+                        .row(ui, index, content_y, intent);
                     }
                 },
             );

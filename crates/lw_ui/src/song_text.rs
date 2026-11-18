@@ -96,14 +96,16 @@ impl Window {
     /// Requests every cell layout of row `position` the table measures or draws. A refused hint
     /// (text over the queue's 16 KiB) is dropped: that cell shapes when shown.
     fn prewarm_row(&self, ui: &mut pxui::Ui, catalog: &Catalog, position: usize) {
-        let Some(&index) = catalog.collection(self.route).and_then(|c| c.rows.get(position)) else {
+        let Some(collection) = catalog.collection(self.route) else {
+            return;
+        };
+        let (Some(&index), Some(table)) = (collection.rows.get(position), &collection.song_table) else {
             return;
         };
         let row = catalog.row(index);
         let current = self.current == Some(row.id);
         let numbered = matches!(self.route, Route::Album(_));
-        let mut digits = [0u8; 24];
-        let number = crate::shell::stack_fmt(&mut digits, format_args!("{}", position + 1));
+        let number = table.number_label(position);
         for column in Column::ALL {
             let column_width = self.widths[column as usize];
             if column_width <= 0.0

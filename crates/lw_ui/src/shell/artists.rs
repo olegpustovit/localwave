@@ -152,9 +152,10 @@ pub(super) fn table(
                     group.title.as_str()
                 };
                 let (row_height, body_sizes, top) = row_layout(ui, columns, summary, &group.count);
-                let visual_box = ui.node("artist-visual".into(), Node::column());
-                let mut visual = visual_box;
-                ui.within(&visual_box, &mut |ui| visual = ui.view_of("artist-visual", &revision, |ui| {
+                let visual = ui.view_of(
+                    "artist-visual",
+                    &revision,
+                    |ui| {
                         let node = Node::column().w(Size::Grow).h_px(row_height).role(Role::Button);
                         let row = ui.pressable("artist", node, &PLAIN.look(&PAPER_LOOKS), |ui, state| {
                             let hover = ui.view_of("hover", &0, |ui| {
@@ -245,7 +246,8 @@ pub(super) fn table(
                         if row.clicked {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
-                    }));
+                    },
+                );
                 entry.row(ui, &visual, index);
             }
         },

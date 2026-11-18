@@ -211,7 +211,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U0.5 | Infra traps: tools/t --all, prewarm fingerprint, layout_scaling | done | 8b13a62; pxui eb93fe54 |
 | U0.6 | Status and process docs | done | 63972bf; pxui 3db577ab |
 | U0.7 | CP0: Tier C baseline, performance and build-time tables | done | 16dc635 (CP0 red: abi_bench both modes, 4 build-CPU budgets) |
-| U0.8 | CP0 hard-gate bisect and fix (only if CP0 fails) | todo |  |
+| U0.8 | Restore the CP0 build CPU gate | qualified | Final signed performance run passed all 30 workloads at peak load 2.776. All 28 gated workloads had zero warm Rust allocations. The maximum build CPU p99 was 1.477 ms. The public surface and 115 UI fingerprints match. Tier A and B passed, including the six CP0 build-time comparisons. Landing is pending. See `docs/u-plan/u08-investigation.txt`. |
 | U1a.1 | Modules (D2) | todo |  |
 | U1a.2 | Theme (D1) and counter (D3) | todo |  |
 | U1a.3 | Lifecycle and errors | todo |  |
@@ -282,7 +282,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 
 ## Latest performance
 
-`make performance` at CP0 (U0.7; LocalWave 63972bf, pxui 3db577ab, unsigned counting release bundle) exit 1: zero warm Rust allocations in every gated workload; 4 gated workloads over build CPU p99 (song-drag-carry-hover-cancel 1,624, non-song-lists 1,728, resize 1,914, theme-switch 2,045 µs; theme-switch also frame CPU p99 2,653 µs). Machine load average 8–47 (fseventsd, DaisyDisk). Paired runs of saved bundles: HEAD build CPU p50 is 12–25% above de53440 on non-song-lists, resize and theme-switch; de53440 also exceeds on resize and theme-switch at this load. Release abi_bench fails in both modes (instruction ratios, see the U0.7 commit). Hard-gate failure: U0.8.
+The final U0.8 signed counting release run passed all 30 workloads at load 2.329–2.776. All 28 gated workloads had zero warm Rust allocations. Gated p99 maxima were 1,477 µs for build CPU, 2,000 µs for frame CPU and 3,535 µs for work wall. The preceding run of identical machine code exceeded the build CPU budget on resize (1,546 µs) and theme-switch (1,517 µs) at peak load 3.249. Settled idle smoke passes (510.2 ms).
 
 Gate (owner decision for this M1 Mac mini, 2026-11-15): build CPU p99 < 1,500 µs, frame CPU p99
 < 2,500 µs, frame work wall p99 < 8,000 µs (half a 60 Hz vsync), zero warm allocations. Work wall is
@@ -299,50 +299,51 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 
 | Workload | Build CPU | Build wall | Frame CPU | Work wall | Alloc max | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 832/1218/1307 | 900/3157/3992/- | 1314/1709/50851 | 1352/4134/5210/94952 | 0 | pass |
-| find-filters-title-descending | 854/1050/1164 | 929/2115/3816/- | 1314/1578/1717 | 1344/2966/4859/5174 | 0 | pass |
-| queue-occurrences | 876/1192/1196 | 988/3329/4834/- | 1323/1767/1804 | 1455/5274/5753/6117 | 0 | pass |
-| queue-carry-scroll-cancel | 870/1248/1299 | 927/3355/3575/- | 1348/1809/1828 | 1415/3988/5578/8726 | 0 | pass |
-| full-queue-playlist-editor | 534/695/697 | 547/2273/3746/- | 1015/1234/1298 | 959/3721/4207/4394 | 0 | pass |
-| albums-artwork | 706/1014/1054 | 761/1649/3496/- | 1244/1626/1631 | 1221/3510/5197/6313 | 0 | pass |
-| waveform-scrub-and-scroll | 650/1090/1122 | 692/1328/3518/- | 1103/1610/1624 | 1059/2699/3951/3952 | 0 | pass |
-| settings-menus-appearance | 573/974/1052 | 590/1070/2191/- | 1118/1546/1661 | 992/1642/2733/12694 | 0 | pass |
-| files-indexed-directory | 1019/1195/1350 | 1058/1522/3424/- | 1584/1815/1982 | 1508/2220/3629/4115 | 0 | pass |
-| external-drop-hover-and-cancel | 381/532/553 | 386/2009/2681/- | 832/1107/1114 | 780/2724/3212/4173 | 0 | pass |
-| artists-measured-columns | 815/1302/1351 | 910/3020/4227/- | 1267/1817/1955 | 1258/3623/4473/6060 | 0 | pass |
-| songs-playing-indicator | 915/1270/1285 | 1021/2303/3290/- | 1397/1790/1809 | 1403/3248/4092/5122 | 0 | pass |
-| songs-long-scroll | 1114/1468/1481 | 1239/3736/4885/- | 1611/2003/2138 | 1718/4534/5293/5743 | 0 | pass |
-| album-detail-scoped-scroll | 628/821/843 | 651/1600/2797/- | 1141/1413/1436 | 1084/3242/4649/5149 | 0 | pass |
-| artist-detail-scoped-scroll | 572/1007/1009 | 589/959/1328/- | 1112/1622/1679 | 1023/1412/1806/3940 | 0 | pass |
-| list-dialogs-menu-and-name | 712/1483/1496 | 1126/3339/3785/- | 1247/1983/1984 | 1537/3855/4450/5809 | 0 | pass |
-| metadata-editor-typing | 1019/1333/1373 | 1046/2486/3713/- | 1443/1702/1794 | 1360/3174/3950/4030 | 0 | pass |
-| song-drag-carry-hover-cancel | 1133/1624/1632 | 1212/3873/5462/- | 1644/2195/2221 | 1740/4377/6041/7486 | 0 | FAIL |
-| fling | 724/1124/1134 | 788/1547/2449/- | 1169/1579/1727 | 1171/3362/3678/6327 | 0 | pass |
-| reverse-scroll | 881/1132/1157 | 933/2671/4519/- | 1357/1732/1740 | 1317/3927/4744/5391 | 0 | pass |
-| scroll-jump | 444/1461/1496 | 453/1267/1546/- | 987/1999/2090 | 853/1751/1929/2085 | 0 | pass |
-| non-song-lists | 635/1728/1803 | 664/1288/1814/- | 1240/2422/2455 | 1108/1942/2295/2485 | 0 | FAIL |
-| search-typing | 633/766/769 | 663/1700/2740/- | 1108/1327/1357 | 1084/3155/5084/5921 | 0 | pass |
-| measured-first-navigation | 554/3540/3808 | 745/2872/3916/- | 1031/4132/4414 | 1270/3941/5136/6349 | 1207 | measured |
-| text-typing | 1084/1372/1442 | 1141/2937/4213/- | 1554/1894/2045 | 1531/3987/4813/5203 | 0 | pass |
-| measured-first-menu-open | 409/1014/1448 | 437/1231/2075/- | 851/1370/2029 | 767/2436/3516/4771 | 142 | measured |
-| resize | 1377/1914/1979 | 1498/3504/4516/- | 1840/2383/2467 | 1961/4661/5132/8914 | 0 | FAIL |
-| theme-switch | 1394/2045/2099 | 1490/2601/3497/- | 1866/2653/2700 | 1961/4331/5093/9525 | 0 | FAIL |
-| idle-600-return | 793/1083/1110 | 823/2760/3466/- | 1226/1546/1579 | 1184/3842/4155/4541 | 0 | pass |
-| clock-120 | 376/494/517 | 384/1627/2466/- | 801/1025/1061 | 746/3006/3251/4361 | 0 | pass |
+| songs-original | 810/1062/1063 | 845/1136/1511/- | 1285/1559/1573 | 1224/1549/1929/2342 | 0 | pass |
+| find-filters-title-descending | 845/1009/1037 | 887/1097/1531/- | 1333/1510/1531 | 1238/1491/1924/2354 | 0 | pass |
+| queue-occurrences | 908/1090/1153 | 932/1240/1627/- | 1389/1763/1767 | 1308/1893/2642/3179 | 0 | pass |
+| queue-carry-scroll-cancel | 919/1264/1280 | 973/1232/1586/- | 1489/1852/1900 | 1409/1760/2295/2922 | 0 | pass |
+| full-queue-playlist-editor | 552/637/656 | 553/647/970/- | 1026/1137/1148 | 899/1043/1321/1994 | 0 | pass |
+| albums-artwork | 758/1039/1061 | 791/1106/1544/- | 1386/1682/1717 | 1293/1634/2020/2427 | 0 | pass |
+| waveform-scrub-and-scroll | 625/1043/1068 | 623/1089/1461/- | 1122/1603/1640 | 1004/1499/1896/2202 | 0 | pass |
+| settings-menus-appearance | 710/1021/1037 | 766/1128/1286/- | 1257/1704/1716 | 1190/1612/1796/1824 | 0 | pass |
+| files-indexed-directory | 1028/1179/1191 | 1090/1408/1912/- | 1513/1678/1713 | 1459/2040/2785/2935 | 0 | pass |
+| external-drop-hover-and-cancel | 409/481/489 | 414/562/778/- | 881/1107/1124 | 764/960/1180/1629 | 0 | pass |
+| artists-measured-columns | 850/1089/1112 | 886/1140/1384/- | 1337/1611/1615 | 1258/1571/1757/2067 | 0 | pass |
+| songs-playing-indicator | 936/1171/1186 | 1005/1262/1380/- | 1452/1716/1729 | 1397/1700/1755/2436 | 0 | pass |
+| songs-long-scroll | 1073/1253/1303 | 1166/1348/1649/- | 1556/1765/1792 | 1537/1728/2009/2698 | 0 | pass |
+| album-detail-scoped-scroll | 640/733/747 | 638/792/1113/- | 1169/1258/1301 | 1035/1307/2015/2316 | 0 | pass |
+| artist-detail-scoped-scroll | 552/999/1014 | 556/997/1273/- | 1020/1483/1564 | 895/1402/1977/2461 | 0 | pass |
+| list-dialogs-menu-and-name | 612/1239/1244 | 732/1280/1422/- | 1248/1886/1927 | 1219/1766/1864/1936 | 0 | pass |
+| metadata-editor-typing | 1123/1282/1311 | 1186/1380/1504/- | 1611/1970/1992 | 1540/1860/1919/2408 | 0 | pass |
+| song-drag-carry-hover-cancel | 1143/1290/1293 | 1210/1455/1749/- | 1826/1962/1993 | 1752/2020/2227/3052 | 0 | pass |
+| fling | 707/978/1163 | 709/1023/1093/- | 1217/1569/1679 | 1113/1446/2215/2439 | 0 | pass |
+| reverse-scroll | 931/1043/1046 | 968/1159/1622/- | 1407/1532/1554 | 1331/1520/2086/2586 | 0 | pass |
+| scroll-jump | 481/1312/1412 | 484/1253/1470/- | 1098/1965/2057 | 936/1711/1929/1981 | 0 | pass |
+| non-song-lists | 539/1414/1415 | 632/1270/1454/- | 1130/1888/1910 | 1020/1608/1804/1835 | 0 | pass |
+| search-typing | 612/718/758 | 611/733/960/- | 1111/1369/1430 | 1006/1225/1434/1579 | 0 | pass |
+| measured-first-navigation | 549/2887/3429 | 555/1754/3023/- | 1089/3577/4094 | 968/2285/3532/4072 | 1209 | measured |
+| text-typing | 1120/1214/1258 | 1193/1402/1566/- | 1621/1732/1745 | 1568/1759/1935/2033 | 0 | pass |
+| measured-first-menu-open | 452/1147/1841 | 453/775/1279/- | 928/1608/2630 | 795/1194/1612/2566 | 142 | measured |
+| resize | 1329/1472/1504 | 1402/1709/1829/- | 1798/1970/1976 | 1747/2131/2278/2328 | 0 | pass |
+| theme-switch | 1198/1477/1502 | 1284/1708/2134/- | 1695/2000/2082 | 1673/2173/3535/4044 | 0 | pass |
+| idle-600-return | 841/1074/1112 | 876/1159/1373/- | 1338/1573/1574 | 1262/1584/1730/2868 | 0 | pass |
+| clock-120 | 395/427/479 | 394/470/603/- | 850/906/945 | 720/880/916/1040 | 0 | pass |
 
 ## Build time
 
-`tools/dx/buildtime.sh --compare <rev>`: seconds, the minimum of 3 alternating rounds. Each number stays within
-max(5%, 0.3 s) of CP0; de53440 (LocalWave, pxui 5340fe9) is the reference before the DX API work, reported only.
+`tools/dx/buildtime.sh --compare 16dc635` reports the minimum of three alternating rounds in seconds. All
+six U0.8 measurements stayed within max(5%, 0.3 s) of CP0. The clean workspace build exceeded the 30 s
+target by 0.42 s. The de53440 values come from the earlier pre-DX comparison.
 
-| Measure | Budget | HEAD | de53440 |
-| --- | --- | --- | --- |
-| a clean pxui workspace debug build | 30 s | 40.22 | 39.12 |
-| b warm `cargo check -p pxui_core` after a touch | 1 s | 0.35 | 0.33 |
-| c clean `cargo build -p pxui_dylib` | – | 34.89 | 33.86 |
-| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | 4.13 | 3.36 |
-| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | 0.26 | 0.25 |
-| f warm `cargo build -p lw_bin` after the same touch | – | 1.27 | 1.29 |
+| Measure | Budget | U0.8 | CP0 | de53440 |
+| --- | --- | --- | --- | --- |
+| a clean pxui workspace debug build | 30 s | 30.42 | 30.25 | 39.12 |
+| b warm `cargo check -p pxui_core` after a touch | 1 s | 0.28 | 0.28 | 0.33 |
+| c clean `cargo build -p pxui_dylib` | – | 26.64 | 25.72 | 33.86 |
+| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | 3.27 | 3.21 | 3.36 |
+| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | 0.22 | 0.22 | 0.25 |
+| f warm `cargo build -p lw_bin` after the same touch | – | 0.98 | 1.02 | 1.29 |
 
 ### CPU profile
 

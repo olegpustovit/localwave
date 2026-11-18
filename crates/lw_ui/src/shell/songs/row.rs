@@ -1,5 +1,5 @@
 use super::*;
-use crate::catalog::{Collection, Row, SongColumn as Column};
+use crate::catalog::{Collection, Row, SongColumn as Column, SongTable};
 
 #[derive(Clone, Copy)]
 pub(super) struct Viewport {
@@ -173,6 +173,7 @@ pub(in crate::shell) fn glyph(
 pub(super) struct Rows<'a> {
     pub(super) catalog: &'a Catalog,
     pub(super) collection: &'a Collection,
+    pub(super) table: &'a SongTable,
     pub(super) state: &'a ShellState,
     pub(super) player: &'a PlayerView<'a>,
     pub(super) widths: [f32; 8],
@@ -241,6 +242,7 @@ impl Rows<'_> {
         let Self {
             catalog,
             collection,
+            table,
             state,
             player,
             widths,
@@ -254,11 +256,12 @@ impl Rows<'_> {
         let current = player.current_id == Some(row.id);
         let marked = state.is_marked(index);
         let revision = crate::hash((revision, current, marked));
+        let number = table.number_label(index);
         let layout = row_layout(
             ui,
             catalog,
             collection.rows[index],
-            index + 1,
+            (index + 1, number),
             numbered,
             widths,
             current,
@@ -271,14 +274,13 @@ impl Rows<'_> {
         } else {
             revision
         };
-        let visual_box = ui.node("song-visual".into(), Node::column());
-        let mut visual = visual_box;
-        ui.within(&visual_box, &mut |ui| visual = ui.view_of("song-visual", &visual_revision, |ui| {
-                let row = catalog.row(collection.rows[index]);
+        let visual = ui.view_of(
+            "song-visual",
+            &visual_revision,
+            |ui| {
                 let song_row = song_row_looks(ui);
                 let look = PLAIN.look(if marked { &SELECTED_LOOKS } else { &song_row });
                 let node = Node::column().w(Size::Grow).h_px(layout.height).role(Role::ListItem);
-                let current = player.current_id == Some(row.id);
                 let root = ui.pressable("song", node, &look, |ui, _| {
                     ui.view_of("song-copy", &revision, |ui| {
                         let mut x = 0.0;
@@ -290,13 +292,7 @@ impl Rows<'_> {
                             if !(column == Column::Number && current)
                                 && !matches!(column, Column::State | Column::Actions)
                             {
-                                let mut digits = [0u8; 24];
-                                let value = body_value(
-                                    &row,
-                                    column,
-                                    numbered,
-                                    stack_fmt(&mut digits, format_args!("{}", index + 1)),
-                                );
+                                let value = body_value(&row, column, numbered, number);
                                 let (fit, h) = layout.sizes[column as usize];
                                 let y = layout.y(baseline(column));
                                 let left = if column == Column::Number { 32.0 } else { 8.0 };
@@ -462,7 +458,8 @@ impl Rows<'_> {
                 if reorder {
                     self.drop_target(ui, &root.handle, index, intent);
                 }
-            }));
+            },
+        );
         entry.row(ui, &visual, index);
     }
 }

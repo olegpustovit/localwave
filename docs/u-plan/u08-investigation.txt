@@ -1,0 +1,1981 @@
+U0.8 investigation continuation — 2026-11-17
+
+State: incomplete; no budgets, workloads, warm-up or public signatures changed.
+Saved baseline bundles are the ones listed in CHECK.md. HEAD here is the saved
+fb16eaa-era head.app; runtime code matches the U0 handoff.
+
+Fresh alternating two-round build CPU p50/p99 (microseconds), load before each
+case <4, no concurrent builds:
+
+base resize:       1363/1625 1367/1533
+base theme-switch: 1371/1809 1395/1758
+c164296 resize:    1418/1722 1425/1572
+c164296 theme:     1429/1873 1378/1875
+head resize:       1524/1746 1517/1688
+head theme-switch: 1545/2072 1485/2030
+
+Later saved revisions, separate alternating two-round run:
+c164296 resize:    1423/1576 1386/1601
+c164296 theme:     1426/1811 1367/1861
+c4d4617 resize:    1443/1588 1439/1603
+c4d4617 theme:     1470/1863 1408/1853
+cde15b2 resize:    1447/1613 1446/1677
+cde15b2 theme:     1474/1961 1470/2013
+aed8a36 resize:    1432/1581 1404/1595
+aed8a36 theme:     1382/1987 1469/1931
+
+Final interval, separate alternating two-round run:
+aed8a36 resize:    1467/1714 1433/1607
+aed8a36 theme:     1450/1952 1493/2016
+3d7799f resize:    1443/1605 1515/1691
+3d7799f theme:     1517/1968 1498/1988
+head resize:       1525/1837 1538/1720
+head theme-switch: 1515/2110 1551/2001
+
+These intervals show accumulated overhead; they do not isolate every causal
+commit. The final interval includes bdf4b81 / pxui d6b4182b: explicit sizing
+containers around view_of and replacing flat views with painter-entry views.
+
+Original handoff WIP (whole-Curve memo + borrowing rather than copying Tween):
+head resize:       1524/1709 1546/1775
+head theme-switch: 1528/1981 1578/2060
+curve resize:      1530/1834 1503/1701
+curve theme:       1386/2073 1493/2101
+Theme p50 improves, p99 still fails. Resize barely changes.
+
+Diagnostic --trace-frames runs (not gate qualification; load not captured):
+Mean phase CPU microseconds:
+base resize: build 553.63, paint 578.28, finish 33.93
+head resize: build 683.04, paint 617.49, finish 42.98
+head theme: build 433.29, paint 416.65, finish 559.90
+curve theme: build 477.24, paint 417.36, finish 496.31
+Temporary settle logging identifies stale viewport reads in sidebar and library
+as resize rebuild triggers. All temporary logging has been removed.
+
+Rejected experiment: skip an unsettled paint when the tree has no kept views,
+retain geometry and invalidate all unpainted views. Added a focused test and
+ran core tests, but paired release timings showed resize p50 regressed:
+curve resize: 1514/1632 1510/1653
+defer resize: 1623/1816 1619/1750
+No warm allocations in these four resize samples. Invalidation rebuilds more
+views than the original selective settling pass. Entire experiment and its
+now-inapplicable test removed. Do not restore it without a different ownership
+strategy. Full rejected diff only in /tmp/localwave-u08-defer-rejected.diff.
+
+Current candidate: compact Bezier-only memo (no whole Curve/Table copy), borrow
+Tween fields in step_tweens, resolve States in place instead of copying each
+Look through Option. Regression styling_interleaved_curves compares shared and
+interleaved Beziers and a spring against Curve::at at several timestamps.
+Current candidate still needs its paired measurements and final checks.
+
+Compact memo + in-place States, paired with original HEAD (two rounds):
+head resize: 1507/1682 1464/1723
+head theme: 1556/2025 1504/1995
+head non-song-lists: 582/1768 604/1856
+head jump: 513/1613 525/1623
+small resize: 1593/1766 1482/1660
+small theme: 1464/1998 1483/2005
+small non-song-lists: 580/1793 597/1809
+small jump: 497/1600 476/1643
+All samples zero warm allocations, load before each case 3.38–3.84.
+Still over budget. Resize variation is large enough that these small changes
+cannot be assigned a reliable individual benefit from two rounds.
+
+Next candidate shares one scratch Paint across step_tweens, rather than moving
+the text engine, buffers and frame state into/out of a new Paint per node.
+The single-node patch entry still creates its own Paint; patch writing is shared.
+Focused core styling run: 17/17, 9.759 s including build, cases <=0.031 s.
+
+Current batch candidate: cargo t -p pxui_core -p pxui_abi -p pxui
+passes 617/617, 26.372 s including build, slowest case 0.432 s.
+Shared target ../target; no timeout overrides.
+
+Batch painter paired against small (two rounds):
+small resize: 1511/1639 1554/1796
+small theme: 1440/2030 1402/2060
+batch resize: 1554/1833 1543/1733
+batch theme: 1359/2116 1354/2039
+All samples zero warm allocations; load before cases 3.00–3.28.
+Theme p50 improves; p99 does not. The largest theme-switch frames are the
+full theme-change builds (frames 91, 101, 111, ...), dominated by paint, not
+step_tweens. Keep this distinction when choosing the next optimization.
+
+Final candidate additionally borrows an ordinary node's unchanged Look instead
+of obtaining/copying a whole Pose through pose_at; active tweens and persistent
+offset/opacity keep their existing semantics. Core run before final cleanup:
+258/258, 12.624 s including build, slowest case 0.421 s.
+Static wrapper batch run: 226/226, 9.046 s including build.
+In-place States experiment removed: its independent gain was not established.
+
+Final current-source checks (after removing States experiment and simplifying
+batch setup): dynamic core/ABI/wrapper 617/617 (20.467 s), static wrapper 226/226
+(6.062 s), deps gate and shape gate green; git diff --check green.
+Release counting bundle built and signature verified by make bundle.
+Final paired run: /tmp/localwave-u08-final-pairs.txt (running).
+
+Borrowed ordinary looks + batch painter + compact memo, final two-round run:
+head resize: 845/1614 1535/1723
+head theme: 1541/2028 1398/1982
+head non-song-lists: 611/1906 635/1810
+head jump: 502/1647 512/1648
+borrow resize: 1493/1700 1509/1762
+borrow theme: 1302/2000 1277/1926
+borrow non-song-lists: 581/1815 603/1794
+borrow jump: 467/1593 451/1728
+All samples zero warm allocations, pre-case load 3.52–3.90.
+The head resize p50=845 sample is an outlier relative to all prior rounds;
+do not claim a resize speedup from these data. Gates remain red.
+
+Published plan read through Microapps Artifacts, version 4 confirmed. The local
+plan.txt lacked D26; copied the published decision into its decisions table.
+
+Latest small experiment: skip equal RGBA channel interpolation for finite t in
+Look::lerp. Preserves the previous nonfinite behavior. Unit check covers equal
+colors at finite extremes, extrapolation, numeric-field interpolation and
+NaN/infinite t. All 10 pxui_types checks and 17 styling checks pass; release
+measurement pending. Callers are Ui::pose_at and busy spinner look patching.
+
+Equal-color comparison (two rounds):
+borrow resize 1512/1643 1512/1712; theme 1256/1927 1368/1945.
+equal resize 1533/1672 1515/1861; theme 1365/2032 1284/1925.
+Zero warm allocations, pre-case load 3.55–3.95. No clear benefit: removed the
+entire types change and its test. Public pxui_types is unchanged again.
+
+Next minimal candidate uses the retained BoxRec at self.count as a slot hint in
+unique_key_from, guarded by both the old box key and the current live slot key;
+otherwise it falls back to SlotTable::find. Existing duplicate handling is
+unchanged. New window_pxui_build_slot_hint_keeps_identity covers unchanged and
+reordered declarations, deleted/recreated identities, recycled slots and stable
+duplicates with zero warm allocations. All 259 core checks pass, 15.454 s
+including build, slowest 0.393 s. Release comparison pending.
+
+Slot-hint comparison completed (two rounds):
+borrow resize 1518/1761 1501/1666; theme 1369/2082 1368/2060;
+non-song-lists 564/1792 689/1905; jump 462/1598 477/1691.
+hint resize 1514/1818 1500/1643; theme 1347/1981 1373/1980;
+non-song-lists 559/1813 579/1846; jump 475/1568 475/1594.
+All samples zero warm allocations, load 3.19–3.63. Theme p99 improves by
+about 0.1 ms in both rounds; other gains mixed. All four gates still red.
+
+Six sample profiles of the borrow bundle were collected sequentially, with
+no builds, in /tmp/localwave-u08-theme-samples. Sampling is diagnostic only,
+not qualification evidence: it perturbs execution. Damage tracking, layout,
+glyph emission and the inlined end_frame body recur among leaf costs. A
+separate diagnostic bundle splits paint CPU into visit/refresh/place/settle/
+blur; temporary source probes were removed immediately after its build.
+
+Paint-phase diagnostic (one-entry cache + slot hint), theme-change frames
+92..182: visit 655–772 us, refresh 21–32 us, place 95–125 us, settle
+17–34 us. About 600 declared nodes and 243–251 tweens per swap. Visit is
+the main paint cost; neither placement nor settling explains the bulk.
+These timings include instrumentation and are not qualification runs.
+
+Root cause found in the memo: retargeting alternates the old pose's elapsed
+time and the new tween's zero time. A one-entry memo evicts each sample
+before the next node reads it. Candidate now retains two compact samples,
+with exact parameter and time-bit matching and the original Curve::at miss
+path. Expanded interleaved-curve regression verifies rapid retargeting from
+the displayed pose plus zero warm retarget allocations. All 17 styling
+checks pass (16.753 s including build).
+
+Two-entry cache, paired against otherwise identical slot-hint candidate:
+hint theme 1367/2069 1394/2065; resize 1518/1658 1489/1703.
+two theme 1409/1841 1402/1973; resize 1539/1761 1488/1801.
+All samples zero warm allocations, load 3.63–3.95. Theme p99 drops in both
+rounds; resize is not improved. All gates remain red. A finer paint-node
+probe is next; source probes are removed after building diagnostic bundles.
+
+Fine paint-node diagnostics with two-entry memo (source probes removed):
+Typical theme swap: paint_begin ~2 us; visit ~670–760 us; all paint
+~830–920 us. Within visit: transition setup ~92–137 us, pose/geometry
+~56–63 us, look/text drawing ~315–350 us. Cache reads on a swap usually
+hit 318–336 times and miss 26–32 times. Wall probes perturb the run; these
+are diagnostic values, not passing gate evidence.
+
+Two-entry memo checkpoint: 618 core/ABI/dynamic-wrapper checks pass
+(22.067 s), static wrapper 226 pass (6.809 s). No deadline overrides.
+
+New candidate omits shadow instances only when both ordinary-tween endpoint
+shadows stay transparent. It keeps instance room for appearing/disappearing
+shadows, and preserves the existing conservative keyframe behavior. No
+public signatures changed. New regression covers transparent, outer and
+inner shadows at zero alpha, fade-in/fade-out and zero warm allocations.
+18 styling checks pass; full targeted core/ABI/dynamic-wrapper 619/619
+(11.609 s), static wrapper 226/226 (3.119 s). Counting release bundle builds
+and verifies its signature. Paired run in /tmp/localwave-u08-shadows-pairs.txt.
+
+Shadow omission completed, two rounds at load 3.61–3.93, zero warm allocations:
+two theme 1338/1811 1404/1829; resize 1520/1746 1528/1751;
+non-song-lists 563/1856 559/1798; jump 441/1680 453/1576.
+shadows theme 1232/1781 1317/1792; resize 1497/1661 1480/1635;
+non-song-lists 560/1549 546/1593; jump 463/1626 450/1655.
+Repeatable resize/non-song-list gains; jump mixed. All build p99 gates
+remain red. Current deps and shape gates pass after the shadow change.
+
+Next candidate also avoids empty backgrounds for text-only ordinary tweens.
+The path requires canonical empty decoration colors, rather than testing alpha
+alone: existing styling_colour_token_looks caught a clear nonzero-RGB instance
+whose raw interpolated color must remain observable. That regression is
+preserved, with no weakened assertions. New text-only regression checks exactly
+two glyphs, animated ink and zero warm allocations. All 19 styling checks pass
+(6.874 s including build); counting release bundle builds and signature verifies.
+Paired run: /tmp/localwave-u08-text-pairs.txt.
+
+Text-only background comparison completed (two rounds):
+shadows theme 1298/1758 1263/1768; resize 1411/1782 1462/1636;
+non-song-lists 539/1596 533/1597; jump 476/1585 483/1633.
+text theme 1260/1726 1298/1726; resize 1503/1740 1495/1654;
+non-song-lists 538/1599 557/1586; jump 470/1559 481/1594.
+All samples zero warm allocations, pre-case load 3.23–3.83. Modest theme
+p99 and jump gains repeat; resize and non-song-list effects are mixed.
+The extension removes demonstrably unused instances with two production
+lines beyond the shadow candidate. Retained; all build p99 gates still red.
+
+Current source checkpoint: 620 core/ABI/dynamic-wrapper checks pass
+(11.317 s), static wrapper 226/226 (3.105 s), shape/deps gates and both
+git diff --check checks pass. Slowest case 0.404 s; no deadline overrides.
+LocalWave lw_ui consumer checks pass 115/115 (4.249 s), including 10,000-song
+virtualization/resize and warm allocations. No processes remain live.
+No performance processes remain live. No U0.8 commit/landing or U1 work yet.
+
+Continuation: full make performance on the text-only candidate completed
+all 30 workloads, exit 2, four build-CPU budget failures (scroll-jump 1615 us,
+non-song-lists 1608 us, resize 1700 us, theme-switch 1792 us); corresponding
+frame CPU p99 stays below 2500 us, ordinary workloads retain zero warm Rust
+allocations. First-navigation/menu retain their existing measured allocation
+ceilings. This was diagnostic, not qualification: load started below 4 but
+was observed above 4 during the full run. Log: /tmp/localwave-u08-performance-current.log.
+
+New text path tries a node's retained layout before computing layout keys,
+using the existing reusable_layout validation of complete text, style and
+width. No new storage or public API. Differential regression compares changed
+text/style/width/alignment against fresh layouts, then checks no reshaping
+or warm allocations. Focused check passes (3.357 s including build).
+Two-round comparisons, pre-case load 2.36–3.98, all warm allocations zero:
+text resize 1470/1680 1479/1665; theme 1299/1751 1300/1769;
+non-song-lists 556/1651 533/1552; jump 468/1574 492/1645.
+layoutmemo resize 1471/1593 1433/1574; theme 1226/1712 1270/1690;
+non-song-lists 551/1584 551/1630; jump 476/1685 483/1589.
+Resize/theme improvements repeat, other effects mixed. Retained provisionally.
+
+Git history narrows the final saved interval conclusively: 3d7799f..fb16eaa
+has only one production change, bdf4b81 (pxui d6b4182b). The other two commits
+are checkpoint/docs. This isolates the final interval's accumulated overhead
+to the authoring migration (sizing wrappers + painter-entry views), but earlier
+intervals are not yet fully isolated. No claim of a completed whole bisect.
+
+Next experiment shares damage accounting for old/new instances whose bound-
+defining fields match: rect, clip, kind, view, width and extra. Different
+geometry still accounts for both covers; dirty instance uploads are unchanged.
+Focused existing damage checks pass 4/4. Extended runnable view-damage case
+checks a shadow's larger new blur cover after acknowledging the previous draw
+(1/1 passes). A temporary private unit test was removed after noticing this
+crate disables lib tests; the regression lives in its actual registered runner.
+Release counting bundle builds and verifies signature. Pair comparison pending
+in /tmp/localwave-u08-damage-pair-results.txt.
+
+Damage-pair comparison completed, pre-case load 2.85–3.98, zero warm allocations:
+layoutmemo resize 1487/1621 1478/1708; theme 1220/1766 1254/1652;
+non-song-lists 557/1622 547/1685; jump 478/1563 458/1580.
+damagepair resize 1463/1618 1490/1627; theme 1320/1699 1226/1620;
+non-song-lists 556/1556 563/1654; jump 468/1622 462/1567.
+Modest theme/non-song-list gains repeat; resize/jump mixed. Retained.
+
+Current production checkpoint: core/ABI/dynamic wrapper 621/621 (11.880 s),
+static wrapper 226/226 (3.143 s), lw_ui 115/115 (5.054 s), shape/deps/
+abi-header/abi-snapshot gates and surface/diff checks pass. Slowest case
+0.421 s; no deadline overrides. Shape initially rejected a unit-test module
+in library source because lib tests are disabled. Moved the exact runnable
+layout regression into the existing string_pool integration-test module;
+its focused check passes again (2.777 s). No rule or assertion was weakened.
+
+Next: remove the retained-build slot hint provisionally and compare against
+this checkpoint. Its earlier effects were mixed; keep it only with evidence.
+No public signatures, workloads or deadlines changed.
+
+Three-round hint recheck completed, alternating app order on round 2:
+withhint resize 1470/1617 1482/1652 1481/1677;
+theme 1274/1701 1285/1687 1301/1666;
+non-song-lists 513/1681 547/1650 569/1649; jump 483/1599 485/1560 477/1576.
+nohint resize 1498/1647 1499/1711 1492/1655;
+theme 1311/1691 1264/1776 1317/1694;
+non-song-lists 615/1604 577/1576 604/1598; jump 495/1486 504/1561 509/1593.
+Every sample zero warm allocations, pre-case load 3.33–3.97. The hint helps
+medians, but hurts non-song-list p99 consistently and has mixed other tail
+effects. Removed it and its experiment-specific regression, restoring the
+existing SlotTable lookup. Seven focused node/patch/identity checks pass
+(10.512 s including build). Broader source checkpoint above remains the
+with-hint checkpoint; package-end checks must use the final chosen source.
+Next diagnostic: fresh no-hint samples in /tmp/localwave-u08-nohint-samples.
+
+Fresh no-hint sampling completed (six runs). Leaf counts still recur in
+inlined paint_all/end_frame (61), glyph emission (26), repaint_with (25),
+arrange (22), dirty insert_range (16), visit (15), layout identity (14),
+and damage_instance (14). Counts are diagnostic only. Sampling perturbs
+animation scheduling and CPU/wall timings substantially; several profiled
+runs pass CPU limits, but they are explicitly NOT qualification evidence.
+Do not substitute them for ordinary runs or infer a gate pass from them.
+
+Next experiment accumulates contiguous changed runs in in-place patches,
+fresh-piece placement and compaction before adding upload dirty ranges,
+so the bounded merge is not repeated per glyph. New registered regression
+checks separated two-instance runs with an unchanged middle instance and
+zero warm allocations. Three focused dirty-range checks and the dynamic/
+static output-fragmentation allocation checks pass. Release measurement
+pending; source checkpoint remains pre-experiment.
+
+Dirty-run batching comparison completed, alternating app order on round 2:
+nohint resize 1460/1642 1518/1682; theme 1302/1802 1306/1711;
+non-song-lists 620/1629 588/1648; jump 500/1601 509/1565.
+dirtyruns resize 1504/1648 1505/1679; theme 1272/1780 1267/1718;
+non-song-lists 618/1624 545/1588; jump 506/1688 417/1732.
+Pre-case load 2.76–3.13, all warm allocations zero. Jump p99 worsened
+87/167 us; other effects mixed. Rejected and fully reverted, including its
+experiment-specific test. Raw: /tmp/localwave-u08-dirty-runs-pairs.txt.
+
+Final kept-source checkpoint after both experiment removals:
+core/ABI/dynamic 620/620 (18.722 s), static 226/226 (3.332 s),
+lw_ui 115/115 (2.349 s); shape/deps/abi-header/abi-snapshot pass.
+Kept counting release bundle rebuilt and signature verified. No live jobs
+remain. No public API, workload, warm-up, deadline or budget changes.
+CPU gate remains red; package-end/full performance qualification remains
+pending. No U0.8 commit/landing and no U1 work.
+
+Constant-division glyph-bin experiment: spelling out the four constant divisors
+in apple_x passes all 60 pxui_text checks (6.393 s). Three-round release pairs,
+order reversed on round 2; pre-case load 3.00–3.76, zero warm allocations:
+nohint resize 1499/1756 1494/1651 1517/1660;
+theme 1301/1750 1335/1764 1199/1758;
+non-song-lists 589/1655 570/1636 606/1613; jump 506/1588 517/1555 502/1591.
+constantbin resize 1538/1704 1461/1636 1518/1745;
+theme 1266/1739 1282/1829 1301/1740;
+non-song-lists 573/1557 539/1236 579/1616; jump 503/1576 544/1669 509/1630.
+No consistent tail gain; removed. Raw /tmp/localwave-u08-constant-bin-pairs.txt.
+
+Natural-width layout-reuse experiment: extend existing validated reuse to
+width 0, bypassing key hashing for natural labels too. Focused text check and
+six string_pool integration checks pass. Three-round release pairs, order
+reversed on round 2; pre-case load 2.88–3.86, zero warm allocations:
+nohint resize 1481/1664 1503/1648 1545/1727;
+theme 1324/1771 1281/1708 1275/1701;
+non-song-lists 591/1709 566/1542 536/1531; jump 463/1598 487/1574 502/1603.
+natural resize 1521/1775 1475/1726 1498/1795;
+theme 1259/1712 1280/1785 1291/1750;
+non-song-lists 582/1593 591/1510 578/1647; jump 503/1626 497/1611 485/1618.
+Resize/jump tails worsen in all rounds, other effects mixed. Fully removed,
+including its test edits. Raw /tmp/localwave-u08-natural-pairs.txt.
+
+Next candidate: compose reads a resting view's retained offset, opacity and
+scale directly; only animated views call pose_at, which computes a full Look.
+Release baseline disassembly confirms compose calls non-inlined pose_at even
+for resting views. View-slot ownership is established together in view_entry.
+Existing 31 view checks and 19 styling checks pass (8.812 s / 0.437 s), including
+native kept/offset pixels, nested transforms, resting and animated scale,
+opacity, retargets and zero warm allocations. Release bundle built and signed.
+Three-round paired measurement running in /tmp/localwave-u08-rest-pairs.txt.
+
+Resting-transform comparison completed, order reversed on round 2. Pre-case
+load 3.18–3.90, all warm allocations zero:
+nohint resize 1460/1679 1491/1713 1466/1648;
+theme 1262/1709 1329/1730 1289/1778;
+non-song-lists 541/1344 617/1657 570/1647; jump 505/1589 496/1612 517/1594.
+rest resize 1522/1736 1495/1639 1470/1735;
+theme 1300/1789 1233/1773 1302/1704;
+non-song-lists 613/1647 587/1604 539/1613; jump 496/1608 502/1676 494/1633.
+Mixed effects, jump tail worse each round: removed completely.
+Raw /tmp/localwave-u08-rest-pairs.txt.
+
+Next candidate retains packed UV corners beside the existing per-layout
+CachedGlyph UV rectangle. Glyph exposes the packed pair only inside the
+private text/core implementation; the public wrapper/C ABI is unchanged.
+Core copies those words into the existing mask/image instance fields. Clipped
+ligature fragments recompute their packed corners after clipping. Atlas
+invalidation and the existing 4 MiB aggregate glyph-cache limit are unchanged;
+accounting uses size_of<CachedGlyph>, including the additional words.
+The existing emitted-glyph test helper now compares each packed pair to the
+canonical Instance::mask conversion, alongside cached-vs-walk parity tests.
+All 60 text tests (6.730 s) and 620 core/ABI/dynamic tests (25.056 s) pass.
+Release counting bundle builds and signature verifies. Three-round release
+comparison is running in /tmp/localwave-u08-packed-pairs.txt. Not qualified.
+
+First packed-UV comparison completed, order reversed on round 2:
+nohint resize 1478/1644 1456/1683 1514/1743;
+theme 1274/1772 1318/1750 1290/1751;
+non-song-lists 608/1632 576/1549 576/1591; jump 501/1623 513/1593 514/1563.
+packed resize 1474/1651 1408/1644 1485/1654;
+theme 1297/1740 1322/1706 1251/1725;
+non-song-lists 589/1589 591/1595 560/1593; jump 509/1644 501/1687 499/1612.
+All zero warm allocations, pre-case load 3.22–3.99, but load was observed above
+4 during this comparison (4.39 and 4.71), so diagnostic only. Theme tail gains
+repeat (26–44 us); jump tails worsen (21–94 us). Not qualified or retained as
+final. Raw /tmp/localwave-u08-packed-pairs.txt.
+
+Next revision keeps only the Slot fields replay actually reads inside
+CachedGlyph (atlas, shelf, size and bearing); texel position/generation were
+unused there because the atlas epoch invalidates the entire list. This offsets
+the new packed-pair storage without weakening the 4 MiB bound or invalidation.
+All 60 text checks pass again (7.630 s); release bundle builds and signs.
+New comparison /tmp/localwave-u08-packed-slim-pairs.txt waits for load <3 before
+each unchanged workload and records peak load during each run. Each full raw
+output is retained in /tmp/localwave-u08-packed-slim-runs. No builds during it.
+
+Slim packed-UV comparison completed, three rounds, reversed order on round 2.
+Pre-case load 2.53–2.99, peak during each complete run 2.53–3.07. All warm
+allocations zero. Unlike the earlier larger-record comparison, no load >=4
+was observed. Full outputs are retained alongside the table.
+nohint resize 1480/1632 1444/1618 1485/1660;
+theme 1306/1758 1319/1854 1346/1849;
+non-song-lists 587/1642 564/1451 590/1636; jump 489/1534 511/1548 497/1599.
+slim resize 1476/1682 1501/1765 1475/1732;
+theme 1273/1767 1255/1669 1262/1702;
+non-song-lists 576/1569 623/1575 566/1657; jump 499/1631 501/1557 492/1648.
+Resize/jump tails worsen each round; theme improves two of three. Rejected:
+fully restored private text source and its test helper; restored core's
+canonical mask/image construction. No packed fields or slimmer records remain.
+
+Next experiment is one #[inline] attribute on the public wrapper's existing
+text_line_box body (no signature, ABI, validation or error changes). Dynamic
+text-related checks pass 29/29 (12.660 s), static 30/30 (7.242 s). Release
+counting bundle builds and signs. Three-round comparison is running in
+/tmp/localwave-u08-inline-pairs.txt, with unchanged workloads, pre-case load
+<3 and per-run peak-load logging. Scratch /tmp/localwave-u08-compare.py
+preserves full outputs and asserts all requested metrics are present.
+
+Wrapper inline hint comparison completed, three rounds, reversed order on 2:
+nohint resize 1506/1665 1479/1674 1481/1648;
+theme 1297/1806 1320/1702 1305/1748;
+non-song-lists 577/1596 584/1567 584/1609; jump 547/1578 494/1609 503/1662.
+inline resize 1495/1621 1510/1727 1514/1648;
+theme 1303/1717 1320/1710 1276/1717;
+non-song-lists 579/1589 572/1640 585/1584; jump 489/1595 515/1582 507/1574.
+Peak loads 2.56–3.95, zero warm allocations. Mixed effects; removed the
+attribute. nm finds no separate Ui::text_line_box body in either saved
+executable, consistent with existing release ThinLTO inlining.
+
+Source inspection identified that rich custom line-box nodes start with
+Node::DEFAULT.flags (NONE), while the retained layout/fingerprint memo had
+been restricted to FIT_TEXT_PIXEL. The candidate now permits existing memo
+storage for plain text (no spans), retaining previous flag behavior for spans.
+Every reuse still validates full text/style/width/alignment through the same
+Text methods; no additional cache storage or API changes. Existing intrinsic,
+baseline and paint callers were read before editing. Expanded the existing
+differential regression to run with both NONE and FIT_TEXT_PIXEL, including
+changing text/style/width/alignment and warm no-reshape/no-allocation checks.
+Production passes all 620 core/ABI/dynamic checks (20.577 s); expanded six-case
+integration harness passes (0.973 s). Counting release bundle builds and signs.
+Comparison is active: session 95971, driver PID 57204 (revalidate before
+waiting); /tmp/localwave-u08-plainmemo-pairs.txt and its raw-output directory.
+No builds during measurement. All prior comparisons are terminal.
+
+Plain-text memo comparison completed, three rounds, reversed order on round 2:
+nohint resize 1500/1684 1474/1621 1492/1627;
+theme 1240/1742 1299/1732 1285/1695;
+non-song-lists 582/1596 577/1570 592/1588; jump 507/1590 502/1618 509/1586.
+plainmemo resize 1503/1687 1512/1644 1476/1679;
+theme 1270/1828 1240/1728 1272/1753;
+non-song-lists 567/1602 579/1568 577/1612; jump 496/1543 498/1586 514/1599.
+All zero warm allocations. Most peaks 2.50–3.21, but nohint jump round 2
+reached load 4.31 and is diagnostic only. Valid resize tails worsen in all
+rounds, theme/non-song effects mixed. Fully removed the extension and its
+flags-NONE test expansion; original six-case integration harness restored.
+All comparisons are now terminal. Kept ui_core.rs is byte-identical to
+/tmp/localwave-u08-core-pre-dirty-runs.rs. Restored-source checks/release bundle
+are running in session 40658; revalidate before waiting. No new public API,
+cache storage, deadlines, budgets, workloads or warm-up changes.
+Next hot-path hypothesis (not implemented): canonical text-only Look tween
+interpolation still processes every unchanged colour. Any specialization must
+preserve all numeric edge behavior and keyframes/retargeting; require direct
+comparison to canonical Look::lerp and ordinary release measurements.
+
+Restored-source session 40658 completed successfully: six integration checks
+pass (6.927 s), counting release bundle rebuilt and signature verified, both
+diff checks pass. No build/measurement processes remain live. U0.8 remains
+incomplete and uncommitted; U1 has not started.
+
+The canonical text-only interpolation experiment passed all 20 styling cases,
+including a new comparison with Look::lerp under retargets, overshooting
+curves, springs, font and opacity changes, and noncanonical decoration fields.
+The signed release comparison completed across three rounds.
+Values are build CPU p50/p99 in microseconds.
+nohint resize 1498/1678 1517/1662 1447/1589;
+theme 1241/1834 1251/1707 1299/1755;
+non-song-lists 601/1568 580/1532* 591/1634; jump 474/1664 494/1557 516/1856.
+text-lerp resize 1508/1766 1522/1769 1468/1681;
+theme 1279/1845 1280/1809 1318/1806;
+non-song-lists 565/1602 554/1604 528/1609; jump 517/1588 515/1708* 495/1571.
+All warm Rust allocations zero. Starred runs reached load 5.99 and 4.02,
+respectively. Other peaks were below 4. Theme and resize p99 worsened in all
+three valid pairs. Restored both source and test files from before the
+experiment. Raw results and logs are in /tmp/localwave-u08-text-lerp-pairs.
+
+Next candidate packs private text layout key fields into four words before
+hashing and skips recent widths that would retry the already-probed natural
+key. Layout hits still check the same style, text and width. Added a focused
+test that varies each packed field and includes signed-zero tracking.
+
+The field test caught a collision between a font change and a wrap change
+when the first two words went into the same XOR. Mixed each word separately.
+All 322 text/core cases then passed (10.151 s). The signed release build passed.
+Paired CPU p50/p99 in microseconds:
+nohint resize 1455/1718 1487/1693 1515/1688;
+theme 1297/1693 1297/1727 1335/1691;
+non-song-lists 582/1475 588/1657 561/1620; jump 507/1595 520/1660 488/1569*.
+layout-key resize 1482/1664 1495/1688 1469/1587;
+theme 1284/1743 1272/1729 1303/1792;
+non-song-lists 567/1620 584/1570 578/1578*; jump 520/1582 479/1572.
+All warm Rust allocations zero. The starred cases reached 6.34 and 6.27 load.
+Stopped the driver before the last jump case because its paired baseline
+was invalid. Resize p99 fell, theme p99 rose in every valid pair and stayed
+above the gate. Restored the previous private text code, lookup and test.
+Raw results and logs are in /tmp/localwave-u08-layout-key-pairs.
+
+Next experiment on LocalWave removes the empty sizing nodes added around
+the song and artist row views in bdf4b81, plus the redundant song identity
+node. The measured section list already supplies each row's key and the
+column's Grow width and Fit height. The view key and body remain the same
+under that row. Baseline captured all 115 lw_ui test fingerprints (13.505 s).
+
+After removing the row containers all 115 tests passed again (7.435 s).
+gcmp.py reported no draw or accessibility differences. Both signed row
+bundles were built with counting. The second adds the pxui change that scans
+for the smallest free view record only when its first, same-label lookup
+failed. All 35 view-related checks pass (9.682 s), including the test for
+preserving warm buffers across new and returning named views.
+
+Two rounds, reversed order on round 2, build CPU p50/p99 in microseconds:
+nohint resize 1477/1636 1483/1704; theme 1264/1733 1247/1744;
+non-song-lists 578/1554 572/1695; jump 498/1626 519/1661.
+rows resize 1433/1582 1435/1644; theme 1206/1754 1256/1725;
+non-song-lists 652/1579 589/1666; jump 499/1559 475/1550.
+rows plus lazy view reuse resize 1447/1595* 1415/1674;
+theme 1197/1577 1243/1704;
+non-song-lists 589/1561 577/1538; jump 500/1529 506/1523.
+All warm Rust allocations zero. The starred resize reached load 5.29.
+Frame CPU p99 stayed below 2.5 ms. Rows alone improved both valid resize
+and jump tails. Lazy lookup further improved both theme, non-song-list
+and jump pairs against rows alone. Its one valid resize tail rose 30 us
+against rows alone and fell 30 us against nohint. Keeping both for the
+next experiment. The 1.5 ms build gate remains red.
+Raw logs are in /tmp/localwave-u08-row-pairs.
+
+Historical bisect narrowed to 81f353c and its direct child 1efcf4d
+(DX1.12A, pxui 763df85e, label-style unification). Both were built and
+signed in a temporary detached worktree using the shared target and default
+consumer stack. The worktree was removed and main checkouts stayed on
+u0.8. Saved bundles are in /tmp/localwave-u08-revisions. The adjacent
+comparison is running, driver PID 67119 (revalidate), results in
+/tmp/localwave-u08-label-history-pairs.txt. Its first resize reached load
+6.34. Keep that case as diagnostic only. No builds during this comparison.
+
+The next private pxui candidate is in source and has no build or timings
+yet. Text painting calculates inherited opacity once, skips two decoration
+lookups for spanless text, shares ascent for CSS line-box placement, and
+constructs mask and colour glyph instances through one packing path. Cached
+glyph replay updates the most recently used shelf once across successive
+glyphs on it. A new registered line-box check compares decoration order,
+inherited and inline colour alpha, and warm allocations. Exact baseline
+sources are /tmp/localwave-u08-core-before-glyph-paint.rs and
+/tmp/localwave-u08-text-before-glyph-paint.rs; the saved signed baseline
+bundle is /tmp/localwave-u08-rows-lazy.app.
+
+The DX1.12A comparison is complete. Three rounds, build CPU p50/p99 in
+microseconds:
+81f353c resize 1398/1544* 1422/1583 1406/1642;
+theme 1458/1893 1444/1872 1349/1857.
+1efcf4d resize 1396/1569 1403/1579 1420/1566;
+theme 1451/1865 1435/1865 1383/1872.
+All warm Rust allocations zero, peak load below 4 except the first
+81f353c resize. Theme p99 changed by -28/-7/+15 us. The two valid resize
+pairs fell by 4/76 us. Label-style unification alone does not account
+for the large later tail regression. Raw logs are in
+/tmp/localwave-u08-label-history-pairs. Check the later ABI validation
+and key-first/widget and measured-layout changes next.
+
+The glyph-paint candidate passed all 322 text and core checks (18.953 s),
+including its new line-box check. Its counting release bundle builds and
+signs. The adjacent ef9c063 and 33009f4 counting bundles also built and
+verified; their temporary worktree is gone. Session 73201 runs the ordinary
+release comparison in /tmp/localwave-u08-glyph-paint-pairs.txt, then the
+OS-B2a historical comparison in /tmp/localwave-u08-abi-history-pairs.txt.
+Revalidate the live process before waiting. The shared target still has
+the last historical build; use the saved bundles for measurements.
+
+Glyph-paint release pairs, two rounds with reversed order. Values are
+build CPU p50/p99 in microseconds, all peak loads below 4.
+rows-lazy resize 1458/1631 1430/1582; theme 1228/1739 1254/1704;
+non-song-lists 573/1650 587/1679; jump 526/1476 514/1517.
+glyph-paint resize 1403/1567 1424/1679; theme 1249/1701 1231/1719;
+non-song-lists 554/1593 561/1548; jump 464/1480 451/1443.
+Both glyph-paint jumps exit zero. The baseline first jump also passes.
+The new path reduces both non-song-list tails and jump medians. Resize
+and theme tails vary across pairs. Frame CPU p99 stays below 2.5 ms and
+every case stays at zero warm Rust allocations. Keeping the change for
+the next comparison with resize and theme still open.
+
+The OS-B2a comparison is complete. Three rounds, all peak loads below 4
+and all warm Rust allocations zero:
+ef9c063 resize 1407/1570 1364/1526 1375/1568;
+theme 1426/1964 1501/1942 1451/1915.
+33009f4 resize 1425/1726 1413/1625 1322/1567;
+theme 1465/1857 1452/1872 1450/1894.
+ABI validation coincides with higher resize tails in two pairs and a
+one-microsecond drop in the third. Theme tails fall in all three. Keep
+the trust-boundary checks. Continue narrower comparisons around the
+subsequent key-first widget and measured-layout changes.
+
+Next candidate uses the exact byte result of Look::lerp when progress is
+within 1/512 of its start. A colour channel changes by at most 255/512
+before rounding. Geometry, gradient presence and target discrete fields
+use the existing calculations. A focused test covers the two boundaries,
+gradient fallback, opacity, a progress outside the shortcut and NaN.
+The glyph-paint bundle is the comparison baseline.
+
+The near-start colour candidate passes 10 pxui_types checks (1.532 s)
+and 19 styling checks (8.590 s). Counting release build and signature
+verification pass. Both adjacent DX1.12F historical bundles also built
+and signed, and the worktree has been removed. Session 56087 runs the
+start-colours comparison, then the key-first historical comparison.
+Raw tables are /tmp/localwave-u08-start-colors-pairs.txt and
+/tmp/localwave-u08-key-first-history-pairs.txt.
+
+While measuring the signed snapshots, prepared the next cache-independent
+candidate in source. It collects up to 16 glyphs on the stack before
+extending the scratch layer in one exact-length operation. A colour glyph
+break uses the block's original instance index plus the glyph offset.
+The line-box alpha test now crosses a block boundary, and the kept-view
+atlas-break check puts two mask glyphs before the colour glyph. Tests and
+release timing for this candidate are pending. Source backups are the
+three /tmp/localwave-u08-*-before-glyph-batches.rs files.
+
+The near-start colour experiment is removed. Two release rounds, build CPU
+p50/p99 in microseconds:
+glyph-paint resize 1424/1564 1498/1682; theme 1190/1684 1280/1638;
+non-song-lists 576/1664 592/1620*; jump 500/1514 465/1451.
+start-colours resize 1424/1565 1430/1589; theme 1241/1682 1221/1682;
+non-song-lists 576/1569 633/1675; jump 503/1544 510/1622.
+All warm allocations zero. The starred baseline run reached 6.68; all
+other peaks were below 4. Theme effects are mixed and jump p99 rises by
+30/171 us. Restored pxui_types from before the experiment, including its
+experiment-specific test. The glyph-paint build's later repeat includes
+a failing jump at 1.514 ms. Scroll-jump still varies across valid runs.
+
+The DX1.12F comparison is complete. Three rounds, all peak loads below
+4 and warm Rust allocations zero:
+6559e40 resize 1421/1574 1427/1571 1451/1736;
+theme 1460/1910 1487/1903 1491/1941.
+0cd725a resize 1431/1557 1490/1868 1411/1604;
+theme 1407/1851 1489/1916 1458/1915.
+Resize tails vary. Theme p99 changes by -59/+13/-26 us, so this pair
+does not isolate the later theme-switch regression. D26 assigns the
+separate instruction-ratio failure to U1c.1. Raw results remain in
+/tmp/localwave-u08-key-first-history-pairs.
+
+The fixed-size glyph-batch candidate passed 681 text/core/ABI/dynamic
+checks (25.048 s), including its block-edge and colour-atlas-break
+checks. Types are restored to HEAD. Session 67083 runs shape and deps,
+then builds and signs the counting release bundle. Revalidate the
+session before starting paired measurements.
+
+Glyph batching release pairs, build CPU p50/p99 in microseconds:
+glyph-paint resize 1412/1532 1434/1561; theme 1260/1694 1256/1636;
+non-song-lists 563/1600 557/1579; jump 467/1526 512/1493.
+glyph-batches resize 1455/1617 1480/1661; theme 1259/1726 1253/1750;
+non-song-lists 559/1590 585/1608; jump 495/1556 507/1555.
+All warm Rust allocations zero and peak loads 2.50–2.95. Shape, deps
+and both signatures pass. Resize, theme and jump p99 rise in both
+pairs. Restored all three files from before the batch experiment.
+
+The next node-declaration candidate fuses the two private operations
+that always ran together and initialises a new or recycled slot
+directly from its caller's Node. It preserves recycled string buffers
+and generation numbers. The existing handle-reuse check now verifies
+the new fill and width and the reset of retired local state. Baselines are
+/tmp/localwave-u08-core-before-node-declaration.rs and
+/tmp/localwave-u08-nodes-before-node-declaration.rs. Session 50267
+runs the text/core/ABI/dynamic checks. The saved release comparison
+baseline is still /tmp/localwave-u08-glyph-paint.app.
+
+The node-declaration candidate passed 681 text/core/ABI/dynamic checks
+(21.905 s) and 226 static-wrapper checks (7.268 s). Counting release
+build and signature verification pass. Saved signed candidate is
+/tmp/localwave-u08-node-declaration.app. Session 13330 runs two pairs
+against glyph-paint in /tmp/localwave-u08-node-declaration-pairs.txt.
+Revalidate it before waiting. A separate diagnostic driver
+/tmp/localwave-u08-trace-phases.py can capture the busiest frame phases
+after those pairs finish. Trace data cannot qualify the gate.
+
+Node declaration release pairs, build CPU p50/p99 in microseconds:
+glyph-paint resize 1438/1731 1458/1667; theme 1249/1644 1244/1661;
+non-song-lists 622/1601 577/1582; jump 503/1489 508/1506.
+node-declaration resize 1425/1607 1422/1615; theme 1193/1691 1218/1710;
+non-song-lists 582/1585 560/1609; jump 477/1473 498/1496.
+Warm Rust allocations zero and peak loads 2.68–3.85 in all samples.
+Theme-switch p99 rose by 47–49 us in both pairs. Source and test are
+restored to the prior glyph-paint baseline.
+
+Glyph-paint phase traces show 112–146 us of build CPU outside the engine
+phases on the six slowest theme swaps. The remaining frame costs are
+dominated by declaration (589–672 us) and paint (661–710 us). Resize
+outside-phase cost is 36–46 us on its slow frames. Non-song-lists tails
+show 842–904 us of declaration, 427–446 us of paint and 15–16 us outside
+the engine. Jump's worst frame spends 849 us in declaration. Raw diagnostic
+traces are in /tmp/localwave-u08-glyph-paint-traces and its summary.
+
+Theme installation calls theme_names_token twice before resolving any
+look. The candidate scans once, preserves raw token themes for palette
+updates and resolves scoped themes after a single scan. All 19 styling
+checks pass (10.739 s), including an extended test for token resolution
+on swap, palette changes and themed scopes. Backups are
+/tmp/localwave-u08-core-before-theme-scan.rs and
+/tmp/localwave-u08-styling-before-theme-scan.rs. Signed release build
+session 55643 is in progress.
+
+The theme scan comparison finished. Build CPU p50/p99 in microseconds:
+glyph-paint resize 1398/1627 1423/1652; theme 1253/1650 1243/1657;
+non-song-lists 576/1698 588/1535; jump 542/1472 484/1572.
+theme-scan resize 1413/1540 1408/1590; theme 1253/1703 1230/1685;
+non-song-lists 596/1584 564/1589; jump 488/1524 458/1507.
+All samples zero warm Rust allocations and peak loads 2.66–3.62.
+Theme-switch p99 rose by 53 and 28 us. The code and its test extension
+were removed. Raw logs: /tmp/localwave-u08-theme-scan-pairs.
+
+A signed diagnostic bundle measures application-side spans around theme
+installation, ui.frame and image requests. The instrumentation was removed
+from the working tree immediately after packaging. Diagnostic captures run
+in session 54067 from /tmp/localwave-u08-outside-trace.app.
+
+The next source candidate replaces the styled-text buffer donor scan with a
+pool of retired records. It reserves room when creating a new record, then
+reuses buffers on redeclarations, text replacements and retired slots. Span
+updates copy only the validated range of the fixed buffer. The existing
+zero-allocation donor case now verifies that the old inline colour is gone.
+Source and test backups are /tmp/localwave-u08-core-before-rich-pool.rs and
+/tmp/localwave-u08-nodes-before-rich-pool.rs. Tests and release pairs pending.
+
+Both trace and build sessions above finished. App-side traces place theme
+installation at 84–108 us on the six slowest theme changes. Setup before it
+takes 2–29 us and after-frame work 6–12 us on those frames. On the slowest
+resize frames, setup before theme selection takes 21–38 us and theme selection
+takes around 0.5 us. Non-song-list and jump tails spend their build time in
+the engine. These traces are diagnostic only. Raw data are under
+/tmp/localwave-u08-outside-traces.
+
+The styled-text pool passed 681 text/core/ABI/dynamic tests in 32.223 s,
+including retired rich storage reuse and removal of the old inline span.
+Its release build and signature passed. Signed candidate is
+/tmp/localwave-u08-rich-pool.app. A second signed diagnostic build times each
+piece of theme installation. Scratch logging has been removed from source.
+Session 34840 runs that trace, then compares the pool with glyph-paint on
+theme, resize, non-song-lists, jump and reverse-scroll. All comparisons
+use saved signed bundles. The historical eaa6541, 269af1c and 1b2be80
+bundles are signed, and the temporary build worktree was removed. Both
+historical pairs keep the same workload inputs. They are ready to measure.
+
+The theme installation diagnostic isolates the full old-look snapshot. The
+two token scans together take about 7–12 us on the slower swaps. Copying
+previous looks from roughly 550 live slots takes 51–81 us on most swaps.
+Theme storage copy takes about 3 us. Raw output is in
+/tmp/localwave-u08-theme-install-traces/theme-switch.log.
+
+Styled-text pool release pairs, build CPU p50/p99 in microseconds:
+glyph-paint resize 1403/1551 1430/1599; theme 1160/1610 1208/1709;
+non-song-lists 569/1707 578/1608; jump 532/1508 516/1597;
+reverse-scroll 947/1122 959/1074.
+rich-pool resize 1447/1845 1447/1627; theme 1164/1602 1239/1779;
+non-song-lists 664/1532 573/1536; jump 507/1438 504/1354;
+reverse-scroll 929/1079 928/1093.
+Peak load 2.54–3.06 and warm Rust allocations zero. The pool passes both
+jump runs and lowers non-song-list p99 by 72–175 us. Resize p99 rises in
+both pairs and theme is mixed. The pool is the next candidate's base.
+Its retention depends on the combined comparison. Raw logs are in
+/tmp/localwave-u08-rich-pool-pairs.
+
+Earlier historical pairs, build CPU p50/p99 in microseconds:
+eaa6541 resize 1406/1553 1403/1559; theme 1402/1839 1396/1854.
+269af1c resize 1450/1644 1420/1599; theme 1427/1839 1408/1816.
+1b2be80 resize 1461/1615 1487/1622; theme 1515/1932 1460/1940.
+6559e40 resize 1484/1657 1495/1728; theme 1486/1978 1467/1915.
+All samples zero warm Rust allocations, peak load 2.21–2.93. Migrating
+LocalWave to Label (269af1c, same pxui) raises resize p99 by 40–91 us.
+Measured and prepared layout-width reuse (pxui 5e237bb7 and aef40eea)
+raises resize p99 another 42–106 us in its own comparison. Theme effects
+are mixed. Preserve the layout reuse benefit while measuring its retries.
+Raw results are in /tmp/localwave-u08-label-adoption-history-pairs and
+/tmp/localwave-u08-prepared-layout-history-pairs.
+
+The next candidate replaces the eager snapshot traversal with a swap
+epoch. A slot saves the same starting look when its declaration, mutable
+handle, repaint, or tween completion first needs it after a swap. New
+identities have no previous look. Twenty focused styling cases pass
+(18.578 s), including a patch between theme installation and the next frame
+and a swap during declaration. Current release build session 33839.
+Backups are /tmp/localwave-u08-core-before-lazy-swap.rs and
+/tmp/localwave-u08-styling-before-lazy-swap.rs.
+
+Lazy-snapshot comparison, build CPU p50/p99 in microseconds:
+glyph-paint resize 1529/1681 1447/1627; theme 1306/1774 1256/1645;
+non-song-lists 569/1683 558/1628; jump 471/1628 505/1527.
+rich-pool resize 1542/1679 1521/1666; theme 1223/1708 1277/1773;
+non-song-lists 574/1573 555/1545; jump 524/1448 502/1441.
+lazy-swap resize 1248/1696 1511/1688; theme 1281/1738 1280/1753;
+non-song-lists 583/1642 564/1636; jump 439/1503 483/1426.
+Peak 2.52–3.60, zero warm Rust allocations. The lazy version raises non-song
+p99 by 69–91 us and offers mixed theme results. Removed the epoch-based
+capture. The pool again beats glyph-paint on jump and non-song lists.
+Its resize result is mixed across the four total pairs.
+
+The next theme change uses one flag per retained slot. Paint marks the
+recorded look current, and look writes and completed tweens can mark it
+unrecorded. A theme switch reads the compact flags and copies only those
+looks. The swap test now covers patches on both sides of the swap as well
+as the existing during-build swap. A separate text change shares the part
+of the existing layout hash that is independent of width and avoids retrying
+the same layout on a miss. The layout key bits and all validation are
+preserved, including for worker-installed layouts.
+
+Combined candidate passes 682 text/core/ABI/dynamic tests (37.831 s).
+Session 15622 signs the combined bundle and compares it with rich-pool.
+The scratch driver now places the same workload's samples next to one
+another and applies the original maximum load of 4 before and during a
+case. Each sample retains its raw output and process exit. This changes
+only the comparison order and waiting threshold, not the workloads or gates.
+Layout source backups are /tmp/localwave-u08-text-before-style-seed.rs,
+/tmp/localwave-u08-prepared-before-style-seed.rs and
+/tmp/localwave-u08-text-identity-before-style-seed.rs. The core backup
+/tmp/localwave-u08-core-before-lazy-swap.rs is the pool without either
+snapshot change. Styling backup from that point is also still available.
+
+The combined flags and key reuse comparison was mixed. CPU p50/p99 in us:
+rich-pool resize 1486/1675 1470/1633; theme 1285/1747 1227/1705;
+non-song-lists 562/1527 570/1673; jump 446/1398 507/1492.
+unseen-look-style-seed resize 1484/1679 1502/1665; theme 1194/1623 1270/1779;
+non-song-lists 572/1605 573/1685; jump 512/1450 485/1323.
+Warm allocations are zero. Peak loads 3.02–3.79. Both changes now have
+individual signed builds. Session 36959 compares rich-pool, unseen-looks
+and style-seed in adjacent pairs on theme, resize and non-song lists.
+The flags-only source snapshot is /tmp/localwave-u08-core-with-unseen-looks.rs.
+Style-only variants of the three layout files are under
+/tmp/localwave-u08-{text,prepared,text-identity}-with-style-seed.rs.
+
+While those signed bundles run, the next source candidate keeps each cached
+glyph's device position at its original origin and scale. An exact origin
+match can use those positions without repeating subpixel calculations.
+Movement, scale changes and atlas evictions still use existing placement
+logic. Glyph-list bytes include the 8 additional bytes per glyph under the
+same cache budget. The replay test now exercises repeated fractional origins
+with bit-exact output and zero allocations. Tests and signed timings are
+pending. Backups are /tmp/localwave-u08-text-before-origin-replay.rs and
+/tmp/localwave-u08-text-tests-before-origin-replay.rs.
+
+Independent release results, build CPU p50/p99 in microseconds:
+rich-pool resize 1498/1708 1507/1655; theme 1268/1794 1273/1684;
+non-song-lists 549/1702 554/1546.
+unseen-looks resize 1504/1693 1473/1650; theme 1249/1737 1275/1713;
+non-song-lists 562/1552* 565/1611.
+style-seed resize 1483/1654 1514/1666; theme 1244/1763 1265/1738;
+non-song-lists 559/1638 552/1550.
+Warm allocations zero. The starred run reached load 4.11, all others peak
+below 4. Neither change gives a consistent tail improvement. Restored
+both groups and their experiment-specific styling test. The working core
+is the styled-text pool exactly.
+
+The glyph position replay candidate passes 322 text/core cases (26.596 s).
+Its signed release bundle is /tmp/localwave-u08-origin-replay.app.
+Session 15819 runs two adjacent pairs against the signed rich-pool build on
+theme-switch, resize, non-song-lists and jump. The first candidate theme
+run reached load 4.05 and is diagnostic only.
+
+Final original-origin replay results, build CPU p50/p99 in microseconds:
+rich-pool resize 1532/1711 1505/1645; theme 1288/1737 1239/1738;
+non-song-lists 555/1563 550/1589; jump 496/1438 500/1437.
+origin-replay resize 1535/1662 1536/1738; theme 1252/1770* 1275/1732;
+non-song-lists 582/1606 569/1603; jump 502/1464 447/1416.
+All warm Rust allocations were zero. The starred value peaked at 4.05.
+The candidate increases both list p99 samples. Restored both files.
+
+The next colour candidate keeps the exact per-channel arithmetic and blends
+eight Look colours in one contiguous loop. No architecture intrinsics or
+ABI changes. A scratch Rust build emits vector float arithmetic, rounding
+and saturation. The existing library's Look::lerp emits scalar operations
+for many base channels. Ten type tests and nineteen core styling tests
+pass, including a scalar comparison across endpoint channels, overshoot,
+ties, infinities and NaN. Session 98158 builds and signs the candidate and
+runs four release workloads against rich-pool. Source backup is
+/tmp/localwave-u08-types-before-vector-colors.rs.
+
+The batched colour loop release pairs, build CPU p50/p99 in us:
+rich-pool resize 1501/1637 1487/1667; theme 1186/1688 1190/1700;
+non-song-lists 575/1620 563/1519; jump 461/1463 498/1412.
+vector-colors resize 1523/1673 1472/1683; theme 1248/1727* 1279/1686;
+non-song-lists 567/1612 563/1609; jump 510/1467 506/1472.
+Zero warm allocations. The starred sample reached load 4.81. Both resize
+tails rise. Restored pxui_types completely, including its experiment test.
+
+The inline line-box candidate keeps the style on the slot and allocates a
+pooled record only for nonempty spans. The retired-span test reuses a two-span
+record with one span, checks that its old colour is gone and verifies zero
+warm allocations. All 322 text/core cases pass (26.199 s). Signed bundle
+/tmp/localwave-u08-inline-linebox.app. Session 40327 compares it with the
+pool. Source snapshots are /tmp/localwave-u08-{core,nodes}-with-inline-linebox.rs.
+
+While its signed comparison runs, source is back on rich-pool with a new
+animation candidate. The paint path finds each node's tween once, reuses the
+known index for restart and sampling, and skips reassigning a target just
+installed by that same paint. The related keyframe and animate callers use
+the same index where they previously repeated the lookup. Curve, verified
+paint time, replacement and interpolation behavior are unchanged. Checks
+and signed measurements are pending.
+
+Inline line-box release pairs, build CPU p50/p99 in microseconds:
+rich-pool resize 1529/1681 1516/1677; theme 1269/1763 1256/1711;
+non-song-lists 525/1624 552/1671; jump 476/1368 480/1462.
+inline-linebox resize 1479/1647 1402/1589; theme 1252/1718 1184/1639*;
+non-song-lists 583/1608 575/1467; jump 510/1408 505/1413.
+All warm allocations zero, peak load 3.50–3.98 except the starred 4.25
+theme run. Resize improves 34–88 us and non-song lists pass once. Keep
+the inline style and span pool as the comparison base.
+
+The combined animation-index candidate passed 681 text/core/ABI/dynamic
+tests (27.022 s), 226 static checks (6.856 s) and release signing. Timing:
+inline-linebox resize 1390/1602 1482/1631; theme 1273/1707 1320/1765;
+non-song-lists 574/1519 580/1679; jump 491/1439 493/1387.
+tween-index resize 1485/1644 1570/1716; theme 1205/1690 1230/1625;
+non-song-lists 583/1639 535/1672; jump 495/1331 481/1377.
+Peak load 3.14–3.86 and zero warm allocations. Theme and jump improve,
+resize regresses 42–85 us. Restored inline-linebox. The combined animation
+source is /tmp/localwave-u08-core-with-inline-tween-index.rs and its raw
+case logs are under /tmp/localwave-u08-tween-index-pairs. A later trial
+reused the old temporary bundle and summary names. The earlier table
+above and the original per-case logs still establish the result.
+
+Resize traces show the sidebar grid expects an exact viewport size and
+rebuilds when that changes even if every cell still fits. The next candidate
+keeps the first build when all cells fit at rest before and after layout,
+with identical column or row count and padding. Rewrap, overflow and scroll
+retain their exact checks. Six grid cases pass, including both axes and a
+rewrap after the resize (11.167 s). The signed release build and adjacent
+comparison start in session 53823. Backups are
+/tmp/localwave-u08-core-with-inline-linebox.rs and
+/tmp/localwave-u08-layout-before-grid-fit.rs.
+
+Stationary fitting grid release pairs, build CPU p50/p99 in microseconds:
+inline-linebox resize 1484/1718 1496/1630; theme 1240/1734* 1258/1676;
+non-song-lists 401/1174 553/1597; jump 394/1110 511/1466.
+grid-fit resize 1376/1571 1388/1640; theme 998/1503* 1265/1711;
+non-song-lists 462/1291 551/1697*; jump 403/1105 509/1410.
+All allocation counts zero. Starred peak load readings are 4.02, 4.00
+and 4.07 respectively. Resize p50 falls 108 us in each pair. The p99 falls
+147 us in the first pair and rises 10 us in the second. Kept the grid
+change with its correctness and allocation test. Raw results are in
+/tmp/localwave-u08-grid-fit-pairs.
+
+The next paint candidate skips decoration processing for a node that has
+no shape, mark, focus ring, text or reserved room. Node and set-look paths
+resolve colours into their destination directly. A node regression checks
+transparent patch room, focus-ring border ink and a patch of an empty node.
+The first assertion counted the ring's transparent fill as reserved room.
+It now inspects both fill and border alpha. All 324 text/core tests pass
+(7.760 s on the warm test build). Signed release pairs:
+grid-fit resize 1324/1491* 1358/1521; theme 1259/1745 1251/1747;
+non-song-lists 551/1552* 558/1589; jump 495/1375 491/1433*.
+empty-look resize 1357/1490 1356/1526; theme 1198/1697 1171/1528;
+non-song-lists 562/1669* 555/1623; jump 499/1380 506/1350.
+All warm allocations zero. Starred peaks range from 4.05 to 6.64. Both
+valid theme tails fall, one clean resize and both clean jumps pass. Kept
+it as the base. The valid non-song tail is 34 us above its matched base.
+Signed app /tmp/localwave-u08-empty-look.app and raw results in its pairs
+directory. All comparison sessions above have finished.
+
+The next theme snapshot candidate keeps a flag in each slot, so a swap
+copies only a look that may differ from the recorded one. Unlike the
+earlier separate-vector trial, the flag travels with the slot and uses
+no extra allocation. Restored the regression for patches on both sides of
+the swap and a swap during declaration. Source backups are
+/tmp/localwave-u08-core-before-slot-look-flag.rs and
+/tmp/localwave-u08-styling-before-slot-look-flag.rs. Focused test session
+79859 is in progress.
+
+The slot-local snapshot trial passed 20 styling checks (11.123 s) and
+release signing. Build CPU p50/p99 in microseconds:
+empty-look resize 1348/1515 1326/1493; theme 1245/1703 1239/1629;
+non-song-lists 558/1576 543/1549; jump 462/1412 480/1399.
+slot-look-flag resize 1367/1526 1327/1564; theme 1179/1633* 1223/1680;
+non-song-lists 563/1579 560/1539; jump 500/1397 485/1421.
+All warm allocations zero. The starred sample reached load 4.00. Both
+resize tails rise, and the valid theme pair also regresses. Restored
+empty-look, including the styling tests, with both bundles saved.
+Raw results are under /tmp/localwave-u08-slot-look-flag-pairs.
+
+The next candidate separates exact-key lookups from insertion probes and
+rehashes at the load threshold only when an insertion uses an empty bucket.
+A collision test verifies live and retired handles through wraparound,
+tombstone reuse and rehash. All 265 core checks pass (15.887 s); the signed
+comparison runs in session 24233 under /tmp/localwave-u08-slot-table-pairs.
+Existing non-song traces identify frames 83, 123 and 163 as the three
+slowest, all from navigation to the album gallery.
+
+Slot-table release pairs, build CPU p50/p99 in microseconds:
+empty-look resize 1369/1496 1314/1494; theme 1083/1729* 1219/1668;
+non-song-lists 551/1529 554/1526; jump 486/1367 478/1449.
+slot-table resize 1317/1509 1394/1556; theme 1262/1709 1228/1652;
+non-song-lists 560/1461 560/1568; jump 510/1588 490/1386.
+All warm allocations zero. The starred theme sample reached load 6.02.
+Both resize tails rise; the first jump loses its pass. Restored the
+empty-look core and removed the experiment test.
+
+Album gallery: the row itself takes the inset and the card's retained
+view is sized directly. All 115 lw_ui tests passed before (13.740 s)
+and after (6.568 s); gcmp reports identical draw and accessibility
+fingerprints. Both tests used the same empty-look engine source. Pairs:
+empty-look resize 1416/1549 1362/1549; theme 1185/1664 1253/1639;
+non-song-lists 593/1524 553/1661; jump 493/1394 513/1401*.
+album-layout resize 1392/1564* 1383/1521; theme 1256/1703 1237/1700;
+non-song-lists 497/1435 555/1460; jump 501/1383 482/1371.
+All warm allocations zero. Starred peaks 7.15 and 4.88 respectively.
+Both clean non-song runs pass, with 89 and 201 us lower tails. Retained
+the gallery change. Raw /tmp/localwave-u08-album-layout-pairs. Signed
+baseline /tmp/localwave-u08-album-layout.app.
+
+The core settlement candidate walks painted nodes and their scratch
+pieces in order instead of doing a binary search for each node. A debug
+assert checks the previous piece boundary. The texture range starts at
+the last break at or before the view, and replays only breaks inside it.
+The placed layer and scratch layer have the same index, checked in debug.
+All 683 text/core/ABI/dynamic checks pass (28.597 s). The signed app
+/tmp/localwave-u08-settle-ranges.app compares in session 87182. The
+presettlement source is /tmp/localwave-u08-core-before-settle-ranges.rs.
+
+While the comparison runs, the next candidate narrows the renderer's
+half-float conversion to the bits of its f32 input, and uses the
+saturating u16 cast for texture coordinates. It changes implementations
+within pxui_types, with the same public signatures and instance layout.
+New checks cover every finite half midpoint and adjacent floats, and
+texture edge, NaN and infinity handling. These checks are pending.
+
+Draw settlement release pairs, build CPU p50/p99 in microseconds:
+album-layout resize 1412/1586 1374/1561*; theme 1243/1679 1248/1748;
+non-song-lists 584/1521 544/1464; jump 469/1394 496/1346.
+settle-ranges resize 1345/1535 1404/1617; theme 1276/1667 1253/1745;
+non-song-lists 558/1541 562/1447; jump 510/1340* 495/1415.
+All warm allocations zero. Starred peaks were 4.09 and 5.09. The CPU
+benefit is mixed. The pass has less work for long piece and image lists,
+and remains the comparison base while the combined changes are tested.
+
+The half/UNORM packing trial passed 275 type/core checks (10.852 s),
+including both exact conversion cases, and signed packaging. Pairs:
+settle-ranges resize 1383/1543* 1366/1539; theme 1268/1781 1156/1669;
+non-song-lists 569/1533 558/1453; jump 509/1484 480/1359.
+draw-pack resize 1379/1537 1369/1505*; theme 1233/1736* 1098/1624;
+non-song-lists 653/1576 548/1589; jump 185/1352 499/1344.
+Starred peaks range from 4.10 to 5.19. Warm allocations stayed zero.
+Both clean non-song tails rose, so restored the original packing code
+and removed its experiment tests. Raw /tmp/localwave-u08-draw-pack-pairs.
+
+The song row formerly formatted its display position for every visible
+cell and again for sizing and prewarm. Each SongTable now reuses the
+library worker's packed labels, preparing extra positions for a list
+with more occurrences than the library has songs. A projection test
+checks the 9-to-10 transition with repeated entries. All 115 lw_ui
+checks pass (20.870 s) and gcmp reports identical fingerprints. Pairs:
+settle-ranges resize 1356/1567 1378/1570*; theme 1257/1674 1227/1727;
+non-song-lists 529/1479* 557/1491; jump 508/1393 508/1474.
+number-labels resize 1352/1523 1341/1492; theme 1186/1644 1246/1764;
+non-song-lists 544/1454 540/1473; jump 461/1374 495/1315.
+All warm allocations zero. Starred peaks 4.42 and 5.35. Kept the number
+labels. The bundle /tmp/localwave-u08-number-labels.app is the baseline
+for the next experiment. Raw /tmp/localwave-u08-number-labels-pairs.
+
+The next candidate uses a static full empty span record on the Rust
+wrapper side and represents a validated empty span packet without its
+range array on the ABI side. Size/count/null checks and flagged-field
+reads remain in the same decoder. The existing short-prefix check
+covers the empty case. 359 dynamic/ABI checks (14.277 s) and 226 static
+checks (6.804 s) pass. Session 15530 packages and compares against
+number-labels. The comparison path is /tmp/localwave-u08-empty-spans-pairs.
+
+Empty span packet release pairs, build CPU p50/p99 in microseconds:
+number-labels resize 1339/1520 1330/1531*; theme 1234/1724 1240/1654;
+non-song-lists 543/1452 546/1468; jump 468/1361 482/1384.
+empty-spans resize 1336/1516 1379/1519; theme 1221/1671* 1202/1639;
+non-song-lists 536/1475 523/1451; jump 499/1400 487/1372.
+All warm allocations zero, both non-song and jump cases pass. The starred
+samples peaked at 4.06 and 4.54. Clean theme p99 falls 15 us and clean
+resize 4 us. Keep as the comparison base. Full gate still red.
+
+The next candidate reuses a layout for a fixed-width line box without
+spans, with the existing text, style and width checks. Paint skips the
+body work when only ink, a mark or a focus ring can show. It constructs
+the rounded border directly on the shape if no inner shadow separates
+them. 683 engine/ABI/wrapper checks (22.642 s) and 115 UI checks (7.877 s)
+pass, with exact UI fingerprints. Session 42540 compares signed
+/tmp/localwave-u08-text-paint.app against empty-spans. This combines the
+one-line memo choice with the decoration change. Scratch source before
+decoration is /tmp/localwave-u08-core-before-text-only-decoration.rs.
+
+The next source candidate moves previous looks out of the large Slot
+records into a compact array, indexed by the same slot and reset on
+reassignment. A theme swap compares the ink channel first before falling
+through to the original full look equality. Tests and release pairs are
+pending. Source before these changes is
+/tmp/localwave-u08-core-before-dense-snapshots.rs.
+
+The combined text paint candidate passed all 683 engine/ABI/wrapper
+and 115 application tests, with exact fingerprints, but both clean
+non-song tails rose above budget. Two release pairs:
+empty-spans resize 1323/1533 1330/1489; theme 1233/1659* 1239/1696;
+non-song-lists 536/1448* 554/1416; jump 501/1388 496/1385.
+text-paint resize 1327/1459 1319/1501; theme 1218/1637* 1213/1627;
+non-song-lists 541/1504 536/1532; jump 447/1348 506/1329.
+All allocations zero. Starred peaks 4.21–6.30. Raw
+/tmp/localwave-u08-text-paint-pairs. Isolated the fixed-width line-box
+memo from the body-paint change to see which was responsible.
+
+Fixed memo isolation. Two focused line-box cases passed (7.476 s).
+empty-spans resize 1346/1534 1295/1496; theme 1219/1597 1253/1661;
+non-song-lists 551/1474 532/1506.
+fixed-memo resize 1359/1520 1331/1526; theme 1179/1592* 1194/1606;
+non-song-lists 527/1469 532/1489.
+text-paint resize 1337/1506 1356/1530; theme 1190/1583 1224/1615;
+non-song-lists 545/1520 545/1466.
+All allocations zero; the starred result peaked at 4.52. Kept fixed
+memo for both passing non-song runs and the 55 us theme gain in the
+valid pair. Raw /tmp/localwave-u08-fixed-memo-pairs. Base source
+/tmp/localwave-u08-core-before-glyph-baseline.rs and signed app
+/tmp/localwave-u08-fixed-memo.app.
+
+On the fixed-memo base, one trial obtained the raw baseline when its
+glyph walk fetched the layout, avoiding a separate lookup. The other
+moved previous looks into an ordered array and compared text ink
+first on a swap. Baseline-origin parity and 325 text/core checks pass
+(16.104 s), and 264 core checks pass for the look array (23.441 s).
+fixed-memo resize 1281/1494* 1330/1544; theme 1201/1593 1141/1542;
+non-song-lists 536/1443 537/1525.
+glyph-baseline resize 1342/1455 1364/1525; theme 1235/1625 1181/1594;
+non-song-lists 541/1523 539/1427.
+dense-snapshots resize 1388/1592 1348/1528; theme 1189/1622 1170/1563;
+non-song-lists 550/1542 541/1508.
+All allocations zero. The starred baseline reached 4.31. Both variants
+raise both theme tails. Neither is retained. Raw captures in
+/tmp/localwave-u08-layout-snapshots-pairs.
+
+Next source reuses the laid-out rectangle passed through traversal
+for node paint, views and painters, and shares the two child clipping
+checks. A node keeps its compact Transition until it actually starts
+a tween. Explicit transitions still take priority over the theme swap
+default, which checks ink before the full look. The target update and
+sampling share their first tween lookup. Session 35881 runs the core,
+ABI and UI checks, fingerprint comparison and signed performance pairs.
+
+Paint traversal check: 401 core/ABI cases (25.277 s), 115 UI cases
+(6.351 s), exact UI fingerprints, and signed release packaging. Pairs:
+fixed-memo resize 1368/1505 1339/1515; theme 1152/1563* 1209/1591;
+non-song-lists 534/1526 539/1517; jump 470/1330 463/1402.
+paint-geometry resize 1328/1505 1385/1539*; theme 1125/1657* 1153/1599;
+non-song-lists 553/1612 532/1396; jump 465/1307* 472/1455.
+All warm allocations zero; starred peaks 4.01–6.24. The valid resize
+tail ties, the valid theme tail rises 8 us, and the list gains are mixed.
+Restored fixed-memo. Source snapshot with change is
+/tmp/localwave-u08-core-with-paint-geometry.rs.
+
+LocalWave now reads density once for the table, reuses the row's
+catalog projection for sizing, and constructs the row look once for
+the table. The initial palette read relocation failed R6 because the
+allowlist is shrink-only. Song text now passes the existing colour
+tokens through the node look, removing the two original entries.
+All 115 UI checks passed (6.388 s) and fingerprints match exactly.
+The signed candidate is /tmp/localwave-u08-table-inputs.app. Published
+plan rechecked with art list and still at version 4.
+
+One additional core trial records the sole key, if any, present in the
+frame's input signal map. Other boxes skip the map lookup. Multiple
+targets use the existing map, which still uses its original hasher.
+A debug assertion checks every skipped lookup. All 401 core/ABI cases
+pass (27.477 s). Session 74082 packages and compares fixed-memo, table
+inputs and that change in /tmp/localwave-u08-table-signal-pairs.
+
+App table/signal comparison complete. Build CPU p50/p99 in microseconds:
+fixed-memo resize 1364/1533 1345/1537; theme 1121/1526 1166/1534;
+non-song-lists 551/1583 543/1489.
+table-inputs resize 1342/1525 1359/1550; theme 1173/1711 1195/1641;
+non-song-lists 538/1361 554/1446.
+single-signal resize 1348/1517* 1385/1565; theme 1187/1591 1181/1593;
+non-song-lists 533/1457 556/1435.
+Zero warm allocations. Starred peak 4.23. Both trials pass non-song
+lists and worsen both theme tails against fixed-memo. Restored the
+previous table code and allowlist, and removed the signal shortcut.
+The app delta is saved in /tmp/localwave-u08-table-inputs-source.diff
+and the signal trial in /tmp/localwave-u08-core-with-single-signal.rs.
+
+The next paint trial isolates the background test from the rounded
+shape construction changes. For text-only nodes it skips the body;
+painting of the fill, borders, gradients, shadows, retained room and
+focus ring uses the existing paths. Source and workload base are
+fixed-memo; checks and signed comparisons are in session 88103.
+
+The background guard passed all 264 pxui core checks (23.023 s) and
+release signing. Build CPU p50/p99 in microseconds:
+fixed-memo theme 1208/1696 1137/1629; resize 1437/1742* 1349/1509;
+non-song-lists 526/1475 527/1466; jump 479/1382 504/1445.
+background-guard theme 1172/1593* 1108/1611; resize 1416/1540 1319/1468;
+non-song-lists 542/1444* 543/1452; jump 488/1358 489/1359.
+Starred samples peaked at 4.07–4.87 load and all warm allocations were
+zero. The guard lowers each valid paired p99, with clean passes on
+resize, non-song lists and jump. Retained as the next base, source at
+/tmp/localwave-u08-core-before-external-look.rs and signed app at
+/tmp/localwave-u08-background-guard.app. Raw results under
+/tmp/localwave-u08-background-guard-pairs.
+
+The next theme snapshot candidate reuses the declaration and paint
+frame numbers. It marks edits to already painted nodes, motion-free
+paints, and tween completion, so theme installation can skip the
+prior-look copy for ordinary nodes painted with motion enabled. No
+new write in node declaration. All 265 core checks pass (16.002 s),
+including patches on both sides of a swap and a swap during declaration.
+Signed theme and resize comparisons are in session 45755.
+
+The first snapshot trial passed all 265 core checks but added a paint
+write for every node. Build CPU p50/p99 in microseconds:
+background-guard theme 1181/1598 1219/1636; resize 1290/1487* 1378/1515.
+external-look theme 1085/1501* 1175/1571*; resize 1385/1534 1374/1536.
+Zero warm allocations. Starred peaks were 4.03, 6.13 and 4.52. The valid
+paired resize tail rises 21 us. Diagnostic phase traces attribute
+116–144 us outside the engine to slow base swaps and 82–99 us to the
+first snapshot trial. Slow non-song-list frames still enter the gallery,
+with 804–856 us in declaration. Raw phase logs are under
+/tmp/localwave-u08-{background-guard,external-look}-traces.
+
+The revised theme snapshot marks still paints and lets each swap clear
+those marks. Ordinary moving paints retain the original writes. All
+402 core/ABI checks (21.836 s) and all 115 UI checks (10.303 s) pass,
+with matching draw and accessibility fingerprints. Release comparisons
+are in session 70838, signed bundle /tmp/localwave-u08-theme-snapshot.app.
+The next gallery candidate puts the artwork's gap in its existing node
+margin, removing a spacer per card. It uses the existing panel token and
+shrinks the conformance allowlist by one. Checks await completion of
+the snapshot measurements.
+
+Revised snapshot pairs, build CPU p50/p99 in microseconds:
+background-guard theme 1135/1569 1161/1638; resize 1281/1462* 1320/1473;
+non-song-lists 533/1522 382/1490.
+theme-snapshot theme 1168/1629* 1180/1552; resize 1351/1525 1351/1477;
+non-song-lists 489/1220 524/1268.
+Zero warm allocations. Starred samples peaked at 4.52 and 7.87. The
+clean theme tail falls 86 us, the clean resize pair differs by 4 us,
+and both non-song tails fall by more than 200 us. Retained the revised
+snapshot. Raw results are under /tmp/localwave-u08-theme-snapshot-pairs.
+Removed the unmeasured gallery margin trial because non-song lists have
+headroom with the snapshot code.
+
+Disassembly of the glyph paint callback shows a four-lane division on
+every glyph. The next candidate multiplies by the exact reciprocal at
+binary densities and keeps the division at other densities. The callback
+captures its scalar inputs by value. Source before the trial is
+/tmp/localwave-u08-core-before-glyph-coordinates.rs. Session 72362 runs
+core, ABI and UI checks, verifies fingerprints, packages the release
+and builds the signed 63f6734/cdd976b historical pair before measurement.
+
+Glyph conversion passed 462 text/core/ABI checks (20.483 s) and 115
+UI checks (6.314 s), with exact draw and accessibility fingerprints.
+The signed callback uses four-lane multiplication at binary densities
+and retains vector division for other densities. Build CPU p50/p99
+in microseconds:
+theme-snapshot theme 1213/1600 1167/1564; resize 1329/1526 1364/1538;
+non-song-lists 536/1555 570/1476.
+glyph-coordinates theme 1234/1621* 1202/1553; resize 1349/1518 1332/1478;
+non-song-lists 528/1474 561/1503.
+Zero warm allocations, starred peak 4.09. Both clean resize tails fall.
+Theme improves 11 us in the clean pair, and non-song lists vary.
+Retained provisionally for the next trial. Raw logs under
+/tmp/localwave-u08-glyph-coordinates-pairs.
+
+The saved revisions around look colour tokens show build CPU p50/p99:
+63f6734 theme 1469/1941 1501/1923; resize 1112/1669 1523/1648.
+cdd976b theme 1493/1915 1434/1961; resize 1523/1703 1544/1712.
+Zero warm allocations and peak load 3.42–3.83. Resize p99 rises 34–64 us
+after pxui cac8615a. Theme varies, so this revision does not explain its
+later tail. Both signed bundles remain under /tmp/localwave-u08-revisions
+and the temporary worktree was removed. Raw logs under
+/tmp/localwave-u08-color-token-history-pairs.
+
+The next app trial positions the song table's equalizer and availability
+views directly using the same absolute layout and animation handles. Each
+visible state glyph loses one wrapper node and callback. Source backup
+/tmp/localwave-u08-row-before-direct-indicators.rs. Session 28979 checks
+UI and fingerprint parity, signs and compares against glyph-coordinates.
+
+The indicator trial removed two matching R1 exceptions. It passed all
+115 UI checks (3.765 s), exact fingerprints and release signing.
+Build CPU p50/p99 in microseconds:
+glyph-coordinates theme 1207/1599 1162/1661; resize 1353/1539 1330/1538;
+non-song-lists 551/1475 546/1514; jump 479/1372 495/1381.
+direct-indicators theme 1188/1601 1192/1572; resize 1349/1523 1345/1501;
+non-song-lists 539/1550 537/1531; jump 506/1466 427/1442.
+All peak loads <4 and warm allocations zero. Both resize tails improve,
+but both non-song and jump tails rise. Restored the row and both original
+allowlist entries. Raw logs under /tmp/localwave-u08-direct-indicators-pairs,
+trial row source in /tmp/localwave-u08-row-with-direct-indicators.rs.
+
+The next trial records whether the current root or scoped theme is dark.
+Colour lookups and token-look resolution use that side directly. A nested
+scope test changes the root while the override is active and checks the
+palette after each scope ends. All 625 core/ABI/dynamic cases (31.263 s)
+and all 115 UI checks (6.379 s) pass with exact fingerprints. Session
+96784 packages and measures theme, resize, non-song lists and reverse
+scroll. Backups are /tmp/localwave-u08-{core,styling}-before-palette-cache.rs.
+
+Palette comparison, build CPU p50/p99 in microseconds:
+glyph-coordinates theme 1154/1511 1133/1552; resize 1353/1494 1467/1629;
+non-song-lists 576/1300 531/1508; reverse-scroll 930/1101 932/1119.
+palette-cache theme 1228/1607* 1188/1586; resize 1353/1490 1326/1489;
+non-song-lists 542/1540 550/1455; reverse-scroll 904/1117 913/1132.
+Zero warm allocations, starred peak 4.34. The cache passes both resize
+runs but raises the clean theme tail by 34 us. Non-song effects are mixed
+and both reverse-scroll tails rise. Restored glyph-coordinates and its
+styling tests. Raw logs under /tmp/localwave-u08-palette-cache-pairs and
+trial source at /tmp/localwave-u08-core-with-palette-cache.rs.
+
+The next candidate compares the three colour-token marker bytes together
+and keeps the blue byte as the token index. The current signed token scan
+checks green, red and alpha with separate byte loads and branches. This
+trial keeps the identical accepted marker and index range. Source backup
+/tmp/localwave-u08-geom-before-token-check.rs. Tests and signed pairs in
+session 18435.
+
+The word-marker trial passed 411 types/core/ABI cases (29.024 s),
+115 UI checks (10.662 s), fingerprint comparison and release signing.
+Build CPU p50/p99 in microseconds:
+glyph-coordinates theme 1208/1540 1175/1573; resize 1375/1615 1394/1614*;
+non-song-lists 601/1586 557/1486.
+token-check theme 1180/1561* 1174/1510; resize 1350/1536 1389/1512;
+non-song-lists 537/1525 510/1547.
+Zero warm allocations. Starred peaks 4.08 and 4.12. The marker lowers
+the clean theme tail and both resize tails on this run, but both
+non-song runs exceed budget. Restored the three-channel check. Logs
+under /tmp/localwave-u08-token-check-pairs.
+
+The next animation trial scopes lookup reuse to retargeting and sampling
+in paint. It leaves the other tween callers alone and checks text ink
+first when starting a theme swap. All 402 core/ABI cases (15.453 s) and
+115 UI cases (8.096 s) pass with exact fingerprints. The first timing
+launch reused the older tween-index scratch stem. Stopped it before a
+workload ran and moved the new signed bundle to
+/tmp/localwave-u08-tween-lookup-reuse.app. The older per-case logs are
+intact. Session 80325 measures the new bundle under its own log stem.
+
+Paint-only tween lookup pairs, build CPU p50/p99 in microseconds:
+glyph-coordinates theme 1231/1570 1219/1577; resize 1362/1533 1308/1515;
+non-song-lists 558/1541 523/1595.
+tween-lookup-reuse theme 1200/1555* 1201/1696; resize 1411/1571 1301/1610;
+non-song-lists 524/1540 557/1406.
+Zero warm allocations, starred peak 4.72. The clean theme tail rises
+119 us and both resize tails rise. Restored glyph-coordinates. Trial
+source /tmp/localwave-u08-core-with-tween-lookup-reuse.rs and raw logs
+under /tmp/localwave-u08-tween-lookup-reuse-pairs.
+
+Session 69847 rebuilds the retained bundle, then runs the repository's
+full make performance with the default executable stack. The scratch
+driver waits for load below 3.4 and records the load every second in
+/tmp/localwave-u08-full-20261118.load beside the full output log.
+
+The full retained-build run completed all 30 workloads, exit 2. Resize
+build CPU p99 was 1,674 us and theme-switch 1,569 us. The other gated
+cases passed, including song drag (1,320 us), reverse scroll (1,187 us),
+scroll jump (1,403 us) and non-song lists (1,435 us). Gated workloads
+reported zero warm Rust allocations, frame CPU under 2,500 us and work
+wall under 8,000 us. The two first-use workloads used their own existing
+allocation limits. Load started at 3.385 and peaked at 4.726, so this
+run is diagnostic. Logs /tmp/localwave-u08-full-20261118.{log,load}.
+
+The next app trial passes the row already read by the caller into
+row_layout. It hands typed row and animation inputs directly to view_of
+so each view hashes them once. It leaves all palette lookups and layout
+math in place. Session 11575 checks fingerprints and signed comparison.
+Backups are /tmp/localwave-u08-{songs,row,song-tests}-before-row-input-reuse.rs.
+
+Row input reuse passed all 115 UI checks (13.833 s), exact fingerprints
+and signed packaging. Build CPU p50/p99 in microseconds:
+glyph-coordinates theme 1127/1504 1136/1576; resize 1343/1516 1309/1496;
+non-song-lists 527/1481 546/1504.
+row-input-reuse theme 1140/1612* 1190/1578; resize 1318/1496 1314/1517;
+non-song-lists 548/1462 549/1506.
+Zero warm allocations. Starred peak 4.13. Both resize builds pass once
+with the order reversed. The clean theme pair differs by 2 us and both
+second-round non-song tails exceed. Restored the three app files.
+Raw results /tmp/localwave-u08-row-input-reuse-pairs.
+
+Diagnostic sampling of the retained bundle at load 2.78–2.88 returned
+1,073 us theme-switch and 1,457 us resize p99, with zero warm allocations.
+Sampling affects scheduling, so these do not qualify the gate.
+Profiles and full workload logs under /tmp/localwave-u08-retained-glyph-samples.
+Session 57194 reruns full make performance with the retained source and
+no sampler, starting below load 2.9. Log /tmp/localwave-u08-full-quiet.log.
+
+The quiet full run completed all 30 workloads and exited 2. Starting load
+2.792, peak 3.832, so this run qualifies as a clean failure. Build CPU p99
+misses are resize 1,507 us, theme-switch 1,539 us and non-song lists
+1,545 us. Gated cases report zero warm Rust allocations and remain inside
+the frame CPU and frame work wall budgets. This supersedes the earlier
+high-load diagnostic for the same retained code.
+
+The next trial passes the already validated text style into the standard
+label body and leaves registered bodies on their existing configuration.
+The album artwork's margin replaces an extra spacer node and uses
+PANEL_FILL. Conformance caught a Look construction inside the gallery
+function, so the trial reuses the existing token look and removes one
+obsolete allowlist entry. All 624 core/ABI/dynamic cases (19.803 s),
+115 UI checks (5.454 s), fingerprints and signed packaging pass.
+Session 68778 compares the combined change against glyph-coordinates.
+Backups are /tmp/localwave-u08-{kit,albums,allowlist}-before-label-resolution.*
+
+Combined label/gallery pairs, build CPU p50/p99 in microseconds:
+glyph-coordinates theme 1218/1559 1170/1566; resize 1333/1493 1360/1555*;
+non-song-lists 547/1521 546/1483.
+label-resolved theme 1194/1595 1033/1488; resize 1359/1553 1373/1537;
+non-song-lists 549/1415 552/1418.
+All warm allocations zero. The starred base resize peaked at 7.78.
+Theme passes once and both non-song cases pass. The clean resize pair
+rises by 60 us. Retained provisionally for the next resize trial.
+Logs under /tmp/localwave-u08-label-resolved-pairs.
+
+The next trial removes the repeated C export call from the dynamic
+label line-box path. Both entries share the write and span validation,
+preserve the former call count and error messages, and validate the
+resolved style again for overflow. The static wrapper still uses its
+original entry. The invalid line-box test now includes finite authored
+tracking that overflows when converted to points. Session 29360 checks
+both wrapper modes, fingerprints and signed timings against label-resolved.
+Backups /tmp/localwave-u08-{abi-text,surface}-before-line-box-fast.rs.
+
+The shared line-box write passed 359 dynamic/ABI cases (12.710 s),
+226 static cases (6.899 s) and 115 UI checks (3.999 s). Draw and
+accessibility fingerprints match and both bundles sign. Build CPU
+p50/p99 in microseconds:
+label-resolved resize 1350/1561* 1343/1521; theme 1211/1542 1185/1539;
+non-song-lists 541/1477 546/1448.
+line-box-abi-fast resize 1346/1493 1349/1489; theme 1186/1604 1198/1488;
+non-song-lists 564/1445 534/1479.
+All warm allocations zero, starred peak 4.21. Both candidate resizes
+and non-song lists pass, and all three candidate cases pass in round
+two. Retained for full qualification. Raw logs under
+/tmp/localwave-u08-line-box-abi-fast-pairs. Session 6122 runs full
+make performance on the new source with starting load below 2.9.
+
+The line-box ABI build completed all 30 workloads and exited 2 at peak
+load 3.356 (start 2.810). Build CPU p99 misses were resize 1,548 us,
+theme-switch 1,516 us and non-song lists 1,503 us. Every gated case
+retained zero warm Rust allocations. Frame CPU and work wall gates
+passed. Full output and load under /tmp/localwave-u08-full-line-box-abi-fast.
+
+A separate signed diagnostic separates the paint pass into setup,
+recursive visit, refresh, place, settle and collect. The slow theme
+visits spend 519–550 us in traversal with 243–251 active tweens. Slow
+resize visits spend 477–526 us with 7–8 active tweens. Setup and wrap-up
+are much smaller. The scratch instrumentation was removed from source
+after signing. Raw logs under /tmp/localwave-u08-paint-phase-trace,
+with top-level phase summary in /tmp/localwave-u08-paint-phase-trace-summary.txt.
+
+The next trial moves pose construction out of the ordinary node paint.
+The traversal passes its rectangle to paint; animation and transition
+creation have their own call frames. Clipping, deferred text, motion
+snapshots and retained instance ranges use the existing flow. Source
+backup /tmp/localwave-u08-core-before-static-paint.rs. Session 18348
+checks, signs and measures against line-box-abi-fast.
+
+The ordinary paint split passed all 684 text/core/ABI/dynamic checks
+(20.064 s), 115 UI checks (3.638 s), exact fingerprints and signing.
+The arm64 build inlines the ordinary node bookkeeping into visit. The
+separate paint frame drops from 704 bytes to 208 on the ordinary path.
+Build CPU p50/p99 in microseconds:
+line-box-abi-fast resize 1293/1448* 1349/1490; theme 1179/1499 1213/1653;
+non-song-lists 545/1459 561/1450.
+static-paint resize 1299/1475* 1351/1521; theme 1232/1578 1192/1549;
+non-song-lists 536/1389 508/1383.
+All warm allocations zero, starred peaks 4.30 and 5.56. The split
+lowers both non-song tails by about 70 us, but raises the valid resize
+tail by 31 us and has mixed theme results. Restored line-box-abi-fast
+for the next trial. Saved source /tmp/localwave-u08-core-with-static-paint.rs
+and raw cases under /tmp/localwave-u08-static-paint-pairs.
+
+The next trial keeps one copy of the previous layout key and skips
+retrying misses already known. Recent widths below the requested width
+formerly retried the natural key, even after that check failed. The
+remaining width keys are now computed only when reached. All actual
+text/style/width validation and layout insertion are unchanged. Session
+96344 checks, signs and compares against line-box-abi-fast. Source
+backup /tmp/localwave-u08-text-identity-before-unique-probes.rs.
+
+The duplicate lookup trial passed 462 text/core/ABI cases (16.414 s),
+115 UI checks (6.602 s), exact fingerprints and signing. Build CPU
+p50/p99 in microseconds:
+line-box-abi-fast resize 1322/1512 1377/1521; theme 1183/1603 1201/1537;
+non-song-lists 538/1368 548/1450.
+dedup-text-lookup resize 1451/1604 1311/1479; theme 1183/1538 1151/1508;
+non-song-lists 574/1483 572/1373.
+All peak loads below 4 and all warm allocations zero. Both theme
+tails improve by 29–65 us and both non-song cases pass. Resize passes
+one round. Full make performance on this build completed all 30
+workloads and exited 2. Resize 1,529 us and theme-switch 1,552 us
+were its only misses. Peak load 5.644 makes that run diagnostic. Logs
+/tmp/localwave-u08-full-dedup-text-lookup.{log,load}. Keep for the
+next comparison.
+
+The next cache trial returns the text match along with reusable
+metrics. When a retained layout's width or style prevents reuse, the
+same lookup can still validate its text fingerprint. The layout match
+conditions remain unchanged. The existing width regression checks the
+text match on a rejected width and on changed content. Session 87532
+checks, signs and compares against dedup-text-lookup.
+Backups /tmp/localwave-u08-{text,queue,text-identity}-before-matching-memo.rs.
+
+The combined validation trial passed 462 text/core/ABI cases (21.954 s),
+115 UI checks (5.045 s), exact fingerprints and signing. Paired build
+CPU p50/p99 in microseconds:
+dedup-text-lookup resize 1329/1474 1337/1504; theme 1133/1556 1164/1553;
+non-song-lists 592/1419* 545/1425.
+text-memo-validation resize 1293/1471 1342/1522; theme 1172/1523* 1236/1588;
+non-song-lists 566/1413 551/1442.
+Zero warm allocations and starred peaks 4.07, 4.25. Both first resize
+runs pass. The clean paired theme and resize tails rise by 35 and
+18 us in the second round. Restored the text and its tests. Results
+under /tmp/localwave-u08-text-memo-validation-pairs.
+
+The next paint trial keeps the common glyph emission but gives
+spanless text a single resolved ink colour. Text with spans still
+receives its inline colours and decorations. This removes the
+per-glyph alpha selection for ordinary text. All 462 core/text/ABI
+checks (21.206 s) and 115 UI checks (5.259 s) pass. Session 98732
+compares against dedup-text-lookup. Source backup
+/tmp/localwave-u08-core-before-uniform-glyph-ink.rs.
+
+Glyph ink pairs, build CPU p50/p99 in microseconds:
+dedup-text-lookup resize 1304/1479 1322/1492; theme 1183/1484 1169/1610;
+non-song-lists 543/1423 534/1474.
+uniform-glyph-ink resize 1366/1565 1317/1500; theme 1035/1515 1187/1521;
+non-song-lists 589/1409 539/1369.
+All peaks below 4 and all warm allocations zero. Both new resize
+tails rise, and theme varies. Restored dedup-text-lookup. Its first
+round passes all three targets. Trial source
+/tmp/localwave-u08-core-with-uniform-glyph-ink.rs and raw cases under
+/tmp/localwave-u08-uniform-glyph-ink-pairs.
+
+Session 22411 reruns full make performance on the retained source at
+starting load below 2.9, with output and load under
+/tmp/localwave-u08-full-dedup-repeat. An untested app trial prepares
+song-row looks and row inputs once per table call, and keeps viewport
+updates on that row context. Its two source files are saved outside
+the checkout as /tmp/localwave-u08-{songs,row}-with-shared-row-looks.rs.
+They were restored to the retained app for the full run.
+
+The repeat completed all 30 cases and exited 2 at starting load 2.764,
+peak 6.041. Albums artwork missed at 1,634 us build and 2,693 us frame
+CPU p99. Resize measured 1,552 us and theme 1,517 us build p99. Non-song
+lists passed at 1,497 us. Every gated allocation check passed.
+
+The shared row looks trial passed all 115 UI checks (7.062 s case time),
+exact fingerprints and signing. Paired build CPU p50/p99 in microseconds:
+dedup-text-lookup resize 1343/1492 1325/1501; theme 1167/1516* 1167/1526;
+non-song-lists 520/1431 531/1460.
+shared-row-looks resize 1336/1637 1348/1489; theme 1209/1607 1170/1502*;
+non-song-lists 534/1407 556/1517.
+Warm allocations zero. Starred peaks 4.20 and 4.12. The trial adds 145 us
+to the first resize tail and misses non-song lists in the second round.
+Restored the two app files. Raw /tmp/localwave-u08-shared-row-looks-pairs.
+
+The next full dedup run started at 1.664; the release app needed relinking
+after restoring the two files, and load peaked at 9.032. All 30 cases ran,
+exit 2. Resize measured 1,499 us, non-song lists 1,409 us, and theme was
+the only miss at 1,552 us build p99. Gated allocations stayed zero. This
+run is diagnostic. Raw /tmp/localwave-u08-full-dedup-low-load.{log,load}.
+
+The next trial replaces the texture-coordinate clamp with saturation at
+the 16-bit cast and keeps the existing half packing. The edge regression
+covers ties, finite overflow, infinities and NaN. All 335 type, core and
+text cases pass (16.112 s total). Backup
+/tmp/localwave-u08-draw-before-unorm-saturation.rs. Session 64838 checks
+the signed candidate's fingerprints and compares it with dedup-text-lookup.
+
+The UV saturation trial passed all 115 UI checks (7.812 s total), exact
+fingerprints and signing. Paired build CPU p50/p99 in microseconds:
+dedup-text-lookup resize 1328/1536 1306/1471; theme 1219/1628 1202/1498;
+non-song-lists 543/1427 577/1491.
+unorm-saturation resize 1319/1511 1342/1566; theme 1172/1599* 1190/1517;
+non-song-lists 539/1381 545/1415.
+Gated allocations zero, starred peak 4.36. The trial improves both
+non-song p99s and misses both resize runs. Restored draw.rs. Raw
+/tmp/localwave-u08-unorm-saturation-pairs, trial source
+/tmp/localwave-u08-draw-with-unorm-saturation.rs. The retained build
+passes all three targets again in round two. Session 27222 prebuilds
+that source, then waits below load 2.9 for the complete suite. Output
+and samples under /tmp/localwave-u08-full-dedup-prebuilt.{log,load}.
+
+The prebuilt full run completed all 30 workloads and exited 2 at start
+load 2.771 and peak 3.983. The only failed gates were build CPU p99:
+resize 1,520 us, theme-switch 1,572 us. Non-song lists passed at 1,481 us.
+The gated warm allocation, frame CPU and work wall checks all passed.
+The measured navigation/menu allocation counts were 1,209 and 142.
+
+The next trial preserves the original colour when progress lies within
+1/1,024 of zero. Even a 255-step channel change moves by less than a
+quarter of a step in that interval, so the rounded byte is identical.
+All geometry and interpolation beyond the interval use the same code.
+All 412 types/core/ABI cases pass (22.821 s total). Source backup
+/tmp/localwave-u08-types-before-initial-color.rs. Session 14138 compares
+the signed app with dedup-text-lookup. A separate regression in the
+working tree checks signed duration zeros in the compact curve memo.
+
+The initial colour trial passed all 115 UI cases (7.818 s total),
+exact fingerprints and signing. Paired build CPU p50/p99 in microseconds:
+dedup-text-lookup resize 1374/1563 1359/1517; theme 1091/1498* 1207/1583*;
+non-song-lists 592/1615 540/1474.
+initial-color resize 1340/1504 1329/1481; theme 1171/1500* 1152/1505*;
+non-song-lists 533/1416 549/1449.
+All warm allocations zero. Starred peaks range 4.23–5.87. Both clean
+resize tails improve by 36–59 us, and non-song lists by 25–199 us.
+Keep the trial provisionally pending clean theme timings. Raw cases
+under /tmp/localwave-u08-initial-color-pairs.
+
+The interleaved-curves regression failed on the float key: equal signed
+zero durations could reuse a different result at the same negative
+elapsed time. The memo now compares the bits of all five coefficients
+and the elapsed time in one six-word key. The focused regression passes
+after the fix, as do all 412 type/core/ABI tests (17.436 s total). Logs
+under /tmp/localwave-u08-{curve-signed-zero-repro,exact-curve-key-tests}.log.
+Session 48902 compares the fixed memo plus initial-colour trial with the
+retained text lookup build. The pair driver starts each case below 3.4
+to leave more load headroom. Peak qualification remains below 4.
+
+The exact key build passed all 115 UI cases (5.482 s total), exact
+fingerprints and signing. Paired build CPU p50/p99 in microseconds:
+dedup-text-lookup resize 1398/1658 1340/1481; theme 1186/1530 1166/1535;
+non-song-lists 533/1423 558/1447.
+exact-curve-key resize 1337/1493 1303/1468*; theme 1208/1647 1129/1453;
+non-song-lists 529/1447 543/1387.
+Zero warm allocations; starred peak 4.73. The new code has a clean
+pass on each targeted workload, including theme at 1,453 us in round
+two. The first theme run misses at 1,647 us, so the full run matters.
+Session 92676 runs it on the current prebuilt source with load tracking
+under /tmp/localwave-u08-full-exact-curve-key.{log,load}. Raw pairs
+under /tmp/localwave-u08-exact-curve-key-pairs.
+
+The exact-key full suite completed 30 workloads, exit 2, at starting
+load 2.761 and peak 3.412. The only failed gates were build CPU p99 on
+resize (1,503 us) and theme-switch (1,569 us). Non-song lists passed at
+1,449 us. Gated allocations, frame CPU and work wall all pass.
+
+The next ABI trial moves the corrected legacy C `Node` copy into a
+cold call frame used only after normal validation fails. Fresh nodes
+and accepted legacy nodes still share grid and trusted declaration.
+Invalid input retains its existing diagnostic. The exact-key arm64
+labelled export reserves 1,008 stack bytes after spilling registers.
+Session 85985 runs ABI/core/dynamic checks, fingerprints, signing and
+pairs. Backup /tmp/localwave-u08-abi-node-before-legacy-frame.rs.
+
+The legacy node trial passed all 624 ABI/core/dynamic checks (17.036 s),
+115 UI cases (3.716 s), exact fingerprints and signing. Arm64 disassembly
+shows ordinary stack frames of 80 bytes for the labelled export and 32
+for keyed, down from 1,104 and 1,040 bytes including register spills.
+Paired build CPU p50/p99 in microseconds:
+exact-curve-key resize 1359/1502 1371/1525; theme 1221/1549 1179/1608;
+non-song-lists 534/1386 540/1450.
+legacy-node-frame resize 1314/1503 1363/1513; theme 1162/1495 1156/1505;
+non-song-lists 536/1460 662/1371.
+Peak load below 3.3 and zero warm allocations. Both theme tails improve
+by 54–103 us. Resize remains close to budget and passes neither round.
+Retained for full qualification in session 18918. Full output and load
+under /tmp/localwave-u08-full-legacy-node-frame.{log,load}. Raw cases
+under /tmp/localwave-u08-legacy-node-frame-pairs.
+
+The prebuilt legacy-node full run completed 30 workloads with exit 2.
+Starting load 2.852 peaked at 4.465 at the first one-second sample.
+Resize passed at 1,489 us. Theme-switch (1,558 us) and non-song lists
+(1,548 us) missed. Warm allocations were zero for all gated cases.
+The load peak makes the run diagnostic. Keep the ABI change based on
+its clean comparison. Session 34422 checks and compares a further
+change that returns an unchanged colour directly when progress is
+finite. The regression covers an equal colour at overshoot and
+infinite progress. Backup /tmp/localwave-u08-types-before-equal-color.rs.
+
+The equal-colour trial passed 412 type/core/ABI checks (16.806 s), 115
+UI cases (7.739 s), exact fingerprints and signing. Build CPU p50/p99:
+legacy-node-frame resize 1312/1506* 1336/1528; theme 1174/1554 1191/1602;
+non-song-lists 543/1408 541/1417.
+equal-color resize 1328/1489 1382/1582; theme 1241/1573 1197/1651;
+non-song-lists 553/1510 559/1490.
+Zero warm allocations; starred peak 8.04, all other peaks below 4.
+Both theme and non-song tails worsen and the clean resize pair worsens.
+Restored the initial-colour source. Raw /tmp/localwave-u08-equal-color-pairs,
+saved source /tmp/localwave-u08-types-with-equal-color.rs.
+
+The next trial writes the line-box bit directly on the shared styled
+text write. A previous span record is taken once and, as before, kept
+for nonempty replacement spans or released to the pool. Font, height,
+node and span checks remain in the same order. Session 58663 checks,
+signs and runs against legacy-node-frame. Backup
+/tmp/localwave-u08-core-before-styled-text-write.rs.
+
+Styled text write passed all 684 text/core/ABI/dynamic checks (27.664 s),
+115 UI cases (6.998 s), exact fingerprints and signing. The signed app
+is waiting at the comparison driver's load threshold. The working tree
+also has an unbuilt extension of the cold legacy-node path to the
+layout setter. The sizing fields and stale-handle checks are shared by
+its two inputs. The C regression now checks accepted legacy layout
+writes and a width read-back. On completion of session 58663, select
+the measured text source, then build and compare the layout change.
+Node backup /tmp/localwave-u08-abi-node-before-legacy-layout-frame.rs.
+
+Styled text write build CPU p50/p99 in microseconds:
+legacy-node-frame resize 1334/1591 1312/1452; theme 1221/1589 1197/1586;
+non-song-lists 533/1446 541/1505.
+styled-text-write resize 1491/1620 1341/1489; theme 1119/1448 1211/1555;
+non-song-lists 555/1443* 530/1410.
+All warm allocations zero. Starred peak 4.59, others below 4. Both
+theme tails improve by 31–141 us, the clean list tail by 95 us. Resize
+tails rise by 29–37 us and both sources pass the second pair. Keep the
+styled write for the next comparison. Session 89044 builds the legacy
+layout change against this source. Raw cases under
+/tmp/localwave-u08-styled-text-write-pairs.
+
+The layout copy trial passed 624 ABI/core/dynamic checks (12.955 s),
+115 UI cases, exact fingerprints and signing. Its arm64 layout export
+uses 208 bytes of stack, down from 1,312. Build CPU p50/p99 in us:
+styled-text-write resize 1352/1512 1321/1474; theme 1214/1595 1148/1458;
+non-song-lists 539/1412 620/1449.
+legacy-layout-frame resize 1342/1565 1320/1467; theme 1194/1595 1155/1497;
+non-song-lists 596/1498 524/1476.
+All peak loads below 4 and all warm allocations zero. Both sources
+pass all three in the second round. Both non-song tails rise with the
+layout change and it has no repeatable resize or theme tail advantage.
+Restored the ABI declaration-only source. Trial source
+/tmp/localwave-u08-abi-node-with-legacy-layout-frame.rs, raw cases
+/tmp/localwave-u08-legacy-layout-frame-pairs. Session 14434 prebuilds
+and runs the full suite on the retained styled-text source, starting
+under load 2.6, with output and load in
+/tmp/localwave-u08-full-styled-text-write.{log,load}.
+
+The styled text full suite ran all 30 workloads and exited 2. Start
+load was 2.538 with peak 6.824. Resize p99 was 1,533 us and theme
+1,528 us, its only misses. Non-song lists passed at 1,454 us and all
+gated workloads kept zero warm allocations. The excess load makes
+this run diagnostic.
+
+The arm64 `Look::lerp` in the retained bundle emits 64 scalar uint-to-
+float conversions before paired float blends. The next trial groups
+the four channels of each colour, with the same channel equation and
+saturation. This is separate from the earlier batch across eight
+colours. A check compares the four channels with scalar rounding
+through ties, overshoot and nonfinite progress. Session 15169 checks
+and compares it with styled-text-write. Source backup
+/tmp/localwave-u08-types-before-four-channel-blend.rs.
+
+The channel trial passes 413 type/core/ABI checks (17.666 s), 115 UI
+cases (10.056 s), exact fingerprints and signing. The arm64 blend
+changes from 64 scalar unsigned integer conversions to 18, with
+more conversions and blends in two- and four-lane registers.
+
+While the signed comparison runs, the next trial is prepared but
+unbuilt. The shared line-box writer uses 688 bytes of arm64 stack on
+styled-text-write even for zero spans. The change retains the null,
+size and count checks on every call, and decodes nonempty ranges in a
+separate call frame. The existing line-box regression adds valid
+inline colour to check that path as well as invalid UTF-8 ranges.
+Backups /tmp/localwave-u08-{abi-text,surface}-before-empty-line-box-frame.rs.
+
+Four-channel blend build CPU p50/p99 in microseconds:
+styled-text-write resize 1304/1478 1343/1489; theme 1191/1523 1183/1541;
+non-song-lists 542/1462 542/1419.
+four-channel-blend resize 1314/1491 1320/1476; theme 1150/1417* 1146/1552;
+non-song-lists 553/1492 562/1401.
+Warm allocations zero, starred peak 4.63. Resize and non-song lists
+pass both rounds for both builds. Theme p50 falls by 37–41 us; the
+clean theme tail rises by 11 us. Kept provisionally for the span
+call-frame comparison. Raw /tmp/localwave-u08-four-channel-blend-pairs.
+Session 82448 checks and compares empty-line-box-frame against it.
+
+The empty line-box trial passes 624 ABI/core/dynamic checks (17.705 s),
+115 UI cases (3.518 s), exact fingerprints and signing. The arm64
+writer uses 96 bytes of stack, down from 688. Build CPU p50/p99 in us:
+four-channel-blend resize 1316/1453 1334/1484; theme 1218/1581* 1196/1502*;
+non-song-lists 534/1429 539/1416.
+empty-line-box-frame resize 1348/1479 1331/1496; theme 1221/1530 1201/1522;
+non-song-lists 547/1396 519/1416.
+Zero warm allocations. Starred peaks 5.29 and 4.06. Both clean
+candidate resize and list runs pass. Candidate theme misses by 22–30
+us. Both baseline theme runs are diagnostic. Session 66483 runs the
+full suite on the prebuilt combined candidate with starting load below
+2.6 and logs under /tmp/localwave-u08-full-empty-line-box-frame.{log,load}.
+
+The empty line-box full suite completed all 30 cases and exited 2,
+starting at load 2.503 and peaking at 7.773. Resize passed at 1,458 us
+and non-song lists at 1,415 us. Theme-switch was the only miss at
+1,579 us. All gated workloads stayed at zero warm allocations.
+
+The next repaint trial preserves the complete atlas shelf tracking
+for a patch that can emit glyphs. An empty plain node's paint only emits
+shapes, so its patch leaves the glyph shelf marks and retained view
+shelves alone. No rendering paths or patch ranges change. Session
+73575 checks and compares against empty-line-box-frame. Backup
+/tmp/localwave-u08-core-before-optional-patch-marks.rs.
+
+The patch marks trial passed 684 text/core/ABI/dynamic checks (23.155 s),
+115 UI cases (3.526 s), exact fingerprints and signing. Build CPU
+p50/p99 in microseconds:
+empty-line-box-frame resize 1353/1485 1395/1512; theme 1200/1588 1142/1656*;
+non-song-lists 538/1360 512/1385.
+optional-patch-marks resize 1380/1594 1296/1485; theme 1133/1580 1134/1501;
+non-song-lists 538/1343 532/1397.
+Zero warm allocations, starred peak 4.71. Resize is mixed. Both
+candidate list runs pass and the best clean theme is 1 us over the
+gate. Retained for the next trial. Raw
+/tmp/localwave-u08-optional-patch-marks-pairs.
+
+Parsed-theme trial moves the colour-token presence scan to successful
+parse and creation, before normal theme switching. Applying the theme
+still resolves named colours against the current UI palette and body
+names against that UI. A validation case edits an opaque parsed theme
+to a named colour and back to a literal. Public signatures unchanged.
+Session 95074 builds and compares against optional-patch-marks. Backups
+/tmp/localwave-u08-{core,abi-theme}-before-parsed-theme-tokens.rs.
+
+The parsed-theme trial passed all 625 ABI/core/dynamic checks (29.744 s),
+115 UI checks (3.677 s), exact fingerprints and signing. Build CPU
+p50/p99 in microseconds:
+optional-patch-marks resize 1330/1474 1366/1518; theme 1194/1554 1204/1607;
+non-song-lists 549/1382 539/1433.
+parsed-theme-tokens resize 1288/1420 1318/1483; theme 1212/1476* 1174/1529;
+non-song-lists 540/1548 552/1407.
+Zero warm allocations. Starred peak 4.24. Candidate theme p99 is 78 us
+lower in the clean pair. Both resize runs pass, and one list p99 misses.
+Session 66308 runs the full suite on the current prebuilt source. Output
+and samples under /tmp/localwave-u08-full-parsed-theme-tokens.{log,load}.
+Raw pairs under /tmp/localwave-u08-parsed-theme-tokens-pairs.
+
+The first parsed-theme full run completed all 30 workloads and exited 2
+at start load 2.342 and peak 4.119. Non-song lists passed at 1,442 us.
+Resize missed at 1,543 us and theme-switch at exactly 1,500 us. All
+gated warm allocation checks passed. Peak load makes it diagnostic.
+
+The prebuilt repeat at start load 2.263 and peak 3.688 ran all 30 cases.
+Resize (1,487 us) and non-song lists (1,372 us) passed. The only miss
+was theme-switch build CPU p99 at 1,539 us. Gated allocations, frame CPU
+and work wall all passed. Raw /tmp/localwave-u08-full-parsed-theme-repeat.
+
+The release `pxui_ui_use_theme` entry probes 27 stack pages, then
+reserves another 3,184 bytes (about 111 KiB with spills). The next
+trial borrows the parsed theme when the destination body IDs match.
+It still resolves IDs by name. Remapping IDs, applying named colours
+and overriding system reduced motion have a separate materialisation
+path. The effective theme is copied into the engine only once. Session
+25899 checks and compares against parsed-theme-tokens. Backups
+/tmp/localwave-u08-{core,abi-theme}-before-borrowed-root-theme.rs.
+
+The borrowed-theme trial passes 625 ABI/core/dynamic checks (24.002 s),
+the app's cached appearance and zero-allocation check, all 115 UI
+cases (3.710 s), exact fingerprints and signed packaging. The arm64
+use-theme export uses 320 bytes of stack. Build CPU p50/p99 in us:
+parsed-theme-tokens resize 1365/1627 1388/1593; theme 1190/1607 1153/1511;
+non-song-lists 527/1452 548/1495.
+borrowed-root-theme resize 1322/1440 1297/1498; theme 1198/1529 1178/1533;
+non-song-lists 555/1425 582/1509.
+All peak loads below 4 and all warm allocations zero. The resize
+tails improve by 95–187 us. Theme and list results are mixed. Session
+79168 runs the full suite on the current prebuilt source, with output
+and load under /tmp/localwave-u08-full-borrowed-root-theme.{log,load}.
+Raw pairs under /tmp/localwave-u08-borrowed-root-theme-pairs.
+
+The first borrowed-theme full run completed all 30 workloads, exit 2,
+at starting load 2.293 and peak 5.359. Theme-switch was the only miss
+at 1,516 us. Resize and non-song lists passed at 1,467 and 1,412 us.
+All gated warm allocations zero. The peak makes the run diagnostic.
+Session 76998 captures a theme phase trace and then repeats the full
+suite on the same prebuilt source under starting load 2.6. Files
+/tmp/localwave-u08-borrowed-root-theme-trace{-summary.txt,/theme-switch.log}
+and /tmp/localwave-u08-full-borrowed-root-theme-repeat.{log,load}.
+
+The borrowed-theme trace finds 649–697 us in paint, 501–609 us in
+declaration and 94–113 us in app work outside the engine on four slow
+swaps. The same-source full repeat completed 30 cases, exit 2, starting
+at load 2.498 and peaking at 5.241. Resize missed at 1,519 us and theme
+at 1,527 us. Non-song lists passed at 1,370 us and gated allocation
+counts stayed zero. These runs are diagnostic.
+
+The next trial memoises two exact ppem/density pairs in the scratch
+painter for the Apple shader's light glyph values. The same packing
+function handles misses. A check alternates sizes in one frame and
+compares every packed value at densities 1, 2 and 3. Session 5108
+checks and compares against borrowed-root-theme. Backups
+/tmp/localwave-u08-{core,small}-before-glyph-light-memo.rs.
+
+The glyph regression initially passed a frame density's `f64` to the
+shader's `f32` packing API. Corrected the test's conversion and started
+session 19847. The failed compile is saved separately under
+/tmp/localwave-u08-glyph-light-memo-test-compile-failure.log.
+
+The glyph packing trial passed 686 text/core/ABI/dynamic checks (17.707 s),
+all 115 UI cases, exact fingerprints and signed packaging. Build CPU
+p50/p99 in microseconds:
+borrowed-root-theme resize 1344/1549 1352/1528; theme 1194/1576* 1183/1570;
+non-song-lists 544/1433 562/1424.
+glyph-light-memo resize 1325/1499 1300/1480; theme 1169/1563 1195/1505;
+non-song-lists 553/1412 553/1417.
+Zero warm allocations. Starred peak 6.55; all other cases below 4.
+The candidate lowers both resize tails 48–50 us and the clean theme
+tail 65 us. Both list cases pass. Session 10519 runs the complete
+suite on the current prebuilt source with starting load below 2.6.
+Logs /tmp/localwave-u08-full-glyph-light-memo.{log,load}, raw paired
+cases /tmp/localwave-u08-glyph-light-memo-pairs. Scratch package check
+driver /tmp/localwave-u08-package-checks.sh follows CHECK.md with both
+workspaces using the shared target and default executable stack.
+
+The full signed counting suite passed all 30 workloads, exit 0. Load
+started at 2.567 and peaked at 3.881. Resize, theme-switch and non-song
+lists build CPU p99 were 1,469 us, 1,487 us and 1,401 us respectively.
+All 28 gated workloads stayed at zero warm Rust allocations. The
+maxima across gated workloads were 1,487 us build CPU p99, 2,103 us
+frame CPU p99 and 3,103 us work wall p99. Measured first navigation
+and first menu kept their existing ceilings (1,209 and 142 allocations).
+Session 47407 runs package checks of the exact same source. Logs
+under /tmp/localwave-u08-glyph-light-package-checks. Full benchmark
+under /tmp/localwave-u08-full-glyph-light-memo.{log,load}.
+
+Package checks on the passing source are green through the public surface snapshot.
+Framework `cargo t --all` qualified in 99.078 s across its bounded
+per-crate runs. Static, doctest, gallery and workspace test builds pass.
+Shape, deps, ABI header, snapshot, docs, exports, frozen, and compatibility
+gates pass. `LOCALWAVE_OFFLINE=1 make check` passes all 287 Rust cases
+and the packaging/support checks. LocalWave binary and test builds,
+the public surface snapshot (6,405 items) and both diff checks pass. The required
+three-round comparison against CP0 `16dc635` is running in session 47407.
+
+Session 47407 exits 0. Build times U0.8/CP0, in seconds, are clean
+workspace 30.42/30.25, warm core check 0.28/0.28, clean dylib 26.64/25.72,
+clean lw_ui 3.27/3.21, warm lw_ui check 0.22/0.22 and warm lw_bin
+relink 0.98/1.02. Every value stays within the plan's CP0 allowance.
+The clean workspace build is 0.42 s above the 30 s target. The script
+removed its temporary worktree and check targets. Session 97400
+prebuilds the unchanged source and repeats the full signed suite
+after Tier B, with raw output in
+/tmp/localwave-u08-full-qualified-repeat.{log,load}.
+
+The first post-check run exited 2 at starting load 2.508 and peak 3.249.
+Resize (1,546 us) and theme-switch (1,517 us) were the only misses.
+All gated warm allocations stayed zero. SHA-256 of both Mach-O `__text`
+sections matches the signed bundle that passed. The app UUID differs
+after relinking but its machine code is identical. Session 47029 runs
+the same source again under the full 30 workloads, with logs under
+/tmp/localwave-u08-full-qualified-second-repeat.{log,load}.
+
+Session 47029 passed all 30 workloads, exit 0. Load started at 2.329
+and peaked at 2.776. Build CPU p99 in microseconds was 1,472 on resize,
+1,477 on theme-switch, 1,414 on non-song-lists, 1,043 on reverse-scroll
+and 1,312 on scroll-jump. Gated maxima were 1,477 for build CPU p99,
+2,000 for frame CPU p99 and 3,535 for work wall p99. All 28 gated
+workloads had zero warm Rust allocations. First navigation and first
+menu remained within their measured-only limits (1,209 and 142).
+The failed repeat above documents the headroom on resize and theme.
+
+Review: the public Rust snapshot is unchanged at 6,405 items. The
+ABI header, export, snapshot, frozen and old-consumer checks passed.
+All 115 UI frame fingerprints match for draw and accessibility. The
+LocalWave conformance allowlist lost one row. Input, warm-up, budgets
+and allocator coverage stayed intact. The prior CP0 run remains in
+16dc635, with its higher load recorded there.

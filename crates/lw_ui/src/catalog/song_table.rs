@@ -2,6 +2,7 @@
 use super::{Library, Route, Row};
 type MeasureWidth<'a> = dyn FnMut(&str, &pxui::TextStyle) -> Result<f32, String> + 'a;
 use crate::browse::Sort;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(usize)]
@@ -64,7 +65,28 @@ pub(super) struct Metrics {
     headings: [[f32; 3]; 8],
     digit: f32,
     body_digit: f32,
+    numbers: Arc<NumberLabels>,
 }
+
+struct NumberLabels {
+    text: String,
+    offsets: Vec<usize>,
+}
+
+impl NumberLabels {
+    fn new(count: usize) -> Self {
+        use std::fmt::Write;
+        let mut text = String::with_capacity(count);
+        let mut offsets = Vec::with_capacity(count + 1);
+        offsets.push(0);
+        for number in 1..=count {
+            write!(text, "{number}").unwrap();
+            offsets.push(text.len());
+        }
+        Self { text, offsets }
+    }
+}
+
 impl Metrics {
     pub(super) fn body_width(
         &self,
@@ -132,6 +154,7 @@ impl Metrics {
             headings,
             digit: width("0", &styles.mono_number)?,
             body_digit: width("0", &styles.number)?,
+            numbers: Arc::new(NumberLabels::new(library.len())),
         })
     }
 }
@@ -170,6 +193,7 @@ pub struct SongTable {
     preferred: [f32; 8],
     numbered: f32,
     members: Vec<usize>,
+    numbers: Arc<NumberLabels>,
     mixed_formats: bool,
     mixed_states: bool,
 }
@@ -203,11 +227,18 @@ impl SongTable {
                 preferred[0].max(((rows.len().ilog10() + 1) as f32) * metrics.digit + 40.0);
         }
         preferred[7] = 52.0;
+        // A playlist can have more occurrences than the library has distinct songs.
+        let numbers = if rows.len() < metrics.numbers.offsets.len() {
+            Arc::clone(&metrics.numbers)
+        } else {
+            Arc::new(NumberLabels::new(rows.len()))
+        };
         let mut out = Self {
             widest: [Widest::default(); 3],
             numbered,
             preferred,
             members: rows.to_vec(),
+            numbers,
             mixed_formats: false,
             mixed_states: false,
         };
@@ -232,6 +263,10 @@ impl SongTable {
             out.mixed_states |= first.is_some_and(|first| state(first) != state(row));
         }
         out
+    }
+
+    pub(crate) fn number_label(&self, position: usize) -> &str {
+        &self.numbers.text[self.numbers.offsets[position]..self.numbers.offsets[position + 1]]
     }
 
     pub fn columns(
@@ -388,6 +423,12 @@ mod tests {
         assert!(current[0] >= 54.0);
         assert_eq!(catalog.row(0).format, "flac");
         assert_eq!(catalog.row(0).track_label, "9");
+        catalog.project(request, vec![0; 11]);
+        let table = catalog.view.as_ref().unwrap().collection.song_table.as_ref().unwrap();
+        assert_eq!(table.number_label(0), "1");
+        assert_eq!(table.number_label(8), "9");
+        assert_eq!(table.number_label(9), "10");
+        assert_eq!(table.number_label(10), "11");
         catalog.project(request, Vec::new());
         let empty = catalog
             .view

@@ -13,7 +13,6 @@ lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y 
 lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(paint.color(INK)).fractional());
 lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(paint.color(INK)).fractional());
 lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(paint.color(INK)).fractional());
-lw_ui/src/shell/albums.rs	R6	ui.color(PANEL),
 lw_ui/src/shell/albums.rs	R7	let button = ui.pressable("shuffle-all", node, &PLAIN.enabled(!catalog.is_empty()), |ui, _| {	drift: audit #11 Shuffle all -> Button (U4)
 lw_ui/src/shell/albums.rs	R7	let button = ui.pressable(key, node, &PLAIN.look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }), |ui, _| {	drift: audit #10 album sort -> segmented (U4)
 lw_ui/src/shell/albums.rs	R7	let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {	composite: album card (audit #12)
