@@ -131,10 +131,17 @@ only within 0.5 of the integer field); keyed `node` + `within` stays where tests
 query children; `tooltip_legacy`/`anchored_legacy` serve only 1.x C exports;
 the six-look `style` cost is measured at CP1.
 
-## NEXT: U1c
+## NEXT: U1c review (implementer stopped at final, BLOCKED item)
 
-Start branch `u1c` in both repos from `rust-port` (LocalWave 1a999a1 + status,
-pxui 0baa83c6). U1c.1 also owns the CP0 release abi_bench failure (D26).
+U1c is on branch `u1c` in both repos: LocalWave 291d69d, pxui 81e96ee0. U1c.1–U1c.4 are done, plus three fix commits from the
+implementer's own Tier B and release runs. Tier B is green (pxui `cargo t --all` 943; offline `make check` 289; gates docs, abi-exports,
+abi-frozen, abi-compat). gcmp against U1a shows no D9 diff. Build times are within the CP0 allowance.
+
+**BLOCKED:** the release abi_bench Author page and page limits (the D26 done-when) still fail in both modes. Measured: inlining the key-first bodies is
+not the main cause. The fixes so far are static trusted entries for the widgets and an unzeroed text-area buffer. The Author page compares
+`id + row` with `node + within`, which is one extra library call per row and about 3.7× the 1% budget. Options and numbers:
+`scratch/u1c-final-report.md`. The orchestrator decides between new scope exports and re-pairing the page, then assigns the remaining
+page work (text-input response calls, dynamic validation, inspector bodies).
 
 ## Found (separate fixes later, not U1b scope)
 
