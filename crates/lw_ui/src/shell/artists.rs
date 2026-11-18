@@ -133,7 +133,7 @@ pub(super) fn table(
                                 w: heading_sizes[index].0,
                                 h: heading_sizes[index].1,
                             },
-                            if index == 3 { TABLE_HEADING.align(pxui::text::TextAlign::End) } else { TABLE_HEADING },
+                            if index == 3 { TABLE_HEADING.align(pxui::TextAlign::End) } else { TABLE_HEADING },
                             ui.color(SECONDARY),
                         );
                         x += columns[index];
@@ -228,7 +228,7 @@ pub(super) fn table(
                                     },
                                     {
                                         let style = if mono { CELL_MONO } else { CELL };
-                                        if column == 3 { style.align(pxui::text::TextAlign::End) } else { style }
+                                        if column == 3 { style.align(pxui::TextAlign::End) } else { style }
                                     },
                                     if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
                                 );

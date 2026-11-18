@@ -90,7 +90,7 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     let (on, title) = (c.stored != 0, c.text_of(&c.label));
     ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
     ui.a11y_name(&c.row, title);
-    ui.set_role(&c.row, Role::Toggle, pxui::a11y::state::CHECKABLE | if on { pxui::a11y::state::CHECKED } else { 0 });
+    ui.set_role(&c.row, Role::Toggle, pxui::ui::state::CHECKABLE | if on { pxui::ui::state::CHECKED } else { 0 });
     labels(ui, title, c.text_of(&c.detail));
     let track = if on { TRACK_ON } else { TRACK };
     ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
@@ -133,9 +133,9 @@ fn option(
     ui.set_role(
         &button,
         Role::Toggle,
-        pxui::a11y::state::CHECKABLE
+        pxui::ui::state::CHECKABLE
             | if selected {
-                pxui::a11y::state::CHECKED
+                pxui::ui::state::CHECKED
             } else {
                 0
             },

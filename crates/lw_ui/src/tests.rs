@@ -320,7 +320,7 @@ fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocat
                 let root = ui
                     .a11y_nodes()
                     .iter()
-                    .find(|node| node.is_role(pxui::a11y::Role::Window))
+                    .find(|node| node.is_role(pxui::Role::Window))
                     .unwrap();
                 assert_eq!(ui.a11y_name_of(root).contains("Drop to play"), dragging);
                 for x in [12.0, 24.0] {
@@ -1047,10 +1047,10 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
             .find(|node| node.is_role(pxui::ui::Role::Toggle) && ui.a11y_name_of(node) == "flac")
             .unwrap();
         assert_eq!(
-            chip.states & pxui::a11y::state::CHECKED != 0,
+            chip.states & pxui::ui::state::CHECKED != 0,
             cycle % 2 == 1
         );
-        assert_ne!(chip.states & pxui::a11y::state::CHECKABLE, 0);
+        assert_ne!(chip.states & pxui::ui::state::CHECKABLE, 0);
         ui.inject_a11y(&[pxui::A11yAction {
             id: chip.id,
             action_code: if cycle % 2 == 0 { 1 } else { 2 },

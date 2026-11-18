@@ -1136,7 +1136,7 @@ U1a · pxui: namespace, lifecycle, errors, input pxui + callers · ≈3 h · sha
 
 Batch I, redone on HEAD from git show 3201fa20 with namespace.py. LocalWave's lw-dx1.12i is redone by the same codemod.
 
-U1a.1 Modules (D2). Delete the shim modules and ui_core::key(); make the private modules private with root re-exports; doc hidden; move pxui_types::ui free helpers (ellipsis, hash_range, find_marker, key_of, shown, display, int_key, text_top_for) to pub(crate), or behind their module if an app uses them (list which; E-44).
+U1a.1 Modules (D2). Delete the shim modules and ui_core::key(). Make the implementation modules private with root re-exports and hide doc from API listings. Keep key_of and int_key in the ui prelude for existing identities. Keep shared engine helpers in pxui_types::ui and restrict find_marker to its crate (E-44). The ui::state re-export supplies accessibility flags until U1b.4.
 
 U1a.2 Theme (D1) and counter (D3). ThemeHandle, one setter, one scoped form. About 65 pxui and 6 LocalWave sites; gallery and GPU goldens must not change. Document library_counter.
 

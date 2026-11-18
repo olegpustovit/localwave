@@ -280,7 +280,7 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
         ui.set_look(&c.row, look, State::default());
     }
     ui.text(&c.row, c.text_of(&c.text));
-    use pxui::a11y::state::{CHECKABLE, CHECKED, ENABLED};
+    use pxui::ui::state::{CHECKABLE, CHECKED, ENABLED};
     match c.variant {
         MENU_PANEL => ui.set_role(&c.row, Role::MenuItem, if enabled { ENABLED } else { 0 }),
         MENU_CHOICE => ui.set_role(&c.row, Role::Toggle, CHECKABLE | if selected { CHECKED } else { 0 }),

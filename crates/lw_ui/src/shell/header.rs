@@ -326,9 +326,9 @@ pub(super) fn find_tokens(
                     ui.set_role(
                         &chip.handle,
                         Role::Toggle,
-                        pxui::a11y::state::CHECKABLE
+                        pxui::ui::state::CHECKABLE
                             | if selected {
-                                pxui::a11y::state::CHECKED
+                                pxui::ui::state::CHECKED
                             } else {
                                 0
                             },

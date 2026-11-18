@@ -196,7 +196,7 @@ fn overlay(
                     ..Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP)
                 },
             );
-            ui.set_role(&card, Role::Dialog, pxui::a11y::state::MODAL);
+            ui.set_role(&card, Role::Dialog, pxui::ui::state::MODAL);
             ui.a11y_name(&card, label);
             ui.within(&card, &mut |ui| build(ui, intent));
         });
@@ -339,9 +339,9 @@ fn result_row(
     ui.set_role(
         &row,
         Role::Button,
-        pxui::a11y::state::ENABLED
+        pxui::ui::state::ENABLED
             | if selected {
-                pxui::a11y::state::SELECTED
+                pxui::ui::state::SELECTED
             } else {
                 0
             },
@@ -814,7 +814,7 @@ mod tests {
             .a11y_nodes()
             .iter()
             .find(|n| {
-                n.states & pxui::a11y::state::SELECTED != 0 && ui.a11y_name_of(n) == "Result 23"
+                n.states & pxui::ui::state::SELECTED != 0 && ui.a11y_name_of(n) == "Result 23"
             })
             .unwrap();
         assert!(

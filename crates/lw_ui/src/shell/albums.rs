@@ -31,7 +31,7 @@ pub(super) fn toolbar(
                 &button.handle,
                 Role::Button,
                 if selected {
-                    pxui::a11y::state::SELECTED
+                    pxui::ui::state::SELECTED
                 } else {
                     0
                 },
@@ -412,7 +412,7 @@ mod tests {
                         shell(ui, &player, 0.0, &catalog, &state, &mut None)
                     })
                     .unwrap();
-                    assert_ne!(find(&ui, name).states & pxui::a11y::state::SELECTED, 0);
+                    assert_ne!(find(&ui, name).states & pxui::ui::state::SELECTED, 0);
                     assert!(
                         find(&ui, order[0]).rect.x < find(&ui, order[1]).rect.x
                             && find(&ui, order[1]).rect.x < find(&ui, order[2]).rect.x

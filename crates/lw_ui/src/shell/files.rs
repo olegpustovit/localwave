@@ -119,7 +119,7 @@ fn button_node(width: f32, height: f32, enabled: bool, fill: ColorToken) -> Node
 /// A button box's name, role and 13-point label in `ink` (ink-2 while disabled).
 fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: ColorToken) {
     ui.a11y_name(button, label);
-    ui.set_role(button, Role::Button, if enabled { pxui::a11y::state::ENABLED } else { 0 });
+    ui.set_role(button, Role::Button, if enabled { pxui::ui::state::ENABLED } else { 0 });
     ui.within(button, &mut |ui| {
         ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
     });
@@ -636,7 +636,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                 container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
             });
             ui.a11y_name(&tab, label);
-            ui.set_role(&tab, Role::Button, if active { pxui::a11y::state::SELECTED } else { 0 });
+            ui.set_role(&tab, Role::Button, if active { pxui::ui::state::SELECTED } else { 0 });
             if ui.signal(&tab).clicked {
                 *intent = Some(Intent::FilesFilter(filter));
             }
