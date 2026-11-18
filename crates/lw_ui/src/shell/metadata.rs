@@ -27,7 +27,7 @@ pub(super) fn editor(
 ) {
     let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
-    let open = ui.modal("edit-metadata", &EDIT_METADATA.w(width), |ui| {
+    let open = ui.modal("edit-metadata", &EDIT_METADATA.w_px(width), |ui| {
         ui.column(
             "metadata-body",
             Node {

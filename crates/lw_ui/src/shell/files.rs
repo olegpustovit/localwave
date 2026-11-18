@@ -467,7 +467,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     // Desktop lists every file greyed (Swift); the compact list honours Show non-audio files.
     let shown = directory.entries.len() - if compact && !directory.show_non_audio { directory.non_audio } else { 0 };
     ui.within(&list, &mut |ui| {
-        ui.grid_list("directory-entries", shown, width, 38.0, &mut |ui, index| {
+        ui.grid_list("directory-entries", shown, &pxui::GridList::DEFAULT.w_px(width).h_px(38.0), &mut |ui, index| {
             let entry = &directory.entries[index];
             let other = !entry.directory && !entry.audio;
             let tone = if other { TERTIARY } else { SECONDARY };
@@ -647,7 +647,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     // Swift's "N non-audio files hidden · show" closes the list while the setting is off.
     let footer = !show_non_audio && directory.non_audio > 0;
     ui.within(&list, &mut |ui| {
-        ui.grid_list("directory-entries", shown + usize::from(footer), width, 56.0, &mut |ui, index| {
+        ui.grid_list("directory-entries", shown + usize::from(footer), &pxui::GridList::DEFAULT.w_px(width).h_px(56.0), &mut |ui, index| {
             if index == shown {
                 let row = ui.node("hidden-footer", Node::row().w(Size::Grow).h_px(56.0).gap(4.0).align(Align::Center));
                 ui.within(&row, &mut |ui| {
@@ -773,7 +773,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
-    let open = ui.modal("add-music", &ADD_MUSIC.w(width), |ui| {
+    let open = ui.modal("add-music", &ADD_MUSIC.w_px(width), |ui| {
         ui.column("add-music-body", Node { look: PAPER_FILL, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0) }, |ui| {
             super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
             ui.label("Files stay where they are", CAPTION.grow());

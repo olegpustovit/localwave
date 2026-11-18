@@ -126,7 +126,7 @@ pub(super) fn sidebar(
         }
         ui.label("Lists", GROUP);
         let collections = catalog.collections.len();
-        ui.grid_list("collections", collections + 1, (width - 20.0).max(1.0), 32.0, &mut |ui, index| {
+        ui.grid_list("collections", collections + 1, &pxui::GridList::DEFAULT.w_px((width - 20.0).max(1.0)).h_px(32.0), &mut |ui, index| {
             let Some(collection) = catalog.collections.get(index) else {
                 if add_row(ui, "new-list", "+  New list", "New list") {
                     *intent = Some(Intent::NewList(None));

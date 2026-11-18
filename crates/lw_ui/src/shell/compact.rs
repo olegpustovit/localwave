@@ -421,8 +421,7 @@ fn groups(
     ui.grid_list(
         "compact-groups",
         groups.len(),
-        width,
-        68.0,
+        &pxui::GridList::DEFAULT.w_px(width).h_px(68.0),
         &mut |ui, index| {
             let group = &groups[index];
             let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).pad_x(16.0).align(Align::Center).role(Role::Button);

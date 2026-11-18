@@ -187,7 +187,7 @@ fn overlay(
     let max_height = (content.h - top - 16.0).max(0.0);
     // The popup is just the card: a full-view popup would paint its own sheet fill over the page.
     // Press-outside dismissal is the popup's; shell() draws the dim over the live page.
-    let open = ui.popup(key, &Overlay::DEFAULT.at(content.x + (content.w - width) * 0.5, content.y + top).w(width).h(60.0).max_h(max_height).name(label), |ui| {
+    let open = ui.popup(key, &Overlay::DEFAULT.at(pxui::Point::new(content.x + (content.w - width) * 0.5, content.y + top)).w_px(width).h_px(60.0).max_h_px(max_height).name(label), |ui| {
             let card = ui.node(
                 "card",
                 Node {
@@ -457,7 +457,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
         Intent::CloseShortcuts,
         intent,
         &mut |ui, _| {
-            ui.scroll_view("shortcuts", Size::Grow, Size::Grow, |ui| {
+            ui.scroll_view("shortcuts", Node::DEFAULT.h(Size::Grow), |ui| {
                 let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
                     ui.label("Keyboard", TEXT_18.grow().color(INK));

@@ -80,6 +80,12 @@ pxui::AtlasKind::Color variant
 pxui::AtlasKind::Color2 variant
 pxui::AtlasKind::Mask variant
 pxui::AtlasKind::Mask2 variant
+pxui::Badge impl Clone
+pxui::Badge impl Copy
+pxui::Badge impl Debug
+pxui::Badge struct
+pxui::Badge::DEFAULT const Badge
+pxui::Badge::variant fn const (self, variant: u16) -> Badge
 pxui::BodyId use pxui_types::theme::BodyId
 pxui::BodyKind use pxui_types::theme::BodyKind
 pxui::BracketsFn type <'a>= dyn Fn(&str) -> Vec<(usize, usize)> + 'a
@@ -280,6 +286,13 @@ pxui::GestureState::swipe_open_leading field bool
 pxui::GestureState::swipe_open_trailing field bool
 pxui::GestureState::swiping field bool
 pxui::Gpu use pxui_types::Gpu
+pxui::GridList impl Clone
+pxui::GridList impl Copy
+pxui::GridList impl Debug
+pxui::GridList struct
+pxui::GridList::DEFAULT const GridList
+pxui::GridList::h_px fn const (self, points: f32) -> GridList
+pxui::GridList::w_px fn const (self, points: f32) -> GridList
 pxui::Handle type = PxuiBox
 pxui::Icon enum
 pxui::Icon impl Clone
@@ -538,6 +551,12 @@ pxui::Pressable::focus_on_click fn const (self, focus: bool) -> Pressable<'a>
 pxui::Pressable::look fn const (self, look: &'a States) -> Pressable<'a>
 pxui::Pressable::selected fn const (self, selected: bool) -> Pressable<'a>
 pxui::Pressable::tab_stop fn const (self, tab_stop: bool) -> Pressable<'a>
+pxui::Progress impl Clone
+pxui::Progress impl Copy
+pxui::Progress impl Debug
+pxui::Progress struct
+pxui::Progress::DEFAULT const Progress
+pxui::Progress::variant fn const (self, variant: u16) -> Progress
 pxui::PxuiPanel use pxui_types::PxuiPanel
 pxui::PxuiTargetDesc use pxui_types::PxuiTargetDesc
 pxui::PxuiUiDesc use pxui_types::PxuiUiDesc
@@ -666,6 +685,12 @@ pxui::SliderResponse::commit field Option<f32>
 pxui::SliderResponse::preview field Option<f32>
 pxui::SliderResponse::response field Response
 pxui::SliderResponse::value field f32
+pxui::Spinner impl Clone
+pxui::Spinner impl Copy
+pxui::Spinner impl Debug
+pxui::Spinner struct
+pxui::Spinner::DEFAULT const Spinner
+pxui::Spinner::variant fn const (self, variant: u16) -> Spinner
 pxui::Splice impl Clone
 pxui::Splice impl Copy
 pxui::Splice impl Debug
@@ -827,6 +852,7 @@ pxui::TreeNode impl StructuralPartialEq
 pxui::TreeNode struct
 pxui::TreeNode::children field u8
 pxui::TreeNode::depth field u16
+pxui::TreeNode::new fn const (depth: u16, has_children: bool) -> TreeNode
 pxui::TreeResponse use pxui_types::ui::TreeResponse
 pxui::Ui impl Drop
 pxui::Ui struct (_)
@@ -842,7 +868,7 @@ pxui::Ui::animate fn (&mut self, b: &Handle, target: Target, curve: Curve) -> bo
 pxui::Ui::animate_keys fn (&mut self, box_: &Handle, keys: &[Keyframe], play: &Keyframes) -> bool
 pxui::Ui::arranged_nodes fn (&self) -> usize
 pxui::Ui::background_request fn (&self) -> Option<Rgba>
-pxui::Ui::badge fn <K: Into<Key>>(&mut self, key: K, name: &str, text: &str) -> Handle
+pxui::Ui::badge fn <K: Into<Key>>(&mut self, key: K, name: &str, text: &str, badge: &Badge) -> Handle
 pxui::Ui::box_of_a11y fn (&self, id: u64) -> Option<Handle>
 pxui::Ui::box_of_key fn <K: Into<Key>>(&self, key: K) -> Option<Handle>
 pxui::Ui::built_nodes fn (&self) -> usize
@@ -884,7 +910,7 @@ pxui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut U
 pxui::Ui::frame_index fn (&self) -> u64
 pxui::Ui::gesture fn (&mut self, node: &Handle, opts: &GestureOpts) -> GestureState
 pxui::Ui::gesture_state fn (&mut self, node: &Handle) -> GestureState
-pxui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, cell_w: f32, cell_h: f32, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
+pxui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, grid: &GridList, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
 pxui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
 pxui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
 pxui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
@@ -949,7 +975,7 @@ pxui::Ui::popup fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay:
 pxui::Ui::press_keys fn (&self, b: &Handle) -> &[u32]
 pxui::Ui::pressable fn <K: Into<Key>, F: FnMut(&mut Ui, State)>(&mut self, key: K, node: Node, pressable: &Pressable<'_>, f: F) -> Response
 pxui::Ui::prewarm_text fn (&mut self, text: &str, style: &Label, max_width: f32) -> Result<(), Error>
-pxui::Ui::progress fn <K: Into<Key>>(&mut self, key: K, text: &str, value: Option<f32>) -> Handle
+pxui::Ui::progress fn <K: Into<Key>>(&mut self, key: K, text: &str, value: Option<f32>, progress: &Progress) -> Handle
 pxui::Ui::radio fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, radio: &Radio<'_>) -> PickResponse
 pxui::Ui::rebuilt_named fn (&self, prefix: &str) -> usize
 pxui::Ui::rebuilt_views fn (&self) -> usize
@@ -1005,7 +1031,7 @@ pxui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::row_height fn (&self) -> f32
 pxui::Ui::scroll fn (&self, b: &Handle) -> Scroll
-pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, w: Size, h: Size, f: F) -> Handle
+pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
 pxui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
@@ -1028,7 +1054,7 @@ pxui::Ui::signal fn (&self, box_: &Handle) -> Signal
 pxui::Ui::signal_keys fn (&self, box_: &Handle) -> &[Event]
 pxui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, range: RangeInclusive<f32>, slider: &Slider) -> SliderResponse
 pxui::Ui::slot fn (&mut self, slot: PxuiSlot) -> bool
-pxui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str) -> Handle
+pxui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str, spinner: &Spinner) -> Handle
 pxui::Ui::split fn <K: Into<Key>>(&mut self, key: K, ratio: f32, split: &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse
 pxui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
@@ -1037,7 +1063,7 @@ pxui::Ui::system_appearance fn (&self) -> Appearance
 pxui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
 pxui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, tabs: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
 pxui::Ui::text fn (&mut self, box_: &Handle, value: &str)
-pxui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
+pxui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, node: Node, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
 pxui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
 pxui::Ui::text_input_focused fn (&self) -> bool
 pxui::Ui::text_layout_count fn (&self) -> u64
@@ -1572,6 +1598,7 @@ pxui::ui::TextArea::wrap fn const (self, on: bool) -> TextArea<'a>
 pxui::ui::TextEdit use pxui_types::ui::TextEdit
 pxui::ui::Toast use pxui_types::ui::Toast
 pxui::ui::Tokens use pxui_types::theme::Tokens
+pxui::ui::Transition use pxui_types::node::Transition
 pxui::ui::TreeNode impl Clone
 pxui::ui::TreeNode impl Copy
 pxui::ui::TreeNode impl Debug
@@ -1582,6 +1609,7 @@ pxui::ui::TreeNode impl StructuralPartialEq
 pxui::ui::TreeNode struct
 pxui::ui::TreeNode::children field u8
 pxui::ui::TreeNode::depth field u16
+pxui::ui::TreeNode::new fn const (depth: u16, has_children: bool) -> TreeNode
 pxui::ui::TreeResponse use pxui_types::ui::TreeResponse
 pxui::ui::Ui impl Drop
 pxui::ui::Ui struct (_)
@@ -1597,7 +1625,7 @@ pxui::ui::Ui::animate fn (&mut self, b: &Handle, target: Target, curve: Curve) -
 pxui::ui::Ui::animate_keys fn (&mut self, box_: &Handle, keys: &[Keyframe], play: &Keyframes) -> bool
 pxui::ui::Ui::arranged_nodes fn (&self) -> usize
 pxui::ui::Ui::background_request fn (&self) -> Option<Rgba>
-pxui::ui::Ui::badge fn <K: Into<Key>>(&mut self, key: K, name: &str, text: &str) -> Handle
+pxui::ui::Ui::badge fn <K: Into<Key>>(&mut self, key: K, name: &str, text: &str, badge: &Badge) -> Handle
 pxui::ui::Ui::box_of_a11y fn (&self, id: u64) -> Option<Handle>
 pxui::ui::Ui::box_of_key fn <K: Into<Key>>(&self, key: K) -> Option<Handle>
 pxui::ui::Ui::built_nodes fn (&self) -> usize
@@ -1639,7 +1667,7 @@ pxui::ui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&m
 pxui::ui::Ui::frame_index fn (&self) -> u64
 pxui::ui::Ui::gesture fn (&mut self, node: &Handle, opts: &GestureOpts) -> GestureState
 pxui::ui::Ui::gesture_state fn (&mut self, node: &Handle) -> GestureState
-pxui::ui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, cell_w: f32, cell_h: f32, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
+pxui::ui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, grid: &GridList, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
 pxui::ui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
 pxui::ui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
 pxui::ui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
@@ -1704,7 +1732,7 @@ pxui::ui::Ui::popup fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, over
 pxui::ui::Ui::press_keys fn (&self, b: &Handle) -> &[u32]
 pxui::ui::Ui::pressable fn <K: Into<Key>, F: FnMut(&mut Ui, State)>(&mut self, key: K, node: Node, pressable: &Pressable<'_>, f: F) -> Response
 pxui::ui::Ui::prewarm_text fn (&mut self, text: &str, style: &Label, max_width: f32) -> Result<(), Error>
-pxui::ui::Ui::progress fn <K: Into<Key>>(&mut self, key: K, text: &str, value: Option<f32>) -> Handle
+pxui::ui::Ui::progress fn <K: Into<Key>>(&mut self, key: K, text: &str, value: Option<f32>, progress: &Progress) -> Handle
 pxui::ui::Ui::radio fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, radio: &Radio<'_>) -> PickResponse
 pxui::ui::Ui::rebuilt_named fn (&self, prefix: &str) -> usize
 pxui::ui::Ui::rebuilt_views fn (&self) -> usize
@@ -1760,7 +1788,7 @@ pxui::ui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::ui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::row_height fn (&self) -> f32
 pxui::ui::Ui::scroll fn (&self, b: &Handle) -> Scroll
-pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, w: Size, h: Size, f: F) -> Handle
+pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::ui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
 pxui::ui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
@@ -1783,7 +1811,7 @@ pxui::ui::Ui::signal fn (&self, box_: &Handle) -> Signal
 pxui::ui::Ui::signal_keys fn (&self, box_: &Handle) -> &[Event]
 pxui::ui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, range: RangeInclusive<f32>, slider: &Slider) -> SliderResponse
 pxui::ui::Ui::slot fn (&mut self, slot: PxuiSlot) -> bool
-pxui::ui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str) -> Handle
+pxui::ui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str, spinner: &Spinner) -> Handle
 pxui::ui::Ui::split fn <K: Into<Key>>(&mut self, key: K, ratio: f32, split: &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse
 pxui::ui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
@@ -1792,7 +1820,7 @@ pxui::ui::Ui::system_appearance fn (&self) -> Appearance
 pxui::ui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
 pxui::ui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, tabs: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
 pxui::ui::Ui::text fn (&mut self, box_: &Handle, value: &str)
-pxui::ui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
+pxui::ui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, node: Node, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
 pxui::ui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
 pxui::ui::Ui::text_input_focused fn (&self) -> bool
 pxui::ui::Ui::text_layout_count fn (&self) -> u64
@@ -1966,6 +1994,7 @@ pxui_types::Environment::keyboard_frame field [f32; 4]
 pxui_types::Environment::keyboard_from field [f32; 4]
 pxui_types::Environment::keyboard_started field f64
 pxui_types::Environment::keyboard_visible field u32
+pxui_types::Environment::new fn const (safe_area: [f32; 4]) -> Environment
 pxui_types::Environment::safe_area field [f32; 4]
 pxui_types::Event impl Clone
 pxui_types::Event impl Copy
@@ -1999,7 +2028,10 @@ pxui_types::Event::TOUCH const u32
 pxui_types::Event::TRACKPAD_SCROLLED const u32
 pxui_types::Event::VISIBILITY_CHANGED const u32
 pxui_types::Event::code field u32
+pxui_types::Event::key fn const (kind: u32, code: u32) -> Event
 pxui_types::Event::kind field u32
+pxui_types::Event::new fn const (kind: u32) -> Event
+pxui_types::Event::pointer fn const (kind: u32, code: u32, x: f64, y: f64) -> Event
 pxui_types::Event::text field Str
 pxui_types::Event::value field f64
 pxui_types::Event::x field f64
@@ -2127,6 +2159,7 @@ pxui_types::Image::FORMAT_RGBA8 const u32
 pxui_types::Image::format field u32
 pxui_types::Image::height field u32
 pxui_types::Image::mtl_texture field *mut c_void
+pxui_types::Image::rgba8 fn const (width: u32, height: u32, vk_image_view: *mut c_void, mtl_texture: *mut c_void) -> Image
 pxui_types::Image::size field u32
 pxui_types::Image::valid fn (&self) -> bool
 pxui_types::Image::vk_image_view field *mut c_void
@@ -2144,6 +2177,7 @@ pxui_types::Keyboard::ANIMATING const u32
 pxui_types::Keyboard::VALID const u32
 pxui_types::Keyboard::flags field u32
 pxui_types::Keyboard::frame field [f32; 4]
+pxui_types::Keyboard::new fn const (frame: Rect, flags: u32) -> Keyboard
 pxui_types::Keyboard::valid fn (&self) -> bool
 pxui_types::Label impl Clone
 pxui_types::Label impl Copy
@@ -2313,7 +2347,9 @@ pxui_types::Node::shrink field f32
 pxui_types::Node::shrink fn const (self, factor: f32) -> Node
 pxui_types::Node::stack fn const () -> Node
 pxui_types::Node::state field State
+pxui_types::Node::state fn const (self, state: State) -> Node
 pxui_types::Node::transition field OptTransition
+pxui_types::Node::transition fn const (self, transition: Option<Transition>) -> Node
 pxui_types::Node::w field Size
 pxui_types::Node::w fn const (self, size: Size) -> Node
 pxui_types::Node::w_px fn const (self, points: f32) -> Node
@@ -2481,10 +2517,15 @@ pxui_types::State impl PartialEq
 pxui_types::State impl StructuralPartialEq
 pxui_types::State struct
 pxui_types::State::checked field bool
+pxui_types::State::checked fn const (self, checked: bool) -> State
 pxui_types::State::disabled field bool
+pxui_types::State::disabled fn const (self, disabled: bool) -> State
 pxui_types::State::focused field bool
+pxui_types::State::focused fn const (self, focused: bool) -> State
 pxui_types::State::hovered field bool
+pxui_types::State::hovered fn const (self, hovered: bool) -> State
 pxui_types::State::pressed field bool
+pxui_types::State::pressed fn const (self, pressed: bool) -> State
 pxui_types::States impl Clone
 pxui_types::States impl Copy
 pxui_types::States impl Debug
@@ -2509,6 +2550,7 @@ pxui_types::Str impl Clone
 pxui_types::Str impl Copy
 pxui_types::Str impl Debug
 pxui_types::Str impl Default
+pxui_types::Str impl From<&'static str>
 pxui_types::Str struct
 pxui_types::Str::len field usize
 pxui_types::Str::ptr field *const u8
@@ -2546,12 +2588,17 @@ pxui_types::TextSpan::BACKGROUND const u16
 pxui_types::TextSpan::COLOR const u16
 pxui_types::TextSpan::UNDERLINE const u16
 pxui_types::TextSpan::background field Rgba
+pxui_types::TextSpan::background fn const (self, background: Rgba) -> TextSpan
 pxui_types::TextSpan::color field Rgba
+pxui_types::TextSpan::color fn const (self, color: Rgba) -> TextSpan
 pxui_types::TextSpan::end field u32
 pxui_types::TextSpan::flags field u16
+pxui_types::TextSpan::new fn const (start: u32, end: u32) -> TextSpan
 pxui_types::TextSpan::start field u32
 pxui_types::TextSpan::underline field Rgba
+pxui_types::TextSpan::underline fn const (self, underline: Rgba) -> TextSpan
 pxui_types::TextSpan::weight field u16
+pxui_types::TextSpan::weight fn const (self, weight: u16) -> TextSpan
 pxui_types::TextSpans impl Clone
 pxui_types::TextSpans impl Copy
 pxui_types::TextSpans impl Debug
@@ -2633,6 +2680,7 @@ pxui_types::Touch impl StructuralPartialEq
 pxui_types::Touch struct
 pxui_types::Touch::device field u64
 pxui_types::Touch::finger field u64
+pxui_types::Touch::new fn const (device: u64, finger: u64, at: [f64; 2], time: f64, pressure: f32, phase: u32) -> Touch
 pxui_types::Touch::phase field u32
 pxui_types::Touch::pressure field f32
 pxui_types::Touch::time field f64
@@ -4457,6 +4505,7 @@ pxui_types::ffi::Slice impl Clone
 pxui_types::ffi::Slice impl Copy
 pxui_types::ffi::Slice impl Debug
 pxui_types::ffi::Slice impl Default
+pxui_types::ffi::Slice impl From<&'static [u8]>
 pxui_types::ffi::Slice struct <T>
 pxui_types::ffi::Slice::len field usize
 pxui_types::ffi::Slice::ptr field *const T
@@ -4519,9 +4568,14 @@ pxui_types::geom::Edges struct
 pxui_types::geom::Edges::ZERO const Edges
 pxui_types::geom::Edges::all fn const (v: f32) -> Edges
 pxui_types::geom::Edges::b field f32
+pxui_types::geom::Edges::b fn const (self, points: f32) -> Edges
 pxui_types::geom::Edges::l field f32
+pxui_types::geom::Edges::l fn const (self, points: f32) -> Edges
+pxui_types::geom::Edges::new fn const (l: f32, t: f32, r: f32, b: f32) -> Edges
 pxui_types::geom::Edges::r field f32
+pxui_types::geom::Edges::r fn const (self, points: f32) -> Edges
 pxui_types::geom::Edges::t field f32
+pxui_types::geom::Edges::t fn const (self, points: f32) -> Edges
 pxui_types::geom::Edges::xy fn const (x: f32, y: f32) -> Edges
 pxui_types::geom::Point impl Clone
 pxui_types::geom::Point impl Copy
@@ -4815,7 +4869,9 @@ pxui_types::node::Node::shrink field f32
 pxui_types::node::Node::shrink fn const (self, factor: f32) -> Node
 pxui_types::node::Node::stack fn const () -> Node
 pxui_types::node::Node::state field State
+pxui_types::node::Node::state fn const (self, state: State) -> Node
 pxui_types::node::Node::transition field OptTransition
+pxui_types::node::Node::transition fn const (self, transition: Option<Transition>) -> Node
 pxui_types::node::Node::w field Size
 pxui_types::node::Node::w fn const (self, size: Size) -> Node
 pxui_types::node::Node::w_px fn const (self, points: f32) -> Node
@@ -5062,12 +5118,17 @@ pxui_types::text::TextSpan::BACKGROUND const u16
 pxui_types::text::TextSpan::COLOR const u16
 pxui_types::text::TextSpan::UNDERLINE const u16
 pxui_types::text::TextSpan::background field Rgba
+pxui_types::text::TextSpan::background fn const (self, background: Rgba) -> TextSpan
 pxui_types::text::TextSpan::color field Rgba
+pxui_types::text::TextSpan::color fn const (self, color: Rgba) -> TextSpan
 pxui_types::text::TextSpan::end field u32
 pxui_types::text::TextSpan::flags field u16
+pxui_types::text::TextSpan::new fn const (start: u32, end: u32) -> TextSpan
 pxui_types::text::TextSpan::start field u32
 pxui_types::text::TextSpan::underline field Rgba
+pxui_types::text::TextSpan::underline fn const (self, underline: Rgba) -> TextSpan
 pxui_types::text::TextSpan::weight field u16
+pxui_types::text::TextSpan::weight fn const (self, weight: u16) -> TextSpan
 pxui_types::text::TextSpans impl Clone
 pxui_types::text::TextSpans impl Copy
 pxui_types::text::TextSpans impl Debug
@@ -5366,10 +5427,15 @@ pxui_types::theme::State impl PartialEq
 pxui_types::theme::State impl StructuralPartialEq
 pxui_types::theme::State struct
 pxui_types::theme::State::checked field bool
+pxui_types::theme::State::checked fn const (self, checked: bool) -> State
 pxui_types::theme::State::disabled field bool
+pxui_types::theme::State::disabled fn const (self, disabled: bool) -> State
 pxui_types::theme::State::focused field bool
+pxui_types::theme::State::focused fn const (self, focused: bool) -> State
 pxui_types::theme::State::hovered field bool
+pxui_types::theme::State::hovered fn const (self, hovered: bool) -> State
 pxui_types::theme::State::pressed field bool
+pxui_types::theme::State::pressed fn const (self, pressed: bool) -> State
 pxui_types::theme::States impl Clone
 pxui_types::theme::States impl Copy
 pxui_types::theme::States impl Debug
@@ -5745,17 +5811,17 @@ pxui_types::ui::Overlay impl StructuralPartialEq
 pxui_types::ui::Overlay struct <'a>
 pxui_types::ui::Overlay::DEFAULT const Overlay<'a>
 pxui_types::ui::Overlay::at field (f32, f32)
-pxui_types::ui::Overlay::at fn const (self, x: f32, y: f32) -> Overlay<'a>
+pxui_types::ui::Overlay::at fn const (self, at: Point) -> Overlay<'a>
 pxui_types::ui::Overlay::attached field bool
 pxui_types::ui::Overlay::attached fn const (self) -> Overlay<'a>
 pxui_types::ui::Overlay::dismiss_initial field bool
 pxui_types::ui::Overlay::dismiss_initial fn const (self) -> Overlay<'a>
 pxui_types::ui::Overlay::h field Option<f32>
-pxui_types::ui::Overlay::h fn const (self, h: f32) -> Overlay<'a>
+pxui_types::ui::Overlay::h_px fn const (self, h: f32) -> Overlay<'a>
 pxui_types::ui::Overlay::look field Option<Look>
 pxui_types::ui::Overlay::look fn const (self, look: Look) -> Overlay<'a>
 pxui_types::ui::Overlay::max_h field Option<f32>
-pxui_types::ui::Overlay::max_h fn const (self, h: f32) -> Overlay<'a>
+pxui_types::ui::Overlay::max_h_px fn const (self, h: f32) -> Overlay<'a>
 pxui_types::ui::Overlay::name field Option<&'a str>
 pxui_types::ui::Overlay::name fn const (self, name: &'a str) -> Overlay<'a>
 pxui_types::ui::Overlay::padding field f32
@@ -5765,7 +5831,7 @@ pxui_types::ui::Overlay::place fn const (self, place: Placement) -> Overlay<'a>
 pxui_types::ui::Overlay::stroke field Option<Rgba>
 pxui_types::ui::Overlay::stroke fn const (self, color: Rgba) -> Overlay<'a>
 pxui_types::ui::Overlay::w field Option<f32>
-pxui_types::ui::Overlay::w fn const (self, w: f32) -> Overlay<'a>
+pxui_types::ui::Overlay::w_px fn const (self, w: f32) -> Overlay<'a>
 pxui_types::ui::Overlay::window field bool
 pxui_types::ui::Overlay::window fn const (self) -> Overlay<'a>
 pxui_types::ui::PanelOpts impl Clone

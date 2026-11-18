@@ -83,7 +83,7 @@ pub(super) fn name_dialog(
         ListDialog::New(_) | ListDialog::NewPage => ("New list", "Create"),
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
-    let open = ui.modal("list-name", &Overlay::DEFAULT.w(width).name(heading), |ui| {
+    let open = ui.modal("list-name", &Overlay::DEFAULT.w_px(width).name(heading), |ui| {
         ui.column(
             "list-name-body",
             Node {
