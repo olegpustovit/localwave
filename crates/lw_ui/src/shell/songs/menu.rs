@@ -57,7 +57,7 @@ pub(in crate::shell) fn popup(
         rows[count] = item.enabled(item.enabled && present);
         count += 1;
     }
-    let menu = ui.menu("song-menu", at, &rows[..count], &MENU.name("Song actions"));
+    let menu = ui.menu("song-menu", pxui::Point::new(at.0, at.1), &rows[..count], &MENU.name("Song actions"));
     let song = target.1;
     // "Add to list" closes this menu and opens the list panel.
     if let Some(id) = menu.chosen_id {
@@ -124,7 +124,7 @@ fn lists(
     for row in &mut rows[..count] {
         *row = row.enabled(row.enabled && present);
     }
-    let menu = ui.menu("song-lists", at, &rows[..count], &LISTS_MENU);
+    let menu = ui.menu("song-lists", pxui::Point::new(at.0, at.1), &rows[..count], &LISTS_MENU);
     match menu.chosen_id {
         Some(NEW_LIST) => *intent = Some(Intent::NewList(Some(song))),
         Some(list) => *intent = Some(Intent::AddToList { song, list }),

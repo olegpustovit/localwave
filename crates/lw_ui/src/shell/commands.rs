@@ -159,7 +159,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
                     ..Node::column().w(Size::Grow).h_px(size as f32 * 1.4)
                 },
             );
-            ui.text_line_box(&line, hint, &style, &[]).unwrap();
+            ui.text_line_box(&line, hint, style, &[]).unwrap();
         });
     }
 }
@@ -435,7 +435,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
         ("Back", "⌘["),
         ("Close panels", "Esc"),
     ];
-    let (width, height) = ui.view_size();
+    let pxui::ViewSize { width, height } = ui.view_size();
     let card = (width - 32.0).clamp(0.0, 520.0);
     // Swift's Grid gives label and key columns equal halves; labels wrap inside theirs (phone).
     let half = ((card - 48.0 - 16.0) * 0.5).max(1.0);
@@ -444,7 +444,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
     for (height, (label, _)) in heights.iter_mut().zip(ROWS) {
         *height = ui
             .text_service()
-            .measure(label, &KEY_LABEL, half)
+            .measure(label, KEY_LABEL, Some(half))
             .map_or(19.6, |m| m.height.max(19.6));
     }
     let body_height: f32 = 44.0 + 25.2 + 12.0 + heights.iter().sum::<f32>() + 11.0 * 8.0;
@@ -478,7 +478,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                                         ..Node::column().w_px(half).h_px(heights[index]).role(Role::Label)
                                     },
                                 );
-                                ui.text_line_box(&node, label, &KEY_LABEL, &[]).unwrap();
+                                ui.text_line_box(&node, label, KEY_LABEL, &[]).unwrap();
                                 ui.node("fill", Node::DEFAULT.w(Size::Grow));
                                 ui.label(key, MONO_DIM);
                             });

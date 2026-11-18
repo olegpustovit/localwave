@@ -135,7 +135,7 @@ pub(super) fn open(
         .fonts(&[FontData(lw_ui::FONT), FontData(lw_ui::MONO)]);
     let mut ui = Ui::new(&desc).map_err(|error| format!("UI creation failed ({error})"))?;
     perf::setup::configure_ui(&mut ui, workload);
-    ui.enable_system_fonts()
+    ui.text_service().enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
     let mut themes = lw_bin::appearance::Themes::new(&mut ui)
         .map_err(|error| format!("Theme setup failed ({error}): {}", ui.last_error()))?;

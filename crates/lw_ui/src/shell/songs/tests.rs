@@ -799,7 +799,7 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
         }
         ui.frame(input, &mut |_| {}).unwrap();
         let before = ui.text_layout_count();
-        ui.text_service().measure(&sentinel, &Label::BODY, 0.0).unwrap();
+        ui.text_service().measure(&sentinel, Label::BODY, None).unwrap();
         if ui.text_layout_count() == before {
             return;
         }
@@ -850,7 +850,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                         &catalog,
                         route,
                         widths,
-                        ui.density() as f32,
+                        ui.density(),
                         current.map(|index| catalog.row(index).id),
                         built,
                         built + 1,

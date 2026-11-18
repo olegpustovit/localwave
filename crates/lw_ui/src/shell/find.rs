@@ -58,9 +58,9 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
         ),
     };
     const TOOL_LABEL: pxui::Label = pxui::Label::BODY.size(13.0).line_height(18.2).lines(1).ellipsis();
-    let density = ui.density() as f32;
+    let density = ui.density();
     let label_width =
-        (ui.text_service().width(label, &TOOL_LABEL, 0.0).unwrap() * density).ceil() / density;
+        (ui.text_service().width(label, TOOL_LABEL, None).unwrap() * density).ceil() / density;
     let width = 20.0 + icon_size + 6.0 + label_width;
     let tool = pxui::Button::sized(width, 30.0).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).enabled(enabled).name(label);
     // the hover and press washes sit under the copy, so the contents are a stack built with the press state

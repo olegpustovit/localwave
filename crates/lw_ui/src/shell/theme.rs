@@ -78,29 +78,29 @@ pub(super) const FOLDER_CARD: Look = PAPER_FILL.border(Rgba::token(super::kit::L
 /// A source folder card with an error: paper with an ink border.
 pub(super) const FOLDER_CARD_ERROR: Look = PAPER_FILL.border(Rgba::token(INK), 1.0);
 /// `color` text at `size` points.
-const fn text(color: ColorToken, size: i64) -> Look {
+const fn text(color: ColorToken, size: f32) -> Look {
     Look::NONE.text(Rgba::token(color)).font(Font::BODY.size(size))
 }
 /// Secondary 12-point text: a queue sheet text action.
-pub(super) const QUEUE_ACTION_TEXT: Look = text(SECONDARY, 12);
+pub(super) const QUEUE_ACTION_TEXT: Look = text(SECONDARY, 12.0);
 /// Secondary 13-point text: an unselected chip.
-pub(super) const CHIP_TEXT: Look = text(SECONDARY, 13);
+pub(super) const CHIP_TEXT: Look = text(SECONDARY, 13.0);
 /// Paper 13-point text: a selected chip.
-pub(super) const CHIP_TEXT_ON: Look = text(PAPER, 13);
+pub(super) const CHIP_TEXT_ON: Look = text(PAPER, 13.0);
 /// Secondary 14-point text: a sidebar "+ label" row, a text link.
-pub(super) const LINK_TEXT: Look = text(SECONDARY, 14);
+pub(super) const LINK_TEXT: Look = text(SECONDARY, 14.0);
 /// Secondary 15-point text: a back link.
-pub(super) const BACK_TEXT: Look = text(SECONDARY, 15);
+pub(super) const BACK_TEXT: Look = text(SECONDARY, 15.0);
 /// A sidebar count badge: paper 11-point text on ink.
-pub(super) const BADGE: Look = text(PAPER, 11).fill(Rgba::token(INK));
+pub(super) const BADGE: Look = text(PAPER, 11.0).fill(Rgba::token(INK));
 /// An unselected settings choice: secondary 13-point text on the panel fill.
-pub(super) const CHOICE: Look = text(SECONDARY, 13).fill(Rgba::token(PANEL));
+pub(super) const CHOICE: Look = text(SECONDARY, 13.0).fill(Rgba::token(PANEL));
 /// The selected settings choice: paper 13-point text on ink.
-pub(super) const CHOICE_ON: Look = text(PAPER, 13).fill(Rgba::token(INK));
+pub(super) const CHOICE_ON: Look = text(PAPER, 13.0).fill(Rgba::token(INK));
 /// A compact tab bar button: ink 14-point text on paper.
-pub(super) const TAB_LOOKS: States = States::all(text(INK, 14).fill(Rgba::token(PAPER)));
+pub(super) const TAB_LOOKS: States = States::all(text(INK, 14.0).fill(Rgba::token(PAPER)));
 /// The current compact tab: on the selected fill.
-pub(super) const TAB_ON_LOOKS: States = States::all(text(INK, 14).fill(Rgba::token(SELECTED)));
+pub(super) const TAB_ON_LOOKS: States = States::all(text(INK, 14.0).fill(Rgba::token(SELECTED)));
 /// A Find tool, a card or a row on paper.
 pub(super) const PAPER_LOOKS: States = States::all(PAPER_FILL);
 /// The current Find tool or route: on the selected fill.

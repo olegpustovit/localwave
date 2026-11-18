@@ -164,7 +164,7 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                                 ..pxui::ui::Node::column().w_px(200.0).h_px(line).role(pxui::ui::Role::Label)
                             },
                         );
-                        ui.text_line_box(&a, "Ag01", &label, &[]).unwrap();
+                        ui.text_line_box(&a, "Ag01", label, &[]).unwrap();
                     },
                 )
                 .unwrap();

@@ -32,7 +32,7 @@ pub(super) fn popup(
         MenuItem::new("Reconnect folder…").id(RECONNECT).enabled(present && !busy),
         MenuItem::new("Remove source").id(REMOVE).enabled(present && !busy).danger(),
     ];
-    let menu = ui.menu("source-menu", at, &rows, &OPTIONS);
+    let menu = ui.menu("source-menu", pxui::Point::new(at.0, at.1), &rows, &OPTIONS);
     let location = Location { user: target.user, source: target.source, parent: None };
     match menu.chosen_id {
         Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(location))),
@@ -62,7 +62,7 @@ pub(super) fn confirm_remove(
     target: Target,
     intent: &mut Option<Intent>,
 ) {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let folder = player.files.and_then(|files| {
         files.sources.iter().find(|folder| {
@@ -96,7 +96,7 @@ pub(super) fn up(directory: &crate::files::Directory) -> Intent {
 }
 
 fn button(ui: &mut Ui, key: &'static str, label: &str, width: f32, enabled: bool, tone: (ColorToken, ColorToken)) -> Handle {
-    let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 36.0 };
+    let height = if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 36.0 };
     sized_button(ui, key, label, width, height, enabled, tone)
 }
 fn sized_button(ui: &mut Ui, key: &'static str, label: &str, width: f32, height: f32, enabled: bool, (fill, ink): (ColorToken, ColorToken)) -> Handle {
@@ -134,7 +134,7 @@ pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
         ui.slot(c.content);
         let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), Rgba::token(PAPER));
         ui.within(&actions, &mut |ui| {
-            let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 36.0 };
+            let height = if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 36.0 };
             for i in 0..c.buttons.len {
                 let (enabled, ink) = (c.disabled >> i & 1 == 0, if c.danger >> i & 1 != 0 { DANGER } else { INK });
                 let button = ui.part(pxui::Part::button(i as u8), button_node(100.0, height, enabled, PANEL));
@@ -157,7 +157,7 @@ pub(super) fn action(
 
 /// Swift's plain secondary text link (Back).
 fn link(ui: &mut Ui, key: &'static str, name: &str, label: &str, width: f32) -> bool {
-    let height = if ui.view_size().0 < compact::BREAKPOINT { 44.0 } else { 40.0 };
+    let height = if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 40.0 };
     let link = ui.node(
         key,
         Node {
@@ -218,7 +218,7 @@ pub(super) fn view(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let compact = ui.view_size().0 < compact::BREAKPOINT;
+    let compact = ui.view_size().width < compact::BREAKPOINT;
     let directory = player.files.and_then(|files| files.directory.as_ref());
     // Swift's source list pads 16 points; its folder page 32.
     let inset = if compact || directory.is_none() { 16.0 } else { 32.0 };
@@ -755,8 +755,8 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
         MenuItem::new("Shuffle folder").id(SHUFFLE).enabled(filled),
     ];
     // Swift's folder menu ends 160 points short of the view's end, opening leftward from the row's "…" key.
-    let x = at.0.min(ui.view_size().0 - 200.0) - 160.0;
-    let menu = ui.menu("folder-menu", (x, at.1), &rows, &super::songs::MENU.name("Folder actions"));
+    let x = at.0.min(ui.view_size().width - 200.0) - 160.0;
+    let menu = ui.menu("folder-menu", pxui::Point::new(x, at.1), &rows, &super::songs::MENU.name("Folder actions"));
     match menu.chosen_id {
         Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entry), ..directory.location }))),
         Some(PLAY) => *intent = Some(Intent::PlayEntryFolder(entry)),
@@ -770,7 +770,7 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
 
 /// Swift's Add music sheet: a folder or some files.
 pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Option<Intent>) {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
     let open = ui.modal("add-music", &ADD_MUSIC.w(width), |ui| {

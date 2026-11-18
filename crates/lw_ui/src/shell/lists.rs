@@ -35,7 +35,7 @@ pub(super) fn menu(
         MenuItem::new("Rename…").id(RENAME).enabled(present),
         MenuItem::new("Delete list").id(DELETE).enabled(present).danger(),
     ];
-    let menu = ui.menu("list-menu", at, &rows, &songs::MENU.name("List actions"));
+    let menu = ui.menu("list-menu", pxui::Point::new(at.0, at.1), &rows, &songs::MENU.name("List actions"));
     match menu.chosen_id {
         Some(RENAME) => *intent = Some(Intent::RenameListDialog(list, title.and_then(Query::new).unwrap_or_default())),
         Some(_) => *intent = Some(Intent::ConfirmDeleteList(list)),
@@ -55,7 +55,7 @@ pub(super) fn confirm_delete(
     list: i64,
     intent: &mut Option<Intent>,
 ) {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = playlist_title(catalog, list);
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete List").danger().primary().enabled(title.is_some())];
@@ -77,7 +77,7 @@ pub(super) fn name_dialog(
     dialog: ListDialog,
     intent: &mut Option<Intent>,
 ) {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let (heading, confirm) = match dialog {
         ListDialog::New(_) | ListDialog::NewPage => ("New list", "Create"),

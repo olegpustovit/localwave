@@ -253,13 +253,13 @@ pub(super) fn table_text_size(
     let (width, lines) = if natural > available {
         let metrics = ui
             .text_service()
-            .measure(value, style, available.max(0.01))
+            .measure(value, *style, Some(available.max(0.01)))
             .unwrap();
         (metrics.width, metrics.lines)
     } else {
         (natural, 1)
     };
-    let density = ui.density() as f32;
+    let density = ui.density();
     (
         (width * density).ceil() / density,
         line_height * lines.max(1) as f32,
@@ -293,7 +293,7 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
     }
 }
 /// A context menu row's 13-point text.
-const MENU_ROW: Look = Look::NONE.font(Font::BODY.size(13));
+const MENU_ROW: Look = Look::NONE.font(Font::BODY.size(13.0));
 #[cfg(test)]
 pub(super) mod button_tests {
     use super::*;

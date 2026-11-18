@@ -25,7 +25,7 @@ pub(super) fn editor(
     mut edit: MetadataEdit,
     intent: &mut Option<Intent>,
 ) {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let open = ui.modal("edit-metadata", &EDIT_METADATA.w(width), |ui| {
         ui.column(
@@ -84,7 +84,7 @@ pub(super) fn confirm_delete(
     song: i64,
     intent: &mut Option<Intent>,
 ) {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = catalog
         .row_index(song)

@@ -16,7 +16,7 @@ pub(super) fn transport(
     panel: bool,
     intent: &mut Option<Intent>,
 ) {
-    let narrow = ui.view_size().0 < 1100.0;
+    let narrow = ui.view_size().width < 1100.0;
     let key_width = if narrow { 44.0 } else { 68.0 };
     ui.row(
         "transport-content",
@@ -125,7 +125,7 @@ pub(super) fn desktop(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) -> Handle {
-    let (width, height) = ui.view_size();
+    let pxui::ViewSize { width, height } = ui.view_size();
     let [safe_top, safe_right, safe_bottom, safe_left] = ui.environment().safe_area;
     let width = (width - safe_left - safe_right).max(1.0);
     let height = (height - safe_bottom).max(1.0);
@@ -293,7 +293,7 @@ pub(super) fn seek(
         &scrubber,
         &Node::column()
             .w(Size::Grow)
-            .h_px(if ui.view_size().0 < compact::BREAKPOINT {
+            .h_px(if ui.view_size().width < compact::BREAKPOINT {
                 56.0
             } else {
                 40.0

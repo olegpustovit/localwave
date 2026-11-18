@@ -34,7 +34,7 @@ fn label(
             ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(role)
         },
     );
-    ui.text_line_box(&node, value, &style, &[]).unwrap();
+    ui.text_line_box(&node, value, style, &[]).unwrap();
     node
 }
 #[derive(Clone, Copy)]
@@ -232,7 +232,7 @@ fn heading(
                     (heading, false)
                 };
                 if column != Column::Time {
-                    ui.text_line_box(&button, value, &style, &[]).unwrap();
+                    ui.text_line_box(&button, value, style, &[]).unwrap();
                 }
                 if let Some(sort) = column.sort() {
                     let selected =
@@ -402,7 +402,7 @@ pub(super) fn table(
         catalog,
         state.route,
         widths,
-        ui.density() as f32,
+        ui.density(),
         player.current_id,
         first,
         end,

@@ -235,7 +235,7 @@ fn hint(ui: &mut Ui, width: f32) {
     const HINT: Label = Label::BODY.line_height(19.6).wrap();
     let height = ui
         .text_service()
-        .measure_spans(TEXT, &HINT, width, &spans)
+        .measure_spans(TEXT, HINT, Some(width), &spans)
         .map_or(19.6, |m| m.height.max(19.6));
     let node = ui.node(
         "hint",
@@ -248,7 +248,7 @@ fn hint(ui: &mut Ui, width: f32) {
             ..Node::column().w(Size::Grow).h_px(height).role(Role::Paragraph)
         },
     );
-    ui.text_line_box(&node, TEXT, &HINT, &spans).unwrap();
+    ui.text_line_box(&node, TEXT, HINT, &spans).unwrap();
 }
 
 pub(super) fn header_view(

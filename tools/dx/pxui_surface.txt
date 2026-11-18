@@ -427,7 +427,7 @@ pxui::Paint::cubic fn (&mut self, points: [(f32, f32); 4], stroke: Stroke)
 pxui::Paint::curve fn (&mut self, from: (f32, f32), control: (f32, f32), to: (f32, f32), stroke: Stroke)
 pxui::Paint::dashed fn (&mut self, from: (f32, f32), to: (f32, f32), stroke: Stroke)
 pxui::Paint::dashed_rect fn (&mut self, rect: Rect, stroke: Stroke)
-pxui::Paint::density fn (&self) -> i64
+pxui::Paint::density fn (&self) -> f32
 pxui::Paint::fill fn (&mut self, rect: Rect, fill: Fill)
 pxui::Paint::flag fn (&mut self, at: (f32, f32), round: bool, on: bool)
 pxui::Paint::frame fn (&mut self, rect: Rect, stroke: Stroke)
@@ -438,10 +438,10 @@ pxui::Paint::line fn (&mut self, from: (f32, f32), to: (f32, f32), stroke: Strok
 pxui::Paint::rtl fn (&self) -> bool
 pxui::Paint::scroll_y fn (&mut self, slot: u64) -> f32
 pxui::Paint::stroke fn (&mut self, rect: Rect, stroke: Stroke)
-pxui::Paint::text fn (&mut self, at: (f32, f32), style: &Label, width: f32, s: &str) -> TextMetrics
-pxui::Paint::text_chars fn (&mut self, at: (f32, f32), style: &Label, s: &str) -> f32
-pxui::Paint::text_metrics fn (&mut self, style: &TextStyle, width: f32, s: &str) -> TextMetrics
-pxui::Paint::text_spans fn (&mut self, at: (f32, f32), style: &TextStyle, width: f32, text: &str, spans: &[TextSpan]) -> Result<TextMetrics, Error>
+pxui::Paint::text fn (&mut self, at: Point, style: Label, width: f32, s: &str) -> TextMetrics
+pxui::Paint::text_chars fn (&mut self, at: Point, style: Label, s: &str) -> f32
+pxui::Paint::text_service fn (&mut self) -> UiText<'_>
+pxui::Paint::text_spans fn (&mut self, at: Point, style: Label, width: f32, text: &str, spans: &[TextSpan]) -> Result<TextMetrics, Error>
 pxui::Paint::theme fn (&self) -> Tokens
 pxui::Paint::triangle fn (&mut self, a: (f32, f32), b: (f32, f32), c: (f32, f32), fill: Fill)
 pxui::Part use pxui_types::theme::Part
@@ -817,7 +817,6 @@ pxui::Ui::cached_label fn (&mut self, b: &Handle, index: usize, text: &str) -> &
 pxui::Ui::cancel_carry fn (&mut self)
 pxui::Ui::canvas fn <F: FnMut(&mut Paint<'_>, Rect) + 'static>(&mut self, b: &Handle, f: F)
 pxui::Ui::canvas_over fn <F: FnMut(&mut Paint<'_>, Rect) + 'static>(&mut self, b: &Handle, f: F)
-pxui::Ui::cap_width fn (&mut self, text: &str) -> f32
 pxui::Ui::captured fn (&self) -> bool
 pxui::Ui::carry fn (&mut self, from: Option<&Handle>, kind: &str, value: &str)
 pxui::Ui::carrying fn (&self) -> Option<PayloadRef<'_>>
@@ -828,7 +827,7 @@ pxui::Ui::color fn (&self, token: ColorToken) -> Rgba
 pxui::Ui::column fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::content_rect fn (&self) -> Rect
 pxui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
-pxui::Ui::density fn (&self) -> i64
+pxui::Ui::density fn (&self) -> f32
 pxui::Ui::dialog fn <K: Into<Key>>(&mut self, key: K, title: &str, buttons: &[DialogButton<'_>], dialog: &Dialog, body: &mut dyn FnMut(&mut Ui)) -> Chosen
 pxui::Ui::disabled fn <F: FnMut(&mut Ui)>(&mut self, disabled: bool, f: F)
 pxui::Ui::dismiss_popup fn (&mut self)
@@ -836,13 +835,12 @@ pxui::Ui::draw_revision fn (&self) -> u64
 pxui::Ui::drawn fn (&mut self, index: usize)
 pxui::Ui::drop_target fn (&mut self, b: &Handle) -> Option<DropRef<'_>>
 pxui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &[Segment<'_>], selected: Option<usize>, dropdown: &Dropdown) -> PickResponse
-pxui::Ui::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::Ui::environment fn (&self) -> Environment
 pxui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
 pxui::Ui::field_drag fn (&self, field: &Handle) -> Option<(f32, f32)>
 pxui::Ui::focus_box fn (&mut self, box_: &Handle)
-pxui::Ui::font_size fn (&self) -> i64
+pxui::Ui::font_size fn (&self) -> f32
 pxui::Ui::footer fn (&mut self, right: Option<&str>, hints: &[(&str, &str)])
 pxui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::Ui::frame_index fn (&self) -> u64
@@ -885,7 +883,7 @@ pxui::Ui::line_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rec
 pxui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
 pxui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::Ui::local_rect fn (&self, b: &Handle) -> Rect
-pxui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: (f32, f32), items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
+pxui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: Point, items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
 pxui::Ui::menu_bar fn <K: Into<Key>>(&mut self, key: K, menus: &[MenuBarMenu<'_>], bar: &MenuBar) -> Chosen
 pxui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
@@ -967,7 +965,7 @@ pxui::Ui::resolve fn (&self, style: &Label) -> TextStyle
 pxui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
 pxui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
-pxui::Ui::row_height fn (&self) -> i64
+pxui::Ui::row_height fn (&self) -> f32
 pxui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, w: Size, h: Size, f: F) -> Handle
 pxui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
@@ -978,7 +976,7 @@ pxui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, sele
 pxui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
 pxui::Ui::set_dir fn (&mut self, rtl: bool)
-pxui::Ui::set_font_size fn (&mut self, size: i64)
+pxui::Ui::set_font_size fn (&mut self, size: f32)
 pxui::Ui::set_look fn (&mut self, box_: &Handle, look: Look, state: State)
 pxui::Ui::set_node_layout fn (&mut self, b: &Handle, node: &Node)
 pxui::Ui::set_role fn (&mut self, box_: &Handle, role: Role, states: u32)
@@ -1006,14 +1004,12 @@ pxui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect
 pxui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
 pxui::Ui::text_input_focused fn (&self) -> bool
 pxui::Ui::text_layout_count fn (&self) -> u64
-pxui::Ui::text_line_box fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
+pxui::Ui::text_line_box fn (&mut self, box_: &Handle, text: &str, style: Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::Ui::text_service fn (&mut self) -> UiText<'_>
-pxui::Ui::text_spans fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
+pxui::Ui::text_spans fn (&mut self, box_: &Handle, text: &str, style: Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::Ui::text_state fn (&self, b: &Handle) -> Option<&str>
-pxui::Ui::text_top fn (&self, size: Option<i64>, y: f32, h: f32) -> f32
 pxui::Ui::text_traits fn (&self) -> TextTraits
 pxui::Ui::text_undo_bytes fn (&self) -> usize
-pxui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::Ui::theme fn (&self) -> &Theme
 pxui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
@@ -1033,7 +1029,7 @@ pxui::Ui::view_backdrop_blur fn (&mut self, b: &Handle, sigma: f32)
 pxui::Ui::view_backdrop_saturation fn (&mut self, b: &Handle, saturation: f32)
 pxui::Ui::view_clip fn (&mut self, b: &Handle, clip: Option<Rect>)
 pxui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
-pxui::Ui::view_size fn (&self) -> (f32, f32)
+pxui::Ui::view_size fn (&self) -> ViewSize
 pxui::Ui::wants_frame fn (&self, events: &[Event], now: f64) -> bool
 pxui::Ui::within fn (&mut self, box_: &Handle, f: &mut dyn FnMut(&mut Ui))
 pxui::UiDesc impl Clone
@@ -1045,13 +1041,14 @@ pxui::UiDesc::fonts fn const (self, fonts: &'a [FontData<'a>]) -> UiDesc<'a>
 pxui::UiDesc::new fn const (platform: Platform) -> UiDesc<'a>
 pxui::UiText struct <'ui>(_)
 pxui::UiText::add_font fn (&mut self, bytes: &[u8]) -> Result<u32, Error>
+pxui::UiText::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::UiText::fork fn (&mut self) -> Result<Text, Error>
 pxui::UiText::install fn (&mut self, prepared: PreparedText) -> Result<RetiredText, (Error, PreparedText)>
-pxui::UiText::measure fn (&mut self, value: &str, style: &Label, max_width: f32) -> Result<TextMetrics, Error>
-pxui::UiText::measure_spans fn (&mut self, value: &str, style: &Label, max_width: f32, spans: &[TextSpan]) -> Result<TextMetrics, Error>
-pxui::UiText::quads fn (&mut self, value: &str, style: &Label, max_width: f32, origin: (f32, f32), scale: f32, out: &mut Vec<TextGlyph>) -> Result<usize, Error>
-pxui::UiText::rasterize_rgba fn (&mut self, value: &str, style: &Label, max_width: f32, scale: f32, color: [u8; 4], out: &mut Vec<u8>) -> Result<(u32, u32), Error>
-pxui::UiText::width fn (&mut self, value: &str, style: &Label, max_width: f32) -> Result<f32, Error>
+pxui::UiText::measure fn (&mut self, value: &str, style: Label, max_width: Option<f32>) -> Result<TextMetrics, Error>
+pxui::UiText::measure_spans fn (&mut self, value: &str, style: Label, max_width: Option<f32>, spans: &[TextSpan]) -> Result<TextMetrics, Error>
+pxui::UiText::quads fn (&mut self, value: &str, style: Label, max_width: Option<f32>, origin: Point, scale: f32, out: &mut Vec<TextGlyph>) -> Result<usize, Error>
+pxui::UiText::rasterize_rgba fn (&mut self, value: &str, style: Label, max_width: Option<f32>, scale: f32, color: [u8; 4], out: &mut Vec<u8>) -> Result<(u32, u32), Error>
+pxui::UiText::width fn (&mut self, value: &str, style: Label, max_width: Option<f32>) -> Result<f32, Error>
 pxui::ValidFn type <'a>= dyn Fn(&str) -> bool + 'a
 pxui::ValueCallbacks impl Clone
 pxui::ValueCallbacks impl Copy
@@ -1087,6 +1084,15 @@ pxui::ValueFieldResponse struct <'a>
 pxui::ValueFieldResponse::changed field Option<&'a str>
 pxui::ValueFieldResponse::editing field bool
 pxui::ValueFieldResponse::response field Response
+pxui::ViewSize impl Clone
+pxui::ViewSize impl Copy
+pxui::ViewSize impl Debug
+pxui::ViewSize impl Default
+pxui::ViewSize impl PartialEq
+pxui::ViewSize impl StructuralPartialEq
+pxui::ViewSize struct
+pxui::ViewSize::height field f32
+pxui::ViewSize::width field f32
 pxui::ViewTransform impl Clone
 pxui::ViewTransform impl Copy
 pxui::ViewTransform impl Debug
@@ -1415,7 +1421,7 @@ pxui::ui::Paint::cubic fn (&mut self, points: [(f32, f32); 4], stroke: Stroke)
 pxui::ui::Paint::curve fn (&mut self, from: (f32, f32), control: (f32, f32), to: (f32, f32), stroke: Stroke)
 pxui::ui::Paint::dashed fn (&mut self, from: (f32, f32), to: (f32, f32), stroke: Stroke)
 pxui::ui::Paint::dashed_rect fn (&mut self, rect: Rect, stroke: Stroke)
-pxui::ui::Paint::density fn (&self) -> i64
+pxui::ui::Paint::density fn (&self) -> f32
 pxui::ui::Paint::fill fn (&mut self, rect: Rect, fill: Fill)
 pxui::ui::Paint::flag fn (&mut self, at: (f32, f32), round: bool, on: bool)
 pxui::ui::Paint::frame fn (&mut self, rect: Rect, stroke: Stroke)
@@ -1426,10 +1432,10 @@ pxui::ui::Paint::line fn (&mut self, from: (f32, f32), to: (f32, f32), stroke: S
 pxui::ui::Paint::rtl fn (&self) -> bool
 pxui::ui::Paint::scroll_y fn (&mut self, slot: u64) -> f32
 pxui::ui::Paint::stroke fn (&mut self, rect: Rect, stroke: Stroke)
-pxui::ui::Paint::text fn (&mut self, at: (f32, f32), style: &Label, width: f32, s: &str) -> TextMetrics
-pxui::ui::Paint::text_chars fn (&mut self, at: (f32, f32), style: &Label, s: &str) -> f32
-pxui::ui::Paint::text_metrics fn (&mut self, style: &TextStyle, width: f32, s: &str) -> TextMetrics
-pxui::ui::Paint::text_spans fn (&mut self, at: (f32, f32), style: &TextStyle, width: f32, text: &str, spans: &[TextSpan]) -> Result<TextMetrics, Error>
+pxui::ui::Paint::text fn (&mut self, at: Point, style: Label, width: f32, s: &str) -> TextMetrics
+pxui::ui::Paint::text_chars fn (&mut self, at: Point, style: Label, s: &str) -> f32
+pxui::ui::Paint::text_service fn (&mut self) -> UiText<'_>
+pxui::ui::Paint::text_spans fn (&mut self, at: Point, style: Label, width: f32, text: &str, spans: &[TextSpan]) -> Result<TextMetrics, Error>
 pxui::ui::Paint::theme fn (&self) -> Tokens
 pxui::ui::Paint::triangle fn (&mut self, a: (f32, f32), b: (f32, f32), c: (f32, f32), fill: Fill)
 pxui::ui::PanelOpts use pxui_types::ui::PanelOpts
@@ -1567,7 +1573,6 @@ pxui::ui::Ui::cached_label fn (&mut self, b: &Handle, index: usize, text: &str) 
 pxui::ui::Ui::cancel_carry fn (&mut self)
 pxui::ui::Ui::canvas fn <F: FnMut(&mut Paint<'_>, Rect) + 'static>(&mut self, b: &Handle, f: F)
 pxui::ui::Ui::canvas_over fn <F: FnMut(&mut Paint<'_>, Rect) + 'static>(&mut self, b: &Handle, f: F)
-pxui::ui::Ui::cap_width fn (&mut self, text: &str) -> f32
 pxui::ui::Ui::captured fn (&self) -> bool
 pxui::ui::Ui::carry fn (&mut self, from: Option<&Handle>, kind: &str, value: &str)
 pxui::ui::Ui::carrying fn (&self) -> Option<PayloadRef<'_>>
@@ -1578,7 +1583,7 @@ pxui::ui::Ui::color fn (&self, token: ColorToken) -> Rgba
 pxui::ui::Ui::column fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::content_rect fn (&self) -> Rect
 pxui::ui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
-pxui::ui::Ui::density fn (&self) -> i64
+pxui::ui::Ui::density fn (&self) -> f32
 pxui::ui::Ui::dialog fn <K: Into<Key>>(&mut self, key: K, title: &str, buttons: &[DialogButton<'_>], dialog: &Dialog, body: &mut dyn FnMut(&mut Ui)) -> Chosen
 pxui::ui::Ui::disabled fn <F: FnMut(&mut Ui)>(&mut self, disabled: bool, f: F)
 pxui::ui::Ui::dismiss_popup fn (&mut self)
@@ -1586,13 +1591,12 @@ pxui::ui::Ui::draw_revision fn (&self) -> u64
 pxui::ui::Ui::drawn fn (&mut self, index: usize)
 pxui::ui::Ui::drop_target fn (&mut self, b: &Handle) -> Option<DropRef<'_>>
 pxui::ui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &[Segment<'_>], selected: Option<usize>, dropdown: &Dropdown) -> PickResponse
-pxui::ui::Ui::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::ui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::ui::Ui::environment fn (&self) -> Environment
 pxui::ui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
 pxui::ui::Ui::field_drag fn (&self, field: &Handle) -> Option<(f32, f32)>
 pxui::ui::Ui::focus_box fn (&mut self, box_: &Handle)
-pxui::ui::Ui::font_size fn (&self) -> i64
+pxui::ui::Ui::font_size fn (&self) -> f32
 pxui::ui::Ui::footer fn (&mut self, right: Option<&str>, hints: &[(&str, &str)])
 pxui::ui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::ui::Ui::frame_index fn (&self) -> u64
@@ -1635,7 +1639,7 @@ pxui::ui::Ui::line_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect:
 pxui::ui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
 pxui::ui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::ui::Ui::local_rect fn (&self, b: &Handle) -> Rect
-pxui::ui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: (f32, f32), items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
+pxui::ui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: Point, items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
 pxui::ui::Ui::menu_bar fn <K: Into<Key>>(&mut self, key: K, menus: &[MenuBarMenu<'_>], bar: &MenuBar) -> Chosen
 pxui::ui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
@@ -1717,7 +1721,7 @@ pxui::ui::Ui::resolve fn (&self, style: &Label) -> TextStyle
 pxui::ui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
 pxui::ui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::ui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
-pxui::ui::Ui::row_height fn (&self) -> i64
+pxui::ui::Ui::row_height fn (&self) -> f32
 pxui::ui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, w: Size, h: Size, f: F) -> Handle
 pxui::ui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
@@ -1728,7 +1732,7 @@ pxui::ui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, 
 pxui::ui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::ui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
 pxui::ui::Ui::set_dir fn (&mut self, rtl: bool)
-pxui::ui::Ui::set_font_size fn (&mut self, size: i64)
+pxui::ui::Ui::set_font_size fn (&mut self, size: f32)
 pxui::ui::Ui::set_look fn (&mut self, box_: &Handle, look: Look, state: State)
 pxui::ui::Ui::set_node_layout fn (&mut self, b: &Handle, node: &Node)
 pxui::ui::Ui::set_role fn (&mut self, box_: &Handle, role: Role, states: u32)
@@ -1756,14 +1760,12 @@ pxui::ui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: 
 pxui::ui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
 pxui::ui::Ui::text_input_focused fn (&self) -> bool
 pxui::ui::Ui::text_layout_count fn (&self) -> u64
-pxui::ui::Ui::text_line_box fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
+pxui::ui::Ui::text_line_box fn (&mut self, box_: &Handle, text: &str, style: Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::ui::Ui::text_service fn (&mut self) -> UiText<'_>
-pxui::ui::Ui::text_spans fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
+pxui::ui::Ui::text_spans fn (&mut self, box_: &Handle, text: &str, style: Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::ui::Ui::text_state fn (&self, b: &Handle) -> Option<&str>
-pxui::ui::Ui::text_top fn (&self, size: Option<i64>, y: f32, h: f32) -> f32
 pxui::ui::Ui::text_traits fn (&self) -> TextTraits
 pxui::ui::Ui::text_undo_bytes fn (&self) -> usize
-pxui::ui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::ui::Ui::theme fn (&self) -> &Theme
 pxui::ui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::ui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
@@ -1783,7 +1785,7 @@ pxui::ui::Ui::view_backdrop_blur fn (&mut self, b: &Handle, sigma: f32)
 pxui::ui::Ui::view_backdrop_saturation fn (&mut self, b: &Handle, saturation: f32)
 pxui::ui::Ui::view_clip fn (&mut self, b: &Handle, clip: Option<Rect>)
 pxui::ui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
-pxui::ui::Ui::view_size fn (&self) -> (f32, f32)
+pxui::ui::Ui::view_size fn (&self) -> ViewSize
 pxui::ui::Ui::wants_frame fn (&self, events: &[Event], now: f64) -> bool
 pxui::ui::Ui::within fn (&mut self, box_: &Handle, f: &mut dyn FnMut(&mut Ui))
 pxui::ui::UndoKind use pxui_types::ui::UndoKind
@@ -2014,9 +2016,10 @@ pxui_types::Font::caps field bool
 pxui_types::Font::caps fn const (self) -> Font
 pxui_types::Font::family field u16
 pxui_types::Font::family fn const (self, family: u16) -> Font
-pxui_types::Font::points fn (&self, body: i64) -> i64
+pxui_types::Font::points fn (&self, body: f32) -> f32
 pxui_types::Font::size field i64
-pxui_types::Font::size fn const (self, points: i64) -> Font
+pxui_types::Font::size fn const (self, points: f32) -> Font
+pxui_types::Font::size_points field f32
 pxui_types::Font::tracking field f32
 pxui_types::Font::tracking fn const (self, ems: f32) -> Font
 pxui_types::Font::weight field u16
@@ -2560,10 +2563,10 @@ pxui_types::Tokens::accent field Rgba
 pxui_types::Tokens::border fn const (&self) -> Rgba
 pxui_types::Tokens::control field Rgba
 pxui_types::Tokens::density field f32
-pxui_types::Tokens::display_size field i64
+pxui_types::Tokens::display_size field f32
 pxui_types::Tokens::edge fn const (&self) -> Rgba
 pxui_types::Tokens::faint_border fn const (&self) -> Rgba
-pxui_types::Tokens::font_size field i64
+pxui_types::Tokens::font_size field f32
 pxui_types::Tokens::foreground field Rgba
 pxui_types::Tokens::from_ffi fn (value: ThemeTokens) -> Self
 pxui_types::Tokens::ground fn (&self) -> Rgba
@@ -2574,7 +2577,7 @@ pxui_types::Tokens::ink_ground field OptColor
 pxui_types::Tokens::input field Rgba
 pxui_types::Tokens::invalid field Rgba
 pxui_types::Tokens::is_dark fn const (&self) -> bool
-pxui_types::Tokens::label_size field i64
+pxui_types::Tokens::label_size field f32
 pxui_types::Tokens::motion field Motion
 pxui_types::Tokens::moves fn (&self) -> bool
 pxui_types::Tokens::panel field Rgba
@@ -2583,7 +2586,7 @@ pxui_types::Tokens::radius field [f32; 3]
 pxui_types::Tokens::reduced_motion field bool
 pxui_types::Tokens::space field [f32; 4]
 pxui_types::Tokens::tint fn const (&self) -> Rgba
-pxui_types::Tokens::title_size field i64
+pxui_types::Tokens::title_size field f32
 pxui_types::Tokens::track field Rgba
 pxui_types::Tokens::transition fn (&self, from: State, to: State) -> Curve
 pxui_types::Touch impl Clone
@@ -4492,6 +4495,7 @@ pxui_types::geom::Point impl Default
 pxui_types::geom::Point impl PartialEq
 pxui_types::geom::Point impl StructuralPartialEq
 pxui_types::geom::Point struct
+pxui_types::geom::Point::new fn const (x: f32, y: f32) -> Point
 pxui_types::geom::Point::x field f32
 pxui_types::geom::Point::y field f32
 pxui_types::geom::Rect impl Clone
@@ -5208,9 +5212,10 @@ pxui_types::theme::Font::caps field bool
 pxui_types::theme::Font::caps fn const (self) -> Font
 pxui_types::theme::Font::family field u16
 pxui_types::theme::Font::family fn const (self, family: u16) -> Font
-pxui_types::theme::Font::points fn (&self, body: i64) -> i64
+pxui_types::theme::Font::points fn (&self, body: f32) -> f32
 pxui_types::theme::Font::size field i64
-pxui_types::theme::Font::size fn const (self, points: i64) -> Font
+pxui_types::theme::Font::size fn const (self, points: f32) -> Font
+pxui_types::theme::Font::size_points field f32
 pxui_types::theme::Font::tracking field f32
 pxui_types::theme::Font::tracking fn const (self, ems: f32) -> Font
 pxui_types::theme::Font::weight field u16
@@ -5438,10 +5443,10 @@ pxui_types::theme::Tokens::accent field Rgba
 pxui_types::theme::Tokens::border fn const (&self) -> Rgba
 pxui_types::theme::Tokens::control field Rgba
 pxui_types::theme::Tokens::density field f32
-pxui_types::theme::Tokens::display_size field i64
+pxui_types::theme::Tokens::display_size field f32
 pxui_types::theme::Tokens::edge fn const (&self) -> Rgba
 pxui_types::theme::Tokens::faint_border fn const (&self) -> Rgba
-pxui_types::theme::Tokens::font_size field i64
+pxui_types::theme::Tokens::font_size field f32
 pxui_types::theme::Tokens::foreground field Rgba
 pxui_types::theme::Tokens::from_ffi fn (value: ThemeTokens) -> Self
 pxui_types::theme::Tokens::ground fn (&self) -> Rgba
@@ -5452,7 +5457,7 @@ pxui_types::theme::Tokens::ink_ground field OptColor
 pxui_types::theme::Tokens::input field Rgba
 pxui_types::theme::Tokens::invalid field Rgba
 pxui_types::theme::Tokens::is_dark fn const (&self) -> bool
-pxui_types::theme::Tokens::label_size field i64
+pxui_types::theme::Tokens::label_size field f32
 pxui_types::theme::Tokens::motion field Motion
 pxui_types::theme::Tokens::moves fn (&self) -> bool
 pxui_types::theme::Tokens::panel field Rgba
@@ -5461,7 +5466,7 @@ pxui_types::theme::Tokens::radius field [f32; 3]
 pxui_types::theme::Tokens::reduced_motion field bool
 pxui_types::theme::Tokens::space field [f32; 4]
 pxui_types::theme::Tokens::tint fn const (&self) -> Rgba
-pxui_types::theme::Tokens::title_size field i64
+pxui_types::theme::Tokens::title_size field f32
 pxui_types::theme::Tokens::track field Rgba
 pxui_types::theme::Tokens::transition fn (&self, from: State, to: State) -> Curve
 pxui_types::theme::WIDGET_COUNT const usize
@@ -5737,8 +5742,8 @@ pxui_types::ui::PanelOpts::height fn (self, height: f32) -> PanelOpts
 pxui_types::ui::PanelOpts::look field Option<Look>
 pxui_types::ui::PanelOpts::max_height field Option<f32>
 pxui_types::ui::PanelOpts::max_height fn (self, height: f32) -> PanelOpts
-pxui_types::ui::PanelOpts::padding field i64
-pxui_types::ui::PanelOpts::padding fn (self, padding: i64) -> PanelOpts
+pxui_types::ui::PanelOpts::padding field f32
+pxui_types::ui::PanelOpts::padding fn const (self, padding: f32) -> PanelOpts
 pxui_types::ui::PanelOpts::stroke field Option<Rgba>
 pxui_types::ui::PanelOpts::width field f32
 pxui_types::ui::PanelOpts::width fn (self, width: f32) -> PanelOpts

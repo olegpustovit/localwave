@@ -86,7 +86,7 @@ pub(super) fn gallery(
     let entry = crate::motion::Page::new(ui, state.entry_revision);
     let groups = &catalog.albums;
     let order = &catalog.album_orders[state.album_sort as usize];
-    let compact = ui.view_size().0 < compact::BREAKPOINT;
+    let compact = ui.view_size().width < compact::BREAKPOINT;
     let inset = if compact { 16.0 } else { 32.0 };
     let gap = if compact { 16.0 } else { 20.0 };
     let available = (width - inset * 2.0).max(1.0);

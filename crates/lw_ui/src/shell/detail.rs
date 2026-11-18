@@ -113,7 +113,7 @@ pub(super) fn line(
     ui.text_line_box(
         &node,
         value,
-        &Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
+        Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
         &[],
     )
     .unwrap();
@@ -137,7 +137,7 @@ pub(super) fn link(
     ui.text_line_box(
         &link.handle,
         value,
-        &Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
+        Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
         &[],
     )
     .unwrap();

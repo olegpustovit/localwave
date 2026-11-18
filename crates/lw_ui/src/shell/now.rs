@@ -84,7 +84,7 @@ pub(super) fn now_panel(
                         ui.text_line_box(
                             &title,
                             value,
-                            &Label::BODY.size(19.0).weight(500).tracking(-0.015).line_height(22.8).wrap(),
+                            Label::BODY.size(19.0).weight(500).tracking(-0.015).line_height(22.8).wrap(),
                             &[],
                         )
                         .unwrap();

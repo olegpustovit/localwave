@@ -828,7 +828,7 @@ fn selection_shortcut(
     if !carrying && ui.key_pressed(KeyCode::Escape, Mods::ANY) {
         return Some(Intent::Select(Selection::Clear));
     }
-    if ui.view_size().0 < compact::BREAKPOINT {
+    if ui.view_size().width < compact::BREAKPOINT {
         return None;
     }
     let plain = ![KeyCode::Meta, KeyCode::Shift, KeyCode::Alt, KeyCode::Ctrl].into_iter().any(down);
@@ -911,7 +911,7 @@ pub fn shell(
     }
     let root = if onboarding::wanted(catalog, state, player.settings.did_start) {
         onboarding::view(ui, state.top_inset, intent)
-    } else if ui.view_size().0 < compact::BREAKPOINT {
+    } else if ui.view_size().width < compact::BREAKPOINT {
         state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, intent)
     } else {
@@ -920,7 +920,7 @@ pub fn shell(
     // Swift's long-press menu blurs the page behind it on a phone.
     /// The phone song menu's backdrop: near-black at a quarter alpha, the same in both appearances.
     const SCRIM: Look = Look::NONE.fill(Rgba { r: 10, g: 10, b: 10, a: 64 });
-    if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
+    if state.song_menu.is_some() && ui.view_size().width < compact::BREAKPOINT {
         let scrim = ui.view_of("song-menu-backdrop", &0, |ui| {
             ui.node(
                 "scrim",
@@ -948,8 +948,6 @@ pub fn shell(
     if player.file_dragging {
         const TITLE: pxui::Label = pxui::Label::BODY.size(40.0).color(INK);
         const NOTE: pxui::Label = pxui::Label::BODY.size(14.0).color(SECONDARY);
-        // measured in the style they are drawn in, resolved before the canvas
-        let (title, note) = (ui.resolve(&TITLE), ui.resolve(&NOTE));
         ui.canvas_over(&root, move |paint, rect| {
             let (x, y, w, h) = (
                 rect.x + 12.0,
@@ -972,19 +970,14 @@ pub fn shell(
                     }
                 }
             }
-            // `text` places the layout top at `at`; these were tuned to the Swift app with the em-box top, which sits
-            // above the layout top by about the first line's half-leading (measured: 3 pt at 40 pt, 1 pt at 14 pt).
-            for (text, resolved, at, style) in [
-                ("Drop to play", &title, rect.y + rect.h * 0.5 - 34.0 + 3.0, &TITLE),
-                (
-                    "Folders are indexed. Audio files join Added Files.",
-                    &note,
-                    rect.y + rect.h * 0.5 + 22.0 + 1.0,
-                    &NOTE,
-                ),
+            // the first baselines where Swift puts them: 7 pt under the centre (the 40 pt title) and 36.3 pt under it (the note);
+            // `text` places the layout top, which the painter's own measure in the drawn style puts `baseline` above them
+            for (text, baseline, style) in [
+                ("Drop to play", rect.y + rect.h * 0.5 + 7.0, TITLE),
+                ("Folders are indexed. Audio files join Added Files.", rect.y + rect.h * 0.5 + 36.3, NOTE),
             ] {
-                let width = paint.text_metrics(resolved, 0.0, text).width;
-                paint.text((rect.x + (rect.w - width) * 0.5, at), style, 0.0, text);
+                let Ok(m) = paint.text_service().measure(text, style, None) else { continue };
+                paint.text(pxui::Point::new(rect.x + (rect.w - m.width) * 0.5, baseline - m.baseline), style, 0.0, text);
             }
         });
     }
@@ -1068,7 +1061,7 @@ pub fn shell(
         && state.list_menu.is_none()
         && state.list_dialog.is_none()
         && state.delete_list.is_none()
-        && ui.view_size().0 < compact::BREAKPOINT
+        && ui.view_size().width < compact::BREAKPOINT
         && ui.key_pressed(KeyCode::Escape, Mods::ANY)
     {
         *intent = Some(Intent::TogglePlayer);

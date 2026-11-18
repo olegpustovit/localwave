@@ -54,7 +54,7 @@ pub(in crate::shell) fn menu(
         count += 1;
     }
     // The menu opens leftward from the "…" key.
-    let menu = ui.menu("page-menu", (at.0 - 200.0, at.1), &rows[..count], &MENU.name("Page actions"));
+    let menu = ui.menu("page-menu", pxui::Point::new(at.0 - 200.0, at.1), &rows[..count], &MENU.name("Page actions"));
     // "Add to list" closes this menu and opens the list panel.
     if let Some(id) = menu.chosen_id {
         *intent = match id {
@@ -96,7 +96,7 @@ const DELETE: i64 = 10;
 fn lists(ui: &mut Ui, catalog: &Catalog, at: (f32, f32), intent: &mut Option<Intent>) {
     let mut rows = [MenuItem::new(""); LIST_ROWS];
     let count = list_rows(&mut rows, catalog, None);
-    let menu = ui.menu("page-lists", (at.0 - 200.0, at.1), &rows[..count], &LISTS_MENU);
+    let menu = ui.menu("page-lists", pxui::Point::new(at.0 - 200.0, at.1), &rows[..count], &LISTS_MENU);
     match menu.chosen_id {
         Some(NEW_LIST) => *intent = Some(Intent::NewPageList),
         Some(list) => *intent = Some(Intent::Page(PageAction::AddToList(list))),

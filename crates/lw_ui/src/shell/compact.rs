@@ -47,7 +47,7 @@ fn line(ui: &mut Ui, key: &'static str, value: &str, size: f32, color: Rgba) {
     ui.text_line_box(
         &node,
         value,
-        &Label::BODY.size(size).line_height(size * 1.4).lines(1).ellipsis(),
+        Label::BODY.size(size).line_height(size * 1.4).lines(1).ellipsis(),
         &[],
     )
     .unwrap();
@@ -85,7 +85,7 @@ pub(super) fn view(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) -> Handle {
-    let (width, height) = ui.view_size();
+    let pxui::ViewSize { width, height } = ui.view_size();
     let content = ui.content_rect();
     let (top, right, bottom, left) = (
         content.y,
@@ -544,7 +544,7 @@ fn expanded(
                         ui.text_line_box(
                             &title,
                             if player.title.is_empty() { "Nothing playing" } else { player.title },
-                            &Label::BODY.size(24.0).weight(500).tracking(TIGHT_3).line_height(27.6).lines(1).ellipsis(),
+                            Label::BODY.size(24.0).weight(500).tracking(TIGHT_3).line_height(27.6).lines(1).ellipsis(),
                             &[],
                         )
                         .unwrap();

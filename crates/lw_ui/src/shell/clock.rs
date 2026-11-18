@@ -39,11 +39,14 @@ pub(super) fn small_clock(
     let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));
     let len = text.len();
     const CLOCK: pxui::Label = pxui::Label::BODY.font(1).size(12.0);
+    // Swift's clock baseline, 16.06 pt under the node's top (its em box 4 pt down, CoreText's mono ascent 1.005 em)
+    const BASELINE: f32 = 16.06;
     ui.canvas(&node, move |paint, rect| {
         let text = std::str::from_utf8(&buffer[..len]).unwrap_or("");
-        // `text_chars` places the layout top at `at`; the 4 pt em-box top tuned to Swift sits about 0.6 pt (the first line's
-        // half-leading at 12 pt) above it, so the same glyph pixels need the layout top 0.6 pt lower.
-        paint.text_chars((rect.x, rect.y + 4.6), &CLOCK.color(color), text);
+        // `text_chars` places the layout top: the first baseline lies `baseline` under it (the digits share one layout's
+        // metrics, so "0" measures it from a cached layout)
+        let baseline = paint.text_service().measure("0", CLOCK, None).map_or(BASELINE - 4.0, |m| m.baseline);
+        paint.text_chars(pxui::Point::new(rect.x, rect.y + BASELINE - baseline), CLOCK.color(color), text);
     });
     node
 }

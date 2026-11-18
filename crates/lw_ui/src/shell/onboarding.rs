@@ -21,7 +21,7 @@ pub(super) const LIBRARY_EMPTY: &str =
 pub(super) const FIND_HINT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
 
 pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> Handle {
-    let (width, _) = ui.view_size();
+    let pxui::ViewSize { width, .. } = ui.view_size();
     let column = (width - 32.0).max(1.0);
     let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
     ui.set_role(&root, Role::Window, 0);
@@ -179,7 +179,7 @@ pub(super) fn empty_library(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let compact = ui.view_size().0 < compact::BREAKPOINT;
+    let compact = ui.view_size().width < compact::BREAKPOINT;
     if !compact {
         header_view(ui, catalog, state, width, intent);
     }

@@ -47,7 +47,7 @@ pub(super) fn paragraph(
     let label = Label::BODY.size(size).line_height(size * 1.4).wrap();
     let metrics = ui
         .text_service()
-        .measure(value, &label, width.max(1.0))
+        .measure(value, label, Some(width.max(1.0)))
         .unwrap();
     let node = ui.node(
         key,
@@ -56,11 +56,11 @@ pub(super) fn paragraph(
             ..Node::column().w(Size::Grow).h_px(metrics.height.max(size * 1.4)).role(Role::Paragraph)
         },
     );
-    ui.text_line_box(&node, value, &label, &[]).unwrap();
+    ui.text_line_box(&node, value, label, &[]).unwrap();
     node
 }
 /// A notice's 14-point text; the accent colour is added where it is shown.
-const NOTICE: Look = Look::NONE.font(Font::BODY.size(14));
+const NOTICE: Look = Look::NONE.font(Font::BODY.size(14.0));
 /// A playback or settings message in the theme's accent, which is no colour token, so the label takes it as a look.
 fn notice(ui: &mut Ui, text: &str) {
     let node = ui.label(text, TEXT_14.grow().h_px(42.0));
@@ -286,7 +286,7 @@ pub(super) fn popup(
         choice(MOTION, s.reduce_motion),
     ];
     let rows: &[MenuItem] = if menu == SettingsMenu::Cache { &cache } else { &look };
-    let menu = ui.menu("settings-menu", at, rows, &CHOICES);
+    let menu = ui.menu("settings-menu", pxui::Point::new(at.0, at.1), rows, &CHOICES);
     if let Some(id) = menu.chosen_id {
         *intent = Some(Intent::Setting(match id {
             2 | 32 => Change::CacheGB(id),

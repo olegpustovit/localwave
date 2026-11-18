@@ -49,13 +49,13 @@ pub(super) fn draw(
     const NAME: Label = Label::BODY.line_height(NAME_LINE).wrap_spaces();
     const SPACE: Label = Label::BODY.size(15.0).line_height(SPACE_LINE).wrap_spaces();
     let labels = std::array::from_fn::<_, 5, _>(|index| if matches!(index, 1 | 3) { SPACE } else { NAME });
-    let density = ui.density() as f32;
+    let density = ui.density();
     let sizes = std::array::from_fn(|index| {
         let service = &mut ui.text_service();
-        let natural = service.measure(values[index], &labels[index], 0.0).unwrap();
+        let natural = service.measure(values[index], labels[index], None).unwrap();
         let metrics = if natural.width > width {
             service
-                .measure(values[index], &labels[index], width)
+                .measure(values[index], labels[index], Some(width))
                 .unwrap()
         } else {
             natural
@@ -88,7 +88,7 @@ pub(super) fn draw(
             } else {
                 (ui.node(key, node), false)
             };
-            ui.text_line_box(&handle, values[index], &labels[index], &[])
+            ui.text_line_box(&handle, values[index], labels[index], &[])
                 .unwrap();
             if clicked {
                 let route = player.current_id.and_then(|id| {

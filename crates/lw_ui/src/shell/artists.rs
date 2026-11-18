@@ -14,7 +14,7 @@ fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label, 
             ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(Role::Label)
         },
     );
-    ui.text_line_box(&node, value, &style, &[]).unwrap();
+    ui.text_line_box(&node, value, style, &[]).unwrap();
 }
 
 /// An artist row's name and figures: one ellipsized line; counts and minutes in the mono face, wrapping.
