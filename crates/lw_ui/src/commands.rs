@@ -55,7 +55,8 @@ impl Command {
             Self::Favorite => "Favorite current song",
         }
     }
-    /// The one shortcut table: (key code, modifier key code or 0). `hint` derives from it.
+    /// Returns the shortcut's `KeyCode` and press-time `Mods`.
+    /// `Mods::ANY` accepts a press with any modifier state. `hint` derives from this table.
     pub fn key(self) -> Option<(KeyCode, Mods)> {
         Some(match self {
             Self::PlayPause => (KeyCode::Space, Mods::ANY),
