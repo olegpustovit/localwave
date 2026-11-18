@@ -125,6 +125,13 @@ U1b.1 (one result idiom, ABI 1.76) is committed in both repos on `u1b`; see the
 - The append-only ABI manifest refuses grown records: add records or exports instead.
 - Package end (after U1b.6): Tier B, U1a fingerprint comparison, buildtime, independent review.
 
+## Found (separate fixes later, not U1b scope)
+
+- `pxui_core/src/ui_core.rs` `tooltip_sheet`: a shown tooltip formats and wraps its text into a `String`/`Vec` every frame.
+- `pxui_core/src/ui_text.rs:1733`: the text area's doc tooltip keys its wait with a `format!`ed string every frame.
+- `Segment::detail` reaches the engine in both link modes but no body config exposes it.
+- `box_ops.rs` `last_press_within`: a touch Began is not matched like a mouse press.
+
 ## Commands
 
 - **Tier A (per commit)**
