@@ -46,7 +46,7 @@ Each package has the following lifecycle:
 
 ## Where it stands
 
-### U0.1–U0.7: landed (rust-port, pushed)
+### U0.1–U0.8 landed on `rust-port`
 
 | Step | LocalWave | pxui |
 |---|---|---|
@@ -57,7 +57,8 @@ Each package has the following lifecycle:
 | U0.5 `tools/t --all`; prewarm test made deterministic | 8b13a62 | eb93fe54 |
 | U0.6 status/process docs | 63972bf | 3db577ab |
 | U0.7 CP0 recorded (**red**) | 16dc635 | |
-| Status commit | 8ac43fd | |
+| U0.1–U0.7 status | 8ac43fd | |
+| U0.8 restored the build CPU gate | 9c362bb | 23bb10c4 |
 
 ### CP0 results and decision D26
 
@@ -68,7 +69,7 @@ The plan's §4 table already records D26.
 3. **Popup layer** draws 2 calls on the Layout page (baseline 1). This goes to U2b.8 and must be fixed before U2b.10.
 4. **`Ui::id() -> usize`** becomes `instance_id()` in U1b.6, so `ui.id(key, f)` names one thing. It is already in the ledger.
 
-### U0.8 qualified
+### U0.8 results
 
 U0.8 restores the performance budgets through internal pxui changes to text,
 animation, layout and retained views. LocalWave removes redundant row
@@ -79,20 +80,20 @@ The final signed run passed all 30 workloads at peak load 2.776. The highest
 gated p99 values were 1.477 ms build CPU, 2.000 ms frame CPU and 3.535 ms work
 wall. All 28 gated workloads had zero warm Rust allocations. The previous
 run of identical machine code missed the build budget on resize (1.546 ms)
-and theme-switch (1.517 ms). Tier A and B checks passed. All six build-time
-measurements met the CP0 allowance, including a 0.98 s warm app relink. The
-clean pxui build took 30.42 s against the 30 s target.
+and theme-switch (1.517 ms). Tier A, Tier B and online `make check` passed.
+All six build-time measurements met the CP0 allowance, including a 0.98 s
+warm app relink. The clean pxui build took 30.42 s against the 30 s target.
 
 See [performance and build times](docs/rust-port.md#latest-performance) and
 the [investigation](docs/u-plan/u08-investigation.txt) for benchmark and
 package evidence.
 
-## NEXT: land U0.8, then start U1a
+## NEXT: U1a public API shape review
 
-Follow the landing sequence above. Start U1a from the updated `rust-port`
-in both repos. Read plan §10 U1a and brief the implementer per §12. Stop at
-the uncommitted namespace, theme, lifecycle, error and input signatures for
-review against the ledger before migrating callers.
+Start U1a from the updated `rust-port` in both repos. Read plan §10 U1a and
+brief the implementer per §12. Stop at the uncommitted namespace, theme,
+lifecycle, error and input signatures for review against the ledger before
+migrating callers.
 
 ## Commands
 

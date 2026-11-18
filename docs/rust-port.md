@@ -211,7 +211,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U0.5 | Infra traps: tools/t --all, prewarm fingerprint, layout_scaling | done | 8b13a62; pxui eb93fe54 |
 | U0.6 | Status and process docs | done | 63972bf; pxui 3db577ab |
 | U0.7 | CP0: Tier C baseline, performance and build-time tables | done | 16dc635 (CP0 red: abi_bench both modes, 4 build-CPU budgets) |
-| U0.8 | Restore the CP0 build CPU gate | qualified | Final signed performance run passed all 30 workloads at peak load 2.776. All 28 gated workloads had zero warm Rust allocations. The maximum build CPU p99 was 1.477 ms. The public surface and 115 UI fingerprints match. Tier A and B passed, including the six CP0 build-time comparisons. Landing is pending. See `docs/u-plan/u08-investigation.txt`. |
+| U0.8 | Restore the CP0 build CPU gate | done | LocalWave 9c362bb and pxui 23bb10c4. Final signed run passed all 30 workloads at peak load 2.776. All 28 gated workloads had zero warm Rust allocations. Maximum build CPU p99 was 1.477 ms. The public surface and 115 UI fingerprints match. Tier A, Tier B, all six CP0 build-time comparisons and online `make check` passed. See `docs/u-plan/u08-investigation.txt`. |
 | U1a.1 | Modules (D2) | todo |  |
 | U1a.2 | Theme (D1) and counter (D3) | todo |  |
 | U1a.3 | Lifecycle and errors | todo |  |
