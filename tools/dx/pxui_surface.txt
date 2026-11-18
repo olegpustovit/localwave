@@ -106,6 +106,7 @@ pxui::Button::disabled fn const (self, disabled: bool) -> Button<'a>
 pxui::Button::focus_on_click fn const (self, focus: bool) -> Button<'a>
 pxui::Button::gap fn const (self, gap: f32) -> Button<'a>
 pxui::Button::icon fn const (self, icon: Icon) -> Button<'a>
+pxui::Button::icon_size fn const (self, points: f32) -> Button<'a>
 pxui::Button::label fn const (self, style: Label) -> Button<'a>
 pxui::Button::look fn const (self, look: &'a States) -> Button<'a>
 pxui::Button::name fn const (self, name: &'a str) -> Button<'a>
@@ -677,9 +678,11 @@ pxui::SearchField impl PartialEq
 pxui::SearchField impl StructuralPartialEq
 pxui::SearchField struct <'a>
 pxui::SearchField::DEFAULT const SearchField<'a>
+pxui::SearchField::action fn const (self, action: ReturnKey) -> SearchField<'a>
 pxui::SearchField::icon fn const (self, icon: &'a str) -> SearchField<'a>
 pxui::SearchField::name fn const (self, name: &'a str) -> SearchField<'a>
 pxui::SearchField::placeholder fn const (self, text: &'a str) -> SearchField<'a>
+pxui::SearchField::variant fn const (self, variant: u16) -> SearchField<'a>
 pxui::SearchFieldResponse impl Clone
 pxui::SearchFieldResponse impl Copy
 pxui::SearchFieldResponse impl Debug
@@ -1267,6 +1270,7 @@ pxui::bodies::BodyConfig::text_of fn (&self, field: &Str) -> &str
 pxui::bodies::ButtonConfig impl BodyConfig
 pxui::bodies::ButtonConfig impl Deref
 pxui::bodies::ButtonConfig struct (_)
+pxui::bodies::ButtonConfig::icon fn (&self) -> Option<Icon>
 pxui::bodies::CheckboxConfig impl BodyConfig
 pxui::bodies::CheckboxConfig impl Deref
 pxui::bodies::CheckboxConfig struct (_)
@@ -1285,6 +1289,7 @@ pxui::bodies::GripConfig struct (_)
 pxui::bodies::IconButtonConfig impl BodyConfig
 pxui::bodies::IconButtonConfig impl Deref
 pxui::bodies::IconButtonConfig struct (_)
+pxui::bodies::IconButtonConfig::icon fn (&self) -> Option<Icon>
 pxui::bodies::InspectorRowConfig impl BodyConfig
 pxui::bodies::InspectorRowConfig impl Deref
 pxui::bodies::InspectorRowConfig struct (_)
@@ -3192,11 +3197,13 @@ pxui_types::ffi::PxuiButtonConfig::has_accessory_style field u8
 pxui_types::ffi::PxuiButtonConfig::has_detail_style field u8
 pxui_types::ffi::PxuiButtonConfig::has_label field u8
 pxui_types::ffi::PxuiButtonConfig::icon field u8
+pxui_types::ffi::PxuiButtonConfig::icon_size field f32
 pxui_types::ffi::PxuiButtonConfig::justify field u8
 pxui_types::ffi::PxuiButtonConfig::label field Str
 pxui_types::ffi::PxuiButtonConfig::lead field Str
 pxui_types::ffi::PxuiButtonConfig::lead_draw field PxuiIconDraw
 pxui_types::ffi::PxuiButtonConfig::lead_user field *mut c_void
+pxui_types::ffi::PxuiButtonConfig::lead_word field u32
 pxui_types::ffi::PxuiButtonConfig::line field PxuiBox
 pxui_types::ffi::PxuiButtonConfig::padding field [f32; 4]
 pxui_types::ffi::PxuiButtonConfig::reserved field u8
@@ -3234,6 +3241,7 @@ pxui_types::ffi::PxuiButtonDesc::has_accessory_label field u8
 pxui_types::ffi::PxuiButtonDesc::has_detail_label field u8
 pxui_types::ffi::PxuiButtonDesc::has_label field u8
 pxui_types::ffi::PxuiButtonDesc::has_name field u8
+pxui_types::ffi::PxuiButtonDesc::icon_size field f32
 pxui_types::ffi::PxuiButtonDesc::justify field u8
 pxui_types::ffi::PxuiButtonDesc::key field Str
 pxui_types::ffi::PxuiButtonDesc::label field PxuiLabelStyle
@@ -3577,6 +3585,7 @@ pxui_types::ffi::PxuiIconButtonConfig impl Copy
 pxui_types::ffi::PxuiIconButtonConfig struct
 pxui_types::ffi::PxuiIconButtonConfig::draw field PxuiIconDraw
 pxui_types::ffi::PxuiIconButtonConfig::draw_user field *mut c_void
+pxui_types::ffi::PxuiIconButtonConfig::draw_word field u32
 pxui_types::ffi::PxuiIconButtonConfig::h field f32
 pxui_types::ffi::PxuiIconButtonConfig::h_kind field u8
 pxui_types::ffi::PxuiIconButtonConfig::icon field Str
@@ -4792,6 +4801,7 @@ pxui_types::geom::Rgba::BLACK const Rgba
 pxui_types::geom::Rgba::CLEAR const Rgba
 pxui_types::geom::Rgba::WHITE const Rgba
 pxui_types::geom::Rgba::a field u8
+pxui_types::geom::Rgba::alpha fn const (self, alpha: u8) -> Rgba
 pxui_types::geom::Rgba::as_token fn const (self) -> Option<ColorToken>
 pxui_types::geom::Rgba::b field u8
 pxui_types::geom::Rgba::blend fn (self, to: Rgba, t: f64) -> Rgba
@@ -5454,6 +5464,7 @@ pxui_types::theme::ColorToken impl Hash
 pxui_types::theme::ColorToken impl PartialEq
 pxui_types::theme::ColorToken impl StructuralPartialEq
 pxui_types::theme::ColorToken struct (u16)
+pxui_types::theme::ColorToken::ACCENT const ColorToken
 pxui_types::theme::ColorToken::LIMIT const usize
 pxui_types::theme::Curve enum
 pxui_types::theme::Curve impl Clone
