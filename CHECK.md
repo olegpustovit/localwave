@@ -74,7 +74,8 @@ The plan's §4 table already records D26.
 U0.8 restores the performance budgets through internal pxui changes to text,
 animation, layout and retained views. LocalWave removes redundant row
 containers and prepares packed song numbers on the worker. The public Rust
-surface and ABI match the baseline. All 115 LocalWave UI fingerprints match.
+surface and ABI match the baseline. All 115 LocalWave UI checks passed and
+their emitted fingerprints match.
 
 The final signed run passed all 30 workloads at peak load 2.776. The highest
 gated p99 values were 1.477 ms build CPU, 2.000 ms frame CPU and 3.535 ms work
@@ -88,12 +89,33 @@ See [performance and build times](docs/rust-port.md#latest-performance) and
 the [investigation](docs/u-plan/u08-investigation.txt) for benchmark and
 package evidence.
 
-## NEXT: U1a public API shape review
+### U1a landed on `rust-port`
 
-Start U1a from the updated `rust-port` in both repos. Read plan §10 U1a and
-brief the implementer per §12. Stop at the uncommitted namespace, theme,
-lifecycle, error and input signatures for review against the ledger before
-migrating callers.
+| Step | LocalWave | pxui |
+|---|---|---|
+| U1a.1 Namespace | f6b3f94 | 1becc803 |
+| U1a.2 Themes and counter | daa47b6 | 62ddd318 |
+| U1a.3 Frame, lifecycle and errors | 70bef76, b6a3d2b | 96e7ca2d, 24e54d41 |
+| U1a.4 Typed input and docs | f83c3a8, 9173aca, d3c434b | e43ef1e4, e10307b2 |
+
+The 5,913-item Rust snapshot matches the approved U1a ledger. The C ABI is
+1.75 and the old 1.57 consumer passes. The shortcut regression passed against
+both query APIs. Draw and accessibility fingerprints match U0.8 across 9,263
+frames. Warm allocation checks, gallery goldens, Tier A, Tier B and all 288
+online LocalWave checks passed. The focused Rust iOS device probe compiles.
+Simulator and release qualification follow the named checkpoints.
+
+All six build measurements meet the CP0 allowance. Warm app relink is 0.98 s
+against CP0's 1.02 s. Clean framework build is 30.36 s against the nominal
+30 s target. See [paired build times](docs/rust-port.md#build-time).
+
+## NEXT: U1b public API shape review
+
+Start U1b from the updated `rust-port` in both repos. Read plan §10 U1b and
+brief the implementer per §12. Stop at the uncommitted result, key, text,
+look, builder and call signatures for review against the ledger before
+migrating callers. D25 locks the call shape and D26 renames the current
+`Ui::id()` getter to `instance_id()`.
 
 ## Commands
 

@@ -211,11 +211,11 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U0.5 | Infra traps: tools/t --all, prewarm fingerprint, layout_scaling | done | 8b13a62; pxui eb93fe54 |
 | U0.6 | Status and process docs | done | 63972bf; pxui 3db577ab |
 | U0.7 | CP0: Tier C baseline, performance and build-time tables | done | 16dc635 (CP0 red: abi_bench both modes, 4 build-CPU budgets) |
-| U0.8 | Restore the CP0 build CPU gate | done | LocalWave 9c362bb and pxui 23bb10c4. Final signed run passed all 30 workloads at peak load 2.776. All 28 gated workloads had zero warm Rust allocations. Maximum build CPU p99 was 1.477 ms. The public surface and 115 UI fingerprints match. Tier A, Tier B, all six CP0 build-time comparisons and online `make check` passed. See `docs/u-plan/u08-investigation.txt`. |
-| U1a.1 | Modules (D2) | todo |  |
-| U1a.2 | Theme (D1) and counter (D3) | todo |  |
-| U1a.3 | Lifecycle and errors | todo |  |
-| U1a.4 | Input (D23) | todo |  |
+| U0.8 | Restore the CP0 build CPU gate | done | LocalWave 9c362bb and pxui 23bb10c4. Final signed run passed all 30 workloads at peak load 2.776. All 28 gated workloads had zero warm Rust allocations. Maximum build CPU p99 was 1.477 ms. The public surface matches. All 115 UI checks passed and their emitted fingerprints matched. Tier A, Tier B, all six CP0 build-time comparisons and online `make check` passed. See `docs/u-plan/u08-investigation.txt`. |
+| U1a.1 | Modules (D2) | done | LocalWave f6b3f94 and pxui 1becc803. Callers use root or prelude paths. The namespace ledger and all Tier A checks passed. |
+| U1a.2 | Theme (D1) and counter (D3) | done | LocalWave daa47b6 and pxui 62ddd318. Detached theme handles, cached palettes and strict root body-name validation. Gallery checks passed and cached theme swaps had zero warm allocations. |
+| U1a.3 | Lifecycle and errors | done | LocalWave 70bef76 and b6a3d2b, pxui 96e7ca2d and 24e54d41. One frame entry preserves event and snapshot input. Layer, focus, accessibility, malformed input and GPU lease regressions passed. The Rust iOS device probe type-checks. |
+| U1a.4 | Input (D23) | done | LocalWave f83c3a8, 9173aca and d3c434b, pxui e43ef1e4 and e10307b2. Shortcut regression passed before and after typed queries. ABI 1.75 and the 5,913-item approved surface passed. D9 matched across 9,263 frames. Tier A, Tier B, independent review and 288 online LocalWave checks passed. All six build-time values meet the CP0 allowance. |
 | U1b.1 | One result idiom (D4, D10) | todo |  |
 | U1b.2 | Keys and small returns | todo |  |
 | U1b.3 | Measurement and units (D20) | todo |  |
@@ -333,16 +333,17 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 ## Build time
 
 `tools/dx/buildtime.sh --compare 16dc635` reports the minimum of three alternating rounds in seconds. All
-six U0.8 measurements stayed within max(5%, 0.3 s) of CP0. The clean workspace build exceeded the 30 s
-target by 0.42 s. The de53440 values come from the earlier pre-DX comparison.
+six U1a measurements stayed within max(5%, 0.3 s) of CP0. The clean workspace build exceeded the 30 s
+target by 0.36 s. The comparison ran on LocalWave 9173aca and pxui e10307b2 before the iOS probe, test
+and shortcut documentation fixes. The de53440 values come from the earlier pre-DX comparison.
 
-| Measure | Budget | U0.8 | CP0 | de53440 |
+| Measure | Budget | U1a | CP0 | de53440 |
 | --- | --- | --- | --- | --- |
-| a clean pxui workspace debug build | 30 s | 30.42 | 30.25 | 39.12 |
+| a clean pxui workspace debug build | 30 s | 30.36 | 30.14 | 39.12 |
 | b warm `cargo check -p pxui_core` after a touch | 1 s | 0.28 | 0.28 | 0.33 |
-| c clean `cargo build -p pxui_dylib` | – | 26.64 | 25.72 | 33.86 |
-| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | 3.27 | 3.21 | 3.36 |
-| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | 0.22 | 0.22 | 0.25 |
+| c clean `cargo build -p pxui_dylib` | – | 26.56 | 26.50 | 33.86 |
+| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | 3.22 | 3.21 | 3.36 |
+| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | 0.21 | 0.22 | 0.25 |
 | f warm `cargo build -p lw_bin` after the same touch | – | 0.98 | 1.02 | 1.29 |
 
 ### CPU profile
