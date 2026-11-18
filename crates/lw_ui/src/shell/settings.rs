@@ -72,7 +72,7 @@ const ROW: Node =
     Node { axis: Axis::Row, min_h: 60.0, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center) };
 const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap().w(Size::Grow).role(Role::Label).color(SECONDARY);
 fn labels(ui: &mut Ui, title: &str, detail: &str) {
-    ui.column("labels", Node { justify: Justify::Center, ..Node::column().w(Size::Grow).h(Size::Fit) }, |ui| {
+    ui.column(Node { justify: Justify::Center, ..Node::column().w(Size::Grow).h(Size::Fit) }, |ui| {
         ui.label(title, TEXT_15.grow().h_px(21.0).color(INK));
         if !detail.is_empty() {
             ui.label(detail, DETAIL);
@@ -93,7 +93,7 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     ui.set_role(&c.row, Role::Toggle, pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE }));
     labels(ui, title, c.text_of(&c.detail));
     let track = if on { TRACK_ON } else { TRACK };
-    ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
+    ui.column(Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
         let at = Some((if on { 23.0 } else { 3.0 }, 3.0)).into();
         ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
     });
@@ -181,16 +181,16 @@ pub(super) fn view(
         ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); });
         ui.a11y_name(&title, heading);
         if state.privacy_visible {
-            for (title, body) in [
+            for (index, (title, body)) in [
                 ("LocalWave", "A music player for your files."),
                 ("Your library stays on this device", "LocalWave stores song metadata, artwork, playlists, Favorites, playback settings, folder bookmarks and cached audio locally. It does not send your music or listening history to the developer and includes no advertising or analytics service."),
                 ("Files and iCloud Drive", "Files you select from iCloud Drive or another provider may need downloading through that provider. LocalWave does not receive your Apple Account password."),
                 ("Removing your data", "Removing a library entry removes its database record; cached audio or artwork may remain. Removing LocalWave’s local app data erases its library and logs. Your original files stay where they are."),
-            ] {
-                ui.column(title, Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
+            ].into_iter().enumerate() {
+                ui.id(index as u64, |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
                     ui.label(title, TEXT_18.grow().h_px(26.0).color(INK));
                     ui.label(body, PARAGRAPH_14.color(SECONDARY));
-                });
+                }); });
             }
             if back(ui, "full-privacy-policy", "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
             if back(ui, "support", "Support") { *intent = Some(Intent::Support); }
@@ -199,26 +199,26 @@ pub(super) fn view(
         }
         let settings = player.settings;
         let ahead = SWITCH.detail("Fetch the next two cloud songs in the queue");
-        if ui.toggle_with("download-ahead", "Download ahead", settings.download_ahead, &ahead).changed {
+        if ui.toggle("download-ahead", "Download ahead", settings.download_ahead, &ahead).changed {
             *intent = Some(Intent::Setting(Change::ToggleDownloadAhead));
         }
         // Swift shows this on phones only: desktop folder tables always list every file type.
         let compact = width < compact::BREAKPOINT;
         if compact {
             let files = SWITCH.detail("Covers, logs and text in folders");
-            if ui.toggle_with("show-non-audio", "Show non-audio files", settings.show_non_audio, &files).changed {
+            if ui.toggle("show-non-audio", "Show non-audio files", settings.show_non_audio, &files).changed {
                 *intent = Some(Intent::Setting(Change::ToggleShowNonAudio));
             }
         }
         let offline = SWITCH.detail("Prototype only — shows skipped songs and failed downloads");
-        if ui.toggle_with("no-network", "Simulate no network", settings.simulate_no_network, &offline).changed {
+        if ui.toggle("no-network", "Simulate no network", settings.simulate_no_network, &offline).changed {
             *intent = Some(Intent::Setting(Change::ToggleNoNetwork));
         }
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Offline space", cache_detail);
             let strip = Node { look: PANEL_FILL, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) };
-            ui.row("segments", strip, |ui| {
+            ui.row(strip, |ui| {
                 for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
                     option(ui, value, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
                 }
@@ -228,7 +228,7 @@ pub(super) fn view(
         let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Appearance", "");
             let strip = Node { look: PANEL_FILL, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) };
-            ui.row("segments", strip, |ui| {
+            ui.row(strip, |ui| {
                 for (value, label, name) in [
                     (Appearance::System, "System", "Use system appearance"),
                     (Appearance::Light, "Light", "Use light appearance"),
@@ -256,7 +256,7 @@ pub(super) fn view(
         if rescan.clicked {
             *intent = Some(Intent::Files(crate::files::Request::Roots));
         }
-        ui.column("settings-footer", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
+        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
             if back(ui, "about-privacy", "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
             ui.label(if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, PARAGRAPH_14.color(SECONDARY));

@@ -62,9 +62,9 @@ pub(super) fn table(
     }
     let Some(table) = &catalog.artist_table else {
         header_view(ui, catalog, state, width, intent);
-        ui.column("artists-loading-inset", Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0), |ui| {
+        ui.id("artists-loading-inset", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0), |ui| {
             ui.label("Loading artists…", TEXT_14.grow().h_px(40.0).color(SECONDARY));
-        });
+        }); });
         return;
     };
     let images = player.artwork;

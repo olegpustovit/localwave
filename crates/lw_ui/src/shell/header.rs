@@ -32,7 +32,7 @@ pub(super) fn header(
         },
         ..Node::column().w(Size::Grow).h(Size::Fit)
     };
-    ui.column("library-header", root, |ui| {
+    ui.column(root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
             ui.label("Search", BODY_DIM.grow());
@@ -62,7 +62,7 @@ pub(super) fn header(
             }
         });
         if state.route == Route::Find && !results {
-            ui.column("find-query", Node::column().h_px(44.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
+            ui.id("find-query", |ui| { ui.column(Node::column().h_px(44.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                     let row =
                         container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
                     ui.within(&row, &mut |ui| {
@@ -81,7 +81,7 @@ pub(super) fn header(
                             *intent = Some(Intent::Search(Query::default()));
                         }
                     });
-                }); });
+                }); }); });
             find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
@@ -130,16 +130,14 @@ pub(super) fn compact_find(
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
-    ui.column("page-heading", Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
+    ui.column(Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
         // Select mode swaps the whole heading for Swift's selection header.
         if state.selecting {
             let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
             super::compact::list::selection_header(ui, state.marked.len(), rows, rows, intent);
             return;
         }
-        ui.column(
-            "compact-find",
-            Node {
+        ui.column(Node {
                 padding: Edges {
                     l: 16.0,
                     r: 16.0,
@@ -150,9 +148,9 @@ pub(super) fn compact_find(
             },
             |ui| {
                 ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
-                ui.column("find-query", Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
+                ui.column(Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                         let row = Node::row().align(Align::Center).w(Size::Grow).h(Size::Grow);
-                        ui.row("query-row", row, |ui| {
+                        ui.row(row, |ui| {
                             let field = ui.node("query-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                             ui.within(&field, &mut |ui| {
                                 let mut edit = |ui: &mut Ui| {
@@ -179,7 +177,7 @@ pub(super) fn compact_find(
                                 },
                                 ..Node::column().w_px(44.0).h_px(44.0).align(Align::Center)
                             };
-                            ui.column("clear-slot", clear, |ui| {
+                            ui.column(clear, |ui| {
                                 // Swift's clear glyph has no resting plate.
                                 if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_44.look(&ICON_LOOKS)).clicked {
                                     *intent = Some(Intent::Search(Query::default()));
@@ -205,8 +203,8 @@ pub(super) fn compact_find(
                     .and_then(|view| view.find.as_ref())
                 {
                     spacer(ui, "songs-gap", 7.0);
-                    ui.row("songs-row", Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
-                        ui.column("songs-text", Node::column().w(Size::Grow).h(Size::Fit), |ui| {
+                    ui.row(Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
+                        ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
                             detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
                         });
                         if super::compact::list::word(ui, "select", "Select", false) {
@@ -266,7 +264,7 @@ pub(super) fn header_view(
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
-    ui.column("page-heading", Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
+    ui.column(Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
         header(ui, catalog, state, width, intent)
     }); });
 }
@@ -279,7 +277,7 @@ pub(super) fn content(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    ui.column("content", Node::column().w(Size::Grow).h(Size::Grow), |ui| match state.route {
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| match state.route {
         Route::Albums => albums::gallery(ui, catalog, state, player, width, intent),
         Route::Artists => artists::table(ui, catalog, state, player, width, intent),
         Route::Lists => compact::collections(ui, catalog, player, width, intent),
@@ -295,7 +293,7 @@ pub(super) fn find_tokens(
 ) {
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
     let revision = crate::hash((state.query_revision, width.to_bits()));
-    ui.column("find-tokens", Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
+    ui.column(Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
             let flow = Node {
                 wrap: true,
                 row_gap: 6.0,
@@ -306,7 +304,7 @@ pub(super) fn find_tokens(
                 },
                 ..Node::row().gap(6.0).w_px(width)
             };
-            ui.row("flow", flow, |ui| {
+            ui.row(flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
                     let node = Node {

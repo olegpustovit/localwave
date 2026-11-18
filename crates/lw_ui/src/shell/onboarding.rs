@@ -33,9 +33,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
             "onboarding-page",
             &(column.to_bits(), top_inset.to_bits(), drive),
             |ui| {
-                ui.column(
-                    "onboarding-outer",
-                    Node {
+                ui.column(Node {
                         padding: Edges { l: 16.0, r: 16.0, t: 16.0 + top_inset, b: 34.0 },
                         ..Node::column().w(Size::Grow).h(Size::Grow)
                     },
@@ -54,7 +52,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
 fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
     let link = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE).name(label);
     ui.button_content(key, &link, |ui, _| {
-        ui.column("link", Node::column().w(Size::Fit).h(Size::Fit), |ui| {
+        ui.column(Node::column().w(Size::Fit).h(Size::Fit), |ui| {
             ui.label(label, LEAD_INK);
             rule(ui, "underline", false);
         });
@@ -65,7 +63,7 @@ fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
 /// Returns true when the Google Drive disclosure was toggled.
 fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
-    ui.column("onboarding-column", Node::column().w(Size::Grow).h(Size::Grow), |ui| {
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
         ui.within(&top, &mut |ui| {
             ui.label("LocalWave", CAPTION.grow());
@@ -136,9 +134,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
     );
     let mut clicked = false;
     ui.within(&frame, &mut |ui| {
-        ui.column(
-            "drive-inner",
-            Node {
+        ui.column(Node {
                 look: PAPER_FILL,
                 ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
             },
@@ -184,9 +180,7 @@ pub(super) fn empty_library(
         header_view(ui, catalog, state, width, intent);
     }
     let inset = if compact { 16.0 } else { 32.0 };
-    ui.column(
-        "empty-library-inset",
-        Node {
+    ui.column(Node {
             padding: Edges { l: inset, r: inset, t: 24.0, ..Edges::ZERO },
             ..Node::column().w(Size::Grow).h(Size::Fit)
         },

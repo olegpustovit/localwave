@@ -28,9 +28,7 @@ pub(super) fn editor(
     let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let open = ui.modal("edit-metadata", &EDIT_METADATA.w_px(width), |ui| {
-        ui.column(
-            "metadata-body",
-            Node {
+        ui.column(Node {
                 look: PAPER_FILL,
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(4.0).pad(20.0)
             },
@@ -89,7 +87,7 @@ pub(super) fn confirm_delete(
     let title = catalog
         .row_index(song)
         .map(|index| catalog.row(index).title);
-    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete Song").danger().enabled(title.is_some())];
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete Song").danger().disabled(!title.is_some())];
     let sheet = ui.dialog("delete-song", "Delete song?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
         settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
         let consequences = "It leaves your library and lists. The audio file is not deleted.";

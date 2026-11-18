@@ -48,7 +48,7 @@ pub(super) fn toolbar(
         }
         ui.node("flex", Node::DEFAULT.w(Size::Grow));
         let node = Node::row().w(Size::Fit).h_px(30.0).gap(6.0).pad_x(10.0).align(Align::Center).role(Role::Button);
-        let button = ui.pressable("shuffle-all", node, &PLAIN.enabled(!catalog.is_empty()), |ui, _| {
+        let button = ui.pressable("shuffle-all", node, &PLAIN.disabled(catalog.is_empty()), |ui, _| {
             let icon = ui.node("icon", Node::column().w_px(16.0).h_px(16.0));
             ui.canvas(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
@@ -112,7 +112,7 @@ pub(super) fn gallery(
             }
             SectionPart::Header => {}
             SectionPart::Row(line) => {
-                ui.row("gallery-inset", Node::row().w(Size::Grow).h(Size::Grow).pad_x(inset).gap(gap), |ui| {
+                ui.id("gallery-inset", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).pad_x(inset).gap(gap), |ui| {
                     for (column, index) in order
                         .iter()
                         .copied()
@@ -147,7 +147,7 @@ pub(super) fn gallery(
                         ui.set_node_layout(&visual, &card_layout);
                         entry.row(ui, &visual, line * columns + column);
                     }
-                });
+                }); });
             }
         },
     );

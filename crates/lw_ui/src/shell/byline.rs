@@ -67,7 +67,7 @@ pub(super) fn draw(
         )
     });
     let (rects, height) = positions(width, sizes);
-    ui.column("byline", Node::column().w_px(width).h_px(height), |ui| {
+    ui.column(Node::column().w_px(width).h_px(height), |ui| {
         for index in [0, 2, 4] {
             let rect = rects[index];
             let link = index != 2;

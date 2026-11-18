@@ -35,16 +35,16 @@ pub(in crate::shell) fn menu(
         return lists(ui, catalog, at, intent);
     }
     let candidates = [
-        Some(MenuItem::new("Play").id(PLAY).enabled(filled)),
-        Some(MenuItem::new("Shuffle").id(SHUFFLE).enabled(filled)),
-        album.then_some(MenuItem::new("Play next").id(PLAY_NEXT).enabled(filled)),
-        Some(MenuItem::new("Add to queue").id(QUEUE).enabled(filled)),
-        album.then_some(MenuItem::new("Add to list").id(LISTS).enabled(filled)),
+        Some(MenuItem::new("Play").id(PLAY).disabled(!filled)),
+        Some(MenuItem::new("Shuffle").id(SHUFFLE).disabled(!filled)),
+        album.then_some(MenuItem::new("Play next").id(PLAY_NEXT).disabled(!filled)),
+        Some(MenuItem::new("Add to queue").id(QUEUE).disabled(!filled)),
+        album.then_some(MenuItem::new("Add to list").id(LISTS).disabled(!filled)),
         artist.map(|_| MenuItem::new("Go to artist").id(ARTIST)),
         list.map(|_| MenuItem::new("Rename…").id(RENAME)),
         list.map(|_| MenuItem::new("Duplicate").id(DUPLICATE)),
-        album.then_some(MenuItem::new("Show in folder").id(FOLDER).enabled(filled)),
-        Some(MenuItem::new(if kept { "Stop keeping offline" } else { "Keep offline" }).id(OFFLINE).enabled(filled)),
+        album.then_some(MenuItem::new("Show in folder").id(FOLDER).disabled(!filled)),
+        Some(MenuItem::new(if kept { "Stop keeping offline" } else { "Keep offline" }).id(OFFLINE).disabled(!filled)),
         list.map(|_| MenuItem::new("Delete list").id(DELETE).danger()),
     ];
     let mut rows = [MenuItem::new(""); 11];

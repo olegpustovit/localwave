@@ -25,13 +25,12 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
     ui.set_state(&song, id);
     ui.within(&root, &mut |ui| {
         for (index, key) in ["bar-0", "bar-1", "bar-2"].into_iter().enumerate() {
-            ui.column(
-                key,
-                Node {
+            // keyed nodes, not `ui.id` scopes: each bar's position is looked up by its key
+            let position = ui.node(key, Node {
                     at: Some((index as f32 * 4.0, 0.0)).into(),
                     ..Node::column().w_px(2.0).h_px(11.0)
-                },
-                |ui| {
+                });
+            ui.within(&position, &mut |ui| {
                     let bar = ui.view_of("bar", &0, |ui| {
                         let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
@@ -61,8 +60,7 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                             );
                         }
                     }
-                },
-            );
+                });
         }
     });
 }
@@ -323,22 +321,18 @@ impl Rows<'_> {
                         }
                     });
                     if current {
-                        ui.column(
-                            "equalizer-position",
-                            Node {
+                        ui.id("equalizer-position", |ui| { ui.column(Node {
                                 at: Some((32.0, layout.y(11.0))).into(),
                                 ..Node::column().w_px(14.0).h_px(11.0)
                             },
                             |ui| {
                                 ui.view_of("equalizer-view", &visual_revision, |ui| equalizer(ui, player.playing, visible, row.id));
                             },
-                        );
+                        ); });
                     }
                     if widths[Column::State as usize] > 0.0 {
                         let x = widths[..Column::State as usize].iter().sum::<f32>() + 8.0;
-                        ui.column(
-                            "availability-position",
-                            Node {
+                        ui.id("availability-position", |ui| { ui.column(Node {
                                 at: Some((x, layout.y(10.0))).into(),
                                 ..Node::column().w_px(10.0).h_px(10.0)
                             },
@@ -360,7 +354,7 @@ impl Rows<'_> {
                                     }
                                 }
                             },
-                        );
+                        ); });
                     }
                     let x = widths[..7].iter().sum::<f32>();
                     let node = Node {

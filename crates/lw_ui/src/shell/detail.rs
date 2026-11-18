@@ -70,9 +70,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     ui.within(&row, &mut |ui| {
         const BUTTON: pxui::Button = pxui::Button::sized(96.0, BACK).look(&BARE).name("Back");
         let back = ui.button_content("back", &BUTTON, |ui, _| {
-            ui.row(
-                "content",
-                Node { padding: Edges { l: 26.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End) },
+            ui.row(Node { padding: Edges { l: 26.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End) },
                 |ui| {
                     let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
@@ -172,7 +170,7 @@ pub(super) fn header(
         folder,
         player.artwork.map_or(0, crate::artwork::Images::revision),
     ));
-    ui.column("page-heading", Node::column().h_px(height(width, route, cards.len(), folder)), |ui| { ui.view_of("page-heading", &revision, |ui| {
+    ui.column(Node::column().h_px(height(width, route, cards.len(), folder)), |ui| { ui.view_of("page-heading", &revision, |ui| {
             let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
             ui.within(&column, &mut |ui| {
                 back_row(ui, if album { Route::Albums } else { Route::Artists }, intent);
@@ -226,9 +224,7 @@ fn header_body(
         paint_artwork(ui, &art, group.artwork_row.map(|index| catalog.row(index)), size, player.artwork);
         ui.a11y_name(&art, "Album artwork");
     }
-    ui.column(
-        "meta",
-        Node::column()
+    ui.column(Node::column()
             .w(Size::Grow)
             .h_px(if album { ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 } } else { ARTIST_META }),
         |ui| {
@@ -279,7 +275,7 @@ fn header_body(
             }
             if let Some(target) = &group.folder {
                 spacer(ui, "folder-gap", 4.0);
-                ui.row("folder", Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
+                ui.id("folder", |ui| { ui.row(Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
                     ui.label("Folder:", CAPTION);
                     let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {
                         ui.label(&target.label, TEXT_13.h_px(17.2).color(INK));
@@ -289,7 +285,7 @@ fn header_body(
                     if link.clicked {
                         *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
                     }
-                });
+                }); });
             }
             if album {
                 spacer(ui, "buttons-gap", 20.0);
@@ -311,7 +307,7 @@ fn keys(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    ui.row("buttons", Node::row().w_px(width).h_px(KEYS).gap(8.0), |ui| {
+    ui.row(Node::row().w_px(width).h_px(KEYS).gap(8.0), |ui| {
         let enabled = !group.ids.is_empty();
         if key(ui, "play", "Play", Icon::Play, true) && enabled {
             *intent = Some(Intent::PlayRow(0));

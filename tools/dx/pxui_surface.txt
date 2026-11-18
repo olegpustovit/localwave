@@ -102,7 +102,7 @@ pxui::Button::content_align fn const (self, align: Along) -> Button<'a>
 pxui::Button::danger fn const (self) -> Button<'a>
 pxui::Button::detail fn const (self, detail: &'a str) -> Button<'a>
 pxui::Button::detail_label fn const (self, style: Label) -> Button<'a>
-pxui::Button::enabled fn const (self, enabled: bool) -> Button<'a>
+pxui::Button::disabled fn const (self, disabled: bool) -> Button<'a>
 pxui::Button::focus_on_click fn const (self, focus: bool) -> Button<'a>
 pxui::Button::gap fn const (self, gap: f32) -> Button<'a>
 pxui::Button::icon fn const (self, icon: Icon) -> Button<'a>
@@ -305,7 +305,7 @@ pxui::IconButton impl Clone
 pxui::IconButton impl Copy
 pxui::IconButton struct <'a>
 pxui::IconButton::DEFAULT const IconButton<'a>
-pxui::IconButton::enabled fn const (self, enabled: bool) -> IconButton<'a>
+pxui::IconButton::disabled fn const (self, disabled: bool) -> IconButton<'a>
 pxui::IconButton::look fn const (self, look: &'a States) -> IconButton<'a>
 pxui::IconButton::press_curves fn const (self, curves: &'static [Curve; 2]) -> IconButton<'a>
 pxui::IconButton::press_scale fn const (self, scale: f32) -> IconButton<'a>
@@ -512,6 +512,7 @@ pxui::PickResponse impl Copy
 pxui::PickResponse impl Debug
 pxui::PickResponse struct
 pxui::PickResponse::chosen field Option<usize>
+pxui::PickResponse::chosen_id field Option<i64>
 pxui::PickResponse::response field Response
 pxui::PickResponse::secondary field Option<usize>
 pxui::PickRows use pxui_types::ui::PickRows
@@ -546,7 +547,7 @@ pxui::Pressable impl Copy
 pxui::Pressable impl Debug
 pxui::Pressable struct <'a>
 pxui::Pressable::DEFAULT const Pressable<'a>
-pxui::Pressable::enabled fn const (self, enabled: bool) -> Pressable<'a>
+pxui::Pressable::disabled fn const (self, disabled: bool) -> Pressable<'a>
 pxui::Pressable::focus_on_click fn const (self, focus: bool) -> Pressable<'a>
 pxui::Pressable::look fn const (self, look: &'a States) -> Pressable<'a>
 pxui::Pressable::selected fn const (self, selected: bool) -> Pressable<'a>
@@ -832,7 +833,7 @@ pxui::Toggle impl Copy
 pxui::Toggle struct <'a>
 pxui::Toggle::DEFAULT const Toggle<'a>
 pxui::Toggle::detail fn const (self, detail: &'a str) -> Toggle<'a>
-pxui::Toggle::enabled fn const (self, enabled: bool) -> Toggle<'a>
+pxui::Toggle::disabled fn const (self, disabled: bool) -> Toggle<'a>
 pxui::Toggle::inset fn const (self, inset: f32) -> Toggle<'a>
 pxui::Toggle::knob fn const (self, look: &'a States) -> Toggle<'a>
 pxui::Toggle::label fn const (self, label: Label) -> Toggle<'a>
@@ -873,9 +874,8 @@ pxui::Ui::box_of_a11y fn (&self, id: u64) -> Option<Handle>
 pxui::Ui::box_of_key fn <K: Into<Key>>(&self, key: K) -> Option<Handle>
 pxui::Ui::built_nodes fn (&self) -> usize
 pxui::Ui::busy_step fn (&mut self, box_: &Handle, now: f64) -> bool
-pxui::Ui::button fn (&mut self, text: &str) -> bool
+pxui::Ui::button fn <K: Into<Key>>(&mut self, key: K, text: &str, button: &Button<'_>) -> Response
 pxui::Ui::button_content fn <K: Into<Key>, F: FnMut(&mut Ui, State)>(&mut self, key: K, button: &Button<'_>, f: F) -> Response
-pxui::Ui::button_with fn <K: Into<Key>>(&mut self, key: K, text: &str, button: &Button<'_>) -> Response
 pxui::Ui::bytes fn (&self) -> Bytes
 pxui::Ui::cached_label fn (&mut self, b: &Handle, index: usize, text: &str) -> &str
 pxui::Ui::cancel_carry fn (&mut self)
@@ -888,7 +888,7 @@ pxui::Ui::checkbox fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, ch
 pxui::Ui::clipboard_request fn (&self) -> Option<&str>
 pxui::Ui::close_swipe fn (&mut self, node: &Handle)
 pxui::Ui::color fn (&self, token: ColorToken) -> Rgba
-pxui::Ui::column fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
+pxui::Ui::column fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::Ui::content_rect fn (&self) -> Rect
 pxui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
 pxui::Ui::density fn (&self) -> f32
@@ -915,7 +915,7 @@ pxui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rec
 pxui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
 pxui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
 pxui::Ui::icon_button fn <K: Into<Key>>(&mut self, key: K, icon: Icon, name: &str, button: &IconButton<'_>) -> Response
-pxui::Ui::id fn (&self) -> usize
+pxui::Ui::id fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, f: F)
 pxui::Ui::image fn <K: Into<Key>>(&mut self, key: K, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
 pxui::Ui::ime fn (&self) -> Option<Ime>
 pxui::Ui::inject_a11y fn (&mut self, actions: &[A11yAction])
@@ -930,6 +930,7 @@ pxui::Ui::inspector_row fn (&mut self, width: Option<f32>, pin: Option<bool>, ke
 pxui::Ui::inspector_section fn (&mut self, key: &str, expanded: bool, set_expanded: Option<bool>, label: &str, build: &mut dyn FnMut(&mut Ui)) -> bool
 pxui::Ui::inspector_toggle fn (&mut self, key: &str, label: &str, value: bool) -> bool
 pxui::Ui::inspector_width fn (&self) -> f32
+pxui::Ui::instance_id fn (&self) -> usize
 pxui::Ui::item_text fn (&mut self, text: &str)
 pxui::Ui::key_down fn (&self, key: KeyCode) -> bool
 pxui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool
@@ -1028,7 +1029,7 @@ pxui::Ui::request_frame fn (&mut self)
 pxui::Ui::resolve fn (&self, style: &Label) -> TextStyle
 pxui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
 pxui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
-pxui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
+pxui::Ui::row fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::Ui::row_height fn (&self) -> f32
 pxui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
@@ -1056,7 +1057,7 @@ pxui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, ra
 pxui::Ui::slot fn (&mut self, slot: PxuiSlot) -> bool
 pxui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str, spinner: &Spinner) -> Handle
 pxui::Ui::split fn <K: Into<Key>>(&mut self, key: K, ratio: f32, split: &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse
-pxui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
+pxui::Ui::stack fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
 pxui::Ui::system_appearance fn (&self) -> Appearance
@@ -1077,8 +1078,7 @@ pxui::Ui::theme fn (&self) -> &Theme
 pxui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
 pxui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Chosen
-pxui::Ui::toggle fn (&mut self, text: &str, on: bool) -> bool
-pxui::Ui::toggle_with fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, toggle: &Toggle<'_>) -> Response
+pxui::Ui::toggle fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, toggle: &Toggle<'_>) -> Response
 pxui::Ui::tokens fn (&self) -> Tokens
 pxui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
@@ -1630,9 +1630,8 @@ pxui::ui::Ui::box_of_a11y fn (&self, id: u64) -> Option<Handle>
 pxui::ui::Ui::box_of_key fn <K: Into<Key>>(&self, key: K) -> Option<Handle>
 pxui::ui::Ui::built_nodes fn (&self) -> usize
 pxui::ui::Ui::busy_step fn (&mut self, box_: &Handle, now: f64) -> bool
-pxui::ui::Ui::button fn (&mut self, text: &str) -> bool
+pxui::ui::Ui::button fn <K: Into<Key>>(&mut self, key: K, text: &str, button: &Button<'_>) -> Response
 pxui::ui::Ui::button_content fn <K: Into<Key>, F: FnMut(&mut Ui, State)>(&mut self, key: K, button: &Button<'_>, f: F) -> Response
-pxui::ui::Ui::button_with fn <K: Into<Key>>(&mut self, key: K, text: &str, button: &Button<'_>) -> Response
 pxui::ui::Ui::bytes fn (&self) -> Bytes
 pxui::ui::Ui::cached_label fn (&mut self, b: &Handle, index: usize, text: &str) -> &str
 pxui::ui::Ui::cancel_carry fn (&mut self)
@@ -1645,7 +1644,7 @@ pxui::ui::Ui::checkbox fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool
 pxui::ui::Ui::clipboard_request fn (&self) -> Option<&str>
 pxui::ui::Ui::close_swipe fn (&mut self, node: &Handle)
 pxui::ui::Ui::color fn (&self, token: ColorToken) -> Rgba
-pxui::ui::Ui::column fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
+pxui::ui::Ui::column fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::ui::Ui::content_rect fn (&self) -> Rect
 pxui::ui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
 pxui::ui::Ui::density fn (&self) -> f32
@@ -1672,7 +1671,7 @@ pxui::ui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option
 pxui::ui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
 pxui::ui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
 pxui::ui::Ui::icon_button fn <K: Into<Key>>(&mut self, key: K, icon: Icon, name: &str, button: &IconButton<'_>) -> Response
-pxui::ui::Ui::id fn (&self) -> usize
+pxui::ui::Ui::id fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, f: F)
 pxui::ui::Ui::image fn <K: Into<Key>>(&mut self, key: K, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
 pxui::ui::Ui::ime fn (&self) -> Option<Ime>
 pxui::ui::Ui::inject_a11y fn (&mut self, actions: &[A11yAction])
@@ -1687,6 +1686,7 @@ pxui::ui::Ui::inspector_row fn (&mut self, width: Option<f32>, pin: Option<bool>
 pxui::ui::Ui::inspector_section fn (&mut self, key: &str, expanded: bool, set_expanded: Option<bool>, label: &str, build: &mut dyn FnMut(&mut Ui)) -> bool
 pxui::ui::Ui::inspector_toggle fn (&mut self, key: &str, label: &str, value: bool) -> bool
 pxui::ui::Ui::inspector_width fn (&self) -> f32
+pxui::ui::Ui::instance_id fn (&self) -> usize
 pxui::ui::Ui::item_text fn (&mut self, text: &str)
 pxui::ui::Ui::key_down fn (&self, key: KeyCode) -> bool
 pxui::ui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool
@@ -1785,7 +1785,7 @@ pxui::ui::Ui::request_frame fn (&mut self)
 pxui::ui::Ui::resolve fn (&self, style: &Label) -> TextStyle
 pxui::ui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
 pxui::ui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
-pxui::ui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
+pxui::ui::Ui::row fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::ui::Ui::row_height fn (&self) -> f32
 pxui::ui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
@@ -1813,7 +1813,7 @@ pxui::ui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32
 pxui::ui::Ui::slot fn (&mut self, slot: PxuiSlot) -> bool
 pxui::ui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str, spinner: &Spinner) -> Handle
 pxui::ui::Ui::split fn <K: Into<Key>>(&mut self, key: K, ratio: f32, split: &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse
-pxui::ui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
+pxui::ui::Ui::stack fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::ui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::ui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
 pxui::ui::Ui::system_appearance fn (&self) -> Appearance
@@ -1834,8 +1834,7 @@ pxui::ui::Ui::theme fn (&self) -> &Theme
 pxui::ui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::ui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
 pxui::ui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Chosen
-pxui::ui::Ui::toggle fn (&mut self, text: &str, on: bool) -> bool
-pxui::ui::Ui::toggle_with fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, toggle: &Toggle<'_>) -> Response
+pxui::ui::Ui::toggle fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, toggle: &Toggle<'_>) -> Response
 pxui::ui::Ui::tokens fn (&self) -> Tokens
 pxui::ui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::ui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
@@ -5661,8 +5660,8 @@ pxui_types::ui::DialogButton::danger field bool
 pxui_types::ui::DialogButton::danger fn const (self) -> DialogButton<'a>
 pxui_types::ui::DialogButton::detail field &'a str
 pxui_types::ui::DialogButton::detail fn const (self, detail: &'a str) -> DialogButton<'a>
+pxui_types::ui::DialogButton::disabled fn const (self, disabled: bool) -> DialogButton<'a>
 pxui_types::ui::DialogButton::enabled field bool
-pxui_types::ui::DialogButton::enabled fn const (self, enabled: bool) -> DialogButton<'a>
 pxui_types::ui::DialogButton::new fn const (text: &'a str) -> DialogButton<'a>
 pxui_types::ui::DialogButton::primary field bool
 pxui_types::ui::DialogButton::primary fn const (self) -> DialogButton<'a>
@@ -5789,8 +5788,8 @@ pxui_types::ui::MenuItem::checked field Option<bool>
 pxui_types::ui::MenuItem::checked fn const (self, checked: bool) -> MenuItem<'a>
 pxui_types::ui::MenuItem::danger field bool
 pxui_types::ui::MenuItem::danger fn const (self) -> MenuItem<'a>
+pxui_types::ui::MenuItem::disabled fn const (self, disabled: bool) -> MenuItem<'a>
 pxui_types::ui::MenuItem::enabled field bool
-pxui_types::ui::MenuItem::enabled fn const (self, enabled: bool) -> MenuItem<'a>
 pxui_types::ui::MenuItem::id field Option<i64>
 pxui_types::ui::MenuItem::id fn const (self, id: i64) -> MenuItem<'a>
 pxui_types::ui::MenuItem::new fn const (text: &'a str) -> MenuItem<'a>
@@ -5954,8 +5953,8 @@ pxui_types::ui::Segmented impl PartialEq
 pxui_types::ui::Segmented impl StructuralPartialEq
 pxui_types::ui::Segmented struct <'a>
 pxui_types::ui::Segmented::DEFAULT const Segmented<'a>
+pxui_types::ui::Segmented::disabled fn const (self, disabled: bool) -> Segmented<'a>
 pxui_types::ui::Segmented::enabled field bool
-pxui_types::ui::Segmented::enabled fn const (self, enabled: bool) -> Segmented<'a>
 pxui_types::ui::Segmented::focus_on_click field bool
 pxui_types::ui::Segmented::focus_on_click fn const (self, focus: bool) -> Segmented<'a>
 pxui_types::ui::Segmented::grow field bool

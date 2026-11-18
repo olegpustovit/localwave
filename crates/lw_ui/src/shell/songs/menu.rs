@@ -42,11 +42,11 @@ pub(in crate::shell) fn popup(
         Some(MenuItem::new("Add to list").id(LISTS)),
         routes.map(|_| MenuItem::new("Go to album").id(ALBUM)),
         routes.map(|_| MenuItem::new("Go to artist").id(ARTIST)),
-        cfg!(not(target_os = "ios")).then_some(MenuItem::new("Show in Finder").id(REVEAL).enabled(sourced)),
+        cfg!(not(target_os = "ios")).then_some(MenuItem::new("Show in Finder").id(REVEAL).disabled(!sourced)),
         Some(MenuItem::new(if favorite { "Unfavorite" } else { "Favorite" }).id(FAVORITE)),
         Some(MenuItem::new(if row.is_some_and(|row| row.pinned) { "Stop keeping offline" } else { "Keep offline" }).id(OFFLINE)),
         row.filter(|row| row.state == lw_core::FileState::Failed).map(|_| MenuItem::new("Retry download").id(RETRY)),
-        Some(MenuItem::new("Share…").id(SHARE).enabled(sourced && !sharing)),
+        Some(MenuItem::new("Share…").id(SHARE).disabled(!(sourced && !sharing))),
         edit.map(|_| MenuItem::new("Edit info…").id(EDIT)),
         Some(MenuItem::new("Delete…").id(DELETE)),
         list.map(|_| MenuItem::new("Remove from list").id(REMOVE)),
@@ -54,7 +54,7 @@ pub(in crate::shell) fn popup(
     let mut rows = [MenuItem::new(""); 14];
     let mut count = 0;
     for item in candidates.into_iter().flatten() {
-        rows[count] = item.enabled(item.enabled && present);
+        rows[count] = item.disabled(!(item.enabled && present));
         count += 1;
     }
     let menu = ui.menu("song-menu", pxui::Point::new(at.0, at.1), &rows[..count], &MENU.name("Song actions"));
@@ -122,7 +122,7 @@ fn lists(
     let mut rows = [MenuItem::new(""); LIST_ROWS];
     let count = list_rows(&mut rows, catalog, list);
     for row in &mut rows[..count] {
-        *row = row.enabled(row.enabled && present);
+        *row = row.disabled(!(row.enabled && present));
     }
     let menu = ui.menu("song-lists", pxui::Point::new(at.0, at.1), &rows[..count], &LISTS_MENU);
     match menu.chosen_id {
@@ -148,7 +148,7 @@ pub(in crate::shell) fn list_rows<'a>(rows: &mut [MenuItem<'a>; LIST_ROWS], cata
         }
     }
     if count == 1 {
-        rows[1] = MenuItem::new("No other lists").enabled(false);
+        rows[1] = MenuItem::new("No other lists").disabled(true);
         count = 2;
     }
     count

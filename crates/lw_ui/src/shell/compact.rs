@@ -23,8 +23,8 @@ fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, ac
     let ink = if active { INK } else { SECONDARY };
     let tab = MODE_TAB.selected(active).name(label);
     ui.button_content(key, &tab, |ui, _| {
-        ui.column("tab", Node::column().w(Size::Fit).h(Size::Grow), |ui| {
-            ui.row("content", Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
+        ui.column(Node::column().w(Size::Fit).h(Size::Grow), |ui| {
+            ui.row(Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
                 ui.label(label, TEXT_15.color(ink));
                 ui.label(count, CAPTION);
             });
@@ -131,9 +131,7 @@ pub(super) fn view(
                     let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
                     // Select mode swaps the Songs title for Swift's selection header.
                     let picking = state.selecting && state.route == Route::Songs;
-                    ui.row(
-                        "compact-heading",
-                        Node {
+                    ui.row(Node {
                             padding: if picking { Edges::ZERO } else { Edges {
                                 l: 16.0,
                                 r: if library { 6.0 } else { 16.0 },
@@ -179,9 +177,7 @@ pub(super) fn view(
                         },
                     );
                     if library {
-                        ui.row(
-                            "library-summary",
-                            Node {
+                        ui.id("library-summary", |ui| { ui.row(Node {
                                 padding: Edges {
                                     l: 16.0,
                                     r: 16.0,
@@ -195,12 +191,12 @@ pub(super) fn view(
                                 clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
                                 ui.label("songs", LEAD_INK);
                                 container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-                                ui.column("library-size", Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
+                                ui.id("library-size", |ui| { ui.column(Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
                                     ui.label(&catalog.totals_label, TEXT_13.h_px(19.5).color(SECONDARY));
                                     ui.label(&catalog.sources_label, TEXT_13.h_px(19.5).color(SECONDARY));
-                                });
+                                }); });
                             },
-                        );
+                        ); });
                         let tabs = ui.node(
                             "library-tabs",
                             Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
@@ -332,9 +328,7 @@ fn mini(
     catalog: &Catalog,
     intent: &mut Option<Intent>,
 ) {
-    ui.row(
-        "mini-player",
-        Node {
+    ui.row(Node {
             look: PANEL_FILL,
             ..Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center)
         },
@@ -457,7 +451,7 @@ fn mode_key(
     let mode = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered().look(if active { &INK_LOOKS } else { &KEY_LOOKS });
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
     let button = ui.button_content(key, &mode, |ui, _| {
-        ui.row("content", Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
+        ui.row(Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
             let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
             ui.canvas(&glyph, move |paint, rect| {
                 kit::paint_icon(paint, icon, rect.x, rect.y, color)
@@ -492,22 +486,20 @@ fn expanded(
     let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
     // The root takes the pointer for its dismiss gesture but is no tab stop.
     let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {
-        ui.row("now-heading", Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
+        ui.row(Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
             let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
             ui.within(&left, &mut |ui| {
                 if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::TogglePlayer);
                 }
             });
-            ui.row("playing-from", Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
+            ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
                 ui.label("Playing from", CAPTION);
                 ui.label(player.context, TEXT_13.color(INK));
             });
             container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
         });
-        ui.row(
-            "artwork-region",
-            Node {
+        ui.row(Node {
                 justify: Justify::Center,
                 padding: Edges { t: 4.0, ..Edges::ZERO },
                 ..Node::row().w(Size::Grow).h_px(region)
@@ -522,9 +514,7 @@ fn expanded(
                 );
             },
         );
-        ui.column(
-            "now-body",
-            Node {
+        ui.column(Node {
                 padding: Edges { l: 16.0, r: 16.0, t: 16.0, b: 10.0 },
                 ..Node::column().w(Size::Grow).h(Size::Grow)
             },
@@ -558,12 +548,10 @@ fn expanded(
                     }
                 });
                 spacer(ui, "clock-gap", 14.0);
-                ui.row("clock", Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
+                ui.row(Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
                     matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
                     ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                    ui.column(
-                        "clock-side",
-                        Node {
+                    ui.column(Node {
                             padding: Edges { b: 2.0, ..Edges::ZERO },
                             ..Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End)
                         },
@@ -593,9 +581,7 @@ fn expanded(
                     ui.a11y_name(&total, "Duration");
                 });
                 spacer(ui, "modes-gap", 14.0);
-                ui.row(
-                    "modes",
-                    Node {
+                ui.row(Node {
                         look: PANEL_FILL,
                         ..Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0)
                     },
@@ -647,9 +633,7 @@ fn expanded(
             },
         );
         // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
-        ui.row(
-            "keys",
-            Node {
+        ui.row(Node {
                 padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
                 look: SELECTED_FILL,
                 ..Node::row().w(Size::Grow).h_px(86.0).gap(2.0)

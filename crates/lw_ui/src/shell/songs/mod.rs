@@ -359,9 +359,9 @@ pub(super) fn table(
                         heading(ui, widths, applied, heading_layout, intent);
                     }
                     SectionPart::Row(_) if placeholder => {
-                        ui.column("empty", Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
+                        ui.id("empty", |ui| { ui.column(Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
                             ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, BODY_DIM.grow());
-                        });
+                        }); });
                     }
                     SectionPart::Row(index) => {
                         first = first.min(index);

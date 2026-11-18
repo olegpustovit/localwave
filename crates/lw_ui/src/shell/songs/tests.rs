@@ -174,10 +174,10 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                 &mut ui,
                 &FrameIn::new(width, 100.0).scale(scale).reduced_motion(true),
                 &mut |ui| {
-                    ui.column("component", Node::column().w_px(width).h(Size::Grow), |ui| {
+                    ui.id("component", |ui| { ui.column(Node::column().w_px(width).h(Size::Grow), |ui| {
                         let layout = heading_layout(ui, &catalog, columns, None);
                         root = Some(heading(ui, columns, None, layout, &mut None));
-                    });
+                    }); });
                 },
             )
             .unwrap();
@@ -309,10 +309,13 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
         let mut song = catalog.row(0);
         song.state = lw_core::FileState::CopyPending;
         let mut build = |ui: &mut Ui| {
-            ui.column("indicator", Node::column().w_px(14.0).h_px(11.0), |ui| { ui.view_of("indicator", &0, |ui| {
+            // keyed nodes: the test looks the bars up by key below
+            let indicator = ui.node("indicator", Node::column().w_px(14.0).h_px(11.0));
+            ui.within(&indicator, &mut |ui| { ui.view_of("indicator", &0, |ui| {
                 row::equalizer(ui, true, true, song.id)
             }); });
-            ui.column("file-state", Node::column().w_px(10.0).h_px(10.0), |ui| { ui.view_of("file-state", &0, |ui| {
+            let file_state = ui.node("file-state", Node::column().w_px(10.0).h_px(10.0));
+            ui.within(&file_state, &mut |ui| { ui.view_of("file-state", &0, |ui| {
                 row::availability(ui, song, true)
             }); });
         };
@@ -383,7 +386,8 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             frame.wire.time = time;
             frame.wire.reduced_motion = reduced;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
-                ui.column("file-state", Node::column().w_px(10.0).h_px(10.0), |ui| { ui.view_of("file-state", &state_revision, |ui| row::availability(ui, song, true)); });
+                let file_state = ui.node("file-state", Node::column().w_px(10.0).h_px(10.0));
+                ui.within(&file_state, &mut |ui| { ui.view_of("file-state", &state_revision, |ui| row::availability(ui, song, true)); });
             })
             .unwrap();
             assert_eq!(

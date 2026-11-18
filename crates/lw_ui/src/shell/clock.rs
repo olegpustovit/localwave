@@ -122,8 +122,8 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         let revision = crate::hash((shown, before));
         // Seven fading rows, shared by every changed digit, bound animation storage on carries.
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
-            ui.column(key, Node::column().h_px(unit), |ui| { ui.view_of(key, &revision, |ui| {
-                ui.stack("row", Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
+            ui.id(key, |ui| { ui.column(Node::column().h_px(unit), |ui| { ui.view_of(key, &revision, |ui| {
+                ui.id("row", |ui| { ui.stack(Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
                     for changing in [false, true] {
                         let visual = ui.view_of(if changing { "changed" } else { "stable" }, &revision, |ui| {
                                 let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
@@ -162,8 +162,8 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                             );
                         }
                     }
-                });
-            }); });
+                }); });
+            }); }); });
         }
     });
 }

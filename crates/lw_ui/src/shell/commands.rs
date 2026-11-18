@@ -276,9 +276,7 @@ pub(super) fn palette_view(
                 );
                 ui.within(&row, &mut |ui| {
                     if index == 0 || items[index - 1].group != item.group {
-                        ui.column(
-                            "group",
-                            Node {
+                        ui.id("group", |ui| { ui.column(Node {
                                 padding: Edges {
                                     l: 12.0,
                                     r: 12.0,
@@ -290,7 +288,7 @@ pub(super) fn palette_view(
                             |ui| {
                                 ui.label(item.group, FOOTNOTE.grow());
                             },
-                        );
+                        ); });
                     }
                     result_row(ui, player, catalog, item, index == selected, intent);
                 });
@@ -461,7 +459,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                 let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
                     ui.label("Keyboard", TEXT_18.grow().color(INK));
-                    ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
+                    ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node(
                                 Key::Id(index as i64),

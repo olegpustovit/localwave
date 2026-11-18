@@ -62,7 +62,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let label_width =
         (ui.text_service().width(label, TOOL_LABEL, None).unwrap() * density).ceil() / density;
     let width = 20.0 + icon_size + 6.0 + label_width;
-    let tool = pxui::Button::sized(width, 30.0).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).enabled(enabled).name(label);
+    let tool = pxui::Button::sized(width, 30.0).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).disabled(!enabled).name(label);
     // the hover and press washes sit under the copy, so the contents are a stack built with the press state
     let response = ui.button_content(key, &tool, |ui, press| {
         let layers = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
@@ -72,7 +72,9 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             background(ui, "hover", ui.color(PANEL), press.hovered && !selected, before != i64::from(selected));
             background(ui, "press", ui.color(PANEL), press.pressed, false);
             ui.view_of("action-copy", &(label, selected), |ui| {
-                ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
+                // a keyed node, not a keyless row: the tests look the icon up under it by key
+                let content = ui.node("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center));
+                ui.within(&content, &mut |ui| {
                     let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
                     let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
                     ui.canvas(&icon, move |paint, rect| match action {
@@ -104,7 +106,9 @@ pub(super) fn toolbar(
         .and_then(|view| view.find.as_ref());
     let tools = ui.node("find-tools", Node::column().w(Size::Grow).h_px(45.0));
     ui.within(&tools, &mut |ui| {
-        ui.row("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0), |ui| {
+        // keyed: the tests look the buttons' parts up by key under it
+        let buttons = ui.node("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
+        ui.within(&buttons, &mut |ui| {
             if button(
                 ui,
                 Action::Play,
@@ -176,17 +180,14 @@ mod tests {
         });
         root
     }
+    /// A keyed node of a Find action's copy (`"content"` itself, or `"icon"` under it) by its key path. Labels have no key (the
+    /// n-th label of their scope, in the library's positional namespace): the copy's text is checked through its glyphs.
     fn part(ui: &Ui, root: Handle, action: &str, part: &str) -> Handle {
         let mut key = root.box_key;
-        for label in [
-            "find-tools",
-            "buttons",
-            action,
-            "layers",
-            "action-copy",
-            "content",
-            part,
-        ] {
+        for label in ["find-tools", "buttons", action, "layers", "action-copy", "content"]
+            .into_iter()
+            .chain((part != "content").then_some(part))
+        {
             key = pxui::ui::key_of(key, label);
         }
         ui.box_of_key(pxui::Key::Resolved(key)).unwrap()
@@ -283,11 +284,19 @@ mod tests {
                                 h: size
                             }
                         );
-                        let copy = ui.rect(&part(&ui, root.unwrap(), action, "\0label"));
+                        // the copy's glyphs sit in its 18.2-point line box at 5.9, 6 points after the icon, within its width
+                        let content = ui.rect(&part(&ui, root.unwrap(), action, "content"));
+                        let x = left + 10.0 + size + 6.0;
+                        let mut glyphs = ui
+                            .layers()
+                            .flat_map(|layer| layer.instances.iter())
+                            .filter(|quad| quad.kind == pxui::draw::kind::MASK && quad.rect[0] >= x - 0.5 && quad.rect[2] <= content.x + content.w)
+                            .map(|quad| quad.rect)
+                            .peekable();
+                        assert!(glyphs.peek().is_some(), "{action}: the copy is drawn");
                         assert!(
-                            (copy.x - left - 10.0 - size - 6.0).abs() < 0.001
-                                && (copy.y - 5.9).abs() < 0.001
-                                && (copy.h - 18.2).abs() < 0.001
+                            glyphs.all(|r| r[1] >= 5.9 - 0.001 && r[3] <= 5.9 + 18.2 + 0.001 && r[2] <= content.x + content.w - 10.0 + 0.001),
+                            "{action}: the copy's glyphs leave its line box"
                         );
                     }
                     assert!(
@@ -384,7 +393,7 @@ mod tests {
             .filter(|quad| quad.kind == pxui::draw::kind::MASK)
             .copied()
             .collect::<Vec<_>>();
-        let copy = part(&ui, root.unwrap(), "play-all", "\0label");
+        let copy = part(&ui, root.unwrap(), "play-all", "content");
         let original = ui.rect(&copy);
         for round in 0..8 {
             mem_sys::local_reset();

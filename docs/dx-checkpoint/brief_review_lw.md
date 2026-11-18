@@ -9,7 +9,8 @@ Given a git range in a LocalWave checkout (crates/lw_ui, crates/lw_bin), check e
 2. Customization the right way: LocalWave's look comes from theme colours + named const looks (Rgba::token); its structure
    from registered bodies (`localwave-*`) and `.variant(n)`. No app-side token→colour resolving, no per-call Look literals,
    no app wrapper re-creating a widget [THEME]/[BODY].
-3. Keys: stable ids, never display text [KEY].
+3. Keys: stable ids, never display text [KEY]. A conditional (`if`/`match`/loop) or animated container or subtree without
+   `ui.id(key, ..)` is a finding [ID].
 4. Zero allocations in frames: no format!/String/Vec/collect/sort in build/draw paths; cached strings only [ALLOC].
 5. One API: no helper that re-creates an old pxui shape, no compat glue, no private pxui imports [API].
 6. Plan fidelity: the row's scope only; behaviour/accessibility changes listed in the commit message [PLAN].

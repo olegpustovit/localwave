@@ -126,9 +126,7 @@ pub(super) fn queue_sheet(
                 ui.canvas(&handle, move |paint, rect| {
                     paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
                 });
-                ui.row(
-                    "full-queue-header",
-                    Node {
+                ui.row(Node {
                         padding: Edges {
                             l: 16.0,
                             r: 6.0,
@@ -228,9 +226,7 @@ pub(super) fn queue_sheet(
                 if let Some(song) = now {
                     now_row(ui, player, song, width);
                 }
-                ui.row(
-                    "up-next-label",
-                    Node {
+                ui.row(Node {
                         padding: Edges {
                             l: 16.0,
                             t: 20.0,
@@ -245,9 +241,7 @@ pub(super) fn queue_sheet(
                     },
                 );
                 if upcoming == 0 {
-                    ui.row(
-                        "queue-empty",
-                        Node {
+                    ui.id("queue-empty", |ui| { ui.row(Node {
                             padding: Edges {
                                 l: 26.0,
                                 ..Edges::ZERO
@@ -261,9 +255,9 @@ pub(super) fn queue_sheet(
                                 *intent = Some(Intent::UndoQueue);
                             }
                         },
-                    );
+                    ); });
                 } else {
-                    ui.column("full-queue-body", Node::column().w(Size::Grow).h(Size::Grow).pad_x(10.0), |ui| {
+                    ui.id("full-queue-body", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Grow).pad_x(10.0), |ui| {
                         ui.view_of(
                             "full-queue-rows",
                             &(
@@ -282,7 +276,7 @@ pub(super) fn queue_sheet(
                                 )
                             },
                         );
-                    });
+                    }); });
                     let node = Node {
                         padding: Edges {
                             l: 26.0,
@@ -343,7 +337,7 @@ fn now_row(
             ui.color(kit::PANEL),
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
-        ui.column("now-titles", Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
+        ui.column(Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
             ui.label(song.title, LEAD_INK.grow());
             let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
             ui.within(&line, &mut |ui| {
@@ -351,7 +345,7 @@ fn now_row(
                 ui.label(song.artist, CAPTION.grow());
             });
         });
-        ui.column("now-bars", Node::column().w_px(14.0).h_px(11.0), |ui| {
+        ui.column(Node::column().w_px(14.0).h_px(11.0), |ui| {
             ui.view_of(
                 "equalizer-view",
                 &(player.playing, song.id),
@@ -493,9 +487,7 @@ pub(super) fn queue_rows(
                 if let Some(row) =
                     row.filter(|row| row.state != lw_core::FileState::Copied || row.pinned)
                 {
-                    ui.column(
-                        "availability-position",
-                        Node {
+                    ui.column(Node {
                             padding: Edges {
                                 l: m.glyph,
                                 r: m.glyph,

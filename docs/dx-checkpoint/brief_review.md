@@ -27,5 +27,7 @@ Report: PASS, or a numbered list of concrete mismatches (file:line, what, what t
    any logic inside a generic fn is a mismatch. Customization never goes through generics: looks are const values, structure is a
    registered body (fn pointer/C callback) + variant, behaviour is builder fields. Styles stay `Copy` + `const fn` builders so
    app styles are compile-time `const`s.
+10. Identity (D25): layout containers are keyless; a conditional (`if`/`match`/loop) or animated container or subtree without
+   `ui.id(key, ..)` is a mismatch tagged [ID].
 
 Severity: any mismatch blocks the landing. Do not soften findings, do not pass "with notes".

@@ -93,7 +93,7 @@ pub(super) fn sidebar(
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    ui.column("sidebar-content", Node::column().w(Size::Grow).h(Size::Grow).pad(10.0), |ui| {
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).pad(10.0), |ui| {
         spacer(ui, "sidebar-top", 28.0);
         let node = Node::row().w(Size::Grow).h_px(34.0).pad_x(10.0).align(Align::Center).role(Role::Button);
         let search = ui.pressable("search", node, &PLAIN.look(&SEARCH_ROW_LOOKS), |ui, _| {
@@ -147,17 +147,13 @@ pub(super) fn sidebar(
                 intent,
             );
         });
-        ui.row(
-            "offline",
-            Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
+        ui.row(Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
             |ui| {
                 ui.label("Offline", TEXT_12.grow().h_px(16.0).color(SECONDARY));
                 ui.label(&catalog.offline_usage, MONO_12.h_px(16.0).color(SECONDARY));
             },
         );
-        ui.row(
-            "offline-meter",
-            Node {
+        ui.row(Node {
                 margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
                 look: LINE_FILL,
                 ..Node::row().w(Size::Grow).h_px(4.0)

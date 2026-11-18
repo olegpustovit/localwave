@@ -8,8 +8,9 @@
 //! line without a reason, so the allowlist only shrinks; every U package must shrink it.
 //!
 //! Rules:
-//! - R1 struct literal of a pxui style/option type (use `const` builders, named once); of a pxui
-//!   value type (`Node`, `Edges`, `Look`, `Rgba`, `Font`, `State`, `States`) outside a `const`/`static` item.
+//! - R1 struct literal of a pxui style/option type; of a pxui value type (`Node`, `Edges`, `Look`, `Rgba`, `Font`,
+//!   `State`, `States`) outside a `const`/`static` item. Builders are the shape (D25.2): name a `const` for a reused style;
+//!   a one-off or runtime field may be built inline (`&BUTTON.disabled(!ok)`, `Node::row().gap(8.0)`).
 //! - R2 `Flags::CLICKABLE` outside a registered body fn (`fn *_body`); use `pressable`/`button`.
 //! - R3 app-side shadow theme: reading the colour table / resolving tokens into colours.
 //! - R4 key taken from display text (`format!`, `.to_string()`, `.as_str()` or a text-named variable).
@@ -31,18 +32,18 @@ const STYLE_TYPES: &[&str] = &[
     "DialogButton", "TextInputOptions",
 ];
 const KEYED_CALLS: &[&str] = &[
-    "button_with", "button_content", "pressable", "icon_button", "menu", "toggle_with",
-    "segmented_with", "dialog", "node", "view_of",
+    "button", "button_content", "pressable", "icon_button", "menu", "toggle",
+    "segmented", "dialog", "node", "view_of", "id",
 ];
 /// pxui value types whose literals belong in `const` items only (R1).
 const VALUE_TYPES: &[&str] = &["Node", "Edges", "Look", "Rgba", "Font", "State", "States"];
 /// pxui widget calls a one-call helper must not wrap (R8).
 const WIDGETS: &[&str] = &[
-    "badge", "button", "button_content", "button_with", "checkbox", "dialog", "disclosure", "dropdown", "grid_list",
+    "badge", "button", "button_content", "checkbox", "dialog", "disclosure", "dropdown", "grid_list",
     "icon_button", "label", "list", "menu", "menu_bar", "modal", "panel", "picker", "popup", "pressable", "progress",
-    "radio", "scrub", "search_field", "section_index", "section_list", "segmented", "segmented_with",
+    "radio", "scrub", "search_field", "section_index", "section_list", "segmented",
     "selection_list", "slider", "spinner", "table_view", "tabs", "text_area", "text_field", "toasts", "toggle",
-    "toggle_with", "tooltip", "tree",
+    "tooltip", "tree",
 ];
 const TEXT_NAMES: &[&str] = &["label", "title", "name", "text"];
 const ALLOC_TOKENS: &[&str] = &["format!(", "vec![", ".to_string()", "Vec::new()", ".collect::<Vec"];
@@ -576,7 +577,7 @@ fn api_conformance_matches_allowlist() {
 #[test]
 fn rule_helpers_recognise_their_shapes() {
     assert!(single_widget_call(b" ui.button(\"k\", \"Go\", &B).clicked "));
-    assert!(single_widget_call(b"ui.toggle_with(key, text, on, &T);"));
+    assert!(single_widget_call(b"ui.toggle(key, text, on, &T);"));
     assert!(!single_widget_call(b"let r = ui.button(k, t, &B); r.clicked"));
     assert!(!single_widget_call(b"ui.node(k, n)"));
     let src = b"const A: Node = Node { w: 1 }; fn f() { let x = Node { w: 2 }; }";

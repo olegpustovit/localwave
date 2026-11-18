@@ -32,8 +32,8 @@ pub(super) fn menu(
     let title = playlist_title(catalog, list);
     let present = title.is_some();
     let rows = [
-        MenuItem::new("Rename…").id(RENAME).enabled(present),
-        MenuItem::new("Delete list").id(DELETE).enabled(present).danger(),
+        MenuItem::new("Rename…").id(RENAME).disabled(!present),
+        MenuItem::new("Delete list").id(DELETE).disabled(!present).danger(),
     ];
     let menu = ui.menu("list-menu", pxui::Point::new(at.0, at.1), &rows, &songs::MENU.name("List actions"));
     match menu.chosen_id {
@@ -58,7 +58,7 @@ pub(super) fn confirm_delete(
     let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = playlist_title(catalog, list);
-    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete List").danger().primary().enabled(title.is_some())];
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete List").danger().primary().disabled(!title.is_some())];
     let sheet = ui.dialog("delete-list", "Delete list?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
         settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
         settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
@@ -84,9 +84,7 @@ pub(super) fn name_dialog(
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
     let open = ui.modal("list-name", &Overlay::DEFAULT.w_px(width).name(heading), |ui| {
-        ui.column(
-            "list-name-body",
-            Node {
+        ui.column(Node {
                 look: PAPER_FILL,
                 ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
             },

@@ -18,9 +18,7 @@ pub(super) fn transport(
 ) {
     let narrow = ui.view_size().width < 1100.0;
     let key_width = if narrow { 44.0 } else { 68.0 };
-    ui.row(
-        "transport-content",
-        Node {
+    ui.row(Node {
             padding: Edges {
                 r: if narrow { 8.0 } else { 20.0 },
                 ..Edges::ZERO
@@ -29,7 +27,7 @@ pub(super) fn transport(
             ..Node::row().w(Size::Grow).h(Size::Grow).gap(if narrow { 4.0 } else { 16.0 }).align(Align::Center)
         },
         |ui| {
-            ui.row("keys", Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0), |ui| {
+            ui.row(Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0), |ui| {
                 if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key_width, 71.0).look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::Previous);
                 }
@@ -56,9 +54,7 @@ pub(super) fn transport(
             small_clock(ui, "remaining", remaining, true, 50.0, SECONDARY);
             // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
             // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
-            ui.row(
-                "modes",
-                Node {
+            ui.row(Node {
                     look: PANEL_FILL,
                     ..Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0)
                 },
@@ -71,7 +67,7 @@ pub(super) fn transport(
                     ).clicked {
                         *intent = Some(Intent::Shuffle);
                     }
-                    ui.stack("repeat-key", Node::stack().w_px(44.0).h_px(40.0), |ui| {
+                    ui.stack(Node::stack().w_px(44.0).h_px(40.0), |ui| {
                         if ui.icon_button(
                             "repeat",
                             icon_drawing(Icon::Repeat),
@@ -85,16 +81,14 @@ pub(super) fn transport(
                             *intent = Some(Intent::Repeat);
                         }
                         if player.repeat == lw_core::queue::RepeatMode::One {
-                            ui.column(
-                                "repeat-one",
-                                Node {
+                            ui.id("repeat-one", |ui| { ui.column(Node {
                                     at: Some((31.0, 25.0)).into(),
                                     ..Node::column().w_px(8.0).h_px(12.0)
                                 },
                                 |ui| {
                                     ui.label("1", MONO_9.w_px(8.0).h_px(12.0).color(PAPER));
                                 },
-                            );
+                            ); });
                         }
                     });
                     if ui.icon_button(
@@ -170,7 +164,7 @@ pub(super) fn desktop(
                 u64::from(state.carried.get()) * 2
             };
             let revision = crate::hash((state.revision, catalog.all.is_some(), carry));
-            ui.column("sidebar", Node::column().w_px(sidebar_width).h(Size::Grow), |ui| { ui.view_of("sidebar", &revision, |ui| sidebar(ui, catalog, state, sidebar_width, intent)); });
+            ui.column(Node::column().w_px(sidebar_width).h(Size::Grow), |ui| { ui.view_of("sidebar", &revision, |ui| sidebar(ui, catalog, state, sidebar_width, intent)); });
             rule(ui, "sidebar-divider", true);
             let library_revision = library_revision(player, catalog, state);
             let page = ui.view_of("library", &library_revision, |ui| {
@@ -258,7 +252,7 @@ pub(super) fn desktop(
             }
         });
         rule(ui, "transport-divider", false);
-        ui.column("transport", Node::column().h_px(71.0), |ui| { ui.view_of("transport", &(crate::hash(( (player.revision, position.to_bits(), panel), (player.playing, player.shuffled, player.repeat as u8), (player.duration.to_bits(), width.to_bits()), ))), |ui| transport(ui, player, position, panel, intent)); });
+        ui.column(Node::column().h_px(71.0), |ui| { ui.view_of("transport", &(crate::hash(( (player.revision, position.to_bits(), panel), (player.playing, player.shuffled, player.repeat as u8), (player.duration.to_bits(), width.to_bits()), ))), |ui| transport(ui, player, position, panel, intent)); });
     });
     // A carry a row starts mid-build shows from the next frame; one that ended shows its last view once.
     state.carried.set(ui.carrying().is_some());

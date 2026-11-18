@@ -10,9 +10,7 @@ pub(super) fn now_panel(
     carry: u64,
     intent: &mut Option<Intent>,
 ) {
-    ui.column(
-        "now",
-        Node {
+    ui.column(Node {
             padding: Edges {
                 l: 20.0,
                 r: 20.0,
@@ -22,7 +20,7 @@ pub(super) fn now_panel(
             ..Node::column().w(Size::Grow).h(Size::Grow)
         },
         |ui| {
-            ui.row("header", Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
+            ui.row(Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
                 ui.label("Now playing", CAPTION.grow());
                 if ui.icon_button("hide-panel", icon_drawing(Icon::Panel), "Minimise to small player", &ICON_36.look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::TogglePanel);
@@ -58,7 +56,7 @@ pub(super) fn now_panel(
                 )
             });
             // Swift's heart sits at the end of the title row, level with the title.
-            ui.row("title-row", Node::row().w(Size::Grow).h(Size::Fit), |ui| {
+            ui.row(Node::row().w(Size::Grow).h(Size::Fit), |ui| {
                 let information_revision = crate::hash((
                     player.revision,
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -113,7 +111,7 @@ pub(super) fn now_panel(
             let clock_group_box = ui.node("playback-clock", Node::column().h_px(43.0));
             let mut clock_group = clock_group_box;
             ui.within(&clock_group_box, &mut |ui| clock_group = ui.view_of("playback-clock", &(crate::hash((player.revision, position.to_bits()))), |ui| {
-                    ui.row("clock", Node::row().w(Size::Grow).h_px(43.0).align(Align::End), |ui| {
+                    ui.row(Node::row().w(Size::Grow).h_px(43.0).align(Align::End), |ui| {
                         matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
                         ui.node("clock-flex", Node::DEFAULT.w(Size::Grow));
                         small_clock(
@@ -170,7 +168,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         ("ray5", -0.9, -0.5),
     ];
     let on = current.is_some_and(|(_, on)| on);
-    let favorite = FAVORITE.enabled(current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
+    let favorite = FAVORITE.disabled(!current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
     // the heart and its burst are a stack of their own, built with the press state
     let signal = ui.button_content("favorite", &favorite, |ui, press| {
         let node = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
@@ -253,8 +251,8 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
     rule(ui, "metadata-divider", false);
     spacer(ui, "metadata-top", 13.0);
     let revision = crate::hash(info as *const crate::now_info::NowInfo as usize);
-    ui.column("now-metadata", Node::column().h_px(79.2), |ui| { ui.view_of("now-metadata", &revision, |ui| {
-            ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
+    ui.column(Node::column().h_px(79.2), |ui| { ui.view_of("now-metadata", &revision, |ui| {
+            ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
                 for (key, label, value, ink) in [
                     ("format", "Format", &info.format, SECONDARY),
                     ("size", "Size", &info.size, SECONDARY),
