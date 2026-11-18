@@ -54,6 +54,16 @@ Host setup and input in U1a
         /* consume the borrowed draw instances and dirty ranges */
     }
 
+Build speed, state and the extension set in U1c
+
+    ui.node_mut(&row, &mut |fields| fields.inset = Edges::ZERO.l(24.0));  // closures cross as &mut dyn, never generic bodies
+    let choice = ui.radio("quality", &OPTIONS, Some(i), &Radio::DEFAULT);  // pick-one: PickResponse { response, chosen, chosen_id, secondary }
+    if pxui::ext::inspector_toggle(ui, "snap", "Snap", snap) != snap { .. }  // Rays' inspector set: free functions, out of the prelude
+
+A public generic is a one-expression `#[inline]` shell (K: Into<Key>, F: FnMut, T: Hash, lifetimes) into one non-generic body,
+never into an `#[inline(always)]` one (gate shape). A `Ui` built with `debug_assertions` verifies its retained views (`verify_views`);
+there is no process-wide switch. The wrapper's only state outside a `Ui` is listed, with its bounds, in pxui's composite.rs.
+
 Keep event records and payloads alive during the frame. A host with a full `Input`
 can borrow it through `unsafe FrameIn::snapshot(&input)` with its backing spans live.
 Output queries copy the descriptor, and a renderer's acknowledgement preserves
