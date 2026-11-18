@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-18. Resume at [U1b.6](#next-u1b6-u1b1-u1b5-committed-on-u1b).
+Updated 2026-11-18. Resume at [review of U1b](#next-u1b-review-u1b-final-stop-on-u1b).
 
 ## What we're doing
 
@@ -109,15 +109,14 @@ All six build measurements meet the CP0 allowance. Warm app relink is 0.98 s
 against CP0's 1.02 s. Clean framework build is 30.36 s against the nominal
 30 s target. See [paired build times](docs/rust-port.md#build-time).
 
-## NEXT: U1b.6 (U1b.1-U1b.5 committed on `u1b`)
+## NEXT: U1b review (U1b final stop on `u1b`)
 
-U1b.1 (+ fix) through U1b.5 are committed in both repos on `u1b` (ABI 1.80); see the
-[handoff](scratch/u1b-handoff-report.md) for decisions and lessons. Resume at U1b.6 in the existing checkouts.
+U1b.1-U1b.6 are committed in both repos on `u1b`, with the fixes the rulings asked for (ABI 1.81): the engine mirrors are deleted,
+and the C theme projection is inline with an allocation test. See the [final report](scratch/u1b-final-report.md). Tier B is green.
+LocalWave fingerprints match the U1a final. Build time is within allowance against 16dc635.
 
-- U1b.5 added the bench's own `Ui` (`pxui/tools/abi_bench`, `repr(transparent)` over the engine) that adapts reshaped calls for the
-  page source; U1b.6 moves the remaining engine mirrors (`*_legacy`, engine result/style copies) into it and deletes them.
-- Still owed before the final stop: U1b.6 (containers.py), the mirror deletion, Tier B, gcmp vs the U1a final (identical so far),
-  buildtime, §13 review.
+- Next: the orchestrator's §13 review and the independent reviewer. Fixes go in `[U1b.<k> fix]` commits.
+- Open questions are listed in the report: the keyed `node` + `within` sites, and the pre-U1b `tooltip_legacy`/`anchored_legacy`.
 
 ## Found (separate fixes later, not U1b scope)
 
