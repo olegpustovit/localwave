@@ -1085,7 +1085,6 @@ pxui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
 pxui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::Ui::unfocus fn (&mut self)
 pxui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'_>
-pxui::Ui::verify_new_views fn (on: bool)
 pxui::Ui::verify_views fn (&mut self, on: bool)
 pxui::Ui::verifying fn (&self) -> bool
 pxui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
@@ -1841,7 +1840,6 @@ pxui::ui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
 pxui::ui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::ui::Ui::unfocus fn (&mut self)
 pxui::ui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'_>
-pxui::ui::Ui::verify_new_views fn (on: bool)
 pxui::ui::Ui::verify_views fn (&mut self, on: bool)
 pxui::ui::Ui::verifying fn (&self) -> bool
 pxui::ui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle

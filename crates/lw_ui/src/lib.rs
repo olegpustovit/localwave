@@ -351,11 +351,9 @@ pub(crate) fn test_table_styles() -> catalog::TableStyles {
     catalog::TableStyles::resolve(&test_ui(pxui::Platform::Apple, None, &[FONT, MONO]))
 }
 
-/// Creates a test Ui with view verification and the LocalWave palette.
+/// Creates a test Ui (verifying its views, the debug default) with the LocalWave palette.
 #[cfg(test)]
 pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8]]) -> pxui::Ui {
-    static ONCE: std::sync::Once = std::sync::Once::new();
-    ONCE.call_once(|| pxui::Ui::verify_new_views(true));
     let fonts: Vec<_> = fonts.iter().map(|bytes| pxui::FontData(bytes)).collect();
     let mut desc = pxui::UiDesc::new(platform).fonts(&fonts);
     if let Some(size) = size { desc = desc.font_size(size as f32); }
