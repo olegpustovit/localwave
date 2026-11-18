@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-18. Resume at [U1b re-review](#next-u1b-re-review-then-land).
+Updated 2026-11-18. Resume at [U1c](#next-u1c).
 
 ## What we're doing
 
@@ -109,21 +109,32 @@ All six build measurements meet the CP0 allowance. Warm app relink is 0.98 s
 against CP0's 1.02 s. Clean framework build is 30.36 s against the nominal
 30 s target. See [paired build times](docs/rust-port.md#build-time).
 
-## NEXT: U1b re-review, then land
+### U1b landed on `rust-port`
 
-U1b.1-U1b.6 and the fixes for the independent review are committed in both repos on `u1b`. The [final report](scratch/u1b-final-report.md)
-lists them under "Review fixes":
-- resolved-label refusal;
-- ui.id for conditional containers behind helpers;
-- the find test restore;
-- the kit doc examples;
-- allowlist 439 -> 308;
-- the Scrub doc.
+| Step | LocalWave | pxui |
+|---|---|---|
+| U1b.1 Results | dcca1b6, e2a9942, ec0e38b | ec95d41d, c46adee7, e45204f3 |
+| U1b.2 Keys | f19b27e, 055307b, 6dcc3e2, 20463e4 | 165fd9d1, c1ad78d0, cbb34aad, 0baa83c6 |
+| U1b.3 Measurement and units | d873f01, f127faf | 90367067, d143239c |
+| U1b.4 Looks, views, a11y | 0da9123 | 5444131b |
+| U1b.5 Builders | e7e9687 | 3f1afb57 |
+| U1b.6 Call-shape lock | dada1a1, 1419a82, 13f5428, c2eeb47, 7224eca, 058f687, 1a999a1 | 4ebb0002, 7e3c42e0, 3805ffcd |
 
-Tier B is green. Fingerprints match the U1a final (no D9).
+The 6,071-item surface matches the ledger. ABI 1.81; the 1.57 consumer, frozen,
+export and docs gates pass. Fingerprints match U1a (no D9). Gallery goldens
+are unchanged. Every key-label C export refuses unusable resolved labels
+(fuzzed); identity-only C labels are capped at 256 bytes. The allowlist shrank
+439 → 308. Tier B, two independent review rounds and 289 online LocalWave checks
+passed. Build times are within the CP0 allowance; clean pxui is 26.24 s.
+Orchestrator rulings: fractional sizes ride in existing record padding (valid
+only within 0.5 of the integer field); keyed `node` + `within` stays where tests
+query children; `tooltip_legacy`/`anchored_legacy` serve only 1.x C exports;
+the six-look `style` cost is measured at CP1.
 
-- Next: re-review of the fixes, then land per the lifecycle above.
-- Open questions from the report still stand: the keyed `node` + `within` sites, and `tooltip_legacy`/`anchored_legacy`.
+## NEXT: U1c
+
+Start branch `u1c` in both repos from `rust-port` (LocalWave 1a999a1 + status,
+pxui 0baa83c6). U1c.1 also owns the CP0 release abi_bench failure (D26).
 
 ## Found (separate fixes later, not U1b scope)
 
@@ -148,6 +159,7 @@ Tier B is green. Fingerprints match the U1a final (no D9).
 
 - Performance numbers are only valid at **load average < 4**. Check with `sysctl -n vm.loadavg`, and wait with an until-loop.
 - Earlier runs were polluted by load averages of 30–130: DaisyDisk, Notion Calendar, the Simulator, Spotlight and fseventsd indexing `target/`. `target/` and `pxui/target/` now carry `.metadata_never_index`.
+- fseventsd can sit at 100% CPU for weeks; restarting it (sudo killall fseventsd) brought the clean pxui build from ~34 s to 26 s. Don't restart it during a build: an in-flight incremental move failed once.
 - Don't run builds while measuring. Use one implementer at a time, in the main checkouts, with no stash and no extra worktrees except temporary bisect/buildtime ones.
 
 ## Never

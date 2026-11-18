@@ -216,12 +216,12 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U1a.2 | Theme (D1) and counter (D3) | done | LocalWave daa47b6 and pxui 62ddd318. Detached theme handles, cached palettes and strict root body-name validation. Gallery checks passed and cached theme swaps had zero warm allocations. |
 | U1a.3 | Lifecycle and errors | done | LocalWave 70bef76 and b6a3d2b, pxui 96e7ca2d and 24e54d41. One frame entry preserves event and snapshot input. Layer, focus, accessibility, malformed input and GPU lease regressions passed. The Rust iOS device probe type-checks. |
 | U1a.4 | Input (D23) | done | LocalWave f83c3a8, 9173aca and d3c434b, pxui e43ef1e4 and e10307b2. Shortcut regression passed before and after typed queries. ABI 1.75 and the 5,913-item approved surface passed. D9 matched across 9,263 frames. Tier A, Tier B, independent review and 288 online LocalWave checks passed. All six build-time values meet the CP0 allowance. |
-| U1b.1 | One result idiom (D4, D10) | todo |  |
-| U1b.2 | Keys and small returns | todo |  |
-| U1b.3 | Measurement and units (D20) | todo |  |
-| U1b.4 | Looks, views, a11y types | todo |  |
-| U1b.5 | Builders and vocabulary | todo |  |
-| U1b.6 | Call-shape lock (D25) | todo |  |
+| U1b.1 | One result idiom (D4, D10) | done | LocalWave dcca1b6, e2a9942 and ec0e38b, pxui ec95d41d, c46adee7 and e45204f3. PickResponse, SliderResponse, OverlayResponse, SplitResponse and Chosen; id-keyed segments keep identity through reorder. ABI 1.76. |
+| U1b.2 | Keys and small returns | done | LocalWave f19b27e, 055307b, 6dcc3e2 and 20463e4, pxui 165fd9d1, c1ad78d0, cbb34aad and 0baa83c6. Key-first lookups; Key::Resolved never rehashed; every key-label export refuses unusable resolved labels (fuzzed). ABI 1.77. |
+| U1b.3 | Measurement and units (D20) | done | LocalWave d873f01 and f127faf, pxui 90367067 and d143239c. One in-frame UiText; f32 font, row and padding sizes in existing record padding; inline allocation-free C theme projection; clock and drop overlay placed by baseline. ABI 1.78. |
+| U1b.4 | Looks, views, a11y types | done | LocalWave 0da9123, pxui 5444131b. style(States::of), ViewTransform builders, A11yStates and borrowed A11yTree, Paint::tokens. ABI 1.79. |
+| U1b.5 | Builders and vocabulary | done | LocalWave e7e9687, pxui 3f1afb57. Const builders, Progress/Spinner/Badge/GridList styles, Node-based scroll_view and text_area. ABI 1.80. |
+| U1b.6 | Call-shape lock (D25) | done | LocalWave dada1a1, 1419a82, 13f5428, c2eeb47, 7224eca, 058f687 and 1a999a1, pxui 4ebb0002, 7e3c42e0 and 3805ffcd. Keyless containers plus ui.id, internal positional key namespace, single button/toggle, disabled, chosen_id; engine mirrors deleted; allowlist 439 → 308. ABI 1.81. Surface 6,071 items matches the ledger; fingerprints match U1a; gallery goldens unchanged; Tier B, independent review and 289 online LocalWave checks passed; all six build-time values meet the CP0 allowance. |
 | U1c.1 | Generics (Batch K) and the gate | todo |  |
 | U1c.2 | Globals (OS-2/4) and verify (D22) | todo |  |
 | U1c.3 | Extension set (D6) | todo |  |
@@ -333,18 +333,18 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 ## Build time
 
 `tools/dx/buildtime.sh --compare 16dc635` reports the minimum of three alternating rounds in seconds. All
-six U1a measurements stayed within max(5%, 0.3 s) of CP0. The clean workspace build exceeded the 30 s
-target by 0.36 s. The comparison ran on LocalWave 9173aca and pxui e10307b2 before the iOS probe, test
-and shortcut documentation fixes. The de53440 values come from the earlier pre-DX comparison.
+six U1b measurements stayed within max(5%, 0.3 s) of CP0, measured on LocalWave 1a999a1 and pxui 0baa83c6
+after a stuck fseventsd was restarted. An earlier run under external load (load average 16–29) read clean
+pxui_dylib +4.9 s and was discarded. The de53440 values come from the earlier pre-DX comparison.
 
-| Measure | Budget | U1a | CP0 | de53440 |
+| Measure | Budget | U1b | CP0 | de53440 |
 | --- | --- | --- | --- | --- |
-| a clean pxui workspace debug build | 30 s | 30.36 | 30.14 | 39.12 |
+| a clean pxui workspace debug build | 30 s | 26.24 | 26.06 | 39.12 |
 | b warm `cargo check -p pxui_core` after a touch | 1 s | 0.28 | 0.28 | 0.33 |
-| c clean `cargo build -p pxui_dylib` | – | 26.56 | 26.50 | 33.86 |
-| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | 3.22 | 3.21 | 3.36 |
-| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | 0.21 | 0.22 | 0.25 |
-| f warm `cargo build -p lw_bin` after the same touch | – | 0.98 | 1.02 | 1.29 |
+| c clean `cargo build -p pxui_dylib` | – | 23.00 | 22.75 | 33.86 |
+| d clean `cargo build -p lw_ui`, dependencies prebuilt | – | 3.07 | 3.04 | 3.36 |
+| e warm `cargo check -p lw_ui` after touching shell/sidebar.rs | – | 0.22 | 0.22 | 0.25 |
+| f warm `cargo build -p lw_bin` after the same touch | – | 0.98 | 0.98 | 1.29 |
 
 ### CPU profile
 
