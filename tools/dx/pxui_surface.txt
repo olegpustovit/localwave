@@ -142,16 +142,7 @@ pxui::Disclosure impl Debug
 pxui::Disclosure struct
 pxui::Disclosure::DEFAULT const Disclosure
 pxui::Disclosure::variant fn const (self, variant: u16) -> Disclosure
-pxui::DismissOpts impl Clone
-pxui::DismissOpts impl Copy
-pxui::DismissOpts impl Debug
-pxui::DismissOpts impl Default
-pxui::DismissOpts impl PartialEq
-pxui::DismissOpts impl StructuralPartialEq
-pxui::DismissOpts struct
-pxui::DismissOpts::DEFAULT const DismissOpts
-pxui::DismissOpts::fraction fn const (self, fraction: f32) -> DismissOpts
-pxui::DismissOpts::velocity fn const (self, velocity: f32) -> DismissOpts
+pxui::DismissOpts use pxui_types::ui::DismissOpts
 pxui::DropRef enum <'a>
 pxui::DropRef impl Clone
 pxui::DropRef impl Copy
@@ -512,6 +503,7 @@ pxui::PayloadRef struct <'a>
 pxui::PayloadRef::kind field &'a str
 pxui::PayloadRef::value field &'a str
 pxui::Pick use pxui_types::ui::Pick
+pxui::PickArt use pxui_types::ui::PickArt
 pxui::PickResponse impl Clone
 pxui::PickResponse impl Copy
 pxui::PickResponse impl Debug
@@ -520,6 +512,7 @@ pxui::PickResponse::chosen field Option<usize>
 pxui::PickResponse::chosen_id field Option<i64>
 pxui::PickResponse::response field Response
 pxui::PickResponse::secondary field Option<usize>
+pxui::PickRow use pxui_types::ui::PickRow
 pxui::PickRows use pxui_types::ui::PickRows
 pxui::Picker impl Clone
 pxui::Picker impl Copy
@@ -547,6 +540,7 @@ pxui::PreparedText impl Drop
 pxui::PreparedText impl Send
 pxui::PreparedText struct
 pxui::PreparedText::metrics fn (&self) -> TextMetrics
+pxui::Presentation use pxui_types::ui::Presentation
 pxui::Pressable impl Clone
 pxui::Pressable impl Copy
 pxui::Pressable impl Debug
@@ -1394,16 +1388,7 @@ pxui::ui::DRAG_THRESHOLD use pxui_types::ui::DRAG_THRESHOLD
 pxui::ui::Dialog use crate::Dialog
 pxui::ui::DialogButton use crate::DialogButton
 pxui::ui::Dir use pxui_types::node::Dir
-pxui::ui::DismissOpts impl Clone
-pxui::ui::DismissOpts impl Copy
-pxui::ui::DismissOpts impl Debug
-pxui::ui::DismissOpts impl Default
-pxui::ui::DismissOpts impl PartialEq
-pxui::ui::DismissOpts impl StructuralPartialEq
-pxui::ui::DismissOpts struct
-pxui::ui::DismissOpts::DEFAULT const DismissOpts
-pxui::ui::DismissOpts::fraction fn const (self, fraction: f32) -> DismissOpts
-pxui::ui::DismissOpts::velocity fn const (self, velocity: f32) -> DismissOpts
+pxui::ui::DismissOpts use crate::DismissOpts
 pxui::ui::Dropdown use pxui_types::ui::Dropdown
 pxui::ui::Fill impl Clone
 pxui::ui::Fill impl Copy
@@ -1528,8 +1513,11 @@ pxui::ui::Paint::tokens fn (&self) -> Tokens
 pxui::ui::Paint::triangle fn (&mut self, a: (f32, f32), b: (f32, f32), c: (f32, f32), fill: Fill)
 pxui::ui::PanelOpts use pxui_types::ui::PanelOpts
 pxui::ui::Pick use pxui_types::ui::Pick
+pxui::ui::PickArt use pxui_types::ui::PickArt
+pxui::ui::PickRow use pxui_types::ui::PickRow
 pxui::ui::PickRows use pxui_types::ui::PickRows
 pxui::ui::PickerResponse use pxui_types::ui::PickerResponse
+pxui::ui::Presentation use pxui_types::ui::Presentation
 pxui::ui::ROOT_KEY use pxui_types::ui::ROOT_KEY
 pxui::ui::Repeat use pxui_types::ui::Repeat
 pxui::ui::Ring use pxui_types::theme::Ring
@@ -3850,6 +3838,7 @@ pxui_types::ffi::PxuiPanelConfig struct
 pxui_types::ffi::PxuiPanelConfig::content field PxuiSlot
 pxui_types::ffi::PxuiPanelConfig::label field Str
 pxui_types::ffi::PxuiPanelConfig::node field PxuiBox
+pxui_types::ffi::PxuiPanelConfig::present field u64
 pxui_types::ffi::PxuiPanelConfig::size field u32
 pxui_types::ffi::PxuiPanelConfig::variant field u16
 pxui_types::ffi::PxuiPickItem impl Clone
@@ -3863,6 +3852,18 @@ pxui_types::ffi::PxuiPickItem::id field i64
 pxui_types::ffi::PxuiPickItem::name field Str
 pxui_types::ffi::PxuiPickItem::reserved field [u8; 7]
 pxui_types::ffi::PxuiPickItem::text field Str
+pxui_types::ffi::PxuiPickRow impl Clone
+pxui_types::ffi::PxuiPickRow impl Copy
+pxui_types::ffi::PxuiPickRow impl Debug
+pxui_types::ffi::PxuiPickRow struct
+pxui_types::ffi::PxuiPickRow::art field u64
+pxui_types::ffi::PxuiPickRow::art_kind field u8
+pxui_types::ffi::PxuiPickRow::detail field Str
+pxui_types::ffi::PxuiPickRow::heading field Str
+pxui_types::ffi::PxuiPickRow::label field Str
+pxui_types::ffi::PxuiPickRow::new fn const (label: &str, detail: &str) -> PxuiPickRow
+pxui_types::ffi::PxuiPickRow::reserved field [u8; 3]
+pxui_types::ffi::PxuiPickRow::size field u32
 pxui_types::ffi::PxuiPickerFieldConfig impl Clone
 pxui_types::ffi::PxuiPickerFieldConfig impl Copy
 pxui_types::ffi::PxuiPickerFieldConfig struct
@@ -3878,6 +3879,8 @@ pxui_types::ffi::PxuiPickerFieldConfig::variant field u16
 pxui_types::ffi::PxuiPickerRowConfig impl Clone
 pxui_types::ffi::PxuiPickerRowConfig impl Copy
 pxui_types::ffi::PxuiPickerRowConfig struct
+pxui_types::ffi::PxuiPickerRowConfig::art field u64
+pxui_types::ffi::PxuiPickerRowConfig::art_kind field u8
 pxui_types::ffi::PxuiPickerRowConfig::current field u8
 pxui_types::ffi::PxuiPickerRowConfig::detail field Str
 pxui_types::ffi::PxuiPickerRowConfig::doomed field u8
@@ -3886,6 +3889,7 @@ pxui_types::ffi::PxuiPickerRowConfig::index field i64
 pxui_types::ffi::PxuiPickerRowConfig::label field Str
 pxui_types::ffi::PxuiPickerRowConfig::marked field u8
 pxui_types::ffi::PxuiPickerRowConfig::query field Str
+pxui_types::ffi::PxuiPickerRowConfig::reserved3 field [u8; 7]
 pxui_types::ffi::PxuiPickerRowConfig::row field PxuiBox
 pxui_types::ffi::PxuiPickerRowConfig::size field u32
 pxui_types::ffi::PxuiPickerRowConfig::state field PxuiStateDesc
@@ -4098,6 +4102,17 @@ pxui_types::ffi::PxuiShadowDesc::inner field u8
 pxui_types::ffi::PxuiShadowDesc::offset field [f32; 2]
 pxui_types::ffi::PxuiShadowDesc::reserved field [u8; 3]
 pxui_types::ffi::PxuiShadowDesc::spread field f32
+pxui_types::ffi::PxuiSheetDesc impl Clone
+pxui_types::ffi::PxuiSheetDesc impl Copy
+pxui_types::ffi::PxuiSheetDesc impl Debug
+pxui_types::ffi::PxuiSheetDesc struct
+pxui_types::ffi::PxuiSheetDesc::dismiss_fraction field f32
+pxui_types::ffi::PxuiSheetDesc::dismiss_velocity field f32
+pxui_types::ffi::PxuiSheetDesc::has_width field u8
+pxui_types::ffi::PxuiSheetDesc::present field u8
+pxui_types::ffi::PxuiSheetDesc::reserved field [u8; 2]
+pxui_types::ffi::PxuiSheetDesc::size field u32
+pxui_types::ffi::PxuiSheetDesc::width field f32
 pxui_types::ffi::PxuiSignal impl Clone
 pxui_types::ffi::PxuiSignal impl Copy
 pxui_types::ffi::PxuiSignal impl Debug
@@ -5701,6 +5716,18 @@ pxui_types::ui::DialogButton::new fn const (text: &'a str) -> DialogButton<'a>
 pxui_types::ui::DialogButton::primary field bool
 pxui_types::ui::DialogButton::primary fn const (self) -> DialogButton<'a>
 pxui_types::ui::DialogButton::text field &'a str
+pxui_types::ui::DismissOpts impl Clone
+pxui_types::ui::DismissOpts impl Copy
+pxui_types::ui::DismissOpts impl Debug
+pxui_types::ui::DismissOpts impl Default
+pxui_types::ui::DismissOpts impl PartialEq
+pxui_types::ui::DismissOpts impl StructuralPartialEq
+pxui_types::ui::DismissOpts struct
+pxui_types::ui::DismissOpts::DEFAULT const DismissOpts
+pxui_types::ui::DismissOpts::fraction field Option<f32>
+pxui_types::ui::DismissOpts::fraction fn const (self, fraction: f32) -> DismissOpts
+pxui_types::ui::DismissOpts::velocity field Option<f32>
+pxui_types::ui::DismissOpts::velocity fn const (self, velocity: f32) -> DismissOpts
 pxui_types::ui::Dropdown impl Clone
 pxui_types::ui::Dropdown impl Copy
 pxui_types::ui::Dropdown impl Debug
@@ -5848,6 +5875,8 @@ pxui_types::ui::Overlay::at field (f32, f32)
 pxui_types::ui::Overlay::at fn const (self, at: Point) -> Overlay<'a>
 pxui_types::ui::Overlay::attached field bool
 pxui_types::ui::Overlay::attached fn const (self) -> Overlay<'a>
+pxui_types::ui::Overlay::dismiss field DismissOpts
+pxui_types::ui::Overlay::dismiss fn const (self, dismiss: DismissOpts) -> Overlay<'a>
 pxui_types::ui::Overlay::dismiss_initial field bool
 pxui_types::ui::Overlay::dismiss_initial fn const (self) -> Overlay<'a>
 pxui_types::ui::Overlay::h field Option<f32>
@@ -5862,6 +5891,8 @@ pxui_types::ui::Overlay::padding field f32
 pxui_types::ui::Overlay::padding fn const (self, padding: f32) -> Overlay<'a>
 pxui_types::ui::Overlay::place field Placement
 pxui_types::ui::Overlay::place fn const (self, place: Placement) -> Overlay<'a>
+pxui_types::ui::Overlay::present field Presentation
+pxui_types::ui::Overlay::present fn const (self, presentation: Presentation) -> Overlay<'a>
 pxui_types::ui::Overlay::stroke field Option<Rgba>
 pxui_types::ui::Overlay::stroke fn const (self, color: Rgba) -> Overlay<'a>
 pxui_types::ui::Overlay::w field Option<f32>
@@ -5899,15 +5930,39 @@ pxui_types::ui::Pick::Delete variant (i64)
 pxui_types::ui::Pick::None variant
 pxui_types::ui::Pick::Pick variant (i64)
 pxui_types::ui::Pick::Submit variant
+pxui_types::ui::PickArt enum
+pxui_types::ui::PickArt impl Clone
+pxui_types::ui::PickArt impl Copy
+pxui_types::ui::PickArt impl Debug
+pxui_types::ui::PickArt impl Eq
+pxui_types::ui::PickArt impl PartialEq
+pxui_types::ui::PickArt impl StructuralPartialEq
+pxui_types::ui::PickArt::Glyph variant (char)
+pxui_types::ui::PickArt::Image variant (usize)
+pxui_types::ui::PickRow impl Clone
+pxui_types::ui::PickRow impl Copy
+pxui_types::ui::PickRow impl Debug
+pxui_types::ui::PickRow impl Eq
+pxui_types::ui::PickRow impl PartialEq
+pxui_types::ui::PickRow impl StructuralPartialEq
+pxui_types::ui::PickRow struct <'a>
+pxui_types::ui::PickRow::art field Option<PickArt>
+pxui_types::ui::PickRow::art fn const (self, art: PickArt) -> PickRow<'a>
+pxui_types::ui::PickRow::detail field &'a str
+pxui_types::ui::PickRow::detail fn const (self, detail: &'a str) -> PickRow<'a>
+pxui_types::ui::PickRow::heading field &'a str
+pxui_types::ui::PickRow::heading fn const (self, heading: &'a str) -> PickRow<'a>
+pxui_types::ui::PickRow::label field &'a str
+pxui_types::ui::PickRow::new fn const (label: &'a str) -> PickRow<'a>
 pxui_types::ui::PickRows impl Debug
 pxui_types::ui::PickRows impl Default
 pxui_types::ui::PickRows struct
 pxui_types::ui::PickRows::clear fn (&mut self)
-pxui_types::ui::PickRows::get fn (&self, i: usize) -> Option<(&str, &str)>
+pxui_types::ui::PickRows::get fn (&self, i: usize) -> Option<PickRow<'_>>
 pxui_types::ui::PickRows::is_empty fn (&self) -> bool
 pxui_types::ui::PickRows::len fn (&self) -> usize
 pxui_types::ui::PickRows::new fn const () -> PickRows
-pxui_types::ui::PickRows::push fn (&mut self, label: &str, detail: &str)
+pxui_types::ui::PickRows::push fn (&mut self, row: PickRow<'_>)
 pxui_types::ui::PickerResponse impl Clone
 pxui_types::ui::PickerResponse impl Copy
 pxui_types::ui::PickerResponse impl Debug
@@ -5917,6 +5972,16 @@ pxui_types::ui::PickerResponse impl StructuralPartialEq
 pxui_types::ui::PickerResponse struct <'a>
 pxui_types::ui::PickerResponse::pick field Pick
 pxui_types::ui::PickerResponse::query field &'a str
+pxui_types::ui::Presentation enum
+pxui_types::ui::Presentation impl Clone
+pxui_types::ui::Presentation impl Copy
+pxui_types::ui::Presentation impl Debug
+pxui_types::ui::Presentation impl Eq
+pxui_types::ui::Presentation impl PartialEq
+pxui_types::ui::Presentation impl StructuralPartialEq
+pxui_types::ui::Presentation::Bottom variant
+pxui_types::ui::Presentation::Centered variant
+pxui_types::ui::Presentation::Full variant
 pxui_types::ui::ROOT_KEY const i64
 pxui_types::ui::Repeat enum
 pxui_types::ui::Repeat impl Clone
