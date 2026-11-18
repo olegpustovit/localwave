@@ -75,7 +75,7 @@ pub(super) fn paint_artwork(
     points: f32,
     images: Option<&crate::artwork::Images>,
 ) {
-    ui.set_role(node, Role::Image, 0);
+    ui.set_role(node, Role::Image, pxui::A11yStates::NONE);
     if let (Some(row), Some(images)) = (row, images)
         && let Some(path) = row.cover_art_path
         && let Some(image) = images.get(row.cover_art_id, path, points, Some(node))
@@ -278,17 +278,17 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
     let ink = if c.danger != 0 { DANGER } else { INK };
     if c.variant == 0 {
         let look = MENU_ROW.text(Rgba::token(ink));
-        ui.set_look(&c.row, look, State { disabled: !enabled, ..State::default() });
+        ui.style(&c.row, &pxui::theme::States::of(look), State { disabled: !enabled, ..State::default() });
     } else {
         let fill = Rgba::token(if selected { SELECTED } else { PAPER });
         let look = MENU_ROW.fill(fill).text(Rgba::token(if enabled { ink } else { SECONDARY }));
-        ui.set_look(&c.row, look, State::default());
+        ui.style(&c.row, &pxui::theme::States::of(look), State::default());
     }
     ui.text(&c.row, c.text_of(&c.text));
-    use pxui::ui::state::{CHECKABLE, CHECKED, ENABLED};
+    use pxui::A11yStates;
     match c.variant {
-        MENU_PANEL => ui.set_role(&c.row, Role::MenuItem, if enabled { ENABLED } else { 0 }),
-        MENU_CHOICE => ui.set_role(&c.row, Role::Toggle, CHECKABLE | if selected { CHECKED } else { 0 }),
+        MENU_PANEL => ui.set_role(&c.row, Role::MenuItem, if enabled { A11yStates::ENABLED } else { A11yStates::NONE }),
+        MENU_CHOICE => ui.set_role(&c.row, Role::Toggle, A11yStates::CHECKABLE.with(if selected { A11yStates::CHECKED } else { A11yStates::NONE })),
         _ => {}
     }
 }

@@ -51,7 +51,7 @@ pub(super) const LEAD_DIM: Label = TEXT_15.color(SECONDARY);
 pub(super) const MONO_DIM: Label = MONO_12.color(SECONDARY);
 
 /// A button with no look of its own: its contents draw it.
-pub(super) const BARE: States = States::all(Look::NONE);
+pub(super) const BARE: States = States::of(Look::NONE);
 /// A pressable that keeps its node's own look (the node draws itself, or its contents do).
 pub(super) const PLAIN: pxui::Pressable = pxui::Pressable::DEFAULT;
 
@@ -98,29 +98,29 @@ pub(super) const CHOICE: Look = text(SECONDARY, 13.0).fill(Rgba::token(PANEL));
 /// The selected settings choice: paper 13-point text on ink.
 pub(super) const CHOICE_ON: Look = text(PAPER, 13.0).fill(Rgba::token(INK));
 /// A compact tab bar button: ink 14-point text on paper.
-pub(super) const TAB_LOOKS: States = States::all(text(INK, 14.0).fill(Rgba::token(PAPER)));
+pub(super) const TAB_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token(PAPER)));
 /// The current compact tab: on the selected fill.
-pub(super) const TAB_ON_LOOKS: States = States::all(text(INK, 14.0).fill(Rgba::token(SELECTED)));
+pub(super) const TAB_ON_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token(SELECTED)));
 /// A Find tool, a card or a row on paper.
-pub(super) const PAPER_LOOKS: States = States::all(PAPER_FILL);
+pub(super) const PAPER_LOOKS: States = States::of(PAPER_FILL);
 /// The current Find tool or route: on the selected fill.
-pub(super) const SELECTED_LOOKS: States = States::all(SELECTED_FILL);
+pub(super) const SELECTED_LOOKS: States = States::of(SELECTED_FILL);
 /// A key on the panel fill.
-pub(super) const PANEL_LOOKS: States = States::all(PANEL_FILL);
+pub(super) const PANEL_LOOKS: States = States::of(PANEL_FILL);
 /// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
-pub(super) const INK_LOOKS: States = States::all(INK_FILL);
+pub(super) const INK_LOOKS: States = States::of(INK_FILL);
 /// A mode key on the key fill.
-pub(super) const KEY_LOOKS: States = States::all(KEY_FILL);
+pub(super) const KEY_LOOKS: States = States::of(KEY_FILL);
 /// `rest` while idle, `lit` while hovered or held.
 const fn lit(rest: Look, lit: Look) -> States {
-    States { hover: lit, pressed: lit, ..States::all(rest) }
+    States { hover: lit, pressed: lit, ..States::of(rest) }
 }
 /// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
 pub(super) const ICON_LOOKS: States = lit(INK_TEXT, INK_TEXT.fill(Rgba::token(PANEL)));
 /// An icon key on the key plate.
 pub(super) const ICON_PLATE_LOOKS: States = lit(INK_TEXT.fill(Rgba::token(KEY)), INK_TEXT.fill(Rgba::token(PANEL)));
 /// An icon key in inverse (Play, an active mode): paper icon on ink.
-pub(super) const ICON_INVERSE_LOOKS: States = States::all(INK_FILL.text(Rgba::token(PAPER)));
+pub(super) const ICON_INVERSE_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
 /// A sidebar route row: paper, the panel fill while hovered or held.
 pub(super) const SIDE_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_FILL);
 /// The sidebar search row: the panel fill, the selected fill while hovered or held.

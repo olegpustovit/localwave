@@ -157,7 +157,7 @@ impl Frame {
                     .iter()
                     .find(|node| {
                         ui.a11y_name_of(node) == "Reorder queued track"
-                            && node.states & pxui::ui::state::VISIBLE != 0
+                            && node.states & pxui::A11yStates::VISIBLE.bits() != 0
                     })
                     .ok_or("Queue drag fixture has no visible reorder target")?
                     .rect;
@@ -386,7 +386,7 @@ impl Frame {
                 .iter()
                 .filter(|node| {
                     node.is_role(pxui::ui::Role::ListItem)
-                        && node.states & pxui::ui::state::VISIBLE != 0
+                        && node.states & pxui::A11yStates::VISIBLE.bits() != 0
                 })
                 .filter_map(|node| {
                     ui.a11y_name_of(node)
@@ -479,7 +479,7 @@ fn center(
         .iter()
         .find(|node| {
             node.is_role(role)
-                && node.states & pxui::ui::state::VISIBLE != 0
+                && node.states & pxui::A11yStates::VISIBLE.bits() != 0
                 && node.rect.y >= 60.0
                 && node.rect.y + node.rect.h <= 800.0
                 && wanted(ui.a11y_name_of(node))
@@ -783,7 +783,7 @@ impl Perf {
         if (*frames) > from {
             let visible = |name: &str, below: f32| {
                 ui.a11y_nodes().iter().any(|node| {
-                    node.states & pxui::ui::state::VISIBLE != 0
+                    node.states & pxui::A11yStates::VISIBLE.bits() != 0
                         && node.rect.y < below
                         && ui.a11y_name_of(node) == name
                 })
@@ -801,7 +801,7 @@ impl Perf {
                         .iter()
                         .filter(|node| {
                             node.is_role(pxui::ui::Role::ListItem)
-                                && node.states & pxui::ui::state::VISIBLE != 0
+                                && node.states & pxui::A11yStates::VISIBLE.bits() != 0
                         })
                         .find(|node| ui.a11y_name_of(node).starts_with("Track "))
                         .map(|node| node.rect.y as usize);
@@ -843,7 +843,7 @@ impl Perf {
             let indicator = ui.a11y_nodes().iter().find(|node| {
                 node.is_role(pxui::ui::Role::Image)
                     && matches!(ui.a11y_name_of(node), "Playing" | "Paused")
-                    && node.states & pxui::ui::state::VISIBLE != 0
+                    && node.states & pxui::A11yStates::VISIBLE.bits() != 0
                     && node.rect.y >= 37.3
                     && node.rect.y + node.rect.h <= 800.0
             });

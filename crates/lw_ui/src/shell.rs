@@ -930,7 +930,7 @@ pub fn shell(
                 },
             );
         });
-        ui.view_backdrop_blur(&scrim, 14.0);
+        ui.set_view(&scrim, &pxui::ViewTransform::DEFAULT.blur(14.0));
     }
     // Swift's scrims: 0.28 behind the palette and help, 0.32 behind the queue sheet.
     let dim = if state.queue_visible {

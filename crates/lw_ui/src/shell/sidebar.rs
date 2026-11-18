@@ -45,7 +45,7 @@ fn side_item(
         ui.label(title, TEXT_14.w(if badge.is_empty() { Size::Grow } else { Size::Fit }).h_px(20.0).color(if selected { INK } else { SECONDARY }));
         if !badge.is_empty() {
             let tag = ui.label(badge, TEXT_11.h_px(16.0).color(PAPER));
-            ui.set_look(&tag, BADGE, State::default());
+            ui.style(&tag, &pxui::theme::States::of(BADGE), State::default());
             ui.node("badge-gap", Node::DEFAULT.w(Size::Grow));
         }
         ui.label(count, MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY));
@@ -53,7 +53,7 @@ fn side_item(
     ui.a11y_name(&node.handle, title);
     let dropping = list.and_then(|_| super::songs::song_drop(ui, &node.handle));
     if dropping.is_some() {
-        ui.set_look(&node.handle, SELECTED_LOOKS.idle, State::default());
+        ui.style(&node.handle, &pxui::theme::States::of(SELECTED_LOOKS.idle), State::default());
     }
     if let (Some(list), Some((true, song))) = (list, dropping) {
         *intent = Some(Intent::AddToList { song, list });

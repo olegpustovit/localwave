@@ -266,7 +266,7 @@ mod tests {
                         })
                     );
                     let (play_id, offline_id) = (play.id, offline.id);
-                    let enabled = pxui::ui::state::ENABLED;
+                    let enabled = pxui::A11yStates::ENABLED.bits();
                     assert_eq!(play.states & enabled != 0, index != 3);
                     assert_eq!(offline.states & enabled != 0, index < 2);
                     for (action, left, size) in [
@@ -337,7 +337,7 @@ mod tests {
             assert!(
                 ui.a11y_nodes()
                     .iter()
-                    .all(|node| node.states & pxui::ui::state::ENABLED == 0),
+                    .all(|node| node.states & pxui::A11yStates::ENABLED.bits() == 0),
                 "stale query responses cannot play or pin a newer search"
             );
             state.apply(Intent::Search(Query::new("track").unwrap()));

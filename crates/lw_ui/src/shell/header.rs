@@ -326,12 +326,9 @@ pub(super) fn find_tokens(
                     ui.set_role(
                         &chip.handle,
                         Role::Toggle,
-                        pxui::ui::state::CHECKABLE
-                            | if selected {
-                                pxui::ui::state::CHECKED
-                            } else {
-                                0
-                            },
+                        pxui::A11yStates::CHECKABLE.with(if selected {
+                                pxui::A11yStates::CHECKED
+                            } else { pxui::A11yStates::NONE }),
                     );
                     ui.a11y_name(&chip.handle, token);
                     if chip.clicked {

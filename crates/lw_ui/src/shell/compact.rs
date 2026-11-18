@@ -205,7 +205,7 @@ pub(super) fn view(
                             "library-tabs",
                             Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
-                        ui.set_role(&tabs, Role::Group, 0);
+                        ui.set_role(&tabs, Role::Group, pxui::A11yStates::NONE);
                         ui.a11y_name(&tabs, "Library view");
                         ui.within(&tabs, &mut |ui| {
                             for (key, label, count, route) in [
@@ -293,7 +293,7 @@ pub(super) fn view(
             Size::Px(54.0),
             ui.color(PAPER),
         );
-        ui.set_role(&nav, Role::Group, 0);
+        ui.set_role(&nav, Role::Group, pxui::A11yStates::NONE);
         ui.a11y_name(&nav, "Main navigation");
         ui.within(&nav, &mut |ui| {
             let selected = match state.route {

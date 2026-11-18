@@ -296,7 +296,7 @@ lw_ui/src/shell/header.rs	R6	ui.color(PAPER),
 lw_ui/src/shell/header.rs	R7	let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {	drift: audit #9 filter chip -> checkbox variant (G5, U4)
 lw_ui/src/shell/kit.rs	R1	Node {
 lw_ui/src/shell/kit.rs	R1	Rgba {
-lw_ui/src/shell/kit.rs	R1	ui.set_look(&c.row, look, State { disabled: !enabled, ..State::default() });
+lw_ui/src/shell/kit.rs	R1	ui.style(&c.row, &pxui::theme::States::of(look), State { disabled: !enabled, ..State::default() });
 lw_ui/src/shell/kit.rs	R6	look: Look::NONE.fill(fill),
 lw_ui/src/shell/kit.rs	R6	ui.color(LINE),
 lw_ui/src/shell/lists.rs	R1	Node {
@@ -425,7 +425,7 @@ lw_ui/src/shell/songs/row.rs	R6	ui.color(SECONDARY)
 lw_ui/src/shell/songs/row.rs	R7	let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});	drift: audit #17 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/songs/row.rs	R7	let more = ui.pressable("actions", node, &PLAIN, |_, _| {});	drift: audit #16 actions -> icon_button (U4)
 lw_ui/src/shell/songs/row.rs	R7	let root = ui.pressable("song", node, &look, |ui, _| {	drift: audit #15 song row selection semantics -> selection_list/table (G4, U4)
-lw_ui/src/shell/theme.rs	R1	States { hover: lit, pressed: lit, ..States::all(rest) }
+lw_ui/src/shell/theme.rs	R1	States { hover: lit, pressed: lit, ..States::of(rest) }
 lw_ui/src/shell/transport.rs	R1	Node {
 lw_ui/src/shell/transport.rs	R1	Node {
 lw_ui/src/shell/transport.rs	R1	Node {

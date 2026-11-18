@@ -24,7 +24,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
     let pxui::ViewSize { width, .. } = ui.view_size();
     let column = (width - 32.0).max(1.0);
     let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
-    ui.set_role(&root, Role::Window, 0);
+    ui.set_role(&root, Role::Window, pxui::A11yStates::NONE);
     ui.a11y_name(&root, "LocalWave");
     // The disclosure state lives on the root so the retained page rebuilds when it flips.
     let drive = ui.state(&root, 0) != 0;
@@ -73,7 +73,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         });
         spacer(ui, "count-gap", 28.0);
         let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
-        ui.set_role(&count, Role::Label, 0);
+        ui.set_role(&count, Role::Label, pxui::A11yStates::NONE);
         ui.a11y_name(&count, "0 songs so far");
         ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
         spacer(ui, "count-label-gap", 8.0);

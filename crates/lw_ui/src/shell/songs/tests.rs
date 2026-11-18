@@ -666,7 +666,7 @@ fn song_actions_route_play_and_append_reject_stale_rows_and_reopen_without_alloc
         .iter()
         .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == "Add to queue")
         .unwrap();
-    assert_eq!(item.states & pxui::ui::state::ENABLED, 0);
+    assert_eq!(item.states & pxui::A11yStates::ENABLED.bits(), 0);
     ui.inject_a11y(&[pxui::A11yAction {
         id: item.id,
         action_code: 1,
@@ -1028,7 +1028,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
             .map(|node| {
                 (
                     ui.a11y_name_of(node).to_string(),
-                    node.states & pxui::ui::state::ENABLED != 0,
+                    node.states & pxui::A11yStates::ENABLED.bits() != 0,
                 )
             })
             .collect()

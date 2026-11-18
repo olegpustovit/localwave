@@ -148,7 +148,7 @@ pub(super) fn desktop(
             ..Node::column().w(Size::Grow).h(Size::Grow)
         },
     );
-    ui.set_role(&root, Role::Window, 0);
+    ui.set_role(&root, Role::Window, pxui::A11yStates::NONE);
     ui.a11y_name(
         &root,
         if player.file_dragging {
@@ -196,14 +196,14 @@ pub(super) fn desktop(
                         }
                     });
                 });
-            ui.view_clip(
+            ui.set_view(
                 &page,
-                Some(Rect {
+                &pxui::ViewTransform::DEFAULT.clip(Some(Rect {
                     x: safe_left + sidebar_width + 1.0,
                     y: top,
                     w: content_width,
                     h: (height - top - 72.0).max(0.0),
-                }),
+                })),
             );
             crate::motion::enter(
                 ui,
@@ -228,14 +228,14 @@ pub(super) fn desktop(
                         ),
                         |ui| now_panel(ui, player, position, catalog, carry, intent),
                     );
-                    ui.view_clip(
+                    ui.set_view(
                         &panel,
-                        Some(Rect {
+                        &pxui::ViewTransform::DEFAULT.clip(Some(Rect {
                             x: safe_left + width - 319.0,
                             y: top,
                             w: 319.0,
                             h: (height - top - 72.0).max(0.0),
-                        }),
+                        })),
                     );
                     crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
                 });

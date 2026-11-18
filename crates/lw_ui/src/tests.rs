@@ -1002,10 +1002,10 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
             .find(|node| node.is_role(pxui::ui::Role::Toggle) && ui.a11y_name_of(node) == "flac")
             .unwrap();
         assert_eq!(
-            chip.states & pxui::ui::state::CHECKED != 0,
+            chip.states & pxui::A11yStates::CHECKED.bits() != 0,
             cycle % 2 == 1
         );
-        assert_ne!(chip.states & pxui::ui::state::CHECKABLE, 0);
+        assert_ne!(chip.states & pxui::A11yStates::CHECKABLE.bits(), 0);
         ui.inject_a11y(&[pxui::A11yAction {
             id: chip.id,
             action_code: if cycle % 2 == 0 { 1 } else { 2 },

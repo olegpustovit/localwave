@@ -107,7 +107,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
         ..Edges::ZERO
     };
     ui.set_node_layout(&c.row, &layout);
-    ui.set_look(&c.row, Look::NONE, State::default());
+    ui.style(&c.row, &pxui::theme::States::of(Look::NONE), State::default());
     if ui.state(&c.row, 0) == 0 {
         ui.focus_box(&c.row);
         ui.set_state(&c.row, 1);
@@ -196,7 +196,7 @@ fn overlay(
                     ..Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP)
                 },
             );
-            ui.set_role(&card, Role::Dialog, pxui::ui::state::MODAL);
+            ui.set_role(&card, Role::Dialog, pxui::A11yStates::MODAL);
             ui.a11y_name(&card, label);
             ui.within(&card, &mut |ui| build(ui, intent));
         }).open;
@@ -339,12 +339,9 @@ fn result_row(
     ui.set_role(
         &row,
         Role::Button,
-        pxui::ui::state::ENABLED
-            | if selected {
-                pxui::ui::state::SELECTED
-            } else {
-                0
-            },
+        pxui::A11yStates::ENABLED.with(if selected {
+                pxui::A11yStates::SELECTED
+            } else { pxui::A11yStates::NONE }),
     );
     ui.a11y_name(&row, &item.label);
     if ui.signal(&row).clicked
@@ -805,7 +802,7 @@ mod tests {
             .a11y_nodes()
             .iter()
             .find(|n| {
-                n.states & pxui::ui::state::SELECTED != 0 && ui.a11y_name_of(n) == "Result 23"
+                n.states & pxui::A11yStates::SELECTED.bits() != 0 && ui.a11y_name_of(n) == "Result 23"
             })
             .unwrap();
         assert!(

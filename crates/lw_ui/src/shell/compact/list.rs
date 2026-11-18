@@ -242,9 +242,9 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             );
         }
         if g.highlighted {
-            ui.set_look(
+            ui.style(
                 &node.handle,
-                row_node.look.fill(Rgba::token(SELECTED)),
+                &pxui::theme::States::of(row_node.look.fill(Rgba::token(SELECTED))),
                 State::default(),
             );
         }
@@ -791,7 +791,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
     let mut pressed = None;
     ui.column("selection-holder", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow) }, |ui| {
         let deck = ui.node("selection-bar", Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
-        ui.set_role(&deck, Role::Group, 0);
+        ui.set_role(&deck, Role::Group, pxui::A11yStates::NONE);
         ui.a11y_name(&deck, "Selection actions");
         ui.within(&deck, &mut |ui| {
             for (key, label, glyph) in [

@@ -7,7 +7,45 @@ pxui::A11yBridge::fd fn (&self) -> i32
 pxui::A11yBridge::pump fn (&mut self, out: &mut dyn FnMut(A11yAction)) -> bool
 pxui::A11yBridge::update fn (&mut self, tree: &A11yTree) -> bool
 pxui::A11yNode use pxui_types::ffi::A11yNode
-pxui::A11yTree use pxui_types::ffi::A11yTree
+pxui::A11yStates impl Clone
+pxui::A11yStates impl Copy
+pxui::A11yStates impl Debug
+pxui::A11yStates impl Default
+pxui::A11yStates impl Eq
+pxui::A11yStates impl PartialEq
+pxui::A11yStates impl StructuralPartialEq
+pxui::A11yStates struct (_)
+pxui::A11yStates::ACTIVE const A11yStates
+pxui::A11yStates::BUSY const A11yStates
+pxui::A11yStates::CHECKABLE const A11yStates
+pxui::A11yStates::CHECKED const A11yStates
+pxui::A11yStates::DEFAULT const A11yStates
+pxui::A11yStates::EDITABLE const A11yStates
+pxui::A11yStates::ENABLED const A11yStates
+pxui::A11yStates::EXPANDABLE const A11yStates
+pxui::A11yStates::EXPANDED const A11yStates
+pxui::A11yStates::FOCUSABLE const A11yStates
+pxui::A11yStates::FOCUSED const A11yStates
+pxui::A11yStates::HORIZONTAL const A11yStates
+pxui::A11yStates::MIXED const A11yStates
+pxui::A11yStates::MODAL const A11yStates
+pxui::A11yStates::MULTILINE const A11yStates
+pxui::A11yStates::NONE const A11yStates
+pxui::A11yStates::PRESSED const A11yStates
+pxui::A11yStates::READ_ONLY const A11yStates
+pxui::A11yStates::SELECTABLE const A11yStates
+pxui::A11yStates::SELECTED const A11yStates
+pxui::A11yStates::VERTICAL const A11yStates
+pxui::A11yStates::VISIBLE const A11yStates
+pxui::A11yStates::bits fn const (self) -> u32
+pxui::A11yStates::with fn const (self, other: A11yStates) -> A11yStates
+pxui::A11yTree impl Clone
+pxui::A11yTree impl Copy
+pxui::A11yTree impl Debug
+pxui::A11yTree struct <'a>
+pxui::A11yTree::first_child field u32
+pxui::A11yTree::revision field u64
+pxui::A11yTree::strings field &'a [u8]
 pxui::Appearance use pxui_types::Appearance
 pxui::AreaCallbacks impl Clone
 pxui::AreaCallbacks impl Copy
@@ -442,7 +480,7 @@ pxui::Paint::text fn (&mut self, at: Point, style: Label, width: f32, s: &str) -
 pxui::Paint::text_chars fn (&mut self, at: Point, style: Label, s: &str) -> f32
 pxui::Paint::text_service fn (&mut self) -> UiText<'_>
 pxui::Paint::text_spans fn (&mut self, at: Point, style: Label, width: f32, text: &str, spans: &[TextSpan]) -> Result<TextMetrics, Error>
-pxui::Paint::theme fn (&self) -> Tokens
+pxui::Paint::tokens fn (&self) -> Tokens
 pxui::Paint::triangle fn (&mut self, a: (f32, f32), b: (f32, f32), c: (f32, f32), fill: Fill)
 pxui::Part use pxui_types::theme::Part
 pxui::Pass use pxui_types::Pass
@@ -796,7 +834,7 @@ pxui::Ui::a11y_name fn (&mut self, box_: &Handle, name: &str) -> bool
 pxui::Ui::a11y_name_of fn (&self, node: &A11yNode) -> &str
 pxui::Ui::a11y_nodes fn (&self) -> &[A11yNode]
 pxui::Ui::a11y_number fn (&mut self, box_: &Handle, now: f64, min: f64, max: f64, step: f64) -> Result<bool, Error>
-pxui::Ui::a11y_tree fn (&self) -> (&[u8], u64, u32)
+pxui::Ui::a11y_tree fn (&self) -> A11yTree<'_>
 pxui::Ui::a11y_value fn (&mut self, box_: &Handle, value: &str, selection: (u32, u32)) -> Result<bool, Error>
 pxui::Ui::a11y_value_of fn (&self, node: &A11yNode) -> Option<&str>
 pxui::Ui::anchored fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, anchor: Rect, overlay: &Overlay<'_>, f: F) -> OverlayResponse
@@ -977,9 +1015,8 @@ pxui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
 pxui::Ui::set_dir fn (&mut self, rtl: bool)
 pxui::Ui::set_font_size fn (&mut self, size: f32)
-pxui::Ui::set_look fn (&mut self, box_: &Handle, look: Look, state: State)
 pxui::Ui::set_node_layout fn (&mut self, b: &Handle, node: &Node)
-pxui::Ui::set_role fn (&mut self, box_: &Handle, role: Role, states: u32)
+pxui::Ui::set_role fn (&mut self, box_: &Handle, role: Role, states: A11yStates)
 pxui::Ui::set_scroll_offset fn (&mut self, b: &Handle, value: f32)
 pxui::Ui::set_state fn (&mut self, box_: &Handle, value: i64)
 pxui::Ui::set_text_state fn (&mut self, b: &Handle, value: Option<&str>)
@@ -1025,9 +1062,6 @@ pxui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Re
 pxui::Ui::verify_new_views fn (on: bool)
 pxui::Ui::verify_views fn (&mut self, on: bool)
 pxui::Ui::verifying fn (&self) -> bool
-pxui::Ui::view_backdrop_blur fn (&mut self, b: &Handle, sigma: f32)
-pxui::Ui::view_backdrop_saturation fn (&mut self, b: &Handle, saturation: f32)
-pxui::Ui::view_clip fn (&mut self, b: &Handle, clip: Option<Rect>)
 pxui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
 pxui::Ui::view_size fn (&self) -> ViewSize
 pxui::Ui::wants_frame fn (&self, events: &[Event], now: f64) -> bool
@@ -1102,8 +1136,11 @@ pxui::ViewTransform impl StructuralPartialEq
 pxui::ViewTransform struct
 pxui::ViewTransform::DEFAULT const ViewTransform
 pxui::ViewTransform::about fn const (self, scale: f32, matrix: [f32; 4], pivot: (f32, f32)) -> ViewTransform
+pxui::ViewTransform::blur fn const (self, blur: f32) -> ViewTransform
+pxui::ViewTransform::clip fn const (self, clip: Option<Rect>) -> ViewTransform
 pxui::ViewTransform::offset fn const (self, dx: f32, dy: f32) -> ViewTransform
 pxui::ViewTransform::opacity fn const (self, opacity: f32) -> ViewTransform
+pxui::ViewTransform::saturation fn const (self, saturation: f32) -> ViewTransform
 pxui::ViewTransform::scale fn const (self, scale: f32) -> ViewTransform
 pxui::Wrap use pxui_types::text::Wrap
 pxui::bodies mod
@@ -1436,7 +1473,7 @@ pxui::ui::Paint::text fn (&mut self, at: Point, style: Label, width: f32, s: &st
 pxui::ui::Paint::text_chars fn (&mut self, at: Point, style: Label, s: &str) -> f32
 pxui::ui::Paint::text_service fn (&mut self) -> UiText<'_>
 pxui::ui::Paint::text_spans fn (&mut self, at: Point, style: Label, width: f32, text: &str, spans: &[TextSpan]) -> Result<TextMetrics, Error>
-pxui::ui::Paint::theme fn (&self) -> Tokens
+pxui::ui::Paint::tokens fn (&self) -> Tokens
 pxui::ui::Paint::triangle fn (&mut self, a: (f32, f32), b: (f32, f32), c: (f32, f32), fill: Fill)
 pxui::ui::PanelOpts use pxui_types::ui::PanelOpts
 pxui::ui::Pick use pxui_types::ui::Pick
@@ -1552,7 +1589,7 @@ pxui::ui::Ui::a11y_name fn (&mut self, box_: &Handle, name: &str) -> bool
 pxui::ui::Ui::a11y_name_of fn (&self, node: &A11yNode) -> &str
 pxui::ui::Ui::a11y_nodes fn (&self) -> &[A11yNode]
 pxui::ui::Ui::a11y_number fn (&mut self, box_: &Handle, now: f64, min: f64, max: f64, step: f64) -> Result<bool, Error>
-pxui::ui::Ui::a11y_tree fn (&self) -> (&[u8], u64, u32)
+pxui::ui::Ui::a11y_tree fn (&self) -> A11yTree<'_>
 pxui::ui::Ui::a11y_value fn (&mut self, box_: &Handle, value: &str, selection: (u32, u32)) -> Result<bool, Error>
 pxui::ui::Ui::a11y_value_of fn (&self, node: &A11yNode) -> Option<&str>
 pxui::ui::Ui::anchored fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, anchor: Rect, overlay: &Overlay<'_>, f: F) -> OverlayResponse
@@ -1733,9 +1770,8 @@ pxui::ui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::ui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
 pxui::ui::Ui::set_dir fn (&mut self, rtl: bool)
 pxui::ui::Ui::set_font_size fn (&mut self, size: f32)
-pxui::ui::Ui::set_look fn (&mut self, box_: &Handle, look: Look, state: State)
 pxui::ui::Ui::set_node_layout fn (&mut self, b: &Handle, node: &Node)
-pxui::ui::Ui::set_role fn (&mut self, box_: &Handle, role: Role, states: u32)
+pxui::ui::Ui::set_role fn (&mut self, box_: &Handle, role: Role, states: A11yStates)
 pxui::ui::Ui::set_scroll_offset fn (&mut self, b: &Handle, value: f32)
 pxui::ui::Ui::set_state fn (&mut self, box_: &Handle, value: i64)
 pxui::ui::Ui::set_text_state fn (&mut self, b: &Handle, value: Option<&str>)
@@ -1781,9 +1817,6 @@ pxui::ui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect
 pxui::ui::Ui::verify_new_views fn (on: bool)
 pxui::ui::Ui::verify_views fn (&mut self, on: bool)
 pxui::ui::Ui::verifying fn (&self) -> bool
-pxui::ui::Ui::view_backdrop_blur fn (&mut self, b: &Handle, sigma: f32)
-pxui::ui::Ui::view_backdrop_saturation fn (&mut self, b: &Handle, saturation: f32)
-pxui::ui::Ui::view_clip fn (&mut self, b: &Handle, clip: Option<Rect>)
 pxui::ui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
 pxui::ui::Ui::view_size fn (&self) -> ViewSize
 pxui::ui::Ui::wants_frame fn (&self, events: &[Event], now: f64) -> bool
@@ -1818,8 +1851,11 @@ pxui::ui::ViewTransform impl StructuralPartialEq
 pxui::ui::ViewTransform struct
 pxui::ui::ViewTransform::DEFAULT const ViewTransform
 pxui::ui::ViewTransform::about fn const (self, scale: f32, matrix: [f32; 4], pivot: (f32, f32)) -> ViewTransform
+pxui::ui::ViewTransform::blur fn const (self, blur: f32) -> ViewTransform
+pxui::ui::ViewTransform::clip fn const (self, clip: Option<Rect>) -> ViewTransform
 pxui::ui::ViewTransform::offset fn const (self, dx: f32, dy: f32) -> ViewTransform
 pxui::ui::ViewTransform::opacity fn const (self, opacity: f32) -> ViewTransform
+pxui::ui::ViewTransform::saturation fn const (self, saturation: f32) -> ViewTransform
 pxui::ui::ViewTransform::scale fn const (self, scale: f32) -> ViewTransform
 pxui::ui::context_clicked fn (signal: &Signal) -> bool
 pxui::ui::fuzzy_match use pxui_types::text_edit::fuzzy_match
@@ -1829,7 +1865,6 @@ pxui::ui::key_of use pxui_types::ui::key_of
 pxui::ui::line_end use pxui_types::text_edit::line_end
 pxui::ui::line_start use pxui_types::text_edit::line_start
 pxui::ui::scrubbed use pxui_types::text_edit::scrubbed
-pxui::ui::state use pxui_types::a11y::state
 pxui_types mod
 pxui_types::ABI_BUILT const u32
 pxui_types::Appearance enum
@@ -2456,7 +2491,6 @@ pxui_types::States impl Debug
 pxui_types::States impl PartialEq
 pxui_types::States impl StructuralPartialEq
 pxui_types::States struct
-pxui_types::States::all fn const (look: Look) -> States
 pxui_types::States::checked field Look
 pxui_types::States::checked fn const (self, look: Look) -> States
 pxui_types::States::disabled field Look
@@ -2467,6 +2501,7 @@ pxui_types::States::hover field Look
 pxui_types::States::hover fn const (self, look: Look) -> States
 pxui_types::States::idle field Look
 pxui_types::States::idle fn const (self, look: Look) -> States
+pxui_types::States::of fn const (look: Look) -> States
 pxui_types::States::pick fn (&self, s: State) -> &Look
 pxui_types::States::pressed field Look
 pxui_types::States::pressed fn const (self, look: Look) -> States
@@ -5341,7 +5376,6 @@ pxui_types::theme::States impl Debug
 pxui_types::theme::States impl PartialEq
 pxui_types::theme::States impl StructuralPartialEq
 pxui_types::theme::States struct
-pxui_types::theme::States::all fn const (look: Look) -> States
 pxui_types::theme::States::checked field Look
 pxui_types::theme::States::checked fn const (self, look: Look) -> States
 pxui_types::theme::States::disabled field Look
@@ -5352,6 +5386,7 @@ pxui_types::theme::States::hover field Look
 pxui_types::theme::States::hover fn const (self, look: Look) -> States
 pxui_types::theme::States::idle field Look
 pxui_types::theme::States::idle fn const (self, look: Look) -> States
+pxui_types::theme::States::of fn const (look: Look) -> States
 pxui_types::theme::States::pick fn (&self, s: State) -> &Look
 pxui_types::theme::States::pressed field Look
 pxui_types::theme::States::pressed fn const (self, look: Look) -> States

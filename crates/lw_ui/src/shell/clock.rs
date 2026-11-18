@@ -33,7 +33,7 @@ pub(super) fn small_clock(
             "Elapsed time"
         },
     );
-    ui.set_role(&node, Role::Label, 0);
+    ui.set_role(&node, Role::Label, pxui::A11yStates::NONE);
     ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid clock value");
     let mut buffer = [0u8; 24];
     let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));

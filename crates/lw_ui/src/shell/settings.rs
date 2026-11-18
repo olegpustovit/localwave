@@ -65,7 +65,7 @@ const NOTICE: Look = Look::NONE.font(Font::BODY.size(14.0));
 fn notice(ui: &mut Ui, text: &str) {
     let node = ui.label(text, TEXT_14.grow().h_px(42.0));
     let accent = ui.tokens().accent;
-    ui.set_look(&node, NOTICE.text(accent), State::default());
+    ui.style(&node, &pxui::theme::States::of(NOTICE.text(accent)), State::default());
 }
 /// Swift's settings row: controls beside the labels at every width (the labels wrap), at least 60 tall, a hairline under it.
 const ROW: Node =
@@ -90,7 +90,7 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     let (on, title) = (c.stored != 0, c.text_of(&c.label));
     ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
     ui.a11y_name(&c.row, title);
-    ui.set_role(&c.row, Role::Toggle, pxui::ui::state::CHECKABLE | if on { pxui::ui::state::CHECKED } else { 0 });
+    ui.set_role(&c.row, Role::Toggle, pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE }));
     labels(ui, title, c.text_of(&c.detail));
     let track = if on { TRACK_ON } else { TRACK };
     ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
@@ -133,12 +133,9 @@ fn option(
     ui.set_role(
         &button,
         Role::Toggle,
-        pxui::ui::state::CHECKABLE
-            | if selected {
-                pxui::ui::state::CHECKED
-            } else {
-                0
-            },
+        pxui::A11yStates::CHECKABLE.with(if selected {
+                pxui::A11yStates::CHECKED
+            } else { pxui::A11yStates::NONE }),
     );
     let signal = ui.signal(&button);
     context(ui, signal.pressed && signal.button == Some(1), &button, menu, intent);
@@ -166,7 +163,7 @@ pub(super) fn view(
             ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP)
         },
     );
-    ui.set_role(&page, Role::Group, 0);
+    ui.set_role(&page, Role::Group, pxui::A11yStates::NONE);
     ui.a11y_name(
         &page,
         if state.privacy_visible {

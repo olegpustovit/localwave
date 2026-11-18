@@ -119,7 +119,7 @@ fn button_node(width: f32, height: f32, enabled: bool, fill: ColorToken) -> Node
 /// A button box's name, role and 13-point label in `ink` (ink-2 while disabled).
 fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: ColorToken) {
     ui.a11y_name(button, label);
-    ui.set_role(button, Role::Button, if enabled { pxui::ui::state::ENABLED } else { 0 });
+    ui.set_role(button, Role::Button, if enabled { pxui::A11yStates::ENABLED } else { pxui::A11yStates::NONE });
     ui.within(button, &mut |ui| {
         ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
     });
@@ -617,7 +617,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     }
     // Swift's All / Offline / In cloud tabs; the worker listed what each shows.
     let tabs = ui.node("filter-tabs", Node::row().w(Size::Grow).h_px(44.0).gap(20.0));
-    ui.set_role(&tabs, Role::Group, 0);
+    ui.set_role(&tabs, Role::Group, pxui::A11yStates::NONE);
     ui.a11y_name(&tabs, "Availability filter");
     ui.within(&tabs, &mut |ui| {
         for (filter, key, label, count) in [
@@ -636,7 +636,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                 container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
             });
             ui.a11y_name(&tab, label);
-            ui.set_role(&tab, Role::Button, if active { pxui::ui::state::SELECTED } else { 0 });
+            ui.set_role(&tab, Role::Button, if active { pxui::A11yStates::SELECTED } else { pxui::A11yStates::NONE });
             if ui.signal(&tab).clicked {
                 *intent = Some(Intent::FilesFilter(filter));
             }
