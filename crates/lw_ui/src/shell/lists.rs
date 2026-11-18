@@ -120,7 +120,7 @@ pub(super) fn name_dialog(
                         *intent = Some(Intent::CancelPlaylistName);
                     }
                     if files::action(ui, "confirm-list-name", confirm, 100.0, valid, (PANEL, INK))
-                        || (valid && ui.key_pressed(input::Key::Enter.code(), None))
+                        || (valid && ui.key_pressed(pxui::KeyCode::Enter, pxui::Mods::ANY))
                     {
                         let name = state.playlist_name;
                         *intent = Some(match dialog {

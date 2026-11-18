@@ -443,10 +443,9 @@ impl Rows<'_> {
                     ));
                 }
                 if intent.is_none() && signal.clicked {
-                    let (meta, shift) = (input::Key::Meta.code(), input::Key::Shift.code());
-                    *intent = Some(if ui.key_down(meta) {
+                    *intent = Some(if ui.key_down(pxui::KeyCode::Meta) {
                         Intent::Select(crate::Selection::Toggle(index))
-                    } else if ui.key_down(shift) {
+                    } else if ui.key_down(pxui::KeyCode::Shift) {
                         Intent::Select(crate::Selection::Range(index))
                     } else {
                         Intent::SelectRow(index)

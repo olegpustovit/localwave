@@ -231,10 +231,10 @@ pub(super) fn palette_view(
         &mut |ui, intent| {
             let mut selected = state.command_selected.min(items.len().saturating_sub(1));
             if !items.is_empty() {
-                if ui.key_pressed(input::Key::ArrowDown, None) {
+                if ui.key_pressed(pxui::KeyCode::ArrowDown, pxui::Mods::ANY) {
                     selected = (selected + 1) % items.len();
                 }
-                if ui.key_pressed(input::Key::ArrowUp, None) {
+                if ui.key_pressed(pxui::KeyCode::ArrowUp, pxui::Mods::ANY) {
                     selected = (selected + items.len() - 1) % items.len();
                 }
                 if selected != state.command_selected {
@@ -257,7 +257,7 @@ pub(super) fn palette_view(
                 field(ui);
             }
             rule(ui, "input-divider", false);
-            if ui.key_pressed(input::Key::Enter, None)
+            if ui.key_pressed(pxui::KeyCode::Enter, pxui::Mods::ANY)
                 && (intent.is_none() || matches!(intent, Some(Intent::CommandSelect(_))))
                 && let Some(item) = items.get(selected)
             {

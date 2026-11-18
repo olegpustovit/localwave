@@ -277,6 +277,45 @@ pxui::ImageStyle::w_px fn const (self, points: f32) -> ImageStyle
 pxui::IndentFn type <'a>= dyn Fn(&str, usize) -> String + 'a
 pxui::Input use pxui_types::ffi::Input
 pxui::Key use author::Key
+pxui::KeyCode enum
+pxui::KeyCode impl Clone
+pxui::KeyCode impl Copy
+pxui::KeyCode impl Debug
+pxui::KeyCode impl Eq
+pxui::KeyCode impl PartialEq
+pxui::KeyCode impl StructuralPartialEq
+pxui::KeyCode::Alt variant
+pxui::KeyCode::ArrowDown variant
+pxui::KeyCode::ArrowLeft variant
+pxui::KeyCode::ArrowRight variant
+pxui::KeyCode::ArrowUp variant
+pxui::KeyCode::Backspace variant
+pxui::KeyCode::Char variant (char)
+pxui::KeyCode::Ctrl variant
+pxui::KeyCode::Delete variant
+pxui::KeyCode::End variant
+pxui::KeyCode::Enter variant
+pxui::KeyCode::Escape variant
+pxui::KeyCode::F1 variant
+pxui::KeyCode::F10 variant
+pxui::KeyCode::F11 variant
+pxui::KeyCode::F12 variant
+pxui::KeyCode::F2 variant
+pxui::KeyCode::F3 variant
+pxui::KeyCode::F4 variant
+pxui::KeyCode::F5 variant
+pxui::KeyCode::F6 variant
+pxui::KeyCode::F7 variant
+pxui::KeyCode::F8 variant
+pxui::KeyCode::F9 variant
+pxui::KeyCode::Home variant
+pxui::KeyCode::Insert variant
+pxui::KeyCode::Meta variant
+pxui::KeyCode::PageDown variant
+pxui::KeyCode::PageUp variant
+pxui::KeyCode::Shift variant
+pxui::KeyCode::Space variant
+pxui::KeyCode::Tab variant
 pxui::Keyboard use pxui_types::Keyboard
 pxui::Keyframes use pxui_types::ui::Keyframes
 pxui::Label use pxui_types::Label
@@ -326,6 +365,20 @@ pxui::LineFieldResponse::step field LineStep
 pxui::ListResponse use pxui_types::ui::ListResponse
 pxui::Menu use pxui_types::ui::Menu
 pxui::MenuItem use pxui_types::ui::MenuItem
+pxui::Mods impl Clone
+pxui::Mods impl Copy
+pxui::Mods impl Debug
+pxui::Mods impl Eq
+pxui::Mods impl PartialEq
+pxui::Mods impl StructuralPartialEq
+pxui::Mods struct (_)
+pxui::Mods::ALT const Mods
+pxui::Mods::ANY const Mods
+pxui::Mods::CTRL const Mods
+pxui::Mods::META const Mods
+pxui::Mods::NONE const Mods
+pxui::Mods::SHIFT const Mods
+pxui::Mods::with fn const (self, other: Mods) -> Mods
 pxui::Node use pxui_types::Node
 pxui::NodeFields impl Clone
 pxui::NodeFields impl Copy
@@ -771,8 +824,8 @@ pxui::Ui::inspector_section fn (&mut self, key: &str, expanded: bool, set_expand
 pxui::Ui::inspector_toggle fn (&mut self, key: &str, label: &str, value: bool) -> bool
 pxui::Ui::inspector_width fn (&self) -> f32
 pxui::Ui::item_text fn (&mut self, text: &str)
-pxui::Ui::key_down fn (&self, key: u32) -> bool
-pxui::Ui::key_pressed fn (&self, key: impl Into<u32>, modifier: Option<u32>) -> bool
+pxui::Ui::key_down fn (&self, key: KeyCode) -> bool
+pxui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool
 pxui::Ui::keyboard fn (&self) -> Keyboard
 pxui::Ui::label fn (&mut self, text: &str, style: Label) -> Handle
 pxui::Ui::label_digits fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
@@ -900,7 +953,7 @@ pxui::Ui::split fn (&mut self, label: &str, axis: Axis, ratio: f32, min_a: f32, 
 pxui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
-pxui::Ui::system_appearance fn (&self) -> u32
+pxui::Ui::system_appearance fn (&self) -> Appearance
 pxui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
 pxui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, tabs: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
 pxui::Ui::text fn (&mut self, box_: &Handle, value: &str)
@@ -1183,7 +1236,7 @@ pxui::testing::click fn (ui: &mut Ui, x: f64, y: f64, build: &mut dyn FnMut(&mut
 pxui::testing::click_node fn (ui: &mut Ui, node: &Handle, build: &mut dyn FnMut(&mut Ui))
 pxui::testing::find fn (ui: &Ui, role: Role, name: &str) -> Option<Rect>
 pxui::testing::frame fn (ui: &mut Ui, events: &[Event], build: &mut dyn FnMut(&mut Ui))
-pxui::testing::key fn (ui: &mut Ui, code: u32, build: &mut dyn FnMut(&mut Ui))
+pxui::testing::key fn (ui: &mut Ui, key: KeyCode, build: &mut dyn FnMut(&mut Ui))
 pxui::theme use pxui_types::theme
 pxui::ui mod
 pxui::ui::* use pxui_types::draw::*
@@ -1529,8 +1582,8 @@ pxui::ui::Ui::inspector_section fn (&mut self, key: &str, expanded: bool, set_ex
 pxui::ui::Ui::inspector_toggle fn (&mut self, key: &str, label: &str, value: bool) -> bool
 pxui::ui::Ui::inspector_width fn (&self) -> f32
 pxui::ui::Ui::item_text fn (&mut self, text: &str)
-pxui::ui::Ui::key_down fn (&self, key: u32) -> bool
-pxui::ui::Ui::key_pressed fn (&self, key: impl Into<u32>, modifier: Option<u32>) -> bool
+pxui::ui::Ui::key_down fn (&self, key: KeyCode) -> bool
+pxui::ui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool
 pxui::ui::Ui::keyboard fn (&self) -> Keyboard
 pxui::ui::Ui::label fn (&mut self, text: &str, style: Label) -> Handle
 pxui::ui::Ui::label_digits fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
@@ -1658,7 +1711,7 @@ pxui::ui::Ui::split fn (&mut self, label: &str, axis: Axis, ratio: f32, min_a: f
 pxui::ui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::ui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
-pxui::ui::Ui::system_appearance fn (&self) -> u32
+pxui::ui::Ui::system_appearance fn (&self) -> Appearance
 pxui::ui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
 pxui::ui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, tabs: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
 pxui::ui::Ui::text fn (&mut self, box_: &Handle, value: &str)

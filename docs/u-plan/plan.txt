@@ -220,7 +220,7 @@ D21Small U1 choicesrect (surface space) and local_rect (parent space) both stay,
 
 D22verify_viewsPer-Ui, on by default under debug_assertions (proposal guard rail); pxui_ui_verify_views stays in the frozen 2.0 set (not the diagnostics extension), so the wrapper's debug default never depends on an unstable export; Ui::verify_new_views and the process flag deleted; callers (lw_bin/tests/window_input.rs:656/887, lw_bin/src/library/find.rs:810, lw_ui/src/lib.rs:356) migrated.U1c.2
 
-D23KeysKeyCode: Char(char) (case-folded as today) plus named keys; Mods: Mods::ANY keeps today's None meaning (any modifiers), Mods::NONE, META, SHIFT, ALT, CTRL, combinable with .with(). key_pressed(KeyCode, Mods) -> bool, key_down(KeyCode) -> bool, non-generic.U1a.4
+D23KeysKeyCode preserves the raw identity of Char(char) and provides named keys. Native ASCII normalization and the app’s explicit uppercase shortcut checks still apply. Mods::ANY accepts any modifiers (the old None). Mods::NONE requires an unmodified press. Nonempty masks require all requested modifiers on the same press and admit extras (the old single-modifier rule). Combine required keys with .with(). key_pressed(KeyCode, Mods) -> bool and key_down(KeyCode) -> bool are non-generic.U1a.4
 
 D25Locked call shape (after comparing SwiftUI, gpui, rune; §5c)
 

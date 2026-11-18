@@ -10,6 +10,7 @@
 //! Prepared on the library worker; palette frames borrow labels, actions and the ranked queue.
 use crate::{browse::Query, catalog::Route, files::Location};
 use lw_core::context::PlaybackContext;
+use pxui::{KeyCode, Mods};
 use std::sync::Arc;
 
 /// Register once, outside frames, before parsing the themes: the palette's field body (selected only in its retained theme) and
@@ -55,17 +56,16 @@ impl Command {
         }
     }
     /// The one shortcut table: (key code, modifier key code or 0). `hint` derives from it.
-    pub fn key(self) -> Option<(u32, u32)> {
-        let meta = input::Key::Meta.code();
+    pub fn key(self) -> Option<(KeyCode, Mods)> {
         Some(match self {
-            Self::PlayPause => (input::Key::Space.code(), 0),
-            Self::Shuffle => ('s' as u32, 0),
-            Self::Repeat => ('r' as u32, 0),
-            Self::AddMusic => ('o' as u32, meta),
-            Self::Panel => ('i' as u32, 0),
-            Self::Shortcuts => ('?' as u32, 0),
-            Self::Settings => (',' as u32, meta),
-            Self::Favorite => ('l' as u32, 0),
+            Self::PlayPause => (KeyCode::Space, Mods::ANY),
+            Self::Shuffle => (KeyCode::Char('s'), Mods::ANY),
+            Self::Repeat => (KeyCode::Char('r'), Mods::ANY),
+            Self::AddMusic => (KeyCode::Char('o'), Mods::META),
+            Self::Panel => (KeyCode::Char('i'), Mods::ANY),
+            Self::Shortcuts => (KeyCode::Char('?'), Mods::ANY),
+            Self::Settings => (KeyCode::Char(','), Mods::META),
+            Self::Favorite => (KeyCode::Char('l'), Mods::ANY),
             _ => return None,
         })
     }
@@ -73,17 +73,15 @@ impl Command {
         let Some((key, modifier)) = self.key() else {
             return "";
         };
-        if key == input::Key::Space.code() {
-            return "Space";
-        }
-        match (char::from_u32(key), modifier != 0) {
-            (Some('s'), false) => "S",
-            (Some('r'), false) => "R",
-            (Some('i'), false) => "I",
-            (Some('l'), false) => "L",
-            (Some('?'), false) => "?",
-            (Some('o'), true) => "⌘O",
-            (Some(','), true) => "⌘,",
+        match (key, modifier) {
+            (KeyCode::Space, _) => "Space",
+            (KeyCode::Char('s'), Mods::ANY) => "S",
+            (KeyCode::Char('r'), Mods::ANY) => "R",
+            (KeyCode::Char('i'), Mods::ANY) => "I",
+            (KeyCode::Char('l'), Mods::ANY) => "L",
+            (KeyCode::Char('?'), Mods::ANY) => "?",
+            (KeyCode::Char('o'), Mods::META) => "⌘O",
+            (KeyCode::Char(','), Mods::META) => "⌘,",
             _ => "",
         }
     }

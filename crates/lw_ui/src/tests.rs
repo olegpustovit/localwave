@@ -2288,6 +2288,93 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
 }
 
 #[test]
+fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
+    use catalog::Route;
+    use input::Key::{Alt, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ctrl, Enter, Escape, Meta, Shift, Space};
+    use pxui::Event;
+
+    let catalog = prepared(vec![lw_core::Song { id: Some(1), title: "Track".into(), ..Default::default() }]);
+    let mut player = PlayerView { initialized: true, current_id: Some(1), volume: 0.5, duration: 100.0, ..PlayerView::default() };
+    let mut state = ShellState::default();
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+    let mut tick = 0;
+    // Keep these extra input cases independent of the established frame fingerprints.
+    let mut run = |state: &ShellState, player: &PlayerView<'_>, events: &[Event], carry: bool| {
+        let mut frame = FrameIn::new(1440.0, 872.0).time(tick as f64 / 60.0);
+        tick += 1;
+        frame.wire.events = events.as_ptr();
+        frame.wire.event_count = events.len();
+        let mut intent = None;
+        ui.frame(&frame, &mut |ui| {
+            if carry { ui.carry(None, "song", "1"); }
+            shell(ui, player, 40.0, &catalog, state, &mut intent);
+        }).unwrap();
+        intent
+    };
+    run(&state, &player, &[], false);
+    let edge = |kind, code| Event { kind, code, ..Default::default() };
+    let mut press = |state: &ShellState, player: &PlayerView<'_>, mods: &[input::Key], key, release_in_frame, carry| {
+        let releases: Vec<_> = mods.iter().map(|key| edge(Event::KEY_RELEASED, key.code())).collect();
+        let mut events: Vec<_> = mods.iter().map(|key| edge(Event::KEY_PRESSED, key.code())).collect();
+        events.extend([edge(Event::KEY_PRESSED, key), edge(Event::KEY_RELEASED, key)]);
+        if release_in_frame { events.extend_from_slice(&releases); }
+        let intent = run(state, player, &events, carry);
+        if !release_in_frame && !releases.is_empty() { run(state, player, &releases, false); }
+        intent
+    };
+    let ch = |key| key as u32;
+    for (mods, key, expected) in [
+        (&[][..], Space.code(), Intent::Play),
+        (&[][..], ch('s'), Intent::Shuffle),
+        (&[][..], ch('r'), Intent::Repeat),
+        (&[][..], ch('i'), Intent::TogglePanel),
+        (&[][..], ch('l'), Intent::SetFavorite { song: 1, on: true }),
+        (&[][..], ArrowLeft.code(), Intent::SeekFraction(0.35)),
+        (&[][..], ArrowRight.code(), Intent::SeekFraction(0.45)),
+        (&[Alt][..], ArrowLeft.code(), Intent::SeekFraction(0.10)),
+        (&[Alt][..], ArrowRight.code(), Intent::SeekFraction(0.70)),
+        (&[Shift][..], ArrowLeft.code(), Intent::Previous),
+        (&[Shift][..], ArrowRight.code(), Intent::Next),
+        (&[Meta][..], ArrowLeft.code(), Intent::Previous),
+        (&[Meta][..], ArrowRight.code(), Intent::Next),
+        (&[Meta][..], ArrowUp.code(), Intent::Volume(0.5 + 1.0 / 12.0)),
+        (&[Meta][..], ArrowDown.code(), Intent::Volume(0.5 - 1.0 / 12.0)),
+        (&[Meta][..], ch('O'), Intent::ChooseFolder),
+        (&[Meta, Shift][..], ch('O'), Intent::ChooseAudio),
+        (&[Meta][..], ch('F'), Intent::Navigate(Route::Find)),
+        (&[Meta][..], ch('N'), Intent::NewList(None)),
+        (&[Meta][..], ch('1'), Intent::Navigate(Route::Albums)),
+        (&[Meta][..], ch('2'), Intent::Navigate(Route::Artists)),
+        (&[Meta][..], ch('3'), Intent::Navigate(Route::Songs)),
+        (&[Meta][..], ch('K'), Intent::ShowCommands),
+        (&[Ctrl][..], ch('/'), Intent::ShowCommands),
+        (&[Alt][..], ch('?'), Intent::ShowShortcuts),
+        (&[Meta][..], ch(','), Intent::ShowSettings),
+        (&[Meta][..], ch('A'), Intent::Select(Selection::All(1))),
+    ] {
+        assert_eq!(press(&state, &player, mods, key, false, false), Some(expected), "key {key} with {mods:?}");
+    }
+    assert_eq!(press(&state, &player, &[Meta], ch('O'), true, false), Some(Intent::ChooseFolder));
+    assert_eq!(press(&state, &player, &[Meta, Shift], ch('n'), false, false), None);
+    assert_eq!(press(&state, &player, &[], ch('L'), false, false), None);
+
+    player.playing = true;
+    player.revision += 1;
+    assert_eq!(press(&state, &player, &[], Space.code(), false, false), Some(Intent::Pause));
+    state.apply(Intent::Select(Selection::All(1)));
+    for (mods, key, delta, extend) in [(&[][..], ArrowUp, -1, false), (&[Shift][..], ArrowDown, 1, true)] {
+        assert_eq!(press(&state, &player, mods, key.code(), false, false), Some(Intent::Select(Selection::Move { delta, extend, len: 1 })));
+    }
+    state.apply(Intent::SelectRow(0));
+    assert_eq!(press(&state, &player, &[Alt], Enter.code(), false, false), Some(Intent::PlayRow(0)));
+    assert_eq!(press(&state, &player, &[], Escape.code(), false, true), None);
+    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Select(Selection::Clear)));
+    state.apply(Intent::ShowSettings);
+    assert_eq!(press(&state, &player, &[Meta], ch('['), false, false), Some(Intent::CloseSettings));
+    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::CloseSettings));
+}
+
+#[test]
 fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
     use catalog::Route;
     use lw_core::context::PlaybackContext;
