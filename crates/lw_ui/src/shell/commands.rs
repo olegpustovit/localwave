@@ -522,7 +522,7 @@ mod tests {
 
     fn frame(
         ui: &mut Ui,
-        theme: &pxui::Theme,
+        theme: &pxui::ThemeHandle,
         catalog: &Catalog,
         state: &mut ShellState,
         time: &mut f64,
@@ -720,12 +720,12 @@ mod tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         crate::commands::register(&mut ui).unwrap();
-        let mut theme = pxui::Theme::default();
-        theme.apply(&ui, crate::LIGHT).unwrap();
-        ui.use_theme(&theme);
-        theme
-            .apply(&ui, "text_field.body = localwave-command")
-            .unwrap();
+        let mut root = pxui::ThemeHandle::parse(crate::LIGHT).unwrap();
+        crate::apply_palette(&mut root, false);
+        ui.set_theme(&root).unwrap();
+        let source = format!("{}\ntext_field.body = localwave-command", crate::LIGHT);
+        let mut theme = pxui::ThemeHandle::parse(&source).unwrap();
+        crate::apply_palette(&mut theme, false);
         let mut catalog = crate::tests::prepared(
             (0..10_000)
                 .map(|id| lw_core::Song {

@@ -810,7 +810,9 @@ mod tests {
                 pxui::Ui::verify_new_views(true);
                 let mut ui =
                     pxui::Ui::create(pxui::Platform::Apple, Some(15), &[lw_ui::FONT, lw_ui::MONO]);
-                lw_ui::set_colors(&mut ui);
+                let mut theme = pxui::ThemeHandle::default();
+                lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
+                ui.set_theme(&theme).unwrap();
                 ui.set_a11y(true);
                 lw_ui::testing::frame(
                     &mut ui,

@@ -42,7 +42,7 @@ pub fn clip_owned(mut text: String) -> String {
 /// pxui's deterministic fast hash of one value (a revision or identity key; not a DoS-resistant map hash).
 #[inline]
 pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 { pxui::hash_of(&value) }
-pub use shell::{ShellState, set_colors, shell};
+pub use shell::{ShellState, apply_palette, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");
 pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf");
@@ -314,7 +314,7 @@ pub enum ListDialog {
 /// Stable player data. Advance revision when these facts change; position is a separate shell input.
 #[derive(Default)]
 pub struct PlayerView<'a> {
-    pub command_theme: Option<&'a pxui::Theme>,
+    pub command_theme: Option<&'a pxui::ThemeHandle>,
     pub files: Option<&'a files::Snapshot>,
     pub file_dragging: bool,
     pub settings: lw_core::preferences::Settings,
@@ -357,10 +357,11 @@ pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8
     static ONCE: std::sync::Once = std::sync::Once::new();
     ONCE.call_once(|| pxui::Ui::verify_new_views(true));
     let mut ui = pxui::Ui::create(platform, size, fonts);
-    set_colors(&mut ui);
     // The kit's default theme with LocalWave's bodies and their looks, as the app's themes carry them.
     commands::register(&mut ui).unwrap();
     let app = include_str!("../themes/app-light.theme");
-    ui.set_theme(&pxui::ThemeSource { source: pxui::Str { ptr: app.as_ptr(), len: app.len() }, ..pxui::ThemeSource::default() }).unwrap();
+    let mut theme = pxui::ThemeHandle::parse(app).unwrap();
+    apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
+    ui.set_theme(&theme).unwrap();
     ui
 }

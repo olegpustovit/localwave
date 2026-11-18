@@ -1,5 +1,5 @@
 use super::*;
-use pxui::{FrameIn, Platform, Str, ThemeSource, Ui};
+use pxui::{FrameIn, Platform, Str, ThemeHandle, Ui};
 pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
     let mut catalog = catalog::Catalog::new(songs);
     catalog.prepare_tables(&crate::test_table_styles()).unwrap();
@@ -1837,15 +1837,10 @@ fn shell_themes_and_warm_build_allocate_nothing() {
     let state = ShellState::default();
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
-    for theme in [LIGHT, DARK] {
-        ui.set_theme(&ThemeSource {
-            source: Str {
-                ptr: theme.as_ptr(),
-                len: theme.len(),
-            },
-            ..ThemeSource::default()
-        })
-        .unwrap();
+    for (source, dark) in [(LIGHT, false), (DARK, true)] {
+        let mut theme = ThemeHandle::parse(source).unwrap();
+        crate::apply_palette(&mut theme, dark);
+        ui.set_theme(&theme).unwrap();
         let mut player = PlayerView {
             waveform: Some(&[0.5; 512]),
             revision: 1,

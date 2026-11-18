@@ -640,13 +640,14 @@ pxui::TextWorker impl Send
 pxui::TextWorker impl Sync
 pxui::TextWorker struct (_)
 pxui::TextWorker::new fn () -> Result<TextWorker, Error>
-pxui::Theme impl Default
-pxui::Theme impl Drop
-pxui::Theme struct (_)
-pxui::Theme::apply fn (&mut self, ui: &Ui, text: &str) -> Result<(), String>
-pxui::Theme::from_tokens fn (tokens: Tokens) -> Theme
-pxui::Theme::load fn (&mut self, path: &str) -> Result<(), String>
-pxui::Theme::set fn (&mut self, key: &str, value: &str) -> Result<(), String>
+pxui::ThemeHandle impl Default
+pxui::ThemeHandle impl Drop
+pxui::ThemeHandle struct (_)
+pxui::ThemeHandle::density fn (&mut self, density: f32)
+pxui::ThemeHandle::from_tokens fn (tokens: Tokens) -> ThemeHandle
+pxui::ThemeHandle::parse fn (source: &str) -> Result<ThemeHandle, Error>
+pxui::ThemeHandle::reduced_motion fn (&mut self, on: bool)
+pxui::ThemeHandle::set_color fn (&mut self, token: ColorToken, color: Rgba)
 pxui::ThemeSource use pxui_types::ffi::ThemeSource
 pxui::Toast use pxui_types::ui::Toast
 pxui::Toggle impl Clone
@@ -869,7 +870,6 @@ pxui::Ui::segmented_with fn <K: Into<Key>>(&mut self, key: K, options: &[Segment
 pxui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
 pxui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
-pxui::Ui::set_colors fn (&mut self, colors: &[(Rgba, Rgba)])
 pxui::Ui::set_dir fn (&mut self, rtl: bool)
 pxui::Ui::set_font_size fn (&mut self, size: i64)
 pxui::Ui::set_look fn (&mut self, box_: &Handle, look: Look, state: State)
@@ -879,8 +879,7 @@ pxui::Ui::set_scroll_offset fn (&mut self, b: &Handle, value: f32)
 pxui::Ui::set_state fn (&mut self, box_: &Handle, value: i64)
 pxui::Ui::set_text_state fn (&mut self, b: &Handle, value: Option<&str>)
 pxui::Ui::set_text_worker fn (&mut self, worker: Option<&TextWorker>) -> Result<(), Error>
-pxui::Ui::set_theme fn (&mut self, source: &ThemeSource) -> Result<(), Error>
-pxui::Ui::set_theme_source fn (&mut self, source: &ThemeSource) -> Result<(), Error>
+pxui::Ui::set_theme fn (&mut self, theme: &ThemeHandle) -> Result<(), Error>
 pxui::Ui::set_timing fn (&mut self, on: bool)
 pxui::Ui::set_view fn (&mut self, b: &Handle, view: &ViewTransform)
 pxui::Ui::signal fn (&self, box_: &Handle) -> Signal
@@ -909,7 +908,7 @@ pxui::Ui::text_top fn (&self, size: Option<i64>, y: f32, h: f32) -> f32
 pxui::Ui::text_undo_bytes fn (&self) -> usize
 pxui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::Ui::theme fn (&self) -> &Theme
-pxui::Ui::themed fn (&mut self, theme: &Theme, f: &mut dyn FnMut(&mut Ui))
+pxui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
 pxui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Option<usize>
 pxui::Ui::toggle fn (&mut self, text: &str, on: bool) -> bool
@@ -919,7 +918,6 @@ pxui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
 pxui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::Ui::unfocus fn (&mut self)
-pxui::Ui::use_theme fn (&mut self, theme: &Theme)
 pxui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'_>
 pxui::Ui::verify_new_views fn (on: bool)
 pxui::Ui::verify_views fn (&mut self, on: bool)
@@ -1630,7 +1628,6 @@ pxui::ui::Ui::segmented_with fn <K: Into<Key>>(&mut self, key: K, options: &[Seg
 pxui::ui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
 pxui::ui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::ui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
-pxui::ui::Ui::set_colors fn (&mut self, colors: &[(Rgba, Rgba)])
 pxui::ui::Ui::set_dir fn (&mut self, rtl: bool)
 pxui::ui::Ui::set_font_size fn (&mut self, size: i64)
 pxui::ui::Ui::set_look fn (&mut self, box_: &Handle, look: Look, state: State)
@@ -1640,8 +1637,7 @@ pxui::ui::Ui::set_scroll_offset fn (&mut self, b: &Handle, value: f32)
 pxui::ui::Ui::set_state fn (&mut self, box_: &Handle, value: i64)
 pxui::ui::Ui::set_text_state fn (&mut self, b: &Handle, value: Option<&str>)
 pxui::ui::Ui::set_text_worker fn (&mut self, worker: Option<&TextWorker>) -> Result<(), Error>
-pxui::ui::Ui::set_theme fn (&mut self, source: &ThemeSource) -> Result<(), Error>
-pxui::ui::Ui::set_theme_source fn (&mut self, source: &ThemeSource) -> Result<(), Error>
+pxui::ui::Ui::set_theme fn (&mut self, theme: &ThemeHandle) -> Result<(), Error>
 pxui::ui::Ui::set_timing fn (&mut self, on: bool)
 pxui::ui::Ui::set_view fn (&mut self, b: &Handle, view: &ViewTransform)
 pxui::ui::Ui::signal fn (&self, box_: &Handle) -> Signal
@@ -1670,7 +1666,7 @@ pxui::ui::Ui::text_top fn (&self, size: Option<i64>, y: f32, h: f32) -> f32
 pxui::ui::Ui::text_undo_bytes fn (&self) -> usize
 pxui::ui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::ui::Ui::theme fn (&self) -> &Theme
-pxui::ui::Ui::themed fn (&mut self, theme: &Theme, f: &mut dyn FnMut(&mut Ui))
+pxui::ui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::ui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
 pxui::ui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Option<usize>
 pxui::ui::Ui::toggle fn (&mut self, text: &str, on: bool) -> bool
@@ -1680,7 +1676,6 @@ pxui::ui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::ui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
 pxui::ui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::ui::Ui::unfocus fn (&mut self)
-pxui::ui::Ui::use_theme fn (&mut self, theme: &Theme)
 pxui::ui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'_>
 pxui::ui::Ui::verify_new_views fn (on: bool)
 pxui::ui::Ui::verify_views fn (&mut self, on: bool)

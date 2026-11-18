@@ -1,41 +1,48 @@
 //! Parsed themes are retained; system changes select a value without parsing in the frame loop.
 use lw_core::preferences::{Appearance, Settings, Signal};
-use pxui::{FrameIn, Theme, Ui};
+use pxui::{FrameIn, ThemeHandle, Ui};
 use pxui_sdl::PreferencesSnapshot as Snapshot;
 
+fn prepare_theme_pair(source: &str, accent: &str, dark: bool) -> Result<(ThemeHandle, ThemeHandle), String> {
+    let mut text = String::with_capacity(source.len() + 80);
+    // Deriving looks from the selected accent keeps the source's tokens and body names.
+    for line in source.lines() {
+        let Some((key, _)) = line.split_once('=') else { continue };
+        if key.trim().starts_with("tokens.") || key.trim().ends_with(".body") {
+            text.push_str(line);
+            text.push('\n');
+        }
+    }
+    text.push_str("tokens.accent = ");
+    text.push_str(accent);
+    let mut root = ThemeHandle::parse(&text).map_err(|error| error.to_string())?;
+    text.push_str("\ntext_field.body = localwave-command");
+    let mut field = ThemeHandle::parse(&text).map_err(|error| error.to_string())?;
+    lw_ui::apply_palette(&mut root, dark);
+    lw_ui::apply_palette(&mut field, dark);
+    Ok((root, field))
+}
+
 pub struct Themes {
-    themes: [[(Theme, Theme); 4]; 2],
+    themes: [[(ThemeHandle, ThemeHandle); 4]; 2],
     selected: Option<(bool, Signal)>,
 }
 impl Themes {
     pub fn new(ui: &mut Ui) -> Result<Self, String> {
         lw_ui::commands::register(ui)?;
-        lw_ui::set_colors(ui);
-        let parsed = |source, accent| -> Result<(Theme, Theme), String> {
-            let make = || -> Result<Theme, String> {
-                let mut theme = Theme::default();
-                theme.apply(ui, source)?;
-                theme.set("tokens.accent", accent)?;
-                Ok(theme)
-            };
-            let root = make()?;
-            let mut field = make()?;
-            field.apply(ui, "text_field.body = localwave-command")?;
-            Ok((root, field))
-        };
         Ok(Self {
             themes: [
                 [
-                    parsed(lw_ui::LIGHT, "#2340FF")?,
-                    parsed(lw_ui::LIGHT, "#E3241B")?,
-                    parsed(lw_ui::LIGHT, "#00A86B")?,
-                    parsed(lw_ui::LIGHT, "#111111")?,
+                    prepare_theme_pair(lw_ui::LIGHT, "#2340FF", false)?,
+                    prepare_theme_pair(lw_ui::LIGHT, "#E3241B", false)?,
+                    prepare_theme_pair(lw_ui::LIGHT, "#00A86B", false)?,
+                    prepare_theme_pair(lw_ui::LIGHT, "#111111", false)?,
                 ],
                 [
-                    parsed(lw_ui::DARK, "#6F7DFF")?,
-                    parsed(lw_ui::DARK, "#E3241B")?,
-                    parsed(lw_ui::DARK, "#00A86B")?,
-                    parsed(lw_ui::DARK, "#EDEDED")?,
+                    prepare_theme_pair(lw_ui::DARK, "#6F7DFF", true)?,
+                    prepare_theme_pair(lw_ui::DARK, "#E3241B", true)?,
+                    prepare_theme_pair(lw_ui::DARK, "#00A86B", true)?,
+                    prepare_theme_pair(lw_ui::DARK, "#EDEDED", true)?,
                 ],
             ],
             selected: None,
@@ -48,11 +55,12 @@ impl Themes {
             Appearance::Dark => true,
         };
         if self.selected != Some((dark, settings.signal)) {
-            ui.use_theme(&self.themes[usize::from(dark)][settings.signal as usize].0);
+            ui.set_theme(&self.themes[usize::from(dark)][settings.signal as usize].0)
+                .unwrap_or_else(|error| panic!("LocalWave theme ({error}): {}", ui.last_error()));
             self.selected = Some((dark, settings.signal));
         }
     }
-    pub fn command_field(&self) -> Option<&Theme> {
+    pub fn command_field(&self) -> Option<&ThemeHandle> {
         self.selected
             .map(|(dark, signal)| &self.themes[usize::from(dark)][signal as usize].1)
     }
@@ -113,6 +121,7 @@ mod tests {
                         Signal::Mono if dark => [0xed; 3],
                         Signal::Mono => [0x11; 3],
                     };
+                    assert_eq!(ui.theme().popup.idle.border, ui.tokens().edge());
                     let accent = ui.tokens().accent;
                     assert_eq!([accent.r, accent.g, accent.b], expected);
                 }

@@ -4,7 +4,7 @@ import argparse
 import re
 from pathlib import Path
 
-from rs import line_of, mask
+from rs import close, line_of, mask
 
 
 SHIMS = {
@@ -55,15 +55,47 @@ def modules(source, path):
     return edits, skipped
 
 
+def themes(source, path):
+    wrapper = "crate" if "crates/public/pxui/src/" in path.as_posix() else "pxui"
+    visible = mask(source)
+    edits, skipped = [], []
+    # A source record with default flags and a single borrowed string.
+    old_source = re.compile(r"\.set_theme(?:_source)?\(\s*&\s*(?:\w+::)*ThemeSource\s*\{")
+    for match in old_source.finditer(visible):
+        end = close(visible, visible.index("(", match.start()))
+        record = visible[match.end():end]
+        text = re.search(r"\bptr:\s*([\w:]+)\.as_ptr\(\)\s*,\s*len:\s*\1\.len\(\)", record)
+        flags = re.search(r"\bflags:\s*([^,}]+)", record)
+        if text and (not flags or flags[1].strip() == "0"):
+            edits.append((match.start(), end + 1, f".set_theme(&{wrapper}::ThemeHandle::parse(&{text[1]}).unwrap())"))
+        else:
+            skipped.append(f"{path}:{line_of(source, match.start())}: theme source or flags")
+
+    # Parse a scoped theme whose only mutation is applying a source.
+    old_scope = re.compile(r"\{\s*let mut theme\s*=\s*(?:crate::|pxui::)?Theme::default\(\);\s*theme\.apply\(&ui,\s*")
+    for match in old_scope.finditer(visible):
+        end = close(visible, match.start())
+        apply_end = close(visible, visible.rindex("(", match.start(), match.end()))
+        suffix = source[apply_end + 1:end]
+        if re.fullmatch(r"\.(?:expect\(.*?\)|unwrap\(\));\s*theme\s*", suffix, re.S):
+            text = source[match.end():apply_end]
+            edits.append((match.start(), end + 1, f"{wrapper}::ThemeHandle::parse({text}){suffix[:suffix.rindex(';')]}"))
+        else:
+            skipped.append(f"{path}:{line_of(source, match.start())}: scoped theme")
+    return sorted(edits), skipped
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--themes", action="store_true")
     parser.add_argument("files", nargs="+", type=Path)
     options = parser.parse_args()
     total = 0
     for path in options.files:
         source = path.read_text()
-        edits, skipped = modules(source, path)
+        rewrite = themes if options.themes else modules
+        edits, skipped = rewrite(source, path)
         for site in skipped:
             print("skipped", site)
         if edits:

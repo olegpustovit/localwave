@@ -116,14 +116,14 @@ pub(super) fn compact_find(
     ui: &mut Ui,
     catalog: &Catalog,
     state: &ShellState,
-    theme: Option<&pxui::Theme>,
+    theme: Option<&pxui::ThemeHandle>,
     width: f32,
     intent: &mut Option<Intent>,
 ) {
     let revision = crate::hash((
         state.revision,
         (state.selecting, state.selection_revision),
-        theme.map_or(0, |t| t as *const pxui::Theme as usize),
+        theme.map_or(0, |t| t as *const pxui::ThemeHandle as usize),
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         catalog
             .view

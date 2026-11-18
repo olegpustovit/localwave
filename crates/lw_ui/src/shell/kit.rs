@@ -1,7 +1,7 @@
 use pxui::bodies::BodyConfig;
 use super::*;
 
-// LocalWave's colour tokens (`Ui::set_colors`), read with `ui.color` and `paint.color`; the accent is the theme's own.
+// LocalWave's colour tokens, read with `ui.color` and `paint.color`. The accent is the theme's own.
 pub(super) const PAPER: ColorToken = ColorToken(0);
 pub(super) const PANEL: ColorToken = ColorToken(1);
 pub(super) const SELECTED: ColorToken = ColorToken(2);
@@ -31,9 +31,11 @@ pub(super) const COLORS: [(Rgba, Rgba); 9] = [
     (rgb(0xFBFBFB), rgb(0x1F1F1F)),
     (rgb(0xD21A1A), rgb(0xD21A1A)),
 ];
-/// Installs LocalWave's light and dark colour tables; call once between frames, beside the themes.
-pub fn set_colors(ui: &mut Ui) {
-    ui.set_colors(&COLORS);
+/// Gives a root or scoped theme LocalWave's palette for the selected appearance.
+pub fn apply_palette(theme: &mut pxui::ThemeHandle, dark: bool) {
+    for (index, (light, night)) in COLORS.into_iter().enumerate() {
+        theme.set_color(pxui::theme::ColorToken(index as u16), if dark { night } else { light });
+    }
 }
 pub(super) fn container(
     ui: &mut Ui,
@@ -292,7 +294,7 @@ const MENU_ROW: Look = Look::NONE.font(Font::BODY.size(13));
 #[cfg(test)]
 pub(super) mod button_tests {
     use super::*;
-    use pxui::{Event, FrameIn, Platform, Str, ThemeSource};
+    use pxui::{Event, FrameIn, Platform, ThemeHandle};
     use std::cell::Cell;
     #[test]
     fn matrix_digits_match_swift_geometry_stagger_changed_rows_and_stop_without_warm_allocations() {
@@ -523,14 +525,9 @@ pub(super) mod button_tests {
         mem_sys::set_peer(pxui::library_counter);
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        ui.set_theme(&ThemeSource {
-            source: Str {
-                ptr: crate::LIGHT.as_ptr(),
-                len: crate::LIGHT.len(),
-            },
-            ..ThemeSource::default()
-        })
-        .unwrap();
+        let mut light = ThemeHandle::parse(crate::LIGHT).unwrap();
+        apply_palette(&mut light, false);
+        ui.set_theme(&light).unwrap();
         let clicked = Cell::new(false);
         let mut build = |ui: &mut Ui| {
             clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&ICON_PLATE_LOOKS)).clicked);
@@ -603,16 +600,10 @@ pub(super) mod button_tests {
                 "warm button press allocated {allocations} times"
             );
         }
-        let reduce = "tokens.reduced_motion = true";
-        ui.set_theme(&ThemeSource {
-            flags: ThemeSource::REDUCED_MOTION,
-            source: Str {
-                ptr: reduce.as_ptr(),
-                len: reduce.len(),
-            },
-            ..ThemeSource::default()
-        })
-        .unwrap();
+        let mut reduced = ThemeHandle::default();
+        reduced.reduced_motion(true);
+        apply_palette(&mut reduced, pxui::theme::Tokens::DEFAULT.is_dark());
+        ui.set_theme(&reduced).unwrap();
         assert!(ui.theme().tokens.reduced_motion);
         crate::testing::frame(
             &mut ui,

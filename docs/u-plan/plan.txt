@@ -176,7 +176,7 @@ Settled so the implementer never stops for them. The owner may override any befo
 
 #QuestionDecisionStep
 
-D1Theme entry pointsOne setter Ui::set_theme(&ThemeHandle), one scoped form Ui::themed(&ThemeHandle, f). ThemeHandle::parse(&str) -> Result<ThemeHandle, Error>, .set_color(ColorToken, Rgba), .density(f32), .reduced_motion(bool). Deleted: set_theme_source, use_theme, Ui::set_colors, Theme::set/apply/load. The handle type is ThemeHandle; the record stays pxui::theme::Theme (module theme stays public, D2).U1a.2
+D1Theme entry pointsOne setter Ui::set_theme(&ThemeHandle) -> Result<(), Error> and one scoped form Ui::themed(&ThemeHandle, f). Parse detached with ThemeHandle::parse(&str) -> Result<ThemeHandle, Error>. Root installation validates every named body in the destination Ui before changing the theme. A missing name is Error::InvalidInput with the name in Ui::last_error. A scoped theme uses the destination Ui’s registered body or its built-in body. Mutators are .set_color(ColorToken, Rgba), .density(f32), .reduced_motion(bool). Deleted: set_theme_source, use_theme, Ui::set_colors, Theme::set/apply/load. The handle type is ThemeHandle; the record stays pxui::theme::Theme (module theme stays public, D2).U1a.2
 
 D2Public modulesPublic after U1a: ui (prelude), bodies, ext (D6), testing, images (namespace avoids a Key clash), theme, geom, draw (value-type namespaces from pxui_types), guide (docs only); doc #[doc(hidden)]. Deleted: a11y shim, ui_core, ui_text, ui_widgets. Private with items re-exported at the root: text, paint, widgets, composite, overlays, collections, image, kit. pxui_types keeps its modules (it is the types crate); text::pragmasevka → root re-export.U1a.1
 
@@ -336,7 +336,7 @@ Imagesimage<K>(key, &Image, &ImageStyle) -> Result<Handle, Error>; Image::rgba8;
 
 A11ya11y_name/a11y_value/a11y_number(&Handle, ..) -> bool (applied); set_role(&Handle, Role, A11yStates); a11y_tree() -> A11yTree; a11y_nodes, a11y_name_of, a11y_value_of, box_of_a11y—U1a.3 (rule), U1b.4 (types)
 
-Themeset_theme(&ThemeHandle), themed(&ThemeHandle, f), theme(), tokens(), ThemeHandle::parse/set_color/density/reduced_motion; bodies::register_<kind>_body(..) -> Result<BodyId, Error>; Rgba::token(T).alpha(a) (D19); ColorToken::ACCENT; Appearance; sizes f32 (font_size, row_height, density, set_font_size)—U1a.2; U1b.3 (units); U2b.7 (alpha, accent)
+Themeset_theme(&ThemeHandle) -> Result<(), Error>, themed(&ThemeHandle, f), theme(), tokens(), ThemeHandle::parse/set_color/density/reduced_motion; bodies::register_<kind>_body(..) -> Result<BodyId, Error>; Rgba::token(T).alpha(a) (D19); ColorToken::ACCENT; Appearance; sizes f32 (font_size, row_height, density, set_font_size)—U1a.2; U1b.3 (units); U2b.7 (alpha, accent)
 
 Frame / lifecycleUi::new(&UiDesc) -> Result<Ui, Error> with UiDesc::new(Platform).font_size(f32).fonts(&[FontData]) (carries what Ui::create(Platform, Some(15), &[FONT, MONO]) passes today: lw_bin/src/library.rs:35, app/actions.rs:687, tests/window_input.rs:657/888/1011 …; UiDesc::DEFAULT for tests); frame(&FrameIn, build); FrameIn::new(w, h) + builders; layer(i) -> Option<Layer>; layers() -> &[Layer] (or a named iterator)—U1a.3
 
