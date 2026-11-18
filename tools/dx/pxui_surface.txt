@@ -902,16 +902,13 @@ pxui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &[Seg
 pxui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::Ui::environment fn (&self) -> Environment
 pxui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
-pxui::Ui::field_drag fn (&self, field: &Handle) -> Option<(f32, f32)>
 pxui::Ui::focus_box fn (&mut self, box_: &Handle)
 pxui::Ui::font_size fn (&self) -> f32
-pxui::Ui::footer fn (&mut self, right: Option<&str>, hints: &[(&str, &str)])
 pxui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::Ui::frame_index fn (&self) -> u64
 pxui::Ui::gesture fn (&mut self, node: &Handle, opts: &GestureOpts) -> GestureState
 pxui::Ui::gesture_state fn (&mut self, node: &Handle) -> GestureState
 pxui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, grid: &GridList, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
-pxui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
 pxui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
 pxui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
 pxui::Ui::icon_button fn <K: Into<Key>>(&mut self, key: K, icon: Icon, name: &str, button: &IconButton<'_>) -> Response
@@ -919,17 +916,6 @@ pxui::Ui::id fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, f: F)
 pxui::Ui::image fn <K: Into<Key>>(&mut self, key: K, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
 pxui::Ui::ime fn (&self) -> Option<Ime>
 pxui::Ui::inject_a11y fn (&mut self, actions: &[A11yAction])
-pxui::Ui::inspector_bar fn (&mut self, hints: &[(&str, &str)], count: i64)
-pxui::Ui::inspector_body fn (&mut self, f: &mut dyn FnMut(&mut Ui))
-pxui::Ui::inspector_button fn (&mut self, key: &str, label: &str) -> bool
-pxui::Ui::inspector_header fn (&mut self, key: &str, kind: Option<&str>, badge: Option<&str>, index: Option<&str>, rename: Option<Rc<dyn Fn(&str) -> bool>>, actions: &[HeadAction], reset: Option<&str>, reset_enabled: bool, title: &str, detail: &str) -> Head
-pxui::Ui::inspector_label_x fn (&self) -> f32
-pxui::Ui::inspector_message fn (&mut self, key: &str, message: &str)
-pxui::Ui::inspector_readout fn (&mut self, width: Option<f32>, key: &str, label: &str, value: &str)
-pxui::Ui::inspector_row fn (&mut self, width: Option<f32>, pin: Option<bool>, key: &str, label: &str) -> (Handle, f32, f32, f32)
-pxui::Ui::inspector_section fn (&mut self, key: &str, expanded: bool, set_expanded: Option<bool>, label: &str, build: &mut dyn FnMut(&mut Ui)) -> bool
-pxui::Ui::inspector_toggle fn (&mut self, key: &str, label: &str, value: bool) -> bool
-pxui::Ui::inspector_width fn (&self) -> f32
 pxui::Ui::instance_id fn (&self) -> usize
 pxui::Ui::item_text fn (&mut self, text: &str)
 pxui::Ui::key_down fn (&self, key: KeyCode) -> bool
@@ -944,7 +930,6 @@ pxui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>>
 pxui::Ui::layer_count fn (&self) -> usize
 pxui::Ui::layers fn (&self) -> Layers<'_>
 pxui::Ui::library_calls fn (&self) -> u64
-pxui::Ui::line_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &LineField<'_>) -> LineFieldResponse<'_>
 pxui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
 pxui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::Ui::local_rect fn (&self, b: &Handle) -> Rect
@@ -1084,7 +1069,6 @@ pxui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
 pxui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::Ui::unfocus fn (&mut self)
-pxui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'_>
 pxui::Ui::verify_views fn (&mut self, on: bool)
 pxui::Ui::verifying fn (&self) -> bool
 pxui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
@@ -1297,6 +1281,23 @@ pxui::bodies::WindowConfig impl Deref
 pxui::bodies::WindowConfig struct (_)
 pxui::draw use pxui_types::draw
 pxui::event_text fn (event: &Event) -> &str
+pxui::ext mod
+pxui::ext::field_drag fn (ui: &Ui, field: &Handle) -> Option<(f32, f32)>
+pxui::ext::footer fn (ui: &mut Ui, right: Option<&str>, hints: &[(&str, &str)])
+pxui::ext::grip fn (ui: &mut Ui, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
+pxui::ext::inspector_bar fn (ui: &mut Ui, hints: &[(&str, &str)], count: i64)
+pxui::ext::inspector_body fn (ui: &mut Ui, f: &mut dyn FnMut(&mut Ui))
+pxui::ext::inspector_button fn (ui: &mut Ui, key: &str, label: &str) -> bool
+pxui::ext::inspector_header fn (ui: &mut Ui, key: &str, kind: Option<&str>, badge: Option<&str>, index: Option<&str>, rename: Option<Rc<dyn Fn(&str) -> bool>>, actions: &[HeadAction], reset: Option<&str>, reset_enabled: bool, title: &str, detail: &str) -> Head
+pxui::ext::inspector_label_x fn (ui: &Ui) -> f32
+pxui::ext::inspector_message fn (ui: &mut Ui, key: &str, message: &str)
+pxui::ext::inspector_readout fn (ui: &mut Ui, width: Option<f32>, key: &str, label: &str, value: &str)
+pxui::ext::inspector_row fn (ui: &mut Ui, width: Option<f32>, pin: Option<bool>, key: &str, label: &str) -> (Handle, f32, f32, f32)
+pxui::ext::inspector_section fn (ui: &mut Ui, key: &str, expanded: bool, set_expanded: Option<bool>, label: &str, build: &mut dyn FnMut(&mut Ui)) -> bool
+pxui::ext::inspector_toggle fn (ui: &mut Ui, key: &str, label: &str, value: bool) -> bool
+pxui::ext::inspector_width fn (ui: &Ui) -> f32
+pxui::ext::line_field fn <'a, K: Into<Key>>(ui: &'a mut Ui, key: K, value: &str, rect: Rect, field: &LineField<'_>) -> LineFieldResponse<'a>
+pxui::ext::value_field fn <'a, K: Into<Key>>(ui: &'a mut Ui, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'a>
 pxui::geom use pxui_types::geom
 pxui::guide mod
 pxui::hash_of fn <T: Hash + ?Sized>(value: &T) -> u64
@@ -1657,16 +1658,13 @@ pxui::ui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &
 pxui::ui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::ui::Ui::environment fn (&self) -> Environment
 pxui::ui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
-pxui::ui::Ui::field_drag fn (&self, field: &Handle) -> Option<(f32, f32)>
 pxui::ui::Ui::focus_box fn (&mut self, box_: &Handle)
 pxui::ui::Ui::font_size fn (&self) -> f32
-pxui::ui::Ui::footer fn (&mut self, right: Option<&str>, hints: &[(&str, &str)])
 pxui::ui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::ui::Ui::frame_index fn (&self) -> u64
 pxui::ui::Ui::gesture fn (&mut self, node: &Handle, opts: &GestureOpts) -> GestureState
 pxui::ui::Ui::gesture_state fn (&mut self, node: &Handle) -> GestureState
 pxui::ui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, grid: &GridList, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
-pxui::ui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
 pxui::ui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
 pxui::ui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
 pxui::ui::Ui::icon_button fn <K: Into<Key>>(&mut self, key: K, icon: Icon, name: &str, button: &IconButton<'_>) -> Response
@@ -1674,17 +1672,6 @@ pxui::ui::Ui::id fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, f: F)
 pxui::ui::Ui::image fn <K: Into<Key>>(&mut self, key: K, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
 pxui::ui::Ui::ime fn (&self) -> Option<Ime>
 pxui::ui::Ui::inject_a11y fn (&mut self, actions: &[A11yAction])
-pxui::ui::Ui::inspector_bar fn (&mut self, hints: &[(&str, &str)], count: i64)
-pxui::ui::Ui::inspector_body fn (&mut self, f: &mut dyn FnMut(&mut Ui))
-pxui::ui::Ui::inspector_button fn (&mut self, key: &str, label: &str) -> bool
-pxui::ui::Ui::inspector_header fn (&mut self, key: &str, kind: Option<&str>, badge: Option<&str>, index: Option<&str>, rename: Option<Rc<dyn Fn(&str) -> bool>>, actions: &[HeadAction], reset: Option<&str>, reset_enabled: bool, title: &str, detail: &str) -> Head
-pxui::ui::Ui::inspector_label_x fn (&self) -> f32
-pxui::ui::Ui::inspector_message fn (&mut self, key: &str, message: &str)
-pxui::ui::Ui::inspector_readout fn (&mut self, width: Option<f32>, key: &str, label: &str, value: &str)
-pxui::ui::Ui::inspector_row fn (&mut self, width: Option<f32>, pin: Option<bool>, key: &str, label: &str) -> (Handle, f32, f32, f32)
-pxui::ui::Ui::inspector_section fn (&mut self, key: &str, expanded: bool, set_expanded: Option<bool>, label: &str, build: &mut dyn FnMut(&mut Ui)) -> bool
-pxui::ui::Ui::inspector_toggle fn (&mut self, key: &str, label: &str, value: bool) -> bool
-pxui::ui::Ui::inspector_width fn (&self) -> f32
 pxui::ui::Ui::instance_id fn (&self) -> usize
 pxui::ui::Ui::item_text fn (&mut self, text: &str)
 pxui::ui::Ui::key_down fn (&self, key: KeyCode) -> bool
@@ -1699,7 +1686,6 @@ pxui::ui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>>
 pxui::ui::Ui::layer_count fn (&self) -> usize
 pxui::ui::Ui::layers fn (&self) -> Layers<'_>
 pxui::ui::Ui::library_calls fn (&self) -> u64
-pxui::ui::Ui::line_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &LineField<'_>) -> LineFieldResponse<'_>
 pxui::ui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
 pxui::ui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::ui::Ui::local_rect fn (&self, b: &Handle) -> Rect
@@ -1839,7 +1825,6 @@ pxui::ui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::ui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
 pxui::ui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::ui::Ui::unfocus fn (&mut self)
-pxui::ui::Ui::value_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &ValueField<'_>, callbacks: &ValueCallbacks<'_>) -> ValueFieldResponse<'_>
 pxui::ui::Ui::verify_views fn (&mut self, on: bool)
 pxui::ui::Ui::verifying fn (&self) -> bool
 pxui::ui::Ui::view_of fn <K: Into<Key>, T: Hash + ?Sized, F: FnMut(&mut Ui)>(&mut self, key: K, inputs: &T, f: F) -> Handle
