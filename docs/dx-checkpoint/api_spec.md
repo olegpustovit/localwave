@@ -31,6 +31,39 @@ twins where one call suffices). Names may differ only where an existing public t
     if ui.toggle_with("offline", "Offline mode", prefs.offline, &SETTING).changed { .. }
     ui.disabled(!prefs.offline, |ui| { ui.button_with("clear", "Clear offline cache", &Button::DEFAULT.danger()); });
 
+Host setup and input in U1a
+
+    let desc = UiDesc::new(Platform::Apple)
+        .font_size(15.0)
+        .fonts(&[FontData(FONT), FontData(MONO)]);
+    let mut ui = Ui::new(&desc)?;
+    register_bodies(&mut ui)?;
+    let mut theme = ThemeHandle::parse(APP_THEME)?;
+    theme.set_color(SURFACE, paper);
+    ui.set_theme(&theme)?;
+
+    let mut input = FrameIn::new(width, height).scale(pixel_scale).time(now);
+    input.wire.events = events.as_ptr();
+    input.wire.event_count = events.len();
+    ui.frame(&input, &mut |ui| {
+        if ui.key_pressed(KeyCode::Char('o'), Mods::META) { /* open */ }
+        ui.themed(&theme, &mut |ui| { /* build a scoped subtree */ });
+    })?;
+
+    for layer in ui.layers() {
+        /* consume the borrowed draw instances and dirty ranges */
+    }
+
+Keep event records and payloads alive during the frame. A host with a full `Input`
+can borrow it through `unsafe FrameIn::snapshot(&input)` with its backing spans live.
+Output queries copy the descriptor, and a renderer's acknowledgement preserves
+the bytes already lent to a layer reader. Body names resolve in the destination UI,
+with an error on root installation and a built-in fallback in a scoped theme.
+`Mods::ANY` accepts every modifier state, and `Mods::NONE` requires no modifiers.
+`Mods::META.with(Mods::SHIFT)` matches both modifiers on the same press.
+Accessible names clip at a UTF-8 boundary and report a live update as a boolean.
+The value and number setters return `Result<bool, Error>`.
+
 Rules
 - Style/option types (Label, Button, IconButton, Menu, MenuItem, Toggle, Dialog...) are Copy values with a `DEFAULT`
   (and named presets like Label::BODY/CAPTION/TITLE/MONO), and `const fn` builders taking self by value. A call site
