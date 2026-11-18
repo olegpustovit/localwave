@@ -136,6 +136,12 @@ pxui::ContextAtFn type <'a>= dyn Fn(&str, usize) -> CodeContext + 'a
 pxui::DescribeFn type <'a>= dyn Fn(&str, usize) -> Option<(usize, usize, String)> + 'a
 pxui::Dialog use pxui_types::ui::Dialog
 pxui::DialogButton use pxui_types::ui::DialogButton
+pxui::Disclosure impl Clone
+pxui::Disclosure impl Copy
+pxui::Disclosure impl Debug
+pxui::Disclosure struct
+pxui::Disclosure::DEFAULT const Disclosure
+pxui::Disclosure::variant fn const (self, variant: u16) -> Disclosure
 pxui::DismissOpts impl Clone
 pxui::DismissOpts impl Copy
 pxui::DismissOpts impl Debug
@@ -644,6 +650,13 @@ pxui::SearchFieldResponse impl Debug
 pxui::SearchFieldResponse struct <'a>
 pxui::SearchFieldResponse::changed field Option<&'a str>
 pxui::SearchFieldResponse::response field Response
+pxui::SectionIndex impl Clone
+pxui::SectionIndex impl Copy
+pxui::SectionIndex impl Debug
+pxui::SectionIndex struct <'a>
+pxui::SectionIndex::DEFAULT const SectionIndex<'a>
+pxui::SectionIndex::name fn const (self, name: &'a str) -> SectionIndex<'a>
+pxui::SectionIndex::variant fn const (self, variant: u16) -> SectionIndex<'a>
 pxui::Segment use pxui_types::ui::Segment
 pxui::Segmented use author::Segmented
 pxui::SelectionList use pxui_types::ui::SelectionList
@@ -891,7 +904,7 @@ pxui::Ui::canvas_over fn <F: FnMut(&mut Paint<'_>, Rect) + 'static>(&mut self, b
 pxui::Ui::captured fn (&self) -> bool
 pxui::Ui::carry fn (&mut self, from: Option<&Handle>, kind: &str, value: &str)
 pxui::Ui::carrying fn (&self) -> Option<PayloadRef<'_>>
-pxui::Ui::checkbox fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, checkbox: &Checkbox) -> Response
+pxui::Ui::checkbox fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, checkbox: &Checkbox<'_>) -> Response
 pxui::Ui::clipboard_request fn (&self) -> Option<&str>
 pxui::Ui::close_swipe fn (&mut self, node: &Handle)
 pxui::Ui::color fn (&self, token: ColorToken) -> Rgba
@@ -901,6 +914,7 @@ pxui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
 pxui::Ui::density fn (&self) -> f32
 pxui::Ui::dialog fn <K: Into<Key>>(&mut self, key: K, title: &str, buttons: &[DialogButton<'_>], dialog: &Dialog, body: &mut dyn FnMut(&mut Ui)) -> Chosen
 pxui::Ui::disabled fn <F: FnMut(&mut Ui)>(&mut self, disabled: bool, f: F)
+pxui::Ui::disclosure fn <K: Into<Key>>(&mut self, key: K, text: &str, open: bool, disclosure: &Disclosure, f: &mut dyn FnMut(&mut Ui)) -> Response
 pxui::Ui::dismiss_popup fn (&mut self)
 pxui::Ui::draw_revision fn (&self) -> u64
 pxui::Ui::drawn fn (&mut self, index: usize)
@@ -997,6 +1011,7 @@ pxui::Ui::register_progress_body fn (&mut self, name: &str, body: fn(&mut Ui, &P
 pxui::Ui::register_radio_body fn (&mut self, name: &str, body: fn(&mut Ui, &RadioConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_scroll_view_body fn (&mut self, name: &str, body: fn(&mut Ui, &ScrollViewConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_search_field_body fn (&mut self, name: &str, body: fn(&mut Ui, &SearchFieldConfig)) -> Result<BodyId, Error>
+pxui::Ui::register_section_index_body fn (&mut self, name: &str, body: fn(&mut Ui, &SectionIndexConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_segmented_body fn (&mut self, name: &str, body: fn(&mut Ui, &SegmentedConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_selection_list_body fn (&mut self, name: &str, body: fn(&mut Ui, &SelectionListConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_slider_body fn (&mut self, name: &str, body: fn(&mut Ui, &SliderConfig)) -> Result<BodyId, Error>
@@ -1027,6 +1042,7 @@ pxui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
+pxui::Ui::section_index fn <K: Into<Key>>(&mut self, key: K, letters: &[&str], index: &SectionIndex<'_>) -> PickResponse
 pxui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
 pxui::Ui::segmented fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> PickResponse
 pxui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
@@ -1238,6 +1254,9 @@ pxui::bodies::ScrollViewConfig struct (_)
 pxui::bodies::SearchFieldConfig impl BodyConfig
 pxui::bodies::SearchFieldConfig impl Deref
 pxui::bodies::SearchFieldConfig struct (_)
+pxui::bodies::SectionIndexConfig impl BodyConfig
+pxui::bodies::SectionIndexConfig impl Deref
+pxui::bodies::SectionIndexConfig struct (_)
 pxui::bodies::SegmentedConfig impl BodyConfig
 pxui::bodies::SegmentedConfig impl Deref
 pxui::bodies::SegmentedConfig struct (_)
@@ -1646,7 +1665,7 @@ pxui::ui::Ui::canvas_over fn <F: FnMut(&mut Paint<'_>, Rect) + 'static>(&mut sel
 pxui::ui::Ui::captured fn (&self) -> bool
 pxui::ui::Ui::carry fn (&mut self, from: Option<&Handle>, kind: &str, value: &str)
 pxui::ui::Ui::carrying fn (&self) -> Option<PayloadRef<'_>>
-pxui::ui::Ui::checkbox fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, checkbox: &Checkbox) -> Response
+pxui::ui::Ui::checkbox fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, checkbox: &Checkbox<'_>) -> Response
 pxui::ui::Ui::clipboard_request fn (&self) -> Option<&str>
 pxui::ui::Ui::close_swipe fn (&mut self, node: &Handle)
 pxui::ui::Ui::color fn (&self, token: ColorToken) -> Rgba
@@ -1656,6 +1675,7 @@ pxui::ui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
 pxui::ui::Ui::density fn (&self) -> f32
 pxui::ui::Ui::dialog fn <K: Into<Key>>(&mut self, key: K, title: &str, buttons: &[DialogButton<'_>], dialog: &Dialog, body: &mut dyn FnMut(&mut Ui)) -> Chosen
 pxui::ui::Ui::disabled fn <F: FnMut(&mut Ui)>(&mut self, disabled: bool, f: F)
+pxui::ui::Ui::disclosure fn <K: Into<Key>>(&mut self, key: K, text: &str, open: bool, disclosure: &Disclosure, f: &mut dyn FnMut(&mut Ui)) -> Response
 pxui::ui::Ui::dismiss_popup fn (&mut self)
 pxui::ui::Ui::draw_revision fn (&self) -> u64
 pxui::ui::Ui::drawn fn (&mut self, index: usize)
@@ -1752,6 +1772,7 @@ pxui::ui::Ui::register_progress_body fn (&mut self, name: &str, body: fn(&mut Ui
 pxui::ui::Ui::register_radio_body fn (&mut self, name: &str, body: fn(&mut Ui, &RadioConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_scroll_view_body fn (&mut self, name: &str, body: fn(&mut Ui, &ScrollViewConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_search_field_body fn (&mut self, name: &str, body: fn(&mut Ui, &SearchFieldConfig)) -> Result<BodyId, Error>
+pxui::ui::Ui::register_section_index_body fn (&mut self, name: &str, body: fn(&mut Ui, &SectionIndexConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_segmented_body fn (&mut self, name: &str, body: fn(&mut Ui, &SegmentedConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_selection_list_body fn (&mut self, name: &str, body: fn(&mut Ui, &SelectionListConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_slider_body fn (&mut self, name: &str, body: fn(&mut Ui, &SliderConfig)) -> Result<BodyId, Error>
@@ -1782,6 +1803,7 @@ pxui::ui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::ui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
+pxui::ui::Ui::section_index fn <K: Into<Key>>(&mut self, key: K, letters: &[&str], index: &SectionIndex<'_>) -> PickResponse
 pxui::ui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
 pxui::ui::Ui::segmented fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> PickResponse
 pxui::ui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
@@ -3166,12 +3188,28 @@ pxui_types::ffi::PxuiCellBuild type = Option<extern "C" fn(*mut c_void, *mut c_v
 pxui_types::ffi::PxuiCheckConfig impl Clone
 pxui_types::ffi::PxuiCheckConfig impl Copy
 pxui_types::ffi::PxuiCheckConfig struct
+pxui_types::ffi::PxuiCheckConfig::box_size field f32
 pxui_types::ffi::PxuiCheckConfig::label field Str
 pxui_types::ffi::PxuiCheckConfig::on field u8
+pxui_types::ffi::PxuiCheckConfig::passive field u8
+pxui_types::ffi::PxuiCheckConfig::reserved2 field [u8; 3]
 pxui_types::ffi::PxuiCheckConfig::row field PxuiBox
 pxui_types::ffi::PxuiCheckConfig::size field u32
 pxui_types::ffi::PxuiCheckConfig::state field PxuiStateDesc
+pxui_types::ffi::PxuiCheckConfig::states field *const States
 pxui_types::ffi::PxuiCheckConfig::variant field u16
+pxui_types::ffi::PxuiCheckboxDesc impl Clone
+pxui_types::ffi::PxuiCheckboxDesc impl Copy
+pxui_types::ffi::PxuiCheckboxDesc struct
+pxui_types::ffi::PxuiCheckboxDesc::box_size field f32
+pxui_types::ffi::PxuiCheckboxDesc::disabled field u8
+pxui_types::ffi::PxuiCheckboxDesc::key field Str
+pxui_types::ffi::PxuiCheckboxDesc::look field *const PxuiLookDesc
+pxui_types::ffi::PxuiCheckboxDesc::on field u8
+pxui_types::ffi::PxuiCheckboxDesc::passive field u8
+pxui_types::ffi::PxuiCheckboxDesc::reserved field u8
+pxui_types::ffi::PxuiCheckboxDesc::size field u32
+pxui_types::ffi::PxuiCheckboxDesc::text field Str
 pxui_types::ffi::PxuiCollectionEmit type = Option<extern "C" fn(*mut c_void, Str)>
 pxui_types::ffi::PxuiCollectionText type = Option<extern "C" fn(*mut c_void, usize, usize, PxuiCollectionEmit, *mut c_void)>
 pxui_types::ffi::PxuiColorSpan impl Clone
@@ -5193,6 +5231,7 @@ pxui_types::theme::Bodies::progress field BodyId
 pxui_types::theme::Bodies::radio field BodyId
 pxui_types::theme::Bodies::scroll_view field BodyId
 pxui_types::theme::Bodies::search_field field BodyId
+pxui_types::theme::Bodies::section_index field BodyId
 pxui_types::theme::Bodies::segmented field BodyId
 pxui_types::theme::Bodies::selection_list field BodyId
 pxui_types::theme::Bodies::set fn (&mut self, kind: &str, id: BodyId) -> bool
@@ -5250,6 +5289,7 @@ pxui_types::theme::BodyKind::progress variant
 pxui_types::theme::BodyKind::radio variant
 pxui_types::theme::BodyKind::scroll_view variant
 pxui_types::theme::BodyKind::search_field variant
+pxui_types::theme::BodyKind::section_index variant
 pxui_types::theme::BodyKind::segmented variant
 pxui_types::theme::BodyKind::selection_list variant
 pxui_types::theme::BodyKind::slider variant
@@ -5575,13 +5615,20 @@ pxui_types::ui mod
 pxui_types::ui::Checkbox impl Clone
 pxui_types::ui::Checkbox impl Copy
 pxui_types::ui::Checkbox impl Debug
-pxui_types::ui::Checkbox impl Eq
 pxui_types::ui::Checkbox impl PartialEq
 pxui_types::ui::Checkbox impl StructuralPartialEq
-pxui_types::ui::Checkbox struct
-pxui_types::ui::Checkbox::DEFAULT const Checkbox
+pxui_types::ui::Checkbox struct <'a>
+pxui_types::ui::Checkbox::DEFAULT const Checkbox<'a>
+pxui_types::ui::Checkbox::disabled field bool
+pxui_types::ui::Checkbox::disabled fn const (self, disabled: bool) -> Checkbox<'a>
+pxui_types::ui::Checkbox::look field Option<&'a States>
+pxui_types::ui::Checkbox::look fn const (self, looks: &'a States) -> Checkbox<'a>
+pxui_types::ui::Checkbox::passive field bool
+pxui_types::ui::Checkbox::passive fn const (self, passive: bool) -> Checkbox<'a>
+pxui_types::ui::Checkbox::size field Option<f32>
+pxui_types::ui::Checkbox::size fn const (self, points: f32) -> Checkbox<'a>
 pxui_types::ui::Checkbox::variant field u16
-pxui_types::ui::Checkbox::variant fn const (self, variant: u16) -> Checkbox
+pxui_types::ui::Checkbox::variant fn const (self, variant: u16) -> Checkbox<'a>
 pxui_types::ui::Chosen impl Clone
 pxui_types::ui::Chosen impl Copy
 pxui_types::ui::Chosen impl Debug
