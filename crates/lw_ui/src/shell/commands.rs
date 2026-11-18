@@ -137,7 +137,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
             (view - 32.0).clamp(0.0, 600.0) - 40.0
         };
         let placeholder = ui.node(
-            "prompt".into(),
+            "prompt",
             Node {
                 at: Some((if find { 0.0 } else { 20.0 }, 0.0)).into(),
                 ..Node::row().w_px(room.max(1.0)).h_px(height).align(Align::Center)
@@ -153,7 +153,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
             .ellipsis();
         ui.within(&placeholder, &mut |ui| {
             let line = ui.node(
-                "line".into(),
+                "line",
                 Node {
                     look: Look::NONE.text(Rgba::token(if find { TERTIARY } else { SECONDARY })).font(font),
                     ..Node::column().w(Size::Grow).h_px(size as f32 * 1.4)
@@ -189,7 +189,7 @@ fn overlay(
     // Press-outside dismissal is the popup's; shell() draws the dim over the live page.
     let open = ui.popup(key, &Overlay::DEFAULT.at(content.x + (content.w - width) * 0.5, content.y + top).w(width).h(60.0).max_h(max_height).name(label), |ui| {
             let card = ui.node(
-                "card".into(),
+                "card",
                 Node {
                     max_h: max_height,
                     look: PAPER_FILL,
@@ -323,7 +323,7 @@ fn result_row(
     intent: &mut Option<Intent>,
 ) {
     let row = ui.node(
-        "item".into(),
+        "item",
         Node {
             look: if selected { SELECTED_FILL } else { Look::NONE },
             ..Node::row()
@@ -461,7 +461,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
         intent,
         &mut |ui, _| {
             ui.scroll_view("shortcuts", Size::Grow, Size::Grow, |ui| {
-                let body = ui.node("body".into(), Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
+                let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
                     ui.label("Keyboard", TEXT_18.grow().color(INK));
                     ui.column("rows", Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
@@ -472,14 +472,14 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                             );
                             ui.within(&row, &mut |ui| {
                                 let node = ui.node(
-                                    "label".into(),
+                                    "label",
                                     Node {
                                         look: INK_TEXT,
                                         ..Node::column().w_px(half).h_px(heights[index]).role(Role::Label)
                                     },
                                 );
                                 ui.text_line_box(&node, label, &KEY_LABEL, &[]).unwrap();
-                                ui.node("fill".into(), Node::DEFAULT.w(Size::Grow));
+                                ui.node("fill", Node::DEFAULT.w(Size::Grow));
                                 ui.label(key, MONO_DIM);
                             });
                         }
@@ -760,7 +760,7 @@ mod tests {
         }
         assert!(ui.text_input_focused());
         assert_eq!(
-            ui.text_input_options(),
+            ui.text_traits(),
             pxui::TextTraits::SEARCH
         );
         let field = ui

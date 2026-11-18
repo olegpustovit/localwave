@@ -97,7 +97,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             });
             rule(ui, "step-rule", false);
         }
-        ui.node("onboarding-flex".into(), Node::DEFAULT.h(Size::Grow));
+        ui.node("onboarding-flex", Node::DEFAULT.h(Size::Grow));
         ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
         spacer(ui, "choose-gap", 12.0);
         let node = Node::row().w(Size::Grow).h_px(52.0).center().role(Role::Button);
@@ -114,7 +114,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             if underlined(ui, "pick-files", "Pick some files") {
                 *intent = Some(Intent::ChooseAudio);
             }
-            ui.node("links-flex".into(), Node::DEFAULT.w(Size::Grow));
+            ui.node("links-flex", Node::DEFAULT.w(Size::Grow));
             if underlined(ui, "explore", "Explore the library") {
                 *intent = Some(Intent::Navigate(Route::Albums));
             }
@@ -128,7 +128,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
 /// Swift's "Google Drive not in the list?" disclosure with its bordered 1px frame.
 fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
     let frame = ui.node(
-        "drive-frame".into(),
+        "drive-frame",
         Node {
             look: LINE_FILL,
             ..Node::column().w(Size::Grow).h(Size::Fit).pad(1.0)
@@ -144,7 +144,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
             },
             |ui| {
                 let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {
-                    let marker = ui.node("marker".into(), Node::column().w_px(40.0 / 3.0).h_px(19.5));
+                    let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
                     let ink = ui.color(INK);
                     ui.canvas(&marker, move |paint, rect| {
                         // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.

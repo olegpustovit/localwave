@@ -27,7 +27,7 @@ fn label(
     role: Role,
 ) -> Handle {
     let node = ui.node(
-        key.into(),
+        key,
         Node {
             at: Some((rect.x, rect.y)).into(),
             look: Look::NONE.text(color),
@@ -172,7 +172,7 @@ fn heading(
     intent: &mut Option<Intent>,
 ) -> Handle {
     let root = ui.node(
-        "song-columns".into(),
+        "song-columns",
         Node {
             look: PAPER_FILL,
             ..Node::column().w(Size::Grow).h_px(layout.height)
@@ -225,7 +225,7 @@ fn heading(
                     });
                     (heading.handle, heading.clicked)
                 } else {
-                    let heading = ui.node((column as i64).into(), node);
+                    let heading = ui.node(column as i64, node);
                     if column == Column::Time {
                         ui.within(&heading, &mut |ui| time_label(ui));
                     }
@@ -328,7 +328,7 @@ pub(super) fn table(
     if find {
         header_view(ui, catalog, state, width, intent);
     }
-    let scope = ui.node("song-results-scope".into(), Node::column().w(Size::Grow).h(Size::Grow));
+    let scope = ui.node("song-results-scope", Node::column().w(Size::Grow).h(Size::Grow));
     let (mut first, mut end) = (usize::MAX, 0);
     ui.within(&scope, &mut |ui| {
         let results = ui.node(
@@ -353,7 +353,7 @@ pub(super) fn table(
                     }
                     SectionPart::Leading => header_view(ui, catalog, state, width, intent),
                     SectionPart::Header => {
-                        let list = ui.box_of_key(list_key).unwrap();
+                        let list = ui.box_of_key(pxui::Key::Resolved(list_key)).unwrap();
                         viewport.offset = ui.scroll(&list).painted;
                         viewport.height = ui.rect(&list).h;
                         heading(ui, widths, applied, heading_layout, intent);

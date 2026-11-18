@@ -46,7 +46,7 @@ pub(super) fn container(
     fill: Rgba,
 ) -> Handle {
     ui.node(
-        key.into(),
+        key,
         Node {
             axis,
             look: Look::NONE.fill(fill),
@@ -55,7 +55,7 @@ pub(super) fn container(
     )
 }
 pub(super) fn spacer(ui: &mut Ui, key: &'static str, height: f32) {
-    ui.node(key.into(), Node::DEFAULT.h(Size::Px(height)));
+    ui.node(key, Node::DEFAULT.h(Size::Px(height)));
 }
 pub(super) fn rule(ui: &mut Ui, key: &'static str, vertical: bool) {
     container(
@@ -82,10 +82,13 @@ pub(super) fn paint_artwork(
     {
         // a descriptor that went bad between frames draws nothing (`Paint::image` refuses it)
         ui.canvas(node, move |paint, rect| {
-            let _ = paint.image(rect, &image, Fit::Cover, Rgba::rgb(255, 255, 255));
+            let _ = paint.image(rect, &image, &COVER_ART);
         });
     }
 }
+
+/// Cover art fills its square, cropped, untinted.
+const COVER_ART: pxui::ImageStyle = pxui::ImageStyle::DEFAULT.fit(Fit::Cover);
 
 #[derive(Clone, Copy)]
 pub(super) enum Icon {
@@ -535,9 +538,9 @@ pub(super) mod button_tests {
             crate::testing::frame(&mut ui, &input(time, &[]), &mut build).unwrap();
         }
         let key = pxui::ui::key_of(ROOT_KEY, "test-button");
-        let button = ui.box_of_key(key).unwrap();
+        let button = ui.box_of_key(pxui::Key::Resolved(key)).unwrap();
         let surface = ui
-            .box_of_key(pxui::ui::key_of(pxui::ui::key_of(key, "visual"), "surface"))
+            .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(pxui::ui::key_of(key, "visual"), "surface")))
             .unwrap();
         let original = ui.rect(&button);
         let pointer = |kind| Event {

@@ -107,8 +107,8 @@ lw_ui/src/shell/compact/list.rs	R1	Node {
 lw_ui/src/shell/compact/list.rs	R1	Node {
 lw_ui/src/shell/compact/list.rs	R1	Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
 lw_ui/src/shell/compact/list.rs	R1	Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
-lw_ui/src/shell/compact/list.rs	R1	let deck = ui.node("selection-bar".into(), Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
-lw_ui/src/shell/compact/list.rs	R1	let deck = ui.node("selection-bar".into(), Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
+lw_ui/src/shell/compact/list.rs	R1	let deck = ui.node("selection-bar", Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
+lw_ui/src/shell/compact/list.rs	R1	let deck = ui.node("selection-bar", Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
 lw_ui/src/shell/compact/list.rs	R1	let node = Node {
 lw_ui/src/shell/compact/list.rs	R1	let node = Node {
 lw_ui/src/shell/compact/list.rs	R1	let row_node = Node {
@@ -190,18 +190,18 @@ lw_ui/src/shell/files.rs	R1	Node { margin: Edges { b: 16.0, ..Edges::ZERO }, ..N
 lw_ui/src/shell/files.rs	R1	Node { margin: Edges { b: 16.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit) },
 lw_ui/src/shell/files.rs	R1	Node { padding: Edges { r: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
 lw_ui/src/shell/files.rs	R1	Node { padding: Edges { r: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
-lw_ui/src/shell/files.rs	R1	let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
-lw_ui/src/shell/files.rs	R1	let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
-lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error".into(), Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
-lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error".into(), Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
-lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error".into(), Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
-lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error".into(), Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
-lw_ui/src/shell/files.rs	R1	let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let tools = ui.node("folder-tools".into(), Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
-lw_ui/src/shell/files.rs	R1	let tools = ui.node("folder-tools".into(), Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
+lw_ui/src/shell/files.rs	R1	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R1	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R1	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+lw_ui/src/shell/files.rs	R1	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error", Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
+lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error", Node { margin: Edges { t: 20.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center) });
+lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error", Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
+lw_ui/src/shell/files.rs	R1	let row = ui.node("folder-error", Node { margin: Edges { t: 8.0, ..Edges::ZERO }, look: INK_OUTLINE, ..Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center) });
+lw_ui/src/shell/files.rs	R1	let select = ui.node("select", Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R1	let select = ui.node("select", Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R1	let tools = ui.node("folder-tools", Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
+lw_ui/src/shell/files.rs	R1	let tools = ui.node("folder-tools", Node { wrap: compact, padding: Edges { b: 15.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
 lw_ui/src/shell/files.rs	R1	margin: Edges { b: 8.0, ..Edges::ZERO },
 lw_ui/src/shell/files.rs	R1	padding: Edges { l: 8.0, r: if end { 20.0 } else { 8.0 }, ..Edges::ZERO },
 lw_ui/src/shell/files.rs	R1	padding: Edges { l: inset, r: inset, t: if directory.is_none() { if compact { 6.0 } else { 10.0 } } else { 0.0 }, b: 12.0 },
@@ -227,16 +227,16 @@ lw_ui/src/shell/files.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/files.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
 lw_ui/src/shell/files.rs	R2	Node { padding: Edges { r: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
 lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),
-lw_ui/src/shell/files.rs	R2	let add = ui.node("add-music".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
-lw_ui/src/shell/files.rs	R2	let back = ui.node("Back".into(), Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let more = ui.node("actions".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options".into(), Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R2	let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
-lw_ui/src/shell/files.rs	R2	let select = ui.node("select".into(), Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R2	let show = ui.node("show".into(), Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let tab = ui.node(key.into(), Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let add = ui.node("add-music", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
+lw_ui/src/shell/files.rs	R2	let back = ui.node("Back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R2	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node { padding: Edges { l: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R2	let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R6	_ => mark(ui, entry.directory, ui.color(SECONDARY)),
 lw_ui/src/shell/files.rs	R6	container(ui, "fill", Axis::Column, Size::Pct(files.offline_fraction), Size::Grow, ui.color(INK));
 lw_ui/src/shell/files.rs	R6	container(ui, "fill", Axis::Column, Size::Pct(folder.local), Size::Grow, ui.color(INK));
@@ -252,9 +252,9 @@ lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
 lw_ui/src/shell/files.rs	R6	let color = ui.color(tone);
 lw_ui/src/shell/files.rs	R6	let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
 lw_ui/src/shell/files.rs	R6	let label = container(ui, "offline-label", Axis::Row, Size::Grow, Size::Px(19.6), ui.color(PAPER));
-lw_ui/src/shell/files.rs	R6	let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R6	let node = ui.node(id.into(), Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R6	let option = ui.node(key.into(), Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+lw_ui/src/shell/files.rs	R6	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R6	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R6	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
 lw_ui/src/shell/files.rs	R6	let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(if compact { 44.0 } else { 40.0 }), ui.color(PANEL));
 lw_ui/src/shell/files.rs	R6	let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
 lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
@@ -334,7 +334,7 @@ lw_ui/src/shell/queue_sheet.rs	R1	Node {
 lw_ui/src/shell/queue_sheet.rs	R1	Node {
 lw_ui/src/shell/queue_sheet.rs	R1	Node {
 lw_ui/src/shell/queue_sheet.rs	R1	Node {
-lw_ui/src/shell/queue_sheet.rs	R1	let copy = ui.node("label".into(), Node { look: QUEUE_ACTION_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+lw_ui/src/shell/queue_sheet.rs	R1	let copy = ui.node("label", Node { look: QUEUE_ACTION_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
 lw_ui/src/shell/queue_sheet.rs	R1	let item_node = Node {
 lw_ui/src/shell/queue_sheet.rs	R1	let node = Node {
 lw_ui/src/shell/queue_sheet.rs	R1	let node = Node {
@@ -372,7 +372,7 @@ lw_ui/src/shell/settings.rs	R1	let strip = Node { look: PANEL_FILL, ..Node::row(
 lw_ui/src/shell/settings.rs	R1	padding: Edges {
 lw_ui/src/shell/settings.rs	R1	ui.column("labels", Node { justify: Justify::Center, ..Node::column().w(Size::Grow).h(Size::Fit) }, |ui| {
 lw_ui/src/shell/settings.rs	R1	ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
-lw_ui/src/shell/settings.rs	R1	ui.node("knob".into(), Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
+lw_ui/src/shell/settings.rs	R1	ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
 lw_ui/src/shell/settings.rs	R1	ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
 lw_ui/src/shell/settings.rs	R2	..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
@@ -386,8 +386,8 @@ lw_ui/src/shell/settings.rs	R7	let rescan = ui.pressable("rescan", ROW.role(Role
 lw_ui/src/shell/sidebar.rs	R1	Node {
 lw_ui/src/shell/sidebar.rs	R1	Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
 lw_ui/src/shell/sidebar.rs	R1	Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
-lw_ui/src/shell/sidebar.rs	R1	let copy = ui.node("label".into(), Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
-lw_ui/src/shell/sidebar.rs	R1	let copy = ui.node("label".into(), Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+lw_ui/src/shell/sidebar.rs	R1	let copy = ui.node("label", Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+lw_ui/src/shell/sidebar.rs	R1	let copy = ui.node("label", Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
 lw_ui/src/shell/sidebar.rs	R1	let node = Node {
 lw_ui/src/shell/sidebar.rs	R1	margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
 lw_ui/src/shell/sidebar.rs	R1	padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },

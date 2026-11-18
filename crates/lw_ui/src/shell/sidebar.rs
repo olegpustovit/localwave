@@ -46,7 +46,7 @@ fn side_item(
         if !badge.is_empty() {
             let tag = ui.label(badge, TEXT_11.h_px(16.0).color(PAPER));
             ui.set_look(&tag, BADGE, State::default());
-            ui.node("badge-gap".into(), Node::DEFAULT.w(Size::Grow));
+            ui.node("badge-gap", Node::DEFAULT.w(Size::Grow));
         }
         ui.label(count, MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY));
     });
@@ -77,7 +77,7 @@ const GROUP: Label = TEXT_12.grow().h_px(30.0).color(SECONDARY);
 fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
     let row = ui.button_content(key, &ADD_ROW, |ui, _| {
         // the text starts 8 points in, as Swift's does; `button_with` centres it
-        let copy = ui.node("label".into(), Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        let copy = ui.node("label", Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
         ui.text(&copy, title);
     });
     ui.a11y_name(&row.handle, name);

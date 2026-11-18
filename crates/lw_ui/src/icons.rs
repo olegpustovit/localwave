@@ -119,7 +119,7 @@ mod tests {
                     &mut ui,
                     &pxui::FrameIn::new(40.0, 40.0).scale(scale),
                     &mut |ui| {
-                        let node = ui.node("icon".into(), pxui::ui::Node::column().w_px(size).h_px(size));
+                        let node = ui.node("icon", pxui::ui::Node::column().w_px(size).h_px(size));
                         ui.canvas(&node, |paint, rect| {
                             shuffle(
                                 paint,

@@ -149,7 +149,7 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                     &FrameIn::new(400.0, 100.0).scale(scale).time(round as f64),
                     &mut |ui| {
                         let a = ui.node(
-                            "line-box".into(),
+                            "line-box",
                             pxui::ui::Node {
                                 at: Some((20.0, 20.0)).into(),
                                 look: pxui::ui::Look {

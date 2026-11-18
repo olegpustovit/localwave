@@ -136,7 +136,7 @@ pub(super) fn desktop(
     let sidebar_width = if width >= 900.0 { 231.0 } else { 180.0 };
     let content_width = (width - sidebar_width - 1.0 - if panel { 320.0 } else { 0.0 }).max(100.0);
     let root = ui.node(
-        "shell".into(),
+        "shell",
         Node {
             padding: Edges {
                 l: safe_left,

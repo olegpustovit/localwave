@@ -871,7 +871,7 @@ impl Perf {
                     let position = pxui::ui::key_of(root.box_key, key);
                     let visual = pxui::ui::key_of(position, "bar");
                     let fill = ui
-                        .box_of_key(pxui::ui::key_of(visual, "fill"))
+                        .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(visual, "fill")))
                         .ok_or("Song indicator workload lost a retained bar")?;
                     // Retained scale lives in the view table; source instances stay full height.
                     let rect = ui.rect(&fill);

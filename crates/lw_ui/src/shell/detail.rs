@@ -66,7 +66,7 @@ pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f
         + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
 }
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
-    let row = ui.node("back-row".into(), Node::column().w(Size::Grow).h_px(BACK));
+    let row = ui.node("back-row", Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
         const BUTTON: pxui::Button = pxui::Button::sized(96.0, BACK).look(&BARE).name("Back");
         let back = ui.button_content("back", &BUTTON, |ui, _| {
@@ -74,7 +74,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
                 "content",
                 Node { padding: Edges { l: 26.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End) },
                 |ui| {
-                    let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+                    let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
                     ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
                     ui.label("Back", BODY_DIM);
@@ -96,7 +96,7 @@ pub(super) fn line(
     flags: Flags,
 ) -> Handle {
     let node = ui.node(
-        key.into(),
+        key,
         Node {
             flags,
             look: Look::NONE.text(color),
@@ -178,7 +178,7 @@ pub(super) fn header(
                 back_row(ui, if album { Route::Albums } else { Route::Artists }, intent);
                 let row = album && wide(width) || !album && !stacked(width);
                 let root = ui.node(
-                    "detail-header".into(),
+                    "detail-header",
                     Node {
                         axis: if row { Axis::Row } else { Axis::Column },
                         padding: if album {
@@ -336,7 +336,7 @@ fn album_grid(
 ) {
     let (columns, cell) = grid(width);
     let grid = ui.node(
-        "album-grid".into(),
+        "album-grid",
         Node {
             padding: Edges { l: 32.0, r: 32.0, b: 40.0, ..Edges::ZERO },
             ..Node::column().w(Size::Grow).h_px(grid_height(width, cards.len())).gap(ROW_GAP)

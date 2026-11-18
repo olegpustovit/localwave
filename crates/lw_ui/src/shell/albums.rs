@@ -14,7 +14,7 @@ pub(super) fn toolbar(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
-    let row = ui.node("album-tools".into(), Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
+    let row = ui.node("album-tools", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
     ui.within(&row, &mut |ui| {
         for (value, key, title) in [
             (AlbumSort::Artist, "sort-artist", "Artist"),
@@ -48,10 +48,10 @@ pub(super) fn toolbar(
                 *intent = Some(Intent::SortAlbums(value));
             }
         }
-        ui.node("flex".into(), Node::DEFAULT.w(Size::Grow));
+        ui.node("flex", Node::DEFAULT.w(Size::Grow));
         let node = Node::row().w(Size::Fit).h_px(30.0).gap(6.0).pad_x(10.0).align(Align::Center).role(Role::Button);
         let button = ui.pressable("shuffle-all", node, &PLAIN.enabled(!catalog.is_empty()), |ui, _| {
-            let icon = ui.node("icon".into(), Node::column().w_px(16.0).h_px(16.0));
+            let icon = ui.node("icon", Node::column().w_px(16.0).h_px(16.0));
             ui.canvas(&icon, move |paint, rect| {
                 crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
             });
@@ -129,7 +129,7 @@ pub(super) fn gallery(
                                 ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
                             };
                             let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {
-                                let art = ui.node("artwork".into(), ARTWORK.h_px(cell));
+                                let art = ui.node("artwork", ARTWORK.h_px(cell));
                                 paint_artwork(
                                     ui,
                                     &art,

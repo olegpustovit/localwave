@@ -923,7 +923,7 @@ pub fn shell(
     if state.song_menu.is_some() && ui.view_size().0 < compact::BREAKPOINT {
         let scrim = ui.view_of("song-menu-backdrop", &0, |ui| {
             ui.node(
-                "scrim".into(),
+                "scrim",
                 Node {
                     look: SCRIM,
                     ..Node::column().w(Size::Grow).h(Size::Grow)

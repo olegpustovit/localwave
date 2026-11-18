@@ -130,7 +130,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         ..
     } = *cx;
     let row = catalog.row(collection.rows[index]);
-    let cell = ui.node("swipe-row".into(), Node::stack().w(Size::Grow).h(Size::Grow).flags(Flags::CLIP));
+    let cell = ui.node("swipe-row", Node::stack().w(Size::Grow).h(Size::Grow).flags(Flags::CLIP));
     ui.within(&cell, &mut |ui| {
         let selected = state.selected == Some(index);
         let row_node = Node {
@@ -214,7 +214,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         // Touch only: a mouse never starts a gesture, so desktop rows read rest.
         let g = ui.gesture(
             &node.handle,
-            if selecting { SELECTING_ROW } else { SWIPE_ROW },
+            &if selecting { SELECTING_ROW } else { SWIPE_ROW },
         );
         let active = g.swiping || g.swipe_open;
         match state.open_swipe.get() {
@@ -328,7 +328,7 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
     ui.a11y_name(&grip.handle, "Reorder track");
     // The finger takes the handle at once as a held press, so the list neither scrolls nor refreshes.
-    ui.gesture(&grip.handle, HELD_TOUCH);
+    ui.gesture(&grip.handle, &HELD_TOUCH);
     ui.canvas(&grip.handle, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
             paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(paint.color(SECONDARY)));
@@ -381,10 +381,7 @@ fn more_button(ui: &mut Ui, label: &str) -> bool {
 /// `refreshing` holds from release until `end_refresh`, so its first frame starts the load; it can
 /// read once more after the end, which `refresh_ending` keeps from starting another.
 fn refresh(ui: &mut Ui, list: &Handle, state: &ShellState, intent: &mut Option<Intent>) {
-    let pull = ui.gesture(
-        list,
-        PULL,
-    );
+    let pull = ui.gesture(list, &PULL);
     if !pull.refreshing {
         state.refresh_ending.set(false);
         state.refresh_wait.set(None);
@@ -432,7 +429,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
         },
         |ui| {
             let rail = ui.node(
-                "index".into(),
+                "index",
                 Node::column().w_px(RAIL_WIDTH).h_px(collection.sections.len() as f32 * RAIL_STEP).role(Role::Group),
             );
             ui.a11y_name(&rail, "Section index");
@@ -454,7 +451,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
                     });
                     ui.a11y_name(&key.handle, letter);
                     // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
-                    ui.gesture(&key.handle, HELD_TOUCH);
+                    ui.gesture(&key.handle, &HELD_TOUCH);
                     let signal = ui.signal(&key.handle);
                     if signal.held {
                         dragging = true;
@@ -625,7 +622,7 @@ fn back_row(
             const BACK: pxui::Button = pxui::Button::sized(96.0, 44.0).look(&BARE).name("Back");
             let back = ui.button_content("back", &BACK, |ui, _| {
                 ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
-                    let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+                    let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
                     ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
                     ui.label(label, LEAD_DIM);
@@ -688,7 +685,7 @@ pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
     let key = PLAY_KEY.look(&PANEL_LOOKS).name(label);
     ui.button_content("keep-offline", &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
-            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
             let color = ui.color(INK);
             ui.canvas(&glyph, move |paint, rect| {
                 crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
@@ -776,7 +773,7 @@ const WORD: pxui::Button =
 
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
 pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
-    let node = ui.node("checkbox".into(), Node::column().w_px(20.0).h_px(20.0));
+    let node = ui.node("checkbox", Node::column().w_px(20.0).h_px(20.0));
     let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
     ui.canvas(&node, move |paint, rect| {
         if marked {
@@ -793,7 +790,7 @@ pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
 pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
     let mut pressed = None;
     ui.column("selection-holder", Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow) }, |ui| {
-        let deck = ui.node("selection-bar".into(), Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
+        let deck = ui.node("selection-bar", Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
         ui.set_role(&deck, Role::Group, 0);
         ui.a11y_name(&deck, "Selection actions");
         ui.within(&deck, &mut |ui| {
@@ -810,7 +807,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                     ..Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button)
                 };
                 let key_node = ui.pressable(key, node, &PLAIN.enabled(enabled), |ui, _| {
-                    let icon = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+                    let icon = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
                     ui.canvas(&icon, move |paint, rect| match key {
                         "add-to-list" => {
                             paint.fill(Rect::new(rect.x + 3.0, rect.y + 9.25, 14.0, 1.5), Fill::new(ink));
@@ -921,7 +918,7 @@ pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, 
     let color = ui.color(tone);
     ui.button_content(id, &key, |ui, _| {
         ui.row("content", KEY_CONTENT, |ui| {
-            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
             ui.canvas(&glyph, move |paint, rect| {
                 kit::paint_icon(paint, icon, rect.x, rect.y, color)
             });

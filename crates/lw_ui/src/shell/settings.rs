@@ -12,7 +12,7 @@ use lw_core::preferences::{Appearance, Change, Signal};
 
 fn back(ui: &mut Ui, key: &'static str, name: &'static str) -> bool {
     let button = ui.node(
-        key.into(),
+        key,
         Node {
             look: BACK_TEXT,
             ..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
@@ -50,7 +50,7 @@ pub(super) fn paragraph(
         .measure(value, &label, width.max(1.0))
         .unwrap();
     let node = ui.node(
-        key.into(),
+        key,
         Node {
             look: Look::NONE.text(color),
             ..Node::column().w(Size::Grow).h_px(metrics.height.max(size * 1.4)).role(Role::Paragraph)
@@ -95,7 +95,7 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     let track = if on { TRACK_ON } else { TRACK };
     ui.column("switch", Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
         let at = Some((if on { 23.0 } else { 3.0 }, 3.0)).into();
-        ui.node("knob".into(), Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
+        ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
     });
     hairline(ui, &c.row);
 }
@@ -116,7 +116,7 @@ fn option(
     let (label, name) = labels;
     let (change, menu) = action;
     let button = ui.node(
-        key.into(),
+        key,
         Node {
             min_w: 40.0,
             look: if selected { CHOICE_ON } else { CHOICE },
@@ -156,7 +156,7 @@ pub(super) fn view(
     intent: &mut Option<Intent>,
 ) {
     let page = ui.node(
-        "settings-page".into(),
+        "settings-page",
         Node {
             padding: Edges {
                 t: 10.0,
@@ -180,7 +180,7 @@ pub(super) fn view(
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
-        let title = ui.node("settings-title".into(), Node::column().w(Size::Grow).h_px(56.0).pad_x(16.0).role(Role::Heading));
+        let title = ui.node("settings-title", Node::column().w(Size::Grow).h_px(56.0).pad_x(16.0).role(Role::Heading));
         ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); });
         ui.a11y_name(&title, heading);
         if state.privacy_visible {
@@ -244,7 +244,7 @@ pub(super) fn view(
         setting_row(ui, &appearance, "Appearance", SettingsMenu::Appearance, intent);
         let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {
             labels(ui, "Rescan all sources", "Usually not needed — folders are watched");
-            let glyph = ui.node("chevron".into(), Node::column().w_px(18.0).h_px(18.0));
+            let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
             let color = ui.color(INK);
             ui.canvas(&glyph, move |paint, rect| {
                 for step in 0..6 {

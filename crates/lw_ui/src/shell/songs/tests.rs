@@ -184,10 +184,10 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
             let mut buf = [0u8; 17];
             let time = pxui::Key::Id(Column::Time as i64).label(&mut buf);
             let button = ui
-                .box_of_key(pxui::ui::key_of(root.unwrap().box_key, time))
+                .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(root.unwrap().box_key, time)))
                 .unwrap();
             let text = ui
-                .box_of_key(pxui::ui::key_of(button.box_key, "time-label"))
+                .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(button.box_key, "time-label")))
                 .unwrap();
             let rect = ui.rect(&text);
             let native = if matches!(width, 400.0 | 520.0) {
@@ -323,7 +323,7 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
         let bars = ["bar-0", "bar-1", "bar-2"].map(|key| {
             let position = pxui::ui::key_of(equalizer, key);
             let visual = pxui::ui::key_of(position, "bar");
-            ui.box_of_key(pxui::ui::key_of(visual, "fill")).unwrap()
+            ui.box_of_key(pxui::Key::Resolved(pxui::ui::key_of(visual, "fill"))).unwrap()
         });
         let instances: Vec<_> = ui
             .layers()

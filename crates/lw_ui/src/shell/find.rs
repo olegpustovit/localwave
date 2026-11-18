@@ -23,7 +23,7 @@ pub(super) enum Action {
 fn background(ui: &mut Ui, key: &'static str, color: Rgba, shown: bool, immediate: bool) {
     let view = ui.view_of(key, &0, |ui| {
         ui.node(
-            "fill".into(),
+            "fill",
             Node {
                 look: Look::NONE.fill(color),
                 ..Node::column().w(Size::Grow).h(Size::Grow)
@@ -65,7 +65,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let tool = pxui::Button::sized(width, 30.0).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).enabled(enabled).name(label);
     // the hover and press washes sit under the copy, so the contents are a stack built with the press state
     let response = ui.button_content(key, &tool, |ui, press| {
-        let layers = ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow));
+        let layers = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
         let before = ui.state(&layers, -1);
         ui.set_state(&layers, i64::from(selected));
         ui.within(&layers, &mut |ui| {
@@ -74,7 +74,7 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
             ui.view_of("action-copy", &(label, selected), |ui| {
                 ui.row("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center), |ui| {
                     let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
-                    let icon = ui.node("icon".into(), Node::column().w_px(icon_size).h_px(icon_size));
+                    let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
                     ui.canvas(&icon, move |paint, rect| match action {
                         Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
                         Action::Shuffle => crate::icons::shuffle(paint, rect, color),
@@ -102,7 +102,7 @@ pub(super) fn toolbar(
     let summary = collection
         .and(catalog.view.as_ref())
         .and_then(|view| view.find.as_ref());
-    let tools = ui.node("find-tools".into(), Node::column().w(Size::Grow).h_px(45.0));
+    let tools = ui.node("find-tools", Node::column().w(Size::Grow).h_px(45.0));
     ui.within(&tools, &mut |ui| {
         ui.row("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0), |ui| {
             if button(
@@ -170,7 +170,7 @@ mod tests {
         state: &ShellState,
         intent: &mut Option<Intent>,
     ) -> Handle {
-        let root = ui.node("root".into(), Node::column().w_px(400.0).h_px(45.0).pad_x(32.0));
+        let root = ui.node("root", Node::column().w_px(400.0).h_px(45.0).pad_x(32.0));
         ui.within(&root, &mut |ui| {
             toolbar(ui, catalog, state, intent)
         });
@@ -189,7 +189,7 @@ mod tests {
         ] {
             key = pxui::ui::key_of(key, label);
         }
-        ui.box_of_key(key).unwrap()
+        ui.box_of_key(pxui::Key::Resolved(key)).unwrap()
     }
     #[test]
     fn find_tools_match_native_point_geometry_values_and_warm_action_routing() {

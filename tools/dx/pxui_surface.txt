@@ -271,8 +271,17 @@ pxui::ImageStyle::DEFAULT const ImageStyle
 pxui::ImageStyle::fit fn const (self, fit: Fit) -> ImageStyle
 pxui::ImageStyle::h fn const (self, size: Size) -> ImageStyle
 pxui::ImageStyle::h_px fn const (self, points: f32) -> ImageStyle
+pxui::ImageStyle::tint fn const (self, tint: Rgba) -> ImageStyle
 pxui::ImageStyle::w fn const (self, size: Size) -> ImageStyle
 pxui::ImageStyle::w_px fn const (self, points: f32) -> ImageStyle
+pxui::Ime impl Clone
+pxui::Ime impl Copy
+pxui::Ime impl Debug
+pxui::Ime impl PartialEq
+pxui::Ime impl StructuralPartialEq
+pxui::Ime struct
+pxui::Ime::caret field f32
+pxui::Ime::rect field Rect
 pxui::IndentFn type <'a>= dyn Fn(&str, usize) -> String + 'a
 pxui::Input use pxui_types::ffi::Input
 pxui::Key use author::Key
@@ -424,7 +433,7 @@ pxui::Paint::flag fn (&mut self, at: (f32, f32), round: bool, on: bool)
 pxui::Paint::frame fn (&mut self, rect: Rect, stroke: Stroke)
 pxui::Paint::grid fn (&mut self, rect: Rect, origin: (f32, f32), spacing: f32, dot: f32, fill: Fill)
 pxui::Paint::icon fn (&mut self, at: (f32, f32), font: u16, size: f32, ch: char, color: Rgba) -> f32
-pxui::Paint::image fn (&mut self, rect: Rect, image: &Image, fit_mode: Fit, tint: Rgba) -> Result<(), Error>
+pxui::Paint::image fn (&mut self, rect: Rect, image: &Image, style: &ImageStyle) -> Result<(), Error>
 pxui::Paint::line fn (&mut self, from: (f32, f32), to: (f32, f32), stroke: Stroke)
 pxui::Paint::rtl fn (&self) -> bool
 pxui::Paint::scroll_y fn (&mut self, slot: u64) -> f32
@@ -797,7 +806,7 @@ pxui::Ui::arranged_nodes fn (&self) -> usize
 pxui::Ui::background_request fn (&self) -> Option<Rgba>
 pxui::Ui::badge fn <K: Into<Key>>(&mut self, key: K, name: &str, text: &str) -> Handle
 pxui::Ui::box_of_a11y fn (&self, id: u64) -> Option<Handle>
-pxui::Ui::box_of_key fn (&self, key: i64) -> Option<Handle>
+pxui::Ui::box_of_key fn <K: Into<Key>>(&self, key: K) -> Option<Handle>
 pxui::Ui::built_nodes fn (&self) -> usize
 pxui::Ui::busy_step fn (&mut self, box_: &Handle, now: f64) -> bool
 pxui::Ui::button fn (&mut self, text: &str) -> bool
@@ -818,7 +827,7 @@ pxui::Ui::close_swipe fn (&mut self, node: &Handle)
 pxui::Ui::color fn (&self, token: ColorToken) -> Rgba
 pxui::Ui::column fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::content_rect fn (&self) -> Rect
-pxui::Ui::context_at fn (&mut self, b: &Handle) -> Option<(f32, f32)>
+pxui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
 pxui::Ui::density fn (&self) -> i64
 pxui::Ui::dialog fn <K: Into<Key>>(&mut self, key: K, title: &str, buttons: &[DialogButton<'_>], dialog: &Dialog, body: &mut dyn FnMut(&mut Ui)) -> Chosen
 pxui::Ui::disabled fn <F: FnMut(&mut Ui)>(&mut self, disabled: bool, f: F)
@@ -830,24 +839,23 @@ pxui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &[Seg
 pxui::Ui::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::Ui::environment fn (&self) -> Environment
-pxui::Ui::expanded fn (&self, key: &str) -> Option<bool>
+pxui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
 pxui::Ui::field_drag fn (&self, field: &Handle) -> Option<(f32, f32)>
 pxui::Ui::focus_box fn (&mut self, box_: &Handle)
 pxui::Ui::font_size fn (&self) -> i64
 pxui::Ui::footer fn (&mut self, right: Option<&str>, hints: &[(&str, &str)])
 pxui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::Ui::frame_index fn (&self) -> u64
-pxui::Ui::gesture fn (&mut self, node: &Handle, opts: GestureOpts) -> GestureState
+pxui::Ui::gesture fn (&mut self, node: &Handle, opts: &GestureOpts) -> GestureState
 pxui::Ui::gesture_state fn (&mut self, node: &Handle) -> GestureState
 pxui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, cell_w: f32, cell_h: f32, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
 pxui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
-pxui::Ui::hover_delay fn (&mut self, key: &str) -> bool
-pxui::Ui::hovered_exactly fn (&self, b: &Handle) -> bool
-pxui::Ui::hovered_within fn (&mut self, b: &Handle) -> bool
+pxui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
+pxui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
 pxui::Ui::icon_button fn <K: Into<Key>>(&mut self, key: K, icon: Icon, name: &str, button: &IconButton<'_>) -> Response
 pxui::Ui::id fn (&self) -> usize
-pxui::Ui::image fn (&mut self, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
-pxui::Ui::ime fn (&self) -> Option<((i64, i64, i64, i64), i64)>
+pxui::Ui::image fn <K: Into<Key>>(&mut self, key: K, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
+pxui::Ui::ime fn (&self) -> Option<Ime>
 pxui::Ui::inject_a11y fn (&mut self, actions: &[A11yAction])
 pxui::Ui::inspector_bar fn (&mut self, hints: &[(&str, &str)], count: i64)
 pxui::Ui::inspector_body fn (&mut self, f: &mut dyn FnMut(&mut Ui))
@@ -868,28 +876,28 @@ pxui::Ui::label fn (&mut self, text: &str, style: Label) -> Handle
 pxui::Ui::label_digits fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::Ui::label_fmt fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::Ui::last_error fn (&self) -> &str
-pxui::Ui::last_press_within fn (&self, events: &[Event], roots: &[i64]) -> Option<i64>
+pxui::Ui::last_press_within fn (&self, events: &[Event], roots: &[Key]) -> Option<Key>
 pxui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>>
 pxui::Ui::layer_count fn (&self) -> usize
 pxui::Ui::layers fn (&self) -> Layers<'_>
 pxui::Ui::library_calls fn (&self) -> u64
 pxui::Ui::line_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &LineField<'_>) -> LineFieldResponse<'_>
 pxui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
-pxui::Ui::load_text_edit fn (&mut self, key: i64, text: &str) -> TextEdit
+pxui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::Ui::local_rect fn (&self, b: &Handle) -> Rect
 pxui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: (f32, f32), items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
 pxui::Ui::menu_bar fn <K: Into<Key>>(&mut self, key: K, menus: &[MenuBarMenu<'_>], bar: &MenuBar) -> Chosen
 pxui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
-pxui::Ui::node fn (&mut self, key: Key, node: Node) -> Handle
+pxui::Ui::node fn <K: Into<Key>>(&mut self, key: K, node: Node) -> Handle
 pxui::Ui::node_layout fn (&self, b: &Handle) -> Node
 pxui::Ui::node_mut fn <R>(&mut self, b: &Handle, edit: impl FnOnce(&mut NodeFields) -> R) -> R
 pxui::Ui::now fn (&self) -> f64
 pxui::Ui::output fn (&self) -> Output
 pxui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::part fn (&mut self, part: Part, node: Node) -> Handle
-pxui::Ui::part_box fn (&self, owner: i64, part: Part) -> Option<Handle>
-pxui::Ui::part_rect fn (&self, owner: i64, part: Part) -> Option<Rect>
+pxui::Ui::part_box fn (&self, owner: &Handle, part: Part) -> Option<Handle>
+pxui::Ui::part_rect fn (&self, owner: &Handle, part: Part) -> Option<Rect>
 pxui::Ui::passed_undo fn (&self) -> Option<UndoKind>
 pxui::Ui::paste_requested fn (&self) -> bool
 pxui::Ui::patch_field fn (&mut self, field: &Handle, o: &ValueField<'_>, value_text: &str) -> bool
@@ -950,14 +958,14 @@ pxui::Ui::register_tooltip_body fn (&mut self, name: &str, body: fn(&mut Ui, &To
 pxui::Ui::register_tree_body fn (&mut self, name: &str, body: fn(&mut Ui, &TreeConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_value_field_body fn (&mut self, name: &str, body: fn(&mut Ui, &ValueFieldConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_window_body fn (&mut self, name: &str, body: fn(&mut Ui, &WindowConfig)) -> Result<BodyId, Error>
-pxui::Ui::remember fn (&mut self, edit: &TextEdit, typing: bool)
+pxui::Ui::remember fn <K: Into<Key>>(&mut self, key: K, edit: &TextEdit, typing: bool)
 pxui::Ui::repaint_after fn (&mut self, seconds: f64)
 pxui::Ui::repaint_at fn (&self) -> Option<f64>
 pxui::Ui::request_cursor fn (&mut self, shape: Cursor)
 pxui::Ui::request_frame fn (&mut self)
 pxui::Ui::resolve fn (&self, style: &Label) -> TextStyle
 pxui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
-pxui::Ui::root_at fn (&self, point: (f32, f32), roots: &[i64]) -> Option<i64>
+pxui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::row_height fn (&self) -> i64
 pxui::Ui::scroll fn (&self, b: &Handle) -> Scroll
@@ -997,13 +1005,13 @@ pxui::Ui::text fn (&mut self, box_: &Handle, value: &str)
 pxui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
 pxui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
 pxui::Ui::text_input_focused fn (&self) -> bool
-pxui::Ui::text_input_options fn (&self) -> TextTraits
 pxui::Ui::text_layout_count fn (&self) -> u64
 pxui::Ui::text_line_box fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::Ui::text_service fn (&mut self) -> UiText<'_>
 pxui::Ui::text_spans fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::Ui::text_state fn (&self, b: &Handle) -> Option<&str>
 pxui::Ui::text_top fn (&self, size: Option<i64>, y: f32, h: f32) -> f32
+pxui::Ui::text_traits fn (&self) -> TextTraits
 pxui::Ui::text_undo_bytes fn (&self) -> usize
 pxui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::Ui::theme fn (&self) -> &Theme
@@ -1369,6 +1377,7 @@ pxui::ui::ImageStyle::DEFAULT const ImageStyle
 pxui::ui::ImageStyle::fit fn const (self, fit: Fit) -> ImageStyle
 pxui::ui::ImageStyle::h fn const (self, size: Size) -> ImageStyle
 pxui::ui::ImageStyle::h_px fn const (self, points: f32) -> ImageStyle
+pxui::ui::ImageStyle::tint fn const (self, tint: Rgba) -> ImageStyle
 pxui::ui::ImageStyle::w fn const (self, size: Size) -> ImageStyle
 pxui::ui::ImageStyle::w_px fn const (self, points: f32) -> ImageStyle
 pxui::ui::Key use pxui_types::ui::Key
@@ -1412,7 +1421,7 @@ pxui::ui::Paint::flag fn (&mut self, at: (f32, f32), round: bool, on: bool)
 pxui::ui::Paint::frame fn (&mut self, rect: Rect, stroke: Stroke)
 pxui::ui::Paint::grid fn (&mut self, rect: Rect, origin: (f32, f32), spacing: f32, dot: f32, fill: Fill)
 pxui::ui::Paint::icon fn (&mut self, at: (f32, f32), font: u16, size: f32, ch: char, color: Rgba) -> f32
-pxui::ui::Paint::image fn (&mut self, rect: Rect, image: &Image, fit_mode: Fit, tint: Rgba) -> Result<(), Error>
+pxui::ui::Paint::image fn (&mut self, rect: Rect, image: &Image, style: &ImageStyle) -> Result<(), Error>
 pxui::ui::Paint::line fn (&mut self, from: (f32, f32), to: (f32, f32), stroke: Stroke)
 pxui::ui::Paint::rtl fn (&self) -> bool
 pxui::ui::Paint::scroll_y fn (&mut self, slot: u64) -> f32
@@ -1547,7 +1556,7 @@ pxui::ui::Ui::arranged_nodes fn (&self) -> usize
 pxui::ui::Ui::background_request fn (&self) -> Option<Rgba>
 pxui::ui::Ui::badge fn <K: Into<Key>>(&mut self, key: K, name: &str, text: &str) -> Handle
 pxui::ui::Ui::box_of_a11y fn (&self, id: u64) -> Option<Handle>
-pxui::ui::Ui::box_of_key fn (&self, key: i64) -> Option<Handle>
+pxui::ui::Ui::box_of_key fn <K: Into<Key>>(&self, key: K) -> Option<Handle>
 pxui::ui::Ui::built_nodes fn (&self) -> usize
 pxui::ui::Ui::busy_step fn (&mut self, box_: &Handle, now: f64) -> bool
 pxui::ui::Ui::button fn (&mut self, text: &str) -> bool
@@ -1568,7 +1577,7 @@ pxui::ui::Ui::close_swipe fn (&mut self, node: &Handle)
 pxui::ui::Ui::color fn (&self, token: ColorToken) -> Rgba
 pxui::ui::Ui::column fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::content_rect fn (&self) -> Rect
-pxui::ui::Ui::context_at fn (&mut self, b: &Handle) -> Option<(f32, f32)>
+pxui::ui::Ui::context_at fn (&mut self, b: &Handle) -> Option<Point>
 pxui::ui::Ui::density fn (&self) -> i64
 pxui::ui::Ui::dialog fn <K: Into<Key>>(&mut self, key: K, title: &str, buttons: &[DialogButton<'_>], dialog: &Dialog, body: &mut dyn FnMut(&mut Ui)) -> Chosen
 pxui::ui::Ui::disabled fn <F: FnMut(&mut Ui)>(&mut self, disabled: bool, f: F)
@@ -1580,24 +1589,23 @@ pxui::ui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &
 pxui::ui::Ui::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::ui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::ui::Ui::environment fn (&self) -> Environment
-pxui::ui::Ui::expanded fn (&self, key: &str) -> Option<bool>
+pxui::ui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
 pxui::ui::Ui::field_drag fn (&self, field: &Handle) -> Option<(f32, f32)>
 pxui::ui::Ui::focus_box fn (&mut self, box_: &Handle)
 pxui::ui::Ui::font_size fn (&self) -> i64
 pxui::ui::Ui::footer fn (&mut self, right: Option<&str>, hints: &[(&str, &str)])
 pxui::ui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::ui::Ui::frame_index fn (&self) -> u64
-pxui::ui::Ui::gesture fn (&mut self, node: &Handle, opts: GestureOpts) -> GestureState
+pxui::ui::Ui::gesture fn (&mut self, node: &Handle, opts: &GestureOpts) -> GestureState
 pxui::ui::Ui::gesture_state fn (&mut self, node: &Handle) -> GestureState
 pxui::ui::Ui::grid_list fn <K: Into<Key>>(&mut self, key: K, count: usize, cell_w: f32, cell_h: f32, build: &mut dyn FnMut(&mut Ui, usize)) -> Handle
 pxui::ui::Ui::grip fn (&mut self, label: Arguments<'_>, axis: Axis, rect: Option<Rect>) -> (Handle, Signal)
-pxui::ui::Ui::hover_delay fn (&mut self, key: &str) -> bool
-pxui::ui::Ui::hovered_exactly fn (&self, b: &Handle) -> bool
-pxui::ui::Ui::hovered_within fn (&mut self, b: &Handle) -> bool
+pxui::ui::Ui::hover_delay fn <K: Into<Key>>(&mut self, key: K) -> bool
+pxui::ui::Ui::hovered fn (&self, b: &Handle, within: bool) -> bool
 pxui::ui::Ui::icon_button fn <K: Into<Key>>(&mut self, key: K, icon: Icon, name: &str, button: &IconButton<'_>) -> Response
 pxui::ui::Ui::id fn (&self) -> usize
-pxui::ui::Ui::image fn (&mut self, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
-pxui::ui::Ui::ime fn (&self) -> Option<((i64, i64, i64, i64), i64)>
+pxui::ui::Ui::image fn <K: Into<Key>>(&mut self, key: K, name: &str, image: &Image, style: &ImageStyle) -> Result<Handle, Error>
+pxui::ui::Ui::ime fn (&self) -> Option<Ime>
 pxui::ui::Ui::inject_a11y fn (&mut self, actions: &[A11yAction])
 pxui::ui::Ui::inspector_bar fn (&mut self, hints: &[(&str, &str)], count: i64)
 pxui::ui::Ui::inspector_body fn (&mut self, f: &mut dyn FnMut(&mut Ui))
@@ -1618,28 +1626,28 @@ pxui::ui::Ui::label fn (&mut self, text: &str, style: Label) -> Handle
 pxui::ui::Ui::label_digits fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::ui::Ui::label_fmt fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::ui::Ui::last_error fn (&self) -> &str
-pxui::ui::Ui::last_press_within fn (&self, events: &[Event], roots: &[i64]) -> Option<i64>
+pxui::ui::Ui::last_press_within fn (&self, events: &[Event], roots: &[Key]) -> Option<Key>
 pxui::ui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>>
 pxui::ui::Ui::layer_count fn (&self) -> usize
 pxui::ui::Ui::layers fn (&self) -> Layers<'_>
 pxui::ui::Ui::library_calls fn (&self) -> u64
 pxui::ui::Ui::line_field fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, field: &LineField<'_>) -> LineFieldResponse<'_>
 pxui::ui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
-pxui::ui::Ui::load_text_edit fn (&mut self, key: i64, text: &str) -> TextEdit
+pxui::ui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::ui::Ui::local_rect fn (&self, b: &Handle) -> Rect
 pxui::ui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: (f32, f32), items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
 pxui::ui::Ui::menu_bar fn <K: Into<Key>>(&mut self, key: K, menus: &[MenuBarMenu<'_>], bar: &MenuBar) -> Chosen
 pxui::ui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
-pxui::ui::Ui::node fn (&mut self, key: Key, node: Node) -> Handle
+pxui::ui::Ui::node fn <K: Into<Key>>(&mut self, key: K, node: Node) -> Handle
 pxui::ui::Ui::node_layout fn (&self, b: &Handle) -> Node
 pxui::ui::Ui::node_mut fn <R>(&mut self, b: &Handle, edit: impl FnOnce(&mut NodeFields) -> R) -> R
 pxui::ui::Ui::now fn (&self) -> f64
 pxui::ui::Ui::output fn (&self) -> Output
 pxui::ui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::part fn (&mut self, part: Part, node: Node) -> Handle
-pxui::ui::Ui::part_box fn (&self, owner: i64, part: Part) -> Option<Handle>
-pxui::ui::Ui::part_rect fn (&self, owner: i64, part: Part) -> Option<Rect>
+pxui::ui::Ui::part_box fn (&self, owner: &Handle, part: Part) -> Option<Handle>
+pxui::ui::Ui::part_rect fn (&self, owner: &Handle, part: Part) -> Option<Rect>
 pxui::ui::Ui::passed_undo fn (&self) -> Option<UndoKind>
 pxui::ui::Ui::paste_requested fn (&self) -> bool
 pxui::ui::Ui::patch_field fn (&mut self, field: &Handle, o: &ValueField<'_>, value_text: &str) -> bool
@@ -1700,14 +1708,14 @@ pxui::ui::Ui::register_tooltip_body fn (&mut self, name: &str, body: fn(&mut Ui,
 pxui::ui::Ui::register_tree_body fn (&mut self, name: &str, body: fn(&mut Ui, &TreeConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_value_field_body fn (&mut self, name: &str, body: fn(&mut Ui, &ValueFieldConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_window_body fn (&mut self, name: &str, body: fn(&mut Ui, &WindowConfig)) -> Result<BodyId, Error>
-pxui::ui::Ui::remember fn (&mut self, edit: &TextEdit, typing: bool)
+pxui::ui::Ui::remember fn <K: Into<Key>>(&mut self, key: K, edit: &TextEdit, typing: bool)
 pxui::ui::Ui::repaint_after fn (&mut self, seconds: f64)
 pxui::ui::Ui::repaint_at fn (&self) -> Option<f64>
 pxui::ui::Ui::request_cursor fn (&mut self, shape: Cursor)
 pxui::ui::Ui::request_frame fn (&mut self)
 pxui::ui::Ui::resolve fn (&self, style: &Label) -> TextStyle
 pxui::ui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
-pxui::ui::Ui::root_at fn (&self, point: (f32, f32), roots: &[i64]) -> Option<i64>
+pxui::ui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::ui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::row_height fn (&self) -> i64
 pxui::ui::Ui::scroll fn (&self, b: &Handle) -> Scroll
@@ -1747,13 +1755,13 @@ pxui::ui::Ui::text fn (&mut self, box_: &Handle, value: &str)
 pxui::ui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, rect: Rect, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
 pxui::ui::Ui::text_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &TextField<'_>) -> TextFieldResponse<'_>
 pxui::ui::Ui::text_input_focused fn (&self) -> bool
-pxui::ui::Ui::text_input_options fn (&self) -> TextTraits
 pxui::ui::Ui::text_layout_count fn (&self) -> u64
 pxui::ui::Ui::text_line_box fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::ui::Ui::text_service fn (&mut self) -> UiText<'_>
 pxui::ui::Ui::text_spans fn (&mut self, box_: &Handle, text: &str, style: &Label, spans: &[TextSpan]) -> Result<(), Error>
 pxui::ui::Ui::text_state fn (&self, b: &Handle) -> Option<&str>
 pxui::ui::Ui::text_top fn (&self, size: Option<i64>, y: f32, h: f32) -> f32
+pxui::ui::Ui::text_traits fn (&self) -> TextTraits
 pxui::ui::Ui::text_undo_bytes fn (&self) -> usize
 pxui::ui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::ui::Ui::theme fn (&self) -> &Theme
@@ -5594,6 +5602,7 @@ pxui_types::ui::Key impl PartialEq
 pxui_types::ui::Key impl StructuralPartialEq
 pxui_types::ui::Key::Id variant (i64)
 pxui_types::ui::Key::Label variant (&'static str)
+pxui_types::ui::Key::Resolved variant (i64)
 pxui_types::ui::Key::label fn <'b>(&self, buf: &'b mut [u8; 17]) -> &'b str
 pxui_types::ui::Keyframe impl Clone
 pxui_types::ui::Keyframe impl Copy

@@ -92,7 +92,7 @@ pub(super) fn name_dialog(
             },
             |ui| {
                 ui.label(heading, TEXT_24.grow().h_px(36.0).color(INK));
-                let field = ui.node("list-name-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Px(40.0)));
+                let field = ui.node("list-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Px(40.0)));
                 ui.within(&field, &mut |ui| {
                     if let Some(value) = ui
                         .text_field("list-name", state.playlist_name.as_str(), &LIST_NAME)

@@ -18,7 +18,7 @@ pub(super) fn queue_action(
     // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
     let action = pxui::Button::sized(width, 28.0).look(&BARE).name(name);
     ui.button_content(key, &action, |ui, _| {
-        let copy = ui.node("label".into(), Node { look: QUEUE_ACTION_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        let copy = ui.node("label", Node { look: QUEUE_ACTION_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
         ui.text(&copy, label);
     })
     .clicked
@@ -178,7 +178,7 @@ pub(super) fn queue_sheet(
                         ui.color(PAPER),
                     );
                     ui.within(&row, &mut |ui| {
-                        let field = ui.node("playlist-name-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Grow));
+                        let field = ui.node("playlist-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                         ui.within(&field, &mut |ui| {
                             if let Some(value) = ui
                                 .text_field("playlist-name", state.playlist_name.as_str(), &PLAYLIST_NAME)
@@ -300,7 +300,7 @@ pub(super) fn queue_sheet(
                 }
                 spacer(ui, "queue-bottom", 20.0);
             });
-            let drag = ui.gesture(&sheet.handle, DISMISS);
+            let drag = ui.gesture(&sheet.handle, &DISMISS);
             // The popup itself follows the finger: moving only the node inside it loses the touch.
             state.sheet_dismiss.set(drag.dismiss);
             if drag.dismiss_committed {
@@ -322,7 +322,7 @@ fn now_row(
     width: f32,
 ) {
     let row = ui.node(
-        "queue-now".into(),
+        "queue-now",
         Node {
             padding: Edges {
                 l: 24.0,

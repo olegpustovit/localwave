@@ -68,7 +68,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
     buffer[..copied].copy_from_slice(&digits[..copied]);
     let unit = height / 7.0;
     let columns = shown * 6 - 1;
-    let node = ui.node(key.into(), Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height));
+    let node = ui.node(key, Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height));
     ui.canvas(&node, move |paint, rect| {
         for (index, digit) in buffer[..shown].iter().enumerate() {
             let x = rect.x + index as f32 * 6.0 * unit;
@@ -102,7 +102,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
         .sum::<usize>()
         - 1;
     let clock = ui.node(
-        "matrix-clock".into(),
+        "matrix-clock",
         Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height).role(Role::Label),
     );
     ui.a11y_name(&clock, "Elapsed time");
@@ -110,7 +110,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
     let old = ui.state(&clock, seconds as i64) as u64;
     ui.set_state(&clock, seconds as i64);
     ui.within(&clock, &mut |ui| {
-        let previous = ui.node("previous".into(), Node::column().w_px(0.0).h_px(0.0));
+        let previous = ui.node("previous", Node::column().w_px(0.0).h_px(0.0));
         if old != seconds {
             ui.set_state(&previous, old as i64);
         }
@@ -123,7 +123,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                 ui.stack("row", Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
                     for changing in [false, true] {
                         let visual = ui.view_of(if changing { "changed" } else { "stable" }, &revision, |ui| {
-                                let cells = ui.node("cells".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                                let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
                                 ui.canvas(&cells, move |paint, rect| {
                                     let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
                                     let mut x = rect.x;

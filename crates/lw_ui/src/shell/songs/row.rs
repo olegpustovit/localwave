@@ -16,9 +16,9 @@ const BLINK_LOOP: pxui::Keyframes = pxui::Keyframes::DEFAULT.repeat(pxui::Repeat
 
 pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id: i64) {
     use pxui::{ui::Keyframe, Keyframes};
-    let root = ui.node("equalizer".into(), Node::column().w_px(14.0).h_px(11.0).role(Role::Image));
+    let root = ui.node("equalizer", Node::column().w_px(14.0).h_px(11.0).role(Role::Image));
     ui.a11y_name(&root, if playing { "Playing" } else { "Paused" });
-    let song = ui.node("equalizer-song".into(), Node::column().w_px(0.0).h_px(0.0));
+    let song = ui.node("equalizer-song", Node::column().w_px(0.0).h_px(0.0));
     let active = playing && visible && !ui.tokens().reduced_motion;
     let changed = ui.state(&root, -1) != i64::from(active) || ui.state(&song, i64::MIN) != id;
     ui.set_state(&root, i64::from(active));
@@ -33,7 +33,7 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
                 },
                 |ui| {
                     let bar = ui.view_of("bar", &0, |ui| {
-                        let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                        let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
                         ui.canvas(&fill, move |paint, rect| {
                             paint.fill(rect, Fill::new(accent).fractional())
@@ -78,7 +78,7 @@ pub(in crate::shell) fn glyph(
     visible: bool,
 ) {
     use lw_core::{FileAvailability, FileState};
-    let root = ui.node("availability".into(), Node::stack().w_px(10.0).h_px(10.0).role(Role::Image));
+    let root = ui.node("availability", Node::stack().w_px(10.0).h_px(10.0).role(Role::Image));
     let label = match state {
         FileState::CopyPending => "Preparing offline copy",
         FileState::Failed => "File unavailable — retry",
@@ -137,7 +137,7 @@ pub(in crate::shell) fn glyph(
         ui.within(&root, &mut |ui| {
             for (index, key) in ["left", "right"].into_iter().enumerate() {
                 let half = ui.view_of(key, &0, |ui| {
-                    let fill = ui.node("fill".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                    let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
                     let accent = ui.tokens().accent;
                     ui.canvas(&fill, move |paint, rect| {
                         paint.fill(Rect::new(rect.x + index as f32 * 5.0, rect.y, 5.0, 10.0), Fill::new(accent).fractional())

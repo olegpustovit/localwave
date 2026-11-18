@@ -38,7 +38,7 @@ pub(super) fn editor(
                 ui.label("Edit Metadata", TEXT_24.grow().h_px(36.0).color(INK));
                 for (index, (label, key, input)) in FIELDS.into_iter().enumerate() {
                     ui.label(label, TEXT_12.grow().h_px(16.0).color(SECONDARY));
-                    let field = ui.node(key.into(), Node::DEFAULT.w(Size::Grow).h(Size::Px(32.0)));
+                    let field = ui.node(key, Node::DEFAULT.w(Size::Grow).h(Size::Px(32.0)));
                     ui.within(&field, &mut |ui| {
                         let current = *edit.field_mut(index).expect("field index is in range");
                         if let Some(value) = ui

@@ -66,7 +66,7 @@ pub(super) fn header(
                     let row =
                         container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
                     ui.within(&row, &mut |ui| {
-                        let field = ui.node("query-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Grow));
+                        let field = ui.node("query-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                         ui.within(&field, &mut |ui| {
                             if let Some(value) = ui
                                 .text_field("find-songs", state.query.as_str(), &FIND)
@@ -92,7 +92,7 @@ pub(super) fn header(
         }
         if state.route == Route::Albums {
             ui.node(
-                "heading-divider".into(),
+                "heading-divider",
                 Node {
                     margin: Edges {
                         l: -32.0,
@@ -153,7 +153,7 @@ pub(super) fn compact_find(
                 ui.column("find-query", Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                         let row = Node::row().align(Align::Center).w(Size::Grow).h(Size::Grow);
                         ui.row("query-row", row, |ui| {
-                            let field = ui.node("query-field".into(), Node::DEFAULT.w(Size::Grow).h(Size::Grow));
+                            let field = ui.node("query-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                             ui.within(&field, &mut |ui| {
                                 let mut edit = |ui: &mut Ui| {
                                     if let Some(value) = ui
@@ -238,7 +238,7 @@ fn hint(ui: &mut Ui, width: f32) {
         .measure_spans(TEXT, &HINT, width, &spans)
         .map_or(19.6, |m| m.height.max(19.6));
     let node = ui.node(
-        "hint".into(),
+        "hint",
         Node {
             margin: Edges {
                 t: 28.0, // 40 less find_tokens' 12 pt tail
@@ -315,7 +315,7 @@ pub(super) fn find_tokens(
                     };
                     let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {
                         let label = ui.node(
-                            "label".into(),
+                            "label",
                             Node {
                                 look: if selected { CHIP_TEXT_ON } else { CHIP_TEXT },
                                 ..Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT)

@@ -86,7 +86,7 @@ pub(super) fn draw(
                 let node = ui.pressable(key, node, &PLAIN, |_, _| {});
                 (node.handle, node.clicked)
             } else {
-                (ui.node(key.into(), node), false)
+                (ui.node(key, node), false)
             };
             ui.text_line_box(&handle, values[index], &labels[index], &[])
                 .unwrap();

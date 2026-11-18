@@ -7,7 +7,7 @@ use super::*;
 
 fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label, color: Rgba) {
     let node = ui.node(
-        key.into(),
+        key,
         Node {
             at: Some((rect.x, rect.y)).into(),
             look: Look::NONE.text(color),
@@ -106,7 +106,7 @@ pub(super) fn table(
             SectionPart::Leading => header_view(ui, catalog, state, width, intent),
             SectionPart::Header => {
                 let head = ui.node(
-                    "artist-columns".into(),
+                    "artist-columns",
                     Node {
                         look: PAPER_FILL,
                         ..Node::column().w(Size::Grow).h_px(heading_height)
@@ -184,7 +184,7 @@ pub(super) fn table(
                             }
 
                             let art = ui.node(
-                                "artist-artwork".into(),
+                                "artist-artwork",
                                 Node {
                                     at: Some((32.0, top)).into(),
                                     look: PANEL_FILL,

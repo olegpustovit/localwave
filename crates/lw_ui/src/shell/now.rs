@@ -63,11 +63,11 @@ pub(super) fn now_panel(
                     player.revision,
                     std::sync::Arc::as_ptr(&catalog.library) as usize,
                 ));
-                let information_box = ui.node("track-information".into(), Node::column());
+                let information_box = ui.node("track-information", Node::column());
                 let mut information = information_box;
                 ui.within(&information_box, &mut |ui| information = ui.view_of("track-information", &information_revision, |ui| {
                         let title = ui.node(
-                            "current-track".into(),
+                            "current-track",
                             Node {
                                 min_h: 22.8,
                                 look: INK_TEXT,
@@ -110,12 +110,12 @@ pub(super) fn now_panel(
                 }
             });
             spacer(ui, "title-clock-gap", 14.0);
-            let clock_group_box = ui.node("playback-clock".into(), Node::column().h_px(43.0));
+            let clock_group_box = ui.node("playback-clock", Node::column().h_px(43.0));
             let mut clock_group = clock_group_box;
             ui.within(&clock_group_box, &mut |ui| clock_group = ui.view_of("playback-clock", &(crate::hash((player.revision, position.to_bits()))), |ui| {
                     ui.row("clock", Node::row().w(Size::Grow).h_px(43.0).align(Align::End), |ui| {
                         matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
-                        ui.node("clock-flex".into(), Node::DEFAULT.w(Size::Grow));
+                        ui.node("clock-flex", Node::DEFAULT.w(Size::Grow));
                         small_clock(
                             ui,
                             "panel-remaining",
@@ -173,7 +173,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
     let favorite = FAVORITE.enabled(current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
     // the heart and its burst are a stack of their own, built with the press state
     let signal = ui.button_content("favorite", &favorite, |ui, press| {
-        let node = ui.node("layers".into(), Node::stack().w(Size::Grow).h(Size::Grow));
+        let node = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
         // Remember (song, state) so a track change never reads as a favourite toggle.
         let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
         let was = ui.state(&node, 0);
@@ -185,7 +185,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
         ui.within(&node, &mut |ui| {
             let heart = ui.view_of("heart", &(on, press.hovered, press.pressed, current.is_some()), |ui| {
-                let surface = ui.node("surface".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
                 ui.canvas(&surface, move |paint, rect| {
                     let side = 20.0;
                     let area = Rect {
@@ -200,7 +200,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
             let _ = heart;
             for (key, dx, dy) in RAYS {
                 let slot = ui.node(
-                    key.into(),
+                    key,
                     Node {
                         at: Some((16.0, 12.0)).into(),
                         ..Node::column().w_px(4.0).h_px(4.0)
@@ -209,7 +209,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
                 let mut ray = None;
                 ui.within(&slot, &mut |ui| {
                     ray = Some(ui.view_of("ray", &0, |ui| {
-                        let dot = ui.node("dot".into(), Node::column().w(Size::Grow).h(Size::Grow));
+                        let dot = ui.node("dot", Node::column().w(Size::Grow).h(Size::Grow));
                         let accent = ui.tokens().accent;
                         ui.canvas(&dot, move |paint, rect| {
                             paint.fill(rect, Fill::new(accent))
@@ -261,7 +261,7 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                     ("file", "File", &info.file, INK),
                     ("plays", "Plays", &info.plays, SECONDARY),
                 ] {
-                    let row = ui.node(key.into(), Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
+                    let row = ui.node(key, Node::row().w(Size::Grow).h_px(16.8).gap(8.0).role(Role::Label));
                     ui.within(&row, &mut |ui| {
                         ui.label(label, FOOTNOTE.w_px(64.0));
                         ui.label(value, MONO_12.grow().color(ink));

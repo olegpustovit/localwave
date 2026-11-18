@@ -38,7 +38,7 @@ const MODE_TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44
 
 fn line(ui: &mut Ui, key: &'static str, value: &str, size: f32, color: Rgba) {
     let node = ui.node(
-        key.into(),
+        key,
         Node {
             look: Look::NONE.text(color),
             ..Node::column().w(Size::Grow).h_px(size * 1.4).role(Role::Label)
@@ -95,7 +95,7 @@ pub(super) fn view(
     );
     let width = (width - left - right).max(1.0);
     let root = ui.node(
-        "compact-shell".into(),
+        "compact-shell",
         Node {
             padding: Edges {
                 t: top.max(state.top_inset),
@@ -202,7 +202,7 @@ pub(super) fn view(
                             },
                         );
                         let tabs = ui.node(
-                            "library-tabs".into(),
+                            "library-tabs",
                             Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
                         ui.set_role(&tabs, Role::Group, 0);
@@ -459,7 +459,7 @@ fn mode_key(
     let color = if active { ui.color(PAPER) } else { ui.color(INK) };
     let button = ui.button_content(key, &mode, |ui, _| {
         ui.row("content", Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
-            let glyph = ui.node("icon".into(), Node::column().w_px(20.0).h_px(20.0));
+            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
             ui.canvas(&glyph, move |paint, rect| {
                 kit::paint_icon(paint, icon, rect.x, rect.y, color)
             });
@@ -530,12 +530,12 @@ fn expanded(
                 ..Node::column().w(Size::Grow).h(Size::Grow)
             },
             |ui| {
-                let info = ui.node("title-row".into(), Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
+                let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
                 ui.within(&info, &mut |ui| {
                     let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
                     ui.within(&names, &mut |ui| {
                         let title = ui.node(
-                            "title".into(),
+                            "title",
                             Node {
                                 look: INK_TEXT,
                                 ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
@@ -561,7 +561,7 @@ fn expanded(
                 spacer(ui, "clock-gap", 14.0);
                 ui.row("clock", Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
                     matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
-                    ui.node("flex".into(), Node::DEFAULT.w(Size::Grow));
+                    ui.node("flex", Node::DEFAULT.w(Size::Grow));
                     ui.column(
                         "clock-side",
                         Node {
@@ -589,7 +589,7 @@ fn expanded(
                 ui.within(&times, &mut |ui| {
                     let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
                     ui.a11y_name(&start, "Start time");
-                    ui.node("flex".into(), Node::DEFAULT.w(Size::Grow));
+                    ui.node("flex", Node::DEFAULT.w(Size::Grow));
                     let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, SECONDARY);
                     ui.a11y_name(&total, "Duration");
                 });
@@ -668,7 +668,7 @@ fn expanded(
         );
     });
     // Drag down to dismiss (UIKit sheet thresholds); the button inside stays the alternative.
-    let drag = ui.gesture(&root.handle, DISMISS);
+    let drag = ui.gesture(&root.handle, &DISMISS);
     if drag.dismiss != 0.0 {
         ui.set_node_layout(
             &root.handle,
@@ -1695,7 +1695,7 @@ mod tests {
                 );
                 if step == 0 {
                     assert_eq!(
-                        ui.text_input_options(),
+                        ui.text_traits(),
                         pxui::TextTraits::SEARCH.action(pxui::ReturnKey::Done)
                     );
                 }
