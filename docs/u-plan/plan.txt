@@ -254,6 +254,8 @@ D26 CP0 outcome (17 Nov) (1) Release abi_bench instruction ratios fail on Kit/Co
 
 D27 abi_bench carried to CP1 (owner, 18 Nov) U1c.5 recovered Author and every bodies page and cut the wrapper's own cost (static Layout 16.1k → 13.8k instructions/frame), but Kit, Controls, Overlays and Layout stay over in both modes (static 1.0142–1.0210 against 1.01–1.013; dynamic 1.0303–1.0497 against 1.03–1.045), as does the dynamic Kit small-page wall gate (1.54 µs against 1.5). Limits stay unchanged. U1c lands with this red gate; U2b.10 owns it and it must pass before CP1 (U4b), worked against the final U2 panel, pick-item and field shapes. Remaining costs: per-item C validation of radio/dropdown items, panel ~190/420 instructions, node ~48/100, the static value_field/text_area path (the engine's field options hold reference-counted callbacks). U1c.5, U2b.10
 
+D28 No 1.x ABI compatibility (owner, 18 Nov). Before the 2.0 cut, C exports and records change in place and superseded exports are deleted in the step that supersedes them; no parallel exports, legacy bodies or old-caller tests. abi-snapshot stays as a change detector (minor bump, regenerated manifests). The 1.x frozen fixtures and the 1.57 old-consumer check are retired; the growth rule and frozen/compat checks return at 2.0 against re-baselined manifests so 2.x stays stable and append-only. Twins accumulated in U1b–U2b are deleted in U2c, before U3. U2b.0, U2c, U5.
+
 5. The API ledger: one public UI
 
 The target public surface. Rule: a call not marked with a step keeps its HEAD signature exactly. A call marked with a step changes once, in that step, to the signature shown. U0.3 generates the full HEAD → ledger delta from tools/dx/surface.py, and every delta line must carry a step id here (otherwise it reverts to HEAD). K: Into<Key> and F: FnMut(..) are the one-line shells; &mut self is omitted.
@@ -1013,7 +1015,7 @@ TierWhenCommandsBudget
 AEvery commitpxui: cargo t -p <touched> [filter]; cargo t -p pxui --features static if pxui touched; cargo check --workspace --tests; cargo check -p abi_bench -p pxui_gallery --tests (and --no-default-features); gate shape, deps, abi-header, abi-snapshot.
 LocalWave: cargo t -p lw_ui [filter]; cargo t -p lw_ui --test api_conformance; cargo build -q -p lw_bin; cargo check -p lw_bin --tests; python3 tools/dx/surface.py --check; git diff --check.≤ 3 min warm
 
-BEnd of every packagepxui: whole-workspace cargo t; cargo t -p pxui --features static; cargo t -p pxui --doc; cargo t -p pxui_gallery; gate docs, abi-exports, abi-frozen, abi-compat.
+BEnd of every packagepxui: whole-workspace cargo t; cargo t -p pxui --features static; cargo t -p pxui --doc; cargo t -p pxui_gallery; gate docs, abi-exports (abi-frozen and abi-compat return at 2.0, D28).
 LocalWave: LOCALWAVE_OFFLINE=1 make check; tools/dx/buildtime.sh --compare <CP0 commit> (alternating rounds against CP0, so noise cancels).≤ 30 min
 
 C (CP)CP0 (U0.7), CP1 (U4b.6), CP2 (U5.12)Tier B + make performance (replaces the status table); release abi_bench both modes (RAYS_SLOW=1 cargo t --release -p pxui_gallery [--no-default-features] abi_bench); make ios-build; tools/dx/buildtime.sh --compare de53440 (de53440 reported, not gated). CP1 adds the pxui ios_spike simulator probes (PXUI_IOS_TOUCH_CHECK, PXUI_IOS_LIFECYCLE_CHECK) and a make ios-run smoke of LocalWave's compact flows: switch tabs; open and drag-dismiss the queue sheet and the expanded player; reorder a queue row; scrub the seek bar; use the A–Z index; swipe a row; long-press menu; select mode. Pass/fail per flow goes in the CP1 commit. Real-device qualification stays explicitly deferred.≈ 1 h
@@ -1357,6 +1359,8 @@ U2b.9 Site map (delivered at the shape stop, file tools/dx/site_map.md). For eac
 U2b.10 Gallery, spec, bench. New widgets on gallery and bodies pages (only new goldens). api.md/pxui_surface.txt current. Release abi_bench, all pages, both modes (targeted run); per D27 every page within its unchanged limit in both modes, and the dynamic Kit small-page wall gate.
 
 Done when: gaps G1, G4–G10, G12, G14 closed (G2/G3/G13 landed in DX3.18; G11 deferred, D7). The site map is approved with no open gap. abi_bench limits hold. Tier B green. Buildtime within allowance (or reported engine growth with a reason). Independent review PASS.
+
+U2c · pxui: drop 1.x twins · pxui + callers. Delete every superseded export and legacy body accumulated in U1b–U2b (e.g. the *_response/*_result/*_rows exports' originals, tooltip_legacy/anchored_legacy, text-keyed 1.x paths, PxuiScrubOut source if superseded); the successor takes the plain name; update wrapper, gallery, abi_bench, fuzz lists, header and manifests (abi_drop.py from U5.3, pulled forward). Done when: no export remains that only serves a pre-change caller; Tier B green; independent review PASS.
 
 U3 · LocalWave: looks, literals, keys LocalWave · ≈3 h · pattern stop
 

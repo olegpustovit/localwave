@@ -181,7 +181,7 @@ Branch `u2b` in both repos from `rust-port`. U2b's shape stop also delivers `too
   - pxui: `cargo t -p <crate> [filter]`; `cargo t -p pxui --features static`; `cargo check --workspace --tests`; `cargo check -p abi_bench -p pxui_gallery --tests` (also with `--no-default-features`); `cargo run -p gate -- shape|deps|abi-header|abi-snapshot`.
   - LocalWave: `cargo t -p lw_ui [filter]`; `cargo t -p lw_ui --test api_conformance`; `cargo build -q -p lw_bin`; `cargo check -p lw_bin --tests`; `python3 tools/dx/surface.py --check`; `git diff --check`.
 - **Tier B (package end)**
-  - pxui: `cargo t --all`; `cargo t -p pxui --features static`; `cargo t -p pxui --doc`; `cargo t -p pxui_gallery`; gates docs, abi-exports, abi-frozen, abi-compat.
+  - pxui: `cargo t --all`; `cargo t -p pxui --features static`; `cargo t -p pxui --doc`; `cargo t -p pxui_gallery`; gates docs, abi-exports. (abi-frozen/abi-compat are retired for 1.x by D28; they return at 2.0 against re-baselined manifests.)
   - LocalWave: `LOCALWAVE_OFFLINE=1 make check`; `tools/dx/buildtime.sh --compare <CP0 commit 16dc635>`.
 - **Checkpoints (CP0/CP1/CP2):** Tier B, plus `make performance`, release abi_bench in both modes (`RAYS_SLOW=1 cargo t --release -p pxui_gallery [--no-default-features] abi_bench`), and `make ios-build`.
 - **The test runner** (`cargo t`) enforces 5 s per case and 60 s per run. Never raise these deadlines.
