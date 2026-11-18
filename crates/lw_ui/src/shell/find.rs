@@ -301,7 +301,8 @@ mod tests {
                         assert!(
                             (copy.x - left - 10.0 - size - 6.0).abs() < 0.001
                                 && (copy.y - 5.9).abs() < 0.001
-                                && (copy.h - 18.2).abs() < 0.001
+                                && (copy.h - 18.2).abs() < 0.001,
+                            "{action}: the copy sits 6 points after the icon in its 18.2-point line box at 5.9, got {copy:?}"
                         );
                     }
                     assert!(
