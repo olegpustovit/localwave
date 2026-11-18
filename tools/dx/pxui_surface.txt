@@ -954,7 +954,7 @@ pxui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay:
 pxui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
 pxui::Ui::node fn <K: Into<Key>>(&mut self, key: K, node: Node) -> Handle
 pxui::Ui::node_layout fn (&self, b: &Handle) -> Node
-pxui::Ui::node_mut fn <R>(&mut self, b: &Handle, edit: impl FnOnce(&mut NodeFields) -> R) -> R
+pxui::Ui::node_mut fn (&mut self, b: &Handle, edit: &mut dyn FnMut(&mut NodeFields))
 pxui::Ui::now fn (&self) -> f64
 pxui::Ui::output fn (&self) -> Output
 pxui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
@@ -1710,7 +1710,7 @@ pxui::ui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, over
 pxui::ui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
 pxui::ui::Ui::node fn <K: Into<Key>>(&mut self, key: K, node: Node) -> Handle
 pxui::ui::Ui::node_layout fn (&self, b: &Handle) -> Node
-pxui::ui::Ui::node_mut fn <R>(&mut self, b: &Handle, edit: impl FnOnce(&mut NodeFields) -> R) -> R
+pxui::ui::Ui::node_mut fn (&mut self, b: &Handle, edit: &mut dyn FnMut(&mut NodeFields))
 pxui::ui::Ui::now fn (&self) -> f64
 pxui::ui::Ui::output fn (&self) -> Output
 pxui::ui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
