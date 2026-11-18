@@ -110,10 +110,10 @@ pub(super) fn songs(
         );
         refresh(ui, &list, state, intent);
         if cx.selecting {
-            selection_bar(ui, &cx, intent);
+            ui.id("selection-bar", |ui| selection_bar(ui, &cx, intent));
         }
         if state.route == Route::Songs && state.sort == Sort::Title && state.ascending {
-            rail(ui, &list, collection);
+            ui.id("rail", |ui| rail(ui, &list, collection));
         }
     });
 }
@@ -517,7 +517,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         player.artwork.map_or(0, crate::artwork::Images::revision),
         select_revision(state),
     ));
-    ui.column(Node::column().h_px(artist_lead_height(catalog, artist, width)), |ui| { ui.view_of("artist-lead", &revision, |ui| {
+    ui.id("artist-lead", |ui| { ui.column(Node::column().h_px(artist_lead_height(catalog, artist, width)), |ui| { ui.view_of("artist-lead", &revision, |ui| {
             let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
             ui.within(&column, &mut |ui| {
                 nav_row(ui, cx, "Library", Route::Artists, intent);
@@ -598,7 +598,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                     },
                 );
             });
-        }); });
+        }); }); });
 }
 
 /// Swift's detail back row: chevron and the parent's name, 44 pt tall.
@@ -609,7 +609,7 @@ fn back_row(
     intent: &mut Option<Intent>,
     extras: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
-    ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
+    ui.id("back-row", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
         |ui| {
             const BACK: pxui::Button = pxui::Button::sized(96.0, 44.0).look(&BARE).name("Back");
             let back = ui.button_content("back", &BACK, |ui, _| {
@@ -625,7 +625,7 @@ fn back_row(
             }
             extras(ui, intent);
         },
-    );
+    ); });
 }
 
 /// Name (32 pt) over a 13 pt summary.
@@ -727,7 +727,7 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
 /// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
 /// "Select all" marks `rows` positions.
 pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
-    ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
+    ui.id("selection-header", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
         let all = selected > 0 && selected == selectable;
         if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false) {
             *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
@@ -739,7 +739,7 @@ pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectabl
         if word(ui, "done", "Done", true) {
             *intent = Some(Intent::SelectMode(false));
         }
-    });
+    }); });
 }
 
 /// "N selected" without a heap allocation.
@@ -850,7 +850,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         player.artwork.map_or(0, crate::artwork::Images::revision),
         select_revision(state),
     ));
-    ui.column(Node::column().h_px(album_lead_height()), |ui| { ui.view_of("album-lead", &revision, |ui| {
+    ui.id("album-lead", |ui| { ui.column(Node::column().h_px(album_lead_height()), |ui| { ui.view_of("album-lead", &revision, |ui| {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Library", Route::Albums, intent);
@@ -876,7 +876,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
             spacer(ui, "keys-gap", 16.0);
             play_keys(ui, offline_state(cx), intent);
         });
-    }); });
+    }); }); });
 }
 
 /// Compact list page lead-in (playlists, Favorites and the other automatic lists).
@@ -891,7 +891,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         std::sync::Arc::as_ptr(&catalog.library) as usize,
         select_revision(state),
     ));
-    ui.column(Node::column().h_px(collection_lead_height()), |ui| { ui.view_of("collection-lead", &revision, |ui| {
+    ui.id("collection-lead", |ui| { ui.column(Node::column().h_px(collection_lead_height()), |ui| { ui.view_of("collection-lead", &revision, |ui| {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Lists", Route::Lists, intent);
@@ -900,7 +900,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
             play_keys(ui, offline_state(cx), intent);
             spacer(ui, "list-gap", 16.0);
         });
-    }); });
+    }); }); });
 }
 
 /// Swift's playKeyButtons: a 52 pt key, ink for Play.

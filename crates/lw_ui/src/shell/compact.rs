@@ -1005,6 +1005,41 @@ mod tests {
         time += 1.0;
         assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), Some(Intent::ConfirmDeleteList(7)));
     }
+    /// The selection bar comes and goes before the section index in one parent: both sit under their own ids, so the
+    /// index keeps its node (state, drag) while select mode toggles, and select-mode frames with the rail stay warm.
+    #[test]
+    fn phone_section_index_keeps_its_identity_across_select_mode_without_warm_allocations() {
+        mem_sys::set_peer(pxui::library_counter);
+        let catalog = catalog(40);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = songs_state();
+        let player = PlayerView::default();
+        let mut time = 0.0;
+        let index = |ui: &Ui| {
+            let node = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Section index").expect("the section index");
+            ui.box_of_a11y(node.id).expect("a live index").box_key
+        };
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        let before = index(&ui);
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)));
+        assert!(names(&ui).iter().any(|name| name == "Play next"), "the selection bar shows");
+        assert_eq!(index(&ui), before, "the selection bar does not move the index");
+        for tick in 0..90 {
+            mem_sys::local_reset();
+            time += 1.0;
+            assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), None);
+            if tick >= 60 {
+                assert_eq!(mem_sys::local_alloc_count(), 0, "select-mode frame {tick} with the index allocated");
+            }
+        }
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)));
+        assert_eq!(index(&ui), before, "leaving select mode keeps the index");
+    }
+
     #[test]
     fn phone_select_mode_reaches_songs_artist_and_find_pages_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);

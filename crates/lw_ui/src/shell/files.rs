@@ -236,8 +236,9 @@ pub(super) fn view(
             };
             let content = (width - inset * 2.0).max(1.0);
             match &files.directory {
-                Some(directory) if files.account.is_some() => folder_page(ui, files, directory, (state, player.settings.show_non_audio), content, compact, intent),
-                _ => source_page(ui, files, content, compact, intent),
+                // the two pages share this column: each keeps its own identity
+                Some(directory) if files.account.is_some() => ui.id("folder-page", |ui| folder_page(ui, files, directory, (state, player.settings.show_non_audio), content, compact, intent)),
+                _ => ui.id("source-page", |ui| source_page(ui, files, content, compact, intent)),
             }
         },
     );
@@ -386,7 +387,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
 fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), width: f32, compact: bool, intent: &mut Option<Intent>) {
     use super::find::{Action, button as tool};
     if compact {
-        return compact_folder(ui, files, directory, (state, show_non_audio), width, intent);
+        return ui.id("compact-folder", |ui| compact_folder(ui, files, directory, (state, show_non_audio), width, intent));
     }
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };

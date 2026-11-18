@@ -118,10 +118,10 @@ lw_ui/src/shell/compact/list.rs	R1	ui.id("track", |ui| { ui.row(Node { justify: 
 lw_ui/src/shell/compact/list.rs	R1	ui.row(Node {
 lw_ui/src/shell/compact/list.rs	R1	ui.row(Node { padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(ROW).gap(8.0) }, |ui| {
 lw_ui/src/shell/compact/list.rs	R1	ui.row(Node { padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(ROW).gap(8.0) }, |ui| {
-lw_ui/src/shell/compact/list.rs	R1	ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
-lw_ui/src/shell/compact/list.rs	R1	ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
-lw_ui/src/shell/compact/list.rs	R1	ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
-lw_ui/src/shell/compact/list.rs	R1	ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
+lw_ui/src/shell/compact/list.rs	R1	ui.id("selection-header", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
+lw_ui/src/shell/compact/list.rs	R1	ui.id("selection-header", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
+lw_ui/src/shell/compact/list.rs	R1	ui.id("back-row", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
+lw_ui/src/shell/compact/list.rs	R1	ui.id("back-row", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
 lw_ui/src/shell/compact/list.rs	R6	container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
 lw_ui/src/shell/compact/list.rs	R6	container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
 lw_ui/src/shell/compact/list.rs	R6	container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));

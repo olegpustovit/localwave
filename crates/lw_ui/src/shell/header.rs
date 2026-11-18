@@ -130,7 +130,7 @@ pub(super) fn compact_find(
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
-    ui.column(Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
+    ui.id("find-heading", |ui| { ui.column(Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
         // Select mode swaps the whole heading for Swift's selection header.
         if state.selecting {
             let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
@@ -214,7 +214,7 @@ pub(super) fn compact_find(
                 }
             },
         );
-    }); });
+    }); }); });
 }
 
 /// "Search spans every source..." with Swift's bold filter examples, wrapped to the page width.
@@ -264,9 +264,9 @@ pub(super) fn header_view(
             .as_ref()
             .map_or(0, |view| std::sync::Arc::as_ptr(view) as usize),
     ));
-    ui.column(Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
+    ui.id("page-heading", |ui| { ui.column(Node::column(), |ui| { ui.view_of("page-heading", &revision, |ui| {
         header(ui, catalog, state, width, intent)
-    }); });
+    }); }); });
 }
 
 pub(super) fn content(
@@ -293,7 +293,7 @@ pub(super) fn find_tokens(
 ) {
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
     let revision = crate::hash((state.query_revision, width.to_bits()));
-    ui.column(Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
+    ui.id("find-tokens", |ui| { ui.column(Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
             let flow = Node {
                 wrap: true,
                 row_gap: 6.0,
@@ -339,5 +339,5 @@ pub(super) fn find_tokens(
                     }
                 }
             });
-        }); });
+        }); }); });
 }
