@@ -110,7 +110,7 @@ pub(super) fn gallery(
                     spacer(ui, "gallery-top-gap", 22.0);
                 }
             }
-            SectionPart::Header => {}
+            SectionPart::Header | SectionPart::Trailing => {}
             SectionPart::Row(line) => {
                 ui.id("gallery-inset", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).pad_x(inset).gap(gap), |ui| {
                     for (column, index) in order

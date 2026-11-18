@@ -127,9 +127,32 @@ pxui::Bytes::glyph_lists field i64
 pxui::Bytes::text_undo field i64
 pxui::COUNTER_ALLOCATIONS const u32
 pxui::Capitalize use pxui_types::Capitalize
+pxui::CellState impl Clone
+pxui::CellState impl Copy
+pxui::CellState impl Debug
+pxui::CellState impl Default
+pxui::CellState struct
+pxui::CellState::enabled field bool
+pxui::CellState::focused field bool
+pxui::CellState::handle field Handle
+pxui::CellState::held field bool
+pxui::CellState::selected field bool
+pxui::CellState::y field f32
 pxui::Checkbox use pxui_types::ui::Checkbox
 pxui::Chosen use pxui_types::ui::Chosen
 pxui::ColorizeFn type <'a>= dyn Fn(&str) -> Vec<(usize, usize, Rgba)> + 'a
+pxui::Column impl Clone
+pxui::Column impl Copy
+pxui::Column impl Debug
+pxui::Column impl PartialEq
+pxui::Column impl StructuralPartialEq
+pxui::Column struct <'a>
+pxui::Column::grip fn const (self, grip: bool) -> Column<'a>
+pxui::Column::id fn const (self, id: i64) -> Column<'a>
+pxui::Column::new fn const (title: &'a str) -> Column<'a>
+pxui::Column::share fn const (self, share: f32) -> Column<'a>
+pxui::Column::sortable fn const (self, sortable: bool) -> Column<'a>
+pxui::Column::w_px fn const (self, points: f32) -> Column<'a>
 pxui::Commands use pxui_types::Commands
 pxui::CompleteFn type <'a>= dyn Fn(&str, usize) -> Vec<Completion> + 'a
 pxui::ContextAtFn type <'a>= dyn Fn(&str, usize) -> CodeContext + 'a
@@ -290,6 +313,13 @@ pxui::GridList::DEFAULT const GridList
 pxui::GridList::h_px fn const (self, points: f32) -> GridList
 pxui::GridList::w_px fn const (self, points: f32) -> GridList
 pxui::Handle type = PxuiBox
+pxui::HeadResponse impl Clone
+pxui::HeadResponse impl Copy
+pxui::HeadResponse impl Debug
+pxui::HeadResponse struct
+pxui::HeadResponse::resized field bool
+pxui::HeadResponse::response field Response
+pxui::HeadResponse::sorted field bool
 pxui::Icon enum
 pxui::Icon impl Clone
 pxui::Icon impl Copy
@@ -418,6 +448,18 @@ pxui::LineFieldResponse::changed field Option<&'a str>
 pxui::LineFieldResponse::response field Response
 pxui::LineFieldResponse::step field LineStep
 pxui::ListResponse use pxui_types::ui::ListResponse
+pxui::ListState impl Clone
+pxui::ListState impl Debug
+pxui::ListState impl Default
+pxui::ListState impl Eq
+pxui::ListState impl PartialEq
+pxui::ListState impl StructuralPartialEq
+pxui::ListState struct
+pxui::ListState::DISABLED const u8
+pxui::ListState::SELECTED const u8
+pxui::ListState::anchor field Option<usize>
+pxui::ListState::new fn const () -> ListState
+pxui::ListState::rows field Vec<u8>
 pxui::Menu use pxui_types::ui::Menu
 pxui::MenuBar impl Clone
 pxui::MenuBar impl Copy
@@ -692,6 +734,15 @@ pxui::SliderResponse::commit field Option<f32>
 pxui::SliderResponse::preview field Option<f32>
 pxui::SliderResponse::response field Response
 pxui::SliderResponse::value field f32
+pxui::Sort enum
+pxui::Sort impl Clone
+pxui::Sort impl Copy
+pxui::Sort impl Debug
+pxui::Sort impl Eq
+pxui::Sort impl PartialEq
+pxui::Sort impl StructuralPartialEq
+pxui::Sort::Ascending variant
+pxui::Sort::Descending variant
 pxui::Spinner impl Clone
 pxui::Spinner impl Copy
 pxui::Spinner impl Debug
@@ -742,8 +793,42 @@ pxui::SwipeActions::DEFAULT const SwipeActions
 pxui::SwipeActions::full fn const (self, travel: f32) -> SwipeActions
 pxui::SwipeActions::leading fn const (self, width: f32) -> SwipeActions
 pxui::SwipeActions::trailing fn const (self, width: f32) -> SwipeActions
-pxui::TableResponse use pxui_types::ui::TableResponse
-pxui::TableView use pxui_types::ui::TableView
+pxui::Table impl Clone
+pxui::Table impl Copy
+pxui::Table impl Debug
+pxui::Table impl PartialEq
+pxui::Table impl StructuralPartialEq
+pxui::Table struct
+pxui::Table::DEFAULT const Table
+pxui::Table::head fn const (self, head: TableHead) -> Table
+pxui::Table::multi fn const (self) -> Table
+pxui::Table::row_h fn const (self, points: f32) -> Table
+pxui::Table::variant fn const (self, variant: u16) -> Table
+pxui::TableHead impl Clone
+pxui::TableHead impl Copy
+pxui::TableHead impl Debug
+pxui::TableHead impl PartialEq
+pxui::TableHead impl StructuralPartialEq
+pxui::TableHead struct
+pxui::TableHead::DEFAULT const TableHead
+pxui::TableHead::h_px fn const (self, points: f32) -> TableHead
+pxui::TableHead::variant fn const (self, variant: u16) -> TableHead
+pxui::TableResponse impl Clone
+pxui::TableResponse impl Copy
+pxui::TableResponse impl Debug
+pxui::TableResponse struct
+pxui::TableResponse::head field HeadResponse
+pxui::TableResponse::rows field ListResponse
+pxui::TableState impl Clone
+pxui::TableState impl Debug
+pxui::TableState impl Default
+pxui::TableState impl PartialEq
+pxui::TableState impl StructuralPartialEq
+pxui::TableState struct
+pxui::TableState::new fn const () -> TableState
+pxui::TableState::selection field ListState
+pxui::TableState::sort field Option<(i64, Sort)>
+pxui::TableState::widths field Vec<(i64, f32)>
 pxui::Tabs impl Clone
 pxui::Tabs impl Copy
 pxui::Tabs impl Debug
@@ -945,7 +1030,7 @@ pxui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>>
 pxui::Ui::layer_count fn (&self) -> usize
 pxui::Ui::layers fn (&self) -> Layers<'_>
 pxui::Ui::library_calls fn (&self) -> u64
-pxui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
+pxui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> ListResponse
 pxui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::Ui::local_rect fn (&self, b: &Handle) -> Rect
 pxui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: Point, items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
@@ -1011,7 +1096,6 @@ pxui::Ui::register_selection_list_body fn (&mut self, name: &str, body: fn(&mut 
 pxui::Ui::register_slider_body fn (&mut self, name: &str, body: fn(&mut Ui, &SliderConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_spinner_body fn (&mut self, name: &str, body: fn(&mut Ui, &SpinnerConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_split_body fn (&mut self, name: &str, body: fn(&mut Ui, &SplitConfig)) -> Result<BodyId, Error>
-pxui::Ui::register_table_cell_body fn (&mut self, name: &str, body: fn(&mut Ui, &TableCellConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_table_head_body fn (&mut self, name: &str, body: fn(&mut Ui, &TableHeadConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_table_row_body fn (&mut self, name: &str, body: fn(&mut Ui, &TableRowConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_tabs_body fn (&mut self, name: &str, body: fn(&mut Ui, &TabsConfig)) -> Result<BodyId, Error>
@@ -1037,9 +1121,9 @@ pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, no
 pxui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
 pxui::Ui::section_index fn <K: Into<Key>>(&mut self, key: K, letters: &[&str], index: &SectionIndex<'_>) -> PickResponse
-pxui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
+pxui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> ListResponse
 pxui::Ui::segmented fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> PickResponse
-pxui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
+pxui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, row_key: &dyn Fn(usize) -> i64, state: &mut ListState, list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, SectionPart, CellState)) -> ListResponse
 pxui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
 pxui::Ui::set_dir fn (&mut self, rtl: bool)
@@ -1063,7 +1147,8 @@ pxui::Ui::stack fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
 pxui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
 pxui::Ui::system_appearance fn (&self) -> Appearance
-pxui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
+pxui::Ui::table fn <K: Into<Key>>(&mut self, key: K, columns: &[Column<'_>], rows: usize, row_key: &dyn Fn(usize) -> i64, state: &mut TableState, table: &Table, cell: &mut dyn FnMut(&mut Ui, usize, usize, CellState)) -> TableResponse
+pxui::Ui::table_head fn <K: Into<Key>>(&mut self, key: K, columns: &[Column<'_>], state: &mut TableState, head: &TableHead) -> HeadResponse
 pxui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, tabs: &Tabs<'_>) -> PickResponse
 pxui::Ui::text fn (&mut self, box_: &Handle, value: &str)
 pxui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, node: Node, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
@@ -1266,9 +1351,6 @@ pxui::bodies::SpinnerConfig struct (_)
 pxui::bodies::SplitConfig impl BodyConfig
 pxui::bodies::SplitConfig impl Deref
 pxui::bodies::SplitConfig struct (_)
-pxui::bodies::TableCellConfig impl BodyConfig
-pxui::bodies::TableCellConfig impl Deref
-pxui::bodies::TableCellConfig struct (_)
 pxui::bodies::TableHeadConfig impl BodyConfig
 pxui::bodies::TableHeadConfig impl Deref
 pxui::bodies::TableHeadConfig struct (_)
@@ -1589,8 +1671,6 @@ pxui::ui::SwipeActions::DEFAULT const SwipeActions
 pxui::ui::SwipeActions::full fn const (self, travel: f32) -> SwipeActions
 pxui::ui::SwipeActions::leading fn const (self, width: f32) -> SwipeActions
 pxui::ui::SwipeActions::trailing fn const (self, width: f32) -> SwipeActions
-pxui::ui::TableResponse use pxui_types::ui::TableResponse
-pxui::ui::TableView use pxui_types::ui::TableView
 pxui::ui::Target use pxui_types::ui::Target
 pxui::ui::TextArea impl Clone
 pxui::ui::TextArea impl Copy
@@ -1700,7 +1780,7 @@ pxui::ui::Ui::layer fn (&self, index: usize) -> Option<Layer<'_>>
 pxui::ui::Ui::layer_count fn (&self) -> usize
 pxui::ui::Ui::layers fn (&self) -> Layers<'_>
 pxui::ui::Ui::library_calls fn (&self) -> u64
-pxui::ui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> Handle
+pxui::ui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, count: usize, row_h: f32, row_key: &dyn Fn(usize) -> i64, f: F) -> ListResponse
 pxui::ui::Ui::load_text_edit fn <K: Into<Key>>(&mut self, key: K, text: &str) -> TextEdit
 pxui::ui::Ui::local_rect fn (&self, b: &Handle) -> Rect
 pxui::ui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: Point, items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
@@ -1766,7 +1846,6 @@ pxui::ui::Ui::register_selection_list_body fn (&mut self, name: &str, body: fn(&
 pxui::ui::Ui::register_slider_body fn (&mut self, name: &str, body: fn(&mut Ui, &SliderConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_spinner_body fn (&mut self, name: &str, body: fn(&mut Ui, &SpinnerConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_split_body fn (&mut self, name: &str, body: fn(&mut Ui, &SplitConfig)) -> Result<BodyId, Error>
-pxui::ui::Ui::register_table_cell_body fn (&mut self, name: &str, body: fn(&mut Ui, &TableCellConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_table_head_body fn (&mut self, name: &str, body: fn(&mut Ui, &TableHeadConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_table_row_body fn (&mut self, name: &str, body: fn(&mut Ui, &TableRowConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_tabs_body fn (&mut self, name: &str, body: fn(&mut Ui, &TabsConfig)) -> Result<BodyId, Error>
@@ -1792,9 +1871,9 @@ pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K
 pxui::ui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::ui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
 pxui::ui::Ui::section_index fn <K: Into<Key>>(&mut self, key: K, letters: &[&str], index: &SectionIndex<'_>) -> PickResponse
-pxui::ui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
+pxui::ui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> ListResponse
 pxui::ui::Ui::segmented fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> PickResponse
-pxui::ui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
+pxui::ui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, row_key: &dyn Fn(usize) -> i64, state: &mut ListState, list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, SectionPart, CellState)) -> ListResponse
 pxui::ui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::ui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
 pxui::ui::Ui::set_dir fn (&mut self, rtl: bool)
@@ -1818,7 +1897,8 @@ pxui::ui::Ui::stack fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handl
 pxui::ui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::ui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
 pxui::ui::Ui::system_appearance fn (&self) -> Appearance
-pxui::ui::Ui::table_view fn <K: Into<Key>>(&mut self, key: K, titles: &[&str], widths: &mut [f32], rows: usize, row_key: &dyn Fn(usize) -> i64, selected: &mut Option<usize>, table: &TableView, cell: &mut dyn FnMut(&mut Ui, usize, usize)) -> TableResponse
+pxui::ui::Ui::table fn <K: Into<Key>>(&mut self, key: K, columns: &[Column<'_>], rows: usize, row_key: &dyn Fn(usize) -> i64, state: &mut TableState, table: &Table, cell: &mut dyn FnMut(&mut Ui, usize, usize, CellState)) -> TableResponse
+pxui::ui::Ui::table_head fn <K: Into<Key>>(&mut self, key: K, columns: &[Column<'_>], state: &mut TableState, head: &TableHead) -> HeadResponse
 pxui::ui::Ui::tabs fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, tabs: &Tabs<'_>) -> PickResponse
 pxui::ui::Ui::text fn (&mut self, box_: &Handle, value: &str)
 pxui::ui::Ui::text_area fn <K: Into<Key>>(&mut self, key: K, value: &str, node: Node, area: &TextArea<'_>, callbacks: &AreaCallbacks<'_>) -> TextAreaResponse<'_>
@@ -3173,6 +3253,19 @@ pxui_types::ffi::PxuiButtonDesc::text field Str
 pxui_types::ffi::PxuiButtonDesc::w field f32
 pxui_types::ffi::PxuiButtonDesc::w_kind field u8
 pxui_types::ffi::PxuiCellBuild type = Option<extern "C" fn(*mut c_void, *mut c_void, usize, usize)>
+pxui_types::ffi::PxuiCellState impl Clone
+pxui_types::ffi::PxuiCellState impl Copy
+pxui_types::ffi::PxuiCellState impl Debug
+pxui_types::ffi::PxuiCellState impl Default
+pxui_types::ffi::PxuiCellState struct
+pxui_types::ffi::PxuiCellState::enabled field u8
+pxui_types::ffi::PxuiCellState::focused field u8
+pxui_types::ffi::PxuiCellState::handle field PxuiBox
+pxui_types::ffi::PxuiCellState::held field u8
+pxui_types::ffi::PxuiCellState::reserved field u32
+pxui_types::ffi::PxuiCellState::selected field u8
+pxui_types::ffi::PxuiCellState::size field u32
+pxui_types::ffi::PxuiCellState::y field f32
 pxui_types::ffi::PxuiCheckConfig impl Clone
 pxui_types::ffi::PxuiCheckConfig impl Copy
 pxui_types::ffi::PxuiCheckConfig struct
@@ -3209,6 +3302,33 @@ pxui_types::ffi::PxuiColorSpan::color field Rgba
 pxui_types::ffi::PxuiColorSpan::end field i64
 pxui_types::ffi::PxuiColorSpan::reserved field u32
 pxui_types::ffi::PxuiColorSpan::start field i64
+pxui_types::ffi::PxuiColumn impl Clone
+pxui_types::ffi::PxuiColumn impl Copy
+pxui_types::ffi::PxuiColumn impl Debug
+pxui_types::ffi::PxuiColumn struct
+pxui_types::ffi::PxuiColumn::grip field u8
+pxui_types::ffi::PxuiColumn::has_id field u8
+pxui_types::ffi::PxuiColumn::id field i64
+pxui_types::ffi::PxuiColumn::reserved field u8
+pxui_types::ffi::PxuiColumn::share field f32
+pxui_types::ffi::PxuiColumn::size field u32
+pxui_types::ffi::PxuiColumn::sortable field u8
+pxui_types::ffi::PxuiColumn::title field Str
+pxui_types::ffi::PxuiColumn::w field f32
+pxui_types::ffi::PxuiColumnWidth impl Clone
+pxui_types::ffi::PxuiColumnWidth impl Copy
+pxui_types::ffi::PxuiColumnWidth impl Debug
+pxui_types::ffi::PxuiColumnWidth impl Default
+pxui_types::ffi::PxuiColumnWidth struct
+pxui_types::ffi::PxuiColumnWidth::id field i64
+pxui_types::ffi::PxuiColumnWidth::reserved field u32
+pxui_types::ffi::PxuiColumnWidth::w field f32
+pxui_types::ffi::PxuiColumnWidthSpan impl Clone
+pxui_types::ffi::PxuiColumnWidthSpan impl Copy
+pxui_types::ffi::PxuiColumnWidthSpan impl Debug
+pxui_types::ffi::PxuiColumnWidthSpan struct
+pxui_types::ffi::PxuiColumnWidthSpan::len field usize
+pxui_types::ffi::PxuiColumnWidthSpan::ptr field *mut PxuiColumnWidth
 pxui_types::ffi::PxuiCompletion impl Clone
 pxui_types::ffi::PxuiCompletion impl Copy
 pxui_types::ffi::PxuiCompletion impl Debug
@@ -3415,6 +3535,17 @@ pxui_types::ffi::PxuiHeadOut::renamed field Str
 pxui_types::ffi::PxuiHeadOut::reserved field [u8; 2]
 pxui_types::ffi::PxuiHeadOut::reset_pressed field u8
 pxui_types::ffi::PxuiHeadOut::size field u32
+pxui_types::ffi::PxuiHeadResult impl Clone
+pxui_types::ffi::PxuiHeadResult impl Copy
+pxui_types::ffi::PxuiHeadResult impl Debug
+pxui_types::ffi::PxuiHeadResult struct
+pxui_types::ffi::PxuiHeadResult::ascending field u8
+pxui_types::ffi::PxuiHeadResult::has_sort field u8
+pxui_types::ffi::PxuiHeadResult::resized field u8
+pxui_types::ffi::PxuiHeadResult::response field PxuiResponse
+pxui_types::ffi::PxuiHeadResult::size field u32
+pxui_types::ffi::PxuiHeadResult::sort_id field i64
+pxui_types::ffi::PxuiHeadResult::sorted field u8
 pxui_types::ffi::PxuiHeaderDesc impl Clone
 pxui_types::ffi::PxuiHeaderDesc impl Copy
 pxui_types::ffi::PxuiHeaderDesc struct
@@ -3632,24 +3763,20 @@ pxui_types::ffi::PxuiLineFieldConfig::size field u32
 pxui_types::ffi::PxuiLineFieldConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiLineFieldConfig::text field Str
 pxui_types::ffi::PxuiLineFieldConfig::variant field u16
-pxui_types::ffi::PxuiListViewDesc struct
-pxui_types::ffi::PxuiListViewDesc::count field usize
-pxui_types::ffi::PxuiListViewDesc::label field Str
-pxui_types::ffi::PxuiListViewDesc::multi field u8
-pxui_types::ffi::PxuiListViewDesc::reserved field [u8; 3]
-pxui_types::ffi::PxuiListViewDesc::selected field PxuiU8MutSpan
-pxui_types::ffi::PxuiListViewDesc::size field u32
-pxui_types::ffi::PxuiListViewDesc::text field PxuiCollectionText
-pxui_types::ffi::PxuiListViewDesc::user field *mut c_void
-pxui_types::ffi::PxuiListViewWithDesc struct
-pxui_types::ffi::PxuiListViewWithDesc::build field PxuiCellBuild
-pxui_types::ffi::PxuiListViewWithDesc::count field usize
-pxui_types::ffi::PxuiListViewWithDesc::label field Str
-pxui_types::ffi::PxuiListViewWithDesc::multi field u8
-pxui_types::ffi::PxuiListViewWithDesc::reserved field [u8; 3]
-pxui_types::ffi::PxuiListViewWithDesc::selected field PxuiU8MutSpan
-pxui_types::ffi::PxuiListViewWithDesc::size field u32
-pxui_types::ffi::PxuiListViewWithDesc::user field *mut c_void
+pxui_types::ffi::PxuiListCell type = Option<extern "C" fn(*mut c_void, *mut c_void, usize, *const PxuiCellState)>
+pxui_types::ffi::PxuiListResult impl Clone
+pxui_types::ffi::PxuiListResult impl Copy
+pxui_types::ffi::PxuiListResult impl Debug
+pxui_types::ffi::PxuiListResult struct
+pxui_types::ffi::PxuiListResult::EMPTY const PxuiListResult
+pxui_types::ffi::PxuiListResult::activated field usize
+pxui_types::ffi::PxuiListResult::anchor field usize
+pxui_types::ffi::PxuiListResult::handle field PxuiBox
+pxui_types::ffi::PxuiListResult::reserved field u32
+pxui_types::ffi::PxuiListResult::row field PxuiBox
+pxui_types::ffi::PxuiListResult::secondary field usize
+pxui_types::ffi::PxuiListResult::selected field usize
+pxui_types::ffi::PxuiListResult::size field u32
 pxui_types::ffi::PxuiLookDesc impl Clone
 pxui_types::ffi::PxuiLookDesc impl Copy
 pxui_types::ffi::PxuiLookDesc impl Debug
@@ -3701,22 +3828,6 @@ pxui_types::ffi::PxuiMaybeRange::end field i64
 pxui_types::ffi::PxuiMaybeRange::has field u8
 pxui_types::ffi::PxuiMaybeRange::reserved field [u8; 7]
 pxui_types::ffi::PxuiMaybeRange::start field i64
-pxui_types::ffi::PxuiMeasuredSectionBuild type = Option<extern "C" fn(*mut c_void, *mut c_void, usize, f32)>
-pxui_types::ffi::PxuiMeasuredSectionDesc impl Clone
-pxui_types::ffi::PxuiMeasuredSectionDesc impl Copy
-pxui_types::ffi::PxuiMeasuredSectionDesc struct
-pxui_types::ffi::PxuiMeasuredSectionDesc::build field PxuiMeasuredSectionBuild
-pxui_types::ffi::PxuiMeasuredSectionDesc::count field usize
-pxui_types::ffi::PxuiMeasuredSectionDesc::header_height field f32
-pxui_types::ffi::PxuiMeasuredSectionDesc::key field PxuiRowKey
-pxui_types::ffi::PxuiMeasuredSectionDesc::label field Str
-pxui_types::ffi::PxuiMeasuredSectionDesc::leading_height field f32
-pxui_types::ffi::PxuiMeasuredSectionDesc::overlay_scrollbar field u8
-pxui_types::ffi::PxuiMeasuredSectionDesc::reserved field [u8; 3]
-pxui_types::ffi::PxuiMeasuredSectionDesc::row_height field f32
-pxui_types::ffi::PxuiMeasuredSectionDesc::size field u32
-pxui_types::ffi::PxuiMeasuredSectionDesc::trailing_height field f32
-pxui_types::ffi::PxuiMeasuredSectionDesc::user field *mut c_void
 pxui_types::ffi::PxuiMenuBarDesc struct
 pxui_types::ffi::PxuiMenuBarDesc::label field Str
 pxui_types::ffi::PxuiMenuBarDesc::menus field Slice<PxuiMenuDesc>
@@ -4002,6 +4113,7 @@ pxui_types::ffi::PxuiSearchFieldConfig::size field u32
 pxui_types::ffi::PxuiSearchFieldConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiSearchFieldConfig::variant field u16
 pxui_types::ffi::PxuiSearchFieldConfig::well field PxuiBox
+pxui_types::ffi::PxuiSectionBuild type = Option<extern "C" fn(*mut c_void, *mut c_void, usize, f32)>
 pxui_types::ffi::PxuiSectionConfig impl Clone
 pxui_types::ffi::PxuiSectionConfig impl Copy
 pxui_types::ffi::PxuiSectionConfig struct
@@ -4024,19 +4136,17 @@ pxui_types::ffi::PxuiSectionIndexConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiSectionIndexConfig::variant field u16
 pxui_types::ffi::PxuiSectionListDesc impl Clone
 pxui_types::ffi::PxuiSectionListDesc impl Copy
+pxui_types::ffi::PxuiSectionListDesc impl Debug
 pxui_types::ffi::PxuiSectionListDesc struct
-pxui_types::ffi::PxuiSectionListDesc::build field PxuiGridBuild
 pxui_types::ffi::PxuiSectionListDesc::count field usize
 pxui_types::ffi::PxuiSectionListDesc::header_height field f32
-pxui_types::ffi::PxuiSectionListDesc::key field PxuiRowKey
-pxui_types::ffi::PxuiSectionListDesc::label field Str
 pxui_types::ffi::PxuiSectionListDesc::leading_height field f32
+pxui_types::ffi::PxuiSectionListDesc::measured field u8
 pxui_types::ffi::PxuiSectionListDesc::overlay_scrollbar field u8
-pxui_types::ffi::PxuiSectionListDesc::reserved field [u8; 3]
+pxui_types::ffi::PxuiSectionListDesc::reserved field [u8; 2]
 pxui_types::ffi::PxuiSectionListDesc::row_height field f32
 pxui_types::ffi::PxuiSectionListDesc::size field u32
 pxui_types::ffi::PxuiSectionListDesc::trailing_height field f32
-pxui_types::ffi::PxuiSectionListDesc::user field *mut c_void
 pxui_types::ffi::PxuiSegmentConfig impl Clone
 pxui_types::ffi::PxuiSegmentConfig impl Copy
 pxui_types::ffi::PxuiSegmentConfig struct
@@ -4091,6 +4201,23 @@ pxui_types::ffi::PxuiSegmentedResult::has_secondary field u8
 pxui_types::ffi::PxuiSegmentedResult::reserved field [u8; 2]
 pxui_types::ffi::PxuiSegmentedResult::secondary field u64
 pxui_types::ffi::PxuiSegmentedResult::size field u32
+pxui_types::ffi::PxuiSelectionListDesc impl Clone
+pxui_types::ffi::PxuiSelectionListDesc impl Copy
+pxui_types::ffi::PxuiSelectionListDesc struct
+pxui_types::ffi::PxuiSelectionListDesc::anchor field usize
+pxui_types::ffi::PxuiSelectionListDesc::count field usize
+pxui_types::ffi::PxuiSelectionListDesc::fit field u8
+pxui_types::ffi::PxuiSelectionListDesc::header_height field f32
+pxui_types::ffi::PxuiSelectionListDesc::leading_height field f32
+pxui_types::ffi::PxuiSelectionListDesc::measured field u8
+pxui_types::ffi::PxuiSelectionListDesc::multi field u8
+pxui_types::ffi::PxuiSelectionListDesc::open_on_click field u8
+pxui_types::ffi::PxuiSelectionListDesc::overlay_scrollbar field u8
+pxui_types::ffi::PxuiSelectionListDesc::reserved field [u8; 3]
+pxui_types::ffi::PxuiSelectionListDesc::row_height field f32
+pxui_types::ffi::PxuiSelectionListDesc::rows field PxuiU8MutSpan
+pxui_types::ffi::PxuiSelectionListDesc::size field u32
+pxui_types::ffi::PxuiSelectionListDesc::trailing_height field f32
 pxui_types::ffi::PxuiShadowDesc impl Clone
 pxui_types::ffi::PxuiShadowDesc impl Copy
 pxui_types::ffi::PxuiShadowDesc impl Debug
@@ -4261,31 +4388,25 @@ pxui_types::ffi::PxuiTabConfig::size field u32
 pxui_types::ffi::PxuiTabConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiTabConfig::text field Str
 pxui_types::ffi::PxuiTabConfig::variant field u16
-pxui_types::ffi::PxuiTableCell type = Option<extern "C" fn(*mut c_void, i64, i64) -> Str>
-pxui_types::ffi::PxuiTableCellConfig impl Clone
-pxui_types::ffi::PxuiTableCellConfig impl Copy
-pxui_types::ffi::PxuiTableCellConfig struct
-pxui_types::ffi::PxuiTableCellConfig::column field i64
-pxui_types::ffi::PxuiTableCellConfig::header field u8
-pxui_types::ffi::PxuiTableCellConfig::height field f32
-pxui_types::ffi::PxuiTableCellConfig::key field i64
-pxui_types::ffi::PxuiTableCellConfig::left field f32
-pxui_types::ffi::PxuiTableCellConfig::right field f32
-pxui_types::ffi::PxuiTableCellConfig::row field i64
-pxui_types::ffi::PxuiTableCellConfig::size field u32
-pxui_types::ffi::PxuiTableCellConfig::text field Str
-pxui_types::ffi::PxuiTableCellConfig::variant field u16
+pxui_types::ffi::PxuiTableCellBuild type = Option<extern "C" fn(*mut c_void, *mut c_void, usize, usize, *const PxuiCellState)>
+pxui_types::ffi::PxuiTableDesc impl Clone
+pxui_types::ffi::PxuiTableDesc impl Copy
 pxui_types::ffi::PxuiTableDesc struct
-pxui_types::ffi::PxuiTableDesc::at field [f32; 2]
-pxui_types::ffi::PxuiTableDesc::cell field PxuiTableCell
-pxui_types::ffi::PxuiTableDesc::headers field Slice<Str>
-pxui_types::ffi::PxuiTableDesc::height field f32
-pxui_types::ffi::PxuiTableDesc::label field Str
-pxui_types::ffi::PxuiTableDesc::reserved field u32
-pxui_types::ffi::PxuiTableDesc::rows field i64
+pxui_types::ffi::PxuiTableDesc::anchor field usize
+pxui_types::ffi::PxuiTableDesc::ascending field u8
+pxui_types::ffi::PxuiTableDesc::columns field Slice<PxuiColumn>
+pxui_types::ffi::PxuiTableDesc::flags field PxuiU8MutSpan
+pxui_types::ffi::PxuiTableDesc::has_sort field u8
+pxui_types::ffi::PxuiTableDesc::head_h field f32
+pxui_types::ffi::PxuiTableDesc::head_variant field u16
+pxui_types::ffi::PxuiTableDesc::multi field u8
+pxui_types::ffi::PxuiTableDesc::reserved field u8
+pxui_types::ffi::PxuiTableDesc::reserved2 field [u8; 6]
+pxui_types::ffi::PxuiTableDesc::row_h field f32
+pxui_types::ffi::PxuiTableDesc::rows field usize
 pxui_types::ffi::PxuiTableDesc::size field u32
-pxui_types::ffi::PxuiTableDesc::user field *mut c_void
-pxui_types::ffi::PxuiTableDesc::width field f32
+pxui_types::ffi::PxuiTableDesc::sort_id field i64
+pxui_types::ffi::PxuiTableDesc::widths field PxuiColumnWidthSpan
 pxui_types::ffi::PxuiTableHeadConfig impl Clone
 pxui_types::ffi::PxuiTableHeadConfig impl Copy
 pxui_types::ffi::PxuiTableHeadConfig struct
@@ -4297,32 +4418,27 @@ pxui_types::ffi::PxuiTableHeadConfig::size field u32
 pxui_types::ffi::PxuiTableHeadConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiTableHeadConfig::title field Str
 pxui_types::ffi::PxuiTableHeadConfig::variant field u16
-pxui_types::ffi::PxuiTableViewDesc struct
-pxui_types::ffi::PxuiTableViewDesc::ascending field u8
-pxui_types::ffi::PxuiTableViewDesc::has_sort field u8
-pxui_types::ffi::PxuiTableViewDesc::label field Str
-pxui_types::ffi::PxuiTableViewDesc::reserved field [u8; 2]
-pxui_types::ffi::PxuiTableViewDesc::rows field usize
-pxui_types::ffi::PxuiTableViewDesc::selected field *mut usize
-pxui_types::ffi::PxuiTableViewDesc::size field u32
-pxui_types::ffi::PxuiTableViewDesc::sort_column field usize
-pxui_types::ffi::PxuiTableViewDesc::text field PxuiCollectionText
-pxui_types::ffi::PxuiTableViewDesc::titles field Slice<Str>
-pxui_types::ffi::PxuiTableViewDesc::user field *mut c_void
-pxui_types::ffi::PxuiTableViewDesc::widths field PxuiF32MutSpan
-pxui_types::ffi::PxuiTableViewWithDesc struct
-pxui_types::ffi::PxuiTableViewWithDesc::ascending field u8
-pxui_types::ffi::PxuiTableViewWithDesc::build field PxuiCellBuild
-pxui_types::ffi::PxuiTableViewWithDesc::has_sort field u8
-pxui_types::ffi::PxuiTableViewWithDesc::label field Str
-pxui_types::ffi::PxuiTableViewWithDesc::reserved field [u8; 2]
-pxui_types::ffi::PxuiTableViewWithDesc::rows field usize
-pxui_types::ffi::PxuiTableViewWithDesc::selected field *mut usize
-pxui_types::ffi::PxuiTableViewWithDesc::size field u32
-pxui_types::ffi::PxuiTableViewWithDesc::sort_column field usize
-pxui_types::ffi::PxuiTableViewWithDesc::titles field Slice<Str>
-pxui_types::ffi::PxuiTableViewWithDesc::user field *mut c_void
-pxui_types::ffi::PxuiTableViewWithDesc::widths field PxuiF32MutSpan
+pxui_types::ffi::PxuiTableHeadDesc impl Clone
+pxui_types::ffi::PxuiTableHeadDesc impl Copy
+pxui_types::ffi::PxuiTableHeadDesc impl Debug
+pxui_types::ffi::PxuiTableHeadDesc struct
+pxui_types::ffi::PxuiTableHeadDesc::ascending field u8
+pxui_types::ffi::PxuiTableHeadDesc::columns field Slice<PxuiColumn>
+pxui_types::ffi::PxuiTableHeadDesc::h field f32
+pxui_types::ffi::PxuiTableHeadDesc::has_sort field u8
+pxui_types::ffi::PxuiTableHeadDesc::reserved field [u8; 2]
+pxui_types::ffi::PxuiTableHeadDesc::reserved2 field u32
+pxui_types::ffi::PxuiTableHeadDesc::size field u32
+pxui_types::ffi::PxuiTableHeadDesc::sort_id field i64
+pxui_types::ffi::PxuiTableHeadDesc::widths field PxuiColumnWidthSpan
+pxui_types::ffi::PxuiTableResult impl Clone
+pxui_types::ffi::PxuiTableResult impl Copy
+pxui_types::ffi::PxuiTableResult impl Debug
+pxui_types::ffi::PxuiTableResult struct
+pxui_types::ffi::PxuiTableResult::head field PxuiHeadResult
+pxui_types::ffi::PxuiTableResult::reserved field u32
+pxui_types::ffi::PxuiTableResult::rows field PxuiListResult
+pxui_types::ffi::PxuiTableResult::size field u32
 pxui_types::ffi::PxuiTextAreaDesc impl Clone
 pxui_types::ffi::PxuiTextAreaDesc impl Copy
 pxui_types::ffi::PxuiTextAreaDesc impl Debug
@@ -5253,7 +5369,6 @@ pxui_types::theme::Bodies::set fn (&mut self, kind: &str, id: BodyId) -> bool
 pxui_types::theme::Bodies::slider field BodyId
 pxui_types::theme::Bodies::spinner field BodyId
 pxui_types::theme::Bodies::split field BodyId
-pxui_types::theme::Bodies::table_cell field BodyId
 pxui_types::theme::Bodies::table_head field BodyId
 pxui_types::theme::Bodies::table_row field BodyId
 pxui_types::theme::Bodies::tabs field BodyId
@@ -5310,7 +5425,6 @@ pxui_types::theme::BodyKind::selection_list variant
 pxui_types::theme::BodyKind::slider variant
 pxui_types::theme::BodyKind::spinner variant
 pxui_types::theme::BodyKind::split variant
-pxui_types::theme::BodyKind::table_cell variant
 pxui_types::theme::BodyKind::table_head variant
 pxui_types::theme::BodyKind::table_row variant
 pxui_types::theme::BodyKind::tabs variant
@@ -5434,6 +5548,7 @@ pxui_types::theme::Part::BAR const Part
 pxui_types::theme::Part::CLEAR const Part
 pxui_types::theme::Part::DISCLOSURE const Part
 pxui_types::theme::Part::EDITOR const Part
+pxui_types::theme::Part::HANDLE const Part
 pxui_types::theme::Part::HIT const Part
 pxui_types::theme::Part::RAIL const Part
 pxui_types::theme::Part::THUMB const Part
@@ -5814,11 +5929,14 @@ pxui_types::ui::ListResponse impl Clone
 pxui_types::ui::ListResponse impl Copy
 pxui_types::ui::ListResponse impl Debug
 pxui_types::ui::ListResponse impl Default
-pxui_types::ui::ListResponse impl Eq
-pxui_types::ui::ListResponse impl PartialEq
-pxui_types::ui::ListResponse impl StructuralPartialEq
 pxui_types::ui::ListResponse struct
 pxui_types::ui::ListResponse::activated field Option<usize>
+pxui_types::ui::ListResponse::drop_at field Option<usize>
+pxui_types::ui::ListResponse::handle field PxuiBox
+pxui_types::ui::ListResponse::moved field Option<(usize, usize)>
+pxui_types::ui::ListResponse::row field Option<PxuiBox>
+pxui_types::ui::ListResponse::secondary field Option<usize>
+pxui_types::ui::ListResponse::selected field Option<usize>
 pxui_types::ui::Menu impl Clone
 pxui_types::ui::Menu impl Copy
 pxui_types::ui::Menu impl Debug
@@ -6017,6 +6135,8 @@ pxui_types::ui::SectionList::measured fn const (self) -> SectionList
 pxui_types::ui::SectionList::new fn const (count: usize) -> SectionList
 pxui_types::ui::SectionList::overlay_scrollbar field bool
 pxui_types::ui::SectionList::overlay_scrollbar fn const (self) -> SectionList
+pxui_types::ui::SectionList::reorder field bool
+pxui_types::ui::SectionList::reorder fn const (self, on: bool) -> SectionList
 pxui_types::ui::SectionList::row_h fn const (self, h: f32) -> SectionList
 pxui_types::ui::SectionList::row_height field f32
 pxui_types::ui::SectionList::trail fn const (self, h: f32) -> SectionList
@@ -6031,6 +6151,7 @@ pxui_types::ui::SectionPart impl StructuralPartialEq
 pxui_types::ui::SectionPart::Header variant
 pxui_types::ui::SectionPart::Leading variant
 pxui_types::ui::SectionPart::Row variant (usize)
+pxui_types::ui::SectionPart::Trailing variant
 pxui_types::ui::Segment impl Clone
 pxui_types::ui::Segment impl Copy
 pxui_types::ui::Segment impl Debug
@@ -6076,13 +6197,34 @@ pxui_types::ui::Segmented::w_px fn const (self, w: f32) -> Segmented<'a>
 pxui_types::ui::SelectionList impl Clone
 pxui_types::ui::SelectionList impl Copy
 pxui_types::ui::SelectionList impl Debug
-pxui_types::ui::SelectionList impl Eq
 pxui_types::ui::SelectionList impl PartialEq
 pxui_types::ui::SelectionList impl StructuralPartialEq
 pxui_types::ui::SelectionList struct
 pxui_types::ui::SelectionList::DEFAULT const SelectionList
+pxui_types::ui::SelectionList::drop_look field Option<Look>
+pxui_types::ui::SelectionList::drop_look fn const (self, look: Look) -> SelectionList
+pxui_types::ui::SelectionList::fit field bool
+pxui_types::ui::SelectionList::fit fn const (self) -> SelectionList
+pxui_types::ui::SelectionList::header fn const (self, h: f32) -> SelectionList
+pxui_types::ui::SelectionList::header_height field f32
+pxui_types::ui::SelectionList::lead fn const (self, h: f32) -> SelectionList
+pxui_types::ui::SelectionList::leading_height field f32
+pxui_types::ui::SelectionList::measured field bool
+pxui_types::ui::SelectionList::measured fn const (self) -> SelectionList
 pxui_types::ui::SelectionList::multi field bool
 pxui_types::ui::SelectionList::multi fn const (self) -> SelectionList
+pxui_types::ui::SelectionList::open_on_click field bool
+pxui_types::ui::SelectionList::open_on_click fn const (self, on: bool) -> SelectionList
+pxui_types::ui::SelectionList::overlay_scrollbar field bool
+pxui_types::ui::SelectionList::overlay_scrollbar fn const (self) -> SelectionList
+pxui_types::ui::SelectionList::reorder field bool
+pxui_types::ui::SelectionList::reorder fn const (self, on: bool) -> SelectionList
+pxui_types::ui::SelectionList::row_h fn const (self, h: f32) -> SelectionList
+pxui_types::ui::SelectionList::row_height field f32
+pxui_types::ui::SelectionList::trail fn const (self, h: f32) -> SelectionList
+pxui_types::ui::SelectionList::trailing_height field f32
+pxui_types::ui::SelectionList::variant field u16
+pxui_types::ui::SelectionList::variant fn const (self, variant: u16) -> SelectionList
 pxui_types::ui::Slider impl Clone
 pxui_types::ui::Slider impl Copy
 pxui_types::ui::Slider impl Debug
@@ -6093,27 +6235,6 @@ pxui_types::ui::Slider struct
 pxui_types::ui::Slider::DEFAULT const Slider
 pxui_types::ui::Slider::variant field u16
 pxui_types::ui::Slider::variant fn const (self, variant: u16) -> Slider
-pxui_types::ui::TableResponse impl Clone
-pxui_types::ui::TableResponse impl Copy
-pxui_types::ui::TableResponse impl Debug
-pxui_types::ui::TableResponse impl Default
-pxui_types::ui::TableResponse impl Eq
-pxui_types::ui::TableResponse impl PartialEq
-pxui_types::ui::TableResponse impl StructuralPartialEq
-pxui_types::ui::TableResponse struct
-pxui_types::ui::TableResponse::row field Option<usize>
-pxui_types::ui::TableResponse::sort field Option<usize>
-pxui_types::ui::TableView impl Clone
-pxui_types::ui::TableView impl Copy
-pxui_types::ui::TableView impl Debug
-pxui_types::ui::TableView impl PartialEq
-pxui_types::ui::TableView impl StructuralPartialEq
-pxui_types::ui::TableView struct
-pxui_types::ui::TableView::DEFAULT const TableView
-pxui_types::ui::TableView::sort field Option<(usize, bool)>
-pxui_types::ui::TableView::sort fn const (self, column: usize, ascending: bool) -> TableView
-pxui_types::ui::TableView::text field Option<Rect>
-pxui_types::ui::TableView::text fn const (rect: Rect) -> TableView
 pxui_types::ui::Target enum
 pxui_types::ui::Target impl Clone
 pxui_types::ui::Target impl Copy

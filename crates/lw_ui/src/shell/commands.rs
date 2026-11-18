@@ -277,6 +277,7 @@ pub(super) fn palette_view(
                     result_row(ui, player, catalog, item, index == selected, intent);
                 });
             });
+            let list = list.handle;
             ui.set_node_layout(
                 &list,
                 &Node {

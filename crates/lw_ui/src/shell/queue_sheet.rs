@@ -491,6 +491,7 @@ pub(super) fn queue_rows(
             }
         },
     );
+    let list = list.handle;
     ui.a11y_name(
         &list,
         if sheet {

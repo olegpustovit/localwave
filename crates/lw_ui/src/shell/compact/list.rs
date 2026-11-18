@@ -101,13 +101,14 @@ pub(super) fn songs(
                         _ => {}
                     }
                 }
-                SectionPart::Header => {}
+                SectionPart::Header | SectionPart::Trailing => {}
                 SectionPart::Row(index) if index == collection.rows.len() => {
                     find_result_keys(ui, catalog, intent)
                 }
                 SectionPart::Row(index) => row(ui, &cx, index, intent),
             },
         );
+        let list = list.handle;
         refresh(ui, &list, state, intent);
         if cx.selecting {
             ui.id("selection-bar", |ui| selection_bar(ui, &cx, intent));

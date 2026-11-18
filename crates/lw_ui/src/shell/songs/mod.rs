@@ -349,6 +349,7 @@ pub(super) fn table(
                         super::detail::header(ui, catalog, state, player, width, intent)
                     }
                     SectionPart::Leading => header_view(ui, catalog, state, width, intent),
+                    SectionPart::Trailing => {}
                     SectionPart::Header => {
                         let list = ui.box_of_key(pxui::Key::Resolved(list_key)).unwrap();
                         viewport.offset = ui.scroll(&list).painted;
@@ -379,6 +380,7 @@ pub(super) fn table(
                     }
                 },
             );
+            let list = list.handle;
             if state.reveal_selected.take()
                 && let Some(row) = state.selected
             {

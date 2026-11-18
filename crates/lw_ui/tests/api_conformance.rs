@@ -42,7 +42,7 @@ const WIDGETS: &[&str] = &[
     "badge", "button", "button_content", "checkbox", "dialog", "disclosure", "dropdown", "grid_list",
     "icon_button", "label", "list", "menu", "menu_bar", "modal", "panel", "picker", "popup", "pressable", "progress",
     "radio", "scrub", "search_field", "section_index", "section_list", "segmented",
-    "selection_list", "slider", "spinner", "table_view", "tabs", "text_area", "text_field", "toasts", "toggle",
+    "selection_list", "slider", "spinner", "table", "table_head", "tabs", "text_area", "text_field", "toasts", "toggle",
     "tooltip", "tree",
 ];
 const TEXT_NAMES: &[&str] = &["label", "title", "name", "text"];

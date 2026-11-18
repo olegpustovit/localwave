@@ -104,6 +104,7 @@ pub(super) fn table(
         &|i| i as i64,
         &mut |ui, part, _| match part {
             SectionPart::Leading => header_view(ui, catalog, state, width, intent),
+            SectionPart::Trailing => {}
             SectionPart::Header => {
                 let head = ui.node(
                     "artist-columns",
