@@ -23,15 +23,7 @@ pub(super) fn header(
     let find_summary = collection
         .and(catalog.view.as_ref())
         .and_then(|view| view.find.as_ref());
-    let root = Node {
-        padding: Edges {
-            l: 32.0,
-            r: 32.0,
-            t: 28.0,
-            b: 0.0,
-        },
-        ..Node::column().w(Size::Grow).h(Size::Fit)
-    };
+    let root = Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(32.0, 28.0, 32.0, 0.0));
     ui.column(root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
@@ -93,15 +85,7 @@ pub(super) fn header(
         if state.route == Route::Albums {
             ui.node(
                 "heading-divider",
-                Node {
-                    margin: Edges {
-                        l: -32.0,
-                        r: -32.0,
-                        ..Edges::ZERO
-                    },
-                    look: LINE_FILL,
-                    ..Node::column().w_px(width).h_px(1.0)
-                },
+                Node::column().w_px(width).h_px(1.0).margin(Edges::ZERO.l(-32.0).r(-32.0)).look(LINE_FILL),
             );
             spacer(ui, "album-header-bottom", 1.0);
         } else if state.route == Route::Find {
@@ -137,15 +121,7 @@ pub(super) fn compact_find(
             super::compact::list::selection_header(ui, state.marked.len(), rows, rows, intent);
             return;
         }
-        ui.column(Node {
-                padding: Edges {
-                    l: 16.0,
-                    r: 16.0,
-                    t: 20.0,
-                    b: 0.0,
-                },
-                ..Node::column().w(Size::Grow).h(Size::Fit)
-            },
+        ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(16.0, 20.0, 16.0, 0.0)),
             |ui| {
                 ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
                 ui.column(Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
@@ -170,13 +146,7 @@ pub(super) fn compact_find(
                                 }
                             });
                             // Swift offsets the 44 pt target 10 pt past the gutter.
-                            let clear = Node {
-                                margin: Edges {
-                                    r: -10.0,
-                                    ..Edges::ZERO
-                                },
-                                ..Node::column().w_px(44.0).h_px(44.0).align(Align::Center)
-                            };
+                            let clear = Node::column().w_px(44.0).h_px(44.0).align(Align::Center).margin(Edges::ZERO.r(-10.0));
                             ui.column(clear, |ui| {
                                 // Swift's clear glyph has no resting plate.
                                 if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_44.look(&ICON_LOOKS)).clicked {
@@ -294,16 +264,7 @@ pub(super) fn find_tokens(
     const TOKENS: [&str; 5] = ["flac", "cloud", "offline", "year:2019", "unplayed"];
     let revision = crate::hash((state.query_revision, width.to_bits()));
     ui.id("find-tokens", |ui| { ui.column(Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
-            let flow = Node {
-                wrap: true,
-                row_gap: 6.0,
-                h: Size::Fit,
-                padding: Edges {
-                    b: 12.0,
-                    ..Edges::ZERO
-                },
-                ..Node::row().gap(6.0).w_px(width)
-            };
+            let flow = Node::row().gap(6.0).w_px(width).wrap().row_gap(6.0).h(Size::Fit).padding(Edges::ZERO.b(12.0));
             ui.row(flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);

@@ -134,11 +134,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
     ui.within(&cell, &mut |ui| {
         let selected = state.selected == Some(index);
         let row_node = Node {
-            padding: Edges {
-                l: 16.0,
-                r: 6.0,
-                ..Edges::ZERO
-            },
+            padding: Edges::ZERO.l(16.0).r(6.0),
             look: if selected { SELECTED_FILL } else { PAPER_FILL },
             ..Node::row()
                 .w(Size::Grow)
@@ -156,7 +152,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             if numbered {
                 let mut digits = [0u8; 24];
                 let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
-                ui.id("track", |ui| { ui.row(Node { justify: Justify::End, ..Node::row().w_px(22.0).h_px(18.2) }, |ui| {
+                ui.id("track", |ui| { ui.row(Node::row().w_px(22.0).h_px(18.2).justify(Justify::End), |ui| {
                     ui.label(digits, MONO_13.color(SECONDARY));
                 }); });
             } else {
@@ -419,10 +415,7 @@ fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
 
 /// Swift's trailing index: tap or drag over a letter jumps to its first song.
 fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
-    ui.row(Node {
-            justify: Justify::End,
-            ..Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center)
-        },
+    ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End),
         |ui| {
             let rail = ui.node(
                 "index",
@@ -433,14 +426,7 @@ fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
             let mut dragging = false;
             ui.within(&rail, &mut |ui| {
                 for (letter, first) in collection.sections.iter().copied() {
-                    let node = Node {
-                        justify: Justify::End,
-                        padding: Edges {
-                            r: 6.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::row().w_px(RAIL_WIDTH).h_px(RAIL_STEP).align(Align::Center).role(Role::Button)
-                    };
+                    let node = Node::row().w_px(RAIL_WIDTH).h_px(RAIL_STEP).align(Align::Center).role(Role::Button).justify(Justify::End).padding(Edges::ZERO.r(6.0));
                     // The rail takes the pointer, never Tab.
                     let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {
                         ui.label(letter, TEXT_11.h_px(RAIL_STEP).color(SECONDARY));
@@ -584,15 +570,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                     });
                 }
                 spacer(ui, "songs-gap", 20.0);
-                ui.column(Node {
-                        padding: Edges {
-                            l: 16.0,
-                            t: 20.0,
-                            b: 8.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::column().w(Size::Grow).h_px(SECTION_LABEL)
-                    },
+                ui.column(Node::column().w(Size::Grow).h_px(SECTION_LABEL).padding(Edges::ZERO.l(16.0).t(20.0).b(8.0)),
                     |ui| {
                         detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
                     },
@@ -609,7 +587,7 @@ fn back_row(
     intent: &mut Option<Intent>,
     extras: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
-    ui.id("back-row", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 6.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) },
+    ui.id("back-row", |ui| { ui.row(Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center).padding(Edges::ZERO.t(10.0).l(6.0)),
         |ui| {
             const BACK: pxui::Button = pxui::Button::sized(96.0, 44.0).look(&BARE).name("Back");
             let back = ui.button_content("back", &BACK, |ui, _| {
@@ -639,7 +617,7 @@ fn titles(ui: &mut Ui, title: &str, summary: &str) {
 
 fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>) {
     let kept = catalog.view.as_ref().and_then(|view| view.find.as_ref()).is_some_and(|find| find.pinned);
-    ui.row(Node { padding: Edges { l: 16.0, r: 16.0, t: 2.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(ROW).gap(8.0) }, |ui| {
+    ui.row(Node::row().w(Size::Grow).h_px(ROW).gap(8.0).padding(Edges::ZERO.l(16.0).r(16.0).t(2.0)), |ui| {
         if key(ui, "play-results", "Play results", Icon::Play, false) {
             *intent = Some(Intent::PlayRow(0));
         }
@@ -727,7 +705,7 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
 /// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
 /// "Select all" marks `rows` positions.
 pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
-    ui.id("selection-header", |ui| { ui.row(Node { padding: Edges { t: 10.0, l: 12.0, r: 12.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center) }, |ui| {
+    ui.id("selection-header", |ui| { ui.row(Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center).padding(Edges::ZERO.t(10.0).l(12.0).r(12.0)), |ui| {
         let all = selected > 0 && selected == selectable;
         if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false) {
             *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
@@ -781,8 +759,8 @@ pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
 /// key ("play-next", "add-to-list", "offline", "queue" or "remove") and the key's rectangle.
 pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
     let mut pressed = None;
-    ui.column(Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow) }, |ui| {
-        let deck = ui.node("selection-bar", Node { padding: Edges { l: 2.0, r: 2.0, t: 2.0, ..Edges::ZERO }, look: PANEL_FILL, ..Node::row().w(Size::Grow).h_px(BAR).gap(2.0) });
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).justify(Justify::End), |ui| {
+        let deck = ui.node("selection-bar", Node::row().w(Size::Grow).h_px(BAR).gap(2.0).padding(Edges::ZERO.l(2.0).r(2.0).t(2.0)).look(PANEL_FILL));
         ui.set_role(&deck, Role::Group, pxui::A11yStates::NONE);
         ui.a11y_name(&deck, "Selection actions");
         ui.within(&deck, &mut |ui| {
@@ -794,10 +772,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
             ] {
                 let tone = if !enabled { TERTIARY } else if key == "remove" { DANGER } else { INK };
                 let ink = ui.color(tone);
-                let node = Node {
-                    look: KEY_FILL,
-                    ..Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button)
-                };
+                let node = Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button).look(KEY_FILL);
                 let key_node = ui.pressable(key, node, &PLAIN.disabled(!enabled), |ui, _| {
                     let icon = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
                     ui.canvas(&icon, move |paint, rect| match key {
@@ -858,7 +833,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                 let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), ui.color(PANEL));
                 paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
                 ui.a11y_name(&art, "Album artwork");
-                ui.column(Node { justify: Justify::End, ..Node::column().w(Size::Grow).h(Size::Grow).gap(6.0) }, |ui| {
+                ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(6.0).justify(Justify::End), |ui| {
                     ui.label(&collection.title, PARAGRAPH_24.color(INK));
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()

@@ -70,7 +70,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     ui.within(&row, &mut |ui| {
         const BUTTON: pxui::Button = pxui::Button::sized(96.0, BACK).look(&BARE).name("Back");
         let back = ui.button_content("back", &BUTTON, |ui, _| {
-            ui.row(Node { padding: Edges { l: 26.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End) },
+            ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End).padding(Edges::ZERO.l(26.0)),
                 |ui| {
                     let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
                     let color = ui.color(SECONDARY);
@@ -127,10 +127,7 @@ pub(super) fn link(
     (size, line_height, weight, tracking): (f32, f32, u16, f32),
     color: Rgba,
 ) -> pxui::Response {
-    let node = Node {
-        look: Look::NONE.text(color),
-        ..Node::column().w(Size::Grow).h_px(line_height).role(Role::Button)
-    };
+    let node = Node::column().w(Size::Grow).h_px(line_height).role(Role::Button).look(Look::NONE.text(color));
     let link = ui.pressable(key, node, &PLAIN, |_, _| {});
     ui.text_line_box(
         &link.handle,
@@ -180,9 +177,9 @@ pub(super) fn header(
                     Node {
                         axis: if row { Axis::Row } else { Axis::Column },
                         padding: if album {
-                            Edges { l: 32.0, r: 32.0, t: 8.0, b: 24.0 }
+                            Edges::new(32.0, 8.0, 32.0, 24.0)
                         } else {
-                            Edges { l: 32.0, r: 32.0, t: 28.0, b: 18.0 }
+                            Edges::new(32.0, 28.0, 32.0, 18.0)
                         },
                         ..Node::column()
                             .w(Size::Grow)
@@ -333,10 +330,7 @@ fn album_grid(
     let (columns, cell) = grid(width);
     let grid = ui.node(
         "album-grid",
-        Node {
-            padding: Edges { l: 32.0, r: 32.0, b: 40.0, ..Edges::ZERO },
-            ..Node::column().w(Size::Grow).h_px(grid_height(width, cards.len())).gap(ROW_GAP)
-        },
+        Node::column().w(Size::Grow).h_px(grid_height(width, cards.len())).gap(ROW_GAP).padding(Edges::ZERO.l(32.0).r(32.0).b(40.0)),
     );
     ui.within(&grid, &mut |ui| {
         for (line_index, chunk) in cards.chunks(columns).enumerate() {

@@ -72,7 +72,7 @@ const ROW: Node =
     Node { axis: Axis::Row, min_h: 60.0, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center) };
 const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap().w(Size::Grow).role(Role::Label).color(SECONDARY);
 fn labels(ui: &mut Ui, title: &str, detail: &str) {
-    ui.column(Node { justify: Justify::Center, ..Node::column().w(Size::Grow).h(Size::Fit) }, |ui| {
+    ui.column(Node::column().w(Size::Grow).h(Size::Fit).justify(Justify::Center), |ui| {
         ui.label(title, TEXT_15.grow().h_px(21.0).color(INK));
         if !detail.is_empty() {
             ui.label(detail, DETAIL);
@@ -93,7 +93,7 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     ui.set_role(&c.row, Role::Toggle, pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE }));
     labels(ui, title, c.text_of(&c.detail));
     let track = if on { TRACK_ON } else { TRACK };
-    ui.column(Node { look: track, ..Node::column().w_px(48.0).h_px(28.0) }, |ui| {
+    ui.column(Node::column().w_px(48.0).h_px(28.0).look(track), |ui| {
         let at = Some((if on { 23.0 } else { 3.0 }, 3.0)).into();
         ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
     });
@@ -155,11 +155,7 @@ pub(super) fn view(
     let page = ui.node(
         "settings-page",
         Node {
-            padding: Edges {
-                t: 10.0,
-                b: 24.0,
-                ..Edges::ZERO
-            },
+            padding: Edges::ZERO.t(10.0).b(24.0),
             ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP)
         },
     );
@@ -217,7 +213,7 @@ pub(super) fn view(
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Offline space", cache_detail);
-            let strip = Node { look: PANEL_FILL, ..Node::row().w_px(174.0).h_px(32.0).pad(2.0) };
+            let strip = Node::row().w_px(174.0).h_px(32.0).pad(2.0).look(PANEL_FILL);
             ui.row(strip, |ui| {
                 for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
                     option(ui, value, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
@@ -227,7 +223,7 @@ pub(super) fn view(
         setting_row(ui, &cache, "Offline space", SettingsMenu::Cache, intent);
         let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Appearance", "");
-            let strip = Node { look: PANEL_FILL, ..Node::row().w_px(204.0).h_px(32.0).pad(2.0) };
+            let strip = Node::row().w_px(204.0).h_px(32.0).pad(2.0).look(PANEL_FILL);
             ui.row(strip, |ui| {
                 for (value, label, name) in [
                     (Appearance::System, "System", "Use system appearance"),

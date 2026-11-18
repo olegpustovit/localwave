@@ -84,10 +84,7 @@ pub(super) fn name_dialog(
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
     let open = ui.modal("list-name", &Overlay::DEFAULT.w_px(width).name(heading), |ui| {
-        ui.column(Node {
-                look: PAPER_FILL,
-                ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0)
-            },
+        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0).look(PAPER_FILL),
             |ui| {
                 ui.label(heading, TEXT_24.grow().h_px(36.0).color(INK));
                 let field = ui.node("list-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Px(40.0)));

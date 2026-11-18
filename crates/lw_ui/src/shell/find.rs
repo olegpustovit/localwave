@@ -24,10 +24,7 @@ fn background(ui: &mut Ui, key: &'static str, color: Rgba, shown: bool, immediat
     let view = ui.view_of(key, &0, |ui| {
         ui.node(
             "fill",
-            Node {
-                look: Look::NONE.fill(color),
-                ..Node::column().w(Size::Grow).h(Size::Grow)
-            },
+            Node::column().w(Size::Grow).h(Size::Grow).look(Look::NONE.fill(color)),
         );
     });
     let previous = ui.state(&view, -1);

@@ -18,7 +18,7 @@ pub(super) fn queue_action(
     // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
     let action = pxui::Button::sized(width, 28.0).look(&BARE).name(name);
     ui.button_content(key, &action, |ui, _| {
-        let copy = ui.node("label", Node { look: QUEUE_ACTION_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        let copy = ui.node("label", Node::column().w(Size::Grow).h(Size::Grow).look(QUEUE_ACTION_TEXT));
         ui.text(&copy, label);
     })
     .clicked
@@ -126,15 +126,7 @@ pub(super) fn queue_sheet(
                 ui.canvas(&handle, move |paint, rect| {
                     paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
                 });
-                ui.row(Node {
-                        padding: Edges {
-                            l: 16.0,
-                            r: 6.0,
-                            t: 12.0,
-                            b: 8.0,
-                        },
-                        ..Node::row().w(Size::Grow).h_px(66.2)
-                    },
+                ui.row(Node::row().w(Size::Grow).h_px(66.2).padding(Edges::new(16.0, 12.0, 6.0, 8.0)),
                     |ui| {
                         // Swift reaches Save as list from this header's context menu and an a11y action.
                         let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button);
@@ -226,28 +218,14 @@ pub(super) fn queue_sheet(
                 if let Some(song) = now {
                     now_row(ui, player, song, width);
                 }
-                ui.row(Node {
-                        padding: Edges {
-                            l: 16.0,
-                            t: 20.0,
-                            b: 8.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::row().w(Size::Grow).h_px(46.2).gap(4.0)
-                    },
+                ui.row(Node::row().w(Size::Grow).h_px(46.2).gap(4.0).padding(Edges::ZERO.l(16.0).t(20.0).b(8.0)),
                     |ui| {
                         ui.label("Up next", CAPTION);
                         ui.label(queue.map_or("0", |queue| queue.count.as_str()), MONO_12.h_px(18.2).color(SECONDARY));
                     },
                 );
                 if upcoming == 0 {
-                    ui.id("queue-empty", |ui| { ui.row(Node {
-                            padding: Edges {
-                                l: 26.0,
-                                ..Edges::ZERO
-                            },
-                            ..Node::row().w(Size::Grow).h_px(96.0).gap(8.0).align(Align::Center)
-                        },
+                    ui.id("queue-empty", |ui| { ui.row(Node::row().w(Size::Grow).h_px(96.0).gap(8.0).align(Align::Center).padding(Edges::ZERO.l(26.0)),
                         |ui| {
                             let undo = queue.is_some_and(|queue| queue.can_undo);
                             ui.label(if undo { "Up next cleared." } else { "Nothing queued." }, TEXT_14.h_px(20.0).color(SECONDARY));
@@ -277,13 +255,7 @@ pub(super) fn queue_sheet(
                             },
                         );
                     }); });
-                    let node = Node {
-                        padding: Edges {
-                            l: 26.0,
-                            ..Edges::ZERO
-                        },
-                        ..Node::row().w(Size::Grow).h_px(52.0).align(Align::Center).role(Role::Button)
-                    };
+                    let node = Node::row().w(Size::Grow).h_px(52.0).align(Align::Center).role(Role::Button).padding(Edges::ZERO.l(26.0));
                     let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {
                         ui.label("Clear up next", TEXT_16.grow().color(SECONDARY));
                     });
@@ -317,14 +289,7 @@ fn now_row(
 ) {
     let row = ui.node(
         "queue-now",
-        Node {
-            padding: Edges {
-                l: 24.0,
-                r: 16.0,
-                ..Edges::ZERO
-            },
-            ..Node::row().w(Size::Grow).h_px(56.0).gap(10.0).align(Align::Center).role(Role::ListItem)
-        },
+        Node::row().w(Size::Grow).h_px(56.0).gap(10.0).align(Align::Center).role(Role::ListItem).padding(Edges::ZERO.l(24.0).r(16.0)),
     );
     ui.a11y_name(&row, song.title);
     ui.within(&row, &mut |ui| {
@@ -419,11 +384,7 @@ pub(super) fn queue_rows(
             });
             let artist = row.map_or("", |row| row.artist);
             let item_node = Node {
-                padding: Edges {
-                    l: m.lead,
-                    r: m.trail,
-                    ..Edges::ZERO
-                },
+                padding: Edges::ZERO.l(m.lead).r(m.trail),
                 look: PAPER_FILL,
                 ..Node::row()
                     .w(Size::Grow)
@@ -467,14 +428,7 @@ pub(super) fn queue_rows(
                 );
                 paint_artwork(ui, &art, row, m.art, images);
                 ui.a11y_name(&art, "Track artwork");
-                let node = Node {
-                    padding: Edges {
-                        l: 10.0 - m.gap,
-                        t: (m.row - m.title_line - m.artist_line) / 2.0,
-                        ..Edges::ZERO
-                    },
-                    ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
-                };
+                let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button).padding(Edges::ZERO.l(10.0 - m.gap).t((m.row - m.title_line - m.artist_line) / 2.0));
                 let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {
                     ui.label(title, line_style(m.title as f32).grow().h_px(m.title_line).color(INK));
                     ui.label(artist, line_style(m.artist as f32).grow().h_px(m.artist_line).color(SECONDARY));
@@ -488,11 +442,7 @@ pub(super) fn queue_rows(
                     row.filter(|row| row.state != lw_core::FileState::Copied || row.pinned)
                 {
                     ui.column(Node {
-                            padding: Edges {
-                                l: m.glyph,
-                                r: m.glyph,
-                                ..Edges::ZERO
-                            },
+                            padding: Edges::ZERO.l(m.glyph).r(m.glyph),
                             ..Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0)
                         },
                         |ui| {

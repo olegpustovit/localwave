@@ -924,10 +924,7 @@ pub fn shell(
         let scrim = ui.view_of("song-menu-backdrop", &0, |ui| {
             ui.node(
                 "scrim",
-                Node {
-                    look: SCRIM,
-                    ..Node::column().w(Size::Grow).h(Size::Grow)
-                },
+                Node::column().w(Size::Grow).h(Size::Grow).look(SCRIM),
             );
         });
         ui.set_view(&scrim, &pxui::ViewTransform::DEFAULT.blur(14.0));

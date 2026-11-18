@@ -107,10 +107,7 @@ pub(super) fn table(
             SectionPart::Header => {
                 let head = ui.node(
                     "artist-columns",
-                    Node {
-                        look: PAPER_FILL,
-                        ..Node::column().w(Size::Grow).h_px(heading_height)
-                    },
+                    Node::column().w(Size::Grow).h_px(heading_height).look(PAPER_FILL),
                 );
                 ui.within(&head, &mut |ui| {
                     let mut x = 0.0;

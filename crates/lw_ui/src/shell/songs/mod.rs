@@ -173,10 +173,7 @@ fn heading(
 ) -> Handle {
     let root = ui.node(
         "song-columns",
-        Node {
-            look: PAPER_FILL,
-            ..Node::column().w(Size::Grow).h_px(layout.height)
-        },
+        Node::column().w(Size::Grow).h_px(layout.height).look(PAPER_FILL),
     );
     ui.within(&root, &mut |ui| {
         let mut x = 0.0;

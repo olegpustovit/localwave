@@ -96,16 +96,7 @@ pub(super) fn view(
     let width = (width - left - right).max(1.0);
     let root = ui.node(
         "compact-shell",
-        Node {
-            padding: Edges {
-                t: top.max(state.top_inset),
-                r: right,
-                b: bottom,
-                l: left,
-            },
-            look: PAPER_FILL,
-            ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Window)
-        },
+        Node::column().w(Size::Grow).h(Size::Grow).role(Role::Window).padding(Edges::new(left, top.max(state.top_inset), right, bottom)).look(PAPER_FILL),
     );
     ui.a11y_name(&root, "LocalWave");
     ui.within(&root, &mut |ui| {
@@ -177,15 +168,7 @@ pub(super) fn view(
                         },
                     );
                     if library {
-                        ui.id("library-summary", |ui| { ui.row(Node {
-                                padding: Edges {
-                                    l: 16.0,
-                                    r: 16.0,
-                                    b: 14.0,
-                                    ..Edges::ZERO
-                                },
-                                ..Node::row().w(Size::Grow).h_px(60.0).gap(10.0).align(Align::End)
-                            },
+                        ui.id("library-summary", |ui| { ui.row(Node::row().w(Size::Grow).h_px(60.0).gap(10.0).align(Align::End).padding(Edges::ZERO.l(16.0).r(16.0).b(14.0)),
                             |ui| {
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
                                 clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
@@ -328,10 +311,7 @@ fn mini(
     catalog: &Catalog,
     intent: &mut Option<Intent>,
 ) {
-    ui.row(Node {
-            look: PANEL_FILL,
-            ..Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center)
-        },
+    ui.row(Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center).look(PANEL_FILL),
         |ui| {
             let node = Node::row().w(Size::Grow).h_px(48.0).gap(10.0).align(Align::Center).role(Role::Button);
             let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {
@@ -474,10 +454,7 @@ fn expanded(
     intent: &mut Option<Intent>,
 ) {
     use lw_core::queue::RepeatMode;
-    let root_node = Node {
-        look: PAPER_FILL,
-        ..Node::column().w(Size::Grow).h(Size::Grow)
-    };
+    let root_node = Node::column().w(Size::Grow).h(Size::Grow).look(PAPER_FILL);
     let favorite = player
         .current_id
         .map(|id| (id, catalog.row_index(id).is_some_and(|i| catalog.row(i).favorite)));
@@ -499,11 +476,7 @@ fn expanded(
             });
             container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
         });
-        ui.row(Node {
-                justify: Justify::Center,
-                padding: Edges { t: 4.0, ..Edges::ZERO },
-                ..Node::row().w(Size::Grow).h_px(region)
-            },
+        ui.row(Node::row().w(Size::Grow).h_px(region).justify(Justify::Center).padding(Edges::ZERO.t(4.0)),
             |ui| {
                 artwork(
                     ui,
@@ -514,10 +487,7 @@ fn expanded(
                 );
             },
         );
-        ui.column(Node {
-                padding: Edges { l: 16.0, r: 16.0, t: 16.0, b: 10.0 },
-                ..Node::column().w(Size::Grow).h(Size::Grow)
-            },
+        ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0, 16.0, 10.0)),
             |ui| {
                 let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
                 ui.within(&info, &mut |ui| {
@@ -525,10 +495,7 @@ fn expanded(
                     ui.within(&names, &mut |ui| {
                         let title = ui.node(
                             "title",
-                            Node {
-                                look: INK_TEXT,
-                                ..Node::column().w(Size::Grow).h_px(27.6).role(Role::Label)
-                            },
+                            Node::column().w(Size::Grow).h_px(27.6).role(Role::Label).look(INK_TEXT),
                         );
                         ui.text_line_box(
                             &title,
@@ -551,10 +518,7 @@ fn expanded(
                 ui.row(Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
                     matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
                     ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                    ui.column(Node {
-                            padding: Edges { b: 2.0, ..Edges::ZERO },
-                            ..Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End)
-                        },
+                    ui.column(Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End).padding(Edges::ZERO.b(2.0)),
                         |ui| {
                             if let Some(info) = player.info {
                                 ui.label(&info.summary, MONO_DIM);
@@ -581,10 +545,7 @@ fn expanded(
                     ui.a11y_name(&total, "Duration");
                 });
                 spacer(ui, "modes-gap", 14.0);
-                ui.row(Node {
-                        look: PANEL_FILL,
-                        ..Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0)
-                    },
+                ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(PANEL_FILL),
                     |ui| {
                         if mode_key(
                             ui,
@@ -633,11 +594,7 @@ fn expanded(
             },
         );
         // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
-        ui.row(Node {
-                padding: Edges { l: 2.0, r: 2.0, t: 2.0, b: 0.0 },
-                look: SELECTED_FILL,
-                ..Node::row().w(Size::Grow).h_px(86.0).gap(2.0)
-            },
+        ui.row(Node::row().w(Size::Grow).h_px(86.0).gap(2.0).padding(Edges::new(2.0, 2.0, 2.0, 0.0)).look(SELECTED_FILL),
             |ui| {
                 let key = ((size.0 - 8.0) / 3.0).max(1.0);
                 if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {

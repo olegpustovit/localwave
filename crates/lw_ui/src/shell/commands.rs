@@ -101,11 +101,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     };
     let mut layout = ui.node_layout(&c.row);
     layout.h = Size::Px(height);
-    layout.padding = Edges {
-        l: inset,
-        r: inset,
-        ..Edges::ZERO
-    };
+    layout.padding = Edges::ZERO.l(inset).r(inset);
     ui.set_node_layout(&c.row, &layout);
     ui.style(&c.row, &pxui::theme::States::of(Look::NONE), State::default());
     if ui.state(&c.row, 0) == 0 {
@@ -115,11 +111,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     let editor = ui.part(
         pxui::Part::EDITOR,
         Node {
-            inset: Edges {
-                l: if find { 0.0 } else { 2.0 },
-                r: if find { 0.0 } else { 2.0 },
-                ..Edges::ZERO
-            },
+            inset: Edges::ZERO.l(if find { 0.0 } else { 2.0 }).r(if find { 0.0 } else { 2.0 }),
             look: Look::NONE.text(ui.tokens().foreground).font(font),
             ..Node::column().w(Size::Grow).h_px(height)
         },
@@ -276,15 +268,7 @@ pub(super) fn palette_view(
                 );
                 ui.within(&row, &mut |ui| {
                     if index == 0 || items[index - 1].group != item.group {
-                        ui.id("group", |ui| { ui.column(Node {
-                                padding: Edges {
-                                    l: 12.0,
-                                    r: 12.0,
-                                    t: 10.0,
-                                    b: 4.0,
-                                },
-                                ..Node::column().w(Size::Grow).h(Size::Fit)
-                            },
+                        ui.id("group", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(12.0, 10.0, 12.0, 4.0)),
                             |ui| {
                                 ui.label(item.group, FOOTNOTE.grow());
                             },
@@ -468,10 +452,7 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                             ui.within(&row, &mut |ui| {
                                 let node = ui.node(
                                     "label",
-                                    Node {
-                                        look: INK_TEXT,
-                                        ..Node::column().w_px(half).h_px(heights[index]).role(Role::Label)
-                                    },
+                                    Node::column().w_px(half).h_px(heights[index]).role(Role::Label).look(INK_TEXT),
                                 );
                                 ui.text_line_box(&node, label, KEY_LABEL, &[]).unwrap();
                                 ui.node("fill", Node::DEFAULT.w(Size::Grow));

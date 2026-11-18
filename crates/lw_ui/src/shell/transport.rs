@@ -19,10 +19,7 @@ pub(super) fn transport(
     let narrow = ui.view_size().width < 1100.0;
     let key_width = if narrow { 44.0 } else { 68.0 };
     ui.row(Node {
-            padding: Edges {
-                r: if narrow { 8.0 } else { 20.0 },
-                ..Edges::ZERO
-            },
+            padding: Edges::ZERO.r(if narrow { 8.0 } else { 20.0 }),
             look: PANEL_FILL,
             ..Node::row().w(Size::Grow).h(Size::Grow).gap(if narrow { 4.0 } else { 16.0 }).align(Align::Center)
         },
@@ -131,16 +128,7 @@ pub(super) fn desktop(
     let content_width = (width - sidebar_width - 1.0 - if panel { 320.0 } else { 0.0 }).max(100.0);
     let root = ui.node(
         "shell",
-        Node {
-            padding: Edges {
-                l: safe_left,
-                r: safe_right,
-                b: safe_bottom,
-                ..Edges::ZERO
-            },
-            look: PAPER_FILL,
-            ..Node::column().w(Size::Grow).h(Size::Grow)
-        },
+        Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::ZERO.l(safe_left).r(safe_right).b(safe_bottom)).look(PAPER_FILL),
     );
     ui.set_role(&root, Role::Window, pxui::A11yStates::NONE);
     ui.a11y_name(

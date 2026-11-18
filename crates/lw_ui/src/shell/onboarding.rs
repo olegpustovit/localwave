@@ -33,10 +33,7 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
             "onboarding-page",
             &(column.to_bits(), top_inset.to_bits(), drive),
             |ui| {
-                ui.column(Node {
-                        padding: Edges { l: 16.0, r: 16.0, t: 16.0 + top_inset, b: 34.0 },
-                        ..Node::column().w(Size::Grow).h(Size::Grow)
-                    },
+                ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0 + top_inset, 16.0, 34.0)),
                     |ui| {
                         if page(ui, drive, intent) {
                             ui.set_state(&root, i64::from(!drive));
@@ -127,17 +124,11 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
 fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
     let frame = ui.node(
         "drive-frame",
-        Node {
-            look: LINE_FILL,
-            ..Node::column().w(Size::Grow).h(Size::Fit).pad(1.0)
-        },
+        Node::column().w(Size::Grow).h(Size::Fit).pad(1.0).look(LINE_FILL),
     );
     let mut clicked = false;
     ui.within(&frame, &mut |ui| {
-        ui.column(Node {
-                look: PAPER_FILL,
-                ..Node::column().w(Size::Grow).h(Size::Fit).pad(14.0)
-            },
+        ui.column(Node::column().w(Size::Grow).h(Size::Fit).pad(14.0).look(PAPER_FILL),
             |ui| {
                 let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {
                     let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
@@ -180,10 +171,7 @@ pub(super) fn empty_library(
         header_view(ui, catalog, state, width, intent);
     }
     let inset = if compact { 16.0 } else { 32.0 };
-    ui.column(Node {
-            padding: Edges { l: inset, r: inset, t: 24.0, ..Edges::ZERO },
-            ..Node::column().w(Size::Grow).h(Size::Fit)
-        },
+    ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::ZERO.l(inset).r(inset).t(24.0)),
         |ui| {
             ui.label(LIBRARY_EMPTY, PARAGRAPH_14.color(SECONDARY));
         },

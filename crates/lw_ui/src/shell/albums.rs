@@ -122,10 +122,7 @@ pub(super) fn gallery(
                     {
                         let group = &groups[index];
                         let visual = ui.view_of(Key::Id(index as i64), &row_revision, |ui| {
-                            let node = Node {
-                                padding: Edges::ZERO,
-                                ..Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button)
-                            };
+                            let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button).padding(Edges::ZERO);
                             let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {
                                 let art = ui.node("artwork", ARTWORK.h_px(cell));
                                 paint_artwork(

@@ -77,7 +77,7 @@ const GROUP: Label = TEXT_12.grow().h_px(30.0).color(SECONDARY);
 fn add_row(ui: &mut Ui, key: &'static str, title: &str, name: &str) -> bool {
     let row = ui.button_content(key, &ADD_ROW, |ui, _| {
         // the text starts 8 points in, as Swift's does; `button_with` centres it
-        let copy = ui.node("label", Node { padding: Edges { l: 8.0, ..Edges::ZERO }, look: LINK_TEXT, ..Node::column().w(Size::Grow).h(Size::Grow) });
+        let copy = ui.node("label", Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::ZERO.l(8.0)).look(LINK_TEXT));
         ui.text(&copy, title);
     });
     ui.a11y_name(&row.handle, name);
@@ -147,25 +147,18 @@ pub(super) fn sidebar(
                 intent,
             );
         });
-        ui.row(Node { padding: Edges { t: 14.0, l: 8.0, r: 8.0, ..Edges::ZERO }, ..Node::row().w(Size::Grow).h_px(30.0) },
+        ui.row(Node::row().w(Size::Grow).h_px(30.0).padding(Edges::ZERO.t(14.0).l(8.0).r(8.0)),
             |ui| {
                 ui.label("Offline", TEXT_12.grow().h_px(16.0).color(SECONDARY));
                 ui.label(&catalog.offline_usage, MONO_12.h_px(16.0).color(SECONDARY));
             },
         );
-        ui.row(Node {
-                margin: Edges { t: 10.0, l: 8.0, r: 8.0, ..Edges::ZERO },
-                look: LINE_FILL,
-                ..Node::row().w(Size::Grow).h_px(4.0)
-            },
+        ui.row(Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)).look(LINE_FILL),
             |ui| {
                 container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
             },
         );
-        let node = Node {
-            padding: Edges { t: 10.0, l: 8.0, ..Edges::ZERO },
-            ..Node::row().w(Size::Grow).h_px(28.0).role(Role::Button)
-        };
+        let node = Node::row().w(Size::Grow).h_px(28.0).role(Role::Button).padding(Edges::ZERO.t(10.0).l(8.0));
         let shortcuts = ui.pressable("shortcuts", node, &PLAIN, |ui, _| {
             ui.label("?", MONO_11.w_px(14.0).h_px(16.0).color(SECONDARY));
             ui.label("shortcuts", TEXT_12.h_px(16.0).color(SECONDARY));

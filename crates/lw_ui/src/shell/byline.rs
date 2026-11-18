@@ -74,10 +74,7 @@ pub(super) fn draw(
             let key = ["artist", "space-one", "separator", "space-two", "album"][index];
             let node = Node {
                 at: Some((rect.x, rect.y)).into(),
-                inset: Edges {
-                    t: if link { 2.0 } else { 0.0 },
-                    ..Edges::ZERO
-                },
+                inset: Edges::ZERO.t(if link { 2.0 } else { 0.0 }),
                 look: SECONDARY_TEXT,
                 ..Node::column().w_px(rect.w).h_px(rect.h).role(if link { Role::Button } else { Role::Label })
             };

@@ -28,10 +28,7 @@ pub(super) fn editor(
     let pxui::ViewSize { width, .. } = ui.view_size();
     let width = (width - 32.0).clamp(240.0, 420.0);
     let open = ui.modal("edit-metadata", &EDIT_METADATA.w_px(width), |ui| {
-        ui.column(Node {
-                look: PAPER_FILL,
-                ..Node::column().w(Size::Grow).h(Size::Fit).gap(4.0).pad(20.0)
-            },
+        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(4.0).pad(20.0).look(PAPER_FILL),
             |ui| {
                 ui.label("Edit Metadata", TEXT_24.grow().h_px(36.0).color(INK));
                 for (index, (label, key, input)) in FIELDS.into_iter().enumerate() {

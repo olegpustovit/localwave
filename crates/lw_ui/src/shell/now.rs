@@ -10,15 +10,7 @@ pub(super) fn now_panel(
     carry: u64,
     intent: &mut Option<Intent>,
 ) {
-    ui.column(Node {
-            padding: Edges {
-                l: 20.0,
-                r: 20.0,
-                t: 8.0,
-                b: 0.0,
-            },
-            ..Node::column().w(Size::Grow).h(Size::Grow)
-        },
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(20.0, 8.0, 20.0, 0.0)),
         |ui| {
             ui.row(Node::row().w_px(289.0).h_px(36.0).align(Align::Center), |ui| {
                 ui.label("Now playing", CAPTION.grow());
