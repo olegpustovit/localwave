@@ -131,17 +131,20 @@ only within 0.5 of the integer field); keyed `node` + `within` stays where tests
 query children; `tooltip_legacy`/`anchored_legacy` serve only 1.x C exports;
 the six-look `style` cost is measured at CP1.
 
-## NEXT: U1c review (implementer stopped at final, BLOCKED item)
+## NEXT: U1c review (U1c.5 stopped BLOCKED)
 
-U1c is on branch `u1c` in both repos: LocalWave 291d69d, pxui 81e96ee0. U1c.1–U1c.4 are done, plus three fix commits from the
-implementer's own Tier B and release runs. Tier B is green (pxui `cargo t --all` 943; offline `make check` 289; gates docs, abi-exports,
-abi-frozen, abi-compat). gcmp against U1a shows no D9 diff. Build times are within the CP0 allowance.
+U1c is on branch `u1c` in both repos: LocalWave 97bda86, pxui 79b83bf5. U1c.1–U1c.4 are done; U1c.5 (recover release abi_bench) added
+the Author re-pairing (ff71546e), ABI 1.82 text-input `_response` exports (cd601902), uninitialised pick/string columns and single
+validation of pick items on the dynamic path (8551f890) and a docs-allowlist row (79b83bf5). Tier B is green (pxui `cargo t --all` 983;
+static 237; doctests 470/453; gallery 17 with goldens; gates docs, abi-exports, abi-frozen, abi-compat; offline `make check` 289).
+gcmp against U1a: no D9 diff.
 
-**BLOCKED:** the release abi_bench Author page and page limits (the D26 done-when) still fail in both modes. Measured: inlining the key-first bodies is
-not the main cause. The fixes so far are static trusted entries for the widgets and an unzeroed text-area buffer. The Author page compares
-`id + row` with `node + within`, which is one extra library call per row and about 3.7× the 1% budget. Options and numbers:
-`scratch/u1c-final-report.md`. The orchestrator decides between new scope exports and re-pairing the page, then assigns the remaining
-page work (text-input response calls, dynamic validation, inspector bodies).
+**BLOCKED:** Author passes (static 0.98659, dynamic 0.98810). Still over, gate configuration: static Kit 1.01656, Controls 1.01424,
+Overlays 1.01928, Layout 1.01860; dynamic (libpxui with `pxui_dylib/counting`, as `cargo t` builds it) Kit 1.03045, Controls 1.04002,
+Overlays 1.03461, Layout 1.05024. abi_bench_bodies: Kit 1.018, Controls 1.043, Overlays 1.062 (engine growth, mainly cac8615a colour
+tokens and U1c.3 inspector bodies). Per-call costs, bisect results and failed experiments: `scratch/u1c-final-report.md` "U1c.5". The
+dynamic ratios in pxui commit messages cd601902/8551f890 were measured against a non-counting libpxui (about 1% low); LocalWave
+97bda86 records the correction. Buildtime compare not run.
 
 ## Found (separate fixes later, not U1b scope)
 
