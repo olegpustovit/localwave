@@ -796,7 +796,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
                 *intent = Some(Intent::CloseSourceMenu);
             }
         });
-    });
+    }).open;
     if !open && intent.is_none() {
         *intent = Some(Intent::CloseSourceMenu);
     }

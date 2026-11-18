@@ -182,7 +182,7 @@ D2Public modulesPublic after U1a: ui (prelude), bodies, ext (D6), testing, image
 
 D3library_counter / pxui_counterRust library_counter: fn(u32) -> u64 keeps its shape (the mem_sys::set_peer protocol, ≈150 sites); documented. The C pxui_counter and its reset move to the extension manifest as diagnostics (OS-10/39), out of the frozen 2.0 set.U1a.2, U5.9
 
-D4Pick-one controlsOne item type Segment (text, id, detail/count, name) for segmented, tabs, radio and dropdown (dx3.19's Tab becomes Segment). One style type per widget: Segmented, Tabs, Radio, Dropdown (Choice is split and deleted). One result PickResponse { response: Response, chosen: Option<usize>, chosen_id: Option<i64>, secondary: Option<usize> } (secondary = the option a right-click or long-press began on, as SegmentedResponse reports today) for these and section_index. segmented_with → segmented (no _with names, D25). Chosen stays for menu, menu bar, dialog and toasts.U1b.1 (radio, dropdown, segmented), U2a.2 (tabs), U2a.3 (section_index)
+D4Pick-one controlsOne item type Segment (text, id, detail/count, name) for segmented, tabs, radio and dropdown (dx3.19's Tab becomes Segment). One style type per widget: Segmented, Tabs, Radio, Dropdown (Choice is split and deleted). One result PickResponse { response: Response, chosen: Option<usize>, chosen_id: Option<i64>, secondary: Option<usize> } (secondary = the option a right-click or long-press began on, as SegmentedResponse reports today) for these and section_index. segmented_with → segmented (no _with names, D25). Chosen stays for menu, menu bar, dialog and toasts.U1b.1 (radio, dropdown, segmented), U1b.6 (chosen_id), U2a.2 (tabs), U2a.3 (section_index)
 
 D5Collectionstable_view → table, reshaped once in U2b.1. list stays as the spec's short form of section_list. Both list calls return ListResponse (they gain reorder/drop results). selection_list, grid_list, tree keep names.U2b.1–U2b.3
 
@@ -216,7 +216,7 @@ D19Colour token with alpha (G14)Rgba::token(T).alpha(a). Encoding: marker stays 
 
 D20Text pathsTextStyle (resolved, Copy + Send), Text, TextWorker, PreparedText, RetiredText, UiText::fork/install, prewarm_text, set_text_worker and Ui::resolve(&Label) -> TextStyle stay public: they are LocalWave's worker pipeline (catalog.rs, song_table.rs, song_text.rs, shell.rs:964). In-frame text has one service: UiText, reached with Ui::text_service() and Paint::text_service(). It owns measure, measure_spans, width, rasterize_rgba, quads, add_font and enable_system_fonts, all taking Label. Text is the off-thread form taking &TextStyle. Deleted: Ui::text_width/text_top/cap_width(Option<i64>), Paint::text_metrics(TextStyle), Ui::enable_system_fonts (it moves to the service). No new Ui::measure. LocalWave callers: find.rs:63, kit.rs:250, byline.rs:54, commands.rs:446, settings.rs:49, songs/tests.rs:832.U1b.3
 
-D21Small U1 choicesrect (surface space) and local_rect (parent space) both stay, documented as two coordinate spaces. A single Ui::frame(&FrameIn) accepts the event wire record or a borrowed full host Input snapshot. The existing C routes supply their respective validation and input policy. The Rust input_frame and routed_input methods are deleted. U5.1 owns the event and payload lifetime design. Style values take Label by value (spec: ui.label(text, TITLE.grow())); all other style values by reference (gesture(&Handle, &GestureOpts) moves in U1b.2). Paint::theme() is renamed Paint::tokens() to match Ui::tokens() (U1b.4). Signal/signal stay public for bodies and custom controls; app code uses Response (documented). Positions are Point, not tuples. Builder vocabulary: w/h(Size) and w_px/h_px(f32) everywhere (Overlay::w → w_px); .grow() on style values means weight 1, Node::grow(f32) takes the weight.U1a, U1b
+D21Small U1 choicesrect (surface space) and local_rect (parent space) both stay, documented as two coordinate spaces. A single Ui::frame(&FrameIn) accepts the event wire record or a borrowed full host Input snapshot. The existing C routes supply their respective validation and input policy. The Rust input_frame and routed_input methods are deleted. U5.1 owns the event and payload lifetime design. Style values take Label by value (spec: ui.label(text, TITLE.grow())); all other style values by reference (gesture(&Handle, &GestureOpts) moves in U1b.2). Paint::theme() is renamed Paint::tokens() to match Ui::tokens() (U1b.4). Signal/signal stay public for bodies and custom controls; app code uses Response (documented). Positions are Point, not tuples (tuple positions the ledger pins as HEAD, such as set_at and ViewTransform::about, stay HEAD). Builder vocabulary: w/h(Size) and w_px/h_px(f32) everywhere (Overlay::w → w_px); .grow() on style values means weight 1, Node::grow(f32) takes the weight.U1a, U1b
 
 D22verify_viewsPer-Ui, on by default under debug_assertions (proposal guard rail); pxui_ui_verify_views stays in the frozen 2.0 set (not the diagnostics extension), so the wrapper's debug default never depends on an unstable export; Ui::verify_new_views and the process flag deleted; callers (lw_bin/tests/window_input.rs:656/887, lw_bin/src/library/find.rs:810, lw_ui/src/lib.rs:356) migrated.U1c.2
 
@@ -268,7 +268,7 @@ Build-time setters (text, style, set_view) set state during the build; the patch
 
 JobSignature (target)Body kindStep
 
-Containersrow/column/stack<F>(node: Node, f: F) -> Handle (keyless, D25.1); id<K, F>(key, f) keys a subtree; node<K>(key: K, node: Node) -> Handle (HEAD takes Key; becomes key-first generic like every other call, codemod drops .into()); within(&Handle, &mut dyn FnMut(&mut Ui))—keyless + id U1b.6; node U1b.2; enter/leave → crate-private U1a.3
+Containersrow/column/stack<F>(node: Node, f: F) -> Handle (keyless, D25.1); id<K, F>(key, f) scopes descendant keys without adding a layout node; node<K>(key: K, node: Node) -> Handle (HEAD takes Key; becomes key-first generic like every other call, codemod drops .into()); within(&Handle, &mut dyn FnMut(&mut Ui))—keyless + id U1b.6; node U1b.2; enter/leave → crate-private U1a.3
 
 Pressable / disabledpressable<K, F>(key, node: Node, &Pressable, f: F /* (ui, State) */) -> Response; disabled<F>(bool, f)—HEAD
 
@@ -280,7 +280,7 @@ Splitsplit<K>(key, ratio: f32, &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn F
 
 Textlabel(&str, Label) -> Handle, label_fmt(Arguments, Label), label_digits(Arguments, Label); text(&Handle, &str); text_spans, text_line_box take LabellabelHEAD; spans U1b.3
 
-Measure (D20)Ui::text_service() -> &UiText and Paint::text_service(); UiText::measure(&str, Label, max_w: Option<f32>) -> Result<TextMetrics, Error>, measure_spans, width, rasterize_rgba, quads, add_font, enable_system_fonts; worker form Text::measure(&str, &TextStyle, max_w)—U1b.3
+Measure (D20)Ui::text_service() -> UiText<'_> and Paint::text_service() -> UiText<'_>; UiText::measure(&str, Label, max_w: Option<f32>) -> Result<TextMetrics, Error>, measure_spans, width, rasterize_rgba, quads, add_font, enable_system_fonts; worker form Text::measure(&str, &TextStyle, max_w)—U1b.3
 
 Text workerTextStyle, Text, TextWorker, PreparedText, RetiredText, UiText::fork/install, prewarm_text, set_text_worker, resolve(&Label) -> TextStyle—HEAD (D20)
 
@@ -326,15 +326,15 @@ Keys (D23)key_pressed(KeyCode, Mods) -> bool, key_down(KeyCode) -> bool, testing
 
 Local statestate/set_state(&Handle, ..), text_state/set_text_state, expanded<K>(key) -> Option<bool>, hover_delay<K>(key) -> bool, load_text_edit<K>(key, ..), box_of_key<K>(key), root_at(Point, &[Key]), part_box/part_rect(&Handle, ..)—U1b.2
 
-Paintcanvas/canvas_over(&Handle, f); Paint shapes Rect + Fill/Stroke; Paint::text/text_chars/text_spans/measure take Label; Paint::image(Rect, &Image, &ImageStyle)—U1b.3 (text), U1b.2 (image)
+Paintcanvas/canvas_over(&Handle, f); Paint shapes Rect + Fill/Stroke; Paint::text/text_chars/text_spans take Point and Label; Paint::text_service().measure measures the same style; Paint::image(Rect, &Image, &ImageStyle) takes its tint from ImageStyle—U1b.3 (text), U1b.2 (image)
 
 Looksstyle(&Handle, &States, State) (set_look folded in, States::of(Look)); patch_* family—U1b.4
 
 Animationanimate(&Handle, Target, Curve), animate_keys(&Handle, &[Keyframe], &Keyframes) (two jobs)—HEAD
 
-Imagesimage<K>(key, &Image, &ImageStyle) -> Result<Handle, Error>; Image::rgba8; images::{Want, Request}, Images::store/get/requests—U1b.2; builder U1b.5
+Imagesimage<K>(key, name, &Image, &ImageStyle) -> Result<Handle, Error>; Image::rgba8(width, height, vk_image_view, mtl_texture) describes an existing GPU texture; images::{Want, Request}, Images::store/get/requests—U1b.2; builder U1b.5
 
-A11ya11y_name(&Handle, &str) -> bool with UTF-8-safe display clipping; a11y_value/a11y_number(&Handle, ..) -> Result<bool, Error>; set_role(&Handle, Role, A11yStates); a11y_tree() -> A11yTree; a11y_nodes, a11y_name_of, a11y_value_of, box_of_a11y—U1a.3 (rule), U1b.4 (types)
+A11ya11y_name(&Handle, &str) -> bool with UTF-8-safe display clipping; a11y_value/a11y_number(&Handle, ..) -> Result<bool, Error>; set_role(&Handle, Role, A11yStates); a11y_tree() -> A11yTree<'_>; a11y_nodes, a11y_name_of, a11y_value_of, box_of_a11y—U1a.3 (rule), U1b.4 (types)
 
 Themeset_theme(&ThemeHandle) -> Result<(), Error>, themed(&ThemeHandle, f), theme(), tokens(), ThemeHandle::parse/set_color/density/reduced_motion; bodies::register_<kind>_body(..) -> Result<BodyId, Error>; Rgba::token(T).alpha(a) (D19); ColorToken::ACCENT; Appearance; sizes f32 (font_size, row_height, density, set_font_size)—U1a.2; U1b.3 (units); U2b.7 (alpha, accent)
 
@@ -348,9 +348,9 @@ Getterskeyboard(), environment(), text_traits() (was text_input_options), ime() 
 
 Signalssignal, signal_keys → Signal: documented as the body/custom-control layer—HEAD
 
-Hover / press querieshovered(&Handle, within: bool) -> bool replaces the hovered_exactly/hovered_within twin; press_keys, last_press_within, context_at(&Handle) -> Option<Point>, free context_clicked—U1b.2
+Hover / press querieshovered(&Handle, within: bool) -> bool replaces the hovered_exactly/hovered_within twin; press_keys, last_press_within(&[Event], &[Key]), context_at(&Handle) -> Option<Point>, free context_clicked—U1b.2
 
-Kept as HEAD (listed so the two-way check passes)Build/retained: set_at, to_front, node_layout/set_node_layout, node_mut (made non-generic U1c.1), cached_label, busy_step, set_dir, rtl, view_size (→ Size U1b.3). Input/text: captured, clipboard_request, paste_requested, passed_undo, text_input_focused, text_undo_bytes, unfocus, remember<K>(key, ..) (key-first with load_text_edit, U1b.2), event_text, dismiss_popup. Frame/diagnostics: request_frame, request_cursor, arranged_nodes, built_nodes, rebuilt_views, rebuilt_named, draw_calls, draw_revision, text_layout_count, verifying, abi_version. A11y: set_a11y, inject_a11y.—HEAD unless noted
+Kept as HEAD (listed so the two-way check passes)Build/retained: set_at, to_front, node_layout/set_node_layout, node_mut (made non-generic U1c.1), cached_label, busy_step, set_dir, rtl, view_size (→ ViewSize { width, height } U1b.3). Input/text: captured, clipboard_request, paste_requested, passed_undo, text_input_focused, text_undo_bytes, unfocus, remember<K>(key, ..) (key-first with load_text_edit, U1b.2), event_text, dismiss_popup. Frame/diagnostics: request_frame, request_cursor, arranged_nodes, built_nodes, rebuilt_views, rebuilt_named, draw_calls, draw_revision, text_layout_count, verifying, abi_version. A11y: set_a11y, inject_a11y.—HEAD unless noted
 
 Testingtesting::{frame, click, click_node, key, find}—U1a.4
 
@@ -1054,7 +1054,7 @@ keys.pyU1a.4KEY_SPECIAL + n → named KeyCode; key_pressed('o' as u32, Some(META
 
 results.pyU1b.1let (r, i) = ui.radio/dropdown/slider(..); → let r = ui.radio(..); let i = r.chosen; (no scope analysis; the compiler flags misses); segmented_with → segmented; if ui.popup/modal(..) → .open (meaning preserved)
 
-shapes.pyU1b.6Containers: drop the key from ui.row/column/stack(key, node, f). Wrap in ui.id(key, ..) when the call sits under if/match/for or holds an animate, and print those sites for review. button_with → button, toggle_with → toggle. Short forms ui.button(t)/ui.toggle(t, on) → keyed calls with &Button::DEFAULT/&Toggle::DEFAULT, using a static key derived from the call site's variable name, never the text. .enabled(x) → .disabled(!x).
+containers.pyU1b.6Containers: drop the key from ui.row/column/stack(key, node, f). Wrap in ui.id(key, ..) when the call sits under if/match/for or holds an animate, and print those sites for review. button_with → button, toggle_with → toggle. Short forms ui.button(t)/ui.toggle(t, on) → keyed calls with &Button::DEFAULT/&Toggle::DEFAULT, using a static key derived from the call site's variable name, never the text. .enabled(x) → .disabled(!x).
 
 units.pyU1b.3text_width(Some(n), ..)/text_top/cap_width → measure(.., LABEL, ..)? fields; i64 sizes → f32; (x, y) positions → Point::new
 
@@ -1164,7 +1164,7 @@ Done when: rg -n "ui_core|ui_text|ui_widgets|set_theme_source|use_theme|set_colo
 
 U1b · pxui: results, keys, measurement, looks, builders pxui + callers · ≈4 h · shape stop · independent review
 
-U1b.1 One result idiom (D4, D10). PickResponse for segmented (renamed from segmented_with), radio (Radio style), dropdown. Items become &[Segment] and selection Option<usize>. Tabs wait for U2a.2. Also:
+U1b.1 One result idiom (D4, D10). PickResponse for segmented (renamed from segmented_with), radio (Radio style), dropdown. Items become &[Segment] and selection Option<usize>. Secondary reports where the press began. Tabs wait for U2a.2. Also:
 
  SliderResponse for slider/scrub; OverlayResponse for panel/popup/modal/anchored.
 
@@ -1172,29 +1172,31 @@ U1b.1 One result idiom (D4, D10). PickResponse for segmented (renamed from segme
 
  PickerOpts → Picker. (button/toggle naming is U1b.6.)
 
- tooltip keyed by owner. Its C change takes the next minor.
+ Tooltip identity comes from the owner, not the display text. The menu bar reports a flat item index and its authored id. ABI changes take the next minor.
+
+ Scrub and slider: a held drag supplies preview; a release, key or accessibility edit supplies commit with preview equal to it on that frame. Split reports its ratio while held and on release (final), never for a body without a grip. Pick-one items key node, focus and secondary press by their id in both link modes; positional items use a distinct namespace.
 
  Callers move with results.py.
 
-U1b.2 Keys and small returns. node becomes key-first generic (codemod drops .into()); hovered(&Handle, within) replaces the twin; gesture(&Handle, &GestureOpts). Make these key-first: expanded, hover_delay, load_text_edit together with remember, box_of_key, root_at(Point, &[Key]), part_box/part_rect(&Handle, ..), image. Also ime() -> Option<Ime>, a11y_tree() -> A11yTree, text_input_options → text_traits, and Paint::image(Rect, &Image, &ImageStyle). Remaining raw i64 keys become Key (audit 77).
+U1b.2 Keys and small returns. node becomes key-first generic (codemod drops .into()); hovered(&Handle, within) replaces the twin; gesture(&Handle, &GestureOpts). Make these key-first: expanded, hover_delay, load_text_edit together with remember, box_of_key, root_at(Point, &[Key]), part_box/part_rect(&Handle, ..), image. Also ime() -> Option<Ime>, text_input_options → text_traits, and Paint::image(Rect, &Image, &ImageStyle). Node lookup, edit keys and root hit candidates distinguish an authored label or item id from Key::Resolved for an existing box key. Root hit queries keep the innermost candidate and the existing bound. Authored lookup keys resolve under the active scope seed during a build and ROOT_KEY outside one. The Rust hover_delay timer and tooltip owner use the resolved key without allocating; the C text export keeps its behavior.
 
-U1b.3 Measurement and units (D20, audit 79). UiText, reached through text_service() on Ui and Paint, is the one in-frame text service. Its measure replaces text_width/text_top/cap_width and Paint::text_metrics. Ui::enable_system_fonts moves to the service. Paint::text_spans takes Label. LocalWave text_service() callers: find.rs:63, kit.rs:250, byline.rs:54, commands.rs:446, settings.rs:49, songs/tests.rs:832. All sizes become f32 (font_size, row_height, density, set_font_size, Font::size, PanelOpts.padding), and positions Point (menu at, context_at). LocalWave: clock.rs and the shell.rs drop overlay place text by baseline from TextMetrics, replacing the measured +0.6 / +3/+1 constants. Fingerprints identical, or a D9 entry with the measured difference.
+U1b.3 Measurement and units (D20, audit 79). UiText, reached through text_service() on Ui and Paint, is the one in-frame text service. Its measure replaces text_width/text_top/cap_width and Paint::text_metrics. Ui::enable_system_fonts moves to the service. Paint::text_spans takes Label. The worker Text methods keep taking resolved TextStyle. LocalWave text_service() callers: find.rs:63, kit.rs:250, byline.rs:54, commands.rs:446, settings.rs:49, songs/tests.rs:832. All sizes become f32 (font_size, row_height, density, set_font_size, Font::size, PanelOpts.padding), and positions Point (menu at, context_at). ViewSize carries both width and height. The 1.x integer wire fields keep their semantics and layout, and the fractional paths validate the new records separately: legacy PxuiFontDesc/PxuiLookDesc/PxuiFont/Node and the borrowed ThemeSnapshot are unchanged; new size-prefixed records carry the f32 font size and panel padding; the Rust theme query borrows an engine-owned fractional snapshot; the legacy projection is prepared at theme/style mutation, never on the warm path. Font gains size_points: f32 in its tail padding (offset 28, layout otherwise unchanged); Rust Ui::theme() borrows the fractional snapshot with f32 Tokens text sizes, and the legacy ThemeSnapshot is C-only. LocalWave: clock.rs and the shell.rs drop overlay place text by baseline from TextMetrics, replacing the measured +0.6 / +3/+1 constants. Fingerprints identical, or a D9 entry with the measured difference.
 
-U1b.4 Looks, views, a11y types. set_look folds into style (States::of). ViewTransform gains clip, blur and saturation, and the three setters go. set_role(&Handle, Role, A11yStates). Paint::theme() → Paint::tokens(). The patch_* family is documented. rect/local_rect are documented (D21).
+U1b.4 Looks, views, a11y types. set_look folds into style (States::of), which validates all six looks before applying any. ViewTransform gains const clip, blur and saturation builders, and the three setters go. Omitted fields preserve the existing view. clip(None) clears the clip. set_role(&Handle, Role, A11yStates) and a11y_tree() -> A11yTree<'_> preserve authored flags and borrowed revision data. Paint::theme() → Paint::tokens(). The patch_* family is documented. rect/local_rect are documented (D21).
 
 U1b.5 Builders and vocabulary (audit 3, 33). Builders:
 
  Edges::new + .l/.t/.r/.b; State builders; Look builders for every field; Node .state/.transition.
 
- TextSpan::new(..) builders; Image::rgba8; Str/Slice From.
+ TextSpan::new(..) builders; native Image::rgba8 (const descriptor initializer, no copy or upload, host-owned texture); Str From &'static str and Slice<u8> From &'static [u8] only.
 
- Touch/Keyboard/Environment::new; Event constructors.
+ Touch/Keyboard/Environment::new and scalar Event constructors. Borrowed payload lifetime design is U5.1.
 
- SectionList .trail/.overlay_scrollbar; TreeNode::new; Font .tracking.
+ SectionList .trail/.overlay_scrollbar and Font .tracking already exist. TreeNode::new takes depth and has_children; the cell builder supplies the text.
 
  Style values and call shapes:
 
- New style values Progress, Spinner, Badge, GridList (DEFAULT + variant).
+ New Copy styles Progress, Spinner and Badge (DEFAULT and variant), and GridList (DEFAULT and cell dimensions). Grid cells are app-built and have no body variant.
 
  scroll_view(K, Node, f); text_area(K, value, Node, ..).
 
@@ -1204,7 +1206,7 @@ U1b.5 Builders and vocabulary (audit 3, 33). Builders:
 
 U1b.6 Call-shape lock (D25).
 
- Keyless row/column/stack plus ui.id(key, f). Engine identity becomes position among siblings, as for labels.
+ Keyless row/column/stack plus ui.id(key, f). Layout identities follow sibling positions within each scope. The id scope changes descendant keys without adding a layout node and returns unit (capture a child handle inside it). Positional container, label and image keys live in an engine hash namespace no authored key can produce. Key::Resolved is a valid identity in every call, never rehashed. The prior Ui::id() getter becomes instance_id().
 
  Codemod containers.py drops container keys and wraps in ui.id only the containers under an if/match/loop or holding an animation, and prints those sites for review.
 

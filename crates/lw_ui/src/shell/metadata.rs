@@ -72,7 +72,7 @@ pub(super) fn editor(
                 });
             },
         );
-    });
+    }).open;
     if !open && intent.is_none() {
         *intent = Some(Intent::CloseMetadata);
     }

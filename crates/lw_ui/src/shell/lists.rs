@@ -132,7 +132,7 @@ pub(super) fn name_dialog(
                 });
             },
         );
-    });
+    }).open;
     if !open && intent.is_none() {
         *intent = Some(Intent::CancelPlaylistName);
     }

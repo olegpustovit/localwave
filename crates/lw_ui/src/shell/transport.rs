@@ -288,7 +288,7 @@ pub(super) fn seek(
         0.0..=upper,
         &SCRUBBER,
     );
-    let scrubber = scrub.node;
+    let scrubber = scrub.response.handle;
     ui.set_node_layout(
         &scrubber,
         &Node::column()

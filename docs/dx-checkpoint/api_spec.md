@@ -2,7 +2,7 @@ THE TARGET PUBLIC API (from the approved proposal; the code must read like this 
 const values with const builders, no option structs written as struct literals at call sites, no `_with`
 twins where one call suffices). Names may differ only where an existing public type already owns the name.
 
-    const ROW: Node = Node::row().h(44.0).gap(8.0).center();
+    const ROW: Node = Node::row().h_px(44.0).gap(8.0).center();
     const TITLE: Label = Label::BODY.size(15.0).bold();        // app-defined label styles are consts
     const DIM: Label = Label::BODY.color(DIM_INK);              // colour = a ColorToken (DX3.2)
 
@@ -25,11 +25,11 @@ twins where one call suffices). Names may differ only where an existing public t
     let menu = ui.menu("song-menu", at, &ITEMS, &Menu::DEFAULT.row_h(36.0));
     if let Some(i) = menu.chosen { .. }
 
-    ui.list("songs", songs.len(), 44.0, |ui, i| { song_row(ui, &songs[i]); });
+    ui.list("songs", songs.len(), 44.0, &|i| songs[i].id, |ui, i| { song_row(ui, &songs[i]); });
 
     const SETTING: Toggle = Toggle::DEFAULT.row_h(52.0);
-    if ui.toggle_with("offline", "Offline mode", prefs.offline, &SETTING).changed { .. }
-    ui.disabled(!prefs.offline, |ui| { ui.button_with("clear", "Clear offline cache", &Button::DEFAULT.danger()); });
+    if ui.toggle("offline", "Offline mode", prefs.offline, &SETTING).changed { .. }
+    ui.disabled(!prefs.offline, |ui| { ui.button("clear", "Clear offline cache", &Button::DEFAULT.danger()); });
 
 Host setup and input in U1a
 
@@ -68,13 +68,15 @@ Rules
 - Style/option types (Label, Button, IconButton, Menu, MenuItem, Toggle, Dialog...) are Copy values with a `DEFAULT`
   (and named presets like Label::BODY/CAPTION/TITLE/MONO), and `const fn` builders taking self by value. A call site
   never writes `&Struct { field: .., ..Default::default() }`.
-- Labels are leaves without a key (identity by position among siblings; they hold no state). Interactive things take a key
-  first: `Key` from &'static str or an item id (never display text).
+- Labels and row, column and stack use sibling positions. A conditional or animated layout uses `ui.id(key, |ui| ...)` when it needs
+  stable identity. This scope changes descendant keys without adding a layout node. Interactive and virtual row keys use fixed labels
+  or item ids. Use `Key::Resolved` for a precomputed box key in a lookup.
 - Interactive widgets return `Response` (clicked, hovered, held, focused, activated, changed where it applies, handle) or a
   small result struct (`menu.chosen`).
-- One function per job. If an old function holds the name the proposal uses, the old one is replaced (callers updated in the
-  same row), not kept beside a `_with`/`_opts` twin. The `_with` suffix is used only where the proposal uses it
-  (toggle_with, button_with — the short forms toggle(text, on)/button(text) forward to them).
+- Button and toggle each take a key, runtime data and one style. Style builders use `.disabled(bool)`. A pick-one widget reports the
+  current selection, the chosen item's id and the index where a secondary press began. Slider and scrub share one result with a
+  display value, held preview and final commit.
+- In-frame text measurement uses `text_service()` on Ui or Paint, with a `Label`. Worker `Text` takes the style resolved by `Ui::resolve`.
 - Every public item documented per pxui/AGENTS.md "Public API documentation".
 - Widget bodies (structural customization) stay the mechanism: every widget that has a body kind (Label, Button, IconButton,
   Toggle, Segment, Dialog, MenuItem, MenuRow, Row, TreeRow, Scroll, Tab, Dropdown, SearchField, TextField, ... — see the

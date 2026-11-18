@@ -159,7 +159,6 @@ pxui::Feature::LookTokens variant = pxui_types::feature::LOOK_TOKENS
 pxui::Feature::MenuItemIds variant = pxui_types::feature::MENU_ITEM_IDS
 pxui::Feature::MenuMaxH variant = pxui_types::feature::MENU_MAX_H
 pxui::Feature::Metal variant = pxui_types::feature::METAL
-pxui::Feature::SegmentedResponse variant = pxui_types::feature::SEGMENTED_RESPONSE
 pxui::Feature::SegmentedResult variant = pxui_types::feature::SEGMENTED_RESULT
 pxui::Feature::SegmentedStoredFocus variant = pxui_types::feature::SEGMENTED_STORED_FOCUS
 pxui::Feature::SwipeActions variant = pxui_types::feature::SWIPE_ACTIONS
@@ -364,6 +363,17 @@ pxui::LineFieldResponse::response field Response
 pxui::LineFieldResponse::step field LineStep
 pxui::ListResponse use pxui_types::ui::ListResponse
 pxui::Menu use pxui_types::ui::Menu
+pxui::MenuBar impl Clone
+pxui::MenuBar impl Copy
+pxui::MenuBar impl Debug
+pxui::MenuBar struct
+pxui::MenuBar::DEFAULT const MenuBar
+pxui::MenuBar::variant fn const (self, variant: u16) -> MenuBar
+pxui::MenuBarMenu impl Clone
+pxui::MenuBarMenu impl Copy
+pxui::MenuBarMenu impl Debug
+pxui::MenuBarMenu struct <'a>
+pxui::MenuBarMenu::new fn const (title: &'a str, items: &'a [MenuItem<'a>]) -> MenuBarMenu<'a>
 pxui::MenuItem use pxui_types::ui::MenuItem
 pxui::Mods impl Clone
 pxui::Mods impl Copy
@@ -392,6 +402,12 @@ pxui::NodeFields::mark field Mark
 pxui::NumberAtFn type <'a>= dyn Fn(&str, usize) -> Option<(usize, usize)> + 'a
 pxui::Output use pxui_types::ffi::Output
 pxui::Overlay use pxui_types::ui::Overlay
+pxui::OverlayResponse impl Clone
+pxui::OverlayResponse impl Copy
+pxui::OverlayResponse impl Debug
+pxui::OverlayResponse struct
+pxui::OverlayResponse::handle field Handle
+pxui::OverlayResponse::open field bool
 pxui::Paint struct <'a>
 pxui::Paint::brackets fn (&mut self, rect: Rect, offset: f32, length: f32, stroke: Stroke)
 pxui::Paint::chevron fn (&mut self, at: (f32, f32), direction: Dir, stroke: Stroke)
@@ -431,16 +447,23 @@ pxui::PayloadRef struct <'a>
 pxui::PayloadRef::kind field &'a str
 pxui::PayloadRef::value field &'a str
 pxui::Pick use pxui_types::ui::Pick
+pxui::PickResponse impl Clone
+pxui::PickResponse impl Copy
+pxui::PickResponse impl Debug
+pxui::PickResponse struct
+pxui::PickResponse::chosen field Option<usize>
+pxui::PickResponse::response field Response
+pxui::PickResponse::secondary field Option<usize>
 pxui::PickRows use pxui_types::ui::PickRows
-pxui::PickerOpts impl Clone
-pxui::PickerOpts impl Copy
-pxui::PickerOpts struct <'a>
-pxui::PickerOpts::DEFAULT const PickerOpts<'a>
-pxui::PickerOpts::at_rest fn const (self, on: bool) -> PickerOpts<'a>
-pxui::PickerOpts::limit fn const (self, rows: usize) -> PickerOpts<'a>
-pxui::PickerOpts::mark fn const (self, f: &'a dyn Fn(usize) -> Option<Rgba>) -> PickerOpts<'a>
-pxui::PickerOpts::off fn const (self, f: &'a dyn Fn(usize) -> bool) -> PickerOpts<'a>
-pxui::PickerOpts::slash fn const (self, on: bool) -> PickerOpts<'a>
+pxui::Picker impl Clone
+pxui::Picker impl Copy
+pxui::Picker struct <'a>
+pxui::Picker::DEFAULT const Picker<'a>
+pxui::Picker::at_rest fn const (self, on: bool) -> Picker<'a>
+pxui::Picker::limit fn const (self, rows: usize) -> Picker<'a>
+pxui::Picker::mark fn const (self, f: &'a dyn Fn(usize) -> Option<Rgba>) -> Picker<'a>
+pxui::Picker::off fn const (self, f: &'a dyn Fn(usize) -> bool) -> Picker<'a>
+pxui::Picker::slash fn const (self, on: bool) -> Picker<'a>
 pxui::PickerResponse use pxui_types::ui::PickerResponse
 pxui::Platform enum
 pxui::Platform impl Clone
@@ -471,6 +494,13 @@ pxui::Pressable::tab_stop fn const (self, tab_stop: bool) -> Pressable<'a>
 pxui::PxuiPanel use pxui_types::PxuiPanel
 pxui::PxuiTargetDesc use pxui_types::PxuiTargetDesc
 pxui::PxuiUiDesc use pxui_types::PxuiUiDesc
+pxui::Radio impl Clone
+pxui::Radio impl Copy
+pxui::Radio impl Debug
+pxui::Radio struct <'a>
+pxui::Radio::DEFAULT const Radio<'a>
+pxui::Radio::name fn const (self, name: &'a str) -> Radio<'a>
+pxui::Radio::variant fn const (self, variant: u16) -> Radio<'a>
 pxui::Recorder type <'a>= &'a mut dyn FnMut(&Image) -> Result<(), Error>
 pxui::Rect use pxui_types::geom::Rect
 pxui::Renderer impl Drop
@@ -520,14 +550,6 @@ pxui::Scroll impl StructuralPartialEq
 pxui::Scroll struct
 pxui::Scroll::painted field f32
 pxui::Scroll::settled field f32
-pxui::Scrub impl Clone
-pxui::Scrub impl Copy
-pxui::Scrub impl Debug
-pxui::Scrub struct
-pxui::Scrub::commit field Option<f32>
-pxui::Scrub::held field bool
-pxui::Scrub::node field Handle
-pxui::Scrub::preview field Option<f32>
 pxui::ScrubFn type <'a>= dyn Fn(&str, f32, bool) -> String + 'a
 pxui::ScrubPhase use text_inputs::ScrubPhase
 pxui::Scrubber impl Clone
@@ -558,13 +580,6 @@ pxui::SearchFieldResponse::changed field Option<&'a str>
 pxui::SearchFieldResponse::response field Response
 pxui::Segment use pxui_types::ui::Segment
 pxui::Segmented use author::Segmented
-pxui::SegmentedResponse impl Clone
-pxui::SegmentedResponse impl Copy
-pxui::SegmentedResponse impl Debug
-pxui::SegmentedResponse struct
-pxui::SegmentedResponse::chosen field Option<usize>
-pxui::SegmentedResponse::response field Response
-pxui::SegmentedResponse::secondary field Option<usize>
 pxui::SelectionList use pxui_types::ui::SelectionList
 pxui::Signal impl Clone
 pxui::Signal impl Debug
@@ -596,6 +611,14 @@ pxui::Size use pxui_types::Size
 pxui::Slice use pxui_types::ffi::Slice
 pxui::SlideFn type <'a>= dyn Fn(f32) -> String + 'a
 pxui::Slider use pxui_types::ui::Slider
+pxui::SliderResponse impl Clone
+pxui::SliderResponse impl Copy
+pxui::SliderResponse impl Debug
+pxui::SliderResponse struct
+pxui::SliderResponse::commit field Option<f32>
+pxui::SliderResponse::preview field Option<f32>
+pxui::SliderResponse::response field Response
+pxui::SliderResponse::value field f32
 pxui::Splice impl Clone
 pxui::Splice impl Copy
 pxui::Splice impl Debug
@@ -604,6 +627,20 @@ pxui::Splice impl PartialEq
 pxui::Splice impl StructuralPartialEq
 pxui::Splice struct <'a>
 pxui::Splice::new fn const (start: usize, end: usize, text: &'a str) -> Splice<'a>
+pxui::Split impl Clone
+pxui::Split impl Copy
+pxui::Split impl Debug
+pxui::Split struct
+pxui::Split::DEFAULT const Split
+pxui::Split::axis fn const (self, axis: Axis) -> Split
+pxui::Split::min_a fn const (self, points: f32) -> Split
+pxui::Split::min_b fn const (self, points: f32) -> Split
+pxui::SplitResponse impl Clone
+pxui::SplitResponse impl Copy
+pxui::SplitResponse impl Debug
+pxui::SplitResponse struct
+pxui::SplitResponse::ratio field Option<f32>
+pxui::SplitResponse::response field Response
 pxui::Str use pxui_types::Str
 pxui::Stroke impl Clone
 pxui::Stroke impl Copy
@@ -753,7 +790,7 @@ pxui::Ui::a11y_number fn (&mut self, box_: &Handle, now: f64, min: f64, max: f64
 pxui::Ui::a11y_tree fn (&self) -> (&[u8], u64, u32)
 pxui::Ui::a11y_value fn (&mut self, box_: &Handle, value: &str, selection: (u32, u32)) -> Result<bool, Error>
 pxui::Ui::a11y_value_of fn (&self, node: &A11yNode) -> Option<&str>
-pxui::Ui::anchored fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, anchor: Rect, overlay: &Overlay<'_>, f: F) -> Handle
+pxui::Ui::anchored fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, anchor: Rect, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::animate fn (&mut self, b: &Handle, target: Target, curve: Curve) -> bool
 pxui::Ui::animate_keys fn (&mut self, box_: &Handle, keys: &[Keyframe], play: &Keyframes) -> bool
 pxui::Ui::arranged_nodes fn (&self) -> usize
@@ -789,7 +826,7 @@ pxui::Ui::dismiss_popup fn (&mut self)
 pxui::Ui::draw_revision fn (&self) -> u64
 pxui::Ui::drawn fn (&mut self, index: usize)
 pxui::Ui::drop_target fn (&mut self, b: &Handle) -> Option<DropRef<'_>>
-pxui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, options: &[&str], selected: usize, dropdown: &Dropdown) -> (Response, usize)
+pxui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &[Segment<'_>], selected: Option<usize>, dropdown: &Dropdown) -> PickResponse
 pxui::Ui::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::Ui::environment fn (&self) -> Environment
@@ -841,15 +878,15 @@ pxui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K, co
 pxui::Ui::load_text_edit fn (&mut self, key: i64, text: &str) -> TextEdit
 pxui::Ui::local_rect fn (&self, b: &Handle) -> Rect
 pxui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: (f32, f32), items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
-pxui::Ui::menu_bar fn (&mut self, label: &str, menus: &[(&str, &[&str])]) -> Option<(usize, usize)>
-pxui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> bool
+pxui::Ui::menu_bar fn <K: Into<Key>>(&mut self, key: K, menus: &[MenuBarMenu<'_>], bar: &MenuBar) -> Chosen
+pxui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
 pxui::Ui::node fn (&mut self, key: Key, node: Node) -> Handle
 pxui::Ui::node_layout fn (&self, b: &Handle) -> Node
 pxui::Ui::node_mut fn <R>(&mut self, b: &Handle, edit: impl FnOnce(&mut NodeFields) -> R) -> R
 pxui::Ui::now fn (&self) -> f64
 pxui::Ui::output fn (&self) -> Output
-pxui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F)
+pxui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::part fn (&mut self, part: Part, node: Node) -> Handle
 pxui::Ui::part_box fn (&self, owner: i64, part: Part) -> Option<Handle>
 pxui::Ui::part_rect fn (&self, owner: i64, part: Part) -> Option<Rect>
@@ -862,14 +899,14 @@ pxui::Ui::patch_rect fn (&mut self, b: &Handle, value: Rect) -> bool
 pxui::Ui::patch_text fn (&mut self, box_: &Handle, value: &str) -> bool
 pxui::Ui::phase_cpu_times fn (&self) -> Result<[Duration; 7], Error>
 pxui::Ui::phase_times fn (&self) -> [Duration; 7]
-pxui::Ui::picker fn <K: Into<Key>>(&mut self, key: K, placeholder: &str, query: &str, picker: &PickerOpts<'_>, fill: &mut dyn FnMut(&str, &mut PickRows)) -> PickerResponse<'_>
+pxui::Ui::picker fn <K: Into<Key>>(&mut self, key: K, placeholder: &str, query: &str, picker: &Picker<'_>, fill: &mut dyn FnMut(&str, &mut PickRows)) -> PickerResponse<'_>
 pxui::Ui::platform fn (&self) -> Platform
-pxui::Ui::popup fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> bool
+pxui::Ui::popup fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::Ui::press_keys fn (&self, b: &Handle) -> &[u32]
 pxui::Ui::pressable fn <K: Into<Key>, F: FnMut(&mut Ui, State)>(&mut self, key: K, node: Node, pressable: &Pressable<'_>, f: F) -> Response
 pxui::Ui::prewarm_text fn (&mut self, text: &str, style: &Label, max_width: f32) -> Result<(), Error>
 pxui::Ui::progress fn <K: Into<Key>>(&mut self, key: K, text: &str, value: Option<f32>) -> Handle
-pxui::Ui::radio fn <K: Into<Key>>(&mut self, key: K, options: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
+pxui::Ui::radio fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, radio: &Radio<'_>) -> PickResponse
 pxui::Ui::rebuilt_named fn (&self, prefix: &str) -> usize
 pxui::Ui::rebuilt_views fn (&self) -> usize
 pxui::Ui::rect fn (&self, box_: &Handle) -> Rect
@@ -925,10 +962,10 @@ pxui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node
 pxui::Ui::row_height fn (&self) -> i64
 pxui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, w: Size, h: Size, f: F) -> Handle
-pxui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> Scrub
+pxui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
 pxui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
-pxui::Ui::segmented_with fn <K: Into<Key>>(&mut self, key: K, options: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> SegmentedResponse
+pxui::Ui::segmented fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> PickResponse
 pxui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
 pxui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
@@ -946,10 +983,10 @@ pxui::Ui::set_timing fn (&mut self, on: bool)
 pxui::Ui::set_view fn (&mut self, b: &Handle, view: &ViewTransform)
 pxui::Ui::signal fn (&self, box_: &Handle) -> Signal
 pxui::Ui::signal_keys fn (&self, box_: &Handle) -> &[Event]
-pxui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, range: RangeInclusive<f32>, slider: &Slider) -> (Response, f32)
+pxui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, range: RangeInclusive<f32>, slider: &Slider) -> SliderResponse
 pxui::Ui::slot fn (&mut self, slot: PxuiSlot) -> bool
 pxui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str) -> Handle
-pxui::Ui::split fn (&mut self, label: &str, axis: Axis, ratio: f32, min_a: f32, min_b: f32, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> Option<f32>
+pxui::Ui::split fn <K: Into<Key>>(&mut self, key: K, ratio: f32, split: &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse
 pxui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
@@ -972,7 +1009,7 @@ pxui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::Ui::theme fn (&self) -> &Theme
 pxui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
-pxui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Option<usize>
+pxui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Chosen
 pxui::Ui::toggle fn (&mut self, text: &str, on: bool) -> bool
 pxui::Ui::toggle_with fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, toggle: &Toggle<'_>) -> Response
 pxui::Ui::tokens fn (&self) -> Tokens
@@ -1403,14 +1440,6 @@ pxui::ui::Scroll impl StructuralPartialEq
 pxui::ui::Scroll struct
 pxui::ui::Scroll::painted field f32
 pxui::ui::Scroll::settled field f32
-pxui::ui::Scrub impl Clone
-pxui::ui::Scrub impl Copy
-pxui::ui::Scrub impl Debug
-pxui::ui::Scrub struct
-pxui::ui::Scrub::commit field Option<f32>
-pxui::ui::Scrub::held field bool
-pxui::ui::Scrub::node field Handle
-pxui::ui::Scrub::preview field Option<f32>
 pxui::ui::ScrubPhase use crate::ScrubPhase
 pxui::ui::SectionList use pxui_types::ui::SectionList
 pxui::ui::SectionPart use pxui_types::ui::SectionPart
@@ -1511,7 +1540,7 @@ pxui::ui::Ui::a11y_number fn (&mut self, box_: &Handle, now: f64, min: f64, max:
 pxui::ui::Ui::a11y_tree fn (&self) -> (&[u8], u64, u32)
 pxui::ui::Ui::a11y_value fn (&mut self, box_: &Handle, value: &str, selection: (u32, u32)) -> Result<bool, Error>
 pxui::ui::Ui::a11y_value_of fn (&self, node: &A11yNode) -> Option<&str>
-pxui::ui::Ui::anchored fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, anchor: Rect, overlay: &Overlay<'_>, f: F) -> Handle
+pxui::ui::Ui::anchored fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, anchor: Rect, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::animate fn (&mut self, b: &Handle, target: Target, curve: Curve) -> bool
 pxui::ui::Ui::animate_keys fn (&mut self, box_: &Handle, keys: &[Keyframe], play: &Keyframes) -> bool
 pxui::ui::Ui::arranged_nodes fn (&self) -> usize
@@ -1547,7 +1576,7 @@ pxui::ui::Ui::dismiss_popup fn (&mut self)
 pxui::ui::Ui::draw_revision fn (&self) -> u64
 pxui::ui::Ui::drawn fn (&mut self, index: usize)
 pxui::ui::Ui::drop_target fn (&mut self, b: &Handle) -> Option<DropRef<'_>>
-pxui::ui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, options: &[&str], selected: usize, dropdown: &Dropdown) -> (Response, usize)
+pxui::ui::Ui::dropdown fn <K: Into<Key>>(&mut self, key: K, text: &str, items: &[Segment<'_>], selected: Option<usize>, dropdown: &Dropdown) -> PickResponse
 pxui::ui::Ui::enable_system_fonts fn (&mut self) -> Result<(), Error>
 pxui::ui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::ui::Ui::environment fn (&self) -> Environment
@@ -1599,15 +1628,15 @@ pxui::ui::Ui::list fn <K: Into<Key>, F: FnMut(&mut Ui, usize)>(&mut self, key: K
 pxui::ui::Ui::load_text_edit fn (&mut self, key: i64, text: &str) -> TextEdit
 pxui::ui::Ui::local_rect fn (&self, b: &Handle) -> Rect
 pxui::ui::Ui::menu fn <K: Into<Key>>(&mut self, key: K, at: (f32, f32), items: &[MenuItem<'_>], menu: &Menu<'_>) -> Chosen
-pxui::ui::Ui::menu_bar fn (&mut self, label: &str, menus: &[(&str, &[&str])]) -> Option<(usize, usize)>
-pxui::ui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> bool
+pxui::ui::Ui::menu_bar fn <K: Into<Key>>(&mut self, key: K, menus: &[MenuBarMenu<'_>], bar: &MenuBar) -> Chosen
+pxui::ui::Ui::modal fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::new fn (desc: &UiDesc<'_>) -> Result<Self, Error>
 pxui::ui::Ui::node fn (&mut self, key: Key, node: Node) -> Handle
 pxui::ui::Ui::node_layout fn (&self, b: &Handle) -> Node
 pxui::ui::Ui::node_mut fn <R>(&mut self, b: &Handle, edit: impl FnOnce(&mut NodeFields) -> R) -> R
 pxui::ui::Ui::now fn (&self) -> f64
 pxui::ui::Ui::output fn (&self) -> Output
-pxui::ui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F)
+pxui::ui::Ui::panel fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::part fn (&mut self, part: Part, node: Node) -> Handle
 pxui::ui::Ui::part_box fn (&self, owner: i64, part: Part) -> Option<Handle>
 pxui::ui::Ui::part_rect fn (&self, owner: i64, part: Part) -> Option<Rect>
@@ -1620,14 +1649,14 @@ pxui::ui::Ui::patch_rect fn (&mut self, b: &Handle, value: Rect) -> bool
 pxui::ui::Ui::patch_text fn (&mut self, box_: &Handle, value: &str) -> bool
 pxui::ui::Ui::phase_cpu_times fn (&self) -> Result<[Duration; 7], Error>
 pxui::ui::Ui::phase_times fn (&self) -> [Duration; 7]
-pxui::ui::Ui::picker fn <K: Into<Key>>(&mut self, key: K, placeholder: &str, query: &str, picker: &PickerOpts<'_>, fill: &mut dyn FnMut(&str, &mut PickRows)) -> PickerResponse<'_>
+pxui::ui::Ui::picker fn <K: Into<Key>>(&mut self, key: K, placeholder: &str, query: &str, picker: &Picker<'_>, fill: &mut dyn FnMut(&str, &mut PickRows)) -> PickerResponse<'_>
 pxui::ui::Ui::platform fn (&self) -> Platform
-pxui::ui::Ui::popup fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> bool
+pxui::ui::Ui::popup fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, overlay: &Overlay<'_>, f: F) -> OverlayResponse
 pxui::ui::Ui::press_keys fn (&self, b: &Handle) -> &[u32]
 pxui::ui::Ui::pressable fn <K: Into<Key>, F: FnMut(&mut Ui, State)>(&mut self, key: K, node: Node, pressable: &Pressable<'_>, f: F) -> Response
 pxui::ui::Ui::prewarm_text fn (&mut self, text: &str, style: &Label, max_width: f32) -> Result<(), Error>
 pxui::ui::Ui::progress fn <K: Into<Key>>(&mut self, key: K, text: &str, value: Option<f32>) -> Handle
-pxui::ui::Ui::radio fn <K: Into<Key>>(&mut self, key: K, options: &[&str], selected: usize, choice: &Choice<'_>) -> (Response, usize)
+pxui::ui::Ui::radio fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, radio: &Radio<'_>) -> PickResponse
 pxui::ui::Ui::rebuilt_named fn (&self, prefix: &str) -> usize
 pxui::ui::Ui::rebuilt_views fn (&self) -> usize
 pxui::ui::Ui::rect fn (&self, box_: &Handle) -> Rect
@@ -1683,10 +1712,10 @@ pxui::ui::Ui::row fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: 
 pxui::ui::Ui::row_height fn (&self) -> i64
 pxui::ui::Ui::scroll fn (&self, b: &Handle) -> Scroll
 pxui::ui::Ui::scroll_view fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, w: Size, h: Size, f: F) -> Handle
-pxui::ui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> Scrub
+pxui::ui::Ui::scrub fn <K: Into<Key>>(&mut self, key: K, value: f32, range: RangeInclusive<f32>, scrubber: &Scrubber<'_>) -> SliderResponse
 pxui::ui::Ui::search_field fn <K: Into<Key>>(&mut self, key: K, value: &str, field: &SearchField<'_>) -> SearchFieldResponse<'_>
 pxui::ui::Ui::section_list fn <K: Into<Key>>(&mut self, key: K, section: &SectionList, row_key: &dyn Fn(usize) -> i64, build: &mut dyn FnMut(&mut Ui, SectionPart, f32)) -> Handle
-pxui::ui::Ui::segmented_with fn <K: Into<Key>>(&mut self, key: K, options: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> SegmentedResponse
+pxui::ui::Ui::segmented fn <K: Into<Key>>(&mut self, key: K, items: &[Segment<'_>], selected: Option<usize>, segmented: &Segmented<'_>) -> PickResponse
 pxui::ui::Ui::selection_list fn <K: Into<Key>>(&mut self, key: K, count: usize, selected: &mut [u8], list: &SelectionList, cell: &mut dyn FnMut(&mut Ui, usize)) -> ListResponse
 pxui::ui::Ui::set_a11y fn (&mut self, on: bool)
 pxui::ui::Ui::set_at fn (&mut self, b: &Handle, at: (f32, f32))
@@ -1704,10 +1733,10 @@ pxui::ui::Ui::set_timing fn (&mut self, on: bool)
 pxui::ui::Ui::set_view fn (&mut self, b: &Handle, view: &ViewTransform)
 pxui::ui::Ui::signal fn (&self, box_: &Handle) -> Signal
 pxui::ui::Ui::signal_keys fn (&self, box_: &Handle) -> &[Event]
-pxui::ui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, range: RangeInclusive<f32>, slider: &Slider) -> (Response, f32)
+pxui::ui::Ui::slider fn <K: Into<Key>>(&mut self, key: K, text: &str, value: f32, range: RangeInclusive<f32>, slider: &Slider) -> SliderResponse
 pxui::ui::Ui::slot fn (&mut self, slot: PxuiSlot) -> bool
 pxui::ui::Ui::spinner fn <K: Into<Key>>(&mut self, key: K, name: &str) -> Handle
-pxui::ui::Ui::split fn (&mut self, label: &str, axis: Axis, ratio: f32, min_a: f32, min_b: f32, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> Option<f32>
+pxui::ui::Ui::split fn <K: Into<Key>>(&mut self, key: K, ratio: f32, split: &Split, a: &mut dyn FnMut(&mut Ui), b: &mut dyn FnMut(&mut Ui)) -> SplitResponse
 pxui::ui::Ui::stack fn <K: Into<Key>, F: FnMut(&mut Ui)>(&mut self, key: K, node: Node, f: F) -> Handle
 pxui::ui::Ui::state fn (&self, box_: &Handle, default: i64) -> i64
 pxui::ui::Ui::style fn (&mut self, box_: &Handle, states: &States, state: State)
@@ -1730,7 +1759,7 @@ pxui::ui::Ui::text_width fn (&mut self, size: Option<i64>, text: &str) -> f32
 pxui::ui::Ui::theme fn (&self) -> &Theme
 pxui::ui::Ui::themed fn (&mut self, theme: &ThemeHandle, f: &mut dyn FnMut(&mut Ui))
 pxui::ui::Ui::to_front fn (&mut self, order: i64, b: &Handle)
-pxui::ui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Option<usize>
+pxui::ui::Ui::toasts fn <K: Into<Key>>(&mut self, key: K, items: &[Toast<'_>], seconds: f64) -> Chosen
 pxui::ui::Ui::toggle fn (&mut self, text: &str, on: bool) -> bool
 pxui::ui::Ui::toggle_with fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, toggle: &Toggle<'_>) -> Response
 pxui::ui::Ui::tokens fn (&self) -> Tokens
@@ -3703,6 +3732,17 @@ pxui_types::ffi::PxuiPanelConfig::label field Str
 pxui_types::ffi::PxuiPanelConfig::node field PxuiBox
 pxui_types::ffi::PxuiPanelConfig::size field u32
 pxui_types::ffi::PxuiPanelConfig::variant field u16
+pxui_types::ffi::PxuiPickItem impl Clone
+pxui_types::ffi::PxuiPickItem impl Copy
+pxui_types::ffi::PxuiPickItem impl Debug
+pxui_types::ffi::PxuiPickItem impl Default
+pxui_types::ffi::PxuiPickItem struct
+pxui_types::ffi::PxuiPickItem::detail field Str
+pxui_types::ffi::PxuiPickItem::has_id field u8
+pxui_types::ffi::PxuiPickItem::id field i64
+pxui_types::ffi::PxuiPickItem::name field Str
+pxui_types::ffi::PxuiPickItem::reserved field [u8; 7]
+pxui_types::ffi::PxuiPickItem::text field Str
 pxui_types::ffi::PxuiPickerFieldConfig impl Clone
 pxui_types::ffi::PxuiPickerFieldConfig impl Copy
 pxui_types::ffi::PxuiPickerFieldConfig struct
@@ -5784,6 +5824,10 @@ pxui_types::ui::Segment impl Eq
 pxui_types::ui::Segment impl PartialEq
 pxui_types::ui::Segment impl StructuralPartialEq
 pxui_types::ui::Segment struct <'a>
+pxui_types::ui::Segment::detail field &'a str
+pxui_types::ui::Segment::detail fn const (self, detail: &'a str) -> Segment<'a>
+pxui_types::ui::Segment::id field Option<i64>
+pxui_types::ui::Segment::id fn const (self, id: i64) -> Segment<'a>
 pxui_types::ui::Segment::name field Option<&'a str>
 pxui_types::ui::Segment::name fn const (self, name: &'a str) -> Segment<'a>
 pxui_types::ui::Segment::new fn const (text: &'a str) -> Segment<'a>

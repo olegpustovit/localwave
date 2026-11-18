@@ -199,7 +199,7 @@ fn overlay(
             ui.set_role(&card, Role::Dialog, pxui::ui::state::MODAL);
             ui.a11y_name(&card, label);
             ui.within(&card, &mut |ui| build(ui, intent));
-        });
+        }).open;
     if !open && intent.is_none() {
         *intent = Some(close);
     }

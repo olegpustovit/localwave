@@ -308,7 +308,7 @@ pub(super) fn queue_sheet(
             }
             ui.set_role(&sheet.handle, Role::Dialog, pxui::ui::state::MODAL);
             ui.a11y_name(&sheet.handle, "Playback queue");
-        });
+        }).open;
     if !open {
         *intent = Some(Intent::CloseQueue);
     }

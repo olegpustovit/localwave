@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Read this first. It says where the work stands and what to do next. Updated 2026-11-18.
+Updated 2026-11-18. Resume at [U1b.2](#next-u1b2-u1b1-committed-on-u1b).
 
 ## What we're doing
 
@@ -109,13 +109,21 @@ All six build measurements meet the CP0 allowance. Warm app relink is 0.98 s
 against CP0's 1.02 s. Clean framework build is 30.36 s against the nominal
 30 s target. See [paired build times](docs/rust-port.md#build-time).
 
-## NEXT: U1b public API shape review
+## NEXT: U1b.2 (U1b.1 committed on `u1b`)
 
-Start U1b from the updated `rust-port` in both repos. Read plan §10 U1b and
-brief the implementer per §12. Stop at the uncommitted result, key, text,
-look, builder and call signatures for review against the ledger before
-migrating callers. D25 locks the call shape and D26 renames the current
-`Ui::id()` getter to `instance_id()`.
+U1b.1 (one result idiom, ABI 1.76) is committed in both repos on `u1b`; see the
+[handoff](scratch/u1b-handoff-report.md). Resume at U1b.2 in the existing checkouts.
+
+- The pxui working tree no longer holds the remaining shape: U1b.2–U1b.6 are applied from
+  the saved shape diff (`pxui/scratch/u1b-shape.diff`, copy in `/tmp/localwave-u1b.m1sIIb/pxui/scratch/`)
+  step by step. The ledger (`pxui/docs/api.md`) is already complete for all of U1b.
+- Check a step's surface before committing with the handoff's `sv.py <steps>` recipe
+  (`surface.ledger` with the step treated as landed); 0 delta lines is the bar.
+- `abi_bench` compiles the gallery pages against the engine: every wrapper shape the pages
+  use needs an engine mirror (U1b.1 added engine `radio/dropdown/slider/segmented/split/menu_bar`
+  mirrors and `*_legacy` names for the 1.x C bodies).
+- The append-only ABI manifest refuses grown records: add records or exports instead.
+- Package end (after U1b.6): Tier B, U1a fingerprint comparison, buildtime, independent review.
 
 ## Commands
 
