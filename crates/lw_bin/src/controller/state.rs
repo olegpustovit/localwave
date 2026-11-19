@@ -229,6 +229,12 @@ impl Worker {
             self.info = id.and_then(|id| self.library.now_info(id));
         }
         let transport = self.session.transport();
+        let shuffled = self.session.queue().shuffled();
+        let queue_from = if Arc::ptr_eq(&self.status.context, &self.context) && self.status.shuffled == shuffled {
+            self.status.queue_from.clone()
+        } else {
+            Arc::from(format!("From {}{}", self.context.title(), if shuffled { " · shuffled" } else { "" }))
+        };
         let status = Status {
             settings: self.settings,
             cache_usage: self.cache_usage.clone(),
@@ -237,6 +243,7 @@ impl Worker {
             sharing: self.share_pending.is_some(),
             waveform: self.waveform,
             context: self.context.clone(),
+            queue_from,
             revision: self.status.revision,
             stable_revision: self.status.stable_revision,
             initialized: true,
@@ -249,7 +256,7 @@ impl Worker {
             wants_playback: transport.wants_playback(),
             fault: transport.fault(),
             repeat: self.session.repeat(),
-            shuffled: self.session.queue().shuffled(),
+            shuffled,
             position: transport.position(),
             duration: transport.duration(),
             volume: self.saved.volume.unwrap_or(1.0),

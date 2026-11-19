@@ -7,24 +7,21 @@ const PLAYLIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
     .name("Playlist name");
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
-/// A queue sheet text action with no look of its own; its width is set where it is built.
-const QUEUE_ACTION: pxui::Button = pxui::Button::DEFAULT.centered().look(&BARE);
-
-pub(super) fn queue_action(
-    ui: &mut Ui,
-    key: &'static str,
-    label: &str,
-    name: &'static str,
-    width: f32,
-) -> bool {
-    // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
-    let action = QUEUE_ACTION.size(Size::Px(width), Size::Px(28.0)).name(name);
-    ui.button_content(key, &action, |ui, _| {
-        let copy = ui.node("label", Node::column().w(Size::Grow).h(Size::Grow).look(QUEUE_ACTION_TEXT));
-        ui.text(&copy, label);
-    })
-    .clicked
+/// A queue sheet text action (`localwave-button` / `ROW`): secondary 12-point text from its start, its line 2 points below the
+/// key's centre (where Swift's text sits); its width is set where it is built.
+const QUEUE: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).align(Justify::Start).pad(Edges::new(0.0, 4.0, 0.0, 0.0)).label(TEXT_12.color(SECONDARY));
+/// A queue text action `w` points wide, 28 high, named `name`.
+const fn queue_action(w: f32, name: &'static str) -> pxui::Button<'static> {
+    QUEUE.size(Size::Px(w), Size::Px(28.0)).name(name)
 }
+/// The sheet's titles (`localwave-button` / `ROW`, a column): "Queue" in 20-point ink over the worker's "From …" line.
+const TITLES: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Grow).align(Justify::Start).axis(Axis::Column)
+    .label(TEXT_20.grow().color(INK)).detail_label(CAPTION.grow().h_px(18.2)).name("Save queue as playlist");
+/// Clear up next (`localwave-button` / `ROW`): a 52-point row, its 16-point secondary text 26 in.
+const CLEAR_UP_NEXT: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(52.0)).align(Justify::Start)
+    .pad(Edges::new(26.0, 0.0, 0.0, 0.0)).label(TEXT_16.grow().color(SECONDARY));
+/// The queue sheet: a bottom modal of the content area's width, dismissed by a downward drag with UIKit's thresholds.
+const QUEUE_SHEET: Overlay = Overlay::DEFAULT.present(pxui::Presentation::Bottom).dismiss(pxui::DismissOpts::DEFAULT).name("Playback queue");
 
 /// Row metrics: the Now panel's Up next (Swift `desktop`) and the bottom sheet's.
 struct Metrics {
@@ -42,8 +39,6 @@ struct Metrics {
     remove: f32,
     glyph: f32,
 }
-/// Drag down to dismiss with UIKit's sheet thresholds.
-const DISMISS: pxui::GestureOpts = pxui::GestureOpts::DEFAULT.dismiss(pxui::DismissOpts::DEFAULT);
 
 const PANEL: Metrics = Metrics {
     row: 44.0,
@@ -76,7 +71,7 @@ const SHEET: Metrics = Metrics {
 
 /// Swift's queue sheet is a full-width bottom sheet on every platform (`LWRootSheetHost`; no
 /// macOS variant): handle, header, Now row, Up next rows, Clear up next. Its height is computed
-/// from the snapshot so the popup needs no measuring pass; shell() draws the dim behind it.
+/// from the snapshot so the sheet needs no measuring pass; shell() draws the dim behind it.
 pub(super) fn queue_sheet(
     ui: &mut Ui,
     player: &PlayerView<'_>,
@@ -104,12 +99,11 @@ pub(super) fn queue_sheet(
             96.0
         }
         + 20.0;
-    let height = wanted.min((content.h * 0.86 - 33.0).max(0.0));
+    let cap = (content.h * 0.86 - 33.0).max(0.0);
+    let height = wanted.min(cap);
     let width = content.w;
-    let open = ui.popup("queue-sheet", &Overlay::DEFAULT.at(pxui::Point::new(content.x, content.y + content.h - height + state.sheet_dismiss.get())).w_px(width).h_px(height).max_h_px(height).name("Playback queue"), |ui| {
-            let sheet_node = Node::column().w_px(width).h_px(height).role(Role::Dialog).flags(Flags::CLIP).look(PAPER_FILL);
-            // The sheet takes the pointer for its dismiss gesture but is no tab stop.
-            let sheet = ui.pressable("queue-sheet", sheet_node, &PLAIN.tab_stop(false), |ui, _| {
+    let open = ui.modal("queue-sheet", &QUEUE_SHEET.max_h_px(cap), |ui| {
+        ui.column(Node::column().w(Size::Grow).h_px(height), |ui| {
                 let handle = container(
                     ui,
                     "queue-handle",
@@ -124,27 +118,9 @@ pub(super) fn queue_sheet(
                 ui.row(Node::row().w(Size::Grow).h_px(66.2).padding(Edges::new(16.0, 12.0, 6.0, 8.0)),
                     |ui| {
                         // Swift reaches Save as list from this header's context menu and an a11y action.
-                        let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button);
-                        let titles = ui.pressable("queue-titles", node, &PLAIN, |ui, _| {
-                            ui.label("Queue", TEXT_20.grow().color(INK));
-                            let from = container(
-                                ui,
-                                "queue-from",
-                                Axis::Row,
-                                Size::Grow,
-                                Size::Px(18.2),
-                                &PAPER_FILL,
-                            );
-                            ui.within(&from, &mut |ui| {
-                                ui.label("From ", CAPTION);
-                                ui.label(player.context, CAPTION);
-                                if player.shuffled {
-                                    ui.label(" · shuffled", CAPTION);
-                                }
-                            });
-                        });
-                        ui.a11y_name(&titles.handle, "Save queue as playlist");
-                        if queue.is_some_and(|queue| !queue.entries.is_empty()) && (titles.clicked || titles.secondary) {
+                        let empty = queue.is_none_or(|queue| queue.entries.is_empty());
+                        let titles = ui.button("queue-titles", "Queue", &TITLES.detail(player.queue_from).disabled(empty));
+                        if titles.clicked || titles.secondary {
                             *intent = Some(Intent::NamePlaylist);
                         }
                         if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
@@ -182,26 +158,10 @@ pub(super) fn queue_sheet(
                                 .queue
                                 .as_ref()
                                 .is_some_and(|queue| !queue.entries.is_empty());
-                        if valid {
-                            if queue_action(
-                                ui,
-                                "create-playlist",
-                                "Create",
-                                "Create playlist from queue",
-                                60.0,
-                            ) {
-                                *intent = Some(Intent::SaveQueue(state.playlist_name));
-                            }
-                        } else {
-                            ui.label("Create", TEXT_12.w_px(60.0).h_px(28.0).color(SECONDARY));
+                        if ui.button("create-playlist", "Create", &queue_action(60.0, "Create playlist from queue").disabled(!valid)).clicked {
+                            *intent = Some(Intent::SaveQueue(state.playlist_name));
                         }
-                        if queue_action(
-                            ui,
-                            "cancel-playlist",
-                            "Cancel",
-                            "Cancel playlist creation",
-                            60.0,
-                        ) {
+                        if ui.button("cancel-playlist", "Cancel", &queue_action(60.0, "Cancel playlist creation")).clicked {
                             *intent = Some(Intent::CancelPlaylistName);
                         }
                     });
@@ -224,7 +184,7 @@ pub(super) fn queue_sheet(
                         |ui| {
                             let undo = queue.is_some_and(|queue| queue.can_undo);
                             ui.label(if undo { "Up next cleared." } else { "Nothing queued." }, TEXT_14.h_px(20.0).color(SECONDARY));
-                            if undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
+                            if undo && ui.button("undo", "Undo", &queue_action(44.0, "Undo clear up next")).clicked {
                                 *intent = Some(Intent::UndoQueue);
                             }
                         },
@@ -250,26 +210,13 @@ pub(super) fn queue_sheet(
                             },
                         );
                     }); });
-                    let node = Node::row().w(Size::Grow).h_px(52.0).align(Align::Center).role(Role::Button).padding(Edges::ZERO.l(26.0));
-                    let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {
-                        ui.label("Clear up next", TEXT_16.grow().color(SECONDARY));
-                    });
-                    ui.a11y_name(&clear.handle, "Clear up next");
-                    if clear.clicked {
+                    if ui.button("clear", "Clear up next", &CLEAR_UP_NEXT).clicked {
                         *intent = Some(Intent::ClearQueue);
                     }
                 }
                 spacer(ui, "queue-bottom", 20.0);
-            });
-            let drag = ui.gesture(&sheet.handle, &DISMISS);
-            // The popup itself follows the finger: moving only the node inside it loses the touch.
-            state.sheet_dismiss.set(drag.dismiss);
-            if drag.dismiss_committed {
-                *intent = Some(Intent::CloseQueue);
-            }
-            ui.set_role(&sheet.handle, Role::Dialog, pxui::A11yStates::MODAL);
-            ui.a11y_name(&sheet.handle, "Playback queue");
-        }).open;
+        });
+    }).open;
     if !open {
         *intent = Some(Intent::CloseQueue);
     }
@@ -342,12 +289,10 @@ pub(super) fn queue_rows(
             if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &ICON_28.look(&ICON_PLATE_LOOKS)).clicked {
                 *intent = Some(Intent::ShowQueue);
             }
-            if !queue.upcoming().is_empty()
-                && queue_action(ui, "clear", "Clear", "Clear up next", 44.0)
-            {
+            if !queue.upcoming().is_empty() && ui.button("clear", "Clear", &queue_action(44.0, "Clear up next")).clicked {
                 *intent = Some(Intent::ClearQueue);
             }
-            if queue.can_undo && queue_action(ui, "undo", "Undo", "Undo clear up next", 44.0) {
+            if queue.can_undo && ui.button("undo", "Undo", &queue_action(44.0, "Undo clear up next")).clicked {
                 *intent = Some(Intent::UndoQueue);
             }
         });
@@ -359,129 +304,82 @@ pub(super) fn queue_rows(
         ui.label(if queue.can_undo { "Up next cleared." } else { "Queue is empty." }, TEXT_14.grow().h_px(44.0).color(SECONDARY));
         return;
     }
-    let list = ui.list(
-        "queue-entries",
-        entries.len(),
-        m.row,
-        // a row is keyed by its occurrence, so it keeps its identity when the queue reorders
-        &|index| entries[index].id as i64,
-        |ui, index| {
-            let entry = entries[index];
-            let row = catalog
-                .row_index(entry.song_id)
-                .map(|index| catalog.row(index));
-            let title = row.map_or("Unavailable track", |row| {
-                if row.title.is_empty() {
-                    "Untitled track"
-                } else {
-                    row.title
-                }
-            });
-            let artist = row.map_or("", |row| row.artist);
-            let item_node = Node::row().w(Size::Grow).h_px(m.row).gap(m.gap).align(Align::Center).role(Role::ListItem).padding(Edges::ZERO.l(m.lead).r(m.trail)).look(PAPER_FILL);
-            // The row takes the pointer for drops and drags but is no tab stop; its own controls are.
-            let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {
-                let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});
-                ui.a11y_name(&grip.handle, "Reorder queued track");
-                ui.canvas(&grip.handle, move |paint, rect| {
-                    for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
-                        for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
-                            paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
-                        }
-                    }
-                });
-                if grip.held || grip.clicked {
-                    let mut digits = [0u8; 24];
-                    let id = stack_fmt(&mut digits, format_args!("{}", entry.id)).as_bytes();
-                    const PREFIX: &[u8] = b"localwave.queue-occurrence:";
-                    let mut kind = [0u8; 64];
-                    kind[..PREFIX.len()].copy_from_slice(PREFIX);
-                    let len = PREFIX.len() + id.len();
-                    kind[PREFIX.len()..len].copy_from_slice(id);
-                    ui.carry(
-                        if grip.clicked { None } else { Some(&grip.handle) },
-                        std::str::from_utf8(&kind[..len]).expect("queue drag kind is ASCII"),
-                        title,
-                    );
-                }
-                let art = container(
-                    ui,
-                    "queue-art",
-                    Axis::Stack,
-                    Size::Px(m.art),
-                    Size::Px(m.art),
-                    &PANEL_FILL,
-                );
-                paint_artwork(ui, &art, row, m.art, images);
-                ui.a11y_name(&art, "Track artwork");
-                let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button).padding(Edges::ZERO.l(10.0 - m.gap).t((m.row - m.title_line - m.artist_line) / 2.0));
-                let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {
-                    ui.label(title, line_style(m.title as f32).grow().h_px(m.title_line).color(INK));
-                    ui.label(artist, line_style(m.artist as f32).grow().h_px(m.artist_line).color(SECONDARY));
-                });
-                ui.a11y_name(&play.handle, title);
-                if play.clicked {
-                    *intent = Some(Intent::PlayQueue(entry.id));
-                }
-                // Swift marks songs that are not on this device, or kept offline.
-                if let Some(row) =
-                    row.filter(|row| row.state != lw_core::FileState::Copied || row.pinned)
-                {
-                    ui.column(Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0).padding(Edges::ZERO.l(m.glyph).r(m.glyph)),
-                        |ui| {
-                            super::songs::row::availability(ui, row, true)
-                        },
-                    );
-                }
-                if ui.icon_button(
-                    "remove-queued",
-                    icon_drawing(Icon::Clear),
-                    "Remove from queue",
-                    &icon_key(m.remove, m.row).look(&ICON_PLATE_LOOKS),
-                ).clicked {
-                    *intent = Some(Intent::RemoveQueue(entry.id));
-                }
-            });
-            ui.a11y_name(&item.handle, title);
-            let item = item.handle;
-            let drop = ui.drop_target(&item).and_then(|drop| {
-                let (dropped, payload) = match drop {
-                    pxui::DropRef::Hover(p) => (false, p),
-                    pxui::DropRef::Dropped(p) => (true, p),
-                };
-                payload
-                    .kind
-                    .strip_prefix("localwave.queue-occurrence:")?
-                    .parse::<u64>()
-                    .ok()
-                    .map(|id| (dropped, id))
-            });
-            if let Some((dropped, occurrence)) = drop {
-                let after = ui.signal(&item).pointer.1 >= ui.rect(&item).y + m.row / 2.0;
-                let before = if after {
-                    entries.get(index + 1).map(|entry| entry.id)
-                } else {
-                    Some(entry.id)
-                };
-                if before != Some(occurrence) {
-                    ui.canvas(&item, move |paint, rect| {
-                        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(Rgba::token(INK)));
-                    });
-                    if dropped {
-                        *intent = Some(Intent::MoveQueue { occurrence, before });
-                    }
-                }
+    // a row is keyed by its occurrence, so it keeps its identity when the queue reorders
+    let rows = SectionList::new(entries.len()).row_h(m.row).reorder(true);
+    let list = ui.section_list("queue-entries", &rows, &|index| entries[index].id as i64, &mut |ui, part, _| {
+        let SectionPart::Row(index) = part else { return };
+        let entry = entries[index];
+        let row = catalog
+            .row_index(entry.song_id)
+            .map(|index| catalog.row(index));
+        let title = row.map_or("Unavailable track", |row| {
+            if row.title.is_empty() {
+                "Untitled track"
+            } else {
+                row.title
             }
-        },
-    );
-    let list = list.handle;
+        });
+        let artist = row.map_or("", |row| row.artist);
+        ui.row(Node::row().w(Size::Grow).h_px(m.row).gap(m.gap).align(Align::Center).padding(Edges::ZERO.l(m.lead).r(m.trail)).look(PAPER_FILL), |ui| {
+            // the list's handle: a press lifts the row at once (touch too) and the list reports the move
+            let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(m.grip).h_px(m.row));
+            ui.a11y_name(&grip, "Reorder queued track");
+            ui.canvas(&grip, move |paint, rect| {
+                for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
+                    for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
+                        paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
+                    }
+                }
+            });
+            let art = container(
+                ui,
+                "queue-art",
+                Axis::Stack,
+                Size::Px(m.art),
+                Size::Px(m.art),
+                &PANEL_FILL,
+            );
+            paint_artwork(ui, &art, row, m.art, images);
+            ui.a11y_name(&art, "Track artwork");
+            let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button).padding(Edges::ZERO.l(10.0 - m.gap).t((m.row - m.title_line - m.artist_line) / 2.0));
+            let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {
+                ui.label(title, line_style(m.title as f32).grow().h_px(m.title_line).color(INK));
+                ui.label(artist, line_style(m.artist as f32).grow().h_px(m.artist_line).color(SECONDARY));
+            });
+            ui.a11y_name(&play.handle, title);
+            if play.clicked {
+                *intent = Some(Intent::PlayQueue(entry.id));
+            }
+            // Swift marks songs that are not on this device, or kept offline.
+            if let Some(row) =
+                row.filter(|row| row.state != lw_core::FileState::Copied || row.pinned)
+            {
+                ui.column(Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0).padding(Edges::ZERO.l(m.glyph).r(m.glyph)),
+                    |ui| {
+                        super::songs::row::availability(ui, row, true)
+                    },
+                );
+            }
+            if ui.icon_button(
+                "remove-queued",
+                icon_drawing(Icon::Clear),
+                "Remove from queue",
+                &icon_key(m.remove, m.row).look(&ICON_PLATE_LOOKS),
+            ).clicked {
+                *intent = Some(Intent::RemoveQueue(entry.id));
+            }
+        });
+    });
+    // `to` is the moved row's final index in `entries`' pre-move order: the occurrence after it is old `to + 1` moving down, `to` moving up
+    if let Some((from, to)) = list.moved {
+        *intent = Some(Intent::MoveQueue { occurrence: entries[from].id, before: entries.get(to + usize::from(to > from)).map(|entry| entry.id) });
+    }
     ui.a11y_name(
-        &list,
+        &list.handle,
         if sheet {
             "Full playback queue"
         } else {
             "Up next queue"
         },
     );
-    ui.transfer_carry(&list);
 }

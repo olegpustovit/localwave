@@ -139,8 +139,6 @@ pub(super) const FOLDER_CARD_ERROR: Look = PAPER_FILL.border(Rgba::token(INK), 1
 const fn text(color: ColorToken, size: f32) -> Look {
     Look::NONE.text(Rgba::token(color)).font(Font::BODY.size(size))
 }
-/// Secondary 12-point text: a queue sheet text action.
-pub(super) const QUEUE_ACTION_TEXT: Look = text(SECONDARY, 12.0);
 /// Secondary 14-point text: a sidebar "+ label" row, a text link.
 pub(super) const LINK_TEXT: Look = text(SECONDARY, 14.0);
 /// Secondary 15-point text: a back link.
@@ -258,6 +256,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_checkbox_body("localwave-chip", chip_body)?;
     ui.register_segmented_body("localwave-segmented", segment_body)?;
     ui.register_search_field_body("localwave-search", search_body)?;
+    ui.register_modal_body("localwave-modal", modal_body)?;
     Ok(())
 }
 
@@ -266,7 +265,8 @@ const ROW_GLYPH: Label = MONO_11.w_px(14.0).h_px(16.0).color(SECONDARY);
 /// A row button's title without a `Button::label`: secondary 14-point text filling the row.
 const ROW_TEXT: Look = LINK_TEXT;
 /// LocalWave's button (registered as `localwave-button`). `ROW`: the box its caller sized, its contents in a row centred down it from
-/// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row) and the
+/// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row), the
+/// detail (in `Button::detail_label`, else the caption; `Button::axis(Axis::Column)` stacks it under the title from the top) and the
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
 /// hovered or disabled, ink while held, its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
@@ -281,7 +281,9 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let size = |kind: u8, points: f32| match kind { 1 => Size::Px(points), 2 => Size::Grow, _ => Size::Fit };
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(size(c.w_kind, c.w)).h(size(c.h_kind, c.h)));
-    let row = Node::row().w(if c.w_kind == 0 { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap).align(Align::Center);
+    // a ROW asked for a column (`Button::axis`) stacks its title over its detail from the top
+    let row = if c.axis == 2 { Node::column() } else { Node::row().align(Align::Center) };
+    let row = row.w(if c.w_kind == 0 { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap);
     let row = if c.variant == variant::TOOL { row.transition(Some(FADE)) } else { row };
     ui.set_node_layout(&c.row, &row);
     let s = &c.state;
@@ -318,9 +320,24 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
             ui.text(&title, text);
         }
     }
+    let detail = c.text_of(&c.detail);
+    if !detail.is_empty() {
+        ui.label(detail, c.detail_label().unwrap_or(CAPTION));
+    }
     if !accessory.is_empty() {
         ui.label(accessory, c.accessory_label().unwrap_or(MONO_11.color(SECONDARY)));
     }
+}
+
+/// LocalWave's modal sheet (registered as `localwave-modal`): a bottom sheet (the queue) is paper edge to edge, without the kit
+/// sheet's 1-point edge; every other presentation is the kit's sheet as it is.
+fn modal_body(ui: &mut Ui, c: &pxui::bodies::ModalConfig) {
+    if c.present == 1 {
+        let layout = ui.node_layout(&c.node).padding(Edges::ZERO);
+        ui.set_node_layout(&c.node, &layout);
+        ui.style(&c.node, &PAPER_LOOKS, State::default());
+    }
+    ui.slot(c.content);
 }
 
 /// LocalWave's segmented (registered as `localwave-segmented`), the `SORT` look for any variant (LocalWave has no other strip): the
@@ -434,7 +451,7 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();
@@ -447,6 +464,38 @@ mod body_tests {
     fn colored(ui: &Ui, color: [u8; 4]) -> Vec<[f32; 4]> { ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.color == color).map(|i| i.rect).collect() }
     const INK_RGBA: [u8; 4] = [0x11, 0x11, 0x11, 255];
     const SELECTED_RGBA: [u8; 4] = [0xD3, 0xD3, 0xD3, 255];
+
+    /// `localwave-button` / `ROW` with `Button::axis(Axis::Column)`: the detail sits under the title, both from the box's start.
+    #[test]
+    fn a_row_column_stacks_its_detail_under_its_title() {
+        const TITLES: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(60.0)).align(Justify::Start)
+            .axis(Axis::Column).label(TEXT_20.grow()).detail_label(CAPTION.grow().h_px(18.2)).detail("From Library");
+        let mut ui = ui(true);
+        frames(&mut ui, &mut |ui| { ui.column(Node::column().w(Size::Grow), |ui| { ui.button("t", "Queue", &TITLES); }); });
+        // the button is named by its title; the detail starts under the title's 28-point line
+        let (button, detail) = (node(&ui, "Queue"), node(&ui, "From Library"));
+        assert_eq!((detail.x, detail.y), (button.x, button.y + 28.0), "{button:?} {detail:?}");
+    }
+
+    /// `modal.body = localwave-modal`: a bottom sheet's content starts at the sheet's own edge (no kit edge or inset); a centred modal
+    /// is the kit's sheet, its content one point in.
+    #[test]
+    fn localwave_modal_dresses_bottom_sheets_and_leaves_centred_ones_to_the_kit() {
+        for (present, inset) in [(pxui::Presentation::Bottom, 0.0), (pxui::Presentation::Centered, 1.0)] {
+            for (app, inset) in [(true, inset), (false, 1.0)] {
+                let mut ui = ui(app);
+                let sheet = Overlay::DEFAULT.present(present).name("Sheet");
+                frames(&mut ui, &mut |ui| {
+                    ui.modal("m", &sheet, |ui| {
+                        let c = ui.node("c", Node::column().w_px(100.0).h_px(50.0).role(Role::Label));
+                        ui.a11y_name(&c, "Content");
+                    });
+                });
+                let (s, c) = (node(&ui, "Sheet"), node(&ui, "Content"));
+                assert_eq!((c.x - s.x, c.y - s.y), (inset, inset), "{present:?} app {app}: {s:?} {c:?}");
+            }
+        }
+    }
 
     /// `button.body = localwave-button`: a `ROW` button is exactly its size (the kit's line adds a margin round its box), its accessory
     /// a label at its end; a variant-0 button draws exactly what the kit's body draws (`built_in`).

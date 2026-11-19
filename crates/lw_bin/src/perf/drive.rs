@@ -428,24 +428,36 @@ impl Frame {
             let song = workload == Some(Workload::SongDrag);
             let carrying = ui.carrying();
             self.carry_frames = usize::from(carrying.is_some());
-            let expected = (1..20).contains(&((self.index - 2) % 40));
-            if expected != carrying.is_some()
-                || (expected
-                    && (!ui.captured()
-                        || carrying.is_none_or(|p| {
-                            if song {
-                                !p.kind.starts_with("localwave.song:") || !p.value.starts_with("Track ")
-                            } else {
-                                p.kind != "localwave.queue-occurrence:2" || p.value != "Track 00002"
-                            }
-                        })))
-            {
-                return Err(format!(
-                    "Carry did not survive hover/scroll or cancel correctly: frame={frames} phase={} expected={expected} captured={} kind={:?}",
-                    (self.index - 2) % 40,
-                    ui.captured(),
-                    carrying.map(|p| p.kind)
-                ));
+            let phase = (self.index - 2) % 40;
+            if song {
+                let expected = (1..20).contains(&phase);
+                if expected != carrying.is_some()
+                    || (expected
+                        && (!ui.captured()
+                            || carrying.is_none_or(|p| !p.kind.starts_with("localwave.song:") || !p.value.starts_with("Track "))))
+                {
+                    return Err(format!(
+                        "Carry did not survive hover/scroll or cancel correctly: frame={frames} phase={phase} expected={expected} captured={} kind={:?}",
+                        ui.captured(),
+                        carrying.map(|p| p.kind)
+                    ));
+                }
+            } else {
+                // The grip lifts its row (the list's reorder, no carry): the pointer stays captured until the release after Escape,
+                // and the lifted row (Track 00002) stays built while the scroll moves its place out of the window.
+                let held = (1..21).contains(&phase);
+                let lifted = ui.a11y_nodes().iter().any(|node| {
+                    node.is_role(pxui::ui::Role::Button)
+                        && ui.a11y_name_of(node) == "Track 00002"
+                        && node.states & pxui::A11yStates::VISIBLE.bits() != 0
+                });
+                if held != ui.captured() || carrying.is_some() || (phase < 20 && held && !lifted) {
+                    return Err(format!(
+                        "Queue drag did not survive hover/scroll or cancel correctly: frame={frames} phase={phase} held={held} captured={} lifted={lifted} carry={:?}",
+                        ui.captured(),
+                        carrying.map(|p| p.kind)
+                    ));
+                }
             }
             if intent.is_some() {
                 return Err("Cancelled carry produced an application action".into());

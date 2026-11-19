@@ -235,6 +235,8 @@ pub struct Status {
     pub album: Arc<str>,
     pub info: Option<Arc<lw_ui::now_info::NowInfo>>,
     pub context: Arc<PlaybackContext>,
+    /// The queue sheet's "From <context>[ · shuffled]" line, formatted here when the context or shuffle changes.
+    pub queue_from: Arc<str>,
     pub message: Arc<str>,
 }
 impl Status {
@@ -267,6 +269,7 @@ impl Default for Status {
             revision: 0,
             stable_revision: 0,
             context: Arc::new(PlaybackContext::Library),
+            queue_from: Arc::from("From Library"),
             initialized: false,
             processed_command: 0,
             generation: 0,

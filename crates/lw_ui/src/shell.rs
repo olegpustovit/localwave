@@ -34,7 +34,6 @@ pub struct ShellState {
     /// The compact song row whose swipe actions are showing, so swiping another closes it.
     open_swipe: std::cell::Cell<Option<(usize, pxui::Handle)>>,
     /// The queue sheet's drag-to-dismiss offset from the previous frame.
-    sheet_dismiss: std::cell::Cell<f32>,
     /// Bumped by every catalog delivery; a pull to refresh ends when it moves past the value it saw.
     refresh_epoch: u64,
     refresh_wait: std::cell::Cell<Option<(u64, f64)>>,
@@ -103,7 +102,6 @@ impl Default for ShellState {
     fn default() -> Self {
         Self {
             open_swipe: std::cell::Cell::new(None),
-            sheet_dismiss: std::cell::Cell::new(0.0),
             refresh_epoch: 0,
             refresh_wait: std::cell::Cell::new(None),
             refresh_ending: std::cell::Cell::new(false),
@@ -506,7 +504,6 @@ impl ShellState {
                 self.source_menu = None;
                 self.remove_source = None;
                 self.queue_visible = true;
-                self.sheet_dismiss.set(0.0);
                 self.settings_menu = None;
             }
             Intent::CloseQueue => {
@@ -858,7 +855,8 @@ pub fn shell(
     intent: &mut Option<Intent>,
 ) {
     let input_was_focused = ui.text_input_focused();
-    let carrying = ui.carrying().is_some();
+    // a carry, or a drag that holds the pointer (a queue row lifted by its grip): Escape cancels it
+    let carrying = ui.carrying().is_some() || ui.captured();
     if ui.key_pressed(KeyCode::Escape, Mods::ANY) {
         ui.cancel_carry();
     }

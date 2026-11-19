@@ -373,6 +373,7 @@ impl App {
             revision: status.stable_revision + (*error_revision),
             title: lw_ui::clip(&status.title),
             context: lw_ui::clip(status.context.title()),
+            queue_from: lw_ui::clip(&status.queue_from),
             message: lw_ui::clip((*command_error).unwrap_or(&status.message)),
             playing: status.wants_playback,
             initialized: status.initialized,

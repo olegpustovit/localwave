@@ -400,13 +400,20 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         .iter()
         .filter(|node| {
             node.is_role(pxui::ui::Role::ListItem)
-                && ui.a11y_name_of(node) == "Repeated queue song"
                 && node.rect.w > 1000.0
                 && node.rect.x == 10.0
         })
         .map(|node| node.rect)
         .collect();
     assert!(rows.len() > 3 && rows.len() < 30);
+    for row in &rows {
+        assert!(
+            ui.a11y_nodes().iter().any(|node| node.is_role(pxui::ui::Role::Button)
+                && ui.a11y_name_of(node) == "Repeated queue song"
+                && node.rect.y == row.y),
+            "each row plays its occurrence: {row:?}"
+        );
+    }
     assert!(
         rows.windows(2)
             .all(|rows| (rows[1].y - rows[0].y - 56.0).abs() < 0.1),
@@ -442,13 +449,10 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         .unwrap();
         assert!(intent.is_none());
     }
-    assert_eq!(
-        ui.carrying().unwrap().kind,
-        "localwave.queue-occurrence:3"
-    );
+    assert!(ui.captured(), "the grip still holds the row after the scroll");
     assert!(
-        !ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
-        "the modal's drag survives pruning its source row"
+        ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
+        "the modal's drag keeps its lifted row while its place scrolls out of the virtual window"
     );
     let release = pointer(input::wire::POINTER_RELEASED, grips[2].1);
     frame.wire.events = &release;
@@ -484,6 +488,12 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
             ..Default::default()
         }]);
     };
+    let create_enabled = |ui: &Ui| {
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Create playlist from queue")
+            .map(|node| node.states & pxui::A11yStates::ENABLED.bits() != 0)
+    };
     activate(&mut ui, "Save queue as playlist");
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
@@ -497,11 +507,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         })
         .unwrap();
     }
-    assert!(
-        !ui.a11y_nodes()
-            .iter()
-            .any(|node| ui.a11y_name_of(node) == "Create playlist from queue")
-    );
+    assert_eq!(create_enabled(&ui), Some(false), "Create is disabled without a valid name");
     activate(&mut ui, "Cancel playlist creation");
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
@@ -536,11 +542,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
-    assert!(
-        !ui.a11y_nodes()
-            .iter()
-            .any(|node| ui.a11y_name_of(node) == "Create playlist from queue")
-    );
+    assert_eq!(create_enabled(&ui), Some(false), "Create is disabled without a valid name");
     state.apply(Intent::EditPlaylistName(name));
     for cycle in 0..24 {
         mem_sys::local_reset();
@@ -745,6 +747,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             );
         }
     }
+    let mut lifted_checks = 0;
     for cycle in 0..16 {
         mem_sys::local_reset();
         let scroll = |y| pxui::Event {
@@ -770,11 +773,11 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
                 shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
-            if e.is_none() && intent.is_none() && ui.carrying().is_some() {
-                assert!(
-                    !ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
-                    "the original grip is virtualized away"
-                );
+            if e.is_none() && intent.is_none() && ui.captured() {
+                lifted_checks += 1;
+                // the lifted row stays under the pointer where it was grabbed, over the row the scroll brought there
+                let at_pointer = ui.a11y_nodes().iter().filter(|node| ui.a11y_name_of(node) == "Reorder queued track" && node.rect.y == third.y).count();
+                assert_eq!(at_pointer, 2, "the lifted row stays built while its place scrolls out of the virtual window");
             }
             if e.is_some_and(|e| e.kind == input::wire::POINTER_RELEASED) {
                 assert_eq!(
@@ -796,6 +799,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             );
         }
     }
+    assert_eq!(lifted_checks, 16, "every cross-page drag is still held after its scroll");
     for cancel in [
         pxui::Event::new(input::wire::POINTER_CANCELLED),
         pxui::Event::new(input::wire::FOCUS_LOST),

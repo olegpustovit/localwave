@@ -9,3 +9,4 @@ search_field.body = localwave-search
 selection_list.body = localwave-side-row
 badge.body = localwave-badge
 progress.body = localwave-progress
+modal.body = localwave-modal

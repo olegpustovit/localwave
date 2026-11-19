@@ -328,6 +328,8 @@ pub struct PlayerView<'a> {
     pub revision: u64,
     pub title: &'a str,
     pub context: &'a str,
+    /// The queue sheet's "From <context>[ · shuffled]" line, prepared on the worker.
+    pub queue_from: &'a str,
     pub message: &'a str,
     pub playing: bool,
     pub initialized: bool,
