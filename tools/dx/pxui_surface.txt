@@ -3168,6 +3168,7 @@ pxui_types::ffi::PxuiButtonConfig::accessory_style field PxuiLabelStyle
 pxui_types::ffi::PxuiButtonConfig::at_end field u8
 pxui_types::ffi::PxuiButtonConfig::axis field u8
 pxui_types::ffi::PxuiButtonConfig::bare field u8
+pxui_types::ffi::PxuiButtonConfig::built_in field PxuiSlot
 pxui_types::ffi::PxuiButtonConfig::centered field u8
 pxui_types::ffi::PxuiButtonConfig::content_align field u8
 pxui_types::ffi::PxuiButtonConfig::detail field Str
