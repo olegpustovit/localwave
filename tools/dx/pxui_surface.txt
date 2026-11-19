@@ -3974,6 +3974,7 @@ pxui_types::ffi::PxuiPickerFieldConfig impl Copy
 pxui_types::ffi::PxuiPickerFieldConfig struct
 pxui_types::ffi::PxuiPickerFieldConfig::empty field u8
 pxui_types::ffi::PxuiPickerFieldConfig::inset field f32
+pxui_types::ffi::PxuiPickerFieldConfig::list field PxuiBox
 pxui_types::ffi::PxuiPickerFieldConfig::placeholder field Str
 pxui_types::ffi::PxuiPickerFieldConfig::prefix field f32
 pxui_types::ffi::PxuiPickerFieldConfig::search field PxuiBox
