@@ -74,6 +74,17 @@ with an error on root installation and a built-in fallback in a scoped theme.
 Accessible names clip at a UTF-8 boundary and report a live update as a boolean.
 The value and number setters return `Result<bool, Error>`.
 
+Lists, drops and sheets in U2b
+
+    let r = ui.selection_list("queue", songs.len(), &|i| songs[i].id, &mut state, &QUEUE.reorder(true), &mut |ui, part, cell| { .. });
+    if let Some((from, to)) = r.moved { .. }   // a row's Part::HANDLE drags it; Alt-arrows and Move up/down actions too
+    if let Some(at) = r.drop_at { .. }         // a carried payload dropped between the rows of a reorderable list
+    if let Some(DropRef::Dropped(p)) = ui.drop_target(&bin) { .. }   // any node takes a drop
+    const PALETTE: Overlay = Overlay::DEFAULT.name("Palette").at(Point::new(0.0, 80.0)).present(Presentation::Top);
+
+Selection and table state is app-owned (`ListState`, `TableState`) and the widget owns selection semantics. Colours with alpha
+are `Rgba::token(T).alpha(a)`; a body config carries its widget's icon.
+
 Rules
 - Style/option types (Label, Button, IconButton, Menu, MenuItem, Toggle, Dialog...) are Copy values with a `DEFAULT`
   (and named presets like Label::BODY/CAPTION/TITLE/MONO), and `const fn` builders taking self by value. A call site

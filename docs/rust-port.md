@@ -231,16 +231,17 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U2a.2 | Tabs (dx3.19, G1) | done | LocalWave 16f3df4 and 395e6c2, pxui df47dc48 and 29bfff24. tabs -> PickResponse with focus kept when a choice is refused; the gate's trailing-append growth rule (library-written or size-checked caller records, library code only); the library refuses an app built for a newer minor. ABI 1.84. |
 | U2a.3 | Checkbox, disclosure, section index (dx3.20; G5, G9, G10) | done | LocalWave 19eb6d7 and a59e3b2, pxui 87afd1f5 and a6e1b98b. Checkbox<'a> with size, look, passive (READ_ONLY) and disabled; disclosure; section_index -> PickResponse with a section_index body kind. ABI 1.85. |
 | U2a.4 | Sheets and picker rows (dx3.21; G6, G12) | done | LocalWave fda5e5f, 1310c3b, bef5c8e and 241ec6e, pxui cde8267a, 404943c2, 39688c00 and e1acbdb9. One validated sheet route with Presentation and DismissOpts; PickRows::push(PickRow) with headings and glyph art; duplicate layout rows fail. ABI 1.86. Each new widget has custom-body, warm-allocation and a11y tests, a gallery entry and a bodies-page override; only the gallery_bodies goldens changed. Tier B, independent review and 289 online LocalWave checks passed; build times within the CP0 allowance. |
-| U2b.1 | Selection list and table (rest of G4) | todo |  |
-| U2b.2 | Drop zones (G7) | todo |  |
-| U2b.3 | Reorder (G8) | todo |  |
-| U2b.4 | Gap steps raised during U3–U4 (reserved) | todo |  |
-| U2b.5 | Top-anchored overlay | todo |  |
-| U2b.6 | Picker fill contract | todo |  |
-| U2b.7 | Value and theme gaps | todo |  |
-| U2b.8 | Recorded engine bugs | todo |  |
-| U2b.9 | Site map | todo |  |
-| U2b.10 | Gallery, spec, bench | todo |  |
+| U2b.0 | D28 process change | done | LocalWave 3b7171e, pxui 5c368579. 1.x ABI not frozen; abi-snapshot a change detector; U2c added; abi-frozen/abi-compat leave Tier B until 2.0. |
+| U2b.1 | Selection list and table (rest of G4) | done | LocalWave 385078e, pxui 29bd1fcb. App-owned ListState/TableState; selection semantics in the widget; column table and heading. ABI 1.87. |
+| U2b.2 | Drop zones (G7) | done | LocalWave 6387233, pxui a17b9e13. Any node takes a drop; reorderable lists report drop_at and draw the insertion line; SelectionList::drop_look. ABI 1.88. |
+| U2b.3 | Reorder (G8) | done | LocalWave 40f9dd3, pxui 7819ae5d. A row's Part::HANDLE drags it, passed rows make room along motion.slow; Alt-arrow and Move up/down actions; ListResponse.moved; zero warm allocations dragging. ABI 1.89. |
+| U2b.4 | Gap steps raised during U3–U4 (reserved) | reserved | Opened by the GAP protocol in U3–U4. |
+| U2b.5 | Top-anchored overlay | done | LocalWave 7814615, pxui 755ed30d. Presentation::Top (Overlay::at's y, max_h cap); PxuiSheetDesc.top/max_h. ABI 1.90. |
+| U2b.6 | Picker fill contract | done | LocalWave ef524a8, pxui 3a2277d1. Fill contract documented; a typed query and a kept worker result allocate nothing per frame (#82). |
+| U2b.7 | Value and theme gaps | done | LocalWave 20e14dc, pxui 14d86f0d. Token alpha (D19), ColorToken::ACCENT, SearchField variant/action, Button::icon_size, icons in body configs (D18). ABI 1.91. |
+| U2b.8 | Recorded engine bugs | done | LocalWave 50a3040 and ea23b12, pxui 65d304df, 53f92922 and 683ccd27. Gone-slot state, submenu placement, SwiftUI-parity baseline (D29), motion.slow, tooltip text_at; popup layer batched with the base (D26(3): Layout 1 draw call). |
+| U2b.9 | Site map | done | LocalWave 2099764. tools/dx/site_map.md with the review fixes. |
+| U2b.10 | Gallery, spec, bench | done | LocalWave f740817 through f8287f0 and the U2b status commit, pxui 147a2f63 through aa79017e. Release abi_bench passes every page in both modes with unchanged limits (D27 closed); new Lists gallery page (reorder, drop zones, top modal) with only new goldens, its abi_bench mirror and bodies reference. ABI 1.92. |
 | U3.1 | Looks are consts | todo |  |
 | U3.2 | Literal codemod | todo |  |
 | U3.3 | Keys | todo |  |
