@@ -4089,6 +4089,7 @@ pxui_types::ffi::PxuiSearchFieldConfig struct
 pxui_types::ffi::PxuiSearchFieldConfig::editor field PxuiSlot
 pxui_types::ffi::PxuiSearchFieldConfig::icon field Str
 pxui_types::ffi::PxuiSearchFieldConfig::key field i64
+pxui_types::ffi::PxuiSearchFieldConfig::line field PxuiBox
 pxui_types::ffi::PxuiSearchFieldConfig::size field u32
 pxui_types::ffi::PxuiSearchFieldConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiSearchFieldConfig::variant field u16
