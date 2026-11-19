@@ -276,8 +276,8 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
 }
 
 /// LocalWave's selectable row (registered as `localwave-side-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
-/// panel fill while hovered or held, on the selected fill while selected or while a payload is over it; any other variant keeps
-/// the kit's row. The caller's cells follow.
+/// panel fill while hovered or held, on the selected fill while selected or under a list's drop look; any other variant keeps the
+/// kit's row. The caller's cells follow.
 fn side_row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     if c.variant == variant::SIDE_ROW {
         ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));

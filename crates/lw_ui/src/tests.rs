@@ -2818,6 +2818,39 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
     assert_eq!(mem_sys::local_alloc_count(), 0, "warm sidebar frames allocate");
 }
 
+/// The sidebar's Library list holds the focus and its rows are reached by arrow keys (NSTableView-style): a click selects and
+/// focuses, ArrowDown moves to the next route, Enter and Space activate the keyboard's row.
+#[test]
+fn sidebar_rows_take_arrow_keys_and_enter_from_the_focused_list() {
+    let catalog = prepared(Vec::new());
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut state = ShellState::default();
+    let player = PlayerView::default();
+    let mut intent = None;
+    let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
+        let mut frame = FrameIn::new(1440.0, 872.0);
+        frame.wire.events = events.as_ptr();
+        frame.wire.event_count = events.len();
+        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
+        let taken = intent.take();
+        if let Some(i) = taken.clone() { state.apply(i); }
+        taken
+    };
+    for _ in 0..2 { step(&mut ui, &mut state, &[]); }
+    let albums = pxui::testing::find(&ui, pxui::ui::Role::ListItem, "Albums").unwrap();
+    let (x, y) = (f64::from(albums.x + 20.0), f64::from(albums.y + 10.0));
+    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y), pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y)]);
+    assert_eq!(step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]), Some(Intent::Navigate(catalog::Route::Albums)), "a click selects Albums");
+    let key = |key: input::Key| pxui::Event::key(input::wire::KEY_PRESSED, key.code());
+    assert_eq!(step(&mut ui, &mut state, &[key(input::Key::ArrowDown)]), Some(Intent::Navigate(catalog::Route::Artists)), "ArrowDown moves to Artists");
+    step(&mut ui, &mut state, &[]);
+    for activate in [input::Key::Enter, input::Key::Space] {
+        assert_eq!(step(&mut ui, &mut state, &[key(activate)]), Some(Intent::Navigate(catalog::Route::Artists)), "{activate:?} activates the row");
+    }
+    assert!(ui.a11y_nodes().iter().any(|n| n.is_role(pxui::ui::Role::List) && ui.a11y_name_of(n) == "Library"), "the group is named Library");
+}
+
 fn press(ui: &mut Ui, name: &str, nth: usize) {
     let id = ui
         .a11y_nodes()

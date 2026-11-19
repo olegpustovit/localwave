@@ -201,6 +201,10 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 
 ## Found (separate fixes later)
 
+- U4a.1: `selection_list` names its List node from the key text, so an id key gives a meaningless lowercase name ("library");
+  LocalWave names its groups with `ui.a11y_name(&response.handle, ..)`. U6 decides whether the default name should be empty.
+- U4a.1: `ValueField::bare(on: bool)` takes a bool where `SelectionList::bare()` (U2b.4.3) and the other style flags are no-arg
+  builders; API-consistency item for U6.2.
 - U3: `Ui::text_line_box` colours node text from the node's look and ignores the `Label`'s colour token; its docs do not say so
   (LocalWave's positioned labels set `theme::text_look(style)`).
 - U3: the `Rgba::token` doc says a `Paint` call given a raw token paints nothing, but every Rust `Paint` shape call resolves it

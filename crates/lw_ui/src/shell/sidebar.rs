@@ -9,8 +9,11 @@ const GROUP: Label = TEXT_12.grow().h_px(30.0).color(SECONDARY);
 const LIBRARY: [(&str, Route); 3] = [("Albums", Route::Albums), ("Artists", Route::Artists), ("Songs", Route::Songs)];
 /// The Library group: 32-point sidebar rows, as tall as its three rows.
 const SIDE: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().fit();
-/// The Lists group: the sidebar rows, scrolling, "+ New list" after the last; a song carried over a list row lights it.
-const SIDE_LISTS: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().trail(32.0).drop_look(SELECTED_FILL);
+/// The Lists group: the sidebar rows, scrolling, "+ New list" after the last. A song carried over a playlist row lights it (in the
+/// cell: only playlists take a song, so no list-wide drop look).
+const SIDE_LISTS: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().trail(32.0);
+/// A playlist row while a carried song is over it.
+const DROPPING: States = States::of(SELECTED_FILL);
 /// A sidebar row's title (ink while its row is selected) and its count.
 const SIDE_TITLE: Label = TEXT_14.grow().h_px(20.0).color(SECONDARY);
 const SIDE_COUNT: Label = MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY);
@@ -62,7 +65,8 @@ pub(super) fn sidebar(ui: &mut Ui, catalog: &Catalog, state: &ShellState, intent
                 ui.label(counts[i], SIDE_COUNT);
             }
         });
-        if let Some(i) = library.selected {
+        ui.a11y_name(&library.handle, "Library");
+        if let Some(i) = library.selected.or(library.activated) {
             *intent = Some(Intent::Navigate(LIBRARY[i].1));
         }
         ui.label("Sources", GROUP);
@@ -95,9 +99,12 @@ pub(super) fn sidebar(ui: &mut Ui, catalog: &Catalog, state: &ShellState, intent
                 ui.label(&collection.title, SIDE_TITLE.color(if cell.selected { INK } else { SECONDARY }));
                 ui.label(&collection.count, SIDE_COUNT);
                 if let Some(list) = playlist(i)
-                    && let Some((true, song)) = super::songs::song_drop(ui, &cell.handle)
+                    && let Some((dropped, song)) = super::songs::song_drop(ui, &cell.handle)
                 {
-                    *intent = Some(Intent::AddToList { song, list });
+                    if dropped {
+                        *intent = Some(Intent::AddToList { song, list });
+                    }
+                    ui.style(&cell.handle, &DROPPING, State::default());
                 }
             }
             SectionPart::Trailing => {
@@ -107,7 +114,8 @@ pub(super) fn sidebar(ui: &mut Ui, catalog: &Catalog, state: &ShellState, intent
             }
             _ => {}
         });
-        if let Some(i) = lists.selected {
+        ui.a11y_name(&lists.handle, "Lists");
+        if let Some(i) = lists.selected.or(lists.activated) {
             *intent = Some(Intent::Navigate(Route::Collection(i)));
         }
         if let (Some(i), Some(row)) = (lists.secondary, lists.row)

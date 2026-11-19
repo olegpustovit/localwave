@@ -2092,6 +2092,22 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     let t0 = find(&ui, Role::ListItem, "T0");
     let (_, _, intent) = drag!("T2", t0, "drop");
     assert_eq!(intent, None);
+    // A carried song lights a playlist row it is over, never a smart list (only playlists take a song).
+    let lit = |ui: &Ui, rect: Rect| ui.layers().flat_map(|l| l.instances.iter()).any(|i| i.color == [0xD3, 0xD3, 0xD3, 255] && i.rect == [rect.x, rect.y, rect.x + rect.w, rect.y + rect.h]);
+    let favorites = find(&ui, Role::ListItem, "Favorites");
+    let (x, y) = centre(find(&ui, Role::ListItem, "T2"));
+    run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y)]);
+    run(&mut ui, &[pointer(input::wire::POINTER_PRESSED, x, y)]);
+    run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y + 8.0)]);
+    for (target, lights) in [(favorites, false), (mix, true)] {
+        let (tx, ty) = centre(target);
+        run(&mut ui, &[pointer(input::wire::POINTER_MOVED, tx, ty)]);
+        run(&mut ui, &[]);
+        assert_eq!(lit(&ui, target), lights, "a song over {target:?} lights it: {lights}");
+    }
+    run(&mut ui, &[pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code())]);
+    run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, x, y)]);
+    run(&mut ui, &[]);
     // Warm frames during a drag allocate nothing.
     let (x, y) = centre(find(&ui, Role::ListItem, "T2"));
     run(&mut ui, &[pointer(input::wire::POINTER_PRESSED, x, y)]);
