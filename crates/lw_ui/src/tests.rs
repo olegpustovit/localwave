@@ -1680,6 +1680,17 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
         .unwrap();
         assert_eq!(intent.take(), Some(expected), "{name}");
     }
+    // repeat one: the key's own icon carries the "1" (Icon::RepeatOne), no separate label node
+    player.repeat = lw_core::queue::RepeatMode::One;
+    player.revision += 1;
+    crate::testing::frame(&mut ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent)).unwrap();
+    let key = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Repeat one").expect("the repeat one key").rect;
+    assert!(!ui.a11y_nodes().iter().any(|node| ui.a11y_name_of(node) == "1"), "no \"1\" label node");
+    let one = (key.x + 31.0, key.y + 25.0);
+    assert!(
+        ui.layers().flat_map(|l| l.instances.iter()).any(|i| i.kind == pxui::draw::kind::MASK && i.rect[0] >= one.0 - 1.0 && i.rect[2] <= one.0 + 9.0 && i.rect[1] >= one.1 - 1.0 && i.rect[3] <= one.1 + 13.0),
+        "the \"1\" glyph sits at the key's lower right"
+    );
 }
 
 #[test]

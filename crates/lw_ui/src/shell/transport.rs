@@ -52,18 +52,10 @@ pub(super) fn transport(
                     if ui.icon_button("shuffle", icon_drawing(Icon::Shuffle), "Shuffle", &MODE_ICON.selected(player.shuffled)).clicked {
                         *intent = Some(Intent::Shuffle);
                     }
-                    ui.stack(Node::stack().w_px(44.0).h_px(40.0), |ui| {
-                        if ui.icon_button("repeat", icon_drawing(Icon::Repeat), REPEAT_NAMES[player.repeat as usize], &MODE_ICON.selected(player.repeat != lw_core::queue::RepeatMode::None)).clicked {
-                            *intent = Some(Intent::Repeat);
-                        }
-                        if player.repeat == lw_core::queue::RepeatMode::One {
-                            ui.id("repeat-one", |ui| { ui.column(Node::column().w_px(8.0).h_px(12.0).at(31.0, 25.0),
-                                |ui| {
-                                    ui.label("1", MONO_9.w_px(8.0).h_px(12.0).color(PAPER));
-                                },
-                            ); });
-                        }
-                    });
+                    let repeat = if player.repeat == lw_core::queue::RepeatMode::One { Icon::RepeatOne } else { Icon::Repeat };
+                    if ui.icon_button("repeat", icon_drawing(repeat), REPEAT_NAMES[player.repeat as usize], &MODE_ICON.selected(player.repeat != lw_core::queue::RepeatMode::None)).clicked {
+                        *intent = Some(Intent::Repeat);
+                    }
                     if ui.icon_button("panel", icon_drawing(Icon::Panel), "Toggle now playing panel", &MODE_ICON.selected(panel)).clicked {
                         *intent = Some(Intent::TogglePanel);
                     }
@@ -79,8 +71,9 @@ pub(super) fn transport(
     );
 }
 
-/// A playback mode key (shuffle, repeat, the panel, the queue): the key plate, ink while on (`IconButton::selected`).
-const MODE_ICON: pxui::IconButton = ICON_44X40.look(&MODE_LOOKS);
+/// A playback mode key (shuffle, repeat, the panel, the queue): the key plate, inverse while on (`IconButton::selected`;
+/// `localwave-icon` / `MODE` keeps it while hovered or held).
+const MODE_ICON: pxui::IconButton = ICON_44X40.look(&MODE_LOOKS).variant(variant::MODE);
 const MODE_LOOKS: States = ICON_PLATE_LOOKS.checked(ICON_INVERSE_LOOKS.idle);
 /// The repeat key's name by `RepeatMode`.
 const REPEAT_NAMES: [&str; 3] = ["Repeat off", "Repeat all", "Repeat one"];

@@ -102,6 +102,8 @@ pub(super) enum Icon {
     Offline,
     /// Kept offline.
     Kept,
+    /// Repeat one: the repeat arrows with a mono "1" at their lower right.
+    RepeatOne,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -191,6 +193,12 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), Stroke::new(color));
         }
         Icon::Offline | Icon::Kept => crate::icons::offline(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::Kept), color),
+        Icon::RepeatOne => {
+            crate::icons::repeat(paint, Rect { x, y, w: 20.0, h: 20.0 }, color);
+            // the "1" in the icon's ink, 19 right and 15 down in an 8 by 12 box (where the key's label sat)
+            let one = [pxui::TextSpan { start: 0, end: 1, ..Default::default() }.color(color)];
+            let _ = paint.text_spans(pxui::Point::new(x + 19.0, y + 15.0), REPEAT_ONE, 8.0, "1", &one);
+        }
         Icon::Down => {
             paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), Stroke::new(color));
             paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), Stroke::new(color));
@@ -198,10 +206,13 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
     }
 }
 /// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
-const ICONS: [Icon; 17] = [
+const ICONS: [Icon; 18] = [
     Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
     Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check, Icon::Offline, Icon::Kept,
+    Icon::RepeatOne,
 ];
+/// The repeat-one mark: Geist Mono 9 in a 12-point line.
+const REPEAT_ONE: Label = MONO_9.w_px(8.0).h_px(12.0);
 // the table is indexed by discriminant: keep it in declaration order
 const _: () = {
     let mut i = 0;
