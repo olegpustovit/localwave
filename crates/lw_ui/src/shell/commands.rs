@@ -79,24 +79,15 @@ impl ShellState {
     }
 }
 
-/// The field body's variant for Swift's phone Find field; the palette's field keeps variant 0.
-pub(super) const FIND_FIELD: u16 = 1;
-
 /// The command palette's input: no autocorrect or capitalization, the Search key.
 const PALETTE_FIELD: pxui::TextField = pxui::TextField::SEARCH.name("Search and commands");
 
+/// The command palette's field (registered as `localwave-command`): 20 points in a 59-point row 18 in at each side, focused on its
+/// first build, the prompt secondary and ellipsized to the card.
 pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
-    // One registered body serves the palette (20 pt, 59 pt tall) and Swift's phone Find field (26 pt medium, 56 pt).
-    let find = c.variant == FIND_FIELD;
-    let (size, height, inset, hint) = if find {
-        (26, 56.0, 0.0, "Songs, albums, folders")
-    } else {
-        (20, 59.0, 18.0, "Search songs, folders, or type a command")
-    };
-    let font = if find { FIND_FONT } else { PALETTE_FONT };
     let mut layout = ui.node_layout(&c.row);
-    layout.h = Size::Px(height);
-    layout.padding = Edges::ZERO.l(inset).r(inset);
+    layout.h = Size::Px(59.0);
+    layout.padding = Edges::ZERO.l(18.0).r(18.0);
     ui.set_node_layout(&c.row, &layout);
     ui.style(&c.row, &pxui::theme::States::of(Look::NONE), State::default());
     if ui.state(&c.row, 0) == 0 {
@@ -105,38 +96,20 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     }
     let editor = ui.part(
         pxui::Part::EDITOR,
-        Node::column().w(Size::Grow).h_px(height).inset(Edges::ZERO.l(if find { 0.0 } else { 2.0 }).r(if find { 0.0 } else { 2.0 })).look(Look::NONE.text(ui.tokens().foreground).font(font)),
+        Node::column().w(Size::Grow).h_px(59.0).inset(Edges::ZERO.l(2.0).r(2.0)).look(Look::NONE.text(ui.tokens().foreground).font(PALETTE_FONT)),
     );
     let value = c.text_of(&c.value);
     if c.state.focused == 0 {
         ui.text(&editor, value);
     }
     if value.is_empty() {
-        // Ellipsize to the field: the palette card is (view - 32) clamped to 600 and the phone Find row is view - 32 - 44.
-        let view = ui.content_rect().w;
-        let room = if find {
-            view - 32.0 - 44.0 + 10.0
-        } else {
-            (view - 32.0).clamp(0.0, 600.0) - 40.0
-        };
-        let placeholder = ui.node(
-            "prompt",
-            Node::row().w_px(room.max(1.0)).h_px(height).align(Align::Center).at(if find { 0.0 } else { 20.0 }, 0.0),
-        );
-        // the prompt's tracking in ems (the editor font's -0.52 points at 26)
-        let style = Label::BODY
-            .size(size as f32)
-            .line_height(size as f32 * 1.4)
-            .weight(font.weight)
-            .tracking(if find { -0.02 } else { 0.0 })
-            .lines(1)
-            .ellipsis();
+        // Ellipsize to the field: the palette card is (view - 32) clamped to 600.
+        let room = (ui.content_rect().w - 32.0).clamp(0.0, 600.0) - 40.0;
+        let placeholder = ui.node("prompt", Node::row().w_px(room.max(1.0)).h_px(59.0).align(Align::Center).at(20.0, 0.0));
+        let style = Label::BODY.size(20.0).line_height(28.0).weight(PALETTE_FONT.weight).lines(1).ellipsis();
         ui.within(&placeholder, &mut |ui| {
-            let line = ui.node(
-                "line",
-                Node::column().w(Size::Grow).h_px(size as f32 * 1.4).look(if find { FIND_PROMPT } else { PALETTE_PROMPT }),
-            );
-            ui.text_line_box(&line, hint, style, &[]).unwrap();
+            let line = ui.node("line", Node::column().w(Size::Grow).h_px(28.0).look(PALETTE_PROMPT));
+            ui.text_line_box(&line, "Search songs, folders, or type a command", style, &[]).unwrap();
         });
     }
 }

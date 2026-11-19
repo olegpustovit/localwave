@@ -1471,7 +1471,7 @@ mod tests {
         };
         let caption = rect_of(Role::Label, "Find");
         let chip = rect_of(Role::CheckBox, "flac");
-        let clear = rect_of(Role::Button, "Clear search");
+        let clear = rect_of(Role::Button, "Clear");
         assert_eq!((chip.h, clear.w, clear.h), (32.0, 44.0, 44.0));
         // 20 pt top pad, 21 pt caption, 56 pt field, 1.5 pt rule, 12 pt gap.
         assert_eq!(chip.y - caption.y, 21.0 + 56.0 + 1.5 + 12.0);

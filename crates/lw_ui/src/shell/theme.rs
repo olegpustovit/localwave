@@ -225,6 +225,10 @@ pub(super) mod variant {
     pub(in crate::shell) const SORT: u16 = 7;
     /// `localwave-button`: a key with a leading icon and its own label colour (no look of its own unless the caller gives one).
     pub(in crate::shell) const KEY: u16 = 8;
+    /// `localwave-search`: the desktop Find field, 44 points on paper, 15-point ink text, a 36-point clear key on the key plate.
+    pub(in crate::shell) const DESKTOP: u16 = 9;
+    /// `localwave-search`: the phone Find field, 56 points, 26-point medium text, the 44-point clear glyph, an ink rule under it.
+    pub(in crate::shell) const COMPACT: u16 = 10;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -253,6 +257,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_progress_body("localwave-progress", progress_body)?;
     ui.register_checkbox_body("localwave-chip", chip_body)?;
     ui.register_segmented_body("localwave-segmented", segment_body)?;
+    ui.register_search_field_body("localwave-search", search_body)?;
     Ok(())
 }
 
@@ -339,6 +344,45 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     }
 }
 
+/// The desktop Find field's text: 15 points, ink.
+const SEARCH_TEXT: Look = INK_TEXT.font(Font::BODY.size(15.0));
+/// The phone Find field's text: 26 points medium, ink.
+const FIND_TEXT: Look = INK_TEXT.font(FIND_FONT);
+/// LocalWave's search field (registered as `localwave-search`). `COMPACT`: Swift's phone Find field: a 56-point line of the 26-point
+/// editor (focused on its first build; the placeholder tertiary) and the 44-point clear glyph 10 points past the gutter, an ink rule
+/// 1.5 points under it. Any other variant (`DESKTOP`): a 44-point paper line of the 15-point editor and a 36-point clear key on the key
+/// plate. The clear key shows on an empty query too, as Swift's does.
+fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
+    let compact = c.variant == variant::COMPACT;
+    let (height, side, keys) = if compact { (56.0, 44.0, &ICON_LOOKS) } else { (44.0, 36.0, &ICON_PLATE_LOOKS) };
+    ui.set_node_layout(&c.line, &Node::row().w(Size::Grow));
+    ui.set_node_layout(&c.well, &Node::column().w(Size::Grow));
+    ui.style(&c.well, if compact { &BARE } else { &PAPER_LOOKS }, State::default());
+    let line = ui.node("line", Node::row().w(Size::Grow).h_px(height).align(Align::Center));
+    ui.within(&line, &mut |ui| {
+        let editor = ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h(Size::Grow).inset(Edges::ZERO.l(if compact { 0.0 } else { 2.0 })).look(if compact { FIND_TEXT } else { SEARCH_TEXT }));
+        if compact && ui.state(&editor, 0) == 0 {
+            ui.focus_box(&editor);
+            ui.set_state(&editor, 1);
+        }
+        if !ui.slot(c.editor) && compact {
+            ui.style(&editor, &States::of(FIND_PROMPT), State::default());
+        }
+        let clear = ui.part(pxui::Part::CLEAR, Node::column().w_px(side).h_px(side).align(Align::Center).justify(Justify::Center).margin(Edges::ZERO.r(if compact { -10.0 } else { 0.0 })));
+        let s = ui.signal(&clear);
+        let state = State::default().hovered(s.hovered).pressed(s.held);
+        ui.style(&clear, keys, state);
+        let ink = keys.pick(state).text;
+        ui.within(&clear, &mut |ui| {
+            let glyph = ui.node("glyph", Node::column().w_px(20.0).h_px(20.0));
+            ui.canvas(&glyph, move |paint, rect| paint_icon(paint, Icon::Clear, rect.x, rect.y, ink));
+        });
+    });
+    if compact {
+        ui.node("rule", Node::column().w(Size::Grow).h_px(1.5).look(INK_FILL));
+    }
+}
+
 /// A chip's text: 13 points, secondary, paper while checked.
 const CHIP_LABEL: Label = TEXT_13;
 /// LocalWave's checkbox (registered as `localwave-chip`), the `CHIP` look for any variant (LocalWave has no other checkbox): a
@@ -396,7 +440,7 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();

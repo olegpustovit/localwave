@@ -1,10 +1,9 @@
 use super::*;
 /// The page heading: 34 points, medium, tracked in, on a 34-point line.
-/// The phone Find field: no autocorrect or capitalization, Done ends editing, the Find body variant.
-const FIND: pxui::TextField = pxui::TextField::SEARCH
-    .action(pxui::ReturnKey::Done)
-    .variant(commands::FIND_FIELD)
-    .name("Find songs");
+/// The desktop Find field (`localwave-search` / `DESKTOP`): search traits (no autocorrect or capitalization), Done ends editing.
+const FIND_DESKTOP: pxui::SearchField = pxui::SearchField::DEFAULT.name("Find songs").action(pxui::ReturnKey::Done).variant(variant::DESKTOP);
+/// Swift's phone Find field (`localwave-search` / `COMPACT`), with its prompt.
+const FIND_COMPACT: pxui::SearchField = FIND_DESKTOP.variant(variant::COMPACT).placeholder("Songs, albums, folders");
 const HEADING: Label = Label::BODY.size(34.0).line_height(34.0).weight(500).tracking(-0.025).lines(1).grow().h_px(34.0).whole_pixels().color(INK);
 use crate::browse::Query;
 use crate::catalog::{Catalog, Route};
@@ -55,25 +54,10 @@ pub(super) fn header(
         });
         if state.route == Route::Find && !results {
             ui.id("find-query", |ui| { ui.column(Node::column().h_px(44.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
-                    let row =
-                        container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, &PAPER_FILL);
-                    ui.within(&row, &mut |ui| {
-                        let field = ui.node("query-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
-                        ui.within(&field, &mut |ui| {
-                            if let Some(value) = ui
-                                .text_field("find-songs", state.query.as_str(), &FIND)
-                                .changed
-                            {
-                                *intent = Some(
-                                    Query::new(value).map_or(Intent::SearchTooLong, Intent::Search),
-                                );
-                            }
-                        });
-                        if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_36.look(&ICON_PLATE_LOOKS)).clicked {
-                            *intent = Some(Intent::Search(Query::default()));
-                        }
-                    });
-                }); }); });
+                if let Some(value) = ui.search_field("find-songs", state.query.as_str(), &FIND_DESKTOP).changed {
+                    *intent = Some(Query::new(value).map_or(Intent::SearchTooLong, Intent::Search));
+                }
+            }); }); });
             find_tokens(ui, state, (width - 64.0).max(1.0), intent);
         }
         spacer(ui, "heading-subtitle-gap", 6.0);
@@ -124,45 +108,11 @@ pub(super) fn compact_find(
         ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(16.0, 20.0, 16.0, 0.0)),
             |ui| {
                 ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
-                ui.column(Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
-                        let row = Node::row().align(Align::Center).w(Size::Grow).h(Size::Grow);
-                        ui.row(row, |ui| {
-                            let field = ui.node("query-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
-                            ui.within(&field, &mut |ui| {
-                                let mut edit = |ui: &mut Ui| {
-                                    if let Some(value) = ui
-                                        .text_field("find-songs", state.query.as_str(), &FIND)
-                                        .changed
-                                    {
-                                        *intent = Some(
-                                            Query::new(value)
-                                                .map_or(Intent::SearchTooLong, Intent::Search),
-                                        );
-                                    }
-                                };
-                                match theme {
-                                    Some(theme) => ui.themed(theme, &mut edit),
-                                    None => edit(ui),
-                                }
-                            });
-                            // Swift offsets the 44 pt target 10 pt past the gutter.
-                            let clear = Node::column().w_px(44.0).h_px(44.0).align(Align::Center).margin(Edges::ZERO.r(-10.0));
-                            ui.column(clear, |ui| {
-                                // Swift's clear glyph has no resting plate.
-                                if ui.icon_button("clear-query", icon_drawing(Icon::Clear), "Clear search", &ICON_44.look(&ICON_LOOKS)).clicked {
-                                    *intent = Some(Intent::Search(Query::default()));
-                                }
-                            });
-                        });
-                    }); });
-                container(
-                    ui,
-                    "query-rule",
-                    Axis::Column,
-                    Size::Grow,
-                    Size::Px(1.5),
-                    &INK_FILL,
-                );
+                ui.column(Node::column().h_px(57.5), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
+                    if let Some(value) = ui.search_field("find-songs", state.query.as_str(), &FIND_COMPACT).changed {
+                        *intent = Some(Query::new(value).map_or(Intent::SearchTooLong, Intent::Search));
+                    }
+                }); });
                 spacer(ui, "tokens-gap", 12.0);
                 find_tokens(ui, state, (width - 32.0).max(1.0), intent);
                 if state.query.as_str().trim().is_empty() {

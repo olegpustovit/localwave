@@ -1257,7 +1257,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     let clear = ui
         .a11y_nodes()
         .iter()
-        .find(|node| ui.a11y_name_of(node) == "Clear search")
+        .find(|node| ui.a11y_name_of(node) == "Clear")
         .unwrap()
         .id;
     ui.inject_a11y(&[pxui::A11yAction {
