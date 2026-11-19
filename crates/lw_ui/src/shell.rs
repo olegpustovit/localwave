@@ -855,8 +855,8 @@ pub fn shell(
     intent: &mut Option<Intent>,
 ) {
     let input_was_focused = ui.text_input_focused();
-    // a carry, or a drag that holds the pointer (a queue row lifted by its grip): Escape cancels it
-    let carrying = ui.carrying().is_some() || ui.captured();
+    // a carry, or a list row lifted by its grip: Escape cancels it (a plain held press leaves Escape to the app)
+    let carrying = ui.carrying().is_some() || ui.reordering();
     if ui.key_pressed(KeyCode::Escape, Mods::ANY) {
         ui.cancel_carry();
     }

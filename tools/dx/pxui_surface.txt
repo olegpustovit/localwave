@@ -1109,6 +1109,7 @@ pxui::Ui::register_tree_body fn (&mut self, name: &str, body: fn(&mut Ui, &TreeC
 pxui::Ui::register_value_field_body fn (&mut self, name: &str, body: fn(&mut Ui, &ValueFieldConfig)) -> Result<BodyId, Error>
 pxui::Ui::register_window_body fn (&mut self, name: &str, body: fn(&mut Ui, &WindowConfig)) -> Result<BodyId, Error>
 pxui::Ui::remember fn <K: Into<Key>>(&mut self, key: K, edit: &TextEdit, typing: bool)
+pxui::Ui::reordering fn (&self) -> bool
 pxui::Ui::repaint_after fn (&mut self, seconds: f64)
 pxui::Ui::repaint_at fn (&self) -> Option<f64>
 pxui::Ui::request_cursor fn (&mut self, shape: Cursor)
@@ -1864,6 +1865,7 @@ pxui::ui::Ui::register_tree_body fn (&mut self, name: &str, body: fn(&mut Ui, &T
 pxui::ui::Ui::register_value_field_body fn (&mut self, name: &str, body: fn(&mut Ui, &ValueFieldConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::register_window_body fn (&mut self, name: &str, body: fn(&mut Ui, &WindowConfig)) -> Result<BodyId, Error>
 pxui::ui::Ui::remember fn <K: Into<Key>>(&mut self, key: K, edit: &TextEdit, typing: bool)
+pxui::ui::Ui::reordering fn (&self) -> bool
 pxui::ui::Ui::repaint_after fn (&mut self, seconds: f64)
 pxui::ui::Ui::repaint_at fn (&self) -> Option<f64>
 pxui::ui::Ui::request_cursor fn (&mut self, shape: Cursor)
