@@ -1269,7 +1269,10 @@ pxui::bodies::BodyConfig::text_of fn (&self, field: &Str) -> &str
 pxui::bodies::ButtonConfig impl BodyConfig
 pxui::bodies::ButtonConfig impl Deref
 pxui::bodies::ButtonConfig struct (_)
+pxui::bodies::ButtonConfig::accessory_label fn (&self) -> Option<Label>
+pxui::bodies::ButtonConfig::detail_label fn (&self) -> Option<Label>
 pxui::bodies::ButtonConfig::icon fn (&self) -> Option<Icon>
+pxui::bodies::ButtonConfig::label fn (&self) -> Option<Label>
 pxui::bodies::CheckboxConfig impl BodyConfig
 pxui::bodies::CheckboxConfig impl Deref
 pxui::bodies::CheckboxConfig struct (_)
