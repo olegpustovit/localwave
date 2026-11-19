@@ -1916,7 +1916,8 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     let press = |ui: &mut Ui, name: &str, time: f64| {
         show(ui, &empty, &ShellState::default(), &player);
         let id = (ui.a11y_nodes().iter())
-            .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
+            // the Drive disclosure's header is the widget's expandable heading
+            .find(|node| (node.is_role(Role::Button) || node.is_role(Role::Heading)) && ui.a11y_name_of(node) == name)
             .unwrap()
             .id;
         ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..Default::default() }]);

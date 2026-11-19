@@ -233,6 +233,10 @@ pub(super) mod variant {
     pub(in crate::shell) const CHIPS: u16 = 12;
     /// `localwave-button`: a settings row (title, detail, the dotted chevron and the hairline).
     pub(in crate::shell) const SETTING: u16 = 13;
+    /// `localwave-button`: an underlined text link, as wide as its text.
+    pub(in crate::shell) const LINK: u16 = 14;
+    /// `localwave-button`: the primary key, its label centred (on the caller's ink look).
+    pub(in crate::shell) const PRIMARY: u16 = 15;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -264,6 +268,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_segmented_body("localwave-segmented", segment_body)?;
     ui.register_search_field_body("localwave-search", search_body)?;
     ui.register_modal_body("localwave-modal", modal_body)?;
+    ui.register_inspector_section_body("localwave-disclosure", super::onboarding::disclosure_body)?;
     Ok(())
 }
 
@@ -277,18 +282,19 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
 /// hovered or disabled, ink while held, its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
-/// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`).
+/// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point rule as wide
+/// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
     if c.variant == variant::SETTING {
         super::settings::row_body(ui, c);
         return;
     }
-    if ![variant::ROW, variant::TOOL, variant::KEY].contains(&c.variant) {
+    if ![variant::ROW, variant::TOOL, variant::KEY, variant::LINK, variant::PRIMARY].contains(&c.variant) {
         ui.slot(c.built_in);
         return;
     }
-    let tool = c.variant != variant::ROW;
+    let tool = ![variant::ROW, variant::PRIMARY].contains(&c.variant);
     let size = |kind: u8, points: f32| match kind { 1 => Size::Px(points), 2 => Size::Grow, _ => Size::Fit };
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(size(c.w_kind, c.w)).h(size(c.h_kind, c.h)));
@@ -296,7 +302,16 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let row = if c.axis == 2 { Node::column() } else { Node::row().align(Align::Center) };
     let row = row.w(if c.w_kind == 0 { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap);
     let row = if c.variant == variant::TOOL { row.transition(Some(FADE)) } else { row };
+    let row = if c.centered != 0 || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
     ui.set_node_layout(&c.row, &row);
+    if c.variant == variant::LINK {
+        // the text over a 1-point rule as wide as it
+        ui.column(Node::column().w(Size::Fit).h(Size::Fit), |ui| {
+            ui.label(c.text_of(&c.label), c.label().unwrap_or(TEXT_14.color(SECONDARY)));
+            rule(ui, "underline", false);
+        });
+        return;
+    }
     let s = &c.state;
     let checked = tool && s.checked != 0;
     let state = State::default().hovered(s.hovered != 0 && !checked).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0 && !checked).checked(s.checked != 0);
@@ -482,7 +497,7 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body", "table_head.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body", "table_head.body", "inspector_section.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();
@@ -496,16 +511,22 @@ mod body_tests {
     const INK_RGBA: [u8; 4] = [0x11, 0x11, 0x11, 255];
     const SELECTED_RGBA: [u8; 4] = [0xD3, 0xD3, 0xD3, 255];
 
-    /// U4a.7 bodies: `CHIPS` chips share their strip, 28 high, the stored choice on ink; a `SETTING` row is at least 60 high. The kit's
-    /// bodies draw neither.
+    /// U4a.7/U4a.8 bodies: `CHIPS` chips share their strip, 28 high, the stored choice on ink; a `SETTING` row is at least 60 high; a
+    /// `LINK` underlines its text with a 1-point rule as wide as it; `PRIMARY` centres its label on ink; `localwave-disclosure` is a
+    /// 19.5-point header, its content under it while open. The kit's bodies draw none of these.
     #[test]
-    fn settings_bodies_draw_their_structures() {
+    fn settings_and_onboarding_bodies_draw_their_structures() {
         const ITEMS: [pxui::Segment; 2] = [pxui::Segment::new("4 GB").id(4), pxui::Segment::new("8 GB").id(8)];
         const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(32.0).padding(2.0).variant(variant::CHIPS).w_px(120.0);
         const SETTING: pxui::Button = pxui::Button::DEFAULT.variant(variant::SETTING).detail("Detail");
+        const LINK: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO).label(LEAD_INK);
+        const PRIMARY: pxui::Button = pxui::Button::DEFAULT.variant(variant::PRIMARY).size(Size::Px(200.0), Size::Px(52.0)).label(TEXT_15.color(PAPER)).look(&INK_LOOKS);
         let mut build = |ui: &mut Ui| { ui.column(Node::column().w(Size::Grow), |ui| {
             ui.segmented("chips", &ITEMS, Some(1), &CHIPS);
             ui.button("rescan", "Rescan", &SETTING);
+            ui.button("link", "Link", &LINK);
+            ui.button("primary", "Go", &PRIMARY);
+            ui.disclosure("more", "More", true, &pxui::Disclosure::DEFAULT, &mut |ui| { ui.label("Inside", TEXT_13); });
         }); };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
@@ -513,6 +534,18 @@ mod body_tests {
         let ink_chips = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[3] - r[1] == 28.0).count();
         assert_eq!((ink_chips(&app), ink_chips(&kit)), (1, 0), "the stored chip is a 28-point ink chip");
         assert_eq!((node(&app, "Rescan").h >= 60.0, node(&kit, "Rescan").h >= 60.0), (true, false), "a settings row is at least 60 high");
+        let link = node(&app, "Link");
+        let rules = |ui: &Ui| ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.rect[3] - i.rect[1] == 1.0 && i.rect[1] >= link.y && i.rect[1] < link.y + link.h).count();
+        assert!(rules(&app) >= 1 && rules(&kit) == 0, "the link is underlined");
+        let plates = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[2] - r[0] == 200.0 && r[3] - r[1] == 52.0).count();
+        let go = node(&app, "Go");
+        let label = colored(&app, [0xF3, 0xF3, 0xF3, 255]).into_iter().filter(|r| r[1] >= go.y && r[3] <= go.y + go.h).fold((f32::MAX, 0.0f32), |(a, b), r| (a.min(r[0]), b.max(r[2])));
+        assert_eq!(plates(&app), 1, "the primary key is an ink plate");
+        assert!(((label.0 - go.x) - (go.x + go.w - label.1)).abs() <= 1.0, "the primary key centres its label: {label:?} in {go:?}");
+        let (head, inside) = (node(&app, "More"), node(&app, "Inside"));
+        assert_eq!(head.h, 19.5, "the disclosure header is 19.5 high");
+        assert!(inside.y >= head.y + head.h, "the content is under the header");
+        assert_ne!(node(&kit, "More").h, 19.5, "the theme line selects the disclosure body");
     }
 
     /// `localwave-button` / `ROW` with `Button::axis(Axis::Column)`: the detail sits under the title, both from the box's start.

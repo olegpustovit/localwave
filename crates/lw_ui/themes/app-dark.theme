@@ -11,3 +11,4 @@ table_head.body = localwave-heading
 badge.body = localwave-badge
 progress.body = localwave-progress
 modal.body = localwave-modal
+inspector_section.body = localwave-disclosure
