@@ -123,9 +123,9 @@ fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: Co
     });
 }
 /// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
-/// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row.
+/// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row; `variant::FORM` puts them 4 apart instead of 12.
 pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
-    ui.column(SHEET, |ui| {
+    ui.column(if c.variant == variant::FORM { SHEET.gap(4.0) } else { SHEET }, |ui| {
         ui.label(c.text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
         ui.slot(c.content);
         let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), &PAPER_FILL);

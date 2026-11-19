@@ -83,52 +83,27 @@ pub(super) fn name_dialog(
         ListDialog::New(_) | ListDialog::NewPage => ("New list", "Create"),
         ListDialog::Rename(_) => ("Rename list", "Save"),
     };
-    let open = ui.modal("list-name", &Overlay::DEFAULT.w_px(width).name(heading), |ui| {
-        ui.column(super::files::SHEET,
-            |ui| {
-                ui.label(heading, TEXT_24.grow().h_px(36.0).color(INK));
-                let field = ui.node("list-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Px(40.0)));
-                ui.within(&field, &mut |ui| {
-                    if let Some(value) = ui
-                        .text_field("list-name", state.playlist_name.as_str(), &LIST_NAME)
-                        .changed
-                    {
-                        *intent = Some(
-                            Query::new(value)
-                                .map_or(Intent::PlaylistNameTooLong, Intent::EditPlaylistName),
-                        );
-                    }
-                });
-                ui.label(if state.playlist_name_too_long { "Name exceeds 1,024 UTF-8 bytes. Shorten it to save." } else { "" }, TEXT_12.grow().h_px(20.0).color(SECONDARY));
-                let valid =
-                    !state.playlist_name_too_long && !state.playlist_name.as_str().trim().is_empty();
-                let buttons = container(
-                    ui,
-                    "list-name-actions",
-                    Axis::Row,
-                    Size::Grow,
-                    Size::Px(40.0),
-                    &PAPER_FILL,
-                );
-                ui.within(&buttons, &mut |ui| {
-                    if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, (PANEL, INK)) {
-                        *intent = Some(Intent::CancelPlaylistName);
-                    }
-                    if files::action(ui, "confirm-list-name", confirm, 100.0, valid, (PANEL, INK))
-                        || (valid && ui.key_pressed(pxui::KeyCode::Enter, pxui::Mods::ANY))
-                    {
-                        let name = state.playlist_name;
-                        *intent = Some(match dialog {
-                            ListDialog::New(song) => Intent::CreateList { name, song },
-                            ListDialog::NewPage => Intent::CreatePageList(name),
-                            ListDialog::Rename(list) => Intent::RenameList { list, name },
-                        });
-                    }
-                });
-            },
-        );
-    }).open;
-    if !open && intent.is_none() {
-        *intent = Some(Intent::CancelPlaylistName);
+    let valid = !state.playlist_name_too_long && !state.playlist_name.as_str().trim().is_empty();
+    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new(confirm).primary().disabled(!valid)];
+    let sheet = ui.dialog("list-name", heading, &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
+        let field = ui.node("list-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Px(40.0)));
+        ui.within(&field, &mut |ui| {
+            if let Some(value) = ui.text_field("list-name", state.playlist_name.as_str(), &LIST_NAME).changed {
+                *intent = Some(Query::new(value).map_or(Intent::PlaylistNameTooLong, Intent::EditPlaylistName));
+            }
+        });
+        ui.label(if state.playlist_name_too_long { "Name exceeds 1,024 UTF-8 bytes. Shorten it to save." } else { "" }, TEXT_12.grow().h_px(20.0).color(SECONDARY));
+    });
+    match sheet.chosen {
+        Some(1) => {
+            let name = state.playlist_name;
+            *intent = Some(match dialog {
+                ListDialog::New(song) => Intent::CreateList { name, song },
+                ListDialog::NewPage => Intent::CreatePageList(name),
+                ListDialog::Rename(list) => Intent::RenameList { list, name },
+            });
+        }
+        Some(_) => *intent = Some(Intent::CancelPlaylistName),
+        None => {}
     }
 }

@@ -237,6 +237,8 @@ pub(super) mod variant {
     pub(in crate::shell) const LINK: u16 = 14;
     /// `localwave-button`: the primary key, its label centred (on the caller's ink look).
     pub(in crate::shell) const PRIMARY: u16 = 15;
+    /// `localwave-sheet` (`Dialog::variant`): a form (Edit Metadata), its labels and fields 4 apart.
+    pub(in crate::shell) const FORM: u16 = 16;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -560,11 +562,11 @@ mod body_tests {
         assert_eq!((detail.x, detail.y), (button.x, button.y + 28.0), "{button:?} {detail:?}");
     }
 
-    /// `modal.body = localwave-modal`: a bottom sheet's content starts at the sheet's own edge (no kit edge or inset); a centred modal
-    /// is the kit's sheet, its content one point in.
+    /// `modal.body = localwave-modal`: a bottom or top sheet's content starts at the sheet's own edge (no kit edge or inset); a
+    /// centred modal is the kit's sheet, its content one point in.
     #[test]
     fn localwave_modal_dresses_bottom_sheets_and_leaves_centred_ones_to_the_kit() {
-        for (present, inset) in [(pxui::Presentation::Bottom, 0.0), (pxui::Presentation::Centered, 1.0)] {
+        for (present, inset) in [(pxui::Presentation::Bottom, 0.0), (pxui::Presentation::Top, 0.0), (pxui::Presentation::Centered, 1.0)] {
             for (app, inset) in [(true, inset), (false, 1.0)] {
                 let mut ui = ui(app);
                 let sheet = Overlay::DEFAULT.present(present).name("Sheet");
@@ -577,6 +579,22 @@ mod body_tests {
                 let (s, c) = (node(&ui, "Sheet"), node(&ui, "Content"));
                 assert_eq!((c.x - s.x, c.y - s.y), (inset, inset), "{present:?} app {app}: {s:?} {c:?}");
             }
+        }
+    }
+
+    /// `dialog.body = localwave-sheet`: `FORM` stacks its content 4 apart (Edit Metadata), any other variant 12.
+    #[test]
+    fn localwave_sheet_stacks_a_form_four_apart() {
+        for (dialog, gap) in [(Dialog::DEFAULT.variant(variant::FORM), 4.0), (Dialog::DEFAULT, 12.0)] {
+            let mut ui = ui(true);
+            frames(&mut ui, &mut |ui| {
+                ui.dialog("d", "Title", &[DialogButton::new("OK")], &dialog, &mut |ui| {
+                    ui.label("Above", TEXT_12.grow().h_px(16.0));
+                    ui.label("Below", TEXT_12.grow().h_px(16.0));
+                });
+            });
+            let (a, b) = (node(&ui, "Above"), node(&ui, "Below"));
+            assert_eq!(b.y - (a.y + a.h), gap, "variant {}: {a:?} {b:?}", dialog.variant);
         }
     }
 
