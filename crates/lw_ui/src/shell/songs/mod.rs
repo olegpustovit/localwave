@@ -351,11 +351,8 @@ pub(super) fn table(
                 *intent = Some(Intent::MoveListRow { from, to });
             }
             let list = r.handle;
-            if state.reveal_selected.take()
-                && let Some(row) = state.selected
-            {
-                ui.reveal(&list, row);
-            }
+            // the window's default key target: keys no other widget holds reach the songs list
+            ui.focus_default(&list);
             // Keep a song drag alive while its source row scrolls out of the virtual window.
             if ui
                 .carrying()

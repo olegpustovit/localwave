@@ -1008,6 +1008,7 @@ pxui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::Ui::environment fn (&self) -> Environment
 pxui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
 pxui::Ui::focus_box fn (&mut self, box_: &Handle)
+pxui::Ui::focus_default fn (&mut self, box_: &Handle)
 pxui::Ui::font_size fn (&self) -> f32
 pxui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::Ui::frame_index fn (&self) -> u64
@@ -1764,6 +1765,7 @@ pxui::ui::Ui::end_refresh fn (&mut self, node: &Handle)
 pxui::ui::Ui::environment fn (&self) -> Environment
 pxui::ui::Ui::expanded fn <K: Into<Key>>(&self, key: K) -> Option<bool>
 pxui::ui::Ui::focus_box fn (&mut self, box_: &Handle)
+pxui::ui::Ui::focus_default fn (&mut self, box_: &Handle)
 pxui::ui::Ui::font_size fn (&self) -> f32
 pxui::ui::Ui::frame fn (&mut self, input: &FrameIn<'_>, build: &mut dyn FnMut(&mut Ui)) -> Result<Frame<'_>, Error>
 pxui::ui::Ui::frame_index fn (&self) -> u64

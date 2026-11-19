@@ -61,16 +61,9 @@ pub enum SettingsMenu {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Selection {
     Toggle(usize),
-    /// Replace the selection with the span from the anchor to this row in the displayed order.
-    Range(usize),
     /// Every row of a collection with this many rows.
     All(usize),
     Clear,
-    Move {
-        delta: isize,
-        extend: bool,
-        len: usize,
-    },
 }
 
 /// Whole-page actions of the compact "…" menu; the controller applies them to the displayed collection.

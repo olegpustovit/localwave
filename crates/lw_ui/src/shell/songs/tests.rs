@@ -1520,7 +1520,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
     assert_eq!(run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, x, y1, 0)]), None, "a cancelled drag moves nothing");
     let title = (from.x + 200.0, from.y + from.h / 2.0);
     run(&mut ui, &state, &[pointer(input::wire::POINTER_PRESSED, title.0, title.1, 0)]);
-    assert_eq!(run(&mut ui, &state, &[escape]), Some(Intent::Select(crate::Selection::Clear)), "a held press leaves Escape to the selection");
+    assert!(matches!(run(&mut ui, &state, &[escape]), Some(Intent::Selected(_))), "a held press leaves Escape to the list's selection");
     run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, title.0, title.1, 0)]);
     state.apply(Intent::Select(crate::Selection::Clear));
     state.apply(Intent::SortBy(Some((crate::browse::Sort::Title, true))));
@@ -1739,15 +1739,15 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     }
     assert_eq!(mem_sys::local_alloc_count(), 0);
     assert_eq!(ids(&state), [4, 3, 2, 1, 0]);
-    // the focused list keeps the app's list keys (`ListResponse::focused`): its Return plays the whole selection
+    // the focused list's Return plays the whole selection; its Escape clears it (the list reports the change)
     assert_eq!(
         tap(&mut ui, &mut state, &mut run, input::Key::Enter.code()),
         Some(Intent::PlaySelection)
     );
-    assert_eq!(
+    assert!(matches!(
         tap(&mut ui, &mut state, &mut run, input::Key::Escape.code()),
-        Some(Intent::Select(Selection::Clear))
-    );
+        Some(Intent::Selected(_))
+    ));
     assert!(ids(&state).is_empty());
 }
 

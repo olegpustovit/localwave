@@ -41,8 +41,6 @@ pub struct ShellState {
     song_window: std::cell::Cell<Option<crate::song_text::Window>>,
     /// A carry was in flight when the last frame ended, so its drop-target views rebuild once more when it ends.
     carried: std::cell::Cell<bool>,
-    /// Set by an arrow-key move; the song list reveals the cursor row once, like AppKit `scrollRowToVisible`.
-    reveal_selected: std::cell::Cell<bool>,
     /// The sidebar's Library and Lists groups, borrowed mutably only for the list call, and the route (`None` in settings) and list
     /// count their rows last showed: a change selects the route's row; a click's own selection holds until the route follows it.
     side_library: std::cell::RefCell<pxui::ListState>,
@@ -116,7 +114,6 @@ impl Default for ShellState {
             refresh_ending: std::cell::Cell::new(false),
             song_window: std::cell::Cell::new(None),
             carried: std::cell::Cell::new(false),
-            reveal_selected: std::cell::Cell::new(false),
             side_library: std::cell::RefCell::new(pxui::ListState::new()),
             side_lists: std::cell::RefCell::new(pxui::ListState::new()),
             side_route: std::cell::Cell::new(None),
@@ -248,7 +245,6 @@ impl ShellState {
     }
     fn select(&mut self, selection: Selection) {
         use pxui::ListState as L;
-        let first = self.first_marked();
         let list = self.song_rows.get_mut();
         let fit = |rows: &mut Vec<u8>, len: usize| if rows.len() < len { rows.resize(len, 0) };
         match selection {
@@ -258,33 +254,11 @@ impl ShellState {
                 self.selected = (list.rows[i] & L::SELECTED != 0).then_some(i);
                 list.anchor = Some(i);
             }
-            Selection::Range(i) => {
-                let from = *list.anchor.get_or_insert(i);
-                fit(&mut list.rows, from.max(i) + 1);
-                list.rows.fill(0);
-                list.rows[from.min(i)..=from.max(i)].fill(L::SELECTED);
-                self.selected = Some(i);
-            }
             Selection::All(len) => {
                 list.rows.clear();
                 list.rows.resize(len, L::SELECTED);
             }
             Selection::Clear => self.clear_selection(),
-            Selection::Move { delta, extend, len } => {
-                let Some(first) = first.filter(|_| len > 0) else {
-                    return;
-                };
-                let at = (self.selected.unwrap_or(first) as isize + delta)
-                    .clamp(0, len as isize - 1) as usize;
-                fit(&mut list.rows, len);
-                if !extend {
-                    list.rows.fill(0);
-                    list.anchor = Some(at);
-                }
-                list.rows[at] |= L::SELECTED;
-                self.selected = Some(at);
-                self.reveal_selected.set(true);
-            }
         }
         self.count_marks();
         self.selection_revision = self.selection_revision.wrapping_add(1);
@@ -373,8 +347,9 @@ impl ShellState {
         match intent {
             // the widget already wrote the flags and the anchor
             Intent::Selected(index) => {
-                self.selected = Some(index);
                 self.count_marks();
+                // the list's report names the row it acted on; Escape leaves none selected
+                self.selected = (self.song_marks.0 > 0).then_some(index);
                 self.selection_revision = self.selection_revision.wrapping_add(1);
                 return true;
             }
@@ -827,17 +802,12 @@ fn back_shortcut(ui: &Ui, player: &PlayerView<'_>, state: &ShellState) -> Option
     }
 }
 
-/// ⌘A, Esc and arrows over the song selection; raw scalar key queries only.
+/// ⇧⌘N and Delete over the song selection; the songs list itself owns its keys (arrows, Shift ranges, ⌘A, Esc).
 fn selection_shortcut(
     ui: &Ui,
     catalog: &Catalog,
     state: &ShellState,
-    carrying: bool,
 ) -> Option<Intent> {
-    let len = state.collection(catalog)?.rows.len();
-    if ui.key_pressed(KeyCode::Char('a'), Mods::META) || ui.key_pressed(KeyCode::Char('A'), Mods::META) {
-        return (len > 0).then_some(Intent::Select(Selection::All(len)));
-    }
     if state.marked_count() == 0 {
         return None;
     }
@@ -865,20 +835,6 @@ fn selection_shortcut(
             .next()
             .map(|song| Intent::RemoveFromList { song, list: *id });
     }
-    // Esc that cancels a drag is spent on the drag.
-    if !carrying && ui.key_pressed(KeyCode::Escape, Mods::ANY) {
-        return Some(Intent::Select(Selection::Clear));
-    }
-    if ui.view_size().width < compact::BREAKPOINT {
-        return None;
-    }
-    let plain = ![KeyCode::Meta, KeyCode::Shift, KeyCode::Alt, KeyCode::Ctrl].into_iter().any(down);
-    for (key, delta) in [(KeyCode::ArrowUp, -1), (KeyCode::ArrowDown, 1)] {
-        let extend = ui.key_pressed(key, Mods::SHIFT);
-        if extend || (plain && ui.key_pressed(key, Mods::ANY)) {
-            return Some(Intent::Select(Selection::Move { delta, extend, len }));
-        }
-    }
     None
 }
 
@@ -891,8 +847,7 @@ pub fn shell(
     intent: &mut Option<Intent>,
 ) {
     let input_was_focused = ui.text_input_focused();
-    // a carry, or a list row lifted by its grip: Escape cancels it (a plain held press leaves Escape to the app)
-    let carrying = ui.carrying().is_some() || ui.reordering();
+    // Escape cancels a carry (a list row lifted by its grip puts itself back; a plain held press leaves Escape to the app)
     if ui.key_pressed(KeyCode::Escape, Mods::ANY) {
         ui.cancel_carry();
     }
@@ -1070,7 +1025,7 @@ pub fn shell(
             })
         } else {
             global_shortcut(ui, player, catalog, position)
-                .or_else(|| selection_shortcut(ui, catalog, state, carrying))
+                .or_else(|| selection_shortcut(ui, catalog, state))
                 .or_else(|| back_shortcut(ui, player, state))
         };
     }

@@ -2264,7 +2264,8 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
         (&[Ctrl][..], ch('/'), Intent::ShowCommands),
         (&[Alt][..], ch('?'), Intent::ShowShortcuts),
         (&[Meta][..], ch(','), Intent::ShowSettings),
-        (&[Meta][..], ch('A'), Intent::Select(Selection::All(1))),
+        // the songs list is the window's default key target (`focus_default`): it takes ⌘A and reports the change
+        (&[Meta][..], ch('A'), Intent::Selected(0)),
     ] {
         assert_eq!(press(&state, &player, mods, key, false, false), Some(expected), "key {key} with {mods:?}");
     }
@@ -2275,16 +2276,17 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
     player.playing = true;
     player.revision += 1;
     assert_eq!(press(&state, &player, &[], Space.code(), false, false), Some(Intent::Pause));
-    state.apply(Intent::Select(Selection::All(1)));
-    for (mods, key, delta, extend) in [(&[][..], ArrowUp, -1, false), (&[Shift][..], ArrowDown, 1, true)] {
-        assert_eq!(press(&state, &player, mods, key.code(), false, false), Some(Intent::Select(Selection::Move { delta, extend, len: 1 })));
+    // arrows reach the list, which selects the keyboard's row (the widget owns Shift ranges; pxui tests them)
+    for (mods, key) in [(&[][..], ArrowUp), (&[Shift][..], ArrowDown)] {
+        assert_eq!(press(&state, &player, mods, key.code(), false, false), Some(Intent::Selected(0)), "{key:?}");
     }
-    // row 0 alone (the Select All above marked it already)
-    state.apply(Intent::Select(Selection::Clear));
-    state.apply(Intent::Select(crate::Selection::Toggle(0)));
+    state.apply(Intent::Selected(0));
+    assert_eq!(state.selected_song_ids(&catalog).count(), 1);
     assert_eq!(press(&state, &player, &[Alt], Enter.code(), false, false), Some(Intent::PlayRow(0)));
-    assert_eq!(press(&state, &player, &[], Escape.code(), false, true), None);
-    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Select(Selection::Clear)));
+    assert_eq!(press(&state, &player, &[], Escape.code(), false, true), None, "Escape during a carry is the carry's");
+    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Selected(0)), "the list clears on Escape");
+    state.apply(Intent::Selected(0));
+    assert_eq!(state.selected_song_ids(&catalog).count(), 0);
     state.apply(Intent::ShowSettings);
     assert_eq!(press(&state, &player, &[Meta], ch('['), false, false), Some(Intent::CloseSettings));
     assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::CloseSettings));
