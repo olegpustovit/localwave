@@ -325,24 +325,18 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
 
 /// LocalWave's segmented (registered as `localwave-segmented`), the `SORT` look for any variant (LocalWave has no other strip): the
 /// strip fit to its keys 8 apart; each key fit to its 13-point text 10 in at each side, secondary on paper, the chosen one ink on the
-/// selected fill inside a 1.5-point ink frame.
+/// selected fill inside a 1.5-point ink border.
 fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     use pxui::bodies::BodyConfig;
     ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h_px(30.0));
     ui.set_node_layout(&c.strip, &Node::row().w(Size::Fit).h(Size::Grow).gap(8.0));
     ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h_px(30.0).pad_x(10.0).align(Align::Center));
     let chosen = c.has_selected != 0 && c.selected == c.index;
-    ui.style(&c.node, if chosen { &SELECTED_LOOKS } else { &PAPER_LOOKS }, State::default());
+    ui.style(&c.node, if chosen { &SORT_CHOSEN } else { &PAPER_LOOKS }, State::default());
     ui.label(c.text_of(&c.text), TEXT_13.color(if chosen { INK } else { SECONDARY }).role(Role::Unknown));
-    if chosen {
-        ui.canvas_over(&c.node, move |paint, rect| {
-            paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
-            paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
-            paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
-            paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
-        });
-    }
 }
+/// The chosen sort key: the selected fill inside a 1.5-point ink border.
+const SORT_CHOSEN: States = States::of(SELECTED_FILL.border(Rgba::token(INK), 1.5));
 
 /// The desktop Find field's text: 15 points, ink.
 const SEARCH_TEXT: Look = INK_TEXT.font(Font::BODY.size(15.0));
@@ -540,7 +534,7 @@ mod body_tests {
         assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 32.0), "the kit's checkbox: the theme line selects the body");
     }
 
-    /// `segmented.body = localwave-segmented` (`SORT`): keys fit to their text 8 apart, 30 high, the chosen one framed in a 1.5-point ink
+    /// `segmented.body = localwave-segmented` (`SORT`): keys fit to their text 8 apart, 30 high, the chosen one bordered in a 1.5-point ink
     /// line; `localwave-button` `KEY` fits its icon and label like `TOOL`, with no look of its own.
     #[test]
     fn localwave_sort_and_key_draw_their_structures() {
@@ -556,8 +550,11 @@ mod body_tests {
         frames(&mut kit, &mut build);
         let (artist, year) = (node(&app, "Artist"), node(&app, "Year"));
         assert_eq!((year.x - (artist.x + artist.w), artist.h), (8.0, 30.0), "keys 8 apart, 30 high");
-        assert!(colored(&app, INK_RGBA).iter().any(|r| r[0] == year.x && r[3] - r[1] == 1.5), "the chosen key's ink frame");
-        assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 1.5), "the kit's strip: the theme line selects the body");
+        // the border's edges in ink along the chosen key (whole-pixel snapped), over its selected fill
+        let edged = |ui: &Ui, key: pxui::Rect| colored(ui, INK_RGBA).iter().filter(|r| r[0] == key.x && r[2] == key.x + key.w && (r[1] == key.y.max(0.0) || r[3] == key.y + key.h)).count();
+        assert_eq!(edged(&app, year), 2, "the chosen key's ink border, top and bottom");
+        assert!(colored(&app, SELECTED_RGBA).iter().any(|r| r[0] == year.x && r[2] == year.x + year.w), "on the selected fill");
+        assert_eq!(edged(&kit, node(&kit, "Year")), 0, "the kit's strip: the theme line selects the body");
         let width = app.text_service().width("Shuffle all", CAPTION, None).unwrap().ceil();
         assert_eq!(node(&app, "Shuffle all").w, 10.0 + 16.0 + 6.0 + width + 10.0, "the key fits its parts");
     }
