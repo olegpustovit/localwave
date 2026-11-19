@@ -8,6 +8,12 @@
 use super::*;
 use crate::browse::AlbumSort;
 
+/// The album orders, by `Segment::id`.
+const ALBUM_SORTS: [AlbumSort; 3] = [AlbumSort::Artist, AlbumSort::Year, AlbumSort::Added];
+const SORTS: [pxui::Segment; 3] = [pxui::Segment::new("Artist").id(0), pxui::Segment::new("Year").id(1), pxui::Segment::new("Size").id(2)];
+/// Shuffle all: a fit key, its shuffle icon and caption secondary.
+const SHUFFLE_ALL: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0).icon(icon_drawing(Icon::Shuffle)).icon_size(16.0).label(CAPTION);
+
 pub(super) fn toolbar(
     ui: &mut Ui,
     catalog: &Catalog,
@@ -16,47 +22,12 @@ pub(super) fn toolbar(
 ) {
     let row = ui.node("album-tools", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
     ui.within(&row, &mut |ui| {
-        for (value, key, title) in [
-            (AlbumSort::Artist, "sort-artist", "Artist"),
-            (AlbumSort::Year, "sort-year", "Year"),
-            (AlbumSort::Added, "sort-added", "Size"),
-        ] {
-            let selected = state.album_sort == value;
-            let node = Node::column().w(Size::Fit).h_px(30.0).pad_x(10.0).center().role(Role::Button);
-            let button = ui.pressable(key, node, &PLAIN.look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }), |ui, _| {
-                ui.label(title, TEXT_13.color(if selected { INK } else { SECONDARY }));
-            });
-            ui.a11y_name(&button.handle, title);
-            ui.set_role(
-                &button.handle,
-                Role::Button,
-                if selected {
-                    pxui::A11yStates::SELECTED
-                } else { pxui::A11yStates::NONE },
-            );
-            if selected {
-                ui.canvas_over(&button.handle, move |paint, rect| {
-                    paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
-                    paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
-                    paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
-                    paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
-                });
-            }
-            if button.clicked {
-                *intent = Some(Intent::SortAlbums(value));
-            }
+        let sort = ui.segmented("album-sort", &SORTS, Some(state.album_sort as usize), &SORT);
+        if (sort.response.changed || sort.response.clicked) && let Some(id) = sort.chosen_id {
+            *intent = Some(Intent::SortAlbums(ALBUM_SORTS[id as usize]));
         }
         ui.node("flex", Node::DEFAULT.w(Size::Grow));
-        let node = Node::row().w(Size::Fit).h_px(30.0).gap(6.0).pad_x(10.0).align(Align::Center).role(Role::Button);
-        let button = ui.pressable("shuffle-all", node, &PLAIN.disabled(catalog.is_empty()), |ui, _| {
-            let icon = ui.node("icon", Node::column().w_px(16.0).h_px(16.0));
-            ui.canvas(&icon, move |paint, rect| {
-                crate::icons::shuffle(paint, rect, Rgba::token(SECONDARY))
-            });
-            ui.label("Shuffle all", CAPTION);
-        });
-        ui.a11y_name(&button.handle, "Shuffle all");
-        if button.clicked {
+        if ui.button("shuffle-all", "Shuffle all", &SHUFFLE_ALL.disabled(catalog.is_empty())).clicked {
             *intent = Some(Intent::ShuffleAll);
         }
     });
@@ -223,7 +194,7 @@ mod tests {
                 let sort = ui
                     .a11y_nodes()
                     .iter()
-                    .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == "Year")
+                    .find(|node| node.is_role(Role::Radio) && ui.a11y_name_of(node) == "Year")
                     .unwrap();
                 assert!(
                     (sort.rect.y - 105.6 + offset).abs() < 0.001,
@@ -298,7 +269,7 @@ mod tests {
         let find = |ui: &Ui, name: &str| {
             *ui.a11y_nodes()
                 .iter()
-                .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
+                .find(|node| (node.is_role(Role::Button) || node.is_role(Role::Radio)) && ui.a11y_name_of(node) == name)
                 .unwrap()
         };
         for _ in 0..3 {
@@ -397,7 +368,7 @@ mod tests {
                         shell(ui, &player, 0.0, &catalog, &state, &mut None)
                     })
                     .unwrap();
-                    assert_ne!(find(&ui, name).states & pxui::A11yStates::SELECTED.bits(), 0);
+                    assert_ne!(find(&ui, name).states & pxui::A11yStates::CHECKED.bits(), 0);
                     assert!(
                         find(&ui, order[0]).rect.x < find(&ui, order[1]).rect.x
                             && find(&ui, order[1]).rect.x < find(&ui, order[2]).rect.x

@@ -223,7 +223,7 @@ fn draw_icon(paint: &mut pxui::Paint<'_>, at: pxui::geom::Rect, ink: Rgba, word:
     }
 }
 /// `icon` as a kit icon button's drawing, painted into the 20-point square it is given in the look's ink.
-pub(super) fn icon_drawing(icon: Icon) -> pxui::Icon {
+pub(super) const fn icon_drawing(icon: Icon) -> pxui::Icon {
     pxui::Icon::draw(draw_icon, icon as u32)
 }
 

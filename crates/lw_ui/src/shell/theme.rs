@@ -219,19 +219,24 @@ pub(super) mod variant {
     pub(in crate::shell) const TOOL: u16 = 5;
     /// `localwave-chip`: a Find filter chip.
     pub(in crate::shell) const CHIP: u16 = 6;
+    /// `localwave-segmented`: the albums' sort keys, fit to their text, the chosen one framed in ink.
+    pub(in crate::shell) const SORT: u16 = 7;
+    /// `localwave-button`: a key with a leading icon and its own label colour (no look of its own unless the caller gives one).
+    pub(in crate::shell) const KEY: u16 = 8;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
 const TOOL_LABEL: Label = TEXT_13;
 /// A tool key: paper, the panel fill while hovered or held, the selected fill while checked (the hover wash then stays off); its
-/// icon and label secondary, ink while checked. The fills fade over 140 ms.
+/// icon and label secondary, ink while checked.
 pub(super) const TOOL_LOOKS: States = lit(PAPER_FILL.text(Rgba::token(SECONDARY)), PANEL_FILL.text(Rgba::token(SECONDARY))).checked(SELECTED_FILL.text(Rgba::token(INK)));
 /// A tool key (`localwave-button` / `TOOL`): fit to its icon and label, 30 points high, 10 in at each side, 6 between.
 pub(super) const TOOL: pxui::Button = pxui::Button::DEFAULT.variant(variant::TOOL).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0).label(TOOL_LABEL).look(&TOOL_LOOKS);
 /// A Find filter chip (`localwave-chip` / `CHIP`).
 pub(super) const CHIP: pxui::Checkbox = pxui::Checkbox::DEFAULT.variant(variant::CHIP);
-/// The fade of a tool key's fill.
-const FADE: Transition = Transition::Bezier { duration: crate::motion::QUICK, points: [0.16, 1.0, 0.3, 1.0] };
+/// The albums' sort keys (`localwave-segmented` / `SORT`): 30 points high, named for the strip.
+pub(super) const SORT: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(30.0).name("Sort albums").variant(variant::SORT);
+
 
 /// Registers LocalWave's bodies once, outside frames and before its themes are parsed; the app themes' `KIND.body` lines select
 /// them and a style's `variant` picks the structure inside one.
@@ -245,6 +250,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_badge_body("localwave-badge", badge_body)?;
     ui.register_progress_body("localwave-progress", progress_body)?;
     ui.register_checkbox_body("localwave-chip", chip_body)?;
+    ui.register_segmented_body("localwave-segmented", segment_body)?;
     Ok(())
 }
 
@@ -256,19 +262,20 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row) and the
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
-/// hovered or disabled, ink while held, and the fill fades. Any other variant is the kit's own button.
+/// hovered or disabled, ink while held (the fill changes at once: see the U4a.2 GAP on look transitions). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
+/// variant is the kit's own button.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
-    if c.variant != variant::ROW && c.variant != variant::TOOL {
+    if ![variant::ROW, variant::TOOL, variant::KEY].contains(&c.variant) {
         ui.slot(c.built_in);
         return;
     }
-    let tool = c.variant == variant::TOOL;
+    let tool = c.variant != variant::ROW;
     let size = |kind: u8, points: f32| match kind { 1 => Size::Px(points), 2 => Size::Grow, _ => Size::Fit };
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(size(c.w_kind, c.w)).h(size(c.h_kind, c.h)));
     let row = Node::row().w(if c.w_kind == 0 { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap).align(Align::Center);
-    ui.set_node_layout(&c.row, &if tool { row.transition(Some(FADE)) } else { row });
+    ui.set_node_layout(&c.row, &row);
     let s = &c.state;
     let checked = tool && s.checked != 0;
     let state = State::default().hovered(s.hovered != 0 && !checked).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0 && !checked).checked(s.checked != 0);
@@ -277,7 +284,7 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         ui.style(&c.row, states, state);
     }
     // a tool's ink: the checked look's while checked, held or not
-    let ink = states.map(|s| if checked { s.checked.text } else { s.pick(state).text });
+    let ink = states.map(|s| if checked { s.checked.text } else { s.pick(state).text }).or(c.label().and_then(|l| l.fields().color).map(Rgba::token));
     let mut _icon = None;
     if tool && let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), ink) {
         let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };
@@ -305,6 +312,27 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     }
     if !accessory.is_empty() {
         ui.label(accessory, c.accessory_label().unwrap_or(MONO_11.color(SECONDARY)));
+    }
+}
+
+/// LocalWave's segmented (registered as `localwave-segmented`), the `SORT` look for any variant (LocalWave has no other strip): the
+/// strip fit to its keys 8 apart; each key fit to its 13-point text 10 in at each side, secondary on paper, the chosen one ink on the
+/// selected fill inside a 1.5-point ink frame.
+fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
+    use pxui::bodies::BodyConfig;
+    ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h_px(30.0));
+    ui.set_node_layout(&c.strip, &Node::row().w(Size::Fit).h(Size::Grow).gap(8.0));
+    ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h_px(30.0).pad_x(10.0).align(Align::Center));
+    let chosen = c.has_selected != 0 && c.selected == c.index;
+    ui.style(&c.node, if chosen { &SELECTED_LOOKS } else { &PAPER_LOOKS }, State::default());
+    ui.label(c.text_of(&c.text), TEXT_13.color(if chosen { INK } else { SECONDARY }).role(Role::Unknown));
+    if chosen {
+        ui.canvas_over(&c.node, move |paint, rect| {
+            paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
+            paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
+            paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
+            paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
+        });
     }
 }
 
@@ -365,7 +393,7 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();
@@ -463,5 +491,27 @@ mod body_tests {
         assert_eq!(chip.h, 32.0);
         assert!(colored(&app, INK_RGBA).contains(&[chip.x, chip.y, chip.x + chip.w, chip.y + chip.h]), "on: the ink plate");
         assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 32.0), "the kit's checkbox: the theme line selects the body");
+    }
+
+    /// `segmented.body = localwave-segmented` (`SORT`): keys fit to their text 8 apart, 30 high, the chosen one framed in a 1.5-point ink
+    /// line; `localwave-button` `KEY` fits its icon and label like `TOOL`, with no look of its own.
+    #[test]
+    fn localwave_sort_and_key_draw_their_structures() {
+        const ITEMS: [pxui::Segment; 2] = [pxui::Segment::new("Artist"), pxui::Segment::new("Year")];
+        const KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0)
+            .icon(super::super::kit::icon_drawing(super::super::kit::Icon::Shuffle)).icon_size(16.0).label(CAPTION);
+        let mut build = |ui: &mut Ui| {
+            ui.segmented("sort", &ITEMS, Some(1), &SORT);
+            ui.button("shuffle", "Shuffle all", &KEY);
+        };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        let (artist, year) = (node(&app, "Artist"), node(&app, "Year"));
+        assert_eq!((year.x - (artist.x + artist.w), artist.h), (8.0, 30.0), "keys 8 apart, 30 high");
+        assert!(colored(&app, INK_RGBA).iter().any(|r| r[0] == year.x && r[3] - r[1] == 1.5), "the chosen key's ink frame");
+        assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 1.5), "the kit's strip: the theme line selects the body");
+        let width = app.text_service().width("Shuffle all", CAPTION, None).unwrap().ceil();
+        assert_eq!(node(&app, "Shuffle all").w, 10.0 + 16.0 + 6.0 + width + 10.0, "the key fits its parts");
     }
 }

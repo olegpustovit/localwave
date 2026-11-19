@@ -1,5 +1,3 @@
-lw_ui/src/shell/albums.rs	R7	let button = ui.pressable("shuffle-all", node, &PLAIN.disabled(catalog.is_empty()), |ui, _| {	drift: audit #11 Shuffle all -> Button (U4)
-lw_ui/src/shell/albums.rs	R7	let button = ui.pressable(key, node, &PLAIN.look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }), |ui, _| {	drift: audit #10 album sort -> segmented (U4)
 lw_ui/src/shell/albums.rs	R7	let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {	composite: album card (audit #12)
 lw_ui/src/shell/artists.rs	R7	let row = ui.pressable("artist", node, &PLAIN.look(&PAPER_LOOKS), |ui, state| {	composite: artist row (audit #13)
 lw_ui/src/shell/byline.rs	R7	let node = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #44 inline byline links, kept by D7 (G11 deferred past 2.0)
