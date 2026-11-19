@@ -928,7 +928,6 @@ pxui::ThemeHandle::from_tokens fn (tokens: Tokens) -> ThemeHandle
 pxui::ThemeHandle::parse fn (source: &str) -> Result<ThemeHandle, Error>
 pxui::ThemeHandle::reduced_motion fn (&mut self, on: bool)
 pxui::ThemeHandle::set_color fn (&mut self, token: ColorToken, color: Rgba)
-pxui::ThemeSource use pxui_types::ffi::ThemeSource
 pxui::Toast use pxui_types::ui::Toast
 pxui::Toggle impl Clone
 pxui::Toggle impl Copy
@@ -4489,7 +4488,6 @@ pxui_types::ffi::PxuiTextStyle::size_points field f32
 pxui_types::ffi::PxuiTextStyle::tracking field f32
 pxui_types::ffi::PxuiTextStyle::weight field u16
 pxui_types::ffi::PxuiTextStyle::wrap field u32
-pxui_types::ffi::PxuiThemeSource type = ThemeSource
 pxui_types::ffi::PxuiThemeTokens type = ThemeTokens
 pxui_types::ffi::PxuiTipConfig impl Clone
 pxui_types::ffi::PxuiTipConfig impl Copy
@@ -4648,16 +4646,6 @@ pxui_types::ffi::Slice impl From<&'static [u8]>
 pxui_types::ffi::Slice struct <T>
 pxui_types::ffi::Slice::len field usize
 pxui_types::ffi::Slice::ptr field *const T
-pxui_types::ffi::ThemeSource impl Clone
-pxui_types::ffi::ThemeSource impl Copy
-pxui_types::ffi::ThemeSource impl Debug
-pxui_types::ffi::ThemeSource impl Default
-pxui_types::ffi::ThemeSource struct
-pxui_types::ffi::ThemeSource::COMPACT const u32
-pxui_types::ffi::ThemeSource::REDUCED_MOTION const u32
-pxui_types::ffi::ThemeSource::flags field u32
-pxui_types::ffi::ThemeSource::size field u32
-pxui_types::ffi::ThemeSource::source field Str
 pxui_types::ffi::ThemeTokens impl Clone
 pxui_types::ffi::ThemeTokens impl Copy
 pxui_types::ffi::ThemeTokens impl Debug
