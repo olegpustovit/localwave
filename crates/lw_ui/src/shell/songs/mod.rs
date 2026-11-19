@@ -334,7 +334,6 @@ pub(super) fn table(
             );
             drop(song_rows);
             state.song_list.set(r.handle.box_key);
-            state.song_focused.set(r.focused);
             if let Some(i) = r.selected
                 && intent.is_none()
             {

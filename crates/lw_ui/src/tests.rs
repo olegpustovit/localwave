@@ -2840,7 +2840,7 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
 }
 
 /// The sidebar's Library list holds the focus and its rows are reached by arrow keys (NSTableView-style): a click selects and
-/// focuses, ArrowDown moves to the next route, Enter and Space activate the keyboard's row.
+/// focuses, ArrowDown moves to the next route, Enter activates the keyboard's row (Space is the app's play/pause, as NSTableView).
 #[test]
 fn sidebar_rows_take_arrow_keys_and_enter_from_the_focused_list() {
     let catalog = prepared(Vec::new());
@@ -2866,10 +2866,41 @@ fn sidebar_rows_take_arrow_keys_and_enter_from_the_focused_list() {
     let key = |key: input::Key| pxui::Event::key(input::wire::KEY_PRESSED, key.code());
     assert_eq!(step(&mut ui, &mut state, &[key(input::Key::ArrowDown)]), Some(Intent::Navigate(catalog::Route::Artists)), "ArrowDown moves to Artists");
     step(&mut ui, &mut state, &[]);
-    for activate in [input::Key::Enter, input::Key::Space] {
-        assert_eq!(step(&mut ui, &mut state, &[key(activate)]), Some(Intent::Navigate(catalog::Route::Artists)), "{activate:?} activates the row");
-    }
+    assert_eq!(step(&mut ui, &mut state, &[key(input::Key::Enter)]), Some(Intent::Navigate(catalog::Route::Artists)), "Enter activates the row");
     assert!(ui.a11y_nodes().iter().any(|n| n.is_role(pxui::ui::Role::List) && ui.a11y_name_of(n) == "Library"), "the group is named Library");
+}
+
+/// A click on a sidebar row focuses its list, and the list takes only the keys it handles: Space, ⌘F and ⌘1/2/3 stay the app's.
+#[test]
+fn a_focused_sidebar_list_leaves_the_global_shortcuts_on() {
+    let catalog = prepared(Vec::new());
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut state = ShellState::default();
+    let player = PlayerView::default();
+    let mut intent = None;
+    let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
+        let mut frame = FrameIn::new(1440.0, 872.0);
+        frame.wire.events = events.as_ptr();
+        frame.wire.event_count = events.len();
+        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
+        let taken = intent.take();
+        if let Some(i) = taken.clone() { state.apply(i); }
+        taken
+    };
+    for _ in 0..2 { step(&mut ui, &mut state, &[]); }
+    let albums = pxui::testing::find(&ui, pxui::ui::Role::ListItem, "Albums").unwrap();
+    let (x, y) = (f64::from(albums.x + 20.0), f64::from(albums.y + 10.0));
+    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y), pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y)]);
+    assert_eq!(step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]), Some(Intent::Navigate(catalog::Route::Albums)));
+    let key = |kind, key: input::Key| pxui::Event::key(kind, key.code());
+    let chord = |c: char| [key(input::wire::KEY_PRESSED, input::Key::Meta), pxui::Event::key(input::wire::KEY_PRESSED, c as u32),
+        pxui::Event::key(input::wire::KEY_RELEASED, c as u32), key(input::wire::KEY_RELEASED, input::Key::Meta)];
+    assert_eq!(step(&mut ui, &mut state, &chord('3')), Some(Intent::Navigate(catalog::Route::Songs)), "⌘3");
+    assert_eq!(step(&mut ui, &mut state, &chord('f')), Some(Intent::Navigate(catalog::Route::Find)), "⌘F");
+    step(&mut ui, &mut state, &[]);
+    assert_eq!(step(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::Space)]), Some(Intent::Play), "Space");
+    assert!(!ui.text_input_focused(), "a focused list is not a text editor");
 }
 
 fn press(ui: &mut Ui, name: &str, nth: usize) {

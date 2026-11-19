@@ -59,9 +59,6 @@ pub struct ShellState {
     song_table: std::cell::RefCell<pxui::TableState>,
     /// The songs list's scroll box key, as it reported last frame (its heading reads the scroll from it).
     song_list: std::cell::Cell<i64>,
-    /// The songs list held keyboard focus when it last built (`ListResponse::focused`): its keys are the list's, so the app's list
-    /// shortcuts stay on while `Ui::text_input_focused` (any focus) is true. Cleared at each frame's start; the list sets it.
-    song_focused: std::cell::Cell<bool>,
     /// The marked rows' count and first index, kept where the flags change (never by scanning per frame).
     song_marks: (usize, Option<usize>),
     /// The flags' re-map buffer, swapped with them on a delivery (kept, so steady state allocates nothing).
@@ -129,7 +126,6 @@ impl Default for ShellState {
             song_live: std::cell::RefCell::new((Vec::new(), Vec::new())),
             song_table: std::cell::RefCell::new(pxui::TableState::new()),
             song_list: std::cell::Cell::new(0),
-            song_focused: std::cell::Cell::new(false),
             song_marks: (0, None),
             remap_scratch: Vec::new(),
             selecting: false,
@@ -894,9 +890,7 @@ pub fn shell(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
-    // the songs list builds later in the frame: what it reported last frame goes with the focus the frame started with
-    let songs_focused = state.song_focused.replace(false);
-    let input_was_focused = ui.text_input_focused() && !songs_focused;
+    let input_was_focused = ui.text_input_focused();
     // a carry, or a list row lifted by its grip: Escape cancels it (a plain held press leaves Escape to the app)
     let carrying = ui.carrying().is_some() || ui.reordering();
     if ui.key_pressed(KeyCode::Escape, Mods::ANY) {
@@ -1053,7 +1047,7 @@ pub fn shell(
     }
     if intent.is_none()
         && !input_was_focused
-        && !(ui.text_input_focused() && !state.song_focused.get())
+        && !ui.text_input_focused()
         && !state.commands_visible
         && !state.shortcuts_visible
         && !state.queue_visible
