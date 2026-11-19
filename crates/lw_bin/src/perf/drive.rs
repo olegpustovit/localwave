@@ -511,7 +511,8 @@ pub(super) fn list_dialog_events(frame: usize, ui: &Ui, events: &mut Vec<input::
     if phase <= 8 {
         let list = center(
             ui,
-            Role::Button,
+            // U4a.1: the sidebar's list rows are the selection list's items
+            Role::ListItem,
             |name| name.starts_with(super::setup::LIST_NAME),
             "sidebar list",
         )?;
@@ -563,7 +564,7 @@ fn song_drag_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Re
         6..=11 => {
             let list = center(
                 ui,
-                Role::Button,
+                Role::ListItem,
                 |name| name.starts_with(super::setup::LIST_NAME),
                 "sidebar list",
             )?;
