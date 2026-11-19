@@ -149,8 +149,6 @@ pub(super) const CHIP_TEXT_ON: Look = text(PAPER, 13.0);
 pub(super) const LINK_TEXT: Look = text(SECONDARY, 14.0);
 /// Secondary 15-point text: a back link.
 pub(super) const BACK_TEXT: Look = text(SECONDARY, 15.0);
-/// A sidebar count badge: paper 11-point text on ink.
-pub(super) const BADGE: Look = text(PAPER, 11.0).fill(Rgba::token(INK));
 /// An unselected settings choice: secondary 13-point text on the panel fill.
 pub(super) const CHOICE: Look = text(SECONDARY, 13.0).fill(Rgba::token(PANEL));
 /// The selected settings choice: paper 13-point text on ink.
@@ -209,3 +207,192 @@ pub(super) const ICON_36: pxui::IconButton = icon_key(36.0, 36.0);
 pub(super) const ICON_44: pxui::IconButton = icon_key(44.0, 44.0);
 pub(super) const ICON_44X40: pxui::IconButton = icon_key(44.0, 40.0);
 const PRESS: [pxui::theme::Curve; 2] = [crate::motion::spring(crate::motion::INSTANT), crate::motion::spring(crate::motion::BASE)];
+
+/// The localwave-* body variants (`Button::variant`, `SelectionList::variant`, `Badge::variant`, `Progress::variant`): one number
+/// each, so a body never mistakes another kind's variant for its own.
+pub(super) mod variant {
+    /// `localwave-button`: a full-width row (the sidebar's Search, "+ label" and shortcuts rows; source rows), laid out from its start.
+    pub(in crate::shell) const ROW: u16 = 1;
+    /// `localwave-side-row`: a sidebar route or list row.
+    pub(in crate::shell) const SIDE_ROW: u16 = 2;
+    /// `localwave-badge`: paper 11-point text on ink.
+    pub(in crate::shell) const BADGE: u16 = 3;
+    /// `localwave-progress`: the 4-point offline meter.
+    pub(in crate::shell) const METER: u16 = 4;
+}
+
+/// Registers LocalWave's bodies once, outside frames and before its themes are parsed; the app themes' `KIND.body` lines select
+/// them and a style's `variant` picks the structure inside one.
+pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
+    ui.register_text_field_body("localwave-command", super::commands::field_body)?;
+    ui.register_menu_row_body("localwave-menu", super::kit::menu_row_body)?;
+    ui.register_toggle_body("localwave-toggle", super::settings::toggle_body)?;
+    ui.register_dialog_body("localwave-sheet", super::files::sheet_body)?;
+    ui.register_button_body("localwave-button", button_body)?;
+    ui.register_selection_list_body("localwave-side-row", side_row_body)?;
+    ui.register_badge_body("localwave-badge", badge_body)?;
+    ui.register_progress_body("localwave-progress", progress_body)?;
+    Ok(())
+}
+
+/// A row button's leading glyph (the shortcuts row's "?"): Geist Mono 11, secondary, in a 14-point column.
+const ROW_GLYPH: Label = MONO_11.w_px(14.0).h_px(16.0).color(SECONDARY);
+/// A row button's title without a `Button::label`: secondary 14-point text filling the row.
+const ROW_TEXT: Look = LINK_TEXT;
+/// LocalWave's button (registered as `localwave-button`). `ROW`: the box its caller sized, its contents in a row centred down it from
+/// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row) and the
+/// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. Any other variant
+/// is the kit's own button.
+fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
+    use pxui::bodies::BodyConfig;
+    if c.variant != variant::ROW {
+        ui.slot(c.built_in);
+        return;
+    }
+    let size = |kind: u8, points: f32| match kind { 1 => Size::Px(points), 2 => Size::Grow, _ => Size::Fit };
+    let [l, t, r, b] = c.padding;
+    ui.set_node_layout(&c.line, &Node::row().w(size(c.w_kind, c.w)).h(size(c.h_kind, c.h)));
+    ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap).align(Align::Center));
+    let s = &c.state;
+    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
+    if let Some(states) = c.states_of(&c.states) {
+        ui.style(&c.row, states, state);
+    }
+    let (glyph, text, accessory) = (c.text_of(&c.lead), c.text_of(&c.label), c.text_of(&c.accessory));
+    if !glyph.is_empty() {
+        ui.label(glyph, ROW_GLYPH);
+    }
+    match (text.is_empty(), c.label()) {
+        (true, _) => {}
+        (false, Some(style)) => { ui.label(text, style); }
+        (false, None) => {
+            let title = ui.node("title", Node::column().w(Size::Grow).h(Size::Grow).look(ROW_TEXT));
+            ui.text(&title, text);
+        }
+    }
+    if !accessory.is_empty() {
+        ui.label(accessory, c.accessory_label().unwrap_or(MONO_11.color(SECONDARY)));
+    }
+}
+
+/// LocalWave's selectable row (registered as `localwave-side-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
+/// panel fill while hovered or held, on the selected fill while selected or while a payload is over it; any other variant keeps
+/// the kit's row. The caller's cells follow.
+fn side_row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
+    if c.variant == variant::SIDE_ROW {
+        ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));
+        let s = &c.state;
+        let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0);
+        ui.style(&c.row, if s.checked != 0 || c.drop == 3 { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS }, state);
+    }
+    ui.slot(c.content);
+}
+
+/// A badge's text: paper 11 points in a 16-point line.
+const BADGE_TEXT: Label = TEXT_11.h_px(16.0).color(PAPER);
+/// A badge's plate: paper 11-point text on ink.
+const BADGE_PLATE: States = States::of(text(PAPER, 11.0).fill(Rgba::token(INK)));
+/// LocalWave's badge (registered as `localwave-badge`): its text in paper 11 points on an ink plate, the plate the text's own box.
+fn badge_body(ui: &mut Ui, c: &pxui::bodies::BadgeConfig) {
+    use pxui::bodies::BodyConfig;
+    ui.set_node_layout(&c.node, &Node::row());
+    let plate = ui.label(c.text_of(&c.text), BADGE_TEXT);
+    ui.style(&plate, &BADGE_PLATE, State::default());
+}
+
+/// LocalWave's progress (registered as `localwave-progress`), the `METER` look: a 4-point line track 10 points under the row
+/// above, 8 in from each side, filled in ink to the value (no label: the caller lays its own).
+fn progress_body(ui: &mut Ui, c: &pxui::bodies::ProgressConfig) {
+    ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)));
+    let track = ui.part(pxui::Part::TRACK, Node::row().w(Size::Grow).h(Size::Grow).look(LINE_FILL));
+    let fraction = if c.has_value != 0 { c.value.clamp(0.0, 1.0) } else { 0.0 };
+    ui.within(&track, &mut |ui| { ui.node("fill", Node::column().w(Size::Pct(fraction)).h(Size::Grow).look(INK_FILL)); });
+}
+
+#[cfg(test)]
+mod body_tests {
+    use super::*;
+    use pxui::{FrameIn, Platform, ThemeHandle};
+
+    /// The app theme with its four U4a.1 body lines (`localwave-button`, `-side-row`, `-badge`, `-progress`) or without them (the kit's
+    /// bodies), the bodies registered either way.
+    fn ui(app: bool) -> Ui {
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let source = include_str!("../../themes/app-light.theme");
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
+        crate::apply_palette(&mut theme, false);
+        ui.set_theme(&theme).unwrap();
+        ui
+    }
+    fn frames(ui: &mut Ui, build: &mut dyn FnMut(&mut Ui)) {
+        for _ in 0..2 { crate::testing::frame(ui, &FrameIn::new(200.0, 300.0), build).unwrap(); }
+    }
+    fn node(ui: &Ui, name: &str) -> pxui::Rect { ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == name).unwrap_or_else(|| panic!("no {name}")).rect }
+    fn colored(ui: &Ui, color: [u8; 4]) -> Vec<[f32; 4]> { ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.color == color).map(|i| i.rect).collect() }
+    const INK_RGBA: [u8; 4] = [0x11, 0x11, 0x11, 255];
+    const SELECTED_RGBA: [u8; 4] = [0xD3, 0xD3, 0xD3, 255];
+
+    /// `button.body = localwave-button`: a `ROW` button is exactly its size (the kit's line adds a margin round its box), its accessory
+    /// a label at its end; a variant-0 button draws exactly what the kit's body draws (`built_in`).
+    #[test]
+    fn localwave_button_lays_out_rows_and_leaves_variant_zero_to_the_kit() {
+        const ROW: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(34.0)).align(Justify::Start).pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+            .label(TEXT_14.grow().h_px(20.0).color(SECONDARY)).accessory("⌘K");
+        let mut rows = |ui: &mut Ui| { ui.column(Node::column().w(Size::Grow), |ui| { ui.button("a", "Alpha", &ROW); ui.button("b", "Beta", &ROW); }); };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut rows);
+        frames(&mut kit, &mut rows);
+        let (a, b) = (node(&app, "Alpha"), node(&app, "Beta"));
+        assert_eq!((a.h, b.y - a.y), (34.0, 34.0), "the ROW box is its size, stacked without a margin");
+        assert_ne!(node(&kit, "Beta").y - node(&kit, "Alpha").y, 34.0, "the kit's line adds a margin: the theme line selects the body");
+        let accessory = app.a11y_nodes().iter().filter(|n| app.a11y_name_of(n) == "⌘K").map(|n| n.rect).next().unwrap();
+        assert!((accessory.x + accessory.w - (a.x + a.w - 10.0)).abs() < 1.0, "the accessory ends 10 in: {accessory:?} in {a:?}");
+        let mut plain = |ui: &mut Ui| { ui.button_content("k", &pxui::Button::sized(60.0, 24.0).name("Key").look(&PANEL_LOOKS), |ui, _| { ui.label("Key", TEXT_12); }); };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut plain);
+        frames(&mut kit, &mut plain);
+        let draw = |ui: &Ui| ui.layers().flat_map(|l| l.instances.iter()).map(|i| (i.rect, i.color)).collect::<Vec<_>>();
+        assert_eq!(draw(&app), draw(&kit), "variant 0 is the kit's button");
+    }
+
+    /// `selection_list.body = localwave-side-row`: a `SIDE_ROW` row is 32 points on the selected fill when selected (the kit's
+    /// list row has its own look).
+    #[test]
+    fn localwave_side_row_draws_the_sidebar_row() {
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().fit();
+        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], anchor: None });
+        let mut build = |ui: &mut Ui| {
+            ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(i) = part { ui.label(["One", "Two"][i], SIDE_TEXT); });
+        };
+        const SIDE_TEXT: Label = TEXT_14.grow().h_px(20.0).color(SECONDARY);
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 0.0, 200.0, 32.0]], "the selected row on the selected fill");
+        assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+    }
+
+    /// `badge.body = localwave-badge` and `progress.body = localwave-progress`: the badge is paper text on an ink plate 16 points high;
+    /// the meter a 4-point track 10 under its row's top and 8 in, inked to the value.
+    #[test]
+    fn localwave_badge_and_meter_draw_their_structures() {
+        const BADGE_STYLE: pxui::Badge = pxui::Badge::DEFAULT.variant(variant::BADGE);
+        const METER_STYLE: pxui::Progress = pxui::Progress::DEFAULT.variant(variant::METER);
+        let mut build = |ui: &mut Ui| {
+            ui.row(Node::row(), |ui| { ui.badge("badge", "Reconnect", "Reconnect", &BADGE_STYLE); });
+            ui.column(Node::column().w_px(200.0), |ui| { ui.progress("meter", "Offline space", Some(0.25), &METER_STYLE); });
+        };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        let plates = colored(&app, INK_RGBA);
+        assert!(plates.iter().any(|r| r[1] == 0.0 && r[3] - r[1] == 16.0), "an ink plate 16 high: {plates:?}");
+        let track = node(&app, "Offline space");
+        assert_eq!((track.x, track.w, track.h), (8.0, 184.0, 4.0), "the track 8 in from each side, 4 high");
+        assert!(plates.iter().any(|r| r[0] == 8.0 && r[2] == 8.0 + 46.0 && r[1] == track.y), "the fill inked to a quarter: {plates:?}");
+        let kit_track = node(&kit, "Offline space");
+        assert_ne!((kit_track.x, kit_track.w), (8.0, 184.0), "the kit's progress: the theme line selects the body");
+    }
+}

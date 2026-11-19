@@ -44,6 +44,11 @@ pub struct ShellState {
     carried: std::cell::Cell<bool>,
     /// Set by an arrow-key move; the song list reveals the cursor row once, like AppKit `scrollRowToVisible`.
     reveal_selected: std::cell::Cell<bool>,
+    /// The sidebar's Library and Lists groups, borrowed mutably only for the list call, and the route (`None` in settings) and list
+    /// count their rows last showed: a change selects the route's row; a click's own selection holds until the route follows it.
+    side_library: std::cell::RefCell<pxui::ListState>,
+    side_lists: std::cell::RefCell<pxui::ListState>,
+    side_route: std::cell::Cell<Option<(Option<Route>, usize)>>,
     pub route: Route,
     pub selected: Option<usize>,
     /// Sorted row positions of the multi-selection; grows only in `apply`/`refresh`, never in frames.
@@ -105,6 +110,9 @@ impl Default for ShellState {
             song_window: std::cell::Cell::new(None),
             carried: std::cell::Cell::new(false),
             reveal_selected: std::cell::Cell::new(false),
+            side_library: std::cell::RefCell::new(pxui::ListState::new()),
+            side_lists: std::cell::RefCell::new(pxui::ListState::new()),
+            side_route: std::cell::Cell::new(None),
             route: Route::Songs,
             selected: None,
             marked: Vec::new(),
@@ -1078,9 +1086,7 @@ pub fn shell(
 }
 mod kit;
 pub use kit::apply_palette;
-pub(crate) use kit::menu_row_body;
-pub(crate) use settings::toggle_body;
-pub(crate) use files::sheet_body;
+pub(crate) use theme::register_bodies;
 #[cfg(test)]
 pub(crate) use kit::TIGHT_3;
 use kit::*;

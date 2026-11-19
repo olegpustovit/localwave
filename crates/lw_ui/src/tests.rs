@@ -1931,11 +1931,11 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
             assert_eq!(mem_sys::local_alloc_count(), 0, "frame {tick} allocated");
         }
         let rows = ui.a11y_nodes().iter().filter(|node| {
-            node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node).starts_with("Playlist ")
+            node.is_role(pxui::ui::Role::ListItem) && ui.a11y_name_of(node).starts_with("Playlist ")
         });
         assert!((1..100).contains(&rows.count()));
         moved |= ui.a11y_nodes().iter().any(|node| {
-            node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node) == "Playlist 00030"
+            node.is_role(pxui::ui::Role::ListItem) && ui.a11y_name_of(node) == "Playlist 00030"
         });
     }
     assert!(moved, "sidebar must scroll to later collections");
@@ -2784,7 +2784,9 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
     let mut buttons = ui
         .a11y_nodes()
         .iter()
-        .filter(|node| node.is_role(pxui::ui::Role::Button) && node.rect.x < 231.0 && (1.0..800.0).contains(&node.rect.y))
+        // the controls in sidebar order: buttons, and the Library and Lists rows (named list items)
+        .filter(|node| (node.is_role(pxui::ui::Role::Button) || (node.is_role(pxui::ui::Role::ListItem) && !ui.a11y_name_of(node).is_empty()))
+            && node.rect.x < 231.0 && (1.0..800.0).contains(&node.rect.y))
         .map(|node| (node.rect.y, ui.a11y_name_of(node).to_owned()))
         .collect::<Vec<_>>();
     buttons.sort_by(|a, b| a.0.total_cmp(&b.0));

@@ -142,7 +142,7 @@ pub(super) fn desktop(
                 u64::from(state.carried.get()) * 2
             };
             let revision = crate::hash((state.revision, catalog.all.is_some(), carry));
-            ui.column(Node::column().w_px(sidebar_width).h(Size::Grow), |ui| { ui.view_of("sidebar", &revision, |ui| sidebar(ui, catalog, state, sidebar_width, intent)); });
+            ui.column(Node::column().w_px(sidebar_width).h(Size::Grow), |ui| { ui.view_of("sidebar", &revision, |ui| sidebar(ui, catalog, state, intent)); });
             rule(ui, "sidebar-divider", true);
             let library_revision = library_revision(player, catalog, state);
             let page = ui.view_of("library", &library_revision, |ui| {

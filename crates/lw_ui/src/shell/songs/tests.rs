@@ -1407,7 +1407,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
         );
     }
     run(&mut ui, &state, &[]);
-    let (_, row) = find(&ui, Role::Button, "Mix").unwrap();
+    let (_, row) = find(&ui, Role::ListItem, "Mix").unwrap();
     let (x, y) = (row.x + 10.0, row.y + 10.0);
     let secondary = [
         pointer(input::wire::POINTER_MOVED, x, y, 0),
@@ -2074,7 +2074,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
             (kind, repainted, intent)
         }};
     }
-    let mix = find(&ui, Role::Button, "Mix");
+    let mix = find(&ui, Role::ListItem, "Mix");
     let up_next = find(&ui, Role::List, "Up next queue");
     // An unselected row carries just itself.
     let (kind, repainted, intent) = drag!("T2", mix, "drop");

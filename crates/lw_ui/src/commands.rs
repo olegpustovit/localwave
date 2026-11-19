@@ -13,13 +13,10 @@ use lw_core::context::PlaybackContext;
 use pxui::{KeyCode, Mods};
 use std::sync::Arc;
 
-/// Register once, outside frames, before parsing the themes: the palette's field body (selected only in its retained theme) and
-/// the context menu row, settings switch and confirmation sheet bodies the app themes select.
+/// Register once, outside frames, before parsing the themes: LocalWave's bodies (`shell::register_bodies`: the palette's field
+/// body, selected only in its retained theme, and the bodies the app themes select).
 pub fn register(ui: &mut pxui::Ui) -> Result<(), pxui::Error> {
-    ui.register_text_field_body("localwave-command", crate::shell::commands::field_body)?;
-    ui.register_menu_row_body("localwave-menu", crate::shell::menu_row_body)?;
-    ui.register_toggle_body("localwave-toggle", crate::shell::toggle_body)?;
-    ui.register_dialog_body("localwave-sheet", crate::shell::sheet_body)?;
+    crate::shell::register_bodies(ui)?;
     static_items();
     Ok(())
 }
