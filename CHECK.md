@@ -226,6 +226,11 @@ bases are in the final report.
 
 ## Found (separate fixes later)
 
+- U4a review (ruling, accepted for now): the compact (phone) layout lost hardware ⌘A and Esc when finding 3 deleted the app's
+  selection copy; U4b must restore them when the compact list moves onto `selection_list`.
+- U4a review: abi_bench dynamic Lists fails its instruction gate at 83b2761a (U2b.4.18-26; 314723 / 305543 = 1.03005 > 1.03,
+  measured with the U2b.4.18 abi_bench build fix) and at c3f43871 (finding 6: 1.03103). A legitimate cut of about 450 wrapper
+  instructions a Lists frame is owed before the package end.
 - U4a.5: in `pxui_core`, a view building itself clears any rebuild mark made during that build (`r.dirty = r.escapes`); only the
   list's late move (`build_again` + escape) is fixed. Other `mark_view` calls made during a view's own build have the same shape.
 - U4a.5: lw_bin `production_controller_restores…` flakes under parallel load (green alone).
