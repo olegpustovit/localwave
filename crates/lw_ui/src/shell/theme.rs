@@ -225,8 +225,6 @@ pub(super) mod variant {
     pub(in crate::shell) const SORT: u16 = 7;
     /// `localwave-button`: a key with a leading icon and its own label colour (no look of its own unless the caller gives one).
     pub(in crate::shell) const KEY: u16 = 8;
-    /// `localwave-icon`: a playback mode key, inverse while on, hovered or held too.
-    pub(in crate::shell) const MODE: u16 = 9;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -255,7 +253,6 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_progress_body("localwave-progress", progress_body)?;
     ui.register_checkbox_body("localwave-chip", chip_body)?;
     ui.register_segmented_body("localwave-segmented", segment_body)?;
-    ui.register_icon_button_body("localwave-icon", icon_body)?;
     Ok(())
 }
 
@@ -342,27 +339,6 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     }
 }
 
-/// LocalWave's icon button (registered as `localwave-icon`). `MODE` while on (`IconButton::selected`) and hovered or held: the
-/// caller's size on the inverse plate (paper icon on ink), the app's icon in the 20-point square at its centre. Anything else is the
-/// kit's icon button (`built_in`).
-fn icon_body(ui: &mut Ui, c: &pxui::bodies::IconButtonConfig) {
-    let s = &c.state;
-    // the kit draws an on key right until it is hovered or held (its look picks those states over checked)
-    if c.variant != variant::MODE || s.checked == 0 || s.hovered == 0 && s.pressed == 0 {
-        ui.slot(c.built_in);
-        return;
-    }
-    // shortcut: an on key has no 0.96 press dip (the kit's body picks the hover and held looks over checked); upgrade when it can keep checked
-    let side = |kind: u8, points: f32| Size::Px(if kind == 1 { points } else { 20.0 });
-    ui.set_node_layout(&c.node, &Node::column().w(side(c.w_kind, c.w)).h(side(c.h_kind, c.h)).align(Align::Center).justify(Justify::Center));
-    ui.style(&c.node, &ICON_INVERSE_LOOKS, State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).checked(true));
-    if let Some(pxui::Icon::Draw(draw, word)) = c.icon() {
-        let ink = ICON_INVERSE_LOOKS.idle.text;
-        let glyph = ui.node("glyph", Node::column().w_px(20.0).h_px(20.0));
-        ui.canvas(&glyph, move |paint, rect| draw(paint, rect, ink, word));
-    }
-}
-
 /// A chip's text: 13 points, secondary, paper while checked.
 const CHIP_LABEL: Label = TEXT_13;
 /// LocalWave's checkbox (registered as `localwave-chip`), the `CHIP` look for any variant (LocalWave has no other checkbox): a
@@ -420,7 +396,7 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "icon_button.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();

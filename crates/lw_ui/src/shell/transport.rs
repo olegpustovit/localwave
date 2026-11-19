@@ -71,9 +71,9 @@ pub(super) fn transport(
     );
 }
 
-/// A playback mode key (shuffle, repeat, the panel, the queue): the key plate, inverse while on (`IconButton::selected`;
-/// `localwave-icon` / `MODE` keeps it while hovered or held).
-const MODE_ICON: pxui::IconButton = ICON_44X40.look(&MODE_LOOKS).variant(variant::MODE);
+/// A playback mode key (shuffle, repeat, the panel, the queue): the key plate, inverse while on (`IconButton::selected`, which keeps
+/// the checked look while hovered or held).
+const MODE_ICON: pxui::IconButton = ICON_44X40.look(&MODE_LOOKS);
 const MODE_LOOKS: States = ICON_PLATE_LOOKS.checked(ICON_INVERSE_LOOKS.idle);
 /// The repeat key's name by `RepeatMode`.
 const REPEAT_NAMES: [&str; 3] = ["Repeat off", "Repeat all", "Repeat one"];
