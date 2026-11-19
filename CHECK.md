@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. Resume at [U2b review and landing](#next-u2b-review-and-landing-then-u2c).
+Updated 2026-11-19. Resume at [U2c](#next-u2c-delete-the-1x-twins-then-u3).
 
 ## What we're doing
 
@@ -157,19 +157,21 @@ branches are landed in ledger shape and deleted; `dx3.22-wip` remains for U2b.2.
 by trailing append under a minor bump, for library-written or size-checked caller records (gate-enforced, library code only);
 the library refuses an app built for a newer minor (minimum-library rule). abi_bench is unchanged in kind (D27, U2b.10).
 
-### U2b on branch `u2b` (final stop, not landed)
+### U2b landed on `rust-port`
 
-LocalWave 3b7171e..u2b and pxui 5c368579..aa79017e (ABI 1.87–1.92; see `docs/rust-port.md` U2b rows and
+LocalWave 3b7171e..07acbb5 and pxui 5c368579..61ed76b1 (ABI 1.87–1.92; see `docs/rust-port.md` U2b rows and
 `scratch/u2b-final-report.md`, local only). D27 is closed: release abi_bench passes every page in both modes with unchanged
 limits, plus a new Lists gallery page (reorder, drop zones, top-anchored modal) with only new goldens, its abi_bench mirror and
 bodies reference. Thin margins: static Overlays (about 27 instructions under 1.011), dynamic Controls and Overlays. Tier B,
 `LOCALWAVE_OFFLINE=1 make check`, gcmp (no D9), surface/ledger (0 delta) and buildtime against CP0 (clean pxui 27.35 s vs 26.29 s, within allowance) passed.
 
-## NEXT: U2b review and landing, then U2c
+Independent review: land after fixes; the renderer fence now also clears `building` (a C split callback could build during
+draw), static `drop_target` refuses a stale box, header/hash/bench docs, D30 (abi_bench closure, harness changes accepted).
 
-1. Orchestrator review of `u2b` (§13) and landing per the package lifecycle (pxui first, `tools/check-pxui-remote.sh`, online
-   `make check`, `[U2b] Status` commit, delete the `u2b` branches).
-2. U2c: delete the 1.x twins accumulated in U1b–U2b (D28), before U3.
+## NEXT: U2c (delete the 1.x twins), then U3
+
+1. U2c on branch `u2c`: delete the 1.x twins accumulated in U1b–U2b (D28); the successor takes the plain name; callers codemodded.
+2. Then U3 per the plan.
 
 ### CP1 actions (from the U2b review)
 
@@ -183,7 +185,7 @@ bodies reference. Thin margins: static Overlays (about 27 instructions under 1.0
 
 - `pxui_core/src/kit_ext.rs:565` `inspector_header_body` keys its name field with `format!` every build (and :613, :877 `inspector_bar`, :1004 `head_button`): warm inspector headers allocate.
 - lw_bin `files_worker_adds_and_imports_recursive_folders_browses_rescans_and_rejects_stale_accounts` fails under heavy load (`directory.is_none()` after a stale Browse); green alone.
-- The dynamic release abi_bench run takes about 59 s against the runner's 60 s cap (`abi_bench_start` 29 s).
+- The dynamic release abi_bench run takes about 59–60.4 s against the runner's 60 s cap (`abi_bench_start` 29 s; one retry seen). CP1 action (c).
 - A drag that pushes a sheet fully below the window cancels instead of dismissing.
 - Picker and menu wrappers keep scratch buffers in thread-locals (global state).
 - A C app refused at UI creation only gets null; no error channel exists before a Ui.
