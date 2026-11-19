@@ -1653,7 +1653,7 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
     for (name, action, payload, expected) in [
         ("Playback position", 4, 60.0, Intent::SeekFraction(0.25)),
         ("Toggle now playing panel", 1, 0.0, Intent::TogglePanel),
-        ("Shuffle off", 1, 0.0, Intent::Shuffle),
+        ("Shuffle", 1, 0.0, Intent::Shuffle),
         ("Repeat off", 1, 0.0, Intent::Repeat),
     ] {
         player.revision += 1;
@@ -2580,7 +2580,7 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
             &player,
             &mut run,
             Role::Button,
-            "Unfavorite current song"
+            "Favorite current song"
         ),
         off
     );

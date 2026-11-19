@@ -47,4 +47,3 @@ lw_ui/src/shell/songs/mod.rs	R7	let heading = ui.pressable(column as i64, node, 
 lw_ui/src/shell/songs/row.rs	R7	let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});	drift: audit #17 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/songs/row.rs	R7	let more = ui.pressable("actions", node, &PLAIN, |_, _| {});	drift: audit #16 actions -> icon_button (U4)
 lw_ui/src/shell/songs/row.rs	R7	let root = ui.pressable("song", node, &look, |ui, _| {	drift: audit #15 song row selection semantics -> selection_list/table (G4, U4)
-lw_ui/src/shell/transport.rs	R7	let target = ui.pressable("up-next-drop", Node::column().w_px(319.0).h(Size::Grow), &PLAIN.tab_stop(false), |ui, _| {	drift: audit #49 up-next drop zone -> drop_target (G7, U4)

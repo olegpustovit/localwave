@@ -160,7 +160,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         ("ray5", -0.9, -0.5),
     ];
     let on = current.is_some_and(|(_, on)| on);
-    let favorite = FAVORITE.disabled(!current.is_some()).name(if on { "Unfavorite current song" } else { "Favorite current song" });
+    let favorite = FAVORITE.selected(on).disabled(current.is_none()).name("Favorite current song");
     // the heart and its burst are a stack of their own, built with the press state
     let signal = ui.button_content("favorite", &favorite, |ui, press| {
         let node = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));

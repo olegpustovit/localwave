@@ -49,25 +49,11 @@ pub(super) fn transport(
             // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
             ui.row(Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0).look(PANEL_FILL),
                 |ui| {
-                    if ui.icon_button(
-                        "shuffle",
-                        icon_drawing(Icon::Shuffle),
-                        if player.shuffled { "Shuffle on" } else { "Shuffle off" },
-                        &ICON_44X40.look(if player.shuffled { &ICON_INVERSE_LOOKS } else { &ICON_PLATE_LOOKS }),
-                    ).clicked {
+                    if ui.icon_button("shuffle", icon_drawing(Icon::Shuffle), "Shuffle", &MODE_ICON.selected(player.shuffled)).clicked {
                         *intent = Some(Intent::Shuffle);
                     }
                     ui.stack(Node::stack().w_px(44.0).h_px(40.0), |ui| {
-                        if ui.icon_button(
-                            "repeat",
-                            icon_drawing(Icon::Repeat),
-                            match player.repeat {
-                                lw_core::queue::RepeatMode::None => "Repeat off",
-                                lw_core::queue::RepeatMode::All => "Repeat all",
-                                lw_core::queue::RepeatMode::One => "Repeat one",
-                            },
-                            &ICON_44X40.look(if player.repeat != lw_core::queue::RepeatMode::None { &ICON_INVERSE_LOOKS } else { &ICON_PLATE_LOOKS }),
-                        ).clicked {
+                        if ui.icon_button("repeat", icon_drawing(Icon::Repeat), REPEAT_NAMES[player.repeat as usize], &MODE_ICON.selected(player.repeat != lw_core::queue::RepeatMode::None)).clicked {
                             *intent = Some(Intent::Repeat);
                         }
                         if player.repeat == lw_core::queue::RepeatMode::One {
@@ -78,17 +64,12 @@ pub(super) fn transport(
                             ); });
                         }
                     });
-                    if ui.icon_button(
-                        "panel",
-                        icon_drawing(Icon::Panel),
-                        "Toggle now playing panel",
-                        &ICON_44X40.look(if panel { &ICON_INVERSE_LOOKS } else { &ICON_PLATE_LOOKS }),
-                    ).clicked {
+                    if ui.icon_button("panel", icon_drawing(Icon::Panel), "Toggle now playing panel", &MODE_ICON.selected(panel)).clicked {
                         *intent = Some(Intent::TogglePanel);
                     }
                     // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
                     if !panel
-                        && ui.icon_button("queue", icon_drawing(Icon::Queue), "Show full queue", &ICON_44X40.look(&ICON_PLATE_LOOKS)).clicked
+                        && ui.icon_button("queue", icon_drawing(Icon::Queue), "Show full queue", &MODE_ICON).clicked
                     {
                         *intent = Some(Intent::ShowQueue);
                     }
@@ -97,6 +78,14 @@ pub(super) fn transport(
         },
     );
 }
+
+/// A playback mode key (shuffle, repeat, the panel, the queue): the key plate, ink while on (`IconButton::selected`).
+const MODE_ICON: pxui::IconButton = ICON_44X40.look(&MODE_LOOKS);
+const MODE_LOOKS: States = ICON_PLATE_LOOKS.checked(ICON_INVERSE_LOOKS.idle);
+/// The repeat key's name by `RepeatMode`.
+const REPEAT_NAMES: [&str; 3] = ["Repeat off", "Repeat all", "Repeat one"];
+/// The up-next panel while a song is held over it: a 2-point accent frame.
+const UP_NEXT_DROP: States = States::of(Look::NONE.border(Rgba::token(ColorToken::ACCENT), 2.0));
 
 pub(super) fn desktop(
     ui: &mut Ui,
@@ -188,8 +177,9 @@ pub(super) fn desktop(
             if panel {
                 rule(ui, "panel-divider", true);
                 // The drop target wraps the cached panel: hover and drops never rebuild its view.
-                // Pressable so drops on its empty areas reach it; no tab stop.
-                let target = ui.pressable("up-next-drop", Node::column().w_px(319.0).h(Size::Grow), &PLAIN.tab_stop(false), |ui, _| {
+                let target = ui.node("up-next-drop", Node::column().w_px(319.0).h(Size::Grow));
+                let drop = songs::song_drop(ui, &target);
+                ui.within(&target, &mut |ui| {
                     let panel = ui.view_of(
                         "now-panel",
                         &(
@@ -211,20 +201,10 @@ pub(super) fn desktop(
                     );
                     crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
                 });
-                let target = target.handle;
-                let accent = Rgba::token(ColorToken::ACCENT);
-                match songs::song_drop(ui, &target) {
+                match drop {
                     Some((true, song)) => *intent = Some(Intent::AppendSong(song)),
-                    Some((false, _)) => ui.canvas_over(&target, move |paint, rect| {
-                        for (x, y, w, h) in [
-                            (0.0, 0.0, rect.w, 2.0),
-                            (0.0, rect.h - 2.0, rect.w, 2.0),
-                            (0.0, 0.0, 2.0, rect.h),
-                            (rect.w - 2.0, 0.0, 2.0, rect.h),
-                        ] {
-                            paint.fill(Rect::new(rect.x + x, rect.y + y, w, h), Fill::new(accent));
-                        }
-                    }),
+                    // the accent frame over the panel while a song is held over it
+                    Some((false, _)) => ui.style(&target, &UP_NEXT_DROP, State::default()),
                     None => {}
                 }
             }
