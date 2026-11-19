@@ -260,10 +260,10 @@ pub(super) fn find_tokens(
     ui.id("find-tokens", |ui| { ui.column(Node::column().w_px(width), |ui| { ui.view_of("find-tokens", &revision, |ui| {
             let flow = Node::row().gap(6.0).w_px(width).wrap().row_gap(6.0).h(Size::Fit).padding(Edges::ZERO.b(12.0));
             ui.row(flow, |ui| {
-                for token in TOKENS {
+                for (index, token) in TOKENS.into_iter().enumerate() {
                     let selected = state.query.has_token(token);
                     let node = Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP).max_w(width);
-                    let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {
+                    let chip = ui.pressable(Key::Id(index as i64), node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {
                         let label = ui.node(
                             "label",
                             Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT).look(if selected { CHIP_TEXT_ON } else { CHIP_TEXT }),

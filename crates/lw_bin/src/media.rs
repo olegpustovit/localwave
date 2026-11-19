@@ -186,7 +186,7 @@ impl Media {
         };
         for image in ready {
             if image.epoch == epoch
-                && image.key.id() == key.id()
+                && image.artwork_id.id() == key.id()
                 && image.revision > self.cover_revision
             {
                 self.native.artwork(image.thumbnail.as_ref())?;

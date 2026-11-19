@@ -110,22 +110,14 @@ pub(super) fn table(
                     {
                         let left = if index == 0 { 32.0 } else { 8.0 };
                         let right = if index == 3 { 20.0 } else { 8.0 };
-                        label(
-                            ui,
-                            title,
-                            title,
-                            Rect {
-                                x: x + if index == 3 {
-                                    columns[index] - right - heading_sizes[index].0
-                                } else {
-                                    left
-                                },
-                                y: 10.0 + (heading_height - 20.5 - heading_sizes[index].1) * 0.5,
-                                w: heading_sizes[index].0,
-                                h: heading_sizes[index].1,
-                            },
-                            if index == 3 { TABLE_HEADING.align(pxui::TextAlign::End) } else { TABLE_HEADING }.color(SECONDARY),
-                        );
+                        let rect = Rect {
+                            x: x + if index == 3 { columns[index] - right - heading_sizes[index].0 } else { left },
+                            y: 10.0 + (heading_height - 20.5 - heading_sizes[index].1) * 0.5,
+                            w: heading_sizes[index].0,
+                            h: heading_sizes[index].1,
+                        };
+                        let style = if index == 3 { TABLE_HEADING.align(pxui::TextAlign::End) } else { TABLE_HEADING }.color(SECONDARY);
+                        ui.id(Key::Id(index as i64), |ui| label(ui, "heading", title, rect, style));
                         x += columns[index];
                     }
                 });

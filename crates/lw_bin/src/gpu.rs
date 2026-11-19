@@ -42,7 +42,7 @@ pub fn sync_artwork<'a>(
             .as_ref()
             .map(|image| (image.width, image.height, image.pixels.as_slice()));
         changed |= graphics
-            .upload_image(ready.key, ready.epoch, ready.revision, pixels)
+            .upload_image(ready.artwork_id, ready.epoch, ready.revision, pixels)
             .map_err(|error| format!("Artwork upload failed ({error})"))?;
     }
     Ok(changed)

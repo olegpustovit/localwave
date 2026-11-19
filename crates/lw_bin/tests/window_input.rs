@@ -570,7 +570,7 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
     let ready = lw_bin::library::ArtworkReady {
         epoch: 0,
         revision: 10,
-        key: Want::new(1, 256).unwrap(),
+        artwork_id: Want::new(1, 256).unwrap(),
         thumbnail: Some(lw_apple_sys::artwork::Thumbnail {
             width: 2,
             height: 1,

@@ -767,7 +767,7 @@ impl Perf {
             if let Some(slot) = (*frame_trace).get_mut((*frames) - 1) {
             *slot = (
                 if artwork_updated {
-                    artwork.ready().map_or(0, |ready| ready.key.id())
+                    artwork.ready().map_or(0, |ready| ready.artwork_id.id())
                 } else {
                     0
                 },

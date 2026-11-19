@@ -34,7 +34,7 @@ fn load(documents: &Path, stored_path: &str, max_pixels: u32) -> io::Result<Thum
 pub struct ArtworkReady {
     pub revision: u64,
     pub epoch: u64,
-    pub key: Want,
+    pub artwork_id: Want,
     pub thumbnail: Option<Thumbnail>,
 }
 type Batch = [Option<Arc<ArtworkReady>>; REQUEST_CAPACITY];
@@ -128,7 +128,7 @@ impl ArtworkWorker {
                                 if inbox
                                     .results
                                     .iter()
-                                    .any(|ready| ready.epoch == pending.epoch() && ready.key == key)
+                                    .any(|ready| ready.epoch == pending.epoch() && ready.artwork_id == key)
                                 {
                                     next += 1;
                                     continue;
@@ -178,7 +178,7 @@ impl ArtworkWorker {
                     let ready = Arc::new(ArtworkReady {
                         revision,
                         epoch,
-                        key,
+                        artwork_id: key,
                         thumbnail,
                     });
                     let mut inbox = owner.mailbox.lock().unwrap();
@@ -356,7 +356,7 @@ mod tests {
                 worker.poll();
                 if worker
                     .ready()
-                    .is_some_and(|ready| ready.key.id() == id)
+                    .is_some_and(|ready| ready.artwork_id.id() == id)
                 {
                     break;
                 }
@@ -397,7 +397,7 @@ mod tests {
             if worker.poll() {
                 for ready in worker.ready_images() {
                     assert!(ready.thumbnail.is_some());
-                    received |= 1 << (ready.key.id() - 10);
+                    received |= 1 << (ready.artwork_id.id() - 10);
                 }
             }
             assert!(std::time::Instant::now() < deadline, "batch stalled");
@@ -486,7 +486,7 @@ mod tests {
         worker.request(&missing).unwrap();
         loop {
             worker.poll();
-            if worker.ready().is_some_and(|ready| ready.key.id() == 100)
+            if worker.ready().is_some_and(|ready| ready.artwork_id.id() == 100)
                 && old.iter().all(|ready| ready.strong_count() == 0)
             {
                 break;

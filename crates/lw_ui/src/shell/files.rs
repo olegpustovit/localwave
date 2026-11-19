@@ -198,6 +198,8 @@ const COLUMNS: [(&str, Option<f32>, f32, bool); 5] = [
     ("On device", None, 1.2, false),
     ("Time", Some(84.0), 0.0, true),
 ];
+/// The column cells' keys, by `COLUMNS` index: ids, never the column titles.
+const COLUMN_IDS: [&str; 5] = ["c0", "c1", "c2", "c3", "c4"];
 const NUMBER: f32 = 56.0;
 
 pub(super) fn view(
@@ -422,11 +424,11 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
             ui.label("#", FOOTNOTE);
         });
-        for (label, fixed, share, end) in COLUMNS {
+        for (index, (label, fixed, share, end)) in COLUMNS.into_iter().enumerate() {
             if compact && matches!(label, "Kind" | "Size") {
                 continue;
             }
-            cell(ui, label, fixed, share, end, &mut |ui| {
+            cell(ui, COLUMN_IDS[index], fixed, share, end, &mut |ui| {
                 ui.label(label, FOOTNOTE);
             });
         }
@@ -458,18 +460,18 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
                         mark(ui, entry.directory, color);
                     }
                 });
-                cell(ui, "Name", None, COLUMNS[0].2, false, &mut |ui| {
+                cell(ui, COLUMN_IDS[0], None, COLUMNS[0].2, false, &mut |ui| {
                     ui.label(&entry.name, TEXT_14.grow().color(ink));
                 });
                 if !compact {
-                    cell(ui, "Kind", None, COLUMNS[1].2, false, &mut |ui| {
+                    cell(ui, COLUMN_IDS[1], None, COLUMNS[1].2, false, &mut |ui| {
                         ui.label(&entry.kind, TEXT_14.grow().color(tone));
                     });
-                    cell(ui, "Size", None, COLUMNS[2].2, false, &mut |ui| {
+                    cell(ui, COLUMN_IDS[2], None, COLUMNS[2].2, false, &mut |ui| {
                         ui.label(&entry.size, MONO_12.grow().color(tone));
                     });
                 }
-                cell(ui, "On device", None, COLUMNS[3].2, false, &mut |ui| match entry.glyph {
+                cell(ui, COLUMN_IDS[3], None, COLUMNS[3].2, false, &mut |ui| match entry.glyph {
                     Some(glyph) => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
                     None if entry.audio => {
                         // Not imported yet: Swift imports on play; here the row offers Import.
@@ -479,7 +481,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
                     }
                     None => {}
                 });
-                cell(ui, "Time", COLUMNS[4].1, 0.0, true, &mut |ui| {
+                cell(ui, COLUMN_IDS[4], COLUMNS[4].1, 0.0, true, &mut |ui| {
                     ui.label(&entry.time, MONO_12.color(tone));
                 });
             });
@@ -512,7 +514,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         });
     } else {
     ui.within(&top, &mut |ui| {
-        let back = ui.node("Back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+        let back = ui.node("back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
         ui.a11y_name(&back, "Back");
         ui.within(&back, &mut |ui| {
             let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));

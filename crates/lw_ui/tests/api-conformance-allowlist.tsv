@@ -23,7 +23,7 @@ lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(38.0).role(if entry.d
 lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).padding(Edges::ZERO.r(6.0)),
 lw_ui/src/shell/files.rs	R2	Node::row().w_px(width).h_px(height).center().role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(Look::NONE.fill(Rgba::token(fill)))
 lw_ui/src/shell/files.rs	R2	let add = ui.node("add-music", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
-lw_ui/src/shell/files.rs	R2	let back = ui.node("Back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
+lw_ui/src/shell/files.rs	R2	let back = ui.node("back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
@@ -32,7 +32,7 @@ lw_ui/src/shell/files.rs	R2	let option = ui.node(key, Node::column().w(Size::Gro
 lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).padding(Edges::ZERO.l(12.0)));
 lw_ui/src/shell/files.rs	R2	let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/header.rs	R7	let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {	drift: audit #9 filter chip -> checkbox variant (G5, U4)
+lw_ui/src/shell/header.rs	R7	let chip = ui.pressable(Key::Id(index as i64), node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {	drift: audit #9 filter chip -> checkbox variant (G5, U4)
 lw_ui/src/shell/onboarding.rs	R7	let choose = ui.pressable("choose-folder", node, &PLAIN.look(&INK_LOOKS), |ui, _| {	drift: audit #60 Choose a folder -> Button (U4)
 lw_ui/src/shell/onboarding.rs	R7	let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #61 Drive disclosure -> disclosure (G10, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {	drift: audit #55 Clear up next -> Button (U4)
