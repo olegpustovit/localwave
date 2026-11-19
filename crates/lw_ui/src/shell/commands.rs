@@ -375,6 +375,39 @@ mod tests {
         intent
     }
 
+    /// `localwave-palette`: the field 59 high with the results 1 below it, padded 6 and as tall as their rows; a group heading 12 in,
+    /// its text line 10 under the padding; 44-point rows that are the list's items; the status over the empty results.
+    #[test]
+    fn localwave_palette_lays_out_its_field_results_headings_and_status() {
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let catalog = crate::tests::prepared(Vec::new());
+        let mut state = ShellState::default();
+        state.apply(Intent::ShowCommands);
+        let mut time = 0.0;
+        for _ in 0..4 {
+            frame(&mut ui, &catalog, &mut state, &mut time, &[]);
+        }
+        let at = |ui: &Ui, role: Role, name: &str| {
+            ui.a11y_nodes().iter().find(|n| n.role == role as u32 && ui.a11y_name_of(n) == name).map(|n| n.rect).unwrap_or_else(|| panic!("{name}"))
+        };
+        let field = at(&ui, Role::TextField, "Search and commands");
+        let list = ui.a11y_nodes().iter().find(|n| n.role == Role::List as u32 && n.rect.y > field.y).map(|n| n.rect).unwrap();
+        let (heading, first, last) = (at(&ui, Role::Heading, "Commands"), at(&ui, Role::ListItem, "Play / pause"), at(&ui, Role::ListItem, "Show keyboard shortcuts"));
+        assert_eq!((field.h, list.y), (59.0, field.y + 60.0), "the field and its hairline");
+        assert_eq!((heading.x, heading.y + 2.0), (list.x + 18.0, list.y + 6.0 + 10.0), "the heading's line, 12 in past the padding");
+        assert_eq!((first.y, first.h), (list.y + 6.0 + 30.8, 44.0), "rows under their heading");
+        assert!((list.y + list.h - (last.y + last.h) - 6.0).abs() < 0.01, "the results fit their rows, 6 in: {list:?} {last:?}");
+        state.apply(Intent::CommandQuery(Query::new("zz").unwrap()));
+        for _ in 0..3 {
+            frame(&mut ui, &catalog, &mut state, &mut time, &[]);
+        }
+        let list = ui.a11y_nodes().iter().find(|n| n.role == Role::List as u32 && n.rect.y > field.y).map(|n| n.rect).unwrap();
+        let status = at(&ui, Role::Label, "Searching…");
+        assert_eq!(list.h, 60.0, "the empty results keep their 60 points");
+        assert!(status.y >= list.y + 6.0 && status.y + status.h <= list.y + list.h, "the status sits over the empty results: {status:?} {list:?}");
+    }
+
     #[test]
     fn phone_shortcuts_wrap_labels_in_the_left_half() {
         let mut ui = crate::test_ui(
