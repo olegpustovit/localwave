@@ -342,13 +342,12 @@ pub(super) fn queue_rows(
             );
             paint_artwork(ui, &art, row, m.art, images);
             ui.a11y_name(&art, "Track artwork");
-            let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button).padding(Edges::ZERO.l(10.0 - m.gap).t((m.row - m.title_line - m.artist_line) / 2.0));
-            let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {
-                ui.label(title, line_style(m.title as f32).grow().h_px(m.title_line).color(INK));
-                ui.label(artist, line_style(m.artist as f32).grow().h_px(m.artist_line).color(SECONDARY));
-            });
-            ui.a11y_name(&play.handle, title);
-            if play.clicked {
+            // the title over the artist, centred down the row (the metrics are the device's, so the style is built here)
+            let play = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Grow).axis(Axis::Column).gap(0.0)
+                .pad(Edges::ZERO.l(10.0 - m.gap).t((m.row - m.title_line - m.artist_line) / 2.0)).look(&BARE)
+                .label(line_style(m.title as f32).grow().h_px(m.title_line).color(INK))
+                .detail(artist).detail_label(line_style(m.artist as f32).grow().h_px(m.artist_line).color(SECONDARY));
+            if ui.button("play-queued", title, &play).clicked {
                 *intent = Some(Intent::PlayQueue(entry.id));
             }
             // Swift marks songs that are not on this device, or kept offline.
