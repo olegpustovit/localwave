@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. Resume at [U2c review](#next-u2c-review-and-landing-then-u3).
+Updated 2026-11-19. Resume at [U3](#next-u3).
 
 ## What we're doing
 
@@ -168,7 +168,7 @@ bodies reference. Thin margins: static Overlays (about 27 instructions under 1.0
 Independent review: land after fixes; the renderer fence now also clears `building` (a C split callback could build during
 draw), static `drop_target` refuses a stale box, header/hash/bench docs, D30 (abi_bench closure, harness changes accepted).
 
-### U2c on branch `u2c` (review pending)
+### U2c landed on `rust-port`
 
 LocalWave f7d3131..8ced207 and pxui 233baadd..56bd3dde (ABI 1.93–1.97; see `docs/rust-port.md` U2c rows and
 `scratch/u2c-final-report.md`, local only). 101 superseded exports deleted (343 to 242), each successor under the plain name, the engine
@@ -178,10 +178,11 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
 Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
 paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
-## NEXT: U2c review and landing, then U3
+## NEXT: U3
 
-1. Independent review of U2c (§13), then land per the lifecycle (pxui first, `tools/check-pxui-remote.sh`, online `make check`).
-2. Then U3 per the plan. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
+1. U3 per the plan (LocalWave looks, literals, keys; pattern stop), branch `u3`. U2c landed at pxui 333bf96f after an independent
+   review (land after fixes, applied); pxui `cargo t --all` and online `make check` passed at landing.
+2. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
    `pxui_ui_variant`, `pxui_ui_text`, the `pxui_frame`/`pxui_ui_frame` pair (U5.2), the prefix renames of `pxui_panel`, `pxui_within`,
    `pxui_part` and `pxui_slot`, the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
 
