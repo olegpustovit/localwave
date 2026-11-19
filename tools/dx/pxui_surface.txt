@@ -1327,6 +1327,7 @@ pxui::bodies::PanelConfig struct (_)
 pxui::bodies::PickerConfig impl BodyConfig
 pxui::bodies::PickerConfig impl Deref
 pxui::bodies::PickerConfig struct (_)
+pxui::bodies::PickerConfig::art fn (&self) -> Option<PickArt>
 pxui::bodies::PickerFieldConfig impl BodyConfig
 pxui::bodies::PickerFieldConfig impl Deref
 pxui::bodies::PickerFieldConfig struct (_)
@@ -6040,6 +6041,7 @@ pxui_types::ui::PickArt impl Debug
 pxui_types::ui::PickArt impl Eq
 pxui_types::ui::PickArt impl PartialEq
 pxui_types::ui::PickArt impl StructuralPartialEq
+pxui_types::ui::PickArt::Draw variant (u32)
 pxui_types::ui::PickArt::Glyph variant (char)
 pxui_types::ui::PickArt::Image variant (usize)
 pxui_types::ui::PickRow impl Clone

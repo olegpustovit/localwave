@@ -105,7 +105,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PickerFieldConfig) {
 }
 
 /// A palette row (registered as `localwave-palette`, picker kind): 44 points, 12 in and 12 apart, the selected fill on the keyboard's
-/// row; its artwork (28 points on the panel fill, the image when it has one) or its icon (`ICON_GLYPH` + `Icon`), the label, the
+/// row; its artwork (28 points on the panel fill, the image when it has one) or its icon (`PickArt::Draw` of the `Icon`), the label, the
 /// hint. A row that starts a group has its heading above it: secondary 12 points, 12 in, its line 10 below the row above and 4 above
 /// its row.
 pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
@@ -116,7 +116,8 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
     }
     ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center));
     ui.style(&c.row, &PALETTE_ROW, State::default().checked(c.current != 0));
-    if c.art_kind == 2 {
+    let art = c.art();
+    if let Some(pxui::PickArt::Image(_)) = art {
         let art = container(ui, "artwork", Axis::Column, Size::Px(28.0), Size::Px(28.0), &PANEL_FILL);
         ui.set_role(&art, Role::Image, pxui::A11yStates::NONE);
         if c.has_image != 0 {
@@ -126,7 +127,9 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
                 let _ = paint.image(rect, &image, &COVER_ART);
             });
         }
-    } else if let Some(kind) = icon_of(c.art) {
+    } else if let Some(pxui::PickArt::Draw(word)) = art
+        && let Some(&kind) = ICONS.get(word as usize)
+    {
         let icon = container(ui, "icon", Axis::Column, Size::Px(16.0), Size::Px(28.0), &Look::NONE);
         ui.canvas(&icon, move |paint, rect| {
             let rect = Rect {
@@ -174,15 +177,16 @@ const FOOTNOTE_LINE: f32 = 16.8;
 /// The palette's query: ink, 20 points.
 const PALETTE_QUERY: Look = Look::NONE.text(Rgba::token(INK)).font(PALETTE_FONT);
 
-/// The palette's icons travel as private-use code points from here, one per `Icon` (the row body draws them).
-const ICON_GLYPH: u32 = 0xF0000;
+/// The palette's icons by their word (`PickArt::Draw(icon as u32)`), indexed by discriminant.
 const ICONS: [Icon; 5] = [Icon::Chevron, Icon::Queue, Icon::Person, Icon::Folder, Icon::Rows];
-fn glyph_of(icon: Icon) -> char {
-    char::from_u32(ICON_GLYPH + ICONS.iter().position(|i| *i == icon).unwrap_or(0) as u32).unwrap_or(' ')
-}
-fn icon_of(code: u64) -> Option<Icon> {
-    ICONS.get(usize::try_from(code.checked_sub(u64::from(ICON_GLYPH))?).ok()?).copied()
-}
+// the table is indexed by discriminant: keep it in declaration order
+const _: () = {
+    let mut i = 0;
+    while i < ICONS.len() {
+        assert!(ICONS[i] as usize == i);
+        i += 1;
+    }
+};
 
 /// The palette's picker: the results are the field body's to size, no `/` before the query.
 const PALETTE: pxui::Picker = pxui::Picker::DEFAULT.slash(false);
@@ -220,7 +224,7 @@ pub(super) fn palette_view(
         let r = ui.picker("palette", "Search and commands", state.command_query.as_str(), &PALETTE.image(&image), &mut |_, rows| {
             for (index, item) in items.iter().enumerate() {
                 let heading = if index == 0 || items[index - 1].group != item.group { item.group } else { "" };
-                let art = cover(index).map_or(PickArt::Glyph(glyph_of(item.icon)), |row| PickArt::Image(row.cover_art_id));
+                let art = cover(index).map_or(PickArt::Draw(item.icon as u32), |row| PickArt::Image(row.cover_art_id));
                 rows.push(pxui::PickRow::new(&item.label).detail(&item.hint).heading(heading).art(art));
             }
         });
