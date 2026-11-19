@@ -223,6 +223,17 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
   their run (`pxui_core` `defer_culled` / `!shown` -> `valid = false`), so the next build rebuilds them; HEAD's song rows did the same.
   Keeping a culled view's build until it shows would save about 8 row builds a warm scroll frame. Kept rows of a reorderable list
   rebuild every frame (the row's `Part::HANDLE` registers each frame in `rows_move_row`).
+- U4a.6 fresh-row cost (ruling: option (ii), keep `song-visual`, no per-row revision API now). Option (i) is a candidate for the
+  2.0 API review: a per-row content revision in the list (`row_revision: Option<&dyn Fn(usize) -> u64>` beside `row_key`, or per-row
+  revisions in `ListState`) mixed into each kept row's key, so the app could drop `player.current_id` from the list revision and drop
+  its inner `song-visual` view (`scratch/u4a6/row-merge-wip.diff` shows what that needs). Attribution (release counting bundle, scroll
+  jump, thread instructions per fresh row in the list's build loop, 260 fresh rows over 100 frames, `scratch/u4a6/probe/`): 050d029
+  29.5k, 44c3b45 35.8k (+6.3k). The app's row content is 30.0k (+0.6k: the actions `icon_button` replaces the pressable and
+  `song-copy`); the list's row machinery is the rest: row view (its box node, record, checks) 1.6k, the row node 1.3k, `row_in`
+  (signal, selection, style, role) 0.8k, the registered body round trip (trampoline, `row_body`, `set_node_layout`, `style`,
+  `slot`) 2.2k, loop glue 0.3k. Jump frames also lay out more: arrange +25-34k, intrinsic +9-13k, finish +5k a frame. Two engine
+  cuts suggested by fine probes (a decoded six-look memo for widget calls, resolving only the picked icon-button look) measured a
+  ~180-instruction gain a fresh row and +6-11k build instructions a frame on every workload, so they were dropped.
 - U4a.6: a view with its own table entry stores its instances in view-local coordinates, so the fingerprint's geom/full hashes
   change for content moved into one (the song heading, kept rows) without a pixel change; gcmp cannot tell the two apart.
 - U4a.6: the name `Ui::text_input_focused` means "any keyboard focus", which is misleading (a focused list or button counts); its
