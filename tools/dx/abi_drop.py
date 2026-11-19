@@ -70,6 +70,9 @@ def main():
                 # Definitions and wrapper declarations are not calls.
                 if re.search(r"\bfn %s\s*\(" % n, l) or s.startswith(("//", "/*", "* ", "#define", "#include")):
                     continue
+                # the static wrapper's trusted entry of the same name is a Rust function, not a call of the export
+                if re.search(r"trusted::(\{[^}]*)?\b%s\b" % n, l) and "pxui_abi/src/" not in rel:
+                    continue
                 kind = "test" if is_test_file or i >= t0 else "internal" if "pxui_abi/src/" in rel else "caller"
                 refs[n][kind].add(rel)
     if "--check" in sys.argv:
