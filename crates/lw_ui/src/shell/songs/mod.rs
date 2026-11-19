@@ -316,11 +316,8 @@ pub(super) fn table(
                         // kept while the columns and the sort hold (the heading pins over the rows: a scroll moves it, nothing more)
                         let sort = table.sort.map(|(id, dir)| (id, dir == pxui::Sort::Ascending));
                         ui.view_of("song-heading", &(widths.map(f32::to_bits), sort, heading_height.to_bits()), |ui| {
+                            // paper under a 1-point line rule: the theme's `table_head` look
                             let h = ui.table_head("song-columns", &columns, &mut table, &pxui::TableHead::DEFAULT.h_px(heading_height));
-                            ui.style(&h.response.handle, &PAPER_LOOKS, State::default());
-                            ui.canvas_over(&h.response.handle, move |paint, rect| {
-                                paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional())
-                            });
                             if h.sorted {
                                 let by = table.sort.and_then(|(id, dir)| Some((Column::ALL[id as usize].sort()?, dir == pxui::Sort::Ascending)));
                                 *intent = Some(Intent::SortBy(by));

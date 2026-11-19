@@ -1,5 +1,7 @@
 menu_row.body = localwave-menu
 popup.idle.border = #262626
+table_head.idle.fill = #101010
+table_head.idle.border = #262626
 toggle.body = localwave-toggle
 dialog.body = localwave-sheet
 button.body = localwave-button
