@@ -1175,7 +1175,7 @@ pxui::Ui::toggle fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, togg
 pxui::Ui::tokens fn (&self) -> Tokens
 pxui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
-pxui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
+pxui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], revision: Option<u64>, cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::Ui::unfocus fn (&mut self)
 pxui::Ui::verify_views fn (&mut self, on: bool)
 pxui::Ui::verifying fn (&self) -> bool
@@ -1931,7 +1931,7 @@ pxui::ui::Ui::toggle fn <K: Into<Key>>(&mut self, key: K, text: &str, on: bool, 
 pxui::ui::Ui::tokens fn (&self) -> Tokens
 pxui::ui::Ui::tooltip fn (&mut self, box_: &Handle, text: &str)
 pxui::ui::Ui::transfer_carry fn (&mut self, to: &Handle) -> bool
-pxui::ui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
+pxui::ui::Ui::tree fn <K: Into<Key>>(&mut self, key: K, nodes: &[TreeNode], open: &mut [u8], selected: &mut Option<usize>, visible: &mut [u32], revision: Option<u64>, cell: &mut dyn FnMut(&mut Ui, usize)) -> TreeResponse
 pxui::ui::Ui::unfocus fn (&mut self)
 pxui::ui::Ui::verify_views fn (&mut self, on: bool)
 pxui::ui::Ui::verifying fn (&self) -> bool
@@ -4591,10 +4591,12 @@ pxui_types::ffi::PxuiTreeRowConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiTreeRowConfig::variant field u16
 pxui_types::ffi::PxuiTreeViewDesc struct
 pxui_types::ffi::PxuiTreeViewDesc::build field PxuiCellBuild
+pxui_types::ffi::PxuiTreeViewDesc::has_revision field u8
 pxui_types::ffi::PxuiTreeViewDesc::label field Str
 pxui_types::ffi::PxuiTreeViewDesc::nodes field Slice<PxuiTreeNode>
 pxui_types::ffi::PxuiTreeViewDesc::open field PxuiU8MutSpan
-pxui_types::ffi::PxuiTreeViewDesc::reserved field u32
+pxui_types::ffi::PxuiTreeViewDesc::reserved field [u8; 3]
+pxui_types::ffi::PxuiTreeViewDesc::revision field u64
 pxui_types::ffi::PxuiTreeViewDesc::selected field *mut usize
 pxui_types::ffi::PxuiTreeViewDesc::size field u32
 pxui_types::ffi::PxuiTreeViewDesc::user field *mut c_void
