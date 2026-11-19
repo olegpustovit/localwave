@@ -4,7 +4,7 @@
 //!
 use pxui::bodies::BodyConfig;
 use super::*;
-use crate::commands::{Action, Command, Results};
+use crate::commands::{Action, Command, Icon, Results};
 
 impl ShellState {
     /// Rows to show: the worker's for this query, or for an empty query the static command list,
@@ -79,32 +79,20 @@ impl ShellState {
     }
 }
 
-/// The command palette's input: no autocorrect or capitalization, the Search key.
-const PALETTE_FIELD: pxui::TextField = pxui::TextField::SEARCH.name("Search and commands");
-
-/// The command palette's field (registered as `localwave-command`): 20 points in a 59-point row 18 in at each side, focused on its
-/// first build, the prompt secondary and ellipsized to the card.
-pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
-    let mut layout = ui.node_layout(&c.row);
-    layout.h = Size::Px(59.0);
-    layout.padding = Edges::ZERO.l(18.0).r(18.0);
-    ui.set_node_layout(&c.row, &layout);
-    ui.style(&c.row, &pxui::theme::States::of(Look::NONE), State::default());
-    if ui.state(&c.row, 0) == 0 {
-        ui.focus_box(&c.row);
-        ui.set_state(&c.row, 1);
-    }
-    let editor = ui.part(
-        pxui::Part::EDITOR,
-        Node::column().w(Size::Grow).h_px(59.0).inset(Edges::ZERO.l(2.0).r(2.0)).look(Look::NONE.text(ui.tokens().foreground).font(PALETTE_FONT)),
-    );
-    let value = c.text_of(&c.value);
-    if c.state.focused == 0 {
-        ui.text(&editor, value);
-    }
-    if value.is_empty() {
-        // Ellipsize to the field: the palette card is (view - 32) clamped to 600.
-        let room = (ui.content_rect().w - 32.0).clamp(0.0, 600.0) - 40.0;
+/// The palette's query field (registered as `localwave-palette`, picker_field kind): 59 points high and 18 in at each side, a
+/// hairline under it; the query in 20 points on its editor part; the prompt secondary and ellipsized to the card while empty. It
+/// lays the results out: at most 420 points (and 176 short of the window), at least 60, 6 in.
+pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PickerFieldConfig) {
+    let height = ui.content_rect().h;
+    ui.set_node_layout(&c.search, &Node::row().w(Size::Grow).h_px(59.0).padding(Edges::ZERO.l(18.0).r(18.0)).margin(Edges::ZERO.b(1.0)));
+    ui.style(&c.search, &pxui::theme::States::of(Look::NONE), State::default());
+    ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h_px(59.0).look(PALETTE_QUERY));
+    // the palette card is (view - 32) clamped to 600; the hairline spans it in the field's bottom margin
+    let card = (ui.content_rect().w - 32.0).clamp(0.0, 600.0);
+    ui.node("rule", Node::DEFAULT.w_px(card).h_px(1.0).at(0.0, 59.0).look(LINE_FILL));
+    if c.empty != 0 {
+        // Ellipsize to the field.
+        let room = card - 40.0;
         let placeholder = ui.node("prompt", Node::row().w_px(room.max(1.0)).h_px(59.0).align(Align::Center).at(20.0, 0.0));
         let style = Label::BODY.size(20.0).line_height(28.0).weight(PALETTE_FONT.weight).lines(1).ellipsis();
         ui.within(&placeholder, &mut |ui| {
@@ -112,7 +100,94 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
             ui.text_line_box(&line, "Search songs, folders, or type a command", style, &[]).unwrap();
         });
     }
+    let results = 420.0_f32.min((height - 176.0).max(60.0));
+    ui.set_node_layout(&c.list, &Node::column().w(Size::Grow).h(Size::Fit).pad(6.0).min_h(60.0).max_h(results));
 }
+
+/// A palette row (registered as `localwave-palette`, picker kind): 44 points, 12 in and 12 apart, the selected fill on the keyboard's
+/// row; its artwork (28 points on the panel fill, the image when it has one) or its icon (`ICON_GLYPH` + `Icon`), the label, the
+/// hint. A row that starts a group has its heading above it: secondary 12 points, 12 in, its line 10 below the row above and 4 above
+/// its row.
+pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
+    if c.has_head != 0 {
+        ui.style(&c.head, &PALETTE_HEADING, State::default());
+        // a node's text sits centred in its box, 2 points under `FOOTNOTE`'s line box: the box starts 2 higher (10 above the text's line)
+        ui.set_node_layout(&c.head, &Node::column().w(Size::Grow).h_px(FOOTNOTE_LINE).margin(Edges::new(12.0, 8.0, 12.0, 6.0)));
+    }
+    ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center));
+    ui.style(&c.row, &PALETTE_ROW, State::default().checked(c.current != 0));
+    if c.art_kind == 2 {
+        let art = container(ui, "artwork", Axis::Column, Size::Px(28.0), Size::Px(28.0), &PANEL_FILL);
+        ui.set_role(&art, Role::Image, pxui::A11yStates::NONE);
+        if c.has_image != 0 {
+            let image = c.image;
+            // a descriptor that went bad between frames draws nothing (`Paint::image` refuses it)
+            ui.canvas(&art, move |paint, rect| {
+                let _ = paint.image(rect, &image, &COVER_ART);
+            });
+        }
+    } else if let Some(kind) = icon_of(c.art) {
+        let icon = container(ui, "icon", Axis::Column, Size::Px(16.0), Size::Px(28.0), &Look::NONE);
+        ui.canvas(&icon, move |paint, rect| {
+            let rect = Rect {
+                y: rect.y + (rect.h - 16.0) * 0.5,
+                h: 16.0,
+                ..rect
+            };
+            type Line = ((f32, f32), (f32, f32));
+            let lines: &[Line] = match kind {
+                Icon::Chevron => &[((5.0, 3.0), (10.0, 8.0)), ((10.0, 8.0), (5.0, 13.0))],
+                Icon::Queue | Icon::Rows => &[((2.0, 4.0), (14.0, 4.0)), ((2.0, 8.0), (14.0, 8.0)), ((2.0, 12.0), (11.0, 12.0))],
+                Icon::Folder => &[
+                    ((1.0, 4.0), (6.0, 4.0)),
+                    ((6.0, 4.0), (8.0, 6.0)),
+                    ((8.0, 6.0), (15.0, 6.0)),
+                    ((15.0, 6.0), (15.0, 13.0)),
+                    ((15.0, 13.0), (1.0, 13.0)),
+                    ((1.0, 13.0), (1.0, 4.0)),
+                ],
+                Icon::Person => &[((3.0, 14.0), (4.0, 10.0)), ((4.0, 10.0), (12.0, 10.0)), ((12.0, 10.0), (13.0, 14.0))],
+            };
+            for &(a, b) in lines {
+                let a = (rect.x + a.0, rect.y + a.1);
+                let b = (rect.x + b.0, rect.y + b.1);
+                paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(Rgba::token(INK)).width(1.1));
+            }
+            if kind == Icon::Person {
+                paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(Rgba::token(INK))), None);
+            }
+        });
+    }
+    ui.label(c.text_of(&c.label), BODY_INK.grow());
+    let hint = c.text_of(&c.detail);
+    if !hint.is_empty() {
+        ui.label(hint, CAPTION);
+    }
+}
+
+/// A palette row: the selected fill on the keyboard's row.
+const PALETTE_ROW: pxui::theme::States = pxui::theme::States::of(Look::NONE).checked(SELECTED_FILL);
+/// A palette group heading: secondary 12 points (`FOOTNOTE`).
+const PALETTE_HEADING: pxui::theme::States = pxui::theme::States::of(text_look(FOOTNOTE).font(Font::BODY.size(12.0)));
+/// The heading's line: `FOOTNOTE`'s.
+const FOOTNOTE_LINE: f32 = 16.8;
+/// The palette's query: ink, 20 points.
+const PALETTE_QUERY: Look = Look::NONE.text(Rgba::token(INK)).font(PALETTE_FONT);
+
+/// The palette's icons travel as private-use code points from here, one per `Icon` (the row body draws them).
+const ICON_GLYPH: u32 = 0xF0000;
+const ICONS: [Icon; 5] = [Icon::Chevron, Icon::Queue, Icon::Person, Icon::Folder, Icon::Rows];
+fn glyph_of(icon: Icon) -> char {
+    char::from_u32(ICON_GLYPH + ICONS.iter().position(|i| *i == icon).unwrap_or(0) as u32).unwrap_or(' ')
+}
+fn icon_of(code: u64) -> Option<Icon> {
+    ICONS.get(usize::try_from(code.checked_sub(u64::from(ICON_GLYPH))?).ok()?).copied()
+}
+
+/// The palette's picker: the results are the field body's to size, no `/` before the query.
+const PALETTE: pxui::Picker = pxui::Picker::DEFAULT.slash(false);
+/// The palette's status where its results would be (searching, no matches, a query too long): 48 points over the empty results.
+const PALETTE_STATUS: Label = TEXT_14.grow().h_px(48.0).color(SECONDARY);
 
 /// The palette and the shortcuts card: a modal centred across, its top edge at Swift's 12% rule (`commands::top`).
 const OVERLAY_TOP: Overlay = Overlay::DEFAULT.present(pxui::Presentation::Top);
@@ -134,175 +209,42 @@ pub(super) fn palette_view(
     let (width, height) = (content.w, content.h);
     let results = state.command_results(catalog);
     let items = state.command_items(catalog);
-    let result_limit = 420.0_f32.min((height - 176.0).max(60.0));
     let top = top(content, state.top_inset);
     let palette = OVERLAY_TOP.at(pxui::Point::new(0.0, top)).w_px((width - 32.0).clamp(0.0, 600.0).min(width)).max_h_px((height - top - 16.0).max(0.0));
+    let cover = |index: usize| items.get(index)?.artwork.filter(|row| *row < catalog.len()).map(|row| catalog.row(row));
+    let image = |index: usize| {
+        let row = cover(index)?;
+        player.artwork?.get(row.cover_art_id, row.cover_art_path?, 28.0, None)
+    };
     let open = ui.modal("commands", &palette.name("Search and commands"), |ui| {
-            let mut selected = state.command_selected.min(items.len().saturating_sub(1));
-            if !items.is_empty() {
-                if ui.key_pressed(pxui::KeyCode::ArrowDown, pxui::Mods::ANY) {
-                    selected = (selected + 1) % items.len();
-                }
-                if ui.key_pressed(pxui::KeyCode::ArrowUp, pxui::Mods::ANY) {
-                    selected = (selected + items.len() - 1) % items.len();
-                }
-                if selected != state.command_selected {
-                    *intent = Some(Intent::CommandSelect(selected));
-                }
+        let r = ui.picker("palette", "Search and commands", state.command_query.as_str(), &PALETTE.image(&image), &mut |_, rows| {
+            for (index, item) in items.iter().enumerate() {
+                let heading = if index == 0 || items[index - 1].group != item.group { item.group } else { "" };
+                let art = cover(index).map_or(PickArt::Glyph(glyph_of(item.icon)), |row| PickArt::Image(row.cover_art_id));
+                rows.push(pxui::PickRow::new(&item.label).detail(&item.hint).heading(heading).art(art));
             }
-            let mut field = |ui: &mut Ui| {
-                if let Some(value) = ui
-                    .text_field("palette-input", state.command_query.as_str(), &PALETTE_FIELD)
-                    .changed
-                {
-                    *intent = Some(
-                        Query::new(value).map_or(Intent::CommandTooLong, Intent::CommandQuery),
-                    );
-                }
-            };
-            if let Some(theme) = player.command_theme {
-                ui.themed(theme, &mut field);
-            } else {
-                field(ui);
-            }
-            rule(ui, "input-divider", false);
-            if ui.key_pressed(pxui::KeyCode::Enter, pxui::Mods::ANY)
-                && (intent.is_none() || matches!(intent, Some(Intent::CommandSelect(_))))
-                && let Some(item) = items.get(selected)
-            {
-                *intent = Some(Intent::ActivateCommand(item.key));
-            }
-            let rows = SectionList::new(items.len().max(1)).row_h(44.0).measured();
-            let list = ui.section_list("results", &rows, &|i| items.get(i).map_or(0, |item| item.key as i64), &mut |ui, part, _| {
-                let SectionPart::Row(index) = part else { return };
-                let Some(item) = items.get(index) else {
-                    ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, TEXT_14.grow().h_px(48.0).color(SECONDARY));
-                    return;
-                };
-                let row = ui.node(
-                    Key::Id(item.key as i64),
-                    Node::column().w(Size::Grow).h(Size::Fit),
-                );
-                ui.within(&row, &mut |ui| {
-                    if index == 0 || items[index - 1].group != item.group {
-                        ui.id("group", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(12.0, 10.0, 12.0, 4.0)),
-                            |ui| {
-                                ui.label(item.group, FOOTNOTE.grow());
-                            },
-                        ); });
-                    }
-                    result_row(ui, player, catalog, item, index == selected, intent);
-                });
+        });
+        // a changed query hides the rows it was typed over: their pick never activates
+        if r.query != state.command_query.as_str() {
+            *intent = Some(Query::new(r.query).map_or(Intent::CommandTooLong, Intent::CommandQuery));
+        } else if let Pick::Pick(index) = r.pick
+            && let Some(item) = usize::try_from(index).ok().and_then(|index| items.get(index))
+        {
+            *intent = Some(Intent::ActivateCommand(item.key));
+        } else if r.pick == Pick::Cancel {
+            *intent = Some(Intent::CloseCommands);
+        }
+        if items.is_empty() {
+            // over the empty results (60 high under the 59-point field and its hairline), where the first row would be
+            let status = ui.node("status", Node::column().w(Size::Grow).h_px(48.0).at(0.0, 66.0).pad_x(6.0));
+            ui.within(&status, &mut |ui| {
+                ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, PALETTE_STATUS);
             });
-            let list = list.handle;
-            ui.set_node_layout(
-                &list,
-                &Node::column().w(Size::Grow).h(Size::Fit).pad(6.0).min_h(60.0).max_h(result_limit),
-            );
-            let prior_selection = ui.state(&list, -1);
-            if !items.is_empty() && prior_selection != selected as i64 {
-                ui.reveal(&list, selected);
-                ui.set_state(&list, selected as i64);
-            } else if items.is_empty() {
-                ui.set_state(&list, -1);
-            }
-        }).open;
+        }
+    }).open;
     if !open && intent.is_none() {
         *intent = Some(Intent::CloseCommands);
     }
-}
-
-fn result_row(
-    ui: &mut Ui,
-    player: &PlayerView<'_>,
-    catalog: &Catalog,
-    item: &crate::commands::Item,
-    selected: bool,
-    intent: &mut Option<Intent>,
-) {
-    let row = ui.node(
-        "item",
-        Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE).look(if selected { SELECTED_FILL } else { Look::NONE }),
-    );
-    ui.set_role(
-        &row,
-        Role::Button,
-        pxui::A11yStates::ENABLED.with(if selected {
-                pxui::A11yStates::SELECTED
-            } else { pxui::A11yStates::NONE }),
-    );
-    ui.a11y_name(&row, &item.label);
-    if ui.signal(&row).clicked
-        && (intent.is_none() || matches!(intent, Some(Intent::CommandSelect(_))))
-    {
-        *intent = Some(Intent::ActivateCommand(item.key));
-    }
-    ui.within(&row, &mut |ui| {
-        if let Some(index) = item.artwork.filter(|i| *i < catalog.len()) {
-            let art = container(
-                ui,
-                "artwork",
-                Axis::Column,
-                Size::Px(28.0),
-                Size::Px(28.0),
-                &PANEL_FILL,
-            );
-            paint_artwork(ui, &art, Some(catalog.row(index)), 28.0, player.artwork);
-        } else {
-            let icon = container(
-                ui,
-                "icon",
-                Axis::Column,
-                Size::Px(16.0),
-                Size::Px(28.0),
-                &Look::NONE,
-            );
-            let kind = item.icon;
-            ui.canvas(&icon, move |paint, rect| {
-                let rect = Rect {
-                    y: rect.y + (rect.h - 16.0) * 0.5,
-                    h: 16.0,
-                    ..rect
-                };
-                type Line = ((f32, f32), (f32, f32));
-                let lines: &[Line] = match kind {
-                    crate::commands::Icon::Chevron => {
-                        &[((5.0, 3.0), (10.0, 8.0)), ((10.0, 8.0), (5.0, 13.0))]
-                    }
-                    crate::commands::Icon::Queue | crate::commands::Icon::Rows => &[
-                        ((2.0, 4.0), (14.0, 4.0)),
-                        ((2.0, 8.0), (14.0, 8.0)),
-                        ((2.0, 12.0), (11.0, 12.0)),
-                    ],
-                    crate::commands::Icon::Folder => &[
-                        ((1.0, 4.0), (6.0, 4.0)),
-                        ((6.0, 4.0), (8.0, 6.0)),
-                        ((8.0, 6.0), (15.0, 6.0)),
-                        ((15.0, 6.0), (15.0, 13.0)),
-                        ((15.0, 13.0), (1.0, 13.0)),
-                        ((1.0, 13.0), (1.0, 4.0)),
-                    ],
-                    crate::commands::Icon::Person => &[
-                        ((3.0, 14.0), (4.0, 10.0)),
-                        ((4.0, 10.0), (12.0, 10.0)),
-                        ((12.0, 10.0), (13.0, 14.0)),
-                    ],
-                };
-                for &(a, b) in lines {
-                    let a = (rect.x + a.0, rect.y + a.1);
-                    let b = (rect.x + b.0, rect.y + b.1);
-                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(Rgba::token(INK)).width(1.1));
-                }
-                if kind == crate::commands::Icon::Person {
-                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(Rgba::token(INK))), None);
-                }
-            });
-        }
-        ui.label(&item.label, BODY_INK.grow());
-        if !item.hint.is_empty() {
-            ui.label(&item.hint, CAPTION);
-        }
-    });
 }
 
 pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
@@ -400,7 +342,6 @@ mod tests {
 
     fn frame(
         ui: &mut Ui,
-        theme: &pxui::ThemeHandle,
         catalog: &Catalog,
         state: &mut ShellState,
         time: &mut f64,
@@ -419,10 +360,7 @@ mod tests {
             &mut |ui| {
                 shell(
                     ui,
-                    &PlayerView {
-                        command_theme: Some(theme),
-                        ..Default::default()
-                    },
+                    &PlayerView::default(),
                     0.0,
                     catalog,
                     state,
@@ -583,6 +521,14 @@ mod tests {
         );
     }
 
+    /// The palette row the keyboard is on (pxui marks it selected).
+    fn cursor_row(ui: &Ui) -> String {
+        let node = ui.a11y_nodes().iter().find(|n| {
+            n.role == Role::ListItem as u32 && n.states & pxui::A11yStates::SELECTED.bits() != 0 && ui.a11y_name_of(n).starts_with("Result ")
+        });
+        node.map_or_else(String::new, |n| ui.a11y_name_of(n).to_owned())
+    }
+
     #[test]
     fn command_palette_keyboard_selection_focus_utf8_dismissal_and_warm_frames() {
         mem_sys::set_peer(pxui::library_counter);
@@ -592,9 +538,6 @@ mod tests {
         let mut root = pxui::ThemeHandle::parse(crate::LIGHT).unwrap();
         crate::apply_palette(&mut root, false);
         ui.set_theme(&root).unwrap();
-        let source = format!("{}\ntext_field.body = localwave-command", crate::LIGHT);
-        let mut theme = pxui::ThemeHandle::parse(&source).unwrap();
-        crate::apply_palette(&mut theme, false);
         let mut catalog = crate::tests::prepared(
             (0..10_000)
                 .map(|id| lw_core::Song {
@@ -621,14 +564,14 @@ mod tests {
             Event::key(Event::KEY_PRESSED, 'k' as u32),
             key(Event::KEY_RELEASED, input::Key::Meta),
         ];
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         assert_eq!(
-            frame(&mut ui, &theme, &catalog, &mut state, &mut time, &open),
+            frame(&mut ui, &catalog, &mut state, &mut time, &open),
             Some(Intent::ShowCommands)
         );
         for _ in 0..4 {
             assert_eq!(
-                frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]),
+                frame(&mut ui, &catalog, &mut state, &mut time, &[]),
                 None
             );
         }
@@ -645,7 +588,7 @@ mod tests {
             })
             .unwrap();
         assert_eq!(field.rect.h, 59.0);
-        let dialog = ui
+                let dialog = ui
             .a11y_nodes()
             .iter()
             .find(|n| n.role == Role::Dialog as u32 && ui.a11y_name_of(n) == "Search and commands")
@@ -656,7 +599,6 @@ mod tests {
             for _ in 0..24 {
                 frame(
                     &mut ui,
-                    &theme,
                     &catalog,
                     &mut state,
                     &mut time,
@@ -664,17 +606,18 @@ mod tests {
                 );
             }
         }
-        assert_eq!(state.command_selected, 0, "down wraps");
+        // the wrap's reveal scrolls the list back to the top: the first row is built the frame after
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
+        assert_eq!(cursor_row(&ui), "Result 00", "down wraps");
         frame(
             &mut ui,
-            &theme,
             &catalog,
             &mut state,
             &mut time,
             &[key(Event::KEY_PRESSED, input::Key::ArrowUp)],
         );
-        assert_eq!(state.command_selected, 23, "up wraps");
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
+        assert_eq!(cursor_row(&ui), "Result 23", "up wraps");
         let selected = ui
             .a11y_nodes()
             .iter()
@@ -691,7 +634,6 @@ mod tests {
             mem_sys::local_reset();
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -707,7 +649,6 @@ mod tests {
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -722,7 +663,6 @@ mod tests {
             ),
             Some(Intent::CommandQuery(Query::new(unicode).unwrap()))
         );
-        assert_eq!(state.command_selected, 0);
         let suffix = " live";
         let edit_and_submit = [
             Event {
@@ -738,7 +678,6 @@ mod tests {
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -750,7 +689,6 @@ mod tests {
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -760,11 +698,12 @@ mod tests {
             "query changes must hide stale actions"
         );
         catalog.commands = Some(results(state.command_query, &actions));
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
+        assert_eq!(cursor_row(&ui), "Result 00", "a new query's results start at the first row");
         let expected = catalog.commands.as_ref().unwrap().items[0].key;
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -773,16 +712,15 @@ mod tests {
             Some(Intent::ActivateCommand(expected))
         );
         state.apply(Intent::CloseCommands);
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         state.apply(Intent::ShowCommands);
         for _ in 0..3 {
-            frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+            frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         }
         assert!(ui.text_input_focused(), "reopening restores input focus");
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -790,13 +728,12 @@ mod tests {
             ),
             Some(Intent::CloseCommands)
         );
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         state.apply(Intent::ShowCommands);
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         for kind in [Event::POINTER_PRESSED, Event::POINTER_RELEASED] {
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -809,11 +746,10 @@ mod tests {
         );
         assert_eq!(state.route, Route::Songs);
         state.apply(Intent::ShowCommands);
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,
@@ -821,13 +757,13 @@ mod tests {
             ),
             Some(Intent::CloseCommands)
         );
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         state.apply(Intent::ShowShortcuts);
         for _ in 0..6 {
-            frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+            frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         }
         mem_sys::local_reset();
-        frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         assert_eq!(mem_sys::local_alloc_count(), 0);
         assert!(
             ui.a11y_nodes()
@@ -837,7 +773,6 @@ mod tests {
         assert_eq!(
             frame(
                 &mut ui,
-                &theme,
                 &catalog,
                 &mut state,
                 &mut time,

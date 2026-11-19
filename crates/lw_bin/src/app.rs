@@ -360,7 +360,6 @@ impl App {
         frame.require_waveform(status.waveform.is_some())?;
         themes.apply(ui, &status.settings, *preferences);
         let mut view = lw_ui::PlayerView {
-            command_theme: themes.command_field(),
             files: Some(files.snapshot()),
             file_dragging: file_drop.hovered(),
             settings: status.settings,

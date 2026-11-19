@@ -534,7 +534,6 @@ impl App {
                 | lw_ui::Intent::CloseCommands
                 | lw_ui::Intent::CommandQuery(_)
                 | lw_ui::Intent::CommandTooLong
-                | lw_ui::Intent::CommandSelect(_)
                 | lw_ui::Intent::ShowShortcuts
                 | lw_ui::Intent::CloseShortcuts
                 | lw_ui::Intent::SortBy(_)

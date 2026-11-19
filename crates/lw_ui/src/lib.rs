@@ -189,7 +189,6 @@ pub enum Intent {
     CloseCommands,
     CommandQuery(browse::Query),
     CommandTooLong,
-    CommandSelect(usize),
     ActivateCommand(u64),
     PlayCommand(u64),
     ShowShortcuts,
@@ -316,7 +315,6 @@ pub enum ListDialog {
 /// Stable player data. Advance revision when these facts change; position is a separate shell input.
 #[derive(Default)]
 pub struct PlayerView<'a> {
-    pub command_theme: Option<&'a pxui::ThemeHandle>,
     pub files: Option<&'a files::Snapshot>,
     pub file_dragging: bool,
     pub settings: lw_core::preferences::Settings,

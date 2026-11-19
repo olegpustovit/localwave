@@ -1,8 +1,6 @@
 lw_ui/src/shell/albums.rs	R7	let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {	composite: album card (audit #12)
 lw_ui/src/shell/artists.rs	R7	let row = ui.pressable("artist", node, &PLAIN.look(&SONG_ROW_LOOKS), |ui, _| {	composite: artist row (audit #13)
 lw_ui/src/shell/byline.rs	R7	let node = ui.pressable(key, node, &PLAIN, |_, _| {});	D7: wrapped byline links at app-computed wrap positions (audit #44; no inline-link widget, G11 deferred past 2.0)
-lw_ui/src/shell/commands.rs	R2	Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE).look(if selected { SELECTED_FILL } else { Look::NONE }),
-lw_ui/src/shell/commands.rs	R6	Node::column().w(Size::Grow).h_px(59.0).inset(Edges::ZERO.l(2.0).r(2.0)).look(Look::NONE.text(ui.tokens().foreground).font(PALETTE_FONT)),	dynamic: the kit theme's field foreground, which no colour token names
 lw_ui/src/shell/compact.rs	R7	let card = ui.pressable("group", node, &PLAIN, |ui, _| {	composite: compact group card (audit #23)
 lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {	composite: mini player open (audit #22)
 lw_ui/src/shell/compact.rs	R7	let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #25 expanded-player dismiss root -> sheet presentation (G6, U4)

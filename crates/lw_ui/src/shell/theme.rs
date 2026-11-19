@@ -257,7 +257,8 @@ pub(super) const SORT: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(30.0).nam
 /// Registers LocalWave's bodies once, outside frames and before its themes are parsed; the app themes' `KIND.body` lines select
 /// them and a style's `variant` picks the structure inside one.
 pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
-    ui.register_text_field_body("localwave-command", super::commands::field_body)?;
+    ui.register_picker_field_body("localwave-palette", super::commands::field_body)?;
+    ui.register_picker_body("localwave-palette", super::commands::row_body)?;
     ui.register_menu_row_body("localwave-menu", super::kit::menu_row_body)?;
     ui.register_toggle_body("localwave-toggle", super::settings::toggle_body)?;
     ui.register_dialog_body("localwave-sheet", super::files::sheet_body)?;

@@ -12,3 +12,5 @@ badge.body = localwave-badge
 progress.body = localwave-progress
 modal.body = localwave-modal
 inspector_section.body = localwave-disclosure
+picker.body = localwave-palette
+picker_field.body = localwave-palette

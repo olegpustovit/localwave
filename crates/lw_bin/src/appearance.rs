@@ -3,7 +3,7 @@ use lw_core::preferences::{Appearance, Settings, Signal};
 use pxui::{ThemeHandle, Ui};
 use pxui_sdl::PreferencesSnapshot as Snapshot;
 
-fn prepare_theme_pair(source: &str, accent: &str, dark: bool) -> Result<(ThemeHandle, ThemeHandle), pxui::Error> {
+fn prepare_theme(source: &str, accent: &str, dark: bool) -> Result<ThemeHandle, pxui::Error> {
     let mut text = String::with_capacity(source.len() + 80);
     // Deriving looks from the selected accent keeps the source's tokens and body names.
     for line in source.lines() {
@@ -16,15 +16,12 @@ fn prepare_theme_pair(source: &str, accent: &str, dark: bool) -> Result<(ThemeHa
     text.push_str("tokens.accent = ");
     text.push_str(accent);
     let mut root = ThemeHandle::parse(&text)?;
-    text.push_str("\ntext_field.body = localwave-command");
-    let mut field = ThemeHandle::parse(&text)?;
     lw_ui::apply_palette(&mut root, dark);
-    lw_ui::apply_palette(&mut field, dark);
-    Ok((root, field))
+    Ok(root)
 }
 
 pub struct Themes {
-    themes: [[(ThemeHandle, ThemeHandle); 4]; 2],
+    themes: [[ThemeHandle; 4]; 2],
     selected: Option<(bool, Signal)>,
 }
 impl Themes {
@@ -33,16 +30,16 @@ impl Themes {
         Ok(Self {
             themes: [
                 [
-                    prepare_theme_pair(lw_ui::LIGHT, "#2340FF", false)?,
-                    prepare_theme_pair(lw_ui::LIGHT, "#E3241B", false)?,
-                    prepare_theme_pair(lw_ui::LIGHT, "#00A86B", false)?,
-                    prepare_theme_pair(lw_ui::LIGHT, "#111111", false)?,
+                    prepare_theme(lw_ui::LIGHT, "#2340FF", false)?,
+                    prepare_theme(lw_ui::LIGHT, "#E3241B", false)?,
+                    prepare_theme(lw_ui::LIGHT, "#00A86B", false)?,
+                    prepare_theme(lw_ui::LIGHT, "#111111", false)?,
                 ],
                 [
-                    prepare_theme_pair(lw_ui::DARK, "#6F7DFF", true)?,
-                    prepare_theme_pair(lw_ui::DARK, "#E3241B", true)?,
-                    prepare_theme_pair(lw_ui::DARK, "#00A86B", true)?,
-                    prepare_theme_pair(lw_ui::DARK, "#EDEDED", true)?,
+                    prepare_theme(lw_ui::DARK, "#6F7DFF", true)?,
+                    prepare_theme(lw_ui::DARK, "#E3241B", true)?,
+                    prepare_theme(lw_ui::DARK, "#00A86B", true)?,
+                    prepare_theme(lw_ui::DARK, "#EDEDED", true)?,
                 ],
             ],
             selected: None,
@@ -55,14 +52,10 @@ impl Themes {
             Appearance::Dark => true,
         };
         if self.selected != Some((dark, settings.signal)) {
-            ui.set_theme(&self.themes[usize::from(dark)][settings.signal as usize].0)
+            ui.set_theme(&self.themes[usize::from(dark)][settings.signal as usize])
                 .unwrap_or_else(|error| panic!("LocalWave theme ({error}): {}", ui.last_error()));
             self.selected = Some((dark, settings.signal));
         }
-    }
-    pub fn command_field(&self) -> Option<&ThemeHandle> {
-        self.selected
-            .map(|(dark, signal)| &self.themes[usize::from(dark)][signal as usize].1)
     }
 }
 

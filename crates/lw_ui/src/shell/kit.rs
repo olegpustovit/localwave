@@ -79,7 +79,7 @@ pub(super) fn paint_artwork(
 }
 
 /// Cover art fills its square, cropped, untinted.
-const COVER_ART: pxui::ImageStyle = pxui::ImageStyle::DEFAULT.fit(Fit::Cover);
+pub(super) const COVER_ART: pxui::ImageStyle = pxui::ImageStyle::DEFAULT.fit(Fit::Cover);
 
 #[derive(Clone, Copy)]
 pub(super) enum Icon {

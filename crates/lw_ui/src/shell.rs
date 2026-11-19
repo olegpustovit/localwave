@@ -107,7 +107,6 @@ pub struct ShellState {
     remove_source: Option<crate::files::Target>,
     commands_visible: bool,
     command_query: Query,
-    command_selected: usize,
     command_too_long: bool,
     shortcuts_visible: bool,
 }
@@ -172,7 +171,6 @@ impl Default for ShellState {
             remove_source: None,
             commands_visible: false,
             command_query: Query::default(),
-            command_selected: 0,
             command_too_long: false,
             shortcuts_visible: false,
         }
@@ -340,10 +338,6 @@ impl ShellState {
             _ => false,
         };
         if !same_commands {
-            self.command_selected = self.command_selected.min(
-                self.command_results(next)
-                    .map_or(0, |r| r.items.len().saturating_sub(1)),
-            );
             self.revision = self.revision.wrapping_add(1);
         }
         if previous.same_page(next) {
@@ -437,7 +431,6 @@ impl ShellState {
             Intent::ShowCommands => {
                 self.commands_visible = true;
                 self.command_query = Query::default();
-                self.command_selected = 0;
                 self.command_too_long = false;
                 self.shortcuts_visible = false;
                 self.queue_visible = false;
@@ -449,11 +442,9 @@ impl ShellState {
             Intent::CloseCommands => self.commands_visible = false,
             Intent::CommandQuery(query) => {
                 self.command_query = query;
-                self.command_selected = 0;
                 self.command_too_long = false;
             }
             Intent::CommandTooLong => self.command_too_long = true,
-            Intent::CommandSelect(index) => self.command_selected = index,
             Intent::ShowShortcuts => {
                 self.commands_visible = false;
                 self.shortcuts_visible = true;
