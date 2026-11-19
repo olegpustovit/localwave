@@ -73,7 +73,8 @@ pub(super) fn draw(
             let link = index != 2;
             let key = ["artist", "space-one", "separator", "space-two", "album"][index];
             let node = Node::column().w_px(rect.w).h_px(rect.h).role(if link { Role::Button } else { Role::Label }).at(rect.x, rect.y).inset(Edges::ZERO.t(if link { 2.0 } else { 0.0 })).look(SECONDARY_TEXT);
-            // Only the artist and album are links; the separator is a plain label.
+            // Only the artist and album are links; the separator is a plain label. D7: pxui has no inline link in wrapped text
+            // (G11, deferred past 2.0), so each link is a pressable at its wrapped position (allowlisted in api_conformance).
             let (handle, clicked) = if link {
                 let node = ui.pressable(key, node, &PLAIN, |_, _| {});
                 (node.handle, node.clicked)
