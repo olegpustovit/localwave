@@ -4185,6 +4185,7 @@ pxui_types::ffi::PxuiSelectionListDesc impl Clone
 pxui_types::ffi::PxuiSelectionListDesc impl Copy
 pxui_types::ffi::PxuiSelectionListDesc struct
 pxui_types::ffi::PxuiSelectionListDesc::anchor field usize
+pxui_types::ffi::PxuiSelectionListDesc::bare field u8
 pxui_types::ffi::PxuiSelectionListDesc::count field usize
 pxui_types::ffi::PxuiSelectionListDesc::drop_look field PxuiLookDesc
 pxui_types::ffi::PxuiSelectionListDesc::fit field u8
@@ -4196,7 +4197,6 @@ pxui_types::ffi::PxuiSelectionListDesc::multi field u8
 pxui_types::ffi::PxuiSelectionListDesc::open_on_click field u8
 pxui_types::ffi::PxuiSelectionListDesc::overlay_scrollbar field u8
 pxui_types::ffi::PxuiSelectionListDesc::reorder field u8
-pxui_types::ffi::PxuiSelectionListDesc::reserved field u8
 pxui_types::ffi::PxuiSelectionListDesc::row_height field f32
 pxui_types::ffi::PxuiSelectionListDesc::rows field PxuiU8MutSpan
 pxui_types::ffi::PxuiSelectionListDesc::size field u32
@@ -6167,6 +6167,8 @@ pxui_types::ui::SelectionList impl PartialEq
 pxui_types::ui::SelectionList impl StructuralPartialEq
 pxui_types::ui::SelectionList struct
 pxui_types::ui::SelectionList::DEFAULT const SelectionList
+pxui_types::ui::SelectionList::bare field bool
+pxui_types::ui::SelectionList::bare fn const (self) -> SelectionList
 pxui_types::ui::SelectionList::drop_look field Option<Look>
 pxui_types::ui::SelectionList::drop_look fn const (self, look: Look) -> SelectionList
 pxui_types::ui::SelectionList::fit field bool
