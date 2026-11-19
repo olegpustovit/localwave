@@ -171,6 +171,14 @@ bodies reference. Thin margins: static Overlays (about 27 instructions under 1.0
    `make check`, `[U2b] Status` commit, delete the `u2b` branches).
 2. U2c: delete the 1.x twins accumulated in U1b–U2b (D28), before U3.
 
+### CP1 actions (from the U2b review)
+
+- (a) Make the abi_bench pages' call shapes deterministic (static Overlays sits about 27 instructions under 1.011, and whether the
+  gallery crate inlines a sixth `button::<&str>` call swings it by about 180). No limit change.
+- (b) Measure the per-row `drop_target`/drop-look cost in the U4a.5 queue workload; the gallery Lists page does not exercise it.
+- (c) Split the dynamic abi_bench target (start/Author vs the pages): the run takes about 59 s of the runner's 60 s cap. Never raise the cap.
+- (d) 2.0 cut: the owner decides whether `PxuiUi.theme` (the handle's public first field) is frozen ABI.
+
 ## Found (separate fixes later)
 
 - `pxui_core/src/kit_ext.rs:565` `inspector_header_body` keys its name field with `format!` every build (and :613, :877 `inspector_bar`, :1004 `head_button`): warm inspector headers allocate.

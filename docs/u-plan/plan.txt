@@ -256,6 +256,7 @@ D27 abi_bench carried to CP1 (owner, 18 Nov) U1c.5 recovered Author and every bo
 
 D28 No 1.x ABI compatibility (owner, 18 Nov). Before the 2.0 cut, C exports and records change in place and superseded exports are deleted in the step that supersedes them; no parallel exports, legacy bodies or old-caller tests. abi-snapshot stays as a change detector (minor bump, regenerated manifests). The 1.x frozen fixtures and the 1.57 old-consumer check are retired; the growth rule and frozen/compat checks return at 2.0 against re-baselined manifests so 2.x stays stable and append-only. Twins accumulated in U1b–U2b are deleted in U2c, before U3. U2b.0, U2c, U5.
 D29 Text baseline (19 Nov) The U2b.8 target |Δ| ≤ 0.5 pt vs CoreText is replaced by SwiftUI parity: whole-point baselines, never below and < 1 pt above CoreText's exact position, as SwiftUI renders; Pragmasevka typo vs hhea descent noted. U2b.8
+D30 abi_bench closure (19 Nov) U2b.10 passes every page in both modes with unchanged limits. Harness changes made during the chase, accepted by the orchestrator as equal work on both sides: the direct side calls view_of, and the wrapper keeps its FrameIn across frames as the direct side keeps its Frame. Bodies references: Kit re-measured at U2b.1 (554,596), Lists measured at its introduction (343,681). CP1 actions in CHECK.md. U2b.10
 
 5. The API ledger: one public UI
 
