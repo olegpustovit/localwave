@@ -117,7 +117,7 @@ pub(super) fn view(
                         |ui| {
                             if picking {
                                 let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
-                                list::selection_header(ui, state.marked.len(), rows, rows, intent);
+                                list::selection_header(ui, state.marked_count(), rows, rows, intent);
                             } else if library {
                                 ui.label("Library", PAGE_TITLE);
                                 // Swift's header gear; Settings stays one tap away.
@@ -656,7 +656,7 @@ mod tests {
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Album(0)));
-        state.apply(Intent::SelectRow(2));
+        state.apply(Intent::Select(crate::Selection::Toggle(2)));
         let player = PlayerView {
             current_id: Some(0),
             title: "Track 00000",
@@ -789,7 +789,7 @@ mod tests {
             let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
             assert!(matches!(intent, Some(Intent::Select(Selection::Toggle(_)))), "{intent:?}");
             state.apply(intent.unwrap());
-            assert_eq!(state.marked.len(), count);
+            assert_eq!(state.marked_count(), count);
             for _ in 0..2 {
                 time += 1.0;
                 frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
@@ -808,7 +808,7 @@ mod tests {
         assert!(names(&ui).iter().any(|name| name == "Deselect all"));
         // The controller ends the mode after a bar action.
         state.finish_selecting();
-        assert!(!state.selecting() && state.marked.is_empty());
+        assert!(!state.selecting() && (state.marked_count() == 0));
         state.apply(Intent::SelectMode(true));
         state.apply(Intent::Select(Selection::Toggle(0)));
         for tick in 0..120 {
@@ -1008,7 +1008,7 @@ mod tests {
                 }
             }
             assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)), "{page}");
-            assert!(!state.selecting() && state.marked.is_empty(), "{page}");
+            assert!(!state.selecting() && (state.marked_count() == 0), "{page}");
         }
     }
 
@@ -1543,7 +1543,7 @@ mod tests {
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Find));
         state.apply(Intent::Search(Query::new("Track").unwrap()));
-        state.apply(Intent::SelectRow(0));
+        state.apply(Intent::Select(crate::Selection::Toggle(0)));
         catalog.project(state.request(&catalog).unwrap(), (0..20).collect());
         let player = PlayerView::default();
         for width in [320.0, 390.0, 1000.0] {

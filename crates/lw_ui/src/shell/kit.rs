@@ -108,6 +108,8 @@ pub(super) enum Icon {
     Heart,
     /// A favourite: a filled heart.
     HeartFilled,
+    /// A song row's actions: three small dots, Swift's 2.8-point ellipsis drawn at two thirds.
+    RowMore,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -204,6 +206,11 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             let one = [pxui::TextSpan { start: 0, end: 1, ..Default::default() }.color(color)];
             let _ = paint.text_spans(pxui::Point::new(x + 19.0, y + 15.0), REPEAT_ONE, 8.0, "1", &one);
         }
+        Icon::RowMore => {
+            for dx in [5.5, 12.0, 18.5] {
+                paint.circle((x + 2.0 + dx * (2.0 / 3.0), y + 10.0), 1.4 * (2.0 / 3.0), Some(Fill::new(color)), None);
+            }
+        }
         Icon::Down => {
             paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), Stroke::new(color));
             paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), Stroke::new(color));
@@ -211,10 +218,10 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
     }
 }
 /// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
-const ICONS: [Icon; 20] = [
+const ICONS: [Icon; 21] = [
     Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
     Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check, Icon::Offline, Icon::Kept,
-    Icon::RepeatOne, Icon::Heart, Icon::HeartFilled,
+    Icon::RepeatOne, Icon::Heart, Icon::HeartFilled, Icon::RowMore,
 ];
 /// The repeat-one mark: Geist Mono 9 in a 12-point line.
 const REPEAT_ONE: Label = MONO_9.w_px(8.0).h_px(12.0);

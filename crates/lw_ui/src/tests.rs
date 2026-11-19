@@ -369,7 +369,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
     let mut ui = test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut state = ShellState::default();
-    state.apply(Intent::SelectRow(0));
+    state.apply(Intent::Select(crate::Selection::Toggle(0)));
     state.apply(Intent::ShowQueue);
     let mut player = PlayerView {
         initialized: true,
@@ -673,7 +673,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         false,
     )));
     let mut state = ShellState::default();
-    state.apply(Intent::SelectRow(0));
+    state.apply(Intent::Select(crate::Selection::Toggle(0)));
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let mut player = PlayerView {
@@ -1292,7 +1292,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
             .collect(),
     );
     let mut state = ShellState::default();
-    state.apply(Intent::SelectRow(10));
+    state.apply(Intent::Select(crate::Selection::Toggle(10)));
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
     let player = PlayerView::default();
@@ -1317,10 +1317,10 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
         shell(ui, &player, 0.0, &catalog, &state, &mut intent)
     })
     .unwrap();
-    assert_eq!(intent, Some(Intent::Sort(Sort::Duration)));
+    assert_eq!(intent, Some(Intent::SortBy(Some((Sort::Duration, true)))));
     state.apply(intent.take().unwrap());
     assert!(state.ascending);
-    state.apply(Intent::Sort(Sort::Duration));
+    state.apply(Intent::SortBy(Some((Sort::Duration, false))));
     assert!(!state.ascending);
     let mut sorted = catalog.clone();
     sorted.project(state.request(&catalog).unwrap(), (0..30).rev().collect());
@@ -1350,10 +1350,11 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
     )
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::PlayRow(19)));
+    // a third click on the sorted heading returns to the original order ("#" is a plain heading)
     let reset = ui
         .a11y_nodes()
         .iter()
-        .find(|node| ui.a11y_name_of(node) == "Sort by original order")
+        .find(|node| ui.a11y_name_of(node) == "Sort by Time, descending")
         .unwrap()
         .id;
     ui.inject_a11y(&[pxui::A11yAction {
@@ -1365,7 +1366,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
         shell(ui, &player, 0.0, &sorted, &state, &mut intent)
     })
     .unwrap();
-    assert_eq!(intent, Some(Intent::Sort(Sort::Original)));
+    assert_eq!(intent, Some(Intent::SortBy(None)));
     assert_eq!(sorted.collection(Route::Songs).unwrap().ids.len(), 30);
 }
 
@@ -2012,7 +2013,7 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
         ..pxui::A11yAction::default()
     }]);
     build(&mut ui, &state, &frame, &mut intent);
-    assert_eq!(intent, Some(Intent::SelectRow(10)));
+    assert_eq!(intent, Some(Intent::Selected(10)));
     state.apply(intent.take().unwrap());
     build(&mut ui, &state, &frame, &mut intent);
     let enter = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Enter.code());
@@ -2278,7 +2279,9 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
     for (mods, key, delta, extend) in [(&[][..], ArrowUp, -1, false), (&[Shift][..], ArrowDown, 1, true)] {
         assert_eq!(press(&state, &player, mods, key.code(), false, false), Some(Intent::Select(Selection::Move { delta, extend, len: 1 })));
     }
-    state.apply(Intent::SelectRow(0));
+    // row 0 alone (the Select All above marked it already)
+    state.apply(Intent::Select(Selection::Clear));
+    state.apply(Intent::Select(crate::Selection::Toggle(0)));
     assert_eq!(press(&state, &player, &[Alt], Enter.code(), false, false), Some(Intent::PlayRow(0)));
     assert_eq!(press(&state, &player, &[], Escape.code(), false, true), None);
     assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Select(Selection::Clear)));
@@ -2427,14 +2430,16 @@ fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
         press(&mut ui, &state, &[], Enter.code()),
         Some(Intent::PlaySelection)
     );
-    state.apply(Intent::SelectRow(1));
+    // row 1 alone
+    state.apply(Intent::Select(Selection::Clear));
+    state.apply(Intent::Select(crate::Selection::Toggle(1)));
     assert_eq!(
         press(&mut ui, &state, &[], Enter.code()),
         Some(Intent::PlayRow(1))
     );
     // Delete removes only from a list route.
     state.apply(Intent::Navigate(Route::Songs));
-    state.apply(Intent::SelectRow(1));
+    state.apply(Intent::Select(crate::Selection::Toggle(1)));
     assert_eq!(press(&mut ui, &state, &[], Backspace.code()), None);
     assert_eq!(
         press(&mut ui, &state, &[Meta, Shift], new_list),

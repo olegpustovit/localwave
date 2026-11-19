@@ -196,6 +196,9 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 - (a) Make the abi_bench pages' call shapes deterministic (static Overlays sits about 27 instructions under 1.011, and whether the
   gallery crate inlines a sixth `button::<&str>` call swings it by about 180). No limit change.
 - (b) Measure the per-row `drop_target`/drop-look cost in the U4a.5 queue workload; the gallery Lists page does not exercise it.
+  Done at U4a.6 (release COUNTING bundle, 76e50e5 / pxui 24f2965f, load 3.3-3.9): full-queue-playlist-editor build CPU
+  p50/p99 812/916 µs with reorder on vs 846/997 with it off (a temporary patch); the per-row reorder cost is below run-to-run
+  noise (under ~2 µs a row, ~15 rows in view). Accepted by the orchestrator.
 - (c) Split the dynamic abi_bench target (start/Author vs the pages): the run takes about 59 s of the runner's 60 s cap. Never raise the cap.
 - (d) 2.0 cut: the owner decides whether `PxuiUi.theme` (the handle's public first field) is frozen ABI.
 
@@ -204,11 +207,26 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 - U4a.5: in `pxui_core`, a view building itself clears any rebuild mark made during that build (`r.dirty = r.escapes`); only the
   list's late move (`build_again` + escape) is fixed. Other `mark_view` calls made during a view's own build have the same shape.
 - U4a.5: lw_bin `production_controller_restores…` flakes under parallel load (green alone).
+- U4a.6: on this machine today (19 Nov, load 3-4) the HEAD songs workloads already exceed the 1.5 ms build CPU p99 gate
+  (back to back at 7e6374e: long-scroll 1545-1941, fling 1398-1574, scroll-jump 2060, reverse-scroll 1726 µs; U0.8 measured
+  1253/978/1312/1043). The gate is defined on the M1 reference machine and is re-checked at CP1; U4a only must not regress.
 - U4a.5 ruling check: pxui cancels a reorder drag on Escape (`a_drag_in_a_kept_view_survives_scrolling_and_cancels`), but a plain held
   press is not cancelled by Escape (`pxui_core/src/ui_core.rs:3081`: only PointerCancelled and FocusLost end the capture), so while
   any press is held LocalWave's Escape (spent on `ui.captured()`, shell.rs) does nothing and the press still clicks on release.
+  Ruling (U4a.6): pxui keeps macOS button semantics for a plain press; LocalWave narrows its rule to "Escape is spent only while a
+  reorder drag is active". The ledger has no per-frame "a list row is lifted" query (a grip's `Signal::held` is read only when its
+  row builds, and the Up Next rows build inside retained views), so this is GAP U2b.4.12 (`Ui::reordering() -> bool`, as
+  `Ui::captured`); until it lands shell.rs keeps `ui.captured()`.
 - U4a.6: `Ui::text_input_focused()` is true for any keyboard focus (`pxui_core/src/ui_core.rs:3172`, `focus != 0`), not only a text
-  editor; with no `ListResponse::focused` an app cannot tell its focused list from typing (the U4a.6 GAP).
+  editor; with no `ListResponse::focused` an app cannot tell its focused list from typing (the U4a.6 GAP, closed by U2b.4.11).
+- U4a.6 (U2b.4.13): a list's rows past its viewport (overscan, culled) rebuild every frame even when kept: a culled box's views lose
+  their run (`pxui_core` `defer_culled` / `!shown` -> `valid = false`), so the next build rebuilds them; HEAD's song rows did the same.
+  Keeping a culled view's build until it shows would save about 8 row builds a warm scroll frame. Kept rows of a reorderable list
+  rebuild every frame (the row's `Part::HANDLE` registers each frame in `rows_move_row`).
+- U4a.6: a view with its own table entry stores its instances in view-local coordinates, so the fingerprint's geom/full hashes
+  change for content moved into one (the song heading, kept rows) without a pixel change; gcmp cannot tell the two apart.
+- U4a.6: the name `Ui::text_input_focused` means "any keyboard focus", which is misleading (a focused list or button counts); its
+  semantics stay (pxui_core tests rely on control focus taking keys from the host). For the 2.0 API review (U5/U6).
 - U4a.1: `selection_list` names its List node from the key text, so an id key gives a meaningless lowercase name ("library");
   LocalWave names its groups with `ui.a11y_name(&response.handle, ..)`. U6 decides whether the default name should be empty.
 - U4a.1: `ValueField::bare(on: bool)` takes a bool where `SelectionList::bare()` (U2b.4.3) and the other style flags are no-arg

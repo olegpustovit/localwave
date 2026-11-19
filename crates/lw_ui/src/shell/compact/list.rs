@@ -51,7 +51,7 @@ pub(super) fn songs(
     }
     // Swift's compact Songs is always title-sorted; the worker projects it.
     if state.route == Route::Songs && state.sort == Sort::Original && intent.is_none() {
-        *intent = Some(Intent::Sort(Sort::Title));
+        *intent = Some(Intent::SortBy(Some((Sort::Title, true))));
     }
     let Some(collection) = state.collection(catalog) else {
         return;
@@ -665,7 +665,7 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
         });
         return;
     }
-    selection_header(ui, state.marked.len(), collection.rows.len(), collection.rows.len(), intent);
+    selection_header(ui, state.marked_count(), collection.rows.len(), collection.rows.len(), intent);
 }
 
 /// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
@@ -763,7 +763,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
 
 fn selection_bar(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     let Cx { collection, state, .. } = *cx;
-    let first = state.marked.first().and_then(|&index| collection.ids.get(index).map(|&id| (index, id)));
+    let first = state.first_marked().and_then(|index| collection.ids.get(index).map(|&id| (index, id)));
     let remove = cx.list;
     if let Some((key, rect)) = deck(ui, first.is_some(), remove.is_some()) {
         let (index, id) = first.unwrap_or_default();

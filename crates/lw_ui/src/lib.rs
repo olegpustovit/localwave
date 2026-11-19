@@ -107,7 +107,8 @@ pub enum Intent {
     Next,
     Previous,
     Navigate(catalog::Route),
-    SelectRow(usize),
+    /// The songs list changed its selection (a click, Command or Shift click, a selection key); row `usize` named the change.
+    Selected(usize),
     Select(Selection),
     /// Phone Select mode (rows show checkboxes, a bottom bar acts on the marks); false is Done.
     SelectMode(bool),
@@ -193,7 +194,8 @@ pub enum Intent {
     PlayCommand(u64),
     ShowShortcuts,
     CloseShortcuts,
-    Sort(browse::Sort),
+    /// Sort the songs by a key and direction (ascending when true); `None` is the original order.
+    SortBy(Option<(browse::Sort, bool)>),
     PlayQueue(u64),
     RemoveQueue(u64),
     MoveQueue {

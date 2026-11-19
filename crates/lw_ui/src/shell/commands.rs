@@ -517,7 +517,7 @@ mod tests {
         state.apply(Intent::Navigate(Route::Find));
         let background = Query::new("live flac").unwrap();
         state.apply(Intent::Search(background));
-        state.apply(Intent::Sort(Sort::Title));
+        state.apply(Intent::SortBy(Some((Sort::Title, true))));
         state.apply(Intent::ShowCommands);
         let query = Query::new(" café ").unwrap();
         state.apply(Intent::CommandQuery(query));

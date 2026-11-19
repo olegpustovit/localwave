@@ -247,8 +247,7 @@ pub(crate) fn prepare(
         shell_state.apply(Intent::Search(
             Query::new("Track m4a year:2019 unplayed").unwrap(),
         ));
-        shell_state.apply(Intent::Sort(Sort::Title));
-        shell_state.apply(Intent::Sort(Sort::Title));
+        shell_state.apply(Intent::SortBy(Some((Sort::Title, false))));
         let request = shell_state.request(player.catalog()).unwrap();
         player.browse(request).map_err(|error| error.to_string())?;
         let deadline = window.time() + 5.0;

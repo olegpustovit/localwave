@@ -155,7 +155,7 @@ impl App {
                     | lw_ui::Intent::ShowCommands
                     | lw_ui::Intent::CloseCommands
                     | lw_ui::Intent::CommandQuery(_)
-                    | lw_ui::Intent::Sort(_)
+                    | lw_ui::Intent::SortBy(_)
             ) {
                 browse = shell_state.request(player.catalog());
                 None
@@ -525,7 +525,7 @@ impl App {
                 | lw_ui::Intent::SongMenu(_, _, _, _)
                 | lw_ui::Intent::CloseSongMenu
                 | lw_ui::Intent::SongMenuLists
-                | lw_ui::Intent::SelectRow(_)
+                | lw_ui::Intent::Selected(_)
                 | lw_ui::Intent::Select(_)
                 | lw_ui::Intent::Search(_)
                 | lw_ui::Intent::SearchResults(_)
@@ -537,7 +537,7 @@ impl App {
                 | lw_ui::Intent::CommandSelect(_)
                 | lw_ui::Intent::ShowShortcuts
                 | lw_ui::Intent::CloseShortcuts
-                | lw_ui::Intent::Sort(_)
+                | lw_ui::Intent::SortBy(_)
                 | lw_ui::Intent::SortAlbums(_)
                 | lw_ui::Intent::TogglePanel
                 | lw_ui::Intent::TogglePlayer

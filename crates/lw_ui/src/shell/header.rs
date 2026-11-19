@@ -102,7 +102,7 @@ pub(super) fn compact_find(
         // Select mode swaps the whole heading for Swift's selection header.
         if state.selecting {
             let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
-            super::compact::list::selection_header(ui, state.marked.len(), rows, rows, intent);
+            super::compact::list::selection_header(ui, state.marked_count(), rows, rows, intent);
             return;
         }
         ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(16.0, 20.0, 16.0, 0.0)),

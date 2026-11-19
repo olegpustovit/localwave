@@ -139,11 +139,13 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
                         .a11y_nodes()
                         .iter()
                         .find(|node| {
-                            node.is_role(Role::Button) && ui.a11y_name_of(node) == "Sort by Title"
+                            node.is_role(Role::ColumnHeader) && ui.a11y_name_of(node) == "Sort by Title"
                         })
                         .unwrap();
+                    // the heading is its whole column (U4a.6: a table_head cell), its title 8 in and 10 down
                     assert!(
-                        (title.rect.x - 289.6).abs() < 0.01 && (title.rect.y - 115.6).abs() < 0.001
+                        (title.rect.x - 281.6).abs() < 0.01 && (title.rect.y - 105.6).abs() < 0.001,
+                        "{:?}", title.rect
                     );
                     assert!((time.rect.x - 1031.0).abs() < 0.001);
                 }
@@ -159,6 +161,14 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
     }
 }
 
+thread_local! { static TIME_HEADING: std::cell::Cell<Option<pxui::Handle>> = const { std::cell::Cell::new(None) }; }
+/// The heading body's Time label as it last built it (its position is pxui's layout of the body's structure).
+pub(super) fn time_heading_built(label: pxui::Handle) {
+    TIME_HEADING.with(|h| h.set(Some(label)));
+}
+
+/// `table_head.body = localwave-heading` (U4a.6): the trailing Time heading keeps Swift's pixel-rounded width and ends 8 points before
+/// its column's end, 10 points down, at every responsive width and both densities.
 #[test]
 fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
     let catalog = catalog(2);
@@ -169,26 +179,20 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
             399.0, 400.0, 519.0, 520.0, 679.0, 680.0, 888.0, 364.0, 364.1, 364.26, 364.3, 364.5,
         ] {
             let columns = table.columns(&catalog, width, None, Sort::Original, Route::Songs);
-            let mut root = None;
+            let mut state = pxui::TableState::new();
+            TIME_HEADING.with(|h| h.set(None));
             crate::testing::frame(
                 &mut ui,
                 &FrameIn::new(width, 100.0).scale(scale).reduced_motion(true),
                 &mut |ui| {
                     ui.id("component", |ui| { ui.column(Node::column().w_px(width).h(Size::Grow), |ui| {
-                        let layout = heading_layout(ui, &catalog, columns, None);
-                        root = Some(heading(ui, columns, None, layout, &mut None));
+                        let height = heading_height(ui, &catalog, columns, None);
+                        ui.table_head("song-columns", &heading_columns(columns), &mut state, &pxui::TableHead::DEFAULT.h_px(height));
                     }); });
                 },
             )
             .unwrap();
-            let mut buf = [0u8; 17];
-            let time = pxui::Key::Id(Column::Time as i64).label(&mut buf);
-            let button = ui
-                .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(root.unwrap().box_key, time)))
-                .unwrap();
-            let text = ui
-                .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(button.box_key, "time-label")))
-                .unwrap();
+            let text = TIME_HEADING.with(|h| h.get()).unwrap();
             let rect = ui.rect(&text);
             let native = if matches!(width, 400.0 | 520.0) {
                 if scale == 1.0 { 21.0 } else { 20.5 }
@@ -197,11 +201,12 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
             } else {
                 27.5
             };
+            let end = columns[..=Column::Time as usize].iter().sum::<f32>() - 8.0;
             assert!(
-                (rect.x - (width - 60.0 - native)).abs() < 0.001
+                (rect.x - (end - native)).abs() < 0.001
                     && (rect.w - native).abs() < 0.001
                     && (rect.y - 10.0).abs() < 0.001,
-                "native Time heading {width}/{scale}: {rect:?}"
+                "native Time heading {width}/{scale}: {rect:?} (ends at {end})"
             );
         }
     }
@@ -257,9 +262,10 @@ fn playback_changes_rebuild_only_affected_song_rows_and_keep_copy_cached() {
                 if changed_song { 2 } else { 1 },
                 "only old/new current rows, tick {tick}"
             );
+            // only the playing row keeps its text in a view of its own (U4a.6): a new song builds the new row's
             assert_eq!(
                 ui.rebuilt_named("song-copy"),
-                if changed_song { 2 } else { 0 },
+                if changed_song { 1 } else { 0 },
                 "play/pause keeps text, tick {tick}"
             );
             let indicator = ui
@@ -539,10 +545,11 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         let column = ui
             .a11y_nodes()
             .iter()
-            .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == "Sort by Title")
+            .find(|node| node.is_role(Role::ColumnHeader) && ui.a11y_name_of(node) == "Sort by Title")
             .unwrap();
         assert!((heading.rect.y - if delta > 0.0 { -102.0 } else { 28.0 }).abs() < 0.001);
-        assert!((column.rect.y - if delta > 0.0 { 10.0 } else { 115.6 }).abs() < 0.001);
+        // the column heading (U4a.6: the whole table_head cell, its title 10 down) pins at the top
+        assert!((column.rect.y - if delta > 0.0 { 0.0 } else { 105.6 }).abs() < 0.001, "{:?}", column.rect);
         assert_eq!(
             ui.output().repaint_at.is_finite(),
             delta < 0.0,
@@ -1483,14 +1490,17 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
         ),
         None
     );
-    assert_eq!(
-        run(
-            &mut ui,
-            &state,
-            &[pointer(input::wire::POINTER_MOVED, x, y1, 0)]
-        ),
-        None
-    );
+    // U4a.6: the grip is the list's handle; the lifted row follows the pointer and the rows it passes make room
+    for y in [(y0 + y1) / 2.0, y1] {
+        assert_eq!(
+            run(
+                &mut ui,
+                &state,
+                &[pointer(input::wire::POINTER_MOVED, x, y, 0)]
+            ),
+            None
+        );
+    }
     assert_eq!(run(&mut ui, &state, &[]), None);
     assert_eq!(
         run(
@@ -1500,7 +1510,20 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
         ),
         Some(Intent::MoveListRow { from: 0, to: 2 })
     );
-    state.apply(Intent::Sort(crate::browse::Sort::Title));
+    // Escape during a reorder drag is the drag's (pxui puts the row back, `Ui::reordering`), never the selection's; a plain held
+    // press keeps macOS button semantics, so Escape still clears the selection while it is held
+    let escape = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code());
+    state.apply(Intent::Select(crate::Selection::Toggle(1)));
+    for events in [[pointer(input::wire::POINTER_PRESSED, x, y0, 0)], [pointer(input::wire::POINTER_MOVED, x, y1, 0)], [escape]] {
+        assert_eq!(run(&mut ui, &state, &events), None, "a reorder drag spends Escape");
+    }
+    assert_eq!(run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, x, y1, 0)]), None, "a cancelled drag moves nothing");
+    let title = (from.x + 200.0, from.y + from.h / 2.0);
+    run(&mut ui, &state, &[pointer(input::wire::POINTER_PRESSED, title.0, title.1, 0)]);
+    assert_eq!(run(&mut ui, &state, &[escape]), Some(Intent::Select(crate::Selection::Clear)), "a held press leaves Escape to the selection");
+    run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, title.0, title.1, 0)]);
+    state.apply(Intent::Select(crate::Selection::Clear));
+    state.apply(Intent::SortBy(Some((crate::browse::Sort::Title, true))));
     for _ in 0..3 {
         run(&mut ui, &state, &[]);
     }
@@ -1605,34 +1628,33 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
          state: &mut ShellState,
          run: &mut dyn FnMut(&mut Ui, &mut ShellState, &[pxui::Event]) -> Option<Intent>,
          name: &str| {
-            let id = ui
+            // a pointer click (the list reads Command and Shift held at the press, as AppKit does)
+            let rect = ui
                 .a11y_nodes()
                 .iter()
                 .find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == name)
                 .unwrap()
-                .id;
-            ui.inject_a11y(&[pxui::A11yAction {
-                id,
-                action_code: 1,
-                ..Default::default()
-            }]);
-            run(ui, state, &[])
+                .rect;
+            let at = |kind| pxui::Event::pointer(kind, 0, (rect.x + rect.w / 2.0) as f64, (rect.y + rect.h / 2.0) as f64);
+            run(ui, state, &[at(input::wire::POINTER_MOVED)]);
+            run(ui, state, &[at(input::wire::POINTER_PRESSED)]);
+            run(ui, state, &[at(input::wire::POINTER_RELEASED)])
         };
     let ids = |state: &ShellState| state.selected_song_ids(&catalog).collect::<Vec<_>>();
     run(&mut ui, &mut state, &[]);
     run(&mut ui, &mut state, &[]);
 
-    // Plain click selects one row; only the old and new rows rebuild.
+    // Plain click selects one row; no row's content rebuilds (U4a.6: the row body draws the selection from the list's state).
     assert_eq!(
         click(&mut ui, &mut state, &mut run, "T4"),
-        Some(Intent::SelectRow(1))
+        Some(Intent::Selected(1))
     );
     assert_eq!(ids(&state), [4]);
     run(&mut ui, &mut state, &[]);
     assert_eq!(
         ui.rebuilt_named("song-visual"),
-        1,
-        "only the newly selected row"
+        0,
+        "a selection rebuilds no row content"
     );
     run(&mut ui, &mut state, &[]);
     assert_eq!(
@@ -1649,11 +1671,11 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     );
     assert_eq!(
         click(&mut ui, &mut state, &mut run, "T1"),
-        Some(Intent::Select(Selection::Toggle(4)))
+        Some(Intent::Selected(4))
     );
     assert_eq!(ids(&state), [4, 1]);
     run(&mut ui, &mut state, &[]);
-    assert_eq!(ui.rebuilt_named("song-visual"), 1);
+    assert_eq!(ui.rebuilt_named("song-visual"), 0);
     click(&mut ui, &mut state, &mut run, "T1");
     assert_eq!(ids(&state), [4]);
     run(
@@ -1700,9 +1722,10 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
         &mut state,
         &[key_event(input::wire::KEY_PRESSED, meta)],
     );
+    // the focused list selects every row itself (U4a.6), naming its keyboard row
     assert_eq!(
         tap(&mut ui, &mut state, &mut run, 'a' as u32),
-        Some(Intent::Select(Selection::All(6)))
+        Some(Intent::Selected(3))
     );
     run(
         &mut ui,
@@ -1716,6 +1739,11 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
     }
     assert_eq!(mem_sys::local_alloc_count(), 0);
     assert_eq!(ids(&state), [4, 3, 2, 1, 0]);
+    // the focused list keeps the app's list keys (`ListResponse::focused`): its Return plays the whole selection
+    assert_eq!(
+        tap(&mut ui, &mut state, &mut run, input::Key::Enter.code()),
+        Some(Intent::PlaySelection)
+    );
     assert_eq!(
         tap(&mut ui, &mut state, &mut run, input::Key::Escape.code()),
         Some(Intent::Select(Selection::Clear))
@@ -2290,7 +2318,7 @@ fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocati
     };
     run(&mut ui, &mut state, &[]);
     run(&mut ui, &mut state, &[]);
-    state.apply(Intent::SelectRow(0));
+    state.apply(Intent::Select(crate::Selection::Toggle(0)));
     let down = input::Key::ArrowDown.code();
     let mut tops = Vec::new();
     for row in 1..40 {

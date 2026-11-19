@@ -209,7 +209,7 @@ const PRESS: [pxui::theme::Curve; 2] = [crate::motion::spring(crate::motion::INS
 pub(super) mod variant {
     /// `localwave-button`: a full-width row (the sidebar's Search, "+ label" and shortcuts rows; source rows), laid out from its start.
     pub(in crate::shell) const ROW: u16 = 1;
-    /// `localwave-side-row`: a sidebar route or list row.
+    /// `localwave-row`: a sidebar route or list row.
     pub(in crate::shell) const SIDE_ROW: u16 = 2;
     /// `localwave-badge`: paper 11-point text on ink.
     pub(in crate::shell) const BADGE: u16 = 3;
@@ -227,6 +227,8 @@ pub(super) mod variant {
     pub(in crate::shell) const DESKTOP: u16 = 9;
     /// `localwave-search`: the phone Find field, 56 points, 26-point medium text, the 44-point clear glyph, an ink rule under it.
     pub(in crate::shell) const COMPACT: u16 = 10;
+    /// `localwave-row`: a desktop song row.
+    pub(in crate::shell) const SONG_ROW: u16 = 11;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -250,7 +252,8 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_toggle_body("localwave-toggle", super::settings::toggle_body)?;
     ui.register_dialog_body("localwave-sheet", super::files::sheet_body)?;
     ui.register_button_body("localwave-button", button_body)?;
-    ui.register_selection_list_body("localwave-side-row", side_row_body)?;
+    ui.register_selection_list_body("localwave-row", row_body)?;
+    ui.register_table_head_body("localwave-heading", super::songs::heading_body)?;
     ui.register_badge_body("localwave-badge", badge_body)?;
     ui.register_progress_body("localwave-progress", progress_body)?;
     ui.register_checkbox_body("localwave-chip", chip_body)?;
@@ -406,15 +409,20 @@ fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
     ui.label(c.text_of(&c.label), CHIP_LABEL.color(if on { PAPER } else { SECONDARY }).role(Role::Unknown));
 }
 
-/// LocalWave's selectable row (registered as `localwave-side-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
-/// panel fill while hovered or held, on the selected fill while selected or under a list's drop look; any other variant keeps the
-/// kit's row. The caller's cells follow.
-fn side_row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
+/// LocalWave's selectable row (registered as `localwave-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
+/// panel fill while hovered or held, on the selected fill while selected or under a list's drop look. `SONG_ROW`: a song row as tall as
+/// its cells (no inset; they place themselves), paper with the panel wash while hovered or held, on the selected fill while selected
+/// (a payload carried over it draws no line: the songs list takes no drops). Any other variant keeps the kit's row. The caller's cells
+/// follow.
+fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
+    let s = &c.state;
+    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0);
     if c.variant == variant::SIDE_ROW {
         ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));
-        let s = &c.state;
-        let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0);
         ui.style(&c.row, if s.checked != 0 || c.drop == 3 { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS }, state);
+    } else if c.variant == variant::SONG_ROW {
+        ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
+        ui.style(&c.row, if s.checked != 0 { &SELECTED_LOOKS } else { &SONG_ROW_LOOKS }, state);
     }
     ui.slot(c.content);
 }
@@ -445,13 +453,13 @@ mod body_tests {
     use super::*;
     use pxui::{FrameIn, Platform, ThemeHandle};
 
-    /// The app theme with its U4a body lines (`localwave-button`, `-side-row`, `-badge`, `-progress`, `-chip`) or without them (the kit's
+    /// The app theme with its U4a body lines (`localwave-button`, `-row`, `-heading`, `-badge`, `-progress`, `-chip`) or without them (the kit's
     /// bodies), the bodies registered either way.
     fn ui(app: bool) -> Ui {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body", "table_head.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();
@@ -520,7 +528,7 @@ mod body_tests {
         assert_eq!(draw(&app), draw(&kit), "variant 0 is the kit's button");
     }
 
-    /// `selection_list.body = localwave-side-row`: a `SIDE_ROW` row is 32 points on the selected fill when selected (the kit's
+    /// `selection_list.body = localwave-row`: a `SIDE_ROW` row is 32 points on the selected fill when selected (the kit's
     /// list row has its own look).
     #[test]
     fn localwave_side_row_draws_the_sidebar_row() {
@@ -535,6 +543,35 @@ mod body_tests {
         frames(&mut kit, &mut build);
         assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 0.0, 200.0, 32.0]], "the selected row on the selected fill");
         assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+    }
+
+    /// `selection_list.body = localwave-row` / `SONG_ROW`: a song row is as tall as its cells (no inset; the list's row height is only
+    /// the estimate), on the selected fill when selected. `table_head.body = localwave-heading`: the "#" heading's text starts 32
+    /// points into its column and Title's 8 (the kit's heading insets both alike).
+    #[test]
+    fn localwave_song_row_and_heading_draw_their_structures() {
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.multi().row_h(38.0).measured().variant(variant::SONG_ROW).bare();
+        const COLUMNS: [pxui::Column; 2] = [pxui::Column::new("#").id(0).w_px(59.0).grip(false), pxui::Column::new("Title").id(1).w_px(139.0).grip(false)];
+        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
+        let table = std::cell::RefCell::new(pxui::TableState::new());
+        let mut build = |ui: &mut Ui| {
+            ui.column(Node::column().w(Size::Grow).h_px(40.0), |ui| { ui.table_head("head", &COLUMNS, &mut table.borrow_mut(), &pxui::TableHead::DEFAULT.h_px(40.0)); });
+            ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
+                ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("cells", Node::column().w(Size::Grow).h_px(44.0)); });
+            });
+        };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 40.0, 200.0, 84.0]], "the selected row, as tall as its cells (44), on the selected fill");
+        assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+        // the headings' text: the glyphs in the heading band (instance rects are x0, y0, x1, y1), leftmost in each column
+        let first = |ui: &Ui, from: f32, to: f32| ui.layers().flat_map(|l| l.instances.iter()).map(|i| i.rect)
+            .filter(|r| r[3] <= 40.0 && r[2] - r[0] < 20.0 && r[0] >= from && r[0] < to).map(|r| r[0]).fold(f32::MAX, f32::min);
+        let (number, title) = (first(&app, 0.0, 60.0), first(&app, 60.0, 200.0));
+        assert!((32.0..34.0).contains(&number) && (68.0..70.0).contains(&title), "headings 32 and 8 in: # at {number}, Title at {title}");
+        let (number, title) = (first(&kit, 0.0, 60.0), first(&kit, 60.0, 200.0));
+        assert!((title - 60.0 - number).abs() < 2.0, "the kit insets both alike: # at {number}, Title at {title}");
     }
 
     /// `badge.body = localwave-badge` and `progress.body = localwave-progress`: the badge is paper text on an ink plate 16 points high;

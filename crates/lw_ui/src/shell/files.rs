@@ -501,7 +501,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     // Marks index the shown rows; "all" covers the saved songs among them.
     let shown = directory.shown(files_filter, show_non_audio);
     let selectable = (0..shown).filter(|&i| directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
-    let selected = state.marked.iter().filter(|&&i| directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
+    let selected = (0..shown).filter(|&i| state.is_marked(i) && directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
     use super::kit::{Icon, paint_icon};
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
@@ -653,7 +653,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                 if selecting {
                     // Swift's trailing 44 pt checkbox, on saved songs only.
                     if entry.song.is_some() {
-                        ui.id("select-cell", |ui| { ui.row(Node::row().w_px(44.0).h_px(44.0).center(), |ui| super::compact::list::checkbox(ui, state.marked.binary_search(&index).is_ok())); });
+                        ui.id("select-cell", |ui| { ui.row(Node::row().w_px(44.0).h_px(44.0).center(), |ui| super::compact::list::checkbox(ui, state.is_marked(index))); });
                     }
                 } else if entry.directory {
                     // Folder rows: Open folder / Play folder / Shuffle folder.
@@ -1478,7 +1478,7 @@ mod tests {
         assert!(matches!(lists, Some(Intent::PageListChoices(_))), "{lists:?}");
         // Another folder leaves Select mode.
         state.apply(Intent::Files(Request::Browse(Location { parent: Some(1), ..location })));
-        assert!(!state.selecting() && state.marked.is_empty());
+        assert!(!state.selecting() && (state.marked_count() == 0));
         state.apply(Intent::SelectMode(true));
         settle(&mut ui, &state, &mut time);
         for round in 0..5 {

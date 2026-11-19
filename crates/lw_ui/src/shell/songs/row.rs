@@ -178,6 +178,9 @@ pub(super) struct Rows<'a> {
     pub(super) viewport: Viewport,
 }
 pub(in crate::shell) const LIST_ROW: &str = "localwave.list-row:";
+/// A song row's actions key: 32 points, the secondary ink, no wash.
+const ROW_MORE: pxui::IconButton = pxui::IconButton::sized(32.0, 32.0).look(&ROW_MORE_LOOKS);
+const ROW_MORE_LOOKS: States = States::of(SECONDARY_TEXT);
 /// Carry kind of a row drag; the target resolves the selection from the song id.
 pub(crate) const SONG_DRAG: &str = "localwave.song:";
 
@@ -224,14 +227,14 @@ impl Rows<'_> {
             && self.state.sort == Sort::Original
             && self.state.ascending
     }
-    fn drop_target(&self, ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
-        drop_target(ui, visual, index, intent);
-    }
+    /// Row `index`'s cells inside the row the list's `SONG_ROW` body shapes (its look follows `cell`'s state): the columns' text, the
+    /// playing and file-state marks, the actions key and, in a reorderable list, the grip (the list's handle). The row is named by its
+    /// title; a held row carries its song.
     pub(super) fn row(
         &self,
         ui: &mut Ui,
         index: usize,
-        content_y: f32,
+        cell: pxui::CellState,
         intent: &mut Option<Intent>,
     ) {
         let Self {
@@ -249,8 +252,7 @@ impl Rows<'_> {
         let row = catalog.row(collection.rows[index]);
         let reorder = self.reorderable() && widths[Column::Number as usize] >= 32.0;
         let current = player.current_id == Some(row.id);
-        let marked = state.is_marked(index);
-        let revision = crate::hash((revision, current, marked));
+        let revision = crate::hash((revision, current));
         let number = table.number_label(index);
         let layout = row_layout(
             ui,
@@ -261,22 +263,37 @@ impl Rows<'_> {
             widths,
             current,
         );
-        let y = content_y - viewport.offset + layout.y(11.0);
+        let y = cell.y - viewport.offset + layout.y(11.0);
         let visible = y + 11.0 > (viewport.leading - viewport.offset).max(0.0) + viewport.heading
             && y < viewport.height;
         let visual_revision = if current || row.state == lw_core::FileState::CopyPending {
+            // its marks pause out of view: the list rebuilds the row every frame (`ListState::LIVE`, set from this next frame)
+            state.song_live.borrow_mut().1.push(index);
             crate::hash((revision, current && player.playing, visible))
         } else {
             revision
         };
+        ui.a11y_name(&cell.handle, row.title);
+        if cell.held {
+            let mut digits = [0u8; 24];
+            let id = stack_fmt(&mut digits, format_args!("{}", row.id)).as_bytes();
+            let mut kind = [0u8; 48];
+            kind[..SONG_DRAG.len()].copy_from_slice(SONG_DRAG.as_bytes());
+            let len = SONG_DRAG.len() + id.len();
+            kind[SONG_DRAG.len()..len].copy_from_slice(id);
+            ui.carry(
+                Some(&cell.handle),
+                std::str::from_utf8(&kind[..len]).expect("song drag kind is ASCII"),
+                row.title,
+            );
+        }
         let visual = ui.view_of(
             "song-visual",
             &visual_revision,
             |ui| {
-                let look = PLAIN.look(if marked { &SELECTED_LOOKS } else { &SONG_ROW_LOOKS });
-                let node = Node::column().w(Size::Grow).h_px(layout.height).role(Role::ListItem);
-                let root = ui.pressable("song", node, &look, |ui, _| {
-                    ui.view_of("song-copy", &revision, |ui| {
+                let root = ui.node("song", Node::column().w(Size::Grow).h_px(layout.height));
+                ui.within(&root, &mut |ui| {
+                    let copy = |ui: &mut Ui| {
                         let mut x = 0.0;
                         for column in Column::ALL {
                             let w = widths[column as usize];
@@ -310,7 +327,9 @@ impl Rows<'_> {
                             }
                             x += w;
                         }
-                    });
+                    };
+                    // the playing and copying rows rebuild their marks while their text holds: it keeps a view of its own
+                    if visual_revision != revision { ui.view_of("song-copy", &revision, copy); } else { copy(ui) }
                     if current {
                         ui.id("equalizer-position", |ui| { ui.column(Node::column().w_px(14.0).h_px(11.0).at(32.0, layout.y(11.0)),
                             |ui| {
@@ -342,96 +361,42 @@ impl Rows<'_> {
                         ); });
                     }
                     let x = widths[..7].iter().sum::<f32>();
-                    let node = Node::column().w_px(32.0).h_px(32.0).role(Role::Button).at(x, (layout.height - 32.0) * 0.5);
-                    let more = ui.pressable("actions", node, &PLAIN, |_, _| {});
-                    ui.a11y_name(&more.handle, row.actions_label);
-                    ui.canvas(&more.handle, move |paint, rect| {
-                        for x in [5.5, 12.0, 18.5] {
-                            paint.circle((rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0), 1.4 * (2.0 / 3.0), Some(Fill::new(Rgba::token(SECONDARY))), None);
+                    ui.id("actions-position", |ui| { ui.column(Node::column().w_px(32.0).h_px(32.0).at(x, (layout.height - 32.0) * 0.5), |ui| {
+                        let more = ui.icon_button("actions", icon_drawing(Icon::RowMore), row.actions_label, &ROW_MORE);
+                        if more.clicked {
+                            let at = ui.rect(&more.handle);
+                            *intent = Some(Intent::SongMenu(
+                                index,
+                                row.id,
+                                collection.key,
+                                (at.x, at.y + at.h),
+                            ));
                         }
-                    });
-                    if more.clicked {
-                        let at = ui.rect(&more.handle);
-                        *intent = Some(Intent::SongMenu(
-                            index,
-                            row.id,
-                            collection.key,
-                            (at.x, at.y + at.h),
-                        ));
-                    }
-                    if reorder {
-                        let node = Node::column().w_px(24.0).h_px(layout.height).role(Role::Button).at(2.0, 0.0);
-                        let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});
-                        ui.a11y_name(&grip.handle, "Reorder track");
-                        ui.canvas(&grip.handle, move |paint, rect| {
-                            for x in [8.0, 12.0] {
-                                for y in [-4.0, 0.0, 4.0] {
-                                    paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
-                                }
-                            }
-                        });
-                        if grip.held || grip.clicked {
-                            let mut digits = [0u8; 24];
-                            let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();
-                            let mut kind = [0u8; 48];
-                            kind[..LIST_ROW.len()].copy_from_slice(LIST_ROW.as_bytes());
-                            let len = LIST_ROW.len() + id.len();
-                            kind[LIST_ROW.len()..len].copy_from_slice(id);
-                            ui.carry(
-                                if grip.clicked { None } else { Some(&grip.handle) },
-                                std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
-                                row.title,
-                            );
-                        }
-                    }
+                    }); });
                 });
-                ui.a11y_name(&root.handle, row.title);
-                let signal = ui.signal(&root.handle);
-                if root.held {
-                    let mut digits = [0u8; 24];
-                    let id = stack_fmt(&mut digits, format_args!("{}", row.id)).as_bytes();
-                    let mut kind = [0u8; 48];
-                    kind[..SONG_DRAG.len()].copy_from_slice(SONG_DRAG.as_bytes());
-                    let len = SONG_DRAG.len() + id.len();
-                    kind[SONG_DRAG.len()..len].copy_from_slice(id);
-                    ui.carry(
-                        Some(&root.handle),
-                        std::str::from_utf8(&kind[..len]).expect("song drag kind is ASCII"),
-                        row.title,
-                    );
-                }
                 let last = index + 1 == collection.rows.len();
-                ui.canvas_over(&root.handle, move |paint, rect| {
+                ui.canvas_over(&root, move |paint, rect| {
                     paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                     if last {
                         paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                     }
                 });
-                if signal.pressed && signal.button == Some(1) {
-                    *intent = Some(Intent::SongMenu(
-                        index,
-                        row.id,
-                        collection.key,
-                        signal.pointer,
-                    ));
-                }
-                if intent.is_none() && signal.clicked {
-                    *intent = Some(if ui.key_down(pxui::KeyCode::Meta) {
-                        Intent::Select(crate::Selection::Toggle(index))
-                    } else if ui.key_down(pxui::KeyCode::Shift) {
-                        Intent::Select(crate::Selection::Range(index))
-                    } else {
-                        Intent::SelectRow(index)
-                    });
-                }
-                if signal.double_clicked {
-                    *intent = Some(Intent::PlayRow(index));
-                }
-                if reorder {
-                    self.drop_target(ui, &root.handle, index, intent);
-                }
             },
         );
+        if reorder {
+            // the list's handle: a press lifts the row at once (touch too) and the list reports the move
+            ui.id("grip", |ui| {
+                let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(24.0).h_px(layout.height).at(2.0, 0.0));
+                ui.a11y_name(&grip, "Reorder track");
+                ui.canvas(&grip, move |paint, rect| {
+                    for x in [8.0, 12.0] {
+                        for y in [-4.0, 0.0, 4.0] {
+                            paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
+                        }
+                    }
+                });
+            });
+        }
         entry.row(ui, &visual, index);
     }
 }

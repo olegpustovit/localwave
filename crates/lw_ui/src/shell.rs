@@ -50,9 +50,22 @@ pub struct ShellState {
     side_route: std::cell::Cell<Option<(Option<Route>, usize)>>,
     pub route: Route,
     pub selected: Option<usize>,
-    /// Sorted row positions of the multi-selection; grows only in `apply`/`refresh`, never in frames.
-    marked: Vec<usize>,
-    anchor: Option<usize>,
+    /// The multi-selection: one flag byte a displayed row (a folder page's rows on Files) and the anchor Shift extends from. The songs
+    /// list's widget writes it while it builds (borrowed mutably only for that call); `apply`/`refresh` write it otherwise.
+    song_rows: std::cell::RefCell<pxui::ListState>,
+    /// the song rows flagged `ListState::LIVE` now, and the rows whose build this frame found live (the playing and copying rows)
+    song_live: std::cell::RefCell<(Vec<usize>, Vec<usize>)>,
+    /// The songs list's heading: its sort (written from the applied sort before each build) and laid-out widths.
+    song_table: std::cell::RefCell<pxui::TableState>,
+    /// The songs list's scroll box key, as it reported last frame (its heading reads the scroll from it).
+    song_list: std::cell::Cell<i64>,
+    /// The songs list held keyboard focus when it last built (`ListResponse::focused`): its keys are the list's, so the app's list
+    /// shortcuts stay on while `Ui::text_input_focused` (any focus) is true. Cleared at each frame's start; the list sets it.
+    song_focused: std::cell::Cell<bool>,
+    /// The marked rows' count and first index, kept where the flags change (never by scanning per frame).
+    song_marks: (usize, Option<usize>),
+    /// The flags' re-map buffer, swapped with them on a delivery (kept, so steady state allocates nothing).
+    remap_scratch: Vec<u8>,
     /// Phone Select mode: rows show checkboxes and taps toggle marks.
     selecting: bool,
     page_menu: Option<(f32, f32)>,
@@ -113,8 +126,13 @@ impl Default for ShellState {
             side_route: std::cell::Cell::new(None),
             route: Route::Songs,
             selected: None,
-            marked: Vec::new(),
-            anchor: None,
+            song_rows: std::cell::RefCell::new(pxui::ListState::new()),
+            song_live: std::cell::RefCell::new((Vec::new(), Vec::new())),
+            song_table: std::cell::RefCell::new(pxui::TableState::new()),
+            song_list: std::cell::Cell::new(0),
+            song_focused: std::cell::Cell::new(false),
+            song_marks: (0, None),
+            remap_scratch: Vec::new(),
             selecting: false,
             page_menu: None,
             page_lists: false,
@@ -181,13 +199,17 @@ impl ShellState {
     /// Song ids of the selected rows in displayed order, borrowed for context-menu actions.
     pub fn selected_song_ids<'a>(&'a self, catalog: &'a Catalog) -> impl Iterator<Item = i64> + 'a {
         let ids = self.collection(catalog).map_or(&[][..], |c| &c.ids[..]);
-        self.marked.iter().filter_map(move |&i| ids.get(i).copied())
+        self.marked_rows().filter_map(move |i| ids.get(i).copied())
+    }
+    /// The marked rows' positions in order (action time, not frame time: it walks the flags).
+    fn marked_rows(&self) -> impl Iterator<Item = usize> + '_ {
+        let list = self.song_rows.borrow();
+        (0..list.rows.len()).filter(move |&i| list.rows[i] & pxui::ListState::SELECTED != 0)
     }
     /// Saved songs of the marked rows of a folder page, in row order.
     pub fn selected_folder_songs(&self, directory: &crate::files::Directory) -> Vec<i64> {
-        self.marked
-            .iter()
-            .filter_map(|&index| directory.entry(self.files_filter, index)?.song)
+        self.marked_rows()
+            .filter_map(|index| directory.entry(self.files_filter, index)?.song)
             .collect()
     }
     pub fn selecting(&self) -> bool {
@@ -202,55 +224,75 @@ impl ShellState {
         }
     }
     fn is_marked(&self, index: usize) -> bool {
-        self.marked.binary_search(&index).is_ok()
+        self.song_rows.borrow().rows.get(index).is_some_and(|f| f & pxui::ListState::SELECTED != 0)
+    }
+    /// How many rows are marked.
+    fn marked_count(&self) -> usize {
+        self.song_marks.0
+    }
+    /// The first marked row.
+    fn first_marked(&self) -> Option<usize> {
+        self.song_marks.1
+    }
+    /// `song_marks` from the flags, one pass where they changed.
+    fn count_marks(&mut self) {
+        let rows = &self.song_rows.get_mut().rows;
+        let mut marks = (0, None);
+        for (i, f) in rows.iter().enumerate() {
+            if f & pxui::ListState::SELECTED != 0 {
+                marks = (marks.0 + 1, marks.1.or(Some(i)));
+            }
+        }
+        self.song_marks = marks;
     }
     fn clear_selection(&mut self) {
-        (self.selected, self.anchor) = (None, None);
-        self.marked.clear();
+        self.selected = None;
+        let list = self.song_rows.get_mut();
+        list.rows.fill(0);
+        list.anchor = None;
+        self.song_marks = (0, None);
     }
     fn select(&mut self, selection: Selection) {
+        use pxui::ListState as L;
+        let first = self.first_marked();
+        let list = self.song_rows.get_mut();
+        let fit = |rows: &mut Vec<u8>, len: usize| if rows.len() < len { rows.resize(len, 0) };
         match selection {
             Selection::Toggle(i) => {
-                match self.marked.binary_search(&i) {
-                    Ok(at) => {
-                        self.marked.remove(at);
-                    }
-                    Err(at) => self.marked.insert(at, i),
-                }
-                self.selected = self.is_marked(i).then_some(i);
-                self.anchor = Some(i);
+                fit(&mut list.rows, i + 1);
+                list.rows[i] ^= L::SELECTED;
+                self.selected = (list.rows[i] & L::SELECTED != 0).then_some(i);
+                list.anchor = Some(i);
             }
             Selection::Range(i) => {
-                let from = *self.anchor.get_or_insert(i);
-                self.marked.clear();
-                self.marked.extend(from.min(i)..=from.max(i));
+                let from = *list.anchor.get_or_insert(i);
+                fit(&mut list.rows, from.max(i) + 1);
+                list.rows.fill(0);
+                list.rows[from.min(i)..=from.max(i)].fill(L::SELECTED);
                 self.selected = Some(i);
             }
             Selection::All(len) => {
-                self.marked.clear();
-                self.marked.reserve_exact(len);
-                self.marked.extend(0..len);
+                list.rows.clear();
+                list.rows.resize(len, L::SELECTED);
             }
             Selection::Clear => self.clear_selection(),
             Selection::Move { delta, extend, len } => {
-                let Some(&first) = self.marked.first().filter(|_| len > 0) else {
+                let Some(first) = first.filter(|_| len > 0) else {
                     return;
                 };
                 let at = (self.selected.unwrap_or(first) as isize + delta)
                     .clamp(0, len as isize - 1) as usize;
-                if extend {
-                    if let Err(pos) = self.marked.binary_search(&at) {
-                        self.marked.insert(pos, at);
-                    }
-                } else {
-                    self.marked.clear();
-                    self.marked.push(at);
-                    self.anchor = Some(at);
+                fit(&mut list.rows, len);
+                if !extend {
+                    list.rows.fill(0);
+                    list.anchor = Some(at);
                 }
+                list.rows[at] |= L::SELECTED;
                 self.selected = Some(at);
                 self.reveal_selected.set(true);
             }
         }
+        self.count_marks();
         self.selection_revision = self.selection_revision.wrapping_add(1);
     }
     pub fn files_visible(&self) -> bool {
@@ -315,12 +357,22 @@ impl ShellState {
         self.song_menu = None;
         let old = self.route;
         (self.route, self.selected) = remap.resolve(old, self.selected, self.query);
-        if self.route != Route::Files && (!self.marked.is_empty() || self.anchor.is_some()) {
-            let map = |i: &usize| remap.resolve(old, Some(*i), self.query).1;
-            self.anchor = self.anchor.as_ref().and_then(map);
-            let mut marked: Vec<usize> = self.marked.iter().filter_map(map).collect();
-            marked.sort_unstable();
-            self.marked = marked;
+        // read what the map needs before borrowing the flags: `song_rows` and `remap_scratch` are then disjoint fields
+        let (query, len) = (self.query, self.collection(next).map_or(0, |c| c.rows.len()));
+        let map = |i: usize| remap.resolve(old, Some(i), query).1;
+        let list = self.song_rows.get_mut();
+        if self.route != Route::Files && (list.anchor.is_some() || self.song_marks.0 > 0) {
+            let mut moved = std::mem::take(&mut self.remap_scratch);
+            moved.clear();
+            moved.resize(len, 0);
+            for (i, f) in list.rows.iter().enumerate() {
+                if f & pxui::ListState::SELECTED != 0 && let Some(j) = map(i).filter(|&j| j < moved.len()) {
+                    moved[j] = pxui::ListState::SELECTED;
+                }
+            }
+            self.remap_scratch = std::mem::replace(&mut list.rows, moved);
+            list.anchor = list.anchor.and_then(map);
+            self.count_marks();
             self.selection_revision = self.selection_revision.wrapping_add(1);
         }
         self.revision = self.revision.wrapping_add(1);
@@ -329,10 +381,10 @@ impl ShellState {
     pub fn apply(&mut self, intent: Intent) -> bool {
         // Selection changes rebuild only affected rows, so they skip the shared revision.
         match intent {
-            Intent::SelectRow(index) => {
-                self.marked.clear();
-                self.marked.push(index);
-                (self.selected, self.anchor) = (Some(index), Some(index));
+            // the widget already wrote the flags and the anchor
+            Intent::Selected(index) => {
+                self.selected = Some(index);
+                self.count_marks();
                 self.selection_revision = self.selection_revision.wrapping_add(1);
                 return true;
             }
@@ -377,7 +429,7 @@ impl ShellState {
                 | Intent::ShowQueue
                 | Intent::Search(_)
                 | Intent::SearchResults(_)
-                | Intent::Sort(_)
+                | Intent::SortBy(_)
         ) {
             self.song_menu = None;
         }
@@ -579,10 +631,7 @@ impl ShellState {
                 self.query_too_long = true;
                 self.query_revision = self.query_revision.wrapping_add(1);
             }
-            Intent::Sort(sort) => {
-                self.ascending = self.sort != sort || !self.ascending;
-                self.sort = sort;
-            }
+            Intent::SortBy(by) => (self.sort, self.ascending) = by.unwrap_or((Sort::Original, true)),
             Intent::ShowSettings => {
                 self.player_expanded = false;
                 self.source_menu = None;
@@ -802,7 +851,7 @@ fn selection_shortcut(
     if ui.key_pressed(KeyCode::Char('a'), Mods::META) || ui.key_pressed(KeyCode::Char('A'), Mods::META) {
         return (len > 0).then_some(Intent::Select(Selection::All(len)));
     }
-    if state.marked.is_empty() {
+    if state.marked_count() == 0 {
         return None;
     }
     let down = |key| ui.key_down(key);
@@ -854,7 +903,9 @@ pub fn shell(
     state: &ShellState,
     intent: &mut Option<Intent>,
 ) {
-    let input_was_focused = ui.text_input_focused();
+    // the songs list builds later in the frame: what it reported last frame goes with the focus the frame started with
+    let songs_focused = state.song_focused.replace(false);
+    let input_was_focused = ui.text_input_focused() && !songs_focused;
     // a carry, or a list row lifted by its grip: Escape cancels it (a plain held press leaves Escape to the app)
     let carrying = ui.carrying().is_some() || ui.reordering();
     if ui.key_pressed(KeyCode::Escape, Mods::ANY) {
@@ -999,7 +1050,7 @@ pub fn shell(
         && let Some(collection) = state.collection(catalog)
     {
         // Swift plays the whole selection; one row keeps its playback position.
-        if state.marked.len() > 1 {
+        if state.marked_count() > 1 {
             *intent = Some(Intent::PlaySelection);
         } else if let Some(index) = state.selected.filter(|&i| i < collection.rows.len()) {
             *intent = Some(Intent::PlayRow(index));
@@ -1011,7 +1062,7 @@ pub fn shell(
     }
     if intent.is_none()
         && !input_was_focused
-        && !ui.text_input_focused()
+        && !(ui.text_input_focused() && !state.song_focused.get())
         && !state.commands_visible
         && !state.shortcuts_visible
         && !state.queue_visible
