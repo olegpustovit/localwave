@@ -3558,6 +3558,7 @@ pxui_types::ffi::PxuiHintDesc::value field Str
 pxui_types::ffi::PxuiIconButtonConfig impl Clone
 pxui_types::ffi::PxuiIconButtonConfig impl Copy
 pxui_types::ffi::PxuiIconButtonConfig struct
+pxui_types::ffi::PxuiIconButtonConfig::built_in field PxuiSlot
 pxui_types::ffi::PxuiIconButtonConfig::draw field PxuiIconDraw
 pxui_types::ffi::PxuiIconButtonConfig::draw_user field *mut c_void
 pxui_types::ffi::PxuiIconButtonConfig::draw_word field u32
