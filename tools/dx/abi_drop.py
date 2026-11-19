@@ -19,6 +19,7 @@ KEEP = {
     "pxui_paint_caret_x", "pxui_paint_selection", "pxui_paint_ratio", "pxui_paint_input_region",  # canvas text helpers
     "pxui_ui_input",  # the routed input record for an app's own content
     "pxui_theme_last_error",  # a theme object's error detail (theme_parse, theme_set_color)
+    "pxui_ui_node_keyed",  # a node under an integer key (the C form of a resolved key); pxui_part builds through it
 }
 NOT_CALLERS = ("pxui_abi/src/fuzz.rs", "tools/abi-old-app.c", "tools/abi-fixture.sh", "tools/dx/abi_drop.py")
 

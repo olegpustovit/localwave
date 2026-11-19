@@ -3155,25 +3155,6 @@ pxui_types::ffi::PxuiBadgeConfig::size field u32
 pxui_types::ffi::PxuiBadgeConfig::text field Str
 pxui_types::ffi::PxuiBadgeConfig::variant field u16
 pxui_types::ffi::PxuiBodyFn type = Option<extern "C" fn(*mut c_void, *mut c_void, *const c_void)>
-pxui_types::ffi::PxuiBoxDesc impl Clone
-pxui_types::ffi::PxuiBoxDesc impl Copy
-pxui_types::ffi::PxuiBoxDesc struct
-pxui_types::ffi::PxuiBoxDesc::at field [f32; 2]
-pxui_types::ffi::PxuiBoxDesc::axis field u32
-pxui_types::ffi::PxuiBoxDesc::flags field i64
-pxui_types::ffi::PxuiBoxDesc::h field PxuiSizeDesc
-pxui_types::ffi::PxuiBoxDesc::has_at field u8
-pxui_types::ffi::PxuiBoxDesc::has_hit_rect field u8
-pxui_types::ffi::PxuiBoxDesc::hit field Option<extern "C" fn(*mut c_void, Rect) -> Rect>
-pxui_types::ffi::PxuiBoxDesc::hit_rect field Rect
-pxui_types::ffi::PxuiBoxDesc::hit_release field Option<extern "C" fn(*mut c_void)>
-pxui_types::ffi::PxuiBoxDesc::hit_user field *mut c_void
-pxui_types::ffi::PxuiBoxDesc::max_h field f32
-pxui_types::ffi::PxuiBoxDesc::padding field f32
-pxui_types::ffi::PxuiBoxDesc::reserved field [u8; 2]
-pxui_types::ffi::PxuiBoxDesc::scroll_step field f32
-pxui_types::ffi::PxuiBoxDesc::size field u32
-pxui_types::ffi::PxuiBoxDesc::w field PxuiSizeDesc
 pxui_types::ffi::PxuiBuild type = UiBuild
 pxui_types::ffi::PxuiButtonBuild type = Option<extern "C" fn(*mut c_void, *mut c_void, *const PxuiStateDesc)>
 pxui_types::ffi::PxuiButtonConfig impl Clone
@@ -4081,15 +4062,6 @@ pxui_types::ffi::PxuiRowConfig::size field u32
 pxui_types::ffi::PxuiRowConfig::state field PxuiStateDesc
 pxui_types::ffi::PxuiRowConfig::variant field u16
 pxui_types::ffi::PxuiRowKey type = Option<extern "C" fn(*mut c_void, usize) -> i64>
-pxui_types::ffi::PxuiSaved impl Clone
-pxui_types::ffi::PxuiSaved impl Copy
-pxui_types::ffi::PxuiSaved impl Debug
-pxui_types::ffi::PxuiSaved impl Default
-pxui_types::ffi::PxuiSaved struct
-pxui_types::ffi::PxuiSaved::parents field usize
-pxui_types::ffi::PxuiSaved::reserved field u32
-pxui_types::ffi::PxuiSaved::seeds field usize
-pxui_types::ffi::PxuiSaved::size field u32
 pxui_types::ffi::PxuiScrollConfig impl Clone
 pxui_types::ffi::PxuiScrollConfig impl Copy
 pxui_types::ffi::PxuiScrollConfig struct
