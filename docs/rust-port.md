@@ -236,6 +236,22 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U2b.2 | Drop zones (G7) | done | LocalWave 6387233, pxui a17b9e13. Any node takes a drop; reorderable lists report drop_at and draw the insertion line; SelectionList::drop_look. ABI 1.88. |
 | U2b.3 | Reorder (G8) | done | LocalWave 40f9dd3, pxui 7819ae5d. A row's Part::HANDLE drags it, passed rows make room along motion.slow; Alt-arrow and Move up/down actions; ListResponse.moved; zero warm allocations dragging. ABI 1.89. |
 | U2b.4 | Gap steps raised during U3–U4 (reserved) | reserved | Opened by the GAP protocol in U3–U4. |
+| U2b.4.1 | ButtonConfig label styles (gap from U4a.1) | done on u4a, not landed | LocalWave e5aef58, pxui 6eadaa1c. ButtonConfig::label, detail_label, accessory_label: a Rust button body reads the caller's styles. |
+| U2b.4.2 | Button built_in slot | done on u4a, not landed | LocalWave 9955721, pxui abc308b5. PxuiButtonConfig.built_in: a registered button body runs the kit's button for configs it does not style. ABI 1.99. |
+| U2b.4.3 | SelectionList::bare | done on u4a, not landed | LocalWave 56c56bb, pxui c5abbaca. A list without its frame look or 1-point inset. ABI 1.100. |
+| U2b.4.4 | Search field editor part | done on u4a, not landed | LocalWave de4a958, pxui b4c20d7a and ec05e36e. A search field body's Part::EDITOR is the editing node, in its look's font. |
+| U2b.4.5 | Node transitions | done on u4a, not landed | LocalWave 3055d0b, pxui 720226d6 and dbf0d940. A node's own transition runs its state changes under a still theme. |
+| U2b.4.6 | Icon button built_in slot | done on u4a, not landed | LocalWave 5924d13 and 5ebcb1e, pxui 5abfcaa1. PxuiIconButtonConfig.built_in. ABI 1.101. |
+| U2b.4.7 | (number not used) | not used | No step was opened under this number. |
+| U2b.4.8 | SearchFieldConfig.line | done on u4a, not landed | LocalWave 39a6774, pxui 417f3127. A search field body sizes the field's line. ABI 1.102. |
+| U2b.4.9 | Selected icon button look | done on u4a, not landed | LocalWave ec06f5a, pxui 5eb35332 and e1f73dd6. A selected icon button keeps its checked look while hovered or held. |
+| U2b.4.10 | section_list row CellState | done on u4a, not landed | LocalWave 40e13f8, pxui 1878806a. Reorderable section-list rows get their CellState and can be named. |
+| U2b.4.11 | ListResponse::focused | done on u4a, not landed | LocalWave 6f0a967, pxui 6ef06ea5. A list says it holds keyboard focus. ABI 1.104. |
+| U2b.4.12 | Ui::reordering | done on u4a, not landed | LocalWave 7e6374e, pxui cee1afed. An app spends Escape only on a reorder drag. ABI 1.105. |
+| U2b.4.13 | Kept list rows | done on u4a, not landed | LocalWave 265091c, pxui afd2373e, 1c81a433 and 3751a6a8. ListState::revision and LIVE: a list keeps each row's build while its content holds. ABI 1.106. |
+| U2b.4.14 | Culled kept rows | done on u4a, not landed | LocalWave 44c3b45, pxui 6501f528. A kept row past the viewport keeps its build until it scrolls into view. ABI 1.107. |
+| U2b.4.15 | Picker editor part, images, headings, scrolling | done on u4a, not landed | LocalWave 88d13e1, pxui ac4ec089; fixes pxui 71667624 and ac35443f (pointers in LocalWave 1944df5 and 87272df). Picker field Part::EDITOR, Picker::image, PickerConfig.head, scrolling results; fixes: a settling frame keeps its copy/paste request, picker keys read in place, the search keyboard, the caret while focused. ABI 1.110. |
+| U2b.4.16 | PickerFieldConfig.list | done on u4a, not landed | LocalWave 1944df5, pxui 56ca53ea. A picker field body lays out the results region (the line pattern). ABI 1.111. |
 | U2b.5 | Top-anchored overlay | done | LocalWave 7814615, pxui 755ed30d. Presentation::Top (Overlay::at's y, max_h cap); PxuiSheetDesc.top/max_h. ABI 1.90. |
 | U2b.6 | Picker fill contract | done | LocalWave ef524a8, pxui 3a2277d1. Fill contract documented; a typed query and a kept worker result allocate nothing per frame (#82). |
 | U2b.7 | Value and theme gaps | done | LocalWave 20e14dc, pxui 14d86f0d. Token alpha (D19), ColorToken::ACCENT, SearchField variant/action, Button::icon_size, icons in body configs (D18). ABI 1.91. |
@@ -252,16 +268,16 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U3.1 | Looks are consts | done | LocalWave 13fbb81, 2848638, 1d63ef8, 6fe6397. container takes &'static Look; detail::line, compact::line and settings::notice deleted for ui.label with theme Labels; paragraph and the positioned cell labels take a coloured Label (theme::text_look); find washes, clocks, song row looks, scrims and run-time Button bases are consts; canvas colours are Rgba::token (looks.py). Fingerprints identical light and dark except one listed test-fixture colour. |
 | U3.2 | Literal codemod | done | LocalWave 5a76301. literals.py: 108 Node/Edges/Look/State/States/Font/Rgba/Event literals in lw_ui become builder chains, 6 by hand; R1 51 to 0. Only test Events with payloads stay literals. |
 | U3.3 | Keys | done | LocalWave 24a4a68. Artist headings, folder cells, Find chips and the folder Back key are ids; ArtworkReady::key is artwork_id. R4 has no line. Allowlist 308 to 56; Tier B (make check 289) passed. |
-| U4a.1 | sidebar.rs | todo |  |
-| U4a.2 | header.rs, find.rs | todo |  |
-| U4a.3 | albums.rs, artists.rs | todo |  |
-| U4a.4 | transport.rs, now.rs | todo |  |
-| U4a.5 | queue_sheet.rs | todo |  |
-| U4a.6 | songs/mod.rs, songs/row.rs | todo |  |
-| U4a.7 | settings.rs | todo |  |
-| U4a.8 | onboarding.rs | todo |  |
-| U4a.9 | commands.rs, metadata.rs, lists.rs | todo |  |
-| U4a.10 | byline.rs (D7) | todo |  |
+| U4a.1 | sidebar.rs | done on u4a, not landed | LocalWave e95dbe0, fd3c065 and 050d029, pxui b94935b2. Sidebar on selection_list + localwave-side-row, badge, progress and ROW buttons. |
+| U4a.2 | header.rs, find.rs | done on u4a, not landed | LocalWave 00d4294, fbeb2e1 and c78b934, pxui a2feca5c, c00f6665 and 29525027. Find chips (checkbox CHIP), tool keys (button TOOL), Find fields on search_field + localwave-search. |
+| U4a.3 | albums.rs, artists.rs | done on u4a, not landed | LocalWave 759c71a, f368ae4 and 95feb63. Album sort on segmented SORT, Shuffle all on button KEY, the artists hover wash on the row's look. |
+| U4a.4 | transport.rs, now.rs | done on u4a, not landed | LocalWave 09ce57b, a383d19, 7c48c86 and 6b2c5e7. Transport mode keys and the favourite on the kit's icon button (selected), the up-next drop on a plain node. |
+| U4a.5 | queue_sheet.rs | done on u4a, not landed | LocalWave ad33351 and 9d4e93a, pxui a7e1f4be. Queue sheet: bottom modal, Button rows, reorderable section_list; queue targeted run green. |
+| U4a.6 | songs/mod.rs, songs/row.rs | done on u4a, not landed | LocalWave 76e50e5, 4f1ea64, 6a18458, 5e37755, c0ee6c3, 893838a and 83258d1, pxui 96e14180 through c7f981c9. Songs list on selection_list + table_head; the fresh-row gap is CP1 action (e). |
+| U4a.7 | settings.rs | done on u4a, not landed | LocalWave 5f9bb98. Settings links (ROW), chips (segmented CHIPS), rescan (SETTING). |
+| U4a.8 | onboarding.rs | done on u4a, not landed | LocalWave fc3928e. Onboarding links (LINK), the primary key, the Drive disclosure (localwave-disclosure). |
+| U4a.9 | commands.rs, metadata.rs, lists.rs | done on u4a, not landed | LocalWave ff8c835, f09b7c4 and 87272df. N10 top modal; N9 dialogs; #82 the palette on the picker with localwave-palette bodies (CommandSelect, result_row and the command theme deleted). |
+| U4a.10 | byline.rs (D7) | done on u4a, not landed | LocalWave 1e8f1ff. byline.rs links stay pressables, allowlisted with the D7 reason. |
 | U4b.1 | compact.rs | todo |  |
 | U4b.2 | compact/list.rs | todo |  |
 | U4b.3 | detail.rs | todo |  |

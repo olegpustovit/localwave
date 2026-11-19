@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. Resume at [U4a](#next-u4a).
+Updated 2026-11-19. U4a steps done on `u4a`; the package end is BLOCKED on the dynamic abi_bench wall gate (see below); then independent drift review and landing.
 
 ## What we're doing
 
@@ -178,15 +178,25 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
 Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
 paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
-## NEXT: U4a
+## U4a done; next: independent drift review, then landing
 
-0. U4a per the plan (desktop shell; pattern stop), branch `u4a`. Orchestrator rulings on U3: the command field's kit-theme
-   foreground stays the one allowlisted R6 dynamic case until U4 replaces the field; settings::paragraph needs no codemod table.
-1. Landed U3 (`u3`, LocalWave only, pxui unchanged at 333bf96f): commits 13fbb81, 2848638, 1d63ef8, 6fe6397 (U3.1),
-   5a76301 (U3.2), 24a4a68 (U3.3) and the status commit; report `scratch/u3-final-report.md` (local only). Allowlist 308 to 56
-   (R1 0, R6 1 with its reason, R4 none); `LOCALWAVE_OFFLINE=1 make check` (289) passed; fingerprints identical light and dark
-   except the listed test-fixture colour.
-2. Then U4a per the plan (desktop shell; pattern stop), branch `u4a`.
+U4a (desktop shell) is done on branch `u4a` in both repos, nothing pushed: LocalWave e95dbe0..HEAD and pxui 6eadaa1c..ac35443f
+(ABI 1.99–1.111, gap steps U2b.4.1–U2b.4.16; see `docs/rust-port.md` rows and `scratch/u4a-final-report.md`, local only). Every desktop
+row is on its widget per the site map; the api_conformance allowlist is 33 lines (only composite, D7 and listed dynamic rows);
+the helpers side_item, side_row, add_row, find::button, queue_action, settings::back, settings::option, underlined, result_row and
+commands::overlay are deleted. Tier B in both repos, release abi_bench in both modes and gcmp light/dark against the package-start
+bases are in the final report.
+
+0. BLOCKED: release abi_bench `--no-default-features` (dynamic) fails the Collections wall gate at pxui ac35443f (x1.044, x1.054,
+   x1.063 on a quiet machine; gate 3% and 5 µs per 1000 nodes, 7% hard) while every instruction ratio passes unchanged (Collections
+   1.00742). Bisect in a temporary worktree: ac4ec089 x1.0162, 71667624 x1.0142, 56ca53ea x1.0135/1.0142 pass; ac35443f fails. Its
+   change is picker-only code the Collections page never runs; reverting just its in-place key loop moves the failure to Lists
+   (x1.0604 against 6%) and Controls x1.056. Code placement in the LTO dylib. Needs a ruling before landing (`scratch/u4a-final-report.md`).
+1. Next: an independent drift review of the U4a diff against the ledger (no re-implemented kit behaviour in LocalWave), then the
+   orchestrator lands (pxui `rust-port` first, `tools/check-pxui-remote.sh`, then LocalWave with an online `make check`).
+2. Orchestrator rulings carried by U4a (19 Nov): GAP U2b.4.16 shape A (`PickerFieldConfig.list`); abi_bench option (a) (regrouping
+   the C node/look/shadow/font records for fewer checks, about 190 instructions a Lists frame) left undone and recorded below for
+   the 2.0 record review; the static Overlays margin of about 16 instructions is accepted as code placement and must not drop further.
 3. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
    `pxui_ui_variant`, `pxui_ui_text`, the `pxui_frame`/`pxui_ui_frame` pair (U5.2), the prefix renames of `pxui_panel`, `pxui_within`,
    `pxui_part` and `pxui_slot`, the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
@@ -281,6 +291,21 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
   `scratch/u2c-review-set-colors.diff` (local only).
 - `pxui_ui_set_role` returns 0 for a stale box, while `pxui_ui_a11y_name` and `pxui_ui_a11y_number` return `PXUI_ERR_STALE`.
 - The dynamic release abi_bench run took 60.42 s again (rc 0; CP1 action (c)).
+
+- 2.0 record review (orchestrator ruling, 19 Nov; abi_bench option (a)): `node_ok` checks a C node record's flag and tag bytes
+  scattered across the record (about 810 instructions a dynamic Lists frame); regrouping them into about seven blocks would save
+  about 190, but needs the Look, Shadow, Font and Node records reordered. Left for the 2.0 record review (U5).
+- U2b.4.15 fix: a frame that settles builds again through `begin_frame`, which also resets `out.background`; a theme change whose
+  frame settles loses the window-ground update for that frame (`pxui_core/src/ui_core.rs` `frame`). Copy and paste requests are now
+  kept across the settle; the background is not.
+- U4a.9: the picker's first frame, and any frame whose results change height, settles once (its measured list was guessed or laid
+  out at another height): one more build of the whole frame. LocalWave's palette list did the same before (it was a measured
+  section list); a kit picker did not.
+- U4a.9: a keyboard reveal made during a build (the picker's wrap from the last row to the first) scrolls at layout, so the revealed
+  row is built the frame after; the frame shows the old window once.
+- U4a.9: a node's own text is placed centred in its box and ignores the node's padding; `set_node_layout` takes no text inset, so a
+  body lays out a behaviour-made text node (`PickerConfig.head`) with margins. API review item for U6 (a body cannot use the text's
+  line box or inset).
 
 ## Commands
 
