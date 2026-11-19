@@ -564,6 +564,7 @@ pxui::Picker impl Copy
 pxui::Picker struct <'a>
 pxui::Picker::DEFAULT const Picker<'a>
 pxui::Picker::at_rest fn const (self, on: bool) -> Picker<'a>
+pxui::Picker::image fn const (self, f: &'a dyn Fn(usize) -> Option<Image>) -> Picker<'a>
 pxui::Picker::limit fn const (self, rows: usize) -> Picker<'a>
 pxui::Picker::mark fn const (self, f: &'a dyn Fn(usize) -> Option<Rgba>) -> Picker<'a>
 pxui::Picker::off fn const (self, f: &'a dyn Fn(usize) -> bool) -> Picker<'a>
@@ -3988,12 +3989,17 @@ pxui_types::ffi::PxuiPickerRowConfig::art_kind field u8
 pxui_types::ffi::PxuiPickerRowConfig::current field u8
 pxui_types::ffi::PxuiPickerRowConfig::detail field Str
 pxui_types::ffi::PxuiPickerRowConfig::doomed field u8
+pxui_types::ffi::PxuiPickerRowConfig::has_head field u8
+pxui_types::ffi::PxuiPickerRowConfig::has_image field u8
 pxui_types::ffi::PxuiPickerRowConfig::has_swatch field u8
+pxui_types::ffi::PxuiPickerRowConfig::head field PxuiBox
+pxui_types::ffi::PxuiPickerRowConfig::image field Image
 pxui_types::ffi::PxuiPickerRowConfig::index field i64
 pxui_types::ffi::PxuiPickerRowConfig::label field Str
 pxui_types::ffi::PxuiPickerRowConfig::marked field u8
 pxui_types::ffi::PxuiPickerRowConfig::query field Str
 pxui_types::ffi::PxuiPickerRowConfig::reserved3 field [u8; 7]
+pxui_types::ffi::PxuiPickerRowConfig::reserved4 field [u8; 6]
 pxui_types::ffi::PxuiPickerRowConfig::row field PxuiBox
 pxui_types::ffi::PxuiPickerRowConfig::size field u32
 pxui_types::ffi::PxuiPickerRowConfig::state field PxuiStateDesc
