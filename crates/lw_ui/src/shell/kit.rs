@@ -104,6 +104,10 @@ pub(super) enum Icon {
     Kept,
     /// Repeat one: the repeat arrows with a mono "1" at their lower right.
     RepeatOne,
+    /// Not a favourite: an outlined heart.
+    Heart,
+    /// A favourite: a filled heart.
+    HeartFilled,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -193,6 +197,7 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), Stroke::new(color));
         }
         Icon::Offline | Icon::Kept => crate::icons::offline(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::Kept), color),
+        Icon::Heart | Icon::HeartFilled => crate::icons::heart(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::HeartFilled), color),
         Icon::RepeatOne => {
             crate::icons::repeat(paint, Rect { x, y, w: 20.0, h: 20.0 }, color);
             // the "1" in the icon's ink, 19 right and 15 down in an 8 by 12 box (where the key's label sat)
@@ -206,10 +211,10 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
     }
 }
 /// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
-const ICONS: [Icon; 18] = [
+const ICONS: [Icon; 20] = [
     Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
     Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check, Icon::Offline, Icon::Kept,
-    Icon::RepeatOne,
+    Icon::RepeatOne, Icon::Heart, Icon::HeartFilled,
 ];
 /// The repeat-one mark: Geist Mono 9 in a 12-point line.
 const REPEAT_ONE: Label = MONO_9.w_px(8.0).h_px(12.0);

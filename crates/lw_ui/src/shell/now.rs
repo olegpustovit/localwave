@@ -146,9 +146,13 @@ pub(super) fn now_panel(
     );
 }
 
-/// The heart key: 36 by 28 points, no look of its own.
-const FAVORITE: pxui::Button = pxui::Button::sized(36.0, 28.0).look(&BARE);
-/// Heart for the playing song. The burst's six rays are retained and animated once on off→on.
+/// The heart key: 36 by 28 points, no plate; the heart in secondary ink, accent while the song is a favourite.
+const FAVORITE: pxui::IconButton = pxui::IconButton::sized(36.0, 28.0).look(&FAVORITE_LOOKS);
+const FAVORITE_LOOKS: States = States::of(SECONDARY_TEXT).checked(Look::NONE.text(Rgba::token(ColorToken::ACCENT)));
+/// The heart and its burst: a 36 by 28 stack.
+const FAVORITE_STACK: Node = Node::stack().w_px(36.0).h_px(28.0);
+/// Heart for the playing song (the kit's icon button, selected while a favourite). The burst's six rays are retained over it and
+/// animated once on off→on for the same song.
 pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool {
     use pxui::{ui::Keyframe, Keyframes};
     const RAYS: [(&str, f32, f32); 6] = [
@@ -160,75 +164,49 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         ("ray5", -0.9, -0.5),
     ];
     let on = current.is_some_and(|(_, on)| on);
-    let favorite = FAVORITE.selected(on).disabled(current.is_none()).name("Favorite current song");
-    // the heart and its burst are a stack of their own, built with the press state
-    let signal = ui.button_content("favorite", &favorite, |ui, press| {
-        let node = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
-        // Remember (song, state) so a track change never reads as a favourite toggle.
-        let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
-        let was = ui.state(&node, 0);
-        let burst = current.is_some_and(|(id, on)| on && was == id.wrapping_mul(2) + 1)
-            && !ui.tokens().reduced_motion;
-        if was != seen {
-            ui.set_state(&node, seen);
-        }
-        let color = if on { Rgba::token(ColorToken::ACCENT) } else { Rgba::token(SECONDARY) };
-        ui.within(&node, &mut |ui| {
-            let heart = ui.view_of("heart", &(on, press.hovered, press.pressed, current.is_some()), |ui| {
-                let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
-                ui.canvas(&surface, move |paint, rect| {
-                    let side = 20.0;
-                    let area = Rect {
-                        x: rect.x + (rect.w - side) / 2.0,
-                        y: rect.y + (rect.h - side) / 2.0,
-                        w: side,
-                        h: side,
-                    };
-                    crate::icons::heart(paint, area, on, color);
-                });
+    let node = ui.node("favorite", FAVORITE_STACK);
+    // Remember (song, state) so a track change never reads as a favourite toggle.
+    let seen = current.map_or(0, |(id, on)| id.wrapping_mul(2) + i64::from(on) + 1);
+    let was = ui.state(&node, 0);
+    let burst = current.is_some_and(|(id, on)| on && was == id.wrapping_mul(2) + 1) && !ui.tokens().reduced_motion;
+    if was != seen {
+        ui.set_state(&node, seen);
+    }
+    let mut clicked = false;
+    ui.within(&node, &mut |ui| {
+        let heart = icon_drawing(if on { Icon::HeartFilled } else { Icon::Heart });
+        clicked = ui.icon_button("heart", heart, "Favorite current song", &FAVORITE.selected(on).disabled(current.is_none())).clicked;
+        for (key, dx, dy) in RAYS {
+            let slot = ui.node(key, RAY_SLOT);
+            let mut ray = None;
+            ui.within(&slot, &mut |ui| {
+                ray = Some(ui.view_of("ray", &0, |ui| {
+                    let dot = ui.node("dot", Node::column().w(Size::Grow).h(Size::Grow));
+                    let accent = Rgba::token(ColorToken::ACCENT);
+                    ui.canvas(&dot, move |paint, rect| paint.fill(rect, Fill::new(accent)));
+                }));
             });
-            let _ = heart;
-            for (key, dx, dy) in RAYS {
-                let slot = ui.node(
-                    key,
-                    RAY_SLOT,
-                );
-                let mut ray = None;
-                ui.within(&slot, &mut |ui| {
-                    ray = Some(ui.view_of("ray", &0, |ui| {
-                        let dot = ui.node("dot", Node::column().w(Size::Grow).h(Size::Grow));
-                        let accent = Rgba::token(ColorToken::ACCENT);
-                        ui.canvas(&dot, move |paint, rect| {
-                            paint.fill(rect, Fill::new(accent))
-                        });
-                    }));
-                });
-                let ray = ray.unwrap();
-                let curve = crate::motion::out(crate::motion::SLOW);
-                if burst {
-                    let pose = |time, opacity, k: f32, scale| {
-                        [
-                            Keyframe::opacity(time, opacity).curve(curve),
-                            Keyframe::offset(time, dx * 18.0 * k, dy * 18.0 * k).curve(curve),
-                            Keyframe::scale(time, scale, scale).curve(curve),
-                        ]
-                    };
-                    let [a, b, c] = pose(0.0, 1.0, 0.0, 1.0);
-                    let [d, e, f] = pose(crate::motion::SLOW, 0.0, 1.0, 0.25);
-                    ui.animate_keys(&ray, &[a, b, c, d, e, f], &Keyframes::DEFAULT);
-                    ui.set_state(&ray, 1);
-                } else if ui.state(&ray, 0) == 0 {
-                    ui.set_state(&ray, 1);
-                    ui.animate_keys(
-                        &ray,
-                        &[Keyframe::opacity(0.0, 0.0).curve(curve)],
-                        &Keyframes::DEFAULT,
-                    );
-                }
+            let ray = ray.unwrap();
+            let curve = crate::motion::out(crate::motion::SLOW);
+            if burst {
+                let pose = |time, opacity, k: f32, scale| {
+                    [
+                        Keyframe::opacity(time, opacity).curve(curve),
+                        Keyframe::offset(time, dx * 18.0 * k, dy * 18.0 * k).curve(curve),
+                        Keyframe::scale(time, scale, scale).curve(curve),
+                    ]
+                };
+                let [a, b, c] = pose(0.0, 1.0, 0.0, 1.0);
+                let [d, e, f] = pose(crate::motion::SLOW, 0.0, 1.0, 0.25);
+                ui.animate_keys(&ray, &[a, b, c, d, e, f], &Keyframes::DEFAULT);
+                ui.set_state(&ray, 1);
+            } else if ui.state(&ray, 0) == 0 {
+                ui.set_state(&ray, 1);
+                ui.animate_keys(&ray, &[Keyframe::opacity(0.0, 0.0).curve(curve)], &Keyframes::DEFAULT);
             }
-        });
+        }
     });
-    signal.clicked
+    clicked
 }
 
 /// Format / Size / File / Plays under a hairline, drawn from the worker-prepared strings.
