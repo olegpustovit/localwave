@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. U4a steps done on `u4a`; the package end is BLOCKED on the dynamic abi_bench wall gate (see below); then independent drift review and landing.
+Updated 2026-11-19. U4a steps done on `u4a`; the package-end block (dynamic abi_bench Collections wall gate) is resolved by gap step U2b.4.17; NEXT: an independent review fix round, then landing. U4a is not done yet.
 
 ## What we're doing
 
@@ -178,20 +178,22 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
 Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
 paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
-## U4a done; next: independent drift review, then landing
+## U4a steps done; next: independent review fix round, then landing (U4a not done yet)
 
-U4a (desktop shell) is done on branch `u4a` in both repos, nothing pushed: LocalWave e95dbe0..HEAD and pxui 6eadaa1c..ac35443f
-(ABI 1.99–1.111, gap steps U2b.4.1–U2b.4.16; see `docs/rust-port.md` rows and `scratch/u4a-final-report.md`, local only). Every desktop
+U4a (desktop shell) steps are done on branch `u4a` in both repos, nothing pushed: LocalWave e95dbe0..HEAD and pxui 6eadaa1c..fd9203b1
+(ABI 1.99–1.112, gap steps U2b.4.1–U2b.4.17; see `docs/rust-port.md` rows and `scratch/u4a-final-report.md`, local only). Every desktop
 row is on its widget per the site map; the api_conformance allowlist is 33 lines (only composite, D7 and listed dynamic rows);
 the helpers side_item, side_row, add_row, find::button, queue_action, settings::back, settings::option, underlined, result_row and
 commands::overlay are deleted. Tier B in both repos, release abi_bench in both modes and gcmp light/dark against the package-start
 bases are in the final report.
 
-0. BLOCKED: release abi_bench `--no-default-features` (dynamic) fails the Collections wall gate at pxui ac35443f (x1.044, x1.054,
-   x1.063 on a quiet machine; gate 3% and 5 µs per 1000 nodes, 7% hard) while every instruction ratio passes unchanged (Collections
-   1.00742). Bisect in a temporary worktree: ac4ec089 x1.0162, 71667624 x1.0142, 56ca53ea x1.0135/1.0142 pass; ac35443f fails. Its
-   change is picker-only code the Collections page never runs; reverting just its in-place key loop moves the failure to Lists
-   (x1.0604 against 6%) and Controls x1.056. Code placement in the LTO dylib. Needs a ruling before landing (`scratch/u4a-final-report.md`).
+0. RESOLVED (was BLOCKED): the dynamic abi_bench Collections wall gate failed at pxui ac35443f because pxui_core `flatten_tree`
+   walked the gallery outline's 100,000 nodes every frame (about half the frame), its speed set by code placement. Ruling option 3:
+   gap step U2b.4.17 (pxui fd9203b1, LocalWave d4e1c96, ABI 1.112) gives `Ui::tree` a `revision: Option<u64>` (as
+   `ListState::revision`); a warm frame walks no node. Release abi_bench passes every page in both modes over 3 runs each
+   (dynamic Collections x1.0186-1.0270, 4.6-6.5 us per 1000 nodes); details in `scratch/u4a-final-report.md`.
+   NEXT: an independent review fix round on U2b.4.17 and the U4a diff (fixes as `[U2b.4.17 fix]`/`[U4a.<k> fix]` commits). Do not
+   mark U4a done before it.
 1. Next: an independent drift review of the U4a diff against the ledger (no re-implemented kit behaviour in LocalWave), then the
    orchestrator lands (pxui `rust-port` first, `tools/check-pxui-remote.sh`, then LocalWave with an online `make check`).
 2. Orchestrator rulings carried by U4a (19 Nov): GAP U2b.4.16 shape A (`PickerFieldConfig.list`); abi_bench option (a) (regrouping
