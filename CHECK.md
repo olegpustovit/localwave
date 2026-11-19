@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. Resume at [U3 review and landing, then U4a](#next-u3-review-and-landing-then-u4a).
+Updated 2026-11-19. Resume at [U4a](#next-u4a).
 
 ## What we're doing
 
@@ -178,9 +178,11 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
 Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
 paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
-## NEXT: U3 review and landing, then U4a
+## NEXT: U4a
 
-1. Review and land U3 (branch `u3`, LocalWave only, pxui unchanged at 333bf96f): commits 13fbb81, 2848638, 1d63ef8, 6fe6397 (U3.1),
+0. U4a per the plan (desktop shell; pattern stop), branch `u4a`. Orchestrator rulings on U3: the command field's kit-theme
+   foreground stays the one allowlisted R6 dynamic case until U4 replaces the field; settings::paragraph needs no codemod table.
+1. Landed U3 (`u3`, LocalWave only, pxui unchanged at 333bf96f): commits 13fbb81, 2848638, 1d63ef8, 6fe6397 (U3.1),
    5a76301 (U3.2), 24a4a68 (U3.3) and the status commit; report `scratch/u3-final-report.md` (local only). Allowlist 308 to 56
    (R1 0, R6 1 with its reason, R4 none); `LOCALWAVE_OFFLINE=1 make check` (289) passed; fingerprints identical light and dark
    except the listed test-fixture colour.
