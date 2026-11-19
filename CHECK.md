@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. Resume at [U3](#next-u3).
+Updated 2026-11-19. Resume at [U3 review and landing, then U4a](#next-u3-review-and-landing-then-u4a).
 
 ## What we're doing
 
@@ -178,11 +178,14 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
 Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
 paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
-## NEXT: U3
+## NEXT: U3 review and landing, then U4a
 
-1. U3 per the plan (LocalWave looks, literals, keys; pattern stop), branch `u3`. U2c landed at pxui 333bf96f after an independent
-   review (land after fixes, applied); pxui `cargo t --all` and online `make check` passed at landing.
-2. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
+1. Review and land U3 (branch `u3`, LocalWave only, pxui unchanged at 333bf96f): commits 13fbb81, 2848638, 1d63ef8, 6fe6397 (U3.1),
+   5a76301 (U3.2), 24a4a68 (U3.3) and the status commit; report `scratch/u3-final-report.md` (local only). Allowlist 308 to 56
+   (R1 0, R6 1 with its reason, R4 none); `LOCALWAVE_OFFLINE=1 make check` (289) passed; fingerprints identical light and dark
+   except the listed test-fixture colour.
+2. Then U4a per the plan (desktop shell; pattern stop), branch `u4a`.
+3. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
    `pxui_ui_variant`, `pxui_ui_text`, the `pxui_frame`/`pxui_ui_frame` pair (U5.2), the prefix renames of `pxui_panel`, `pxui_within`,
    `pxui_part` and `pxui_slot`, the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
 
@@ -196,6 +199,13 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 
 ## Found (separate fixes later)
 
+- U3: `Ui::text_line_box` colours node text from the node's look and ignores the `Label`'s colour token; its docs do not say so
+  (LocalWave's positioned labels set `theme::text_look(style)`).
+- U3: the `Rgba::token` doc says a `Paint` call given a raw token paints nothing, but every Rust `Paint` shape call resolves it
+  (`Paint::ink`); stale doc.
+- U3: the phone Find field's `Font` has tracking -0.52, but `Font::tracking` is in ems and the code comment says points (-0.02 em
+  at 26 pt); kept as is (no visible change in U3), likely a bug.
+- U3: `Flags` has no const union, so a `const Node` cannot combine flags (`Flags::SCROLL | Flags::CLIP` stays inline).
 - `pxui_core/src/kit_ext.rs:565` `inspector_header_body` keys its name field with `format!` every build (and :613, :877 `inspector_bar`, :1004 `head_button`): warm inspector headers allocate.
 - lw_bin `files_worker_adds_and_imports_recursive_folders_browses_rescans_and_rejects_stale_accounts` fails under heavy load (`directory.is_none()` after a stale Browse); green alone.
 - The dynamic release abi_bench run takes about 59–60.4 s against the runner's 60 s cap (`abi_bench_start` 29 s; one retry seen). CP1 action (c).

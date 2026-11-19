@@ -249,9 +249,9 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U2c.5 | Theme, unit, constructor and setter twins | done | LocalWave 13d95af, pxui 4f23fbe0. ui_theme is the exact snapshot; set_theme (ThemeSource), set_colors, theme_set/load/apply, set_look, font_size/row_height, verify_new_views deleted; checked constructors and setters take the plain name. ABI 1.96. |
 | U2c.6 | Text and paint text twins | done | LocalWave 8ced207, pxui 56bd3dde. Resolved-style text twins, integer-size paint text calls, ui_text_width/cap_width/text_top and the C ui_label deleted. 343 to 242 exports; abi_drop.py --check passes. Tier B, make check (289), gcmp (identical to U2b), abi_bench both modes and buildtime passed. ABI 1.97. |
 | U2c review | Refusals write no outputs, dead paths, section_index | done | pxui 333bf96f, LocalWave b027a96. 11 exports wrote outputs before a refusal, now only on rc 0 (safety test); dead old-caller paths deleted; ui_section_index_result renamed ui_section_index; docs naming deleted exports fixed. Ui::set_colors deletion deferred: it puts static abi_bench Overlays over 1.011. abi_bench both modes, Tier A, make check passed. ABI 1.98. |
-| U3.1 | Looks are consts | todo |  |
-| U3.2 | Literal codemod | todo |  |
-| U3.3 | Keys | todo |  |
+| U3.1 | Looks are consts | review | LocalWave 13fbb81, 2848638, 1d63ef8, 6fe6397 (branch u3). container takes &'static Look; detail::line, compact::line and settings::notice deleted for ui.label with theme Labels; paragraph and the positioned cell labels take a coloured Label (theme::text_look); find washes, clocks, song row looks, scrims and run-time Button bases are consts; canvas colours are Rgba::token (looks.py). Fingerprints identical light and dark except one listed test-fixture colour. |
+| U3.2 | Literal codemod | review | LocalWave 5a76301. literals.py: 108 Node/Edges/Look/State/States/Font/Rgba/Event literals in lw_ui become builder chains, 6 by hand; R1 51 to 0. Only test Events with payloads stay literals. |
+| U3.3 | Keys | review | LocalWave 24a4a68. Artist headings, folder cells, Find chips and the folder Back key are ids; ArtworkReady::key is artwork_id. R4 has no line. Allowlist 308 to 56; Tier B (make check 289) passed. |
 | U4a.1 | sidebar.rs | todo |  |
 | U4a.2 | header.rs, find.rs | todo |  |
 | U4a.3 | albums.rs, artists.rs | todo |  |
