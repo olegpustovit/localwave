@@ -49,6 +49,28 @@ pub(super) const LEAD_INK: Label = TEXT_15.color(INK);
 pub(super) const LEAD_DIM: Label = TEXT_15.color(SECONDARY);
 /// Secondary 12-point mono text.
 pub(super) const MONO_DIM: Label = MONO_12.color(SECONDARY);
+/// One line in the UI face filling its row: a `line_height`-point line box, end ellipsis (Swift's fixed-frame title `Text`).
+const fn line_box(points: f32, line_height: f32, weight: u16, tracking: f32) -> Label {
+    Label::BODY.size(points).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis().grow().h_px(line_height)
+}
+/// A page title (Library, Settings, a list or folder name): 32 points, ink.
+pub(super) const PAGE_TITLE: Label = line_box(32.0, 33.6, 500, -0.035).color(INK);
+/// An album page title: 40 points, ink.
+pub(super) const ALBUM_TITLE: Label = line_box(40.0, 40.8, 500, TIGHT_3).color(INK);
+/// An artist page title: 48 points, ink.
+pub(super) const ARTIST_TITLE: Label = line_box(48.0, 48.0, 500, -0.025).color(INK);
+/// A sheet title (Add music): 20 points, ink.
+pub(super) const SHEET_TITLE: Label = line_box(20.0, 28.0, 500, -0.01).color(INK);
+/// A sheet option title: 17 points, ink.
+pub(super) const OPTION_TITLE: Label = line_box(17.0, 23.8, 500, 0.0).color(INK);
+/// An album card title: 14 points, ink.
+pub(super) const CARD_TITLE: Label = line_box(14.0, 17.5, 500, 0.0).color(INK);
+/// A detail summary, kind or year: 13 points, secondary.
+pub(super) const SUMMARY: Label = line_box(13.0, 18.2, 400, 0.0).color(SECONDARY);
+/// An artist page summary: 14 points, secondary.
+pub(super) const ARTIST_SUMMARY: Label = line_box(14.0, 19.6, 400, 0.0).color(SECONDARY);
+/// A section caption (Songs, the song count): 13 points medium, secondary.
+pub(super) const SECTION_CAPTION: Label = line_box(13.0, 18.2, 500, 0.0).color(SECONDARY);
 
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::of(Look::NONE);
@@ -67,6 +89,8 @@ pub(super) const INK_FILL: Look = Look::NONE.fill(Rgba::token(INK));
 pub(super) const KEY_FILL: Look = Look::NONE.fill(Rgba::token(KEY));
 /// The hairline fill.
 pub(super) const LINE_FILL: Look = Look::NONE.fill(Rgba::token(super::kit::LINE));
+/// A 60 percent panel wash (an artist row while hovered or held).
+pub(super) const PANEL_WASH: Look = Look::NONE.fill(Rgba::token(PANEL).alpha(153));
 /// Ink text.
 pub(super) const INK_TEXT: Look = Look::NONE.text(Rgba::token(INK));
 /// Secondary text.

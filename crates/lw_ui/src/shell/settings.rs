@@ -174,7 +174,7 @@ pub(super) fn view(
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
         let title = ui.node("settings-title", Node::column().w(Size::Grow).h_px(56.0).pad_x(16.0).role(Role::Heading));
-        ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); });
+        ui.within(&title, &mut |ui| { ui.label(heading, PAGE_TITLE); });
         ui.a11y_name(&title, heading);
         if state.privacy_visible {
             for (index, (title, body)) in [

@@ -163,7 +163,7 @@ pub(super) fn table(
                                     Axis::Stack,
                                     Size::Grow,
                                     Size::Grow,
-                                    Rgba { a: 153, ..ui.color(PANEL) },
+                                    &PANEL_WASH,
                                 );
                             });
                             let previous = ui.state(&hover, -1);

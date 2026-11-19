@@ -340,7 +340,7 @@ fn result_row(
                 Axis::Column,
                 Size::Px(28.0),
                 Size::Px(28.0),
-                ui.color(PANEL),
+                &PANEL_FILL,
             );
             paint_artwork(ui, &art, Some(catalog.row(index)), 28.0, player.artwork);
         } else {
@@ -350,7 +350,7 @@ fn result_row(
                 Axis::Column,
                 Size::Px(16.0),
                 Size::Px(28.0),
-                Rgba::default(),
+                &Look::NONE,
             );
             let kind = item.icon;
             ui.canvas(&icon, move |paint, rect| {

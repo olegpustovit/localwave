@@ -16,8 +16,6 @@ lw_ui/src/shell/albums.rs	R7	let button = ui.pressable(key, node, &PLAIN.look(if
 lw_ui/src/shell/albums.rs	R7	let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {	composite: album card (audit #12)
 lw_ui/src/shell/artists.rs	R1	Node {
 lw_ui/src/shell/artists.rs	R1	Node {
-lw_ui/src/shell/artists.rs	R1	Rgba { a: 153, ..ui.color(PANEL) },
-lw_ui/src/shell/artists.rs	R6	Rgba { a: 153, ..ui.color(PANEL) },
 lw_ui/src/shell/artists.rs	R6	if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
 lw_ui/src/shell/artists.rs	R6	if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
 lw_ui/src/shell/artists.rs	R6	look: Look::NONE.text(color),
@@ -40,26 +38,14 @@ lw_ui/src/shell/commands.rs	R6	look: Look::NONE.text(Rgba::token(if find { TERTI
 lw_ui/src/shell/commands.rs	R6	look: Look::NONE.text(ui.tokens().foreground).font(font),
 lw_ui/src/shell/commands.rs	R6	paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(paint.color(INK))), None);
 lw_ui/src/shell/commands.rs	R6	paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(paint.color(INK)).width(1.1));
-lw_ui/src/shell/commands.rs	R6	ui.color(PANEL),
 lw_ui/src/shell/compact.rs	R1	&Node {
 lw_ui/src/shell/compact.rs	R1	Node {
 lw_ui/src/shell/compact.rs	R1	padding: if picking { Edges::ZERO } else { Edges {
 lw_ui/src/shell/compact.rs	R1	ui.row(Node {
 lw_ui/src/shell/compact.rs	R6	clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
-lw_ui/src/shell/compact.rs	R6	container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
-lw_ui/src/shell/compact.rs	R6	container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-lw_ui/src/shell/compact.rs	R6	container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-lw_ui/src/shell/compact.rs	R6	container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
-lw_ui/src/shell/compact.rs	R6	container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
-lw_ui/src/shell/compact.rs	R6	detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
 lw_ui/src/shell/compact.rs	R6	let color = if active { ui.color(PAPER) } else { ui.color(INK) };
 lw_ui/src/shell/compact.rs	R6	let color = if active { ui.color(PAPER) } else { ui.color(INK) };
 lw_ui/src/shell/compact.rs	R6	let color = ui.color(INK);
-lw_ui/src/shell/compact.rs	R6	let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PANEL));
-lw_ui/src/shell/compact.rs	R6	let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
-lw_ui/src/shell/compact.rs	R6	let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
-lw_ui/src/shell/compact.rs	R6	let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
-lw_ui/src/shell/compact.rs	R6	let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), ui.color(PAPER));
 lw_ui/src/shell/compact.rs	R6	line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
 lw_ui/src/shell/compact.rs	R6	line(ui, "count", &group.count, 12.0, ui.color(SECONDARY));
 lw_ui/src/shell/compact.rs	R6	line(ui, "empty-groups", "Nothing here yet.", 14.0, ui.color(SECONDARY));
@@ -69,9 +55,6 @@ lw_ui/src/shell/compact.rs	R6	line(ui, "title", &group.title, 16.0, ui.color(INK
 lw_ui/src/shell/compact.rs	R6	look: Look::NONE.text(color),
 lw_ui/src/shell/compact.rs	R6	matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
 lw_ui/src/shell/compact.rs	R6	ui.color(INK),
-lw_ui/src/shell/compact.rs	R6	ui.color(PANEL),
-lw_ui/src/shell/compact.rs	R6	ui.color(PAPER),
-lw_ui/src/shell/compact.rs	R6	ui.color(PAPER),
 lw_ui/src/shell/compact.rs	R7	let card = ui.pressable("group", node, &PLAIN, |ui, _| {	composite: compact group card (audit #23)
 lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {	composite: mini player open (audit #22)
 lw_ui/src/shell/compact.rs	R7	let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #25 expanded-player dismiss root -> sheet presentation (G6, U4)
@@ -79,55 +62,28 @@ lw_ui/src/shell/compact.rs	R7	let settings = ui.pressable("settings", Node::colu
 lw_ui/src/shell/compact/list.rs	R1	&Node {
 lw_ui/src/shell/compact/list.rs	R1	let row_node = Node {
 lw_ui/src/shell/compact/list.rs	R1	ui.id("swipe-actions", |ui| { ui.row(Node {
-lw_ui/src/shell/compact/list.rs	R6	container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	detail::line(ui, "name", title, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
-lw_ui/src/shell/compact/list.rs	R6	detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
-lw_ui/src/shell/compact/list.rs	R6	detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
 lw_ui/src/shell/compact/list.rs	R6	let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
 lw_ui/src/shell/compact/list.rs	R6	let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
 lw_ui/src/shell/compact/list.rs	R6	let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), ui.color(PANEL));
 lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(INK);
 lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(SECONDARY);
 lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(SECONDARY);
 lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(tone);
-lw_ui/src/shell/compact/list.rs	R6	let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
 lw_ui/src/shell/compact/list.rs	R6	let ink = ui.color(tone);
-lw_ui/src/shell/compact/list.rs	R6	let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
 lw_ui/src/shell/compact/list.rs	R6	let link = detail::link(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY));
 lw_ui/src/shell/compact/list.rs	R6	line(ui, "artist", note, 13.0, ui.color(SECONDARY));
 lw_ui/src/shell/compact/list.rs	R6	line(ui, "empty", "No songs here yet.", 14.0, ui.color(SECONDARY));
 lw_ui/src/shell/compact/list.rs	R6	paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(paint.color(SECONDARY)));
 lw_ui/src/shell/compact/list.rs	R6	ui.color(INK)
-lw_ui/src/shell/compact/list.rs	R6	ui.color(INK),
-lw_ui/src/shell/compact/list.rs	R6	ui.color(PANEL),
-lw_ui/src/shell/compact/list.rs	R6	ui.color(PAPER),
-lw_ui/src/shell/compact/list.rs	R6	ui.color(SECONDARY),
 lw_ui/src/shell/compact/list.rs	R7	let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {	composite: artist page album card (audit #34)
 lw_ui/src/shell/compact/list.rs	R7	let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #29 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/compact/list.rs	R7	let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #33 A-Z rail -> section_index (G9, U4)
 lw_ui/src/shell/compact/list.rs	R7	let key_node = ui.pressable(key, node, &PLAIN.disabled(!enabled), |ui, _| {	drift: audit #38 selection deck key -> Button (U4)
 lw_ui/src/shell/compact/list.rs	R7	let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {	composite: compact song row with gestures (audit #27)
 lw_ui/src/shell/detail.rs	R1	Node {
-lw_ui/src/shell/detail.rs	R1	Node {
-lw_ui/src/shell/detail.rs	R6	container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
-lw_ui/src/shell/detail.rs	R6	let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), ui.color(PANEL));
-lw_ui/src/shell/detail.rs	R6	let art = container(ui, "artwork", Axis::Stack, Size::Px(size), Size::Px(size), ui.color(PANEL));
 lw_ui/src/shell/detail.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/detail.rs	R6	let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
 lw_ui/src/shell/detail.rs	R6	let link = link(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0), ui.color(SECONDARY));
 lw_ui/src/shell/detail.rs	R6	let node = Node::column().w(Size::Grow).h_px(line_height).role(Role::Button).look(Look::NONE.text(color));
-lw_ui/src/shell/detail.rs	R6	let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
-lw_ui/src/shell/detail.rs	R6	line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
-lw_ui/src/shell/detail.rs	R6	line(ui, "name", &group.title, (14.0, 17.5, 500, 0.0), ui.color(INK), Flags::NONE);
-lw_ui/src/shell/detail.rs	R6	line(ui, "year", year, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
-lw_ui/src/shell/detail.rs	R6	look: Look::NONE.text(color),
-lw_ui/src/shell/detail.rs	R6	ui.color(INK),
-lw_ui/src/shell/detail.rs	R6	ui.color(SECONDARY),
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #42 folder link -> Button LINK variant (U4)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #39 artist link -> Button LINK variant (U4)
@@ -160,10 +116,6 @@ lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node { padding: Edges
 lw_ui/src/shell/files.rs	R2	let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R6	_ => mark(ui, entry.directory, ui.color(SECONDARY)),
-lw_ui/src/shell/files.rs	R6	container(ui, "fill", Axis::Column, Size::Pct(files.offline_fraction), Size::Grow, ui.color(INK));
-lw_ui/src/shell/files.rs	R6	container(ui, "fill", Axis::Column, Size::Pct(folder.local), Size::Grow, ui.color(INK));
-lw_ui/src/shell/files.rs	R6	container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
-lw_ui/src/shell/files.rs	R6	container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
 lw_ui/src/shell/files.rs	R6	let color = if kept { ui.color(PAPER) } else { ui.color(INK) };
 lw_ui/src/shell/files.rs	R6	let color = if kept { ui.color(PAPER) } else { ui.color(INK) };
 lw_ui/src/shell/files.rs	R6	let color = ui.color(INK);
@@ -172,24 +124,17 @@ lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
 lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
 lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
 lw_ui/src/shell/files.rs	R6	let color = ui.color(tone);
-lw_ui/src/shell/files.rs	R6	let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
-lw_ui/src/shell/files.rs	R6	let label = container(ui, "offline-label", Axis::Row, Size::Grow, Size::Px(19.6), ui.color(PAPER));
 lw_ui/src/shell/files.rs	R6	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
 lw_ui/src/shell/files.rs	R6	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
 lw_ui/src/shell/files.rs	R6	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
-lw_ui/src/shell/files.rs	R6	let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(if compact { 44.0 } else { 40.0 }), ui.color(PANEL));
-lw_ui/src/shell/files.rs	R6	let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
 lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
 lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "detail", detail, width - 56.0, 13.0, ui.color(SECONDARY));
 lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "folder-name", name, width - 40.0, 15.0, ui.color(INK));
-lw_ui/src/shell/files.rs	R6	super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
-lw_ui/src/shell/files.rs	R6	super::detail::line(ui, "title", title, (17.0, 23.8, 500, 0.0), ui.color(INK), Flags::NONE);
 lw_ui/src/shell/files.rs	R6	ui.canvas_over(&head, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
 lw_ui/src/shell/files.rs	R6	ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0), Fill::new(paint.color(LINE)).fractional()));
 lw_ui/src/shell/files.rs	R6	ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
 lw_ui/src/shell/files.rs	R6	ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
 lw_ui/src/shell/files.rs	R6	ui.canvas_over(&tools, move |paint, rect| paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(paint.color(LINE)).fractional()));
-lw_ui/src/shell/files.rs	R6	ui.id("name", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| { super::detail::line(ui, "title", &directory.title, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); }); });
 lw_ui/src/shell/find.rs	R6	Node::column().w(Size::Grow).h(Size::Grow).look(Look::NONE.fill(color)),
 lw_ui/src/shell/find.rs	R6	background(ui, "hover", ui.color(PANEL), press.hovered && !selected, before != i64::from(selected));
 lw_ui/src/shell/find.rs	R6	background(ui, "press", ui.color(PANEL), press.pressed, false);
@@ -200,49 +145,28 @@ lw_ui/src/shell/header.rs	R1	Node {
 lw_ui/src/shell/header.rs	R1	Node {
 lw_ui/src/shell/header.rs	R1	let node = Node {
 lw_ui/src/shell/header.rs	R1	margin: Edges {
-lw_ui/src/shell/header.rs	R6	container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
-lw_ui/src/shell/header.rs	R6	detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
-lw_ui/src/shell/header.rs	R6	ui.color(INK),
-lw_ui/src/shell/header.rs	R6	ui.color(PAPER),
 lw_ui/src/shell/header.rs	R7	let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {	drift: audit #9 filter chip -> checkbox variant (G5, U4)
 lw_ui/src/shell/kit.rs	R1	Node {
 lw_ui/src/shell/kit.rs	R1	Rgba {
 lw_ui/src/shell/kit.rs	R1	ui.style(&c.row, &pxui::theme::States::of(look), State { disabled: !enabled, ..State::default() });
-lw_ui/src/shell/kit.rs	R6	look: Look::NONE.fill(fill),
-lw_ui/src/shell/kit.rs	R6	ui.color(LINE),
 lw_ui/src/shell/lists.rs	R6	settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
 lw_ui/src/shell/lists.rs	R6	settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
-lw_ui/src/shell/lists.rs	R6	ui.color(PAPER),
 lw_ui/src/shell/metadata.rs	R6	settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
 lw_ui/src/shell/metadata.rs	R6	settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
-lw_ui/src/shell/metadata.rs	R6	ui.color(PAPER),
 lw_ui/src/shell/now.rs	R1	Node {
 lw_ui/src/shell/now.rs	R1	Node {
 lw_ui/src/shell/now.rs	R6	let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
 lw_ui/src/shell/now.rs	R6	matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
-lw_ui/src/shell/now.rs	R6	ui.color(PANEL),
-lw_ui/src/shell/onboarding.rs	R6	let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
 lw_ui/src/shell/onboarding.rs	R6	let ink = ui.color(INK);
-lw_ui/src/shell/onboarding.rs	R6	let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
-lw_ui/src/shell/onboarding.rs	R6	let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
-lw_ui/src/shell/onboarding.rs	R6	let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), ui.color(PAPER));
-lw_ui/src/shell/onboarding.rs	R6	let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
 lw_ui/src/shell/onboarding.rs	R6	ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
 lw_ui/src/shell/onboarding.rs	R7	let choose = ui.pressable("choose-folder", node, &PLAIN.look(&INK_LOOKS), |ui, _| {	drift: audit #60 Choose a folder -> Button (U4)
 lw_ui/src/shell/onboarding.rs	R7	let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #61 Drive disclosure -> disclosure (G10, U4)
 lw_ui/src/shell/queue_sheet.rs	R1	let item_node = Node {
 lw_ui/src/shell/queue_sheet.rs	R1	let sheet_node = Node {
 lw_ui/src/shell/queue_sheet.rs	R1	ui.column(Node {
-lw_ui/src/shell/queue_sheet.rs	R6	let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
 lw_ui/src/shell/queue_sheet.rs	R6	paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
 lw_ui/src/shell/queue_sheet.rs	R6	paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
 lw_ui/src/shell/queue_sheet.rs	R6	paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
-lw_ui/src/shell/queue_sheet.rs	R6	ui.color(PAPER),
-lw_ui/src/shell/queue_sheet.rs	R6	ui.color(PAPER),
-lw_ui/src/shell/queue_sheet.rs	R6	ui.color(PAPER),
-lw_ui/src/shell/queue_sheet.rs	R6	ui.color(PAPER),
-lw_ui/src/shell/queue_sheet.rs	R6	ui.color(kit::PANEL),
-lw_ui/src/shell/queue_sheet.rs	R6	ui.color(kit::PANEL),
 lw_ui/src/shell/queue_sheet.rs	R7	let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {	drift: audit #55 Clear up next -> Button (U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #57 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #56 queue row drop root -> drop_target (G7, U4)
@@ -260,11 +184,9 @@ lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flag
 lw_ui/src/shell/settings.rs	R6	let color = ui.color(INK);
 lw_ui/src/shell/settings.rs	R6	look: Look::NONE.text(color),
 lw_ui/src/shell/settings.rs	R6	ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(paint.color(LINE))));
-lw_ui/src/shell/settings.rs	R6	ui.within(&title, &mut |ui| { detail::line(ui, "heading", heading, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); });
 lw_ui/src/shell/settings.rs	R7	let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: appearance settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: cache settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {	drift: audit #66 Rescan all sources -> Button with detail/accessory (U4)
-lw_ui/src/shell/sidebar.rs	R6	container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
 lw_ui/src/shell/sidebar.rs	R7	let node = ui.pressable(key, spec, &row, |ui, _| {	drift: audit #1 sidebar rows -> selection_list (G4, U4)
 lw_ui/src/shell/sidebar.rs	R7	let search = ui.pressable("search", node, &PLAIN.look(&SEARCH_ROW_LOOKS), |ui, _| {	drift: audit #4 search row -> Button variant (U4)
 lw_ui/src/shell/sidebar.rs	R7	let shortcuts = ui.pressable("shortcuts", node, &PLAIN, |ui, _| {	drift: audit #6 shortcuts row -> Button (U4)
@@ -303,6 +225,5 @@ lw_ui/src/shell/transport.rs	R1	ui.id("repeat-one", |ui| { ui.column(Node {
 lw_ui/src/shell/transport.rs	R1	ui.row(Node {
 lw_ui/src/shell/transport.rs	R1	ui.row(Node {
 lw_ui/src/shell/transport.rs	R6	let ink = paint.color(INK);
-lw_ui/src/shell/transport.rs	R6	let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
 lw_ui/src/shell/transport.rs	R6	paint.fill(Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)));
 lw_ui/src/shell/transport.rs	R7	let target = ui.pressable("up-next-drop", Node::column().w_px(319.0).h(Size::Grow), &PLAIN.tab_stop(false), |ui, _| {	drift: audit #49 up-next drop zone -> drop_target (G7, U4)

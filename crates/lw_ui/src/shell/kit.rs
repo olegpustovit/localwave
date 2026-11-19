@@ -43,13 +43,13 @@ pub(super) fn container(
     axis: Axis,
     w: Size,
     h: Size,
-    fill: Rgba,
+    look: &'static Look,
 ) -> Handle {
     ui.node(
         key,
         Node {
             axis,
-            look: Look::NONE.fill(fill),
+            look: *look,
             ..Node::column().w(w).h(h)
         },
     )
@@ -64,7 +64,7 @@ pub(super) fn rule(ui: &mut Ui, key: &'static str, vertical: bool) {
         Axis::Column,
         if vertical { Size::Px(1.0) } else { Size::Grow },
         if vertical { Size::Grow } else { Size::Px(1.0) },
-        ui.color(LINE),
+        &LINE_FILL,
     );
 }
 

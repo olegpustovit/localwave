@@ -141,7 +141,7 @@ pub(super) fn desktop(
     );
     ui.within(&root, &mut |ui| {
         spacer(ui, "titlebar-clearance", top);
-        let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
+        let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Grow, &PAPER_FILL);
         ui.within(&work, &mut |ui| {
             // A carry hovering a list row or a queue gap highlights it and a drop reads once; the engine
             // does not say which, so the views showing drop targets rebuild on every frame of a carry

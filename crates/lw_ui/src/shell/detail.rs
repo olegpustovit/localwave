@@ -84,40 +84,6 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
         }
     });
 }
-pub(super) fn line(
-    ui: &mut Ui,
-    key: &'static str,
-    value: &str,
-    // tracking in ems
-    (size, line_height, weight, tracking): (f32, f32, u16, f32),
-    color: Rgba,
-    flags: Flags,
-) -> Handle {
-    let node = ui.node(
-        key,
-        Node {
-            flags,
-            look: Look::NONE.text(color),
-            ..Node::column()
-                .w(Size::Grow)
-                .h_px(line_height)
-                .role(if flags == Flags::NONE {
-                    Role::Label
-                } else {
-                    Role::Button
-                })
-        },
-    );
-    ui.text_line_box(
-        &node,
-        value,
-        Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
-        &[],
-    )
-    .unwrap();
-    node
-}
-
 /// A one-line text link: `line`'s look and metrics as a pressable button.
 pub(super) fn link(
     ui: &mut Ui,
@@ -168,7 +134,7 @@ pub(super) fn header(
         player.artwork.map_or(0, crate::artwork::Images::revision),
     ));
     ui.column(Node::column().h_px(height(width, route, cards.len(), folder)), |ui| { ui.view_of("page-heading", &revision, |ui| {
-            let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
+            let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
             ui.within(&column, &mut |ui| {
                 back_row(ui, if album { Route::Albums } else { Route::Artists }, intent);
                 let row = album && wide(width) || !album && !stacked(width);
@@ -217,7 +183,7 @@ fn header_body(
 ) {
     if album {
         let size = art_size(width);
-        let art = container(ui, "artwork", Axis::Stack, Size::Px(size), Size::Px(size), ui.color(PANEL));
+        let art = container(ui, "artwork", Axis::Stack, Size::Px(size), Size::Px(size), &PANEL_FILL);
         paint_artwork(ui, &art, group.artwork_row.map(|index| catalog.row(index)), size, player.artwork);
         ui.a11y_name(&art, "Album artwork");
     }
@@ -228,19 +194,12 @@ fn header_body(
             if !album {
                 spacer(ui, "kind-gap", 6.0);
             }
-            line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
+            ui.label(if album { "Album" } else { "Artist" }, SUMMARY);
             let title = match (album, group.title.is_empty()) {
                 (false, true) => "Unknown artist",
                 _ => &group.title,
             };
-            line(
-                ui,
-                "title",
-                title,
-                if album { (40.0, 40.8, 500, TIGHT_3) } else { (48.0, 48.0, 500, -0.025) },
-                ui.color(INK),
-                Flags::NONE,
-            );
+            ui.label(title, if album { ALBUM_TITLE } else { ARTIST_TITLE });
             if let PlaybackContext::Album { artist, .. } = group.context.as_ref()
                 && !artist.is_empty()
             {
@@ -255,20 +214,13 @@ fn header_body(
             spacer(ui, "summary-gap", if album { 12.0 } else { 6.0 });
             if album && !group.format.is_empty() {
                 // Swift: "2019 · 8 songs · 37 min · " in the text face, then the format in mono.
-                let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
+                let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
                 ui.within(&row, &mut |ui| {
                     ui.label(&group.lead, CAPTION);
                     ui.label(&group.format, MONO_DIM.grow());
                 });
             } else {
-                line(
-                    ui,
-                    "summary",
-                    &group.summary,
-                    if album { (13.0, 18.2, 400, 0.0) } else { (14.0, 19.6, 400, 0.0) },
-                    ui.color(SECONDARY),
-                    Flags::NONE,
-                );
+                ui.label(&group.summary, if album { SUMMARY } else { ARTIST_SUMMARY });
             }
             if let Some(target) = &group.folder {
                 spacer(ui, "folder-gap", 4.0);
@@ -276,7 +228,7 @@ fn header_body(
                     ui.label("Folder:", CAPTION);
                     let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {
                         ui.label(&target.label, TEXT_13.h_px(17.2).color(INK));
-                        container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), ui.color(INK));
+                        container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), &INK_FILL);
                     });
                     ui.a11y_name(&link.handle, &target.label);
                     if link.clicked {
@@ -342,15 +294,15 @@ fn album_grid(
                 for &index in chunk {
                     let group = &catalog.albums[index];
                     let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {
-                        let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), ui.color(PANEL));
+                        let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), &PANEL_FILL);
                         paint_artwork(ui, &art, group.artwork_row.map(|row| catalog.row(row)), cell, player.artwork);
                         spacer(ui, "art-gap", 8.0);
-                        line(ui, "name", &group.title, (14.0, 17.5, 500, 0.0), ui.color(INK), Flags::NONE);
+                        ui.label(&group.title, CARD_TITLE);
                         let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
                         let mut digits = [0u8; 24];
                         let year = stack_fmt(&mut digits, format_args!("{}", year.unwrap_or(0).max(0)));
                         let year = if year == "0" { "\u{2014}" } else { year };
-                        line(ui, "year", year, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
+                        ui.label(year, SUMMARY);
                     });
                     ui.a11y_name(&card.handle, &group.title);
                     if card.clicked {

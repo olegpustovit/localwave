@@ -23,7 +23,7 @@ pub(super) fn small_clock(
         Axis::Row,
         Size::Px(width),
         Size::Px(20.0),
-        Rgba::default(),
+        &Look::NONE,
     );
     ui.a11y_name(
         &node,

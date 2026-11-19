@@ -28,7 +28,7 @@ fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, ac
                 ui.label(label, TEXT_15.color(ink));
                 ui.label(count, CAPTION);
             });
-            container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
+            container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { &INK_FILL } else { &PAPER_FILL });
         });
     })
     .clicked
@@ -66,7 +66,7 @@ fn artwork(
         Axis::Stack,
         Size::Px(size),
         Size::Px(size),
-        ui.color(PANEL),
+        &PANEL_FILL,
     );
     paint_artwork(
         ui,
@@ -141,7 +141,7 @@ pub(super) fn view(
                                 let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
                                 list::selection_header(ui, state.marked.len(), rows, rows, intent);
                             } else if library {
-                                detail::line(ui, "heading", "Library", (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
+                                ui.label("Library", PAGE_TITLE);
                                 // Swift's header gear; Settings stays one tap away.
                                 let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
                                 ui.a11y_name(&settings.handle, "Settings");
@@ -173,7 +173,7 @@ pub(super) fn view(
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
                                 clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
                                 ui.label("songs", LEAD_INK);
-                                container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+                                container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
                                 ui.id("library-size", |ui| { ui.column(Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
                                     ui.label(&catalog.totals_label, TEXT_13.h_px(19.5).color(SECONDARY));
                                     ui.label(&catalog.sources_label, TEXT_13.h_px(19.5).color(SECONDARY));
@@ -197,7 +197,7 @@ pub(super) fn view(
                                 }
                             }
                             if state.route == Route::Songs {
-                                container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+                                container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
                                 ui.label("Title \u{2193}", BODY_INK);
                                 if !state.selecting
                                     && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
@@ -217,7 +217,7 @@ pub(super) fn view(
                             Axis::Column,
                             Size::Grow,
                             Size::Grow,
-                            ui.color(PAPER),
+                            &PAPER_FILL,
                         );
                         let route_key = crate::hash((
                             state.route,
@@ -270,7 +270,7 @@ pub(super) fn view(
             Axis::Row,
             Size::Grow,
             Size::Px(54.0),
-            ui.color(PAPER),
+            &PAPER_FILL,
         );
         ui.set_role(&nav, Role::Group, pxui::A11yStates::NONE);
         ui.a11y_name(&nav, "Main navigation");
@@ -322,7 +322,7 @@ fn mini(
                     player.current_id.and_then(|id| catalog.row_index(id)),
                     44.0,
                 );
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PANEL));
+                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PANEL_FILL);
                 ui.within(&labels, &mut |ui| {
                     line(
                         ui,
@@ -401,7 +401,7 @@ fn groups(
             let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).pad_x(16.0).align(Align::Center).role(Role::Button);
             let card = ui.pressable("group", node, &PLAIN, |ui, _| {
                 artwork(ui, catalog, player, group.artwork_row, 44.0);
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
+                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
                 ui.within(&labels, &mut |ui| {
                     line(ui, "title", &group.title, 16.0, ui.color(INK));
                     line(ui, "count", &group.count, 12.0, ui.color(SECONDARY));
@@ -464,7 +464,7 @@ fn expanded(
     // The root takes the pointer for its dismiss gesture but is no tab stop.
     let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {
         ui.row(Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
-            let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), ui.color(PAPER));
+            let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), &PAPER_FILL);
             ui.within(&left, &mut |ui| {
                 if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
                     *intent = Some(Intent::TogglePlayer);
@@ -474,7 +474,7 @@ fn expanded(
                 ui.label("Playing from", CAPTION);
                 ui.label(player.context, TEXT_13.color(INK));
             });
-            container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), ui.color(PAPER));
+            container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), &PAPER_FILL);
         });
         ui.row(Node::row().w(Size::Grow).h_px(region).justify(Justify::Center).padding(Edges::ZERO.t(4.0)),
             |ui| {
@@ -491,7 +491,7 @@ fn expanded(
             |ui| {
                 let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
                 ui.within(&info, &mut |ui| {
-                    let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
+                    let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
                     ui.within(&names, &mut |ui| {
                         let title = ui.node(
                             "title",
@@ -536,7 +536,7 @@ fn expanded(
                 });
                 spacer(ui, "seek-gap", 14.0);
                 seek(ui, player, position, intent);
-                let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), ui.color(PAPER));
+                let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), &PAPER_FILL);
                 ui.within(&times, &mut |ui| {
                     let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
                     ui.a11y_name(&start, "Start time");

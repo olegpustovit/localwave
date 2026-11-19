@@ -121,7 +121,7 @@ pub(super) fn queue_sheet(
                     Axis::Stack,
                     Size::Grow,
                     Size::Px(21.0),
-                    ui.color(PAPER),
+                    &PAPER_FILL,
                 );
                 ui.canvas(&handle, move |paint, rect| {
                     paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
@@ -138,7 +138,7 @@ pub(super) fn queue_sheet(
                                 Axis::Row,
                                 Size::Grow,
                                 Size::Px(18.2),
-                                ui.color(PAPER),
+                                &PAPER_FILL,
                             );
                             ui.within(&from, &mut |ui| {
                                 ui.label("From ", CAPTION);
@@ -165,7 +165,7 @@ pub(super) fn queue_sheet(
                         Axis::Row,
                         Size::Grow,
                         Size::Px(44.0),
-                        ui.color(PAPER),
+                        &PAPER_FILL,
                     );
                     ui.within(&row, &mut |ui| {
                         let field = ui.node("playlist-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
@@ -299,12 +299,12 @@ fn now_row(
             Axis::Stack,
             Size::Px(36.0),
             Size::Px(36.0),
-            ui.color(kit::PANEL),
+            &PANEL_FILL,
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
         ui.column(Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
             ui.label(song.title, LEAD_INK.grow());
-            let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
+            let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
             ui.within(&line, &mut |ui| {
                 ui.label("Now · ", CAPTION);
                 ui.label(song.artist, CAPTION.grow());
@@ -339,7 +339,7 @@ pub(super) fn queue_rows(
             Axis::Row,
             Size::Grow,
             Size::Px(34.0),
-            ui.color(PAPER),
+            &PAPER_FILL,
         );
         ui.within(&header, &mut |ui| {
             ui.label(&queue.heading, TEXT_13.grow().h_px(28.0).color(SECONDARY));
@@ -424,7 +424,7 @@ pub(super) fn queue_rows(
                     Axis::Stack,
                     Size::Px(m.art),
                     Size::Px(m.art),
-                    ui.color(kit::PANEL),
+                    &PANEL_FILL,
                 );
                 paint_artwork(ui, &art, row, m.art, images);
                 ui.a11y_name(&art, "Track artwork");

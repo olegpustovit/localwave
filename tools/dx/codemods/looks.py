@@ -1,105 +1,101 @@
 #!/usr/bin/env python3
-"""Migrate U1b.4 looks, views and accessibility types (pxui wrapper callers and LocalWave, code and rustdoc examples).
+"""U3.1 looks are consts (LocalWave): run-time colours and per-call text styles become theme consts.
 
-- `ui.set_look(&h, LOOK, STATE)` -> `ui.style(&h, &theme::States::of(LOOK), STATE)` (one look for every state);
-- `ui.set_role(&h, ROLE, STATES)`: `0` -> `A11yStates::NONE`; `state::X` -> `A11yStates::X`; `a | b` -> `a.with(b)`;
-  an `else { 0 }` branch -> `A11yStates::NONE`;
-- any other `pxui::ui::state::X` (reading published `A11yNode::states` bits) -> `A11yStates::X.bits()`;
-- `ui.view_clip/view_backdrop_blur/view_backdrop_saturation(b, v)` -> `ui.set_view(b, &ViewTransform::DEFAULT.clip/blur/saturation(v))`;
-- `ui.a11y_tree().0/.1/.2` -> `.strings/.revision/.first_child`; `paint.theme()` -> `paint.tokens()`.
-No scope analysis: the compiler flags misses (state constants imported by name are reported).
+- `container(ui, key, axis, w, h, FILL)`: the `Rgba` fill becomes a `&'static Look` from `FILLS`
+  (`ui.color(PAPER)` -> `&PAPER_FILL`); an `if c { A } else { B }` fill maps both arms.
+- `detail::line(ui, key, value, (size, line_height, weight, tracking), ui.color(T), Flags::NONE)` -> `ui.label(value, CONST)`
+  with CONST from `LINES` (a keyless label in a `theme.rs` line-box style).
+Fills, styles or call shapes missing from the tables are printed as skipped and left for hand edits; no scope analysis, the
+compiler flags misses. Usage: looks.py [--dry-run] FILE...
 """
 import argparse
 from pathlib import Path
 import re
 
-from namespace import DOC_CODE
 from rs import args, close, line_of, mask
 
-SET_LOOK = re.compile(r"\.set_look\(")
-SET_ROLE = re.compile(r"\.set_role\(")
-STATE = re.compile(r"\b(?:crate::ui::|pxui::ui::|ui::)?state::([A-Z_]+)\b")
-VIEW = re.compile(r"\.view_(clip|backdrop_blur|backdrop_saturation)\(")
-TREE = re.compile(r"\.a11y_tree\(\)\.([012])\b")
-TREE_LET = re.compile(r"let\s+\(\s*(\w+)\s*,\s*(\w+)\s*,\s*(\w+)\s*\)\s*=\s*([\w.]+)\.a11y_tree\(\);")
-IMPORTED = re.compile(r"use\s+pxui::ui::state::")
+FILLS = {
+    "ui.color(PAPER)": "&PAPER_FILL",
+    "Rgba::token(PAPER)": "&PAPER_FILL",
+    "ui.color(INK)": "&INK_FILL",
+    "ui.color(PANEL)": "&PANEL_FILL",
+    "ui.color(kit::PANEL)": "&PANEL_FILL",
+    "ui.color(LINE)": "&LINE_FILL",
+    "Rgba::default()": "&Look::NONE",
+    "Rgba { a: 153, ..ui.color(PANEL) }": "&PANEL_WASH",
+}
+LINES = {
+    ("(32.0, 33.6, 500, -0.035)", "ui.color(INK)"): "PAGE_TITLE",
+    ("(40.0, 40.8, 500, TIGHT_3)", "ui.color(INK)"): "ALBUM_TITLE",
+    ("(48.0, 48.0, 500, -0.025)", "ui.color(INK)"): "ARTIST_TITLE",
+    ("(20.0, 28.0, 500, -0.01)", "ui.color(INK)"): "SHEET_TITLE",
+    ("(17.0, 23.8, 500, 0.0)", "ui.color(INK)"): "OPTION_TITLE",
+    ("(14.0, 17.5, 500, 0.0)", "ui.color(INK)"): "CARD_TITLE",
+    ("(13.0, 18.2, 400, 0.0)", "ui.color(SECONDARY)"): "SUMMARY",
+    ("(14.0, 19.6, 400, 0.0)", "ui.color(SECONDARY)"): "ARTIST_SUMMARY",
+    ("(13.0, 18.2, 500, 0.0)", "ui.color(SECONDARY)"): "SECTION_CAPTION",
+}
+CONTAINER = re.compile(r"(?<![\w.])container\(")
+# `line(` is detail's own helper only inside detail.rs (compact.rs has a five-argument `line`)
+DETAIL_LINE = re.compile(r"(?<![\w.])(?:super::)?detail::line\(")
+LOCAL_LINE = re.compile(r"(?<![\w.:])line\(")
+IF_ELSE = re.compile(r"^if (.+?) \{ (.+?) \} else \{ (.+?) \}$", re.S)
 
 
-def top_split(m, text, sep="|"):
-    """Offsets of top-level single `sep` characters in text (m its mask)."""
-    out, depth = [], 0
-    for i, c in enumerate(m):
-        if c in "([{":
-            depth += 1
-        elif c in ")]}":
-            depth -= 1
-        elif c == sep and depth == 0 and m[i - 1:i] != sep and m[i + 1:i + 2] != sep:
-            out.append(i)
-    return out
+def norm(text):
+    return " ".join(text.split())
 
 
-def states_arg(text, path):
-    """The `A11yStates` form of a 1.x `u32` states expression."""
-    m = mask(text)
-    if text.strip() == "0":
-        return f"{path}::NONE"
-    text = STATE.sub(lambda s: f"{path}::{s[1]}", text)
-    text = re.sub(r"else\s*\{\s*0\s*\}", f"else {{ {path}::NONE }}", text)
-    text = re.sub(r"if\s+(.+?)\s*\{\s*0\s*\}", lambda c: f"if {c[1]} {{ {path}::NONE }}", text)
-    m = mask(text)
-    cuts = top_split(m, text)
-    if not cuts:
-        return text.strip()
-    parts = [text[a:b].strip() for a, b in zip([0] + [c + 1 for c in cuts], cuts + [len(text)])]
-    return parts[0] + "".join(f".with({p})" for p in parts[1:])
+def fill(text):
+    text = norm(text)
+    if text in FILLS:
+        return FILLS[text]
+    m = IF_ELSE.match(text)
+    if m and m[2] in FILLS and m[3] in FILLS:
+        return f"if {m[1]} {{ {FILLS[m[2]]} }} else {{ {FILLS[m[3]]} }}"
+    return None
 
 
-def rewrite(source, prefix):
+def rewrite(source, detail):
     m = mask(source)
-    states, theme, view = f"{prefix}::A11yStates", f"{prefix}::theme::States", f"{prefix}::ViewTransform"
-    edits, skipped, taken = [], [], []
-    for match in SET_LOOK.finditer(m):
-        open_ = match.end() - 1
-        parts = args(m, open_, close(m, open_))
-        if len(parts) == 3:
-            a, b = parts[1]
-            look = source[a:b].strip()
-            edits.append((match.start() + 1, open_, "style"))
-            lead = a + len(source[a:b]) - len(source[a:b].lstrip())
-            edits.append((lead, lead + len(look), f"&{theme}::of({look})"))
-    for match in SET_ROLE.finditer(m):
-        open_ = match.end() - 1
-        parts = args(m, open_, close(m, open_))
-        if len(parts) == 3:
-            a, b = parts[2]
-            text = source[a:b]
-            if "A11yStates" in text:
-                continue
-            lead = a + len(text) - len(text.lstrip())
-            edits.append((lead, b - (len(text) - len(text.rstrip())), states_arg(text.strip(), states)))
-            taken.append((a, b))
-    for match in STATE.finditer(m):
-        if not match.group(0).startswith(("crate::ui::state", "pxui::ui::state", "ui::state")) or any(a <= match.start() < b for a, b in taken):
+    edits, skipped = [], []
+
+    def skip(at, why):
+        skipped.append((line_of(source, at), why, norm(source[at:source.find("\n", at)])))
+
+    for match in CONTAINER.finditer(m):
+        if m[max(0, match.start() - 3):match.start()] == "fn ":
             continue
-        edits.append((match.start(), match.end(), f"{states}::{match[1]}.bits()"))
-    for match in VIEW.finditer(m):
         open_ = match.end() - 1
         parts = args(m, open_, close(m, open_))
-        if len(parts) == 2:
-            a, b = parts[1]
-            field = {"clip": "clip", "backdrop_blur": "blur", "backdrop_saturation": "saturation"}[match[1]]
-            edits.append((match.start() + 1, open_, "set_view"))
-            lead = a + len(source[a:b]) - len(source[a:b].lstrip())
-            edits.append((lead, lead + len(source[a:b].strip()), f"&{view}::DEFAULT.{field}({source[a:b].strip()})"))
-    for match in TREE.finditer(m):
-        edits.append((match.start(1), match.end(1), ["strings", "revision", "first_child"][int(match[1])]))
-    for match in TREE_LET.finditer(m):
-        names = [f"{field}: {var}" if var != field else field for field, var in zip(("strings", "revision", "first_child"), match.groups()[:3]) if var != "_"]
-        edits.append((match.start(), match.end(), f"let {prefix}::A11yTree {{ {', '.join(names)}{', ..' if len(names) < 3 else ''} }} = {match[4]}.a11y_tree();"))
-    for match in re.finditer(r"\bpaint\.theme\(\)", m):
-        edits.append((match.start() + len("paint."), match.end() - 2, "tokens"))
-    for match in IMPORTED.finditer(m):
-        skipped.append((line_of(source, match.start()), source[match.start():source.find("\n", match.start())].strip()))
+        if len(parts) != 6:
+            skip(match.start(), "container arguments")
+            continue
+        a, b = parts[5]
+        if norm(source[a:b]).startswith("&") or re.match(r"if .+ \{ &", norm(source[a:b])):
+            continue  # already a look
+        new = fill(source[a:b])
+        if new is None:
+            skip(match.start(), "fill")
+            continue
+        lead = a + len(source[a:b]) - len(source[a:b].lstrip())
+        edits.append((lead, b - (len(source[a:b]) - len(source[a:b].rstrip())), new))
+    patterns = [DETAIL_LINE] + ([LOCAL_LINE] if detail else [])
+    for pattern in patterns:
+        for match in pattern.finditer(m):
+            if m[max(0, match.start() - 3):match.start()] == "fn ":
+                continue
+            open_ = match.end() - 1
+            end = close(m, open_)
+            parts = args(m, open_, end)
+            if len(parts) != 6 or norm(source[slice(*parts[5])]) != "Flags::NONE" or norm(source[slice(*parts[0])]) != "ui":
+                skip(match.start(), "line call shape")
+                continue
+            style = LINES.get((norm(source[slice(*parts[3])]), norm(source[slice(*parts[4])])))
+            if style is None:
+                skip(match.start(), "line style")
+                continue
+            edits.append((match.start(), end + 1, f"ui.label({norm(source[slice(*parts[2])])}, {style})"))
     return sorted(edits), skipped
 
 
@@ -117,39 +113,28 @@ def main():
     total = 0
     for path in options.files:
         source = path.read_text()
-        prefix = "crate" if "crates/public/pxui/src" in str(path) else "pxui"
-        edits, skipped = rewrite(source, prefix)
-        count = len(edits)
-        for block in DOC_CODE.finditer(source):
-            code = re.sub(r"^[ \t]*//[!/] ?", "", block[2], flags=re.M)
-            doc_edits, doc_skips = rewrite(code, "pxui")
-            skipped.extend((line_of(source, block.start(2)) + n - 1, call) for n, call in doc_skips)
-            if doc_edits:
-                edited = apply(code, doc_edits)
-                edits.append((block.start(2), block.end(2), "".join(block[1] + line for line in edited.splitlines(keepends=True))))
-                count += len(doc_edits)
-        for n, call in skipped:
-            print(f"skipped {path}:{n}: {call}")
-        if count:
-            print(f"{path}: {count}")
-            total += count
+        edits, skipped = rewrite(source, path.name == "detail.rs")
+        for n, why, call in skipped:
+            print(f"skipped {path}:{n} ({why}): {call}")
+        if edits:
+            print(f"{path}: {len(edits)}")
+            total += len(edits)
             if not options.dry_run:
-                path.write_text(apply(source, sorted(edits)))
+                path.write_text(apply(source, edits))
     print(f"total {total} edits")
 
 
 if __name__ == "__main__":
-    src = ('fn f(ui: &mut Ui) { ui.set_look(&b, Look::NONE.fill(x), state); ui.set_role(&a, Role::Group, 0);\n'
-           'ui.set_role(&c, Role::Toggle, pxui::ui::state::CHECKABLE | if on { pxui::ui::state::CHECKED } else { 0 });\n'
-           'ui.set_role(&d, Role::Button, if enabled { pxui::ui::state::ENABLED } else { 0 }); let v = n.states & pxui::ui::state::VISIBLE != 0;\n'
-           'ui.view_clip(&b, Some(r)); ui.view_backdrop_blur(&b, 4.0); let s = ui.a11y_tree().0; let (strings, revision, top) = ui.a11y_tree(); let t = paint.theme().accent; }')
-    out = apply(src, rewrite(src, "pxui")[0])
-    assert "ui.style(&b, &pxui::theme::States::of(Look::NONE.fill(x)), state)" in out, out
-    assert "ui.set_role(&a, Role::Group, pxui::A11yStates::NONE)" in out, out
-    assert "pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE })" in out, out
-    assert "if enabled { pxui::A11yStates::ENABLED } else { pxui::A11yStates::NONE }" in out, out
-    assert "n.states & pxui::A11yStates::VISIBLE.bits() != 0" in out, out
-    assert "ui.set_view(&b, &pxui::ViewTransform::DEFAULT.clip(Some(r)))" in out and "DEFAULT.blur(4.0)" in out, out
-    assert "a11y_tree().strings" in out and "paint.tokens().accent" in out, out
-    assert "let pxui::A11yTree { strings, revision, first_child: top } = ui.a11y_tree();" in out, out
+    src = ('fn f(ui: &mut Ui) { let a = container(ui, "a", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));\n'
+           'container(ui, "u", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });\n'
+           'container(ui, "x", Axis::Row, Size::Grow, Size::Px(2.0), ui.color(ACCENT));\n'
+           'detail::line(ui, "name", &g.title, (14.0, 17.5, 500, 0.0), ui.color(INK), Flags::NONE);\n'
+           'line(ui, "kind", if album { "Album" } else { "Artist" }, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE); }\n'
+           'pub(super) fn container(ui: &mut Ui, key: &str) {}')
+    edits, skipped = rewrite(src, True)
+    out = apply(src, edits)
+    assert 'Size::Px(1.0), &PAPER_FILL);' in out and "if active { &INK_FILL } else { &PAPER_FILL });" in out, out
+    assert "ui.label(&g.title, CARD_TITLE);" in out, out
+    assert 'ui.label(if album { "Album" } else { "Artist" }, SUMMARY);' in out, out
+    assert [why for _, why, _ in skipped] == ["fill"] and "ui.color(ACCENT)" in out, skipped
     main()

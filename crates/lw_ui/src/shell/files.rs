@@ -132,7 +132,7 @@ pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
     ui.column(SHEET, |ui| {
         ui.label(c.text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
         ui.slot(c.content);
-        let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), Rgba::token(PAPER));
+        let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), &PAPER_FILL);
         ui.within(&actions, &mut |ui| {
             let height = if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 36.0 };
             for i in 0..c.buttons.len {
@@ -247,7 +247,7 @@ pub(super) fn view(
 /// Worker progress and the last message, shared by both pages.
 fn status(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, intent: &mut Option<Intent>) {
     if files.busy {
-        let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(if compact { 44.0 } else { 40.0 }), ui.color(PANEL));
+        let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(if compact { 44.0 } else { 40.0 }), &PANEL_FILL);
         ui.within(&progress, &mut |ui| {
             ui.label(&files.progress, MONO_13.grow().h_px(32.0).color(INK).role(Role::Progress));
             if action(ui, "cancel", "Cancel", 80.0, true, (PANEL, INK)) {
@@ -306,13 +306,13 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
     ui.column(Node::column().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.t(16.0)), |ui| {
         rule(ui, "offline-rule", false);
         spacer(ui, "offline-gap", 16.0);
-        let label = container(ui, "offline-label", Axis::Row, Size::Grow, Size::Px(19.6), ui.color(PAPER));
+        let label = container(ui, "offline-label", Axis::Row, Size::Grow, Size::Px(19.6), &PAPER_FILL);
         ui.within(&label, &mut |ui| {
             ui.label("Offline space", BODY_INK.grow());
             ui.label(&files.offline_usage, MONO_12.color(INK));
         });
         ui.row(Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(10.0)).look(LINE_FILL), |ui| {
-            container(ui, "fill", Axis::Column, Size::Pct(files.offline_fraction), Size::Grow, ui.color(INK));
+            container(ui, "fill", Axis::Column, Size::Pct(files.offline_fraction), Size::Grow, &INK_FILL);
         });
         spacer(ui, "offline-note-gap", 8.0);
         ui.label("Cloud songs download when played and the next two download ahead. Pinned folders stay.", PARAGRAPH_13.color(SECONDARY));
@@ -337,7 +337,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
     );
     ui.a11y_name(&card, &folder.name);
     ui.within(&card, &mut |ui| {
-        let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
+        let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), &PAPER_FILL);
         ui.within(&top, &mut |ui| {
             ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
                 ui.label(&folder.name, TEXT_17.grow().color(INK));
@@ -367,9 +367,9 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
             }); });
         } else {
             ui.id("source-bar", |ui| { ui.row(Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(14.0).b(10.0)).look(LINE_FILL), |ui| {
-                container(ui, "fill", Axis::Column, Size::Pct(folder.local), Size::Grow, ui.color(INK));
+                container(ui, "fill", Axis::Column, Size::Pct(folder.local), Size::Grow, &INK_FILL);
             }); });
-            let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
+            let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
             ui.within(&footer, &mut |ui| {
                 ui.label(&folder.stats, CAPTION.grow());
                 ui.label(&folder.scanned, CAPTION);
@@ -564,7 +564,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     }
     if !selecting {
     ui.id("folder-titles", |ui| { ui.row(Node::row().w(Size::Grow).h_px(48.0).align(Align::Center), |ui| {
-        ui.id("name", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| { super::detail::line(ui, "title", &directory.title, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE); }); });
+        ui.id("name", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| { ui.label(&directory.title, PAGE_TITLE); }); });
         let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
         ui.a11y_name(&more, "Folder options");
         let color = ui.color(INK);
@@ -630,7 +630,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     ui.label(label, TEXT_15.color(ink));
                     ui.label(&directory.filter_counts[count], CAPTION);
                 });
-                container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { ui.color(INK) } else { ui.color(PAPER) });
+                container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { &INK_FILL } else { &PAPER_FILL });
             });
             ui.a11y_name(&tab, label);
             ui.set_role(&tab, Role::Button, if active { pxui::A11yStates::SELECTED } else { pxui::A11yStates::NONE });
@@ -772,7 +772,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
     let open = ui.modal("add-music", &ADD_MUSIC.w_px(width), |ui| {
         ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0).look(PAPER_FILL), |ui| {
-            super::detail::line(ui, "title", "Add music", (20.0, 28.0, 500, -0.01), ui.color(INK), Flags::NONE);
+            ui.label("Add music", SHEET_TITLE);
             ui.label("Files stay where they are", CAPTION.grow());
             spacer(ui, "gap", 4.0);
             for (key, title, detail, action) in [
@@ -782,7 +782,7 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
                 let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
                 ui.a11y_name(&option, title);
                 ui.within(&option, &mut |ui| {
-                    super::detail::line(ui, "title", title, (17.0, 23.8, 500, 0.0), ui.color(INK), Flags::NONE);
+                    ui.label(title, OPTION_TITLE);
                     settings::paragraph(ui, "detail", detail, width - 56.0, 13.0, ui.color(SECONDARY));
                 });
                 if enabled && ui.signal(&option).clicked {

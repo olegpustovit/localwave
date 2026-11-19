@@ -159,7 +159,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             } else {
                 artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
             }
-            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, ui.color(PAPER));
+            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
             ui.within(&labels, &mut |ui| {
                 let ink = if player.current_id == Some(row.id) {
                     ui.tokens().accent
@@ -195,7 +195,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                     Axis::Row,
                     Size::Px(if row.pinned { 14.0 } else { 10.0 }),
                     Size::Px(10.0),
-                    ui.color(PAPER),
+                    &PAPER_FILL,
                 );
                 ui.within(&holder, &mut |ui| {
                     super::super::songs::row::glyph(
@@ -505,7 +505,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         select_revision(state),
     ));
     ui.id("artist-lead", |ui| { ui.column(Node::column().h_px(artist_lead_height(catalog, artist, width)), |ui| { ui.view_of("artist-lead", &revision, |ui| {
-            let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
+            let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
             ui.within(&column, &mut |ui| {
                 nav_row(ui, cx, "Library", Route::Artists, intent);
                 let name = if collection.title.is_empty() { "Unknown artist" } else { &collection.title };
@@ -533,7 +533,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     Axis::Stack,
                                     Size::Px(cell),
                                     Size::Px(cell),
-                                    ui.color(PANEL),
+                                    &PANEL_FILL,
                                 );
                                 paint_artwork(
                                     ui,
@@ -543,25 +543,11 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                                     player.artwork,
                                 );
                                 spacer(ui, "art-gap", 8.0);
-                                detail::line(
-                                    ui,
-                                    "name",
-                                    &group.title,
-                                    (14.0, 17.5, 500, 0.0),
-                                    ui.color(INK),
-                                    Flags::NONE,
-                                );
+                                ui.label(&group.title, CARD_TITLE);
                                 let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
                                 let mut digits = [0u8; 24];
                                 let year = stack_fmt(&mut digits, format_args!("{}", year.unwrap_or(0).max(0)));
-                                detail::line(
-                                    ui,
-                                    "year",
-                                    if year == "0" { "" } else { year },
-                                    (13.0, 18.2, 400, 0.0),
-                                    ui.color(SECONDARY),
-                                    Flags::NONE,
-                                );
+                                ui.label(if year == "0" { "" } else { year }, SUMMARY);
                             });
                             ui.a11y_name(&card.handle, &group.title);
                             if card.clicked {
@@ -573,7 +559,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                 spacer(ui, "songs-gap", 20.0);
                 ui.column(Node::column().w(Size::Grow).h_px(SECTION_LABEL).padding(Edges::ZERO.l(16.0).t(20.0).b(8.0)),
                     |ui| {
-                        detail::line(ui, "text", "Songs", (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
+                        ui.label("Songs", SECTION_CAPTION);
                     },
                 );
             });
@@ -610,9 +596,9 @@ fn back_row(
 /// Name (32 pt) over a 13 pt summary.
 fn titles(ui: &mut Ui, title: &str, summary: &str) {
     ui.column(Node::column().w(Size::Grow).h_px(TITLE_BLOCK).pad_x(16.0), |ui| {
-        detail::line(ui, "name", title, (32.0, 33.6, 500, -0.035), ui.color(INK), Flags::NONE);
+        ui.label(title, PAGE_TITLE);
         spacer(ui, "gap", 4.0);
-        detail::line(ui, "summary", summary, (13.0, 18.2, 400, 0.0), ui.color(SECONDARY), Flags::NONE);
+        ui.label(summary, SUMMARY);
     });
 }
 
@@ -685,7 +671,7 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
     let playlist = cx.list.is_some();
     if !state.selecting {
         back_row(ui, label, parent, intent, &mut |ui, intent| {
-            container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+            container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
             // Playlists edit (select and remove); the others select.
             if !(playlist && collection.rows.is_empty())
                 && word(ui, "select", if playlist { "Edit" } else { "Select" }, false)
@@ -711,10 +697,10 @@ pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectabl
         if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false) {
             *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
         }
-        container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+        container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
         let mut buffer = [0u8; 40];
         ui.label(selected_label(&mut buffer, selected), LEAD_INK);
-        container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), ui.color(PAPER));
+        container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
         if word(ui, "done", "Done", true) {
             *intent = Some(Intent::SelectMode(false));
         }
@@ -827,11 +813,11 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         select_revision(state),
     ));
     ui.id("album-lead", |ui| { ui.column(Node::column().h_px(album_lead_height()), |ui| { ui.view_of("album-lead", &revision, |ui| {
-        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
+        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Library", Route::Albums, intent);
             ui.row(Node::row().w(Size::Grow).h_px(ALBUM_ART).gap(16.0).pad_x(16.0), |ui| {
-                let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), ui.color(PANEL));
+                let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), &PANEL_FILL);
                 paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
                 ui.a11y_name(&art, "Album artwork");
                 ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(6.0).justify(Justify::End), |ui| {
@@ -868,7 +854,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         select_revision(state),
     ));
     ui.id("collection-lead", |ui| { ui.column(Node::column().h_px(collection_lead_height()), |ui| { ui.view_of("collection-lead", &revision, |ui| {
-        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
+        let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Lists", Route::Lists, intent);
             titles(ui, &collection.title, &collection.summary);

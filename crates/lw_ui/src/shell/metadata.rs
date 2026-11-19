@@ -55,7 +55,7 @@ pub(super) fn editor(
                     Axis::Row,
                     Size::Grow,
                     Size::Px(40.0),
-                    ui.color(PAPER),
+                    &PAPER_FILL,
                 );
                 ui.within(&buttons, &mut |ui| {
                     if files::action(ui, "cancel-metadata", "Cancel", 100.0, true, (PANEL, INK)) {

@@ -25,7 +25,7 @@ pub(super) fn now_panel(
                 Axis::Stack,
                 Size::Px(200.0),
                 Size::Px(200.0),
-                ui.color(PANEL),
+                &PANEL_FILL,
             );
             paint_artwork(
                 ui,

@@ -42,7 +42,7 @@ pub(super) fn header(
             Axis::Row,
             Size::Grow,
             Size::Px(34.0),
-            ui.color(PAPER),
+            &PAPER_FILL,
         );
         ui.within(&heading, &mut |ui| {
             ui.label(title, HEADING);
@@ -56,7 +56,7 @@ pub(super) fn header(
         if state.route == Route::Find && !results {
             ui.id("find-query", |ui| { ui.column(Node::column().h_px(44.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                     let row =
-                        container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, ui.color(PAPER));
+                        container(ui, "query-row", Axis::Row, Size::Grow, Size::Grow, &PAPER_FILL);
                     ui.within(&row, &mut |ui| {
                         let field = ui.node("query-field", Node::DEFAULT.w(Size::Grow).h(Size::Grow));
                         ui.within(&field, &mut |ui| {
@@ -161,7 +161,7 @@ pub(super) fn compact_find(
                     Axis::Column,
                     Size::Grow,
                     Size::Px(1.5),
-                    ui.color(INK),
+                    &INK_FILL,
                 );
                 spacer(ui, "tokens-gap", 12.0);
                 find_tokens(ui, state, (width - 32.0).max(1.0), intent);
@@ -175,7 +175,7 @@ pub(super) fn compact_find(
                     spacer(ui, "songs-gap", 7.0);
                     ui.row(Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
                         ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
-                            detail::line(ui, "songs-label", &summary.label, (13.0, 18.2, 500, 0.0), ui.color(SECONDARY), Flags::NONE);
+                            ui.label(&summary.label, SECTION_CAPTION);
                         });
                         if super::compact::list::word(ui, "select", "Select", false) {
                             *intent = Some(Intent::SelectMode(true));

@@ -23,7 +23,7 @@ pub(super) const FIND_HINT: &str = "Search spans every source, including folders
 pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> Handle {
     let pxui::ViewSize { width, .. } = ui.view_size();
     let column = (width - 32.0).max(1.0);
-    let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, ui.color(PAPER));
+    let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
     ui.set_role(&root, Role::Window, pxui::A11yStates::NONE);
     ui.a11y_name(&root, "LocalWave");
     // The disclosure state lives on the root so the retained page rebuilds when it flips.
@@ -61,13 +61,13 @@ fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
 fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
     ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
-        let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), ui.color(PAPER));
+        let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
         ui.within(&top, &mut |ui| {
             ui.label("LocalWave", CAPTION.grow());
             ui.label("v2", MONO_DIM.w_px(16.0));
         });
         spacer(ui, "count-gap", 28.0);
-        let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), ui.color(PAPER));
+        let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), &PAPER_FILL);
         ui.set_role(&count, Role::Label, pxui::A11yStates::NONE);
         ui.a11y_name(&count, "0 songs so far");
         ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
@@ -85,7 +85,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             ("step-2", "2", "LocalWave indexes it in the background"),
             ("step-3", "3", "Play at once; cloud songs fetch on play"),
         ] {
-            let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), ui.color(PAPER));
+            let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), &PAPER_FILL);
             ui.within(&row, &mut |ui| {
                 ui.label(number, TEXT_13.w_px(26.0).h_px(46.0).color(SECONDARY));
                 ui.label(line, TEXT_15.grow().h_px(46.0).color(INK));
@@ -104,7 +104,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             *intent = Some(Intent::ChooseFolder);
         }
         spacer(ui, "links-gap", 4.0);
-        let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), ui.color(PAPER));
+        let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), &PAPER_FILL);
         ui.within(&links, &mut |ui| {
             if underlined(ui, "pick-files", "Pick some files") {
                 *intent = Some(Intent::ChooseAudio);

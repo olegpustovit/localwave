@@ -155,7 +155,7 @@ pub(super) fn sidebar(
         );
         ui.row(Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)).look(LINE_FILL),
             |ui| {
-                container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, ui.color(INK));
+                container(ui, "fill", Axis::Column, Size::Pct(catalog.offline_fraction), Size::Grow, &INK_FILL);
             },
         );
         let node = Node::row().w(Size::Grow).h_px(28.0).role(Role::Button).padding(Edges::ZERO.t(10.0).l(8.0));

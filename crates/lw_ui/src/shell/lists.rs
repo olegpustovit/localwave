@@ -108,7 +108,7 @@ pub(super) fn name_dialog(
                     Axis::Row,
                     Size::Grow,
                     Size::Px(40.0),
-                    ui.color(PAPER),
+                    &PAPER_FILL,
                 );
                 ui.within(&buttons, &mut |ui| {
                     if files::action(ui, "cancel-list-name", "Cancel", 100.0, true, (PANEL, INK)) {
