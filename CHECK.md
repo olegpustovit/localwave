@@ -201,6 +201,14 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 
 ## Found (separate fixes later)
 
+- U4a.5: in `pxui_core`, a view building itself clears any rebuild mark made during that build (`r.dirty = r.escapes`); only the
+  list's late move (`build_again` + escape) is fixed. Other `mark_view` calls made during a view's own build have the same shape.
+- U4a.5: lw_bin `production_controller_restores…` flakes under parallel load (green alone).
+- U4a.5 ruling check: pxui cancels a reorder drag on Escape (`a_drag_in_a_kept_view_survives_scrolling_and_cancels`), but a plain held
+  press is not cancelled by Escape (`pxui_core/src/ui_core.rs:3081`: only PointerCancelled and FocusLost end the capture), so while
+  any press is held LocalWave's Escape (spent on `ui.captured()`, shell.rs) does nothing and the press still clicks on release.
+- U4a.6: `Ui::text_input_focused()` is true for any keyboard focus (`pxui_core/src/ui_core.rs:3172`, `focus != 0`), not only a text
+  editor; with no `ListResponse::focused` an app cannot tell its focused list from typing (the U4a.6 GAP).
 - U4a.1: `selection_list` names its List node from the key text, so an id key gives a meaningless lowercase name ("library");
   LocalWave names its groups with `ui.a11y_name(&response.handle, ..)`. U6 decides whether the default name should be empty.
 - U4a.1: `ValueField::bare(on: bool)` takes a bool where `SelectionList::bare()` (U2b.4.3) and the other style flags are no-arg
