@@ -16,10 +16,12 @@ pub const SLOW: f32 = 0.42;
 pub const AMBIENT: f32 = 1.6;
 pub const STAGGER: f32 = 0.018;
 
+/// The ease-out control points of `out`.
+pub const OUT: [f32; 4] = [0.16, 1.0, 0.3, 1.0];
 pub const fn out(duration: f32) -> Curve {
     Curve::Bezier {
         duration,
-        points: [0.16, 1.0, 0.3, 1.0],
+        points: OUT,
     }
 }
 pub const fn ease_in(duration: f32) -> Curve {

@@ -138,33 +138,8 @@ pub(super) fn table(
                     "artist-visual",
                     &revision,
                     |ui| {
-                        let node = Node::column().w(Size::Grow).h_px(row_height).role(Role::Button);
-                        let row = ui.pressable("artist", node, &PLAIN.look(&PAPER_LOOKS), |ui, state| {
-                            let hover = ui.view_of("hover", &0, |ui| {
-                                container(
-                                    ui,
-                                    "fill",
-                                    Axis::Stack,
-                                    Size::Grow,
-                                    Size::Grow,
-                                    &PANEL_WASH,
-                                );
-                            });
-                            let previous = ui.state(&hover, -1);
-                            let shown = i64::from(state.hovered);
-                            if previous != shown {
-                                ui.set_state(&hover, shown);
-                                ui.animate(
-                                    &hover,
-                                    Target::Opacity(shown as f32),
-                                    if previous < 0 {
-                                        crate::motion::steps(1, 0.0)
-                                    } else {
-                                        crate::motion::out(crate::motion::QUICK)
-                                    },
-                                );
-                            }
-
+                        let node = Node::column().w(Size::Grow).h_px(row_height).role(Role::Button).transition(Some(FADE));
+                        let row = ui.pressable("artist", node, &PLAIN.look(&SONG_ROW_LOOKS), |ui, _| {
                             let art = ui.node(
                                 "artist-artwork",
                                 Node::column().w_px(28.0).h_px(28.0).at(32.0, top).look(PANEL_FILL),

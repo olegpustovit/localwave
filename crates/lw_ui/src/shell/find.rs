@@ -370,9 +370,10 @@ pub(in crate::shell) mod tests {
                     build(ui, &catalogs[0], &state, &mut None);
                 })
                 .unwrap();
-                assert!(
-                    ui.repaint_at().is_none(),
-                    "held and hovered share the panel fill: the release changes nothing and idles while hovered"
+                assert_eq!(
+                    ui.repaint_at().is_some(),
+                    time < 0.54,
+                    "the release transition draws for 140ms, then idles while hovered"
                 );
             }
             let leave = pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 390.0, 90.0);

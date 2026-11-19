@@ -191,8 +191,10 @@ pub(super) const PALETTE_FONT: Font = Font::BODY.size(20.0);
 pub(super) const FIND_PROMPT: Look = Look::NONE.text(Rgba::token(TERTIARY)).font(FIND_FONT);
 /// The command palette's empty prompt: secondary.
 pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).font(PALETTE_FONT);
-/// A song table row: paper, a 60 percent panel wash while hovered or held.
+/// A song or artist table row: paper, a 60 percent panel wash while hovered or held.
 pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH);
+/// Swift's quick hover and release fade (`motion::out(QUICK)`, 140 ms) as a node's own transition.
+pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { duration: crate::motion::QUICK, points: crate::motion::OUT };
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton<'static> {
     pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)
@@ -262,7 +264,7 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row) and the
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
-/// hovered or disabled, ink while held (the fill changes at once: see the U4a.2 GAP on look transitions). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
+/// hovered or disabled, ink while held, its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
 /// variant is the kit's own button.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
@@ -275,6 +277,7 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(size(c.w_kind, c.w)).h(size(c.h_kind, c.h)));
     let row = Node::row().w(if c.w_kind == 0 { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap).align(Align::Center);
+    let row = if c.variant == variant::TOOL { row.transition(Some(FADE)) } else { row };
     ui.set_node_layout(&c.row, &row);
     let s = &c.state;
     let checked = tool && s.checked != 0;
