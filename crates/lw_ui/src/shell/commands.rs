@@ -84,25 +84,30 @@ impl ShellState {
 /// lays the results out: at most 420 points (and 176 short of the window), at least 60, 6 in.
 pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PickerFieldConfig) {
     let height = ui.content_rect().h;
-    ui.set_node_layout(&c.search, &Node::row().w(Size::Grow).h_px(59.0).padding(Edges::ZERO.l(18.0).r(18.0)).margin(Edges::ZERO.b(1.0)));
+    ui.set_node_layout(&c.search, &Node::row().w(Size::Grow).h_px(59.0).padding(Edges::ZERO.l(FIELD_SIDE).r(FIELD_SIDE)).margin(Edges::ZERO.b(1.0)));
     ui.style(&c.search, &pxui::theme::States::of(Look::NONE), State::default());
     ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h_px(59.0).look(PALETTE_QUERY));
-    // the palette card is (view - 32) clamped to 600; the hairline spans it in the field's bottom margin
-    let card = (ui.content_rect().w - 32.0).clamp(0.0, 600.0);
-    ui.node("rule", Node::DEFAULT.w_px(card).h_px(1.0).at(0.0, 59.0).look(LINE_FILL));
+    // the hairline spans the field (the card) in its bottom margin
+    ui.node("rule", Node::DEFAULT.w(Size::Rel(card_width)).h_px(1.0).at(0.0, 59.0).look(LINE_FILL));
     if c.empty != 0 {
-        // Ellipsize to the field.
-        let room = card - 40.0;
-        let placeholder = ui.node("prompt", Node::row().w_px(room.max(1.0)).h_px(59.0).align(Align::Center).at(20.0, 0.0));
+        // the picker's placeholder (its accessible name too), ellipsized to the field
+        let placeholder = ui.node("prompt", Node::row().w(Size::Rel(prompt_width)).h_px(59.0).align(Align::Center).at(20.0, 0.0));
         let style = Label::BODY.size(20.0).line_height(28.0).weight(PALETTE_FONT.weight).lines(1).ellipsis();
         ui.within(&placeholder, &mut |ui| {
             let line = ui.node("line", Node::column().w(Size::Grow).h_px(28.0).look(PALETTE_PROMPT));
-            ui.text_line_box(&line, "Search songs, folders, or type a command", style, &[]).unwrap();
+            ui.text_line_box(&line, c.text_of(&c.placeholder), style, &[]).unwrap();
         });
     }
     let results = 420.0_f32.min((height - 176.0).max(60.0));
     ui.set_node_layout(&c.list, &Node::column().w(Size::Grow).h(Size::Fit).pad(6.0).min_h(60.0).max_h(results));
 }
+
+/// The query field's sides: 18 points in from the card's edges.
+const FIELD_SIDE: f32 = 18.0;
+/// The card's width from the field's inner width (the field spans the card).
+extern "C" fn card_width(inner: f32) -> f32 { inner + 2.0 * FIELD_SIDE }
+/// The prompt's width: the card less 20 points at each side.
+extern "C" fn prompt_width(inner: f32) -> f32 { (inner + 2.0 * FIELD_SIDE - 40.0).max(1.0) }
 
 /// A palette row (registered as `localwave-palette`, picker kind): 44 points, 12 in and 12 apart, the selected fill on the keyboard's
 /// row; its artwork (28 points on the panel fill, the image when it has one) or its icon (`PickArt::Draw` of the `Icon`), the label, the
@@ -221,7 +226,7 @@ pub(super) fn palette_view(
         player.artwork?.get(row.cover_art_id, row.cover_art_path?, 28.0, None)
     };
     let open = ui.modal("commands", &palette.name("Search and commands"), |ui| {
-        let r = ui.picker("palette", "Search and commands", state.command_query.as_str(), &PALETTE.image(&image), &mut |_, rows| {
+        let r = ui.picker("palette", "Search songs, folders, or type a command", state.command_query.as_str(), &PALETTE.image(&image), &mut |_, rows| {
             for (index, item) in items.iter().enumerate() {
                 let heading = if index == 0 || items[index - 1].group != item.group { item.group } else { "" };
                 let art = cover(index).map_or(PickArt::Draw(item.icon as u32), |row| PickArt::Image(row.cover_art_id));
@@ -395,7 +400,7 @@ mod tests {
         let at = |ui: &Ui, role: Role, name: &str| {
             ui.a11y_nodes().iter().find(|n| n.role == role as u32 && ui.a11y_name_of(n) == name).map(|n| n.rect).unwrap_or_else(|| panic!("{name}"))
         };
-        let field = at(&ui, Role::TextField, "Search and commands");
+        let field = at(&ui, Role::TextField, "Search songs, folders, or type a command");
         let list = ui.a11y_nodes().iter().find(|n| n.role == Role::List as u32 && n.rect.y > field.y).map(|n| n.rect).unwrap();
         let (heading, first, last) = (at(&ui, Role::Heading, "Commands"), at(&ui, Role::ListItem, "Play / pause"), at(&ui, Role::ListItem, "Show keyboard shortcuts"));
         assert_eq!((field.h, list.y), (59.0, field.y + 60.0), "the field and its hairline");
@@ -621,7 +626,7 @@ mod tests {
             .a11y_nodes()
             .iter()
             .find(|n| {
-                n.role == Role::TextField as u32 && ui.a11y_name_of(n) == "Search and commands"
+                n.role == Role::TextField as u32 && ui.a11y_name_of(n) == "Search songs, folders, or type a command"
             })
             .unwrap();
         assert_eq!(field.rect.h, 59.0);
