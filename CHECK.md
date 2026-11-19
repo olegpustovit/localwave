@@ -217,7 +217,6 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 - `pxui_core/src/ui_text.rs:1733`: the text area's doc tooltip keys its wait with a `format!`ed string every frame.
 - `Segment::detail` reaches the engine in both link modes but no body config exposes it.
 - `box_ops.rs` `last_press_within`: a touch Began is not matched like a mouse press.
-- `lw_apple_sys` `history::tests::snapshots_preserve_other_songs_and_reject_invalid_starts`: its preferences suite is named by pid and thread and persists, so it flaked once in `make check`.
 - U2c left for U5 (2.0 re-baseline): dead record fields and old recorded sizes kept (`PxuiSegmentedDesc.names` must be empty; the
   64/96/104-byte segmented, 96/104/192-byte button and other pre-change record sizes are still read), feature ids naming deleted calls
   (`PXUI_FEATURE_TEXT_FIELD_KEYED`, `_SEGMENTED_RESULT`, `_WIDGETS_KEYED`, ids are never reused), unused header records `PxuiF32MutSpan`

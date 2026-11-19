@@ -114,10 +114,11 @@ mod tests {
     use super::*;
     #[test]
     fn snapshots_preserve_other_songs_and_reject_invalid_starts() {
+        // Suites persist across runs and pids recycle, so the name also carries the start time.
         let suite = format!(
-            "com.olegpustovit.localwave.history-{}-{:?}",
+            "com.olegpustovit.localwave.history-{}-{}",
             std::process::id(),
-            std::thread::current().id()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         );
         let preferences = Preferences::open(Some(&suite)).unwrap();
         let other = Preferences::open(Some(&suite)).unwrap();
