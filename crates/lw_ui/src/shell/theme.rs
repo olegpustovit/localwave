@@ -525,7 +525,7 @@ mod body_tests {
     #[test]
     fn localwave_side_row_draws_the_sidebar_row() {
         const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().fit();
-        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], anchor: None });
+        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
         let mut build = |ui: &mut Ui| {
             ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(i) = part { ui.label(["One", "Two"][i], SIDE_TEXT); });
         };

@@ -457,9 +457,11 @@ pxui::ListState impl PartialEq
 pxui::ListState impl StructuralPartialEq
 pxui::ListState struct
 pxui::ListState::DISABLED const u8
+pxui::ListState::LIVE const u8
 pxui::ListState::SELECTED const u8
 pxui::ListState::anchor field Option<usize>
 pxui::ListState::new fn const () -> ListState
+pxui::ListState::revision field Option<u64>
 pxui::ListState::rows field Vec<u8>
 pxui::Menu use pxui_types::ui::Menu
 pxui::MenuBar impl Clone
@@ -4194,6 +4196,7 @@ pxui_types::ffi::PxuiSelectionListDesc::count field usize
 pxui_types::ffi::PxuiSelectionListDesc::drop_look field PxuiLookDesc
 pxui_types::ffi::PxuiSelectionListDesc::fit field u8
 pxui_types::ffi::PxuiSelectionListDesc::has_drop_look field u8
+pxui_types::ffi::PxuiSelectionListDesc::has_revision field u8
 pxui_types::ffi::PxuiSelectionListDesc::header_height field f32
 pxui_types::ffi::PxuiSelectionListDesc::leading_height field f32
 pxui_types::ffi::PxuiSelectionListDesc::measured field u8
@@ -4201,6 +4204,8 @@ pxui_types::ffi::PxuiSelectionListDesc::multi field u8
 pxui_types::ffi::PxuiSelectionListDesc::open_on_click field u8
 pxui_types::ffi::PxuiSelectionListDesc::overlay_scrollbar field u8
 pxui_types::ffi::PxuiSelectionListDesc::reorder field u8
+pxui_types::ffi::PxuiSelectionListDesc::reserved field [u8; 3]
+pxui_types::ffi::PxuiSelectionListDesc::revision field u64
 pxui_types::ffi::PxuiSelectionListDesc::row_height field f32
 pxui_types::ffi::PxuiSelectionListDesc::rows field PxuiU8MutSpan
 pxui_types::ffi::PxuiSelectionListDesc::size field u32
@@ -4385,12 +4390,13 @@ pxui_types::ffi::PxuiTableDesc::anchor field usize
 pxui_types::ffi::PxuiTableDesc::ascending field u8
 pxui_types::ffi::PxuiTableDesc::columns field Slice<PxuiColumn>
 pxui_types::ffi::PxuiTableDesc::flags field PxuiU8MutSpan
+pxui_types::ffi::PxuiTableDesc::has_revision field u8
 pxui_types::ffi::PxuiTableDesc::has_sort field u8
 pxui_types::ffi::PxuiTableDesc::head_h field f32
 pxui_types::ffi::PxuiTableDesc::head_variant field u16
 pxui_types::ffi::PxuiTableDesc::multi field u8
-pxui_types::ffi::PxuiTableDesc::reserved field u8
 pxui_types::ffi::PxuiTableDesc::reserved2 field [u8; 6]
+pxui_types::ffi::PxuiTableDesc::revision field u64
 pxui_types::ffi::PxuiTableDesc::row_h field f32
 pxui_types::ffi::PxuiTableDesc::rows field usize
 pxui_types::ffi::PxuiTableDesc::size field u32
