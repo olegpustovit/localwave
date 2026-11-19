@@ -172,7 +172,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         if was != seen {
             ui.set_state(&node, seen);
         }
-        let color = if on { ui.tokens().accent } else { Rgba::token(SECONDARY) };
+        let color = if on { Rgba::token(ColorToken::ACCENT) } else { Rgba::token(SECONDARY) };
         ui.within(&node, &mut |ui| {
             let heart = ui.view_of("heart", &(on, press.hovered, press.pressed, current.is_some()), |ui| {
                 let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));
@@ -197,7 +197,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
                 ui.within(&slot, &mut |ui| {
                     ray = Some(ui.view_of("ray", &0, |ui| {
                         let dot = ui.node("dot", Node::column().w(Size::Grow).h(Size::Grow));
-                        let accent = ui.tokens().accent;
+                        let accent = Rgba::token(ColorToken::ACCENT);
                         ui.canvas(&dot, move |paint, rect| {
                             paint.fill(rect, Fill::new(accent))
                         });

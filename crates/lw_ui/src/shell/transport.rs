@@ -212,7 +212,7 @@ pub(super) fn desktop(
                     crate::motion::enter(ui, &panel, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
                 });
                 let target = target.handle;
-                let accent = ui.tokens().accent;
+                let accent = Rgba::token(ColorToken::ACCENT);
                 match songs::song_drop(ui, &target) {
                     Some((true, song)) => *intent = Some(Intent::AppendSong(song)),
                     Some((false, _)) => ui.canvas_over(&target, move |paint, rect| {
@@ -287,7 +287,7 @@ pub(super) fn seek(
         *intent = Some(Intent::SeekFraction(fraction));
     }
     let peaks = player.waveform.copied();
-    let accent = ui.tokens().accent;
+    let accent = Rgba::token(ColorToken::ACCENT);
     ui.canvas(&scrubber, move |paint, rect| {
         const BARS: usize = 200;
         let baseline = (rect.h - 4.0).max(0.0);

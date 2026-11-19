@@ -30,7 +30,7 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
             ui.within(&position, &mut |ui| {
                     let bar = ui.view_of("bar", &0, |ui| {
                         let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
-                        let accent = ui.tokens().accent;
+                        let accent = Rgba::token(ColorToken::ACCENT);
                         ui.canvas(&fill, move |paint, rect| {
                             paint.fill(rect, Fill::new(accent).fractional())
                         });
@@ -86,7 +86,7 @@ pub(in crate::shell) fn glyph(
         },
     };
     ui.a11y_name(&root, label);
-    let accent = ui.tokens().accent;
+    let accent = Rgba::token(ColorToken::ACCENT);
     ui.canvas(&root, move |paint, rect| {
         let (x, y) = (rect.x, rect.y);
         if available == Some(FileAvailability::OnDevice)
@@ -133,7 +133,7 @@ pub(in crate::shell) fn glyph(
             for (index, key) in ["left", "right"].into_iter().enumerate() {
                 let half = ui.view_of(key, &0, |ui| {
                     let fill = ui.node("fill", Node::column().w(Size::Grow).h(Size::Grow));
-                    let accent = ui.tokens().accent;
+                    let accent = Rgba::token(ColorToken::ACCENT);
                     ui.canvas(&fill, move |paint, rect| {
                         paint.fill(Rect::new(rect.x + index as f32 * 5.0, rect.y, 5.0, 10.0), Fill::new(accent).fractional())
                     });
