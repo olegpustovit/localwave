@@ -134,16 +134,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
     let cell = ui.node("swipe-row", Node::stack().w(Size::Grow).h(Size::Grow).flags(Flags::CLIP));
     ui.within(&cell, &mut |ui| {
         let selected = state.selected == Some(index);
-        let row_node = Node {
-            padding: Edges::ZERO.l(16.0).r(6.0),
-            look: if selected { SELECTED_FILL } else { PAPER_FILL },
-            ..Node::row()
-                .w(Size::Grow)
-                .h(Size::Grow)
-                .gap(12.0)
-                .align(Align::Center)
-                .role(Role::ListItem)
-        };
+        let row_node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).align(Align::Center).role(Role::ListItem).padding(Edges::ZERO.l(16.0).r(6.0)).look(if selected { SELECTED_FILL } else { PAPER_FILL });
         // Touch gestures are taken on the row after it is declared; `more` is read once the row exists.
         let mut more = false;
         let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {
@@ -225,12 +216,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             // `swipe` is the row's own x offset; LocalWave never mirrors, so positive reveals the leading side.
             ui.set_node_layout(
                 &node.handle,
-                &Node {
-                    w: Size::Px(width),
-                    h: Size::Px(ROW),
-                    at: Some((g.swipe, 0.0)).into(),
-                    ..ui.node_layout(&node.handle)
-                },
+                &ui.node_layout(&node.handle).w(Size::Px(width)).h(Size::Px(ROW)).at(g.swipe, 0.0),
             );
         }
         if g.highlighted {
@@ -270,11 +256,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             (key, label, trailing)
         };
         if g.swipe != 0.0 {
-            ui.id("swipe-actions", |ui| { ui.row(Node {
-                    justify: if leading { Justify::Start } else { Justify::End },
-                    z: -1,
-                    ..Node::row().w(Size::Grow).h(Size::Grow)
-                },
+            ui.id("swipe-actions", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).justify(if leading { Justify::Start } else { Justify::End }).z(-1),
                 |ui| {
                     if swipe_action(ui, key, label, g.swipe.abs()) {
                         *intent = Some(action);
@@ -723,7 +705,7 @@ pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str
 }
 /// A text button: as wide as its word plus 4 points either side, 44 points high.
 const WORD: pxui::Button =
-    pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().pad(Edges { l: 4.0, r: 4.0, ..Edges::ZERO }).look(&BARE);
+    pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO.l(4.0).r(4.0)).look(&BARE);
 
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
 pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {

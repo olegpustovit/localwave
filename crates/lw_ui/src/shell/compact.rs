@@ -107,20 +107,13 @@ pub(super) fn view(
                     let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
                     // Select mode swaps the Songs title for Swift's selection header.
                     let picking = state.selecting && state.route == Route::Songs;
-                    ui.row(Node {
-                            padding: if picking { Edges::ZERO } else { Edges {
-                                l: 16.0,
-                                r: if library { 6.0 } else { 16.0 },
-                                // Swift's compact header: 10 pt pad with the glyph cap 4 pt higher than a 33.6 box; Lists centres in 54.
-                                t: if library { 6.0 } else { 0.0 },
-                                b: if library { 0.0 } else { 10.0 },
-                                ..Edges::ZERO
-                            } },
-                            ..Node::row()
-                                .w(Size::Grow)
-                                .h_px(if picking { 54.0 } else if library { 50.0 } else { 64.0 })
-                                .align(if library { Align::Start } else { Align::Center })
-                        },
+                    // Swift's compact header: 10 pt pad with the glyph cap 4 pt higher than a 33.6 box; Lists centres in 54.
+                    let pad = Edges::new(16.0, if library { 6.0 } else { 0.0 }, if library { 6.0 } else { 16.0 }, if library { 0.0 } else { 10.0 });
+                    ui.row(Node::row()
+                            .w(Size::Grow)
+                            .h_px(if picking { 54.0 } else if library { 50.0 } else { 64.0 })
+                            .align(if library { Align::Start } else { Align::Center })
+                            .padding(if picking { Edges::ZERO } else { pad }),
                         |ui| {
                             if picking {
                                 let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
@@ -587,12 +580,7 @@ fn expanded(
     if drag.dismiss != 0.0 {
         ui.set_node_layout(
             &root.handle,
-            &Node {
-                w: Size::Px(size.0),
-                h: Size::Px(size.1),
-                at: Some((0.0, drag.dismiss)).into(),
-                ..ui.node_layout(&root.handle)
-            },
+            &ui.node_layout(&root.handle).w(Size::Px(size.0)).h(Size::Px(size.1)).at(0.0, drag.dismiss),
         );
     }
     if drag.dismiss_committed && intent.is_none() {
@@ -1220,17 +1208,8 @@ mod tests {
         let mut saw_later_row = false;
         for tick in 0..182 {
             let events = [
-                pxui::Event {
-                    kind: input::wire::POINTER_MOVED,
-                    x: 200.0,
-                    y: 400.0,
-                    ..Default::default()
-                },
-                pxui::Event {
-                    kind: input::wire::SCROLLED,
-                    y: if tick % 40 < 20 { -1.0 } else { 1.0 },
-                    ..Default::default()
-                },
+                pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 200.0, 400.0),
+                pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if tick % 40 < 20 { -1.0 } else { 1.0 }),
             ];
             mem_sys::local_reset();
             crate::testing::frame(
@@ -1538,12 +1517,7 @@ mod tests {
                     .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
                     .unwrap_or_else(|| panic!("missing {name}"))
                     .rect;
-                let press = pxui::Event {
-                    kind: pxui::Event::POINTER_PRESSED,
-                    x: f64::from(rect.x + rect.w * 0.5),
-                    y: f64::from(rect.y + rect.h * 0.5),
-                    ..Default::default()
-                };
+                let press = pxui::Event::pointer(pxui::Event::POINTER_PRESSED, 0, f64::from(rect.x + rect.w * 0.5), f64::from(rect.y + rect.h * 0.5));
                 let events = [press, pxui::Event { kind: pxui::Event::POINTER_RELEASED, ..press }];
                 let mut intent = None;
                 crate::testing::frame(
@@ -1587,22 +1561,13 @@ mod tests {
                 let step = tick % 3;
                 let mut events = [pxui::Event::default(); 2];
                 if step == 0 {
-                    events[0] = pxui::Event {
-                        kind: pxui::Event::POINTER_PRESSED,
-                        x: f64::from(rect.x + rect.w * 0.75),
-                        y: f64::from(rect.y + rect.h * 0.5),
-                        ..Default::default()
-                    };
+                    events[0] = pxui::Event::pointer(pxui::Event::POINTER_PRESSED, 0, f64::from(rect.x + rect.w * 0.75), f64::from(rect.y + rect.h * 0.5));
                     events[1] = pxui::Event {
                         kind: pxui::Event::POINTER_RELEASED,
                         ..events[0]
                     };
                 } else {
-                    events[0] = pxui::Event {
-                        kind: pxui::Event::KEY_PRESSED,
-                        code: input::Key::Enter.code(),
-                        ..Default::default()
-                    };
+                    events[0] = pxui::Event::key(pxui::Event::KEY_PRESSED, input::Key::Enter.code());
                     events[1] = pxui::Event {
                         kind: pxui::Event::KEY_RELEASED,
                         ..events[0]
@@ -1913,12 +1878,7 @@ mod tests {
         let (x, y) = centre(rect_of(&ui, Role::Button, "A"));
         let (_, m) = centre(rect_of(&ui, Role::Button, "M"));
         let pointer = |ui: &mut Ui, kind: u32, y: f32, time: f64| {
-            let event = pxui::Event {
-                kind,
-                x: f64::from(x),
-                y: f64::from(y),
-                ..Default::default()
-            };
+            let event = pxui::Event::pointer(kind, 0, f64::from(x), f64::from(y));
             let player = PlayerView {
                 initialized: true,
                 ..Default::default()

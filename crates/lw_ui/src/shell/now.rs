@@ -1,6 +1,10 @@
 use super::*;
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
+/// The now panel's track line: ink, at least one 22.8-point line tall.
+const CURRENT_TRACK: Node = Node::column().w(Size::Grow).h(Size::Fit).role(Role::Label).min_h(22.8).look(INK_TEXT);
+/// A favourite burst ray's 4-point slot at the heart's centre.
+const RAY_SLOT: Node = Node::column().w_px(4.0).h_px(4.0).at(16.0, 12.0);
 
 pub(super) fn now_panel(
     ui: &mut Ui,
@@ -58,11 +62,7 @@ pub(super) fn now_panel(
                 ui.within(&information_box, &mut |ui| information = ui.view_of("track-information", &information_revision, |ui| {
                         let title = ui.node(
                             "current-track",
-                            Node {
-                                min_h: 22.8,
-                                look: INK_TEXT,
-                                ..Node::column().w(Size::Grow).h(Size::Fit).role(Role::Label)
-                            },
+                            CURRENT_TRACK,
                         );
                         let value = if !player.initialized {
                             "Loading library"
@@ -191,10 +191,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
             for (key, dx, dy) in RAYS {
                 let slot = ui.node(
                     key,
-                    Node {
-                        at: Some((16.0, 12.0)).into(),
-                        ..Node::column().w_px(4.0).h_px(4.0)
-                    },
+                    RAY_SLOT,
                 );
                 let mut ray = None;
                 ui.within(&slot, &mut |ui| {

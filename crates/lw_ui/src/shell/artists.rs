@@ -175,11 +175,7 @@ pub(super) fn table(
 
                             let art = ui.node(
                                 "artist-artwork",
-                                Node {
-                                    at: Some((32.0, top)).into(),
-                                    look: PANEL_FILL,
-                                    ..Node::column().w_px(28.0).h_px(28.0)
-                                },
+                                Node::column().w_px(28.0).h_px(28.0).at(32.0, top).look(PANEL_FILL),
                             );
                             paint_artwork(
                                 ui,
@@ -421,12 +417,7 @@ mod tests {
         })
         .unwrap();
         let entered = frame.wire.time + 0.01;
-        let pointer = pxui::Event {
-            kind: input::wire::POINTER_MOVED,
-            x: (artist.x + 100.0) as f64,
-            y: (artist.y + 20.0) as f64,
-            ..Default::default()
-        };
+        let pointer = pxui::Event::pointer(input::wire::POINTER_MOVED, 0, (artist.x + 100.0) as f64, (artist.y + 20.0) as f64);
         crate::testing::frame(
             &mut ui,
             &{

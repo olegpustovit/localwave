@@ -150,19 +150,7 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                     &mut |ui| {
                         let a = ui.node(
                             "line-box",
-                            pxui::ui::Node {
-                                at: Some((20.0, 20.0)).into(),
-                                look: pxui::ui::Look {
-                                    text: pxui::geom::Rgba {
-                                        r: 231,
-                                        g: 0,
-                                        b: 0,
-                                        a: 255,
-                                    },
-                                    ..pxui::ui::Look::NONE
-                                },
-                                ..pxui::ui::Node::column().w_px(200.0).h_px(line).role(pxui::ui::Role::Label)
-                            },
+                            pxui::ui::Node::column().w_px(200.0).h_px(line).role(pxui::ui::Role::Label).at(20.0, 20.0).look(pxui::ui::Look::NONE.text(pxui::geom::Rgba::rgb(231, 0, 0))),
                         );
                         ui.text_line_box(&a, "Ag01", label, &[]).unwrap();
                     },
@@ -443,11 +431,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
     for event in [
         pointer(input::wire::POINTER_PRESSED, grips[0].1),
         pointer(input::wire::POINTER_MOVED, grips[2].1),
-        pxui::Event {
-            kind: input::wire::SCROLLED,
-            y: -30.0,
-            ..Default::default()
-        },
+        pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, -30.0),
     ] {
         frame.wire.events = &event;
         frame.wire.event_count = 1;
@@ -479,11 +463,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
             before: Some(35)
         })
     );
-    let scroll_back = pxui::Event {
-        kind: input::wire::SCROLLED,
-        y: 30.0,
-        ..Default::default()
-    };
+    let scroll_back = pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, 30.0);
     frame.wire.events = &scroll_back;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
@@ -565,17 +545,8 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
     for cycle in 0..24 {
         mem_sys::local_reset();
         let events = [
-            pxui::Event {
-                kind: input::wire::POINTER_MOVED,
-                x: (queue_rect.x + 100.0) as f64,
-                y: (queue_rect.y + 100.0) as f64,
-                ..Default::default()
-            },
-            pxui::Event {
-                kind: input::wire::SCROLLED,
-                y: if cycle % 2 == 0 { -4.0 } else { 4.0 },
-                ..Default::default()
-            },
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, (queue_rect.x + 100.0) as f64, (queue_rect.y + 100.0) as f64),
+            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if cycle % 2 == 0 { -4.0 } else { 4.0 }),
         ];
         frame.wire.events = events.as_ptr();
         frame.wire.event_count = events.len();
@@ -595,11 +566,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         }
         assert!(intent.is_none());
     }
-    let escape = pxui::Event {
-        kind: input::wire::KEY_PRESSED,
-        code: input::Key::Escape.code(),
-        ..Default::default()
-    };
+    let escape = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code());
     frame.wire.events = &escape;
     frame.wire.event_count = 1;
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
@@ -830,19 +797,9 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         }
     }
     for cancel in [
-        pxui::Event {
-            kind: input::wire::POINTER_CANCELLED,
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::FOCUS_LOST,
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::KEY_PRESSED,
-            code: input::Key::Escape.code(),
-            ..Default::default()
-        },
+        pxui::Event::new(input::wire::POINTER_CANCELLED),
+        pxui::Event::new(input::wire::FOCUS_LOST),
+        pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code()),
     ] {
         for e in [
             event(input::wire::POINTER_PRESSED, first, 10.0),
@@ -984,16 +941,8 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         .unwrap();
     }
     let keyboard = [
-        pxui::Event {
-            kind: input::wire::KEY_PRESSED,
-            code: input::Key::Space.code(),
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::KEY_RELEASED,
-            code: input::Key::Space.code(),
-            ..Default::default()
-        },
+        pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Space.code()),
+        pxui::Event::key(input::wire::KEY_RELEASED, input::Key::Space.code()),
     ];
     for cycle in 0..24 {
         let chip = ui
@@ -1188,26 +1137,9 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         f64::from(field.y + field.h * 0.5),
     );
     let click = [
-        pxui::Event {
-            kind: input::wire::POINTER_MOVED,
-            x,
-            y,
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::POINTER_PRESSED,
-            code: 0,
-            x,
-            y,
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::POINTER_RELEASED,
-            code: 0,
-            x,
-            y,
-            ..Default::default()
-        },
+        pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y),
+        pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y),
+        pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y),
     ];
     crate::testing::frame(
         &mut ui,
@@ -1259,17 +1191,8 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     assert_eq!(state.collection(&found).unwrap().ids.len(), 400);
     for tick in 0..120 {
         let wheel = [
-            pxui::Event {
-                kind: input::wire::POINTER_MOVED,
-                x: 650.0,
-                y: 400.0,
-                ..Default::default()
-            },
-            pxui::Event {
-                kind: input::wire::SCROLLED,
-                y: if tick % 40 < 20 { -1.0 } else { 1.0 },
-                ..Default::default()
-            },
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
+            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if tick % 40 < 20 { -1.0 } else { 1.0 }),
         ];
         if tick >= 80 {
             mem_sys::local_reset();
@@ -1409,11 +1332,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
             .iter()
             .any(|node| ui.a11y_name_of(node) == "Sort by Time, descending")
     );
-    let enter = pxui::Event {
-        kind: input::wire::KEY_PRESSED,
-        code: input::Key::Enter.code(),
-        ..Default::default()
-    };
+    let enter = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Enter.code());
     crate::testing::frame(
         &mut ui,
         &{
@@ -1886,17 +1805,8 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
     }
     for frame in 0..160 {
         let events = [
-            pxui::Event {
-                kind: input::wire::POINTER_MOVED,
-                x: 650.0,
-                y: 400.0,
-                ..pxui::Event::default()
-            },
-            pxui::Event {
-                kind: input::wire::SCROLLED,
-                y: if frame % 40 < 20 { -1.0 } else { 1.0 },
-                ..pxui::Event::default()
-            },
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
+            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if frame % 40 < 20 { -1.0 } else { 1.0 }),
         ];
         position = frame as f64;
         player.revision = frame;
@@ -2000,17 +1910,8 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
     let mut moved = false;
     for tick in 0..160 {
         let events = [
-            pxui::Event {
-                kind: input::wire::POINTER_MOVED,
-                x: 100.0,
-                y: 450.0,
-                ..pxui::Event::default()
-            },
-            pxui::Event {
-                kind: input::wire::SCROLLED,
-                y: if tick % 40 < 20 { -1.0 } else { 1.0 },
-                ..pxui::Event::default()
-            },
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 100.0, 450.0),
+            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if tick % 40 < 20 { -1.0 } else { 1.0 }),
         ];
         if tick == 80 {
             mem_sys::local_reset();
@@ -2098,11 +1999,7 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
     assert_eq!(intent, Some(Intent::SelectRow(10)));
     state.apply(intent.take().unwrap());
     build(&mut ui, &state, &frame, &mut intent);
-    let enter = pxui::Event {
-        kind: input::wire::KEY_PRESSED,
-        code: input::Key::Enter.code(),
-        ..pxui::Event::default()
-    };
+    let enter = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Enter.code());
     build(
         &mut ui,
         &state,

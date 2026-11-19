@@ -407,18 +407,8 @@ mod tests {
             mem_sys::local_reset();
             let base = round as f64;
             let down = [
-                pxui::Event {
-                    kind: input::wire::POINTER_MOVED,
-                    x: 70.0,
-                    y: 15.0,
-                    ..Default::default()
-                },
-                pxui::Event {
-                    kind: input::wire::POINTER_PRESSED,
-                    x: 70.0,
-                    y: 15.0,
-                    ..Default::default()
-                },
+                pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 70.0, 15.0),
+                pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, 70.0, 15.0),
             ];
             frame.wire.time = base;
             frame.wire.events = down.as_ptr();
@@ -460,12 +450,7 @@ mod tests {
                     settled_revision = Some(ui.draw_revision());
                 }
             }
-            let up = pxui::Event {
-                kind: input::wire::POINTER_RELEASED,
-                x: 70.0,
-                y: 15.0,
-                ..Default::default()
-            };
+            let up = pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, 70.0, 15.0);
             frame.wire.events = &up;
             frame.wire.event_count = 1;
             frame.wire.time = base + 0.4;
@@ -489,12 +474,7 @@ mod tests {
                     "the release transition draws for 140ms, then idles while hovered"
                 );
             }
-            let leave = pxui::Event {
-                kind: input::wire::POINTER_MOVED,
-                x: 390.0,
-                y: 90.0,
-                ..Default::default()
-            };
+            let leave = pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 390.0, 90.0);
             frame.wire.events = &leave;
             frame.wire.event_count = 1;
             frame.wire.time = base + 0.6;

@@ -124,12 +124,7 @@ mod tests {
                             shuffle(
                                 paint,
                                 rect,
-                                Rgba {
-                                    r: 1,
-                                    g: 2,
-                                    b: 3,
-                                    a: 255,
-                                },
+                                Rgba::rgb(1, 2, 3),
                             )
                         });
                     },

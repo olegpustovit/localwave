@@ -105,11 +105,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     }
     let editor = ui.part(
         pxui::Part::EDITOR,
-        Node {
-            inset: Edges::ZERO.l(if find { 0.0 } else { 2.0 }).r(if find { 0.0 } else { 2.0 }),
-            look: Look::NONE.text(ui.tokens().foreground).font(font),
-            ..Node::column().w(Size::Grow).h_px(height)
-        },
+        Node::column().w(Size::Grow).h_px(height).inset(Edges::ZERO.l(if find { 0.0 } else { 2.0 }).r(if find { 0.0 } else { 2.0 })).look(Look::NONE.text(ui.tokens().foreground).font(font)),
     );
     let value = c.text_of(&c.value);
     if c.state.focused == 0 {
@@ -125,10 +121,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
         };
         let placeholder = ui.node(
             "prompt",
-            Node {
-                at: Some((if find { 0.0 } else { 20.0 }, 0.0)).into(),
-                ..Node::row().w_px(room.max(1.0)).h_px(height).align(Align::Center)
-            },
+            Node::row().w_px(room.max(1.0)).h_px(height).align(Align::Center).at(if find { 0.0 } else { 20.0 }, 0.0),
         );
         // the prompt's tracking in ems (the editor font's -0.52 points at 26)
         let style = Label::BODY
@@ -141,10 +134,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
         ui.within(&placeholder, &mut |ui| {
             let line = ui.node(
                 "line",
-                Node {
-                    look: if find { FIND_PROMPT } else { PALETTE_PROMPT },
-                    ..Node::column().w(Size::Grow).h_px(size as f32 * 1.4)
-                },
+                Node::column().w(Size::Grow).h_px(size as f32 * 1.4).look(if find { FIND_PROMPT } else { PALETTE_PROMPT }),
             );
             ui.text_line_box(&line, hint, style, &[]).unwrap();
         });
@@ -177,11 +167,7 @@ fn overlay(
     let open = ui.popup(key, &Overlay::DEFAULT.at(pxui::Point::new(content.x + (content.w - width) * 0.5, content.y + top)).w_px(width).h_px(60.0).max_h_px(max_height).name(label), |ui| {
             let card = ui.node(
                 "card",
-                Node {
-                    max_h: max_height,
-                    look: PAPER_FILL,
-                    ..Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP)
-                },
+                Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP).max_h(max_height).look(PAPER_FILL),
             );
             ui.set_role(&card, Role::Dialog, pxui::A11yStates::MODAL);
             ui.a11y_name(&card, label);
@@ -275,11 +261,7 @@ pub(super) fn palette_view(
             let list = list.handle;
             ui.set_node_layout(
                 &list,
-                &Node {
-                    min_h: 60.0,
-                    max_h: result_limit,
-                    ..Node::column().w(Size::Grow).h(Size::Fit).pad(6.0)
-                },
+                &Node::column().w(Size::Grow).h(Size::Fit).pad(6.0).min_h(60.0).max_h(result_limit),
             );
             let prior_selection = ui.state(&list, -1);
             if !items.is_empty() && prior_selection != selected as i64 {
@@ -302,17 +284,7 @@ fn result_row(
 ) {
     let row = ui.node(
         "item",
-        Node {
-            look: if selected { SELECTED_FILL } else { Look::NONE },
-            ..Node::row()
-                .w(Size::Grow)
-                .h_px(44.0)
-                .gap(12.0)
-                .pad_x(12.0)
-                .align(Align::Center)
-                .role(Role::Button)
-                .flags(Flags::CLICKABLE)
-        },
+        Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE).look(if selected { SELECTED_FILL } else { Look::NONE }),
     );
     ui.set_role(
         &row,
@@ -712,11 +684,7 @@ mod tests {
         };
         let open = [
             key(Event::KEY_PRESSED, input::Key::Meta),
-            Event {
-                kind: Event::KEY_PRESSED,
-                code: 'k' as u32,
-                ..Default::default()
-            },
+            Event::key(Event::KEY_PRESSED, 'k' as u32),
             key(Event::KEY_RELEASED, input::Key::Meta),
         ];
         frame(&mut ui, &theme, &catalog, &mut state, &mut time, &[]);
@@ -898,12 +866,7 @@ mod tests {
                 &catalog,
                 &mut state,
                 &mut time,
-                &[Event {
-                    kind,
-                    x: 10.0,
-                    y: 200.0,
-                    ..Default::default()
-                }],
+                &[Event::pointer(kind, 0, 10.0, 200.0)],
             );
         }
         assert!(
@@ -920,10 +883,7 @@ mod tests {
                 &catalog,
                 &mut state,
                 &mut time,
-                &[Event {
-                    kind: Event::FOCUS_LOST,
-                    ..Default::default()
-                }]
+                &[Event::new(Event::FOCUS_LOST)]
             ),
             Some(Intent::CloseCommands)
         );

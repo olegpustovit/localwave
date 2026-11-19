@@ -96,7 +96,7 @@ pub(super) fn gallery(
     let card_layout = Node::column().w_px(cell).h_px(card_height);
     const ARTWORK: Node = Node::stack()
         .w(Size::Grow)
-        .margin(Edges { b: 8.0, ..Edges::ZERO })
+        .margin(Edges::ZERO.b(8.0))
         .look(PANEL_FILL);
     ui.section_list(
         "groups",

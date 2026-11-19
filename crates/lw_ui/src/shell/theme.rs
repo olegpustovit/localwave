@@ -171,7 +171,7 @@ pub(super) const INK_LOOKS: States = States::of(INK_FILL);
 pub(super) const KEY_LOOKS: States = States::of(KEY_FILL);
 /// `rest` while idle, `lit` while hovered or held.
 const fn lit(rest: Look, lit: Look) -> States {
-    States { hover: lit, pressed: lit, ..States::of(rest) }
+    States::of(rest).hover(lit).pressed(lit)
 }
 /// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
 pub(super) const ICON_LOOKS: States = lit(INK_TEXT, INK_TEXT.fill(Rgba::token(PANEL)));

@@ -139,25 +139,7 @@ pub(super) fn header(
                 let row = album && wide(width) || !album && !stacked(width);
                 let root = ui.node(
                     "detail-header",
-                    Node {
-                        axis: if row { Axis::Row } else { Axis::Column },
-                        padding: if album {
-                            Edges::new(32.0, 8.0, 32.0, 24.0)
-                        } else {
-                            Edges::new(32.0, 28.0, 32.0, 18.0)
-                        },
-                        ..Node::column()
-                            .w(Size::Grow)
-                            .h_px(body_height(width, route, folder))
-                            .gap(if album {
-                                if row { 32.0 } else { 24.0 }
-                            } else if row {
-                                24.0
-                            } else {
-                                20.0
-                            })
-                            .align(if row { Align::End } else { Align::Start })
-                    },
+                    Node::column().w(Size::Grow).h_px(body_height(width, route, folder)).gap(if album { if row { 32.0 } else { 24.0 } } else if row { 24.0 } else { 20.0 }).align(if row { Align::End } else { Align::Start }).axis(if row { Axis::Row } else { Axis::Column }).padding(if album { Edges::new(32.0, 8.0, 32.0, 24.0) } else { Edges::new(32.0, 28.0, 32.0, 18.0) }),
                 );
                 ui.within(&root, &mut |ui| {
                     header_body(ui, catalog, player, group, album, kept, width, intent);

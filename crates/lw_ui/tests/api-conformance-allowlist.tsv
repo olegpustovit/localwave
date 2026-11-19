@@ -1,51 +1,27 @@
 lw_ui/src/shell/albums.rs	R7	let button = ui.pressable("shuffle-all", node, &PLAIN.disabled(catalog.is_empty()), |ui, _| {	drift: audit #11 Shuffle all -> Button (U4)
 lw_ui/src/shell/albums.rs	R7	let button = ui.pressable(key, node, &PLAIN.look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }), |ui, _| {	drift: audit #10 album sort -> segmented (U4)
 lw_ui/src/shell/albums.rs	R7	let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {	composite: album card (audit #12)
-lw_ui/src/shell/artists.rs	R1	Node {
 lw_ui/src/shell/artists.rs	R7	let row = ui.pressable("artist", node, &PLAIN.look(&PAPER_LOOKS), |ui, state| {	composite: artist row (audit #13)
-lw_ui/src/shell/byline.rs	R1	let node = Node {
 lw_ui/src/shell/byline.rs	R7	let node = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #44 inline byline links, kept by D7 (G11 deferred past 2.0)
-lw_ui/src/shell/commands.rs	R1	&Node {
-lw_ui/src/shell/commands.rs	R1	Node {
-lw_ui/src/shell/commands.rs	R1	Node {
-lw_ui/src/shell/commands.rs	R1	Node {
-lw_ui/src/shell/commands.rs	R1	Node {
-lw_ui/src/shell/commands.rs	R1	Node {
-lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
-lw_ui/src/shell/commands.rs	R6	look: Look::NONE.text(ui.tokens().foreground).font(font),	dynamic: the kit theme's field foreground, which no colour token names
-lw_ui/src/shell/compact.rs	R1	&Node {
-lw_ui/src/shell/compact.rs	R1	padding: if picking { Edges::ZERO } else { Edges {
-lw_ui/src/shell/compact.rs	R1	ui.row(Node {
+lw_ui/src/shell/commands.rs	R2	Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE).look(if selected { SELECTED_FILL } else { Look::NONE }),
+lw_ui/src/shell/commands.rs	R6	Node::column().w(Size::Grow).h_px(height).inset(Edges::ZERO.l(if find { 0.0 } else { 2.0 }).r(if find { 0.0 } else { 2.0 })).look(Look::NONE.text(ui.tokens().foreground).font(font)),	dynamic: the kit theme's field foreground, which no colour token names
 lw_ui/src/shell/compact.rs	R7	let card = ui.pressable("group", node, &PLAIN, |ui, _| {	composite: compact group card (audit #23)
 lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {	composite: mini player open (audit #22)
 lw_ui/src/shell/compact.rs	R7	let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #25 expanded-player dismiss root -> sheet presentation (G6, U4)
 lw_ui/src/shell/compact.rs	R7	let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #20 settings gear -> icon_button (U4)
-lw_ui/src/shell/compact/list.rs	R1	&Node {
-lw_ui/src/shell/compact/list.rs	R1	let row_node = Node {
-lw_ui/src/shell/compact/list.rs	R1	ui.id("swipe-actions", |ui| { ui.row(Node {
 lw_ui/src/shell/compact/list.rs	R7	let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {	composite: artist page album card (audit #34)
 lw_ui/src/shell/compact/list.rs	R7	let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #29 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/compact/list.rs	R7	let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #33 A-Z rail -> section_index (G9, U4)
 lw_ui/src/shell/compact/list.rs	R7	let key_node = ui.pressable(key, node, &PLAIN.disabled(!enabled), |ui, _| {	drift: audit #38 selection deck key -> Button (U4)
 lw_ui/src/shell/compact/list.rs	R7	let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {	composite: compact song row with gestures (audit #27)
-lw_ui/src/shell/detail.rs	R1	Node {
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #42 folder link -> Button LINK variant (U4)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #39 artist link -> Button LINK variant (U4)
-lw_ui/src/shell/files.rs	R1	Node {
-lw_ui/src/shell/files.rs	R1	Node {
-lw_ui/src/shell/files.rs	R1	Node {
-lw_ui/src/shell/files.rs	R1	Node {
-lw_ui/src/shell/files.rs	R1	Node { padding: Edges::ZERO.r(6.0), ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
-lw_ui/src/shell/files.rs	R1	let select = ui.node("select", Node { padding: Edges::ZERO.l(12.0), ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let tools = ui.node("folder-tools", Node { wrap: compact, padding: Edges::ZERO.b(15.0), ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
-lw_ui/src/shell/files.rs	R1	ui.column(Node {
-lw_ui/src/shell/files.rs	R1	ui.row(Node { wrap: compact, padding: Edges::ZERO.t(16.0), ..Node::row().w(Size::Grow).h(Size::Fit).align(Align::Center) }, |ui| {
-lw_ui/src/shell/files.rs	R2	..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-lw_ui/src/shell/files.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-lw_ui/src/shell/files.rs	R2	.flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
-lw_ui/src/shell/files.rs	R2	Node { padding: Edges::ZERO.r(6.0), ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
+lw_ui/src/shell/files.rs	R2	Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).role(if error { Role::Group } else { Role::Button }).flags(Flags::CLICKABLE | Flags::FOCUSABLE).margin(Edges::ZERO.b(8.0)).look(if error { FOLDER_CARD_ERROR } else { FOLDER_CARD }),
+lw_ui/src/shell/files.rs	R2	Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(LINK_TEXT),
 lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),
+lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).padding(Edges::ZERO.r(6.0)),
+lw_ui/src/shell/files.rs	R2	Node::row().w_px(width).h_px(height).center().role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(Look::NONE.fill(Rgba::token(fill)))
 lw_ui/src/shell/files.rs	R2	let add = ui.node("add-music", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
 lw_ui/src/shell/files.rs	R2	let back = ui.node("Back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
@@ -53,55 +29,28 @@ lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44
 lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let node = ui.node(id, Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(if kept { INK_FILL } else { PANEL_FILL }));
 lw_ui/src/shell/files.rs	R2	let option = ui.node(key, Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(PANEL_FILL));
-lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node { padding: Edges::ZERO.l(12.0), ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).padding(Edges::ZERO.l(12.0)));
 lw_ui/src/shell/files.rs	R2	let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/header.rs	R1	Node {
-lw_ui/src/shell/header.rs	R1	Node {
-lw_ui/src/shell/header.rs	R1	let node = Node {
-lw_ui/src/shell/header.rs	R1	margin: Edges {
 lw_ui/src/shell/header.rs	R7	let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {	drift: audit #9 filter chip -> checkbox variant (G5, U4)
-lw_ui/src/shell/kit.rs	R1	Node {
-lw_ui/src/shell/kit.rs	R1	Rgba {
-lw_ui/src/shell/kit.rs	R1	ui.style(&c.row, &pxui::theme::States::of(look), State { disabled: !enabled, ..State::default() });
-lw_ui/src/shell/now.rs	R1	Node {
-lw_ui/src/shell/now.rs	R1	Node {
 lw_ui/src/shell/onboarding.rs	R7	let choose = ui.pressable("choose-folder", node, &PLAIN.look(&INK_LOOKS), |ui, _| {	drift: audit #60 Choose a folder -> Button (U4)
 lw_ui/src/shell/onboarding.rs	R7	let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #61 Drive disclosure -> disclosure (G10, U4)
-lw_ui/src/shell/queue_sheet.rs	R1	let item_node = Node {
-lw_ui/src/shell/queue_sheet.rs	R1	let sheet_node = Node {
-lw_ui/src/shell/queue_sheet.rs	R1	ui.column(Node {
 lw_ui/src/shell/queue_sheet.rs	R7	let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {	drift: audit #55 Clear up next -> Button (U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #57 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #56 queue row drop root -> drop_target (G7, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {	composite: play-queued body (audit #58)
 lw_ui/src/shell/queue_sheet.rs	R7	let sheet = ui.pressable("queue-sheet", sheet_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #52 queue sheet dismiss root -> sheet presentation (G6, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let titles = ui.pressable("queue-titles", node, &PLAIN, |ui, _| {	drift: audit #53 queue titles -> Button with detail (U4)
-lw_ui/src/shell/settings.rs	R1	Node {
-lw_ui/src/shell/settings.rs	R1	Node {
-lw_ui/src/shell/settings.rs	R1	Node {
-lw_ui/src/shell/settings.rs	R1	ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
-lw_ui/src/shell/settings.rs	R1	ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
-lw_ui/src/shell/settings.rs	R2	..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
+lw_ui/src/shell/settings.rs	R2	Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).role(Role::Toggle).flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT).min_w(40.0).look(if selected { CHOICE_ON } else { CHOICE }),
+lw_ui/src/shell/settings.rs	R2	Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(BACK_TEXT),
 lw_ui/src/shell/settings.rs	R7	let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: appearance settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: cache settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {	drift: audit #66 Rescan all sources -> Button with detail/accessory (U4)
 lw_ui/src/shell/sidebar.rs	R7	let node = ui.pressable(key, spec, &row, |ui, _| {	drift: audit #1 sidebar rows -> selection_list (G4, U4)
 lw_ui/src/shell/sidebar.rs	R7	let search = ui.pressable("search", node, &PLAIN.look(&SEARCH_ROW_LOOKS), |ui, _| {	drift: audit #4 search row -> Button variant (U4)
 lw_ui/src/shell/sidebar.rs	R7	let shortcuts = ui.pressable("shortcuts", node, &PLAIN, |ui, _| {	drift: audit #6 shortcuts row -> Button (U4)
-lw_ui/src/shell/songs/mod.rs	R1	let node = Node {
 lw_ui/src/shell/songs/mod.rs	R7	let heading = ui.pressable(column as i64, node, &PLAIN, |ui, _| {	drift: audit #14 sortable headings -> table_head (G4, U4)
-lw_ui/src/shell/songs/row.rs	R1	let node = Node {
-lw_ui/src/shell/songs/row.rs	R1	let node = Node {
-lw_ui/src/shell/songs/row.rs	R1	let position = ui.node(key, Node {
-lw_ui/src/shell/songs/row.rs	R1	ui.id("availability-position", |ui| { ui.column(Node {
-lw_ui/src/shell/songs/row.rs	R1	ui.id("equalizer-position", |ui| { ui.column(Node {
 lw_ui/src/shell/songs/row.rs	R7	let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});	drift: audit #17 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/songs/row.rs	R7	let more = ui.pressable("actions", node, &PLAIN, |_, _| {});	drift: audit #16 actions -> icon_button (U4)
 lw_ui/src/shell/songs/row.rs	R7	let root = ui.pressable("song", node, &look, |ui, _| {	drift: audit #15 song row selection semantics -> selection_list/table (G4, U4)
-lw_ui/src/shell/theme.rs	R1	States { hover: lit, pressed: lit, ..States::of(rest) }
-lw_ui/src/shell/transport.rs	R1	ui.id("repeat-one", |ui| { ui.column(Node {
-lw_ui/src/shell/transport.rs	R1	ui.row(Node {
-lw_ui/src/shell/transport.rs	R1	ui.row(Node {
 lw_ui/src/shell/transport.rs	R7	let target = ui.pressable("up-next-drop", Node::column().w_px(319.0).h(Size::Grow), &PLAIN.tab_stop(false), |ui, _| {	drift: audit #49 up-next drop zone -> drop_target (G7, U4)

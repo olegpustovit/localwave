@@ -18,11 +18,7 @@ pub(super) fn transport(
 ) {
     let narrow = ui.view_size().width < 1100.0;
     let key_width = if narrow { 44.0 } else { 68.0 };
-    ui.row(Node {
-            padding: Edges::ZERO.r(if narrow { 8.0 } else { 20.0 }),
-            look: PANEL_FILL,
-            ..Node::row().w(Size::Grow).h(Size::Grow).gap(if narrow { 4.0 } else { 16.0 }).align(Align::Center)
-        },
+    ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(if narrow { 4.0 } else { 16.0 }).align(Align::Center).padding(Edges::ZERO.r(if narrow { 8.0 } else { 20.0 })).look(PANEL_FILL),
         |ui| {
             ui.row(Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0), |ui| {
                 if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key_width, 71.0).look(&ICON_PLATE_LOOKS)).clicked {
@@ -51,10 +47,7 @@ pub(super) fn transport(
             small_clock(ui, "remaining", remaining, true, 50.0, SECONDARY);
             // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
             // queue sheet opens from the panel; the route button is iOS-only (an invisible image on macOS).
-            ui.row(Node {
-                    look: PANEL_FILL,
-                    ..Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0)
-                },
+            ui.row(Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0).look(PANEL_FILL),
                 |ui| {
                     if ui.icon_button(
                         "shuffle",
@@ -78,10 +71,7 @@ pub(super) fn transport(
                             *intent = Some(Intent::Repeat);
                         }
                         if player.repeat == lw_core::queue::RepeatMode::One {
-                            ui.id("repeat-one", |ui| { ui.column(Node {
-                                    at: Some((31.0, 25.0)).into(),
-                                    ..Node::column().w_px(8.0).h_px(12.0)
-                                },
+                            ui.id("repeat-one", |ui| { ui.column(Node::column().w_px(8.0).h_px(12.0).at(31.0, 25.0),
                                 |ui| {
                                     ui.label("1", MONO_9.w_px(8.0).h_px(12.0).color(PAPER));
                                 },

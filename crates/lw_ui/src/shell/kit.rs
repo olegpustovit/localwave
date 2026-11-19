@@ -12,12 +12,7 @@ pub(super) const LINE: ColorToken = ColorToken(6);
 pub(super) const KEY: ColorToken = ColorToken(7);
 pub(super) const DANGER: ColorToken = ColorToken(8);
 pub(super) const fn rgb(hex: u32) -> Rgba {
-    Rgba {
-        r: (hex >> 16) as u8,
-        g: (hex >> 8) as u8,
-        b: hex as u8,
-        a: 255,
-    }
+    Rgba::rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
 }
 /// The (light, dark) pair of each token, in token order.
 pub(super) const COLORS: [(Rgba, Rgba); 9] = [
@@ -47,11 +42,7 @@ pub(super) fn container(
 ) -> Handle {
     ui.node(
         key,
-        Node {
-            axis,
-            look: *look,
-            ..Node::column().w(w).h(h)
-        },
+        Node::column().w(w).h(h).axis(axis).look(*look),
     )
 }
 pub(super) fn spacer(ui: &mut Ui, key: &'static str, height: f32) {
@@ -278,7 +269,7 @@ pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
     let ink = if c.danger != 0 { DANGER } else { INK };
     if c.variant == 0 {
         let look = MENU_ROW.text(Rgba::token(ink));
-        ui.style(&c.row, &pxui::theme::States::of(look), State { disabled: !enabled, ..State::default() });
+        ui.style(&c.row, &pxui::theme::States::of(look), State::default().disabled(!enabled));
     } else {
         let fill = Rgba::token(if selected { SELECTED } else { PAPER });
         let look = MENU_ROW.fill(fill).text(Rgba::token(if enabled { ink } else { SECONDARY }));
@@ -304,12 +295,7 @@ pub(super) mod button_tests {
         mem_sys::set_peer(pxui::library_counter);
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let ink = Rgba {
-            r: 12,
-            g: 13,
-            b: 14,
-            a: 255,
-        };
+        let ink = Rgba::rgb(12, 13, 14);
         // The clock takes a colour token: INK is this test's ink, so its dots stay findable by colour.
         let mut theme = ThemeHandle::parse(include_str!("../../themes/app-light.theme")).unwrap();
         crate::apply_palette(&mut theme, false);
@@ -454,16 +440,8 @@ pub(super) mod button_tests {
                 pointer(input::wire::POINTER_PRESSED, 0.25),
                 pointer(input::wire::POINTER_MOVED, 1.2),
                 pointer(input::wire::POINTER_RELEASED, 0.75),
-                Event {
-                    kind: input::wire::KEY_PRESSED,
-                    code: input::Key::ArrowRight.code(),
-                    ..Default::default()
-                },
-                Event {
-                    kind: input::wire::KEY_RELEASED,
-                    code: input::Key::ArrowRight.code(),
-                    ..Default::default()
-                },
+                Event::key(input::wire::KEY_PRESSED, input::Key::ArrowRight.code()),
+                Event::key(input::wire::KEY_RELEASED, input::Key::ArrowRight.code()),
             ];
             mem_sys::local_reset();
             for (step, event) in inputs.iter().enumerate() {

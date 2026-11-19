@@ -178,14 +178,7 @@ fn heading(
                 let left = if column == Column::Number { 32.0 } else { 8.0 };
                 let available = (w - left - 8.0).max(0.0);
                 let (fit, height) = layout.sizes[column as usize];
-                let node = Node {
-                    at: Some((x + left, 10.0 + (layout.height - 20.5 - height) / 2.0)).into(),
-                    look: SECONDARY_TEXT,
-                    ..Node::column()
-                        .w_px(available)
-                        .h_px(height)
-                        .role(if column.sort().is_some() { Role::Button } else { Role::Label })
-                };
+                let node = Node::column().w_px(available).h_px(height).role(if column.sort().is_some() { Role::Button } else { Role::Label }).at(x + left, 10.0 + (layout.height - 20.5 - height) / 2.0).look(SECONDARY_TEXT);
                 let value = heading_value(column, applied);
                 let style = TABLE_HEADING;
                 // The Time heading is a right-aligned child label; the others are the node's own line box.

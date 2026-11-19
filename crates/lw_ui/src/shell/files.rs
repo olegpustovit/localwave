@@ -5,6 +5,12 @@ use crate::files::{Folder, Location, Request, Target};
 
 /// The add music sheet: what does not change between frames.
 const ADD_MUSIC: Overlay = Overlay::DEFAULT.name("Add music");
+/// A sheet's paper card: 20-point padding, 12 between its parts.
+pub(super) const SHEET: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0).look(PAPER_FILL);
+/// A folder page's Back and summary bar, 16 points under the header; it wraps on a phone.
+const BACK_BAR: Node = Node::row().w(Size::Grow).h(Size::Fit).align(Align::Center).padding(Edges::ZERO.t(16.0));
+/// A folder page's tool keys, 15 points above the rows; they wrap on a phone.
+const FOLDER_TOOLS: Node = Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center).padding(Edges::ZERO.b(15.0));
 
 fn options(ui: &mut Ui, target: Target, intent: &mut Option<Intent>) {
     let button = button(ui, "source-options", "Folder options", 118.0, true, (PANEL, INK));
@@ -106,15 +112,7 @@ fn sized_button(ui: &mut Ui, key: &'static str, label: &str, width: f32, height:
 }
 /// A `width` by `height` button box on `fill`, its label centred; pressable while `enabled`.
 fn button_node(width: f32, height: f32, enabled: bool, fill: ColorToken) -> Node {
-    Node {
-        look: Look::NONE.fill(Rgba::token(fill)),
-        ..Node::row()
-            .w_px(width)
-            .h_px(height)
-            .center()
-            .role(Role::Button)
-            .flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE })
-    }
+    Node::row().w_px(width).h_px(height).center().role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(Look::NONE.fill(Rgba::token(fill)))
 }
 /// A button box's name, role and 13-point label in `ink` (ink-2 while disabled).
 fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: ColorToken) {
@@ -127,8 +125,6 @@ fn button_face(ui: &mut Ui, button: &Handle, label: &str, enabled: bool, ink: Co
 /// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
 /// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row.
 pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
-    const SHEET: Node =
-        Node { look: PAPER_FILL, ..Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0) };
     ui.column(SHEET, |ui| {
         ui.label(c.text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
         ui.slot(c.content);
@@ -160,10 +156,7 @@ fn link(ui: &mut Ui, key: &'static str, name: &str, label: &str, width: f32) -> 
     let height = if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 40.0 };
     let link = ui.node(
         key,
-        Node {
-            look: LINK_TEXT,
-            ..Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-        },
+        Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(LINK_TEXT),
     );
     ui.text(&link, label);
     ui.a11y_name(&link, name);
@@ -174,11 +167,7 @@ fn link(ui: &mut Ui, key: &'static str, name: &str, label: &str, width: f32) -> 
 fn cell(ui: &mut Ui, key: &'static str, fixed: Option<f32>, share: f32, end: bool, build: &mut dyn FnMut(&mut Ui)) {
     let node = ui.node(
         key,
-        Node {
-            justify: if end { Justify::End } else { Justify::Start },
-            padding: Edges::ZERO.l(8.0).r(if end { 20.0 } else { 8.0 }),
-            ..Node::row().w(fixed.map_or(Size::Grow, Size::Px)).h(Size::Grow).grow(share).align(Align::Center)
-        },
+        Node::row().w(fixed.map_or(Size::Grow, Size::Px)).h(Size::Grow).grow(share).align(Align::Center).justify(if end { Justify::End } else { Justify::Start }).padding(Edges::ZERO.l(8.0).r(if end { 20.0 } else { 8.0 })),
     );
     ui.within(&node, build);
 }
@@ -222,13 +211,7 @@ pub(super) fn view(
     let directory = player.files.and_then(|files| files.directory.as_ref());
     // Swift's source list pads 16 points; its folder page 32.
     let inset = if compact || directory.is_none() { 16.0 } else { 32.0 };
-    ui.column(Node {
-            padding: Edges::new(inset, if directory.is_none() { if compact { 6.0 } else { 10.0 } } else { 0.0 }, inset, 12.0),
-            ..Node::column()
-                .w(Size::Grow)
-                .h(Size::Grow)
-                .flags(if directory.is_none() { Flags::SCROLL | Flags::CLIP } else { Flags::NONE })
-        },
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).flags(if directory.is_none() { Flags::SCROLL | Flags::CLIP } else { Flags::NONE }).padding(Edges::new(inset, if directory.is_none() { if compact { 6.0 } else { 10.0 } } else { 0.0 }, inset, 12.0)),
         |ui| {
             let Some(files) = player.files else {
                 ui.label("Loading folders…", TEXT_18.grow().h_px(40.0).color(SECONDARY));
@@ -324,16 +307,7 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
     let error = folder.error.is_some();
     let card = ui.node(
         Key::Id(folder.id),
-        Node {
-            margin: Edges::ZERO.b(8.0),
-            look: if error { FOLDER_CARD_ERROR } else { FOLDER_CARD },
-            ..Node::column()
-                .w(Size::Grow)
-                .h(Size::Fit)
-                .pad(17.0)
-                .role(if error { Role::Group } else { Role::Button })
-                .flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-        },
+        Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).role(if error { Role::Group } else { Role::Button }).flags(Flags::CLICKABLE | Flags::FOCUSABLE).margin(Edges::ZERO.b(8.0)).look(if error { FOLDER_CARD_ERROR } else { FOLDER_CARD }),
     );
     ui.a11y_name(&card, &folder.name);
     ui.within(&card, &mut |ui| {
@@ -391,7 +365,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     }
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
-    ui.row(Node { wrap: compact, padding: Edges::ZERO.t(16.0), ..Node::row().w(Size::Grow).h(Size::Fit).align(Align::Center) }, |ui| {
+    ui.row(if compact { BACK_BAR.wrap() } else { BACK_BAR }, |ui| {
         if link(ui, "back", "Back", "‹ Back", 64.0) {
             *intent = Some(up(directory));
         }
@@ -420,7 +394,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         spacer(ui, "summary-gap", 6.0);
         ui.label(&directory.summary, BODY_DIM.grow());
     });
-    let tools = ui.node("folder-tools", Node { wrap: compact, padding: Edges::ZERO.b(15.0), ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
+    let tools = ui.node("folder-tools", if compact { FOLDER_TOOLS.wrap() } else { FOLDER_TOOLS });
     ui.within(&tools, &mut |ui| {
         let ready = !directory.songs.is_empty() && !files.busy;
         if tool(ui, Action::Folder, ready) {
@@ -554,7 +528,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         if directory.songs.is_empty() {
             return;
         }
-        let select = ui.node("select", Node { padding: Edges::ZERO.l(12.0), ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
+        let select = ui.node("select", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).padding(Edges::ZERO.l(12.0)));
         ui.within(&select, &mut |ui| { ui.label("Select", TEXT_16.color(INK)); });
         ui.a11y_name(&select, "Select");
         if ui.signal(&select).clicked {
@@ -662,7 +636,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             let other = !entry.directory && !entry.audio;
             let row = ui.node(
                 Key::Id(entry.id),
-                Node { padding: Edges::ZERO.r(6.0), ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
+                Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).padding(Edges::ZERO.r(6.0)),
             );
             ui.a11y_name(&row, &entry.name);
             let signal = ui.signal(&row);
@@ -901,18 +875,8 @@ mod tests {
             state,
             time,
             &[
-                Event {
-                    kind: input::wire::POINTER_MOVED,
-                    x: x as f64,
-                    y: y as f64,
-                    ..Default::default()
-                },
-                Event {
-                    kind: input::wire::POINTER_PRESSED,
-                    x: x as f64,
-                    y: y as f64,
-                    ..Default::default()
-                },
+                Event::pointer(input::wire::POINTER_MOVED, 0, x as f64, y as f64),
+                Event::pointer(input::wire::POINTER_PRESSED, 0, x as f64, y as f64),
             ],
             &mut intent,
         );
@@ -922,12 +886,7 @@ mod tests {
             catalog,
             state,
             time,
-            &[Event {
-                kind: input::wire::POINTER_RELEASED,
-                x: x as f64,
-                y: y as f64,
-                ..Default::default()
-            }],
+            &[Event::pointer(input::wire::POINTER_RELEASED, 0, x as f64, y as f64)],
             &mut intent,
         );
         intent
@@ -1297,18 +1256,8 @@ mod tests {
             mem_sys::local_reset();
             for step in 0..20 {
                 let events = [
-                    Event {
-                        kind: input::wire::POINTER_MOVED,
-                        x: 650.0,
-                        y: 400.0,
-                        ..Default::default()
-                    },
-                    Event {
-                        kind: input::wire::SCROLLED,
-                        x: 0.0,
-                        y: if step < 10 { -1.0 } else { 1.0 },
-                        ..Default::default()
-                    },
+                    Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
+                    Event::pointer(input::wire::SCROLLED, 0, 0.0, if step < 10 { -1.0 } else { 1.0 }),
                 ];
                 let mut intent = None;
                 frame(

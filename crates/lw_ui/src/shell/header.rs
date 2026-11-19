@@ -207,14 +207,8 @@ fn hint(ui: &mut Ui, width: f32) {
         .map_or(19.6, |m| m.height.max(19.6));
     let node = ui.node(
         "hint",
-        Node {
-            margin: Edges {
-                t: 28.0, // 40 less find_tokens' 12 pt tail
-                ..Edges::ZERO
-            },
-            look: SECONDARY_TEXT,
-            ..Node::column().w(Size::Grow).h_px(height).role(Role::Paragraph)
-        },
+        // margin: 40 less find_tokens' 12 pt tail
+        Node::column().w(Size::Grow).h_px(height).role(Role::Paragraph).margin(Edges::ZERO.t(28.0)).look(SECONDARY_TEXT),
     );
     ui.text_line_box(&node, TEXT, HINT, &spans).unwrap();
 }
@@ -268,17 +262,11 @@ pub(super) fn find_tokens(
             ui.row(flow, |ui| {
                 for token in TOKENS {
                     let selected = state.query.has_token(token);
-                    let node = Node {
-                        max_w: width,
-                        ..Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP)
-                    };
+                    let node = Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP).max_w(width);
                     let chip = ui.pressable(token, node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {
                         let label = ui.node(
                             "label",
-                            Node {
-                                look: if selected { CHIP_TEXT_ON } else { CHIP_TEXT },
-                                ..Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT)
-                            },
+                            Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT).look(if selected { CHIP_TEXT_ON } else { CHIP_TEXT }),
                         );
                         ui.text(&label, token);
                     });

@@ -107,14 +107,7 @@ pub(super) fn queue_sheet(
     let height = wanted.min((content.h * 0.86 - 33.0).max(0.0));
     let width = content.w;
     let open = ui.popup("queue-sheet", &Overlay::DEFAULT.at(pxui::Point::new(content.x, content.y + content.h - height + state.sheet_dismiss.get())).w_px(width).h_px(height).max_h_px(height).name("Playback queue"), |ui| {
-            let sheet_node = Node {
-                look: PAPER_FILL,
-                ..Node::column()
-                    .w_px(width)
-                    .h_px(height)
-                    .role(Role::Dialog)
-                    .flags(Flags::CLIP)
-            };
+            let sheet_node = Node::column().w_px(width).h_px(height).role(Role::Dialog).flags(Flags::CLIP).look(PAPER_FILL);
             // The sheet takes the pointer for its dismiss gesture but is no tab stop.
             let sheet = ui.pressable("queue-sheet", sheet_node, &PLAIN.tab_stop(false), |ui, _| {
                 let handle = container(
@@ -385,16 +378,7 @@ pub(super) fn queue_rows(
                 }
             });
             let artist = row.map_or("", |row| row.artist);
-            let item_node = Node {
-                padding: Edges::ZERO.l(m.lead).r(m.trail),
-                look: PAPER_FILL,
-                ..Node::row()
-                    .w(Size::Grow)
-                    .h_px(m.row)
-                    .gap(m.gap)
-                    .align(Align::Center)
-                    .role(Role::ListItem)
-            };
+            let item_node = Node::row().w(Size::Grow).h_px(m.row).gap(m.gap).align(Align::Center).role(Role::ListItem).padding(Edges::ZERO.l(m.lead).r(m.trail)).look(PAPER_FILL);
             // The row takes the pointer for drops and drags but is no tab stop; its own controls are.
             let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {
                 let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});
@@ -443,10 +427,7 @@ pub(super) fn queue_rows(
                 if let Some(row) =
                     row.filter(|row| row.state != lw_core::FileState::Copied || row.pinned)
                 {
-                    ui.column(Node {
-                            padding: Edges::ZERO.l(m.glyph).r(m.glyph),
-                            ..Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0)
-                        },
+                    ui.column(Node::column().w_px(10.0 + 2.0 * m.glyph).h_px(10.0).padding(Edges::ZERO.l(m.glyph).r(m.glyph)),
                         |ui| {
                             super::songs::row::availability(ui, row, true)
                         },

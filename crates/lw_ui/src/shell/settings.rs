@@ -13,10 +13,7 @@ use lw_core::preferences::{Appearance, Change, Signal};
 fn back(ui: &mut Ui, key: &'static str, name: &'static str) -> bool {
     let button = ui.node(
         key,
-        Node {
-            look: BACK_TEXT,
-            ..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
-        },
+        Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(BACK_TEXT),
     );
     ui.text(&button, name);
     ui.a11y_name(&button, name);
@@ -47,7 +44,7 @@ pub(super) fn paragraph(ui: &mut Ui, key: &'static str, value: &str, width: f32,
 const NOTICE: Label = TEXT_14.grow().h_px(42.0).color(ColorToken::ACCENT);
 /// Swift's settings row: controls beside the labels at every width (the labels wrap), at least 60 tall, a hairline under it.
 const ROW: Node =
-    Node { axis: Axis::Row, min_h: 60.0, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center) };
+    Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center).axis(Axis::Row).min_h(60.0);
 const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap().w(Size::Grow).role(Role::Label).color(SECONDARY);
 fn labels(ui: &mut Ui, title: &str, detail: &str) {
     ui.column(Node::column().w(Size::Grow).h(Size::Fit).justify(Justify::Center), |ui| {
@@ -66,14 +63,13 @@ fn hairline(ui: &mut Ui, node: &Handle) {
 pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     // The switch shows the stored value until the controller applies the flip.
     let (on, title) = (c.stored != 0, c.text_of(&c.label));
-    ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
+    ui.set_node_layout(&c.row, &ROW.min_h(c.row_h));
     ui.a11y_name(&c.row, title);
     ui.set_role(&c.row, Role::Toggle, pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE }));
     labels(ui, title, c.text_of(&c.detail));
     let track = if on { TRACK_ON } else { TRACK };
     ui.column(Node::column().w_px(48.0).h_px(28.0).look(track), |ui| {
-        let at = Some((if on { 23.0 } else { 3.0 }, 3.0)).into();
-        ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
+        ui.node("knob", Node::column().w_px(22.0).h_px(22.0).at(if on { 23.0 } else { 3.0 }, 3.0).look(KNOB));
     });
     hairline(ui, &c.row);
 }
@@ -95,16 +91,7 @@ fn option(
     let (change, menu) = action;
     let button = ui.node(
         key,
-        Node {
-            min_w: 40.0,
-            look: if selected { CHOICE_ON } else { CHOICE },
-            ..Node::column()
-                .w(Size::Grow)
-                .h_px(28.0)
-                .pad_x(8.0)
-                .role(Role::Toggle)
-                .flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
-        },
+        Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).role(Role::Toggle).flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT).min_w(40.0).look(if selected { CHOICE_ON } else { CHOICE }),
     );
     ui.text(&button, label);
     ui.a11y_name(&button, name);
@@ -132,10 +119,7 @@ pub(super) fn view(
 ) {
     let page = ui.node(
         "settings-page",
-        Node {
-            padding: Edges::ZERO.t(10.0).b(24.0),
-            ..Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP)
-        },
+        Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP).padding(Edges::ZERO.t(10.0).b(24.0)),
     );
     ui.set_role(&page, Role::Group, pxui::A11yStates::NONE);
     ui.a11y_name(
@@ -363,13 +347,7 @@ mod tests {
                 state,
                 player,
                 frame,
-                Event {
-                    kind,
-                    code: button,
-                    x: at.0,
-                    y: at.1,
-                    ..Event::default()
-                },
+                Event::pointer(kind, button, at.0, at.1),
             );
             if next.is_some() {
                 result = next;
@@ -404,11 +382,7 @@ mod tests {
             .settings
             .applying(Change::ToggleDownloadAhead)
             .unwrap();
-        let key = Event {
-            kind: input::wire::KEY_PRESSED,
-            code: input::Key::Enter.code(),
-            ..Event::default()
-        };
+        let key = Event::key(input::wire::KEY_PRESSED, input::Key::Enter.code());
         assert_eq!(
             send(&mut ui, &state, &player, &mut frame, key),
             Some(Intent::Setting(Change::ToggleDownloadAhead)),
@@ -419,11 +393,7 @@ mod tests {
             &state,
             &player,
             &mut frame,
-            Event {
-                kind: input::wire::KEY_RELEASED,
-                code: input::Key::Enter.code(),
-                ..Event::default()
-            },
+            Event::key(input::wire::KEY_RELEASED, input::Key::Enter.code()),
         );
         let at = point(&ui, "Use 16 GB");
         assert_eq!(
@@ -451,13 +421,7 @@ mod tests {
             &state,
             &player,
             &mut frame,
-            Event {
-                kind: input::wire::POINTER_PRESSED,
-                code: 1,
-                x: at.0,
-                y: at.1,
-                ..Event::default()
-            },
+            Event::pointer(input::wire::POINTER_PRESSED, 1, at.0, at.1),
         );
         assert!(
             matches!(
@@ -472,13 +436,7 @@ mod tests {
             &state,
             &player,
             &mut frame,
-            Event {
-                kind: input::wire::POINTER_RELEASED,
-                code: 1,
-                x: at.0,
-                y: at.1,
-                ..Event::default()
-            },
+            Event::pointer(input::wire::POINTER_RELEASED, 1, at.0, at.1),
         );
         for _ in 0..3 {
             build(&mut ui, &state, &player, 0.0, &frame);
@@ -529,11 +487,7 @@ mod tests {
             &state,
             &player,
             &mut frame,
-            Event {
-                kind: input::wire::KEY_PRESSED,
-                code: input::Key::Meta.code(),
-                ..Event::default()
-            },
+            Event::key(input::wire::KEY_PRESSED, input::Key::Meta.code()),
         );
         assert_eq!(
             send(
@@ -541,11 +495,7 @@ mod tests {
                 &state,
                 &player,
                 &mut frame,
-                Event {
-                    kind: input::wire::KEY_PRESSED,
-                    code: ',' as u32,
-                    ..Event::default()
-                }
+                Event::key(input::wire::KEY_PRESSED, ',' as u32)
             ),
             Some(Intent::ShowSettings)
         );

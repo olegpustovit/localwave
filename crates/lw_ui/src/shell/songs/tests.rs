@@ -1188,26 +1188,9 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         .rect;
     let (x, y) = (f64::from(row.x - 200.0), f64::from(row.y + 16.0));
     let press = [
-        pxui::Event {
-            kind: input::wire::POINTER_MOVED,
-            x,
-            y,
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::POINTER_PRESSED,
-            code: 1,
-            x,
-            y,
-            ..Default::default()
-        },
-        pxui::Event {
-            kind: input::wire::POINTER_RELEASED,
-            code: 1,
-            x,
-            y,
-            ..Default::default()
-        },
+        pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y),
+        pxui::Event::pointer(input::wire::POINTER_PRESSED, 1, x, y),
+        pxui::Event::pointer(input::wire::POINTER_RELEASED, 1, x, y),
     ];
     frame.wire.time += 0.01;
     intent = None;
@@ -1303,7 +1286,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
             &state,
             &[
                 pointer(input::wire::POINTER_MOVED, 100.0, 450.0, 0),
-                pxui::Event { kind: input::wire::SCROLLED, y: -1.0, ..Default::default() },
+                pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, -1.0),
             ],
         );
     }
@@ -1419,7 +1402,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
             &state,
             &[
                 pointer(input::wire::POINTER_MOVED, 100.0, 450.0, 0),
-                pxui::Event { kind: input::wire::SCROLLED, y: 1.0, ..Default::default() },
+                pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, 1.0),
             ],
         );
     }
@@ -2082,11 +2065,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
             let intent = match $end {
                 "drop" => run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)]),
                 _ => {
-                    run(&mut ui, &[pxui::Event {
-                        kind: input::wire::KEY_PRESSED,
-                        code: input::Key::Escape.code(),
-                        ..Default::default()
-                    }]);
+                    run(&mut ui, &[pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code())]);
                     assert!(ui.carrying().is_none(), "Esc cancels the carry");
                     run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)])
                 }
