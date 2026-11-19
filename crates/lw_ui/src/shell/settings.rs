@@ -36,37 +36,15 @@ fn setting_row(ui: &mut Ui, row: &pxui::Response, title: &str, menu: SettingsMen
 }
 /// Running text in a node measured at `width`. Kept for the dialogs: a wrapped label re-lays the frame, which places a
 /// modal at its final position one frame earlier than this fixed-height node does (a visible change).
-pub(super) fn paragraph(
-    ui: &mut Ui,
-    key: &'static str,
-    value: &str,
-    width: f32,
-    size: f32,
-    color: Rgba,
-) -> Handle {
-    let label = Label::BODY.size(size).line_height(size * 1.4).wrap();
-    let metrics = ui
-        .text_service()
-        .measure(value, label, Some(width.max(1.0)))
-        .unwrap();
-    let node = ui.node(
-        key,
-        Node {
-            look: Look::NONE.text(color),
-            ..Node::column().w(Size::Grow).h_px(metrics.height.max(size * 1.4)).role(Role::Paragraph)
-        },
-    );
-    ui.text_line_box(&node, value, label, &[]).unwrap();
+pub(super) fn paragraph(ui: &mut Ui, key: &'static str, value: &str, width: f32, style: Label) -> Handle {
+    let metrics = ui.text_service().measure(value, style, Some(width.max(1.0))).unwrap();
+    let line = style.fields().line_height.unwrap_or(0.0);
+    let node = ui.node(key, Node::column().w(Size::Grow).h_px(metrics.height.max(line)).role(Role::Paragraph).look(text_look(style)));
+    ui.text_line_box(&node, value, style, &[]).unwrap();
     node
 }
-/// A notice's 14-point text; the accent colour is added where it is shown.
-const NOTICE: Look = Look::NONE.font(Font::BODY.size(14.0));
-/// A playback or settings message in the theme's accent, which is no colour token, so the label takes it as a look.
-fn notice(ui: &mut Ui, text: &str) {
-    let node = ui.label(text, TEXT_14.grow().h_px(42.0));
-    let accent = ui.tokens().accent;
-    ui.style(&node, &pxui::theme::States::of(NOTICE.text(accent)), State::default());
-}
+/// A playback or settings message: 14 points in the theme's accent, 42 points high.
+const NOTICE: Label = TEXT_14.grow().h_px(42.0).color(ColorToken::ACCENT);
 /// Swift's settings row: controls beside the labels at every width (the labels wrap), at least 60 tall, a hairline under it.
 const ROW: Node =
     Node { axis: Axis::Row, min_h: 60.0, ..Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center) };
@@ -81,7 +59,7 @@ fn labels(ui: &mut Ui, title: &str, detail: &str) {
 }
 /// The row's hairline, from its title's start to its end.
 fn hairline(ui: &mut Ui, node: &Handle) {
-    ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(paint.color(LINE))));
+    ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(Rgba::token(LINE))));
 }
 /// LocalWave's settings switch row (registered as `localwave-toggle`): a settings row whose control is the 48 x 28 switch, ink when
 /// on, the line colour when off, with a 22-point paper knob.
@@ -190,7 +168,7 @@ pub(super) fn view(
             }
             if back(ui, "full-privacy-policy", "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
             if back(ui, "support", "Support") { *intent = Some(Intent::Support); }
-            if !player.message.is_empty() { notice(ui, player.message); }
+            if !player.message.is_empty() { ui.label(player.message, NOTICE); }
             return;
         }
         let settings = player.settings;
@@ -238,7 +216,7 @@ pub(super) fn view(
         let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {
             labels(ui, "Rescan all sources", "Usually not needed — folders are watched");
             let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
-            let color = ui.color(INK);
+            let color = Rgba::token(INK);
             ui.canvas(&glyph, move |paint, rect| {
                 for step in 0..6 {
                     let step = step as f32 * 1.5;
@@ -256,8 +234,8 @@ pub(super) fn view(
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
             if back(ui, "about-privacy", "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
             ui.label(if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, PARAGRAPH_14.color(SECONDARY));
-            if !player.settings_message.is_empty() { notice(ui, player.settings_message); }
-            if !player.message.is_empty() { notice(ui, player.message); }
+            if !player.settings_message.is_empty() { ui.label(player.settings_message, NOTICE); }
+            if !player.message.is_empty() { ui.label(player.message, NOTICE); }
         });
     });
 }

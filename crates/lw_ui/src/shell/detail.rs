@@ -73,7 +73,7 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
             ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End).padding(Edges::ZERO.l(26.0)),
                 |ui| {
                     let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-                    let color = ui.color(SECONDARY);
+                    let color = Rgba::token(SECONDARY);
                     ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
                     ui.label("Back", BODY_DIM);
                 },
@@ -84,16 +84,15 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
         }
     });
 }
-/// A one-line text link: `line`'s look and metrics as a pressable button.
+/// A one-line secondary text link: a pressable button laying one line in the given metrics.
 pub(super) fn link(
     ui: &mut Ui,
     key: &'static str,
     value: &str,
     // tracking in ems
     (size, line_height, weight, tracking): (f32, f32, u16, f32),
-    color: Rgba,
 ) -> pxui::Response {
-    let node = Node::column().w(Size::Grow).h_px(line_height).role(Role::Button).look(Look::NONE.text(color));
+    let node = Node::column().w(Size::Grow).h_px(line_height).role(Role::Button).look(SECONDARY_TEXT);
     let link = ui.pressable(key, node, &PLAIN, |_, _| {});
     ui.text_line_box(
         &link.handle,
@@ -204,7 +203,7 @@ fn header_body(
                 && !artist.is_empty()
             {
                 spacer(ui, "artist-gap", 6.0);
-                let link = link(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0), ui.color(SECONDARY));
+                let link = link(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0));
                 if link.clicked
                     && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                 {

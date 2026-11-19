@@ -1,28 +1,7 @@
-lw_ui/src/shell.rs	R1	paint.fill(Rect::new(x, y, w, h), Fill::new(Rgba { a: 240, ..paint.color(PAPER) }));
-lw_ui/src/shell.rs	R1	paint.fill(rect, Fill::new(Rgba { r: 10, g: 10, b: 10, a: dim }));
-lw_ui/src/shell.rs	R6	const SCRIM: Look = Look::NONE.fill(Rgba { r: 10, g: 10, b: 10, a: 64 });
-lw_ui/src/shell.rs	R6	paint.fill(Rect::new(x + offset as f32, y + h - 2.0, dash, 2.0), Fill::new(paint.color(INK)));
-lw_ui/src/shell.rs	R6	paint.fill(Rect::new(x + offset as f32, y, dash, 2.0), Fill::new(paint.color(INK)));
-lw_ui/src/shell.rs	R6	paint.fill(Rect::new(x + w - 2.0, y + offset as f32, 2.0, dash), Fill::new(paint.color(INK)));
-lw_ui/src/shell.rs	R6	paint.fill(Rect::new(x, y + offset as f32, 2.0, dash), Fill::new(paint.color(INK)));
-lw_ui/src/shell.rs	R6	paint.fill(Rect::new(x, y, w, h), Fill::new(Rgba { a: 240, ..paint.color(PAPER) }));
-lw_ui/src/shell/albums.rs	R6	crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
-lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(paint.color(INK)).fractional());
-lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(paint.color(INK)).fractional());
-lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(paint.color(INK)).fractional());
-lw_ui/src/shell/albums.rs	R6	paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(paint.color(INK)).fractional());
 lw_ui/src/shell/albums.rs	R7	let button = ui.pressable("shuffle-all", node, &PLAIN.disabled(catalog.is_empty()), |ui, _| {	drift: audit #11 Shuffle all -> Button (U4)
 lw_ui/src/shell/albums.rs	R7	let button = ui.pressable(key, node, &PLAIN.look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }), |ui, _| {	drift: audit #10 album sort -> segmented (U4)
 lw_ui/src/shell/albums.rs	R7	let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {	composite: album card (audit #12)
 lw_ui/src/shell/artists.rs	R1	Node {
-lw_ui/src/shell/artists.rs	R1	Node {
-lw_ui/src/shell/artists.rs	R6	if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
-lw_ui/src/shell/artists.rs	R6	if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
-lw_ui/src/shell/artists.rs	R6	look: Look::NONE.text(color),
-lw_ui/src/shell/artists.rs	R6	paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional())
-lw_ui/src/shell/artists.rs	R6	paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
-lw_ui/src/shell/artists.rs	R6	paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
-lw_ui/src/shell/artists.rs	R6	ui.color(SECONDARY),
 lw_ui/src/shell/artists.rs	R7	let row = ui.pressable("artist", node, &PLAIN.look(&PAPER_LOOKS), |ui, state| {	composite: artist row (audit #13)
 lw_ui/src/shell/byline.rs	R1	let node = Node {
 lw_ui/src/shell/byline.rs	R7	let node = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #44 inline byline links, kept by D7 (G11 deferred past 2.0)
@@ -32,20 +11,11 @@ lw_ui/src/shell/commands.rs	R1	Node {
 lw_ui/src/shell/commands.rs	R1	Node {
 lw_ui/src/shell/commands.rs	R1	Node {
 lw_ui/src/shell/commands.rs	R1	Node {
-lw_ui/src/shell/commands.rs	R1	let font = Font {
 lw_ui/src/shell/commands.rs	R2	.flags(Flags::CLICKABLE)
-lw_ui/src/shell/commands.rs	R6	look: Look::NONE.text(Rgba::token(if find { TERTIARY } else { SECONDARY })).font(font),
-lw_ui/src/shell/commands.rs	R6	look: Look::NONE.text(ui.tokens().foreground).font(font),
-lw_ui/src/shell/commands.rs	R6	paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(paint.color(INK))), None);
-lw_ui/src/shell/commands.rs	R6	paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(paint.color(INK)).width(1.1));
+lw_ui/src/shell/commands.rs	R6	look: Look::NONE.text(ui.tokens().foreground).font(font),	dynamic: the kit theme's field foreground, which no colour token names
 lw_ui/src/shell/compact.rs	R1	&Node {
 lw_ui/src/shell/compact.rs	R1	padding: if picking { Edges::ZERO } else { Edges {
 lw_ui/src/shell/compact.rs	R1	ui.row(Node {
-lw_ui/src/shell/compact.rs	R6	clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
-lw_ui/src/shell/compact.rs	R6	let color = if active { ui.color(PAPER) } else { ui.color(INK) };
-lw_ui/src/shell/compact.rs	R6	let color = if active { ui.color(PAPER) } else { ui.color(INK) };
-lw_ui/src/shell/compact.rs	R6	let color = ui.color(INK);
-lw_ui/src/shell/compact.rs	R6	matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
 lw_ui/src/shell/compact.rs	R7	let card = ui.pressable("group", node, &PLAIN, |ui, _| {	composite: compact group card (audit #23)
 lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {	composite: mini player open (audit #22)
 lw_ui/src/shell/compact.rs	R7	let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #25 expanded-player dismiss root -> sheet presentation (G6, U4)
@@ -53,25 +23,12 @@ lw_ui/src/shell/compact.rs	R7	let settings = ui.pressable("settings", Node::colu
 lw_ui/src/shell/compact/list.rs	R1	&Node {
 lw_ui/src/shell/compact/list.rs	R1	let row_node = Node {
 lw_ui/src/shell/compact/list.rs	R1	ui.id("swipe-actions", |ui| { ui.row(Node {
-lw_ui/src/shell/compact/list.rs	R6	let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
-lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(INK);
-lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/compact/list.rs	R6	let color = ui.color(tone);
-lw_ui/src/shell/compact/list.rs	R6	let ink = ui.color(tone);
-lw_ui/src/shell/compact/list.rs	R6	let link = detail::link(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY));
-lw_ui/src/shell/compact/list.rs	R6	paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(paint.color(SECONDARY)));
 lw_ui/src/shell/compact/list.rs	R7	let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {	composite: artist page album card (audit #34)
 lw_ui/src/shell/compact/list.rs	R7	let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #29 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/compact/list.rs	R7	let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #33 A-Z rail -> section_index (G9, U4)
 lw_ui/src/shell/compact/list.rs	R7	let key_node = ui.pressable(key, node, &PLAIN.disabled(!enabled), |ui, _| {	drift: audit #38 selection deck key -> Button (U4)
 lw_ui/src/shell/compact/list.rs	R7	let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {	composite: compact song row with gestures (audit #27)
 lw_ui/src/shell/detail.rs	R1	Node {
-lw_ui/src/shell/detail.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/detail.rs	R6	let link = link(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0), ui.color(SECONDARY));
-lw_ui/src/shell/detail.rs	R6	let node = Node::column().w(Size::Grow).h_px(line_height).role(Role::Button).look(Look::NONE.text(color));
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #42 folder link -> Button LINK variant (U4)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #39 artist link -> Button LINK variant (U4)
@@ -80,10 +37,6 @@ lw_ui/src/shell/files.rs	R1	Node {
 lw_ui/src/shell/files.rs	R1	Node {
 lw_ui/src/shell/files.rs	R1	Node {
 lw_ui/src/shell/files.rs	R1	Node { padding: Edges::ZERO.r(6.0), ..Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) },
-lw_ui/src/shell/files.rs	R1	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R1	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
-lw_ui/src/shell/files.rs	R1	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
 lw_ui/src/shell/files.rs	R1	let select = ui.node("select", Node { padding: Edges::ZERO.l(12.0), ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
 lw_ui/src/shell/files.rs	R1	let tools = ui.node("folder-tools", Node { wrap: compact, padding: Edges::ZERO.b(15.0), ..Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center) });
 lw_ui/src/shell/files.rs	R1	ui.column(Node {
@@ -98,37 +51,11 @@ lw_ui/src/shell/files.rs	R2	let back = ui.node("Back", Node::row().w(Size::Fit).
 lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R2	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
+lw_ui/src/shell/files.rs	R2	let node = ui.node(id, Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(if kept { INK_FILL } else { PANEL_FILL }));
+lw_ui/src/shell/files.rs	R2	let option = ui.node(key, Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(PANEL_FILL));
 lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node { padding: Edges::ZERO.l(12.0), ..Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
 lw_ui/src/shell/files.rs	R2	let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R6	_ => mark(ui, entry.directory, ui.color(SECONDARY)),
-lw_ui/src/shell/files.rs	R6	let color = if kept { ui.color(PAPER) } else { ui.color(INK) };
-lw_ui/src/shell/files.rs	R6	let color = if kept { ui.color(PAPER) } else { ui.color(INK) };
-lw_ui/src/shell/files.rs	R6	let color = ui.color(INK);
-lw_ui/src/shell/files.rs	R6	let color = ui.color(INK);
-lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/files.rs	R6	let color = ui.color(SECONDARY);
-lw_ui/src/shell/files.rs	R6	let color = ui.color(tone);
-lw_ui/src/shell/files.rs	R6	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R6	let node = ui.node(id, Node { look: Look { fill: if kept { ui.color(INK) } else { ui.color(PANEL) }, ..Look::NONE }, ..Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE) });
-lw_ui/src/shell/files.rs	R6	let option = ui.node(key, Node { look: Look { fill: ui.color(PANEL), ..Look::NONE }, ..Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }) });
-lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
-lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "detail", detail, width - 56.0, 13.0, ui.color(SECONDARY));
-lw_ui/src/shell/files.rs	R6	settings::paragraph(ui, "folder-name", name, width - 40.0, 15.0, ui.color(INK));
-lw_ui/src/shell/files.rs	R6	ui.canvas_over(&head, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
-lw_ui/src/shell/files.rs	R6	ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0), Fill::new(paint.color(LINE)).fractional()));
-lw_ui/src/shell/files.rs	R6	ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
-lw_ui/src/shell/files.rs	R6	ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)).fractional()));
-lw_ui/src/shell/files.rs	R6	ui.canvas_over(&tools, move |paint, rect| paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(paint.color(LINE)).fractional()));
-lw_ui/src/shell/find.rs	R6	Node::column().w(Size::Grow).h(Size::Grow).look(Look::NONE.fill(color)),
-lw_ui/src/shell/find.rs	R6	background(ui, "hover", ui.color(PANEL), press.hovered && !selected, before != i64::from(selected));
-lw_ui/src/shell/find.rs	R6	background(ui, "press", ui.color(PANEL), press.pressed, false);
-lw_ui/src/shell/find.rs	R6	let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
-lw_ui/src/shell/find.rs	R6	let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
-lw_ui/src/shell/find.rs	R6	paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(paint.color(LINE)).fractional())
 lw_ui/src/shell/header.rs	R1	Node {
 lw_ui/src/shell/header.rs	R1	Node {
 lw_ui/src/shell/header.rs	R1	let node = Node {
@@ -137,24 +64,13 @@ lw_ui/src/shell/header.rs	R7	let chip = ui.pressable(token, node, &PLAIN.look(if
 lw_ui/src/shell/kit.rs	R1	Node {
 lw_ui/src/shell/kit.rs	R1	Rgba {
 lw_ui/src/shell/kit.rs	R1	ui.style(&c.row, &pxui::theme::States::of(look), State { disabled: !enabled, ..State::default() });
-lw_ui/src/shell/lists.rs	R6	settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
-lw_ui/src/shell/lists.rs	R6	settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
-lw_ui/src/shell/metadata.rs	R6	settings::paragraph(ui, "consequences", consequences, width - 40.0, 14.0, ui.color(SECONDARY));
-lw_ui/src/shell/metadata.rs	R6	settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, 15.0, ui.color(INK));
 lw_ui/src/shell/now.rs	R1	Node {
 lw_ui/src/shell/now.rs	R1	Node {
-lw_ui/src/shell/now.rs	R6	let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
-lw_ui/src/shell/now.rs	R6	matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
-lw_ui/src/shell/onboarding.rs	R6	let ink = ui.color(INK);
-lw_ui/src/shell/onboarding.rs	R6	ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
 lw_ui/src/shell/onboarding.rs	R7	let choose = ui.pressable("choose-folder", node, &PLAIN.look(&INK_LOOKS), |ui, _| {	drift: audit #60 Choose a folder -> Button (U4)
 lw_ui/src/shell/onboarding.rs	R7	let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #61 Drive disclosure -> disclosure (G10, U4)
 lw_ui/src/shell/queue_sheet.rs	R1	let item_node = Node {
 lw_ui/src/shell/queue_sheet.rs	R1	let sheet_node = Node {
 lw_ui/src/shell/queue_sheet.rs	R1	ui.column(Node {
-lw_ui/src/shell/queue_sheet.rs	R6	paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
-lw_ui/src/shell/queue_sheet.rs	R6	paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
-lw_ui/src/shell/queue_sheet.rs	R6	paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
 lw_ui/src/shell/queue_sheet.rs	R7	let clear = ui.pressable("clear", node, &PLAIN, |ui, _| {	drift: audit #55 Clear up next -> Button (U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let grip = ui.pressable("reorder-queued", Node::column().w_px(m.grip).h_px(m.row).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #57 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let item = ui.pressable(Key::Id(entry.id as i64), item_node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #56 queue row drop root -> drop_target (G7, U4)
@@ -164,54 +80,28 @@ lw_ui/src/shell/queue_sheet.rs	R7	let titles = ui.pressable("queue-titles", node
 lw_ui/src/shell/settings.rs	R1	Node {
 lw_ui/src/shell/settings.rs	R1	Node {
 lw_ui/src/shell/settings.rs	R1	Node {
-lw_ui/src/shell/settings.rs	R1	Node {
 lw_ui/src/shell/settings.rs	R1	ui.node("knob", Node { at, look: KNOB, ..Node::column().w_px(22.0).h_px(22.0) });
 lw_ui/src/shell/settings.rs	R1	ui.set_node_layout(&c.row, &Node { min_h: c.row_h, ..ROW });
 lw_ui/src/shell/settings.rs	R2	..Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE)
 lw_ui/src/shell/settings.rs	R2	.flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT)
-lw_ui/src/shell/settings.rs	R6	let color = ui.color(INK);
-lw_ui/src/shell/settings.rs	R6	look: Look::NONE.text(color),
-lw_ui/src/shell/settings.rs	R6	ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(paint.color(LINE))));
 lw_ui/src/shell/settings.rs	R7	let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: appearance settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: cache settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {	drift: audit #66 Rescan all sources -> Button with detail/accessory (U4)
 lw_ui/src/shell/sidebar.rs	R7	let node = ui.pressable(key, spec, &row, |ui, _| {	drift: audit #1 sidebar rows -> selection_list (G4, U4)
 lw_ui/src/shell/sidebar.rs	R7	let search = ui.pressable("search", node, &PLAIN.look(&SEARCH_ROW_LOOKS), |ui, _| {	drift: audit #4 search row -> Button variant (U4)
 lw_ui/src/shell/sidebar.rs	R7	let shortcuts = ui.pressable("shortcuts", node, &PLAIN, |ui, _| {	drift: audit #6 shortcuts row -> Button (U4)
-lw_ui/src/shell/songs/mod.rs	R1	Node {
 lw_ui/src/shell/songs/mod.rs	R1	let node = Node {
-lw_ui/src/shell/songs/mod.rs	R6	look: Look::NONE.text(color),
-lw_ui/src/shell/songs/mod.rs	R6	paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional())
-lw_ui/src/shell/songs/mod.rs	R6	ui.color(SECONDARY),
 lw_ui/src/shell/songs/mod.rs	R7	let heading = ui.pressable(column as i64, node, &PLAIN, |ui, _| {	drift: audit #14 sortable headings -> table_head (G4, U4)
 lw_ui/src/shell/songs/row.rs	R1	let node = Node {
 lw_ui/src/shell/songs/row.rs	R1	let node = Node {
 lw_ui/src/shell/songs/row.rs	R1	let position = ui.node(key, Node {
 lw_ui/src/shell/songs/row.rs	R1	ui.id("availability-position", |ui| { ui.column(Node {
 lw_ui/src/shell/songs/row.rs	R1	ui.id("equalizer-position", |ui| { ui.column(Node {
-lw_ui/src/shell/songs/row.rs	R6	paint.circle((rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0), 1.4 * (2.0 / 3.0), Some(Fill::new(paint.color(SECONDARY))), None);
-lw_ui/src/shell/songs/row.rs	R6	paint.color(SECONDARY)
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x + 0.25, y + start, 1.0, length), Fill::new(paint.color(TERTIARY)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x + 8.75, y + start, 1.0, length), Fill::new(paint.color(TERTIARY)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x + start, y + 0.25, length, 1.0), Fill::new(paint.color(TERTIARY)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x + start, y + 8.75, length, 1.0), Fill::new(paint.color(TERTIARY)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x - 2.0, y - 2.0, 14.0, 14.0), Fill::new(paint.color(PAPER)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x - 3.5, y - 3.5, 17.0, 17.0), Fill::new(paint.color(INK)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	paint.fill(Rect::new(x, y, 10.0, 10.0), Fill::new(paint.color(INK)).fractional());
-lw_ui/src/shell/songs/row.rs	R6	ui.color(INK)
-lw_ui/src/shell/songs/row.rs	R6	ui.color(SECONDARY)
 lw_ui/src/shell/songs/row.rs	R7	let grip = ui.pressable("reorder-listed", node, &PLAIN, |_, _| {});	drift: audit #17 reorder grip -> list reorder (G8, U4)
 lw_ui/src/shell/songs/row.rs	R7	let more = ui.pressable("actions", node, &PLAIN, |_, _| {});	drift: audit #16 actions -> icon_button (U4)
 lw_ui/src/shell/songs/row.rs	R7	let root = ui.pressable("song", node, &look, |ui, _| {	drift: audit #15 song row selection semantics -> selection_list/table (G4, U4)
 lw_ui/src/shell/theme.rs	R1	States { hover: lit, pressed: lit, ..States::of(rest) }
-lw_ui/src/shell/transport.rs	R1	paint.fill(Rect::new(rect.x + index as f32 * step, rect.y + baseline - height, step / 4.0, height), Fill::new(Rgba { a: (ink.a as f32 * 0.42).round() as u8, ..ink }).fractional());
 lw_ui/src/shell/transport.rs	R1	ui.id("repeat-one", |ui| { ui.column(Node {
 lw_ui/src/shell/transport.rs	R1	ui.row(Node {
 lw_ui/src/shell/transport.rs	R1	ui.row(Node {
-lw_ui/src/shell/transport.rs	R6	let ink = paint.color(INK);
-lw_ui/src/shell/transport.rs	R6	paint.fill(Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)));
 lw_ui/src/shell/transport.rs	R7	let target = ui.pressable("up-next-drop", Node::column().w_px(319.0).h(Size::Grow), &PLAIN.tab_stop(false), |ui, _| {	drift: audit #49 up-next drop zone -> drop_target (G7, U4)

@@ -20,11 +20,13 @@ pub(super) enum Action {
     Offline(bool),
 }
 
-fn background(ui: &mut Ui, key: &'static str, color: Rgba, shown: bool, immediate: bool) {
+/// A Find tool key: its width (icon and label) and look are set where it is built.
+const TOOL: pxui::Button = pxui::Button::DEFAULT.centered();
+fn background(ui: &mut Ui, key: &'static str, look: &'static Look, shown: bool, immediate: bool) {
     let view = ui.view_of(key, &0, |ui| {
         ui.node(
             "fill",
-            Node::column().w(Size::Grow).h(Size::Grow).look(Look::NONE.fill(color)),
+            Node::column().w(Size::Grow).h(Size::Grow).look(*look),
         );
     });
     let previous = ui.state(&view, -1);
@@ -59,20 +61,20 @@ pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
     let label_width =
         (ui.text_service().width(label, TOOL_LABEL, None).unwrap() * density).ceil() / density;
     let width = 20.0 + icon_size + 6.0 + label_width;
-    let tool = pxui::Button::sized(width, 30.0).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).disabled(!enabled).name(label);
+    let tool = TOOL.size(Size::Px(width), Size::Px(30.0)).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).disabled(!enabled).name(label);
     // the hover and press washes sit under the copy, so the contents are a stack built with the press state
     let response = ui.button_content(key, &tool, |ui, press| {
         let layers = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
         let before = ui.state(&layers, -1);
         ui.set_state(&layers, i64::from(selected));
         ui.within(&layers, &mut |ui| {
-            background(ui, "hover", ui.color(PANEL), press.hovered && !selected, before != i64::from(selected));
-            background(ui, "press", ui.color(PANEL), press.pressed, false);
+            background(ui, "hover", &PANEL_FILL, press.hovered && !selected, before != i64::from(selected));
+            background(ui, "press", &PANEL_FILL, press.pressed, false);
             ui.view_of("action-copy", &(label, selected), |ui| {
                 // a keyed node, not a keyless row: the tests look the icon up under it by key
                 let content = ui.node("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center));
                 ui.within(&content, &mut |ui| {
-                    let color = if selected { ui.color(INK) } else { ui.color(SECONDARY) };
+                    let color = if selected { Rgba::token(INK) } else { Rgba::token(SECONDARY) };
                     let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
                     ui.canvas(&icon, move |paint, rect| match action {
                         Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
@@ -125,7 +127,7 @@ pub(super) fn toolbar(
         });
     });
     ui.canvas_over(&tools, move |paint, rect| {
-        paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(paint.color(LINE)).fractional())
+        paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(Rgba::token(LINE)).fractional())
     });
 }
 

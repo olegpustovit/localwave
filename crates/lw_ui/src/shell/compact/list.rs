@@ -321,7 +321,7 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     ui.gesture(&grip.handle, &HELD_TOUCH);
     ui.canvas(&grip.handle, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
-            paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(paint.color(SECONDARY)));
+            paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
         }
     });
     if grip.held || grip.clicked {
@@ -339,9 +339,11 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     }
 }
 
+/// A swipe action key: as wide as the swipe has revealed, its look armed past the full swipe.
+const SWIPE: pxui::Button = pxui::Button::DEFAULT.centered();
 fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f32) -> bool {
     let armed = revealed >= SWIPE_FULL;
-    let action = pxui::Button::DEFAULT.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow).centered();
+    let action = SWIPE.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow);
     let action = action.look(if armed { &INK_LOOKS } else { &PANEL_LOOKS }).name(label);
     ui.button_content(key, &action, |ui, _| {
         ui.label(label, TEXT_13.color(if armed { PAPER } else { SECONDARY }));
@@ -355,7 +357,7 @@ const MORE: pxui::Button = pxui::Button::sized(44.0, 44.0).look(&BARE);
 fn more_button(ui: &mut Ui, label: &str) -> bool {
     let button = ui.button_content("actions", &MORE, |_, _| {});
     ui.a11y_name(&button.handle, label);
-    let color = ui.color(SECONDARY);
+    let color = Rgba::token(SECONDARY);
     ui.canvas(&button.handle, move |paint, rect| {
         kit::paint_icon(
             paint,
@@ -575,7 +577,7 @@ fn back_row(
             let back = ui.button_content("back", &BACK, |ui, _| {
                 ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
                     let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-                    let color = ui.color(SECONDARY);
+                    let color = Rgba::token(SECONDARY);
                     ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
                     ui.label(label, LEAD_DIM);
                 });
@@ -638,7 +640,7 @@ pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
     ui.button_content("keep-offline", &key, |ui, _| {
         ui.row(KEY_CONTENT, |ui| {
             let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-            let color = ui.color(INK);
+            let color = Rgba::token(INK);
             ui.canvas(&glyph, move |paint, rect| {
                 crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
             });
@@ -726,7 +728,7 @@ const WORD: pxui::Button =
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
 pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
     let node = ui.node("checkbox", Node::column().w_px(20.0).h_px(20.0));
-    let (ink, outline, paper) = (ui.color(INK), ui.color(SECONDARY), ui.color(PAPER));
+    let (ink, outline, paper) = (Rgba::token(INK), Rgba::token(SECONDARY), Rgba::token(PAPER));
     ui.canvas(&node, move |paint, rect| {
         if marked {
             paint.fill(Rect::new(rect.x, rect.y, 20.0, 20.0), Fill::new(ink));
@@ -753,7 +755,7 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
                 (if remove { "remove" } else { "queue" }, if remove { "Remove" } else { "Queue" }, if remove { Icon::Clear } else { Icon::Queue }),
             ] {
                 let tone = if !enabled { TERTIARY } else if key == "remove" { DANGER } else { INK };
-                let ink = ui.color(tone);
+                let ink = Rgba::token(tone);
                 let node = Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button).look(KEY_FILL);
                 let key_node = ui.pressable(key, node, &PLAIN.disabled(!enabled), |ui, _| {
                     let icon = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
@@ -820,7 +822,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
-                        let link = detail::link(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0), ui.color(SECONDARY));
+                        let link = detail::link(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0));
                         if link.clicked
                             && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                         {
@@ -864,7 +866,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
 pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, icon: Icon, primary: bool) -> bool {
     let key = PLAY_KEY.look(if primary { &INK_LOOKS } else { &PANEL_LOOKS }).name(label);
     let tone = if primary { PAPER } else { INK };
-    let color = ui.color(tone);
+    let color = Rgba::token(tone);
     ui.button_content(id, &key, |ui, _| {
         ui.row(KEY_CONTENT, |ui| {
             let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));

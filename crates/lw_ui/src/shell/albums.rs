@@ -36,10 +36,10 @@ pub(super) fn toolbar(
             );
             if selected {
                 ui.canvas_over(&button.handle, move |paint, rect| {
-                    paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(paint.color(INK)).fractional());
-                    paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(paint.color(INK)).fractional());
-                    paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(paint.color(INK)).fractional());
-                    paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(paint.color(INK)).fractional());
+                    paint.fill(Rect::new(rect.x, rect.y, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
+                    paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.5, rect.w, 1.5), Fill::new(Rgba::token(INK)).fractional());
+                    paint.fill(Rect::new(rect.x, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
+                    paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + 1.5, 1.5, rect.h - 3.0), Fill::new(Rgba::token(INK)).fractional());
                 });
             }
             if button.clicked {
@@ -51,7 +51,7 @@ pub(super) fn toolbar(
         let button = ui.pressable("shuffle-all", node, &PLAIN.disabled(catalog.is_empty()), |ui, _| {
             let icon = ui.node("icon", Node::column().w_px(16.0).h_px(16.0));
             ui.canvas(&icon, move |paint, rect| {
-                crate::icons::shuffle(paint, rect, paint.color(SECONDARY))
+                crate::icons::shuffle(paint, rect, Rgba::token(SECONDARY))
             });
             ui.label("Shuffle all", CAPTION);
         });

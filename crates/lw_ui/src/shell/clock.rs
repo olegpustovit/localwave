@@ -63,7 +63,7 @@ const DIGITS: [[u8; 7]; 10] = [
     [14, 17, 17, 15, 1, 2, 12],
 ];
 /// Static matrix numerals (Swift's `MatrixText` without the change animation), `height` tall.
-pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], height: f32, color: Rgba) {
+pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], height: f32, color: ColorToken) {
     // Counts only: ASCII digits, at most 12 shown.
     let mut buffer = [b'0'; 12];
     let shown = digits.len().clamp(1, 12);
@@ -73,6 +73,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
     let columns = shown * 6 - 1;
     let node = ui.node(key, Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height));
     ui.canvas(&node, move |paint, rect| {
+        let color = Rgba::token(color);
         for (index, digit) in buffer[..shown].iter().enumerate() {
             let x = rect.x + index as f32 * 6.0 * unit;
             for (row, bits) in DIGITS[(digit - b'0') as usize].iter().enumerate() {
@@ -86,7 +87,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
         }
     });
 }
-pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) {
+pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorToken) {
     use pxui::{ui::Keyframe, Keyframes};
     const ROW_KEYS: [&str; 7] = [
         "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
@@ -128,6 +129,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: Rgba) 
                         let visual = ui.view_of(if changing { "changed" } else { "stable" }, &revision, |ui| {
                                 let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
                                 ui.canvas(&cells, move |paint, rect| {
+                                    let color = Rgba::token(color);
                                     let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
                                     let mut x = rect.x;
                                     for (index, byte) in shown.iter().copied().enumerate() {

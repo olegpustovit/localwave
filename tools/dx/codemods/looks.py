@@ -7,6 +7,9 @@
   with CONST from `LINES` (a keyless label in a `theme.rs` line-box style).
 - compact's `line(ui, key, value, size, ui.color(T))` (compact.rs, compact/list.rs) -> `ui.label(value, CONST)`, CONST from
   `COMPACT_LINES`.
+- `paint.color(T)` -> `Rgba::token(T)` (every Paint shape call resolves a token), and `ui.color(T)` -> `Rgba::token(T)` in a
+  one-line `let` (a colour handed to a canvas or a look, both resolve tokens where applied); not in tests (`tests.rs`, after
+  `#[cfg(test)]`). A consumer that does arithmetic on the colour would break: the fingerprint comparison finds it.
 Fills, styles or call shapes missing from the tables are printed as skipped and left for hand edits; no scope analysis, the
 compiler flags misses. Usage: looks.py [--dry-run] FILE...
 """
@@ -53,6 +56,24 @@ LOCAL_LINE = re.compile(r"(?<![\w.:])line\(")
 IF_ELSE = re.compile(r"^if (.+?) \{ (.+?) \} else \{ (.+?) \}$", re.S)
 
 
+PAINT_COLOR = re.compile(r"\bpaint\.color\(((?:kit::)?[A-Za-z_]\w*)\)")
+UI_COLOR = re.compile(r"\bui\.color\(((?:kit::)?[A-Za-z_]\w*)\)")
+
+
+def tokens(source, m, edits):
+    """Token edits (see the module doc) before the first `#[cfg(test)]`."""
+    end = source.find("#[cfg(test)]")
+    end = len(source) if end < 0 else end
+    for match in PAINT_COLOR.finditer(m, 0, end):
+        edits.append((match.start(), match.end(), f"Rgba::token({source[match.start(1):match.end(1)]})"))
+    for match in UI_COLOR.finditer(m, 0, end):
+        start = source.rfind("\n", 0, match.start()) + 1
+        stop = source.find("\n", match.start())
+        line = m[start:stop].strip()
+        if line.startswith("let ") and line.endswith(";"):
+            edits.append((match.start(), match.end(), f"Rgba::token({source[match.start(1):match.end(1)]})"))
+
+
 def norm(text):
     return " ".join(text.split())
 
@@ -67,9 +88,11 @@ def fill(text):
     return None
 
 
-def rewrite(source, detail, compact=False):
+def rewrite(source, detail, compact=False, test=False):
     m = mask(source)
     edits, skipped = [], []
+    if not test:
+        tokens(source, m, edits)
 
     def skip(at, why):
         skipped.append((line_of(source, at), why, norm(source[at:source.find("\n", at)])))
@@ -140,7 +163,7 @@ def main():
     for path in options.files:
         source = path.read_text()
         compact = path.name == "compact.rs" or (path.name == "list.rs" and path.parent.name == "compact")
-        edits, skipped = rewrite(source, path.name == "detail.rs", compact)
+        edits, skipped = rewrite(source, path.name == "detail.rs", compact, path.name in ("tests.rs", "testing.rs"))
         for n, why, call in skipped:
             print(f"skipped {path}:{n} ({why}): {call}")
         if edits:
@@ -168,4 +191,9 @@ if __name__ == "__main__":
     edits, skipped = rewrite(src, False, True)
     out = apply(src, edits)
     assert "ui.label(&group.count, SMALL_NOTE);" in out and [why for _, why, _ in skipped] == ["compact line style"], (out, skipped)
+    src = ('fn h(ui: &mut Ui) {\n    let c = ui.color(INK);\n    f(ui.color(PAPER)); canvas(move |paint, r| paint.fill(r, Fill::new(paint.color(kit::LINE)))); }\n'
+           '#[cfg(test)]\nmod tests { fn t() { let c = ui.color(INK); } }')
+    out = apply(src, rewrite(src, False)[0])
+    assert "let c = Rgba::token(INK);" in out and "f(ui.color(PAPER))" in out and "Fill::new(Rgba::token(kit::LINE))" in out, out
+    assert "fn t() { let c = ui.color(INK); }" in out, out
     main()

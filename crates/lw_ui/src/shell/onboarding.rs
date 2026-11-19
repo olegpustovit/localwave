@@ -46,8 +46,10 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
     root
 }
 
+/// An underlined text link: as wide as its text, 44 points high, no look of its own.
+const UNDERLINED: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE);
 fn underlined(ui: &mut Ui, key: &'static str, label: &'static str) -> bool {
-    let link = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE).name(label);
+    let link = UNDERLINED.name(label);
     ui.button_content(key, &link, |ui, _| {
         ui.column(Node::column().w(Size::Fit).h(Size::Fit), |ui| {
             ui.label(label, LEAD_INK);
@@ -70,7 +72,7 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), &PAPER_FILL);
         ui.set_role(&count, Role::Label, pxui::A11yStates::NONE);
         ui.a11y_name(&count, "0 songs so far");
-        ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, ui.color(INK)));
+        ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, INK));
         spacer(ui, "count-label-gap", 8.0);
         ui.label("songs so far", LEAD_DIM.grow());
         spacer(ui, "heading-gap", 28.0);
@@ -132,7 +134,7 @@ fn drive_box(ui: &mut Ui, expanded: bool) -> bool {
             |ui| {
                 let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {
                     let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
-                    let ink = ui.color(INK);
+                    let ink = Rgba::token(INK);
                     ui.canvas(&marker, move |paint, rect| {
                         // Filled triangle, 7×8⅓ closed / 8⅓×7 open, drawn as 1px slices.
                         let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };

@@ -928,13 +928,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                                         w,
                                         h,
                                     },
-                                    body_label(column, current),
-                                    Rgba {
-                                        r: 17,
-                                        g: 33,
-                                        b: 55,
-                                        a: 255,
-                                    },
+                                    body_label(column, current).color(INK),
                                     Role::Label,
                                 );
                             }

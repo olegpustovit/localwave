@@ -91,12 +91,26 @@ pub(super) const EMPTY_NOTE: Label = phone_line(14.0).color(SECONDARY);
 pub(super) const ROW_NOTE: Label = phone_line(13.0).color(SECONDARY);
 /// A small phone note (the mini player's artist, a row count, the player notice): 12 points, secondary.
 pub(super) const SMALL_NOTE: Label = phone_line(12.0).color(SECONDARY);
+/// A dialog's subject (the song, list or folder it acts on): 15-point running text, ink.
+pub(super) const DIALOG_NAME: Label = PARAGRAPH_15.color(INK);
+/// A dialog's consequences: 14-point running text, secondary.
+pub(super) const DIALOG_NOTE: Label = PARAGRAPH_14.color(SECONDARY);
+/// An Add music option's detail: 13-point running text, secondary.
+pub(super) const OPTION_DETAIL: Label = PARAGRAPH_13.color(SECONDARY);
 
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::of(Look::NONE);
 /// A pressable that keeps its node's own look (the node draws itself, or its contents do).
 pub(super) const PLAIN: pxui::Pressable = pxui::Pressable::DEFAULT;
 
+/// The text look of `style`'s colour token, for text a node lays with `text_line_box` (which colours it from the node's look,
+/// not the style); no look for a style without a colour.
+pub(super) const fn text_look(style: Label) -> Look {
+    match style.fields().color {
+        Some(token) => Look::NONE.text(Rgba::token(token)),
+        None => Look::NONE,
+    }
+}
 /// The paper fill.
 pub(super) const PAPER_FILL: Look = Look::NONE.fill(Rgba::token(PAPER));
 /// The panel fill.
@@ -169,11 +183,22 @@ pub(super) const ICON_INVERSE_LOOKS: States = States::of(INK_FILL.text(Rgba::tok
 pub(super) const SIDE_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_FILL);
 /// The sidebar search row: the panel fill, the selected fill while hovered or held.
 pub(super) const SEARCH_ROW_LOOKS: States = lit(PANEL_FILL, SELECTED_FILL);
-/// A song table row: paper, a 60 percent panel wash while hovered or held. A token carries no alpha (pxui gap), so the wash is
-/// the resolved panel colour at alpha 153, read where the row is built.
-pub(super) fn song_row_looks(ui: &Ui) -> States {
-    lit(PAPER_FILL, Look::NONE.fill(ui.color(PANEL).with_alpha(153)))
-}
+/// The phone song menu's backdrop: near-black at a quarter alpha, the same in both appearances.
+pub(super) const SCRIM: Look = Look::NONE.fill(SCRIM_INK.alpha(64));
+/// Swift's scrim colour, the same in both appearances; overlays dim with it at a run-time alpha.
+pub(super) const SCRIM_INK: Rgba = Rgba::rgb(10, 10, 10);
+/// The waveform's bars: ink at 42 percent (Swift's opacity 0.42 of an opaque ink).
+pub(super) const BAR_INK: Rgba = Rgba::token(INK).alpha(107);
+/// The phone Find field's text: 26 points medium, tracking -0.52 (the value the field has always had).
+pub(super) const FIND_FONT: Font = Font::BODY.size(26.0).weight(500).tracking(-0.52);
+/// The command palette field's text: 20 points.
+pub(super) const PALETTE_FONT: Font = Font::BODY.size(20.0);
+/// The phone Find field's empty prompt: tertiary.
+pub(super) const FIND_PROMPT: Look = Look::NONE.text(Rgba::token(TERTIARY)).font(FIND_FONT);
+/// The command palette's empty prompt: secondary.
+pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).font(PALETTE_FONT);
+/// A song table row: paper, a 60 percent panel wash while hovered or held.
+pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH);
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton<'static> {
     pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)

@@ -310,6 +310,11 @@ pub(super) mod button_tests {
             b: 14,
             a: 255,
         };
+        // The clock takes a colour token: INK is this test's ink, so its dots stay findable by colour.
+        let mut theme = ThemeHandle::parse(include_str!("../../themes/app-light.theme")).unwrap();
+        crate::apply_palette(&mut theme, false);
+        theme.set_color(INK, ink);
+        ui.set_theme(&theme).unwrap();
         let mut time = 0.0;
         for cycle in 0..4 {
             mem_sys::local_reset();
@@ -319,7 +324,7 @@ pub(super) mod button_tests {
                     crate::testing::frame(
                         &mut ui,
                         &FrameIn::new(400.0, 80.0).time(time + offset),
-                        &mut |ui| matrix_clock(ui, seconds, 43.0, ink),
+                        &mut |ui| matrix_clock(ui, seconds, 43.0, INK),
                     )
                     .unwrap();
                     let clock = ui

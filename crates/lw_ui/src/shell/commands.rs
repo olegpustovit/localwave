@@ -93,12 +93,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     } else {
         (20, 59.0, 18.0, "Search songs, folders, or type a command")
     };
-    let font = Font {
-        size,
-        weight: if find { 500 } else { 400 },
-        tracking: if find { -0.52 } else { 0.0 },
-        ..Font::BODY
-    };
+    let font = if find { FIND_FONT } else { PALETTE_FONT };
     let mut layout = ui.node_layout(&c.row);
     layout.h = Size::Px(height);
     layout.padding = Edges::ZERO.l(inset).r(inset);
@@ -147,7 +142,7 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
             let line = ui.node(
                 "line",
                 Node {
-                    look: Look::NONE.text(Rgba::token(if find { TERTIARY } else { SECONDARY })).font(font),
+                    look: if find { FIND_PROMPT } else { PALETTE_PROMPT },
                     ..Node::column().w(Size::Grow).h_px(size as f32 * 1.4)
                 },
             );
@@ -386,10 +381,10 @@ fn result_row(
                 for &(a, b) in lines {
                     let a = (rect.x + a.0, rect.y + a.1);
                     let b = (rect.x + b.0, rect.y + b.1);
-                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(paint.color(INK)).width(1.1));
+                    paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(Rgba::token(INK)).width(1.1));
                 }
                 if kind == crate::commands::Icon::Person {
-                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(paint.color(INK))), None);
+                    paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(Rgba::token(INK))), None);
                 }
             });
         }

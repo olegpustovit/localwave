@@ -7,6 +7,8 @@ const PLAYLIST_NAME: pxui::TextField = pxui::TextField::DEFAULT
     .name("Playlist name");
 use crate::catalog::Catalog;
 use crate::{Intent, PlayerView};
+/// A queue sheet text action with no look of its own; its width is set where it is built.
+const QUEUE_ACTION: pxui::Button = pxui::Button::DEFAULT.centered().look(&BARE);
 
 pub(super) fn queue_action(
     ui: &mut Ui,
@@ -16,7 +18,7 @@ pub(super) fn queue_action(
     width: f32,
 ) -> bool {
     // The text starts at the left edge as Swift's does; `button_with` centres it, so it sits on a node of its own.
-    let action = pxui::Button::sized(width, 28.0).look(&BARE).name(name);
+    let action = QUEUE_ACTION.size(Size::Px(width), Size::Px(28.0)).name(name);
     ui.button_content(key, &action, |ui, _| {
         let copy = ui.node("label", Node::column().w(Size::Grow).h(Size::Grow).look(QUEUE_ACTION_TEXT));
         ui.text(&copy, label);
@@ -124,7 +126,7 @@ pub(super) fn queue_sheet(
                     &PAPER_FILL,
                 );
                 ui.canvas(&handle, move |paint, rect| {
-                    paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(paint.color(LINE)));
+                    paint.fill(Rect::new(rect.x + (rect.w - 36.0) * 0.5, rect.y + 8.0, 36.0, 5.0), Fill::new(Rgba::token(LINE)));
                 });
                 ui.row(Node::row().w(Size::Grow).h_px(66.2).padding(Edges::new(16.0, 12.0, 6.0, 8.0)),
                     |ui| {
@@ -400,7 +402,7 @@ pub(super) fn queue_rows(
                 ui.canvas(&grip.handle, move |paint, rect| {
                     for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
                         for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
-                            paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
+                            paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
                         }
                     }
                 });
@@ -482,7 +484,7 @@ pub(super) fn queue_rows(
                 };
                 if before != Some(occurrence) {
                     ui.canvas(&item, move |paint, rect| {
-                        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
+                        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(Rgba::token(INK)));
                     });
                     if dropped {
                         *intent = Some(Intent::MoveQueue { occurrence, before });

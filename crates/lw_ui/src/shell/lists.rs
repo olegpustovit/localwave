@@ -60,8 +60,8 @@ pub(super) fn confirm_delete(
     let title = playlist_title(catalog, list);
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete List").danger().primary().disabled(!title.is_some())];
     let sheet = ui.dialog("delete-list", "Delete list?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
-        settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, 15.0, ui.color(INK));
-        settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, 14.0, ui.color(SECONDARY));
+        settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, DIALOG_NAME);
+        settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, DIALOG_NOTE);
     });
     match sheet.chosen {
         Some(1) => *intent = Some(Intent::DeleteList(list)),

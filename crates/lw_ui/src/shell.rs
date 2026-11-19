@@ -918,8 +918,6 @@ pub fn shell(
         desktop(ui, player, position, catalog, state, intent)
     };
     // Swift's long-press menu blurs the page behind it on a phone.
-    /// The phone song menu's backdrop: near-black at a quarter alpha, the same in both appearances.
-    const SCRIM: Look = Look::NONE.fill(Rgba { r: 10, g: 10, b: 10, a: 64 });
     if state.song_menu.is_some() && ui.view_size().width < compact::BREAKPOINT {
         let scrim = ui.view_of("song-menu-backdrop", &0, |ui| {
             ui.node(
@@ -939,7 +937,7 @@ pub fn shell(
     };
     if dim > 0 {
         ui.canvas_over(&root, move |paint, rect| {
-            paint.fill(rect, Fill::new(Rgba { r: 10, g: 10, b: 10, a: dim }));
+            paint.fill(rect, Fill::new(SCRIM_INK.alpha(dim)));
         });
     }
     if player.file_dragging {
@@ -952,18 +950,18 @@ pub fn shell(
                 (rect.w - 24.0).max(0.0),
                 (rect.h - 24.0).max(0.0),
             );
-            paint.fill(Rect::new(x, y, w, h), Fill::new(Rgba { a: 240, ..paint.color(PAPER) }));
+            paint.fill(Rect::new(x, y, w, h), Fill::new(Rgba::token(PAPER).alpha(240)));
             // Swift's drop border uses six-point dashes and gaps.
             for vertical in [false, true] {
                 let length = if vertical { h } else { w };
                 for offset in (0..length.ceil() as usize).step_by(12) {
                     let dash = 6.0f32.min(length - offset as f32);
                     if vertical {
-                        paint.fill(Rect::new(x, y + offset as f32, 2.0, dash), Fill::new(paint.color(INK)));
-                        paint.fill(Rect::new(x + w - 2.0, y + offset as f32, 2.0, dash), Fill::new(paint.color(INK)));
+                        paint.fill(Rect::new(x, y + offset as f32, 2.0, dash), Fill::new(Rgba::token(INK)));
+                        paint.fill(Rect::new(x + w - 2.0, y + offset as f32, 2.0, dash), Fill::new(Rgba::token(INK)));
                     } else {
-                        paint.fill(Rect::new(x + offset as f32, y, dash, 2.0), Fill::new(paint.color(INK)));
-                        paint.fill(Rect::new(x + offset as f32, y + h - 2.0, dash, 2.0), Fill::new(paint.color(INK)));
+                        paint.fill(Rect::new(x + offset as f32, y, dash, 2.0), Fill::new(Rgba::token(INK)));
+                        paint.fill(Rect::new(x + offset as f32, y + h - 2.0, dash, 2.0), Fill::new(Rgba::token(INK)));
                     }
                 }
             }

@@ -23,17 +23,9 @@ fn label(
     value: &str,
     rect: Rect,
     style: Label,
-    color: Rgba,
     role: Role,
 ) -> Handle {
-    let node = ui.node(
-        key,
-        Node {
-            at: Some((rect.x, rect.y)).into(),
-            look: Look::NONE.text(color),
-            ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(role)
-        },
-    );
+    let node = ui.node(key, Node::column().at(rect.x, rect.y).w_px(rect.w.max(0.0)).h_px(rect.h).role(role).look(text_look(style)));
     ui.text_line_box(&node, value, style, &[]).unwrap();
     node
 }
@@ -208,8 +200,7 @@ fn heading(
                             w: fit,
                             h: height,
                         },
-                        style,
-                        ui.color(SECONDARY),
+                        style.color(SECONDARY),
                         Role::Unknown,
                     );
                 };
@@ -262,7 +253,7 @@ fn heading(
         }
     });
     ui.canvas_over(&root, move |paint, rect| {
-        paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional())
+        paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional())
     });
     root
 }

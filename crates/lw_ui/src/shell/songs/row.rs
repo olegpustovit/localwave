@@ -96,25 +96,25 @@ pub(in crate::shell) fn glyph(
             && !matches!(state, FileState::CopyPending | FileState::Failed)
         {
             if pinned {
-                paint.fill(Rect::new(x - 3.5, y - 3.5, 17.0, 17.0), Fill::new(paint.color(INK)).fractional());
-                paint.fill(Rect::new(x - 2.0, y - 2.0, 14.0, 14.0), Fill::new(paint.color(PAPER)).fractional());
+                paint.fill(Rect::new(x - 3.5, y - 3.5, 17.0, 17.0), Fill::new(Rgba::token(INK)).fractional());
+                paint.fill(Rect::new(x - 2.0, y - 2.0, 14.0, 14.0), Fill::new(Rgba::token(PAPER)).fractional());
             }
-            paint.fill(Rect::new(x, y, 10.0, 10.0), Fill::new(paint.color(INK)).fractional());
+            paint.fill(Rect::new(x, y, 10.0, 10.0), Fill::new(Rgba::token(INK)).fractional());
         } else {
             let unknown = available.is_none_or(|state| state == FileAvailability::Unknown)
                 && !matches!(state, FileState::CopyPending | FileState::Failed);
             let ink = if matches!(state, FileState::CopyPending | FileState::Failed) {
                 accent
             } else {
-                paint.color(SECONDARY)
+                Rgba::token(SECONDARY)
             };
             if unknown {
                 for start in [0.75, 4.75, 8.75] {
                     let length = 2.0f32.min(9.25 - start);
-                    paint.fill(Rect::new(x + start, y + 0.25, length, 1.0), Fill::new(paint.color(TERTIARY)).fractional());
-                    paint.fill(Rect::new(x + start, y + 8.75, length, 1.0), Fill::new(paint.color(TERTIARY)).fractional());
-                    paint.fill(Rect::new(x + 0.25, y + start, 1.0, length), Fill::new(paint.color(TERTIARY)).fractional());
-                    paint.fill(Rect::new(x + 8.75, y + start, 1.0, length), Fill::new(paint.color(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + start, y + 0.25, length, 1.0), Fill::new(Rgba::token(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + start, y + 8.75, length, 1.0), Fill::new(Rgba::token(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + 0.25, y + start, 1.0, length), Fill::new(Rgba::token(TERTIARY)).fractional());
+                    paint.fill(Rect::new(x + 8.75, y + start, 1.0, length), Fill::new(Rgba::token(TERTIARY)).fractional());
                 }
             } else {
                 paint.fill(Rect::new(x, y, 10.0, 1.5), Fill::new(ink).fractional());
@@ -209,7 +209,7 @@ pub(in crate::shell) fn drop_target(ui: &mut Ui, visual: &Handle, index: usize, 
         return;
     }
     ui.canvas_over(visual, move |paint, rect| {
-        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(paint.color(INK)));
+        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(Rgba::token(INK)));
     });
     if dropped {
         *intent = Some(Intent::MoveListRow { from, to });
@@ -276,8 +276,7 @@ impl Rows<'_> {
             "song-visual",
             &visual_revision,
             |ui| {
-                let song_row = song_row_looks(ui);
-                let look = PLAIN.look(if marked { &SELECTED_LOOKS } else { &song_row });
+                let look = PLAIN.look(if marked { &SELECTED_LOOKS } else { &SONG_ROW_LOOKS });
                 let node = Node::column().w(Size::Grow).h_px(layout.height).role(Role::ListItem);
                 let root = ui.pressable("song", node, &look, |ui, _| {
                     ui.view_of("song-copy", &revision, |ui| {
@@ -308,12 +307,7 @@ impl Rows<'_> {
                                         w: fit,
                                         h,
                                     },
-                                    body_label(column, current),
-                                    if column == Column::Title {
-                                        ui.color(INK)
-                                    } else {
-                                        ui.color(SECONDARY)
-                                    },
+                                    body_label(column, current).color(if column == Column::Title { INK } else { SECONDARY }),
                                     Role::Label,
                                 );
                             }
@@ -365,7 +359,7 @@ impl Rows<'_> {
                     ui.a11y_name(&more.handle, row.actions_label);
                     ui.canvas(&more.handle, move |paint, rect| {
                         for x in [5.5, 12.0, 18.5] {
-                            paint.circle((rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0), 1.4 * (2.0 / 3.0), Some(Fill::new(paint.color(SECONDARY))), None);
+                            paint.circle((rect.x + 8.0 + x * (2.0 / 3.0), rect.y + 16.0), 1.4 * (2.0 / 3.0), Some(Fill::new(Rgba::token(SECONDARY))), None);
                         }
                     });
                     if more.clicked {
@@ -387,7 +381,7 @@ impl Rows<'_> {
                         ui.canvas(&grip.handle, move |paint, rect| {
                             for x in [8.0, 12.0] {
                                 for y in [-4.0, 0.0, 4.0] {
-                                    paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(paint.color(SECONDARY)));
+                                    paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
                                 }
                             }
                         });
@@ -423,9 +417,9 @@ impl Rows<'_> {
                 }
                 let last = index + 1 == collection.rows.len();
                 ui.canvas_over(&root.handle, move |paint, rect| {
-                    paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
+                    paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                     if last {
-                        paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
+                        paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                     }
                 });
                 if signal.pressed && signal.button == Some(1) {

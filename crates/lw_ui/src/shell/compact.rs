@@ -34,6 +34,8 @@ fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, ac
     .clicked
 }
 /// A library mode tab: as wide as its label and count, 44 points high.
+/// A library mode key: filling its line, 44 points high; its look follows the mode.
+const MODE_KEY: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered();
 const MODE_TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE);
 
 fn artwork(
@@ -128,7 +130,7 @@ pub(super) fn view(
                                 // Swift's header gear; Settings stays one tap away.
                                 let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
                                 ui.a11y_name(&settings.handle, "Settings");
-                                let color = ui.color(INK);
+                                let color = Rgba::token(INK);
                                 ui.canvas(&settings.handle, move |paint, rect| {
                                     kit::paint_icon(
                                         paint,
@@ -154,7 +156,7 @@ pub(super) fn view(
                         ui.id("library-summary", |ui| { ui.row(Node::row().w(Size::Grow).h_px(60.0).gap(10.0).align(Align::End).padding(Edges::ZERO.l(16.0).r(16.0).b(14.0)),
                             |ui| {
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
-                                clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, ui.color(INK));
+                                clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, INK);
                                 ui.label("songs", LEAD_INK);
                                 container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
                                 ui.id("library-size", |ui| { ui.column(Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
@@ -401,8 +403,8 @@ fn mode_key(
     active: bool,
     mut inner: impl FnMut(&mut Ui),
 ) -> bool {
-    let mode = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered().look(if active { &INK_LOOKS } else { &KEY_LOOKS });
-    let color = if active { ui.color(PAPER) } else { ui.color(INK) };
+    let mode = MODE_KEY.look(if active { &INK_LOOKS } else { &KEY_LOOKS });
+    let color = if active { Rgba::token(PAPER) } else { Rgba::token(INK) };
     let button = ui.button_content(key, &mode, |ui, _| {
         ui.row(Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
             let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
@@ -489,7 +491,7 @@ fn expanded(
                 });
                 spacer(ui, "clock-gap", 14.0);
                 ui.row(Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
-                    matrix_clock(ui, position.max(0.0) as u64, 72.0, ui.color(INK));
+                    matrix_clock(ui, position.max(0.0) as u64, 72.0, INK);
                     ui.node("flex", Node::DEFAULT.w(Size::Grow));
                     ui.column(Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End).padding(Edges::ZERO.b(2.0)),
                         |ui| {

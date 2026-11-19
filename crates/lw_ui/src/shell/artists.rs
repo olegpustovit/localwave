@@ -5,15 +5,8 @@
 //!
 use super::*;
 
-fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label, color: Rgba) {
-    let node = ui.node(
-        key,
-        Node {
-            at: Some((rect.x, rect.y)).into(),
-            look: Look::NONE.text(color),
-            ..Node::column().w_px(rect.w.max(0.0)).h_px(rect.h).role(Role::Label)
-        },
-    );
+fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label) {
+    let node = ui.node(key, Node::column().at(rect.x, rect.y).w_px(rect.w.max(0.0)).h_px(rect.h).role(Role::Label).look(text_look(style)));
     ui.text_line_box(&node, value, style, &[]).unwrap();
 }
 
@@ -131,14 +124,13 @@ pub(super) fn table(
                                 w: heading_sizes[index].0,
                                 h: heading_sizes[index].1,
                             },
-                            if index == 3 { TABLE_HEADING.align(pxui::TextAlign::End) } else { TABLE_HEADING },
-                            ui.color(SECONDARY),
+                            if index == 3 { TABLE_HEADING.align(pxui::TextAlign::End) } else { TABLE_HEADING }.color(SECONDARY),
                         );
                         x += columns[index];
                     }
                 });
                 ui.canvas_over(&head, move |paint, rect| {
-                    paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional())
+                    paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional())
                 });
             }
             SectionPart::Row(index) => {
@@ -226,9 +218,9 @@ pub(super) fn table(
                                     },
                                     {
                                         let style = if mono { CELL_MONO } else { CELL };
-                                        if column == 3 { style.align(pxui::TextAlign::End) } else { style }
+                                        let style = if column == 3 { style.align(pxui::TextAlign::End) } else { style };
+                                        style.color(if column == 0 { INK } else { SECONDARY })
                                     },
-                                    if column == 0 { ui.color(INK) } else { ui.color(SECONDARY) },
                                 );
                                 x += columns[column];
                             }
@@ -236,9 +228,9 @@ pub(super) fn table(
                         ui.a11y_name(&row.handle, name);
                         let last = index + 1 == catalog.artists.len();
                         ui.canvas_over(&row.handle, move |paint, rect| {
-                            paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
+                            paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                             if last {
-                                paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(paint.color(LINE)).fractional());
+                                paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                             }
                         });
                         if row.clicked {

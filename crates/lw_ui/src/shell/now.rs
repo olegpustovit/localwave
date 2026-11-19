@@ -104,7 +104,7 @@ pub(super) fn now_panel(
             let mut clock_group = clock_group_box;
             ui.within(&clock_group_box, &mut |ui| clock_group = ui.view_of("playback-clock", &(crate::hash((player.revision, position.to_bits()))), |ui| {
                     ui.row(Node::row().w(Size::Grow).h_px(43.0).align(Align::End), |ui| {
-                        matrix_clock(ui, position.max(0.0) as u64, 43.0, ui.color(INK));
+                        matrix_clock(ui, position.max(0.0) as u64, 43.0, INK);
                         ui.node("clock-flex", Node::DEFAULT.w(Size::Grow));
                         small_clock(
                             ui,
@@ -172,7 +172,7 @@ pub(super) fn favorite_button(ui: &mut Ui, current: Option<(i64, bool)>) -> bool
         if was != seen {
             ui.set_state(&node, seen);
         }
-        let color = if on { ui.tokens().accent } else { ui.color(SECONDARY) };
+        let color = if on { ui.tokens().accent } else { Rgba::token(SECONDARY) };
         ui.within(&node, &mut |ui| {
             let heart = ui.view_of("heart", &(on, press.hovered, press.pressed, current.is_some()), |ui| {
                 let surface = ui.node("surface", Node::column().w(Size::Grow).h(Size::Grow));

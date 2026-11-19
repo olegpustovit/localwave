@@ -302,7 +302,7 @@ pub(super) fn seek(
         const BARS: usize = 200;
         let baseline = (rect.h - 4.0).max(0.0);
         let step = rect.w / BARS as f32;
-        let ink = paint.color(INK);
+        let ink = Rgba::token(INK);
         if let Some(peaks) = &peaks {
             for index in 0..BARS {
                 let lower = index * peaks.len() / BARS;
@@ -313,10 +313,10 @@ pub(super) fn seek(
                     .fold(0.0, f32::max)
                     .clamp(0.0, 1.0);
                 let height = (peak * baseline).max(2.0);
-                paint.fill(Rect::new(rect.x + index as f32 * step, rect.y + baseline - height, step / 4.0, height), Fill::new(Rgba { a: (ink.a as f32 * 0.42).round() as u8, ..ink }).fractional());
+                paint.fill(Rect::new(rect.x + index as f32 * step, rect.y + baseline - height, step / 4.0, height), Fill::new(BAR_INK).fractional());
             }
         }
-        paint.fill(Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0), Fill::new(paint.color(LINE)));
+        paint.fill(Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0), Fill::new(Rgba::token(LINE)));
         paint.fill(Rect::new(rect.x, rect.y + baseline, rect.w * fraction, 3.0), Fill::new(ink).fractional());
         paint.fill(Rect::new(rect.x + rect.w * fraction - step / 4.0, rect.y, step / 2.0, rect.h), Fill::new(accent).fractional());
     });
