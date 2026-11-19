@@ -98,6 +98,10 @@ pub(super) enum Icon {
     Settings,
     Back,
     Check,
+    /// Keep offline (an arrow into a tray).
+    Offline,
+    /// Kept offline.
+    Kept,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -186,6 +190,7 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             paint.line((x + 4.0, y + 10.0), (x + 8.0, y + 14.0), Stroke::new(color));
             paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), Stroke::new(color));
         }
+        Icon::Offline | Icon::Kept => crate::icons::offline(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::Kept), color),
         Icon::Down => {
             paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), Stroke::new(color));
             paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), Stroke::new(color));
@@ -193,9 +198,9 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
     }
 }
 /// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
-const ICONS: [Icon; 15] = [
+const ICONS: [Icon; 17] = [
     Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
-    Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check,
+    Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check, Icon::Offline, Icon::Kept,
 ];
 // the table is indexed by discriminant: keep it in declaration order
 const _: () = {
@@ -205,10 +210,16 @@ const _: () = {
         i += 1;
     }
 };
-/// The one drawing of every kit icon button: `word` names the icon.
+/// The one drawing of every kit icon button: `word` names the icon. Play, Shuffle and the offline marks fill the square they are
+/// given (`Button::icon_size`); the others draw in a 20-point square at its origin.
 fn draw_icon(paint: &mut pxui::Paint<'_>, at: pxui::geom::Rect, ink: Rgba, word: u32) {
-    if let Some(&icon) = ICONS.get(word as usize) {
-        paint_icon(paint, icon, at.x, at.y, ink);
+    match ICONS.get(word as usize) {
+        Some(Icon::Play) => crate::icons::play(paint, at, ink),
+        Some(Icon::Shuffle) => crate::icons::shuffle(paint, at, ink),
+        Some(Icon::Offline) => crate::icons::offline(paint, at, false, ink),
+        Some(Icon::Kept) => crate::icons::offline(paint, at, true, ink),
+        Some(&icon) => paint_icon(paint, icon, at.x, at.y, ink),
+        None => {}
     }
 }
 /// `icon` as a kit icon button's drawing, painted into the 20-point square it is given in the look's ink.

@@ -361,7 +361,6 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
 }
 
 fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), width: f32, compact: bool, intent: &mut Option<Intent>) {
-    use super::find::{Action, button as tool};
     if compact {
         return ui.id("compact-folder", |ui| compact_folder(ui, files, directory, (state, show_non_audio), width, intent));
     }
@@ -399,13 +398,13 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     let tools = ui.node("folder-tools", if compact { FOLDER_TOOLS.wrap() } else { FOLDER_TOOLS });
     ui.within(&tools, &mut |ui| {
         let ready = !directory.songs.is_empty() && !files.busy;
-        if tool(ui, Action::Folder, ready) {
+        if ui.button("play-folder", "Play folder", &TOOL.icon(icon_drawing(Icon::Play)).icon_size(16.0).disabled(!ready)).clicked {
             *intent = Some(Intent::PlayFolder);
         }
-        if tool(ui, Action::Shuffle, ready) {
+        if ui.button("shuffle", "Shuffle", &TOOL.icon(icon_drawing(Icon::Shuffle)).icon_size(16.0).disabled(!ready)).clicked {
             *intent = Some(Intent::ShuffleFolder);
         }
-        if tool(ui, Action::Offline(directory.kept), ready) {
+        if ui.button("keep-offline", if directory.kept { "Kept offline" } else { "Keep offline" }, &super::find::keep_offline(directory.kept).disabled(!ready)).clicked {
             *intent = Some(Intent::KeepFolder);
         }
         ui.node("tools-space", Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));

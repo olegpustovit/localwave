@@ -261,30 +261,8 @@ pub(super) fn find_tokens(
             let flow = Node::row().gap(6.0).w_px(width).wrap().row_gap(6.0).h(Size::Fit).padding(Edges::ZERO.b(12.0));
             ui.row(flow, |ui| {
                 for (index, token) in TOKENS.into_iter().enumerate() {
-                    let selected = state.query.has_token(token);
-                    let node = Node::column().w(Size::Fit).h_px(32.0).pad_x(12.0).role(Role::Toggle).flags(Flags::CLIP).max_w(width);
-                    let chip = ui.pressable(Key::Id(index as i64), node, &PLAIN.look(if selected { &INK_LOOKS } else { &PANEL_LOOKS }), |ui, _| {
-                        let label = ui.node(
-                            "label",
-                            Node::column().w(Size::Fit).h(Size::Grow).flags(Flags::FIT_TEXT).look(if selected { CHIP_TEXT_ON } else { CHIP_TEXT }),
-                        );
-                        ui.text(&label, token);
-                    });
-                    ui.set_role(
-                        &chip.handle,
-                        Role::Toggle,
-                        pxui::A11yStates::CHECKABLE.with(if selected {
-                                pxui::A11yStates::CHECKED
-                            } else { pxui::A11yStates::NONE }),
-                    );
-                    ui.a11y_name(&chip.handle, token);
-                    if chip.clicked {
-                        *intent = Some(
-                            state
-                                .query
-                                .toggle_token(token)
-                                .map_or(Intent::SearchTooLong, Intent::Search),
-                        );
+                    if ui.checkbox(Key::Id(index as i64), token, state.query.has_token(token), &CHIP).changed {
+                        *intent = Some(state.query.toggle_token(token).map_or(Intent::SearchTooLong, Intent::Search));
                     }
                 }
             });

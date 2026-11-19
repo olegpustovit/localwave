@@ -3,6 +3,7 @@ popup.idle.border = #DADADA
 toggle.body = localwave-toggle
 dialog.body = localwave-sheet
 button.body = localwave-button
+checkbox.body = localwave-chip
 selection_list.body = localwave-side-row
 badge.body = localwave-badge
 progress.body = localwave-progress

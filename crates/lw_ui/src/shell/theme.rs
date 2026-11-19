@@ -141,10 +141,6 @@ const fn text(color: ColorToken, size: f32) -> Look {
 }
 /// Secondary 12-point text: a queue sheet text action.
 pub(super) const QUEUE_ACTION_TEXT: Look = text(SECONDARY, 12.0);
-/// Secondary 13-point text: an unselected chip.
-pub(super) const CHIP_TEXT: Look = text(SECONDARY, 13.0);
-/// Paper 13-point text: a selected chip.
-pub(super) const CHIP_TEXT_ON: Look = text(PAPER, 13.0);
 /// Secondary 14-point text: a sidebar "+ label" row, a text link.
 pub(super) const LINK_TEXT: Look = text(SECONDARY, 14.0);
 /// Secondary 15-point text: a back link.
@@ -219,7 +215,23 @@ pub(super) mod variant {
     pub(in crate::shell) const BADGE: u16 = 3;
     /// `localwave-progress`: the 4-point offline meter.
     pub(in crate::shell) const METER: u16 = 4;
+    /// `localwave-button`: a 30-point tool key (Find's Play all/Keep offline, a folder's Play/Shuffle/Keep offline): icon and label.
+    pub(in crate::shell) const TOOL: u16 = 5;
+    /// `localwave-chip`: a Find filter chip.
+    pub(in crate::shell) const CHIP: u16 = 6;
 }
+
+/// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
+const TOOL_LABEL: Label = TEXT_13;
+/// A tool key: paper, the panel fill while hovered or held, the selected fill while checked (the hover wash then stays off); its
+/// icon and label secondary, ink while checked. The fills fade over 140 ms.
+pub(super) const TOOL_LOOKS: States = lit(PAPER_FILL.text(Rgba::token(SECONDARY)), PANEL_FILL.text(Rgba::token(SECONDARY))).checked(SELECTED_FILL.text(Rgba::token(INK)));
+/// A tool key (`localwave-button` / `TOOL`): fit to its icon and label, 30 points high, 10 in at each side, 6 between.
+pub(super) const TOOL: pxui::Button = pxui::Button::DEFAULT.variant(variant::TOOL).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0).label(TOOL_LABEL).look(&TOOL_LOOKS);
+/// A Find filter chip (`localwave-chip` / `CHIP`).
+pub(super) const CHIP: pxui::Checkbox = pxui::Checkbox::DEFAULT.variant(variant::CHIP);
+/// The fade of a tool key's fill.
+const FADE: Transition = Transition::Bezier { duration: crate::motion::QUICK, points: [0.16, 1.0, 0.3, 1.0] };
 
 /// Registers LocalWave's bodies once, outside frames and before its themes are parsed; the app themes' `KIND.body` lines select
 /// them and a style's `variant` picks the structure inside one.
@@ -232,6 +244,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_selection_list_body("localwave-side-row", side_row_body)?;
     ui.register_badge_body("localwave-badge", badge_body)?;
     ui.register_progress_body("localwave-progress", progress_body)?;
+    ui.register_checkbox_body("localwave-chip", chip_body)?;
     Ok(())
 }
 
@@ -241,29 +254,49 @@ const ROW_GLYPH: Label = MONO_11.w_px(14.0).h_px(16.0).color(SECONDARY);
 const ROW_TEXT: Look = LINK_TEXT;
 /// LocalWave's button (registered as `localwave-button`). `ROW`: the box its caller sized, its contents in a row centred down it from
 /// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row) and the
-/// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. Any other variant
-/// is the kit's own button.
+/// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
+/// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
+/// hovered or disabled, ink while held, and the fill fades. Any other variant is the kit's own button.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
-    if c.variant != variant::ROW {
+    if c.variant != variant::ROW && c.variant != variant::TOOL {
         ui.slot(c.built_in);
         return;
     }
+    let tool = c.variant == variant::TOOL;
     let size = |kind: u8, points: f32| match kind { 1 => Size::Px(points), 2 => Size::Grow, _ => Size::Fit };
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(size(c.w_kind, c.w)).h(size(c.h_kind, c.h)));
-    ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap).align(Align::Center));
+    let row = Node::row().w(if c.w_kind == 0 { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap).align(Align::Center);
+    ui.set_node_layout(&c.row, &if tool { row.transition(Some(FADE)) } else { row });
     let s = &c.state;
-    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
-    if let Some(states) = c.states_of(&c.states) {
+    let checked = tool && s.checked != 0;
+    let state = State::default().hovered(s.hovered != 0 && !checked).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0 && !checked).checked(s.checked != 0);
+    let states = c.states_of(&c.states);
+    if let Some(states) = states {
         ui.style(&c.row, states, state);
     }
+    // a tool's ink: the checked look's while checked, held or not
+    let ink = states.map(|s| if checked { s.checked.text } else { s.pick(state).text });
+    let mut _icon = None;
+    if tool && let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), ink) {
+        let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };
+        let icon = ui.node("icon", Node::column().w_px(side).h_px(side));
+        ui.canvas(&icon, move |paint, rect| draw(paint, rect, ink, word));
+        _icon = Some(icon);
+    }
     let (glyph, text, accessory) = (c.text_of(&c.lead), c.text_of(&c.label), c.text_of(&c.accessory));
-    if !glyph.is_empty() {
+    if !glyph.is_empty() && !tool {
         ui.label(glyph, ROW_GLYPH);
     }
     match (text.is_empty(), c.label()) {
         (true, _) => {}
+        // the tool's label is the button's name: no second accessible node
+        (false, Some(style)) if tool => {
+            let _copy = ui.label(text, style.color(ink.and_then(Rgba::as_token).unwrap_or(SECONDARY)).role(Role::Unknown));
+            #[cfg(test)]
+            if let Some(icon) = _icon { super::find::tests::tool_built(text, icon, _copy) }
+        }
         (false, Some(style)) => { ui.label(text, style); }
         (false, None) => {
             let title = ui.node("title", Node::column().w(Size::Grow).h(Size::Grow).look(ROW_TEXT));
@@ -273,6 +306,18 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     if !accessory.is_empty() {
         ui.label(accessory, c.accessory_label().unwrap_or(MONO_11.color(SECONDARY)));
     }
+}
+
+/// A chip's text: 13 points, secondary, paper while checked.
+const CHIP_LABEL: Label = TEXT_13;
+/// LocalWave's checkbox (registered as `localwave-chip`), the `CHIP` look for any variant (LocalWave has no other checkbox): a
+/// 32-point pill 12 in at each side, fit to its text centred down it, on the panel fill, ink while checked.
+fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
+    use pxui::bodies::BodyConfig;
+    let on = c.on != 0;
+    ui.set_node_layout(&c.row, &Node::row().w(Size::Fit).h_px(32.0).pad_x(12.0).align(Align::Center).flags(Flags::CLIP));
+    ui.style(&c.row, if on { &INK_LOOKS } else { &PANEL_LOOKS }, State::default());
+    ui.label(c.text_of(&c.label), CHIP_LABEL.color(if on { PAPER } else { SECONDARY }).role(Role::Unknown));
 }
 
 /// LocalWave's selectable row (registered as `localwave-side-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
@@ -314,13 +359,13 @@ mod body_tests {
     use super::*;
     use pxui::{FrameIn, Platform, ThemeHandle};
 
-    /// The app theme with its four U4a.1 body lines (`localwave-button`, `-side-row`, `-badge`, `-progress`) or without them (the kit's
+    /// The app theme with its U4a body lines (`localwave-button`, `-side-row`, `-badge`, `-progress`, `-chip`) or without them (the kit's
     /// bodies), the bodies registered either way.
     fn ui(app: bool) -> Ui {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();
@@ -394,5 +439,29 @@ mod body_tests {
         assert!(plates.iter().any(|r| r[0] == 8.0 && r[2] == 8.0 + 46.0 && r[1] == track.y), "the fill inked to a quarter: {plates:?}");
         let kit_track = node(&kit, "Offline space");
         assert_ne!((kit_track.x, kit_track.w), (8.0, 184.0), "the kit's progress: the theme line selects the body");
+    }
+
+    /// `localwave-button` `TOOL`: the key fits its 10-point sides, icon, 6-point gap and whole-pixel label, 30 high, the selected fill
+    /// while checked; `checkbox.body = localwave-chip`: a 32-point pill on ink while on.
+    #[test]
+    fn localwave_tool_and_chip_draw_their_structures() {
+        let mut build = |ui: &mut Ui| {
+            ui.row(Node::row(), |ui| {
+                ui.button("play", "Play all", &TOOL.icon(super::super::kit::icon_drawing(super::super::kit::Icon::Play)).icon_size(16.0).selected(true));
+                ui.checkbox("flac", "flac", true, &CHIP);
+            });
+        };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        let width = app.text_service().width("Play all", TOOL_LABEL, None).unwrap().ceil();
+        let tool = node(&app, "Play all");
+        assert_eq!((tool.w, tool.h), (10.0 + 16.0 + 6.0 + width + 10.0, 30.0), "the tool fits its parts");
+        assert!(colored(&app, SELECTED_RGBA).contains(&[tool.x, tool.y, tool.x + tool.w, tool.y + tool.h]), "checked: the selected fill");
+        assert_ne!(node(&kit, "Play all").w, tool.w, "the kit's button lays out its own way: the theme line selects the body");
+        let chip = node(&app, "flac");
+        assert_eq!(chip.h, 32.0);
+        assert!(colored(&app, INK_RGBA).contains(&[chip.x, chip.y, chip.x + chip.w, chip.y + chip.h]), "on: the ink plate");
+        assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 32.0), "the kit's checkbox: the theme line selects the body");
     }
 }

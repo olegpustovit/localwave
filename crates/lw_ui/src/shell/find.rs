@@ -11,88 +11,9 @@
 //!
 use super::*;
 
-#[derive(Clone, Copy)]
-pub(super) enum Action {
-    Play,
-    /// Folder pages: "Play folder".
-    Folder,
-    Shuffle,
-    Offline(bool),
-}
-
-/// A Find tool key: its width (icon and label) and look are set where it is built.
-const TOOL: pxui::Button = pxui::Button::DEFAULT.centered();
-fn background(ui: &mut Ui, key: &'static str, look: &'static Look, shown: bool, immediate: bool) {
-    let view = ui.view_of(key, &0, |ui| {
-        ui.node(
-            "fill",
-            Node::column().w(Size::Grow).h(Size::Grow).look(*look),
-        );
-    });
-    let previous = ui.state(&view, -1);
-    let next = i64::from(shown);
-    if previous != next {
-        ui.set_state(&view, next);
-        ui.animate(
-            &view,
-            Target::Opacity(if shown { 1.0 } else { 0.0 }),
-            if previous < 0 || immediate {
-                crate::motion::steps(1, 0.0)
-            } else {
-                crate::motion::out(crate::motion::QUICK)
-            },
-        );
-    }
-}
-pub(super) fn button(ui: &mut Ui, action: Action, enabled: bool) -> bool {
-    let (key, label, icon_size, selected) = match action {
-        Action::Play => ("play-all", "Play all", 16.0, false),
-        Action::Folder => ("play-folder", "Play folder", 16.0, false),
-        Action::Shuffle => ("shuffle", "Shuffle", 16.0, false),
-        Action::Offline(kept) => (
-            "keep-offline",
-            if kept { "Kept offline" } else { "Keep offline" },
-            18.0,
-            kept,
-        ),
-    };
-    const TOOL_LABEL: pxui::Label = pxui::Label::BODY.size(13.0).line_height(18.2).lines(1).ellipsis();
-    let density = ui.density();
-    let label_width =
-        (ui.text_service().width(label, TOOL_LABEL, None).unwrap() * density).ceil() / density;
-    let width = 20.0 + icon_size + 6.0 + label_width;
-    let tool = TOOL.size(Size::Px(width), Size::Px(30.0)).look(if selected { &SELECTED_LOOKS } else { &PAPER_LOOKS }).disabled(!enabled).name(label);
-    // the hover and press washes sit under the copy, so the contents are a stack built with the press state
-    let response = ui.button_content(key, &tool, |ui, press| {
-        let layers = ui.node("layers", Node::stack().w(Size::Grow).h(Size::Grow));
-        let before = ui.state(&layers, -1);
-        ui.set_state(&layers, i64::from(selected));
-        ui.within(&layers, &mut |ui| {
-            background(ui, "hover", &PANEL_FILL, press.hovered && !selected, before != i64::from(selected));
-            background(ui, "press", &PANEL_FILL, press.pressed, false);
-            ui.view_of("action-copy", &(label, selected), |ui| {
-                // a keyed node, not a keyless row: the tests look the icon up under it by key
-                let content = ui.node("content", Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).pad_x(10.0).align(Align::Center));
-                ui.within(&content, &mut |ui| {
-                    let color = if selected { Rgba::token(INK) } else { Rgba::token(SECONDARY) };
-                    let icon = ui.node("icon", Node::column().w_px(icon_size).h_px(icon_size));
-                    ui.canvas(&icon, move |paint, rect| match action {
-                        Action::Play | Action::Folder => crate::icons::play(paint, rect, color),
-                        Action::Shuffle => crate::icons::shuffle(paint, rect, color),
-                        Action::Offline(kept) => crate::icons::offline(paint, rect, kept, color),
-                    });
-                    let _copy = ui.label(label, TEXT_13.w_px(label_width).color(if selected { INK } else { SECONDARY }).role(Role::Unknown));
-                    #[cfg(test)]
-                    tests::copied(key, _copy);
-                });
-            });
-        });
-    });
-    if matches!(action, Action::Offline(_)) {
-        ui.a11y_value(&response.handle, if selected { "Kept offline" } else { "Not kept offline" }, (0, 0))
-            .expect("valid offline status");
-    }
-    enabled && response.clicked
+/// The Keep offline tool key, checked while `kept`.
+pub(super) fn keep_offline(kept: bool) -> pxui::Button<'static> {
+    TOOL.icon(icon_drawing(if kept { Icon::Kept } else { Icon::Offline })).icon_size(18.0).selected(kept)
 }
 
 pub(super) fn toolbar(
@@ -110,18 +31,11 @@ pub(super) fn toolbar(
         // keyed: the tests look the buttons' parts up by key under it
         let buttons = ui.node("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
         ui.within(&buttons, &mut |ui| {
-            if button(
-                ui,
-                Action::Play,
-                collection.is_some_and(|group| !group.ids.is_empty()),
-            ) {
+            if ui.button("play-all", "Play all", &TOOL.icon(icon_drawing(Icon::Play)).icon_size(16.0).disabled(!collection.is_some_and(|group| !group.ids.is_empty()))).clicked {
                 *intent = Some(Intent::PlayRow(0));
             }
-            if button(
-                ui,
-                Action::Offline(summary.is_some_and(|value| value.pinned)),
-                summary.is_some_and(|value| !value.eligible.is_empty()),
-            ) {
+            let kept = summary.is_some_and(|value| value.pinned);
+            if ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &keep_offline(kept).disabled(!summary.is_some_and(|value| !value.eligible.is_empty()))).clicked {
                 *intent = Some(Intent::TogglePins);
             }
         });
@@ -132,7 +46,7 @@ pub(super) fn toolbar(
 }
 
 #[cfg(test)]
-mod tests {
+pub(in crate::shell) mod tests {
     use super::*;
     use pxui::{A11yAction, FrameIn, Platform};
 
@@ -181,31 +95,23 @@ mod tests {
         });
         root
     }
-    /// A keyed part of a Find action's copy by its key path.
-    fn part(ui: &Ui, root: Handle, action: &str, part: &str) -> Handle {
-        let mut key = root.box_key;
-        for label in ["find-tools", "buttons", action, "layers", "action-copy", "content", part] {
-            key = pxui::ui::key_of(key, label);
-        }
-        ui.box_of_key(pxui::Key::Resolved(key)).unwrap()
-    }
     thread_local! {
-        /// The copy label each action built last (play-all, keep-offline): a label has no key to look it up by.
-        static COPIES: std::cell::Cell<[Option<Handle>; 2]> = const { std::cell::Cell::new([None; 2]) };
+        /// The icon and label the tool body built last for Play all and Keep offline: neither has a key to look it up by.
+        static PARTS: std::cell::Cell<[Option<(Handle, Handle)>; 2]> = const { std::cell::Cell::new([None; 2]) };
     }
-    /// Records the copy `button` built for `key`.
-    pub(super) fn copied(key: &str, copy: Handle) {
-        let Some(slot) = ["play-all", "keep-offline"].iter().position(|k| *k == key) else { return };
-        COPIES.with(|copies| {
-            let mut all = copies.get();
-            all[slot] = Some(copy);
-            copies.set(all);
+    /// Records the icon and label `localwave-button` built for the tool named `text`.
+    pub(in crate::shell) fn tool_built(text: &str, icon: Handle, copy: Handle) {
+        let Some(slot) = ["Play all", "Keep offline", "Kept offline"].iter().position(|k| *k == text) else { return };
+        PARTS.with(|parts| {
+            let mut all = parts.get();
+            all[slot.min(1)] = Some((icon, copy));
+            parts.set(all);
         });
     }
-    /// The copy label of `action` (play-all or keep-offline) from the last frame.
-    fn copy(action: &str) -> Handle {
+    /// The icon and label of `action` (play-all or keep-offline) from the last frame.
+    fn parts(action: &str) -> (Handle, Handle) {
         let slot = ["play-all", "keep-offline"].iter().position(|k| *k == action).unwrap();
-        COPIES.with(|copies| copies.get()[slot]).expect("the copy was built")
+        PARTS.with(|parts| parts.get()[slot]).expect("the tool was built")
     }
     #[test]
     fn find_tools_match_native_point_geometry_values_and_warm_action_routing() {
@@ -221,10 +127,9 @@ mod tests {
             for scale in [1.0, 2.0] {
                 for (index, catalog) in catalogs.iter().enumerate() {
                     let mut intent = None;
-                    let mut root = None;
                     let frame = FrameIn::new(400.0, 100.0).scale(scale).reduced_motion(true);
                     crate::testing::frame(&mut ui, &frame, &mut |ui| {
-                        root = Some(build(ui, catalog, &state, &mut intent))
+                        build(ui, catalog, &state, &mut intent);
                     })
                     .unwrap();
                     assert_eq!(
@@ -274,12 +179,9 @@ mod tests {
                         }
                     );
                     assert_eq!(
-                        ui.a11y_value_of(offline),
-                        Some(if index == 1 {
-                            "Kept offline"
-                        } else {
-                            "Not kept offline"
-                        })
+                        offline.states & pxui::A11yStates::SELECTED.bits() != 0,
+                        index == 1,
+                        "Keep offline is selected while kept (`Button::selected`)"
                     );
                     let (play_id, offline_id) = (play.id, offline.id);
                     let enabled = pxui::A11yStates::ENABLED.bits();
@@ -289,7 +191,8 @@ mod tests {
                         ("play-all", 32.0, 16.0),
                         ("keep-offline", 32.0 + play_width + 8.0, 18.0),
                     ] {
-                        let icon = ui.rect(&part(&ui, root.unwrap(), action, "icon"));
+                        let (icon, copy) = parts(action);
+                        let icon = ui.rect(&icon);
                         assert_eq!(
                             icon,
                             Rect {
@@ -299,7 +202,7 @@ mod tests {
                                 h: size
                             }
                         );
-                        let copy = ui.rect(&copy(action));
+                        let copy = ui.rect(&copy);
                         assert!(
                             (copy.x - left - 10.0 - size - 6.0).abs() < 0.001
                                 && (copy.y - 5.9).abs() < 0.001
@@ -387,11 +290,10 @@ mod tests {
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Find));
         state.apply(Intent::Search(Query::new("track").unwrap()));
-        let mut root = None;
         let mut frame = FrameIn::new(400.0, 100.0);
         for _ in 0..3 {
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
-                root = Some(build(ui, &catalogs[0], &state, &mut None))
+                build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
         }
@@ -401,7 +303,7 @@ mod tests {
             .filter(|quad| quad.kind == pxui::draw::kind::MASK)
             .copied()
             .collect::<Vec<_>>();
-        let copy = copy("play-all");
+        let copy = parts("play-all").1;
         let original = ui.rect(&copy);
         for round in 0..8 {
             mem_sys::local_reset();
@@ -468,10 +370,9 @@ mod tests {
                     build(ui, &catalogs[0], &state, &mut None);
                 })
                 .unwrap();
-                assert_eq!(
-                    ui.repaint_at().is_some(),
-                    time < 0.54,
-                    "the release transition draws for 140ms, then idles while hovered"
+                assert!(
+                    ui.repaint_at().is_none(),
+                    "held and hovered share the panel fill: the release changes nothing and idles while hovered"
                 );
             }
             let leave = pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 390.0, 90.0);

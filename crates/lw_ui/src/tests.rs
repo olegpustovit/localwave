@@ -948,7 +948,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         let chip = ui
             .a11y_nodes()
             .iter()
-            .find(|node| node.is_role(pxui::ui::Role::Toggle) && ui.a11y_name_of(node) == "flac")
+            .find(|node| node.is_role(pxui::ui::Role::CheckBox) && ui.a11y_name_of(node) == "flac")
             .unwrap();
         assert_eq!(
             chip.states & pxui::A11yStates::CHECKED.bits() != 0,
@@ -1011,7 +1011,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
             .a11y_nodes()
             .iter()
             .filter(|node| {
-                node.is_role(pxui::ui::Role::Toggle)
+                node.is_role(pxui::ui::Role::CheckBox)
                     && matches!(
                         ui.a11y_name_of(node),
                         "flac" | "cloud" | "offline" | "year:2019" | "unplayed"
@@ -1060,7 +1060,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
     let id = ui
         .a11y_nodes()
         .iter()
-        .find(|node| node.is_role(pxui::ui::Role::Toggle) && ui.a11y_name_of(node) == "flac")
+        .find(|node| node.is_role(pxui::ui::Role::CheckBox) && ui.a11y_name_of(node) == "flac")
         .unwrap()
         .id;
     ui.inject_a11y(&[pxui::A11yAction {
