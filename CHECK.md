@@ -201,6 +201,16 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
   noise (under ~2 µs a row, ~15 rows in view). Accepted by the orchestrator.
 - (c) Split the dynamic abi_bench target (start/Author vs the pages): the run takes about 59 s of the runner's 60 s cap. Never raise the cap.
 - (d) 2.0 cut: the owner decides whether `PxuiUi.theme` (the handle's public first field) is frozen ABI.
+- (e) U4a.6 fresh-row gap (owner, 19 Nov: accepted for now; the CP1 performance step owns it, together with option (i), the
+  per-row list revision in Found). Two cuts landed: the list row box holds the row view (pxui 0c74f978) and `pxui_ui_style` takes
+  one look (pxui f76bdac3, ABI 1.108). Thread instructions per fresh song row in the list's build loop (scroll jump, lite probe):
+  050d029 29.5k; 44c3b45 35.8k; after the cuts 33.1-33.5k (+3.6-4.0k). Of that: the row node 1.3k, `row_in` (signal, selection,
+  style, role) 0.8k, the registered row body round trip (now ~1.5k with one look), loop glue 0.3k, app content +0.6k (the
+  actions `icon_button`). Timed round, 3 rounds at load 2.2-3.1 (`scratch/u4a6/timed-cut2.log`, base LW-base-i vs LW-cut2-i,
+  mean of 100 frames): scroll jump instructions mean 1.21M -> 1.16M (-5%), p99 2.95-3.00M -> 3.07-3.13M (+4%), build CPU p99
+  2135-2245 -> 2331-2398 us (still over base's spread); list-dialogs mean 1.81-1.83M -> 1.80-1.82M (-0.3%), build CPU p99
+  2152-2159 -> 2049-2139 us; every other song workload is lower in mean instructions (fling -17%, long-scroll -9%,
+  reverse-scroll -9%, song-drag -14%, indicators -13%) and build CPU p99. Zero warm allocations everywhere.
 
 ## Found (separate fixes later)
 
