@@ -10,15 +10,8 @@ use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
 
-fn back(ui: &mut Ui, key: &'static str, name: &'static str) -> bool {
-    let button = ui.node(
-        key,
-        Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(BACK_TEXT),
-    );
-    ui.text(&button, name);
-    ui.a11y_name(&button, name);
-    ui.signal(&button).clicked
-}
+/// A settings link (‹ Library, Support…; `localwave-button` / `ROW`): secondary 15-point text across the page from its start, 44 points high.
+const SETTINGS_LINK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(44.0)).align(Justify::Start).pad(Edges::new(0.0, 4.0, 0.0, 0.0)).label(TEXT_15.color(SECONDARY).role(Role::Unknown));
 /// A secondary press on a settings row or its chips (`secondary`) opens the row's context menu where the pointer is.
 fn context(ui: &Ui, secondary: bool, node: &Handle, menu: SettingsMenu, intent: &mut Option<Intent>) {
     if secondary {
@@ -79,34 +72,43 @@ const TRACK: Look = LINE_FILL;
 const KNOB: Look = PAPER_FILL;
 /// A settings switch row: the whole row flips it.
 const SWITCH: pxui::Toggle<'static> = pxui::Toggle::DEFAULT.row_h(60.0).press_row(true);
-fn option(
-    ui: &mut Ui,
-    key: i64,
-    labels: (&'static str, &str),
-    selected: bool,
-    action: (Change, SettingsMenu),
-    intent: &mut Option<Intent>,
-) {
-    let (label, name) = labels;
-    let (change, menu) = action;
-    let button = ui.node(
-        key,
-        Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).role(Role::Toggle).flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT).min_w(40.0).look(if selected { CHOICE_ON } else { CHOICE }),
-    );
-    ui.text(&button, label);
-    ui.a11y_name(&button, name);
-    ui.set_role(
-        &button,
-        Role::Toggle,
-        pxui::A11yStates::CHECKABLE.with(if selected {
-                pxui::A11yStates::CHECKED
-            } else { pxui::A11yStates::NONE }),
-    );
-    let signal = ui.signal(&button);
-    context(ui, signal.pressed && signal.button == Some(1), &button, menu, intent);
-    if signal.clicked && signal.button != Some(1) {
-        *intent = Some(Intent::Setting(change));
+/// The settings chips (`localwave-segmented` / `CHIPS`): 32 high, 2 points around the chips, a press focuses the chip pressed.
+const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(32.0).padding(2.0).variant(variant::CHIPS).focus_on_click(true);
+// The chips; a cache chip's id is its size in GB, an appearance chip's the `Appearance`.
+const CACHE_SEGMENTS: [Segment; 3] = [Segment::new("4 GB").id(4).name("Use 4 GB"), Segment::new("8 GB").id(8).name("Use 8 GB"), Segment::new("16 GB").id(16).name("Use 16 GB")];
+const APPEARANCES: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
+const APPEARANCE_SEGMENTS: [Segment; 3] = [
+    Segment::new("System").id(Appearance::System as i64).name("Use system appearance"),
+    Segment::new("Light").id(Appearance::Light as i64).name("Use light appearance"),
+    Segment::new("Dark").id(Appearance::Dark as i64).name("Use dark appearance"),
+];
+/// The settings chips `items` (`selected` the stored choice): a primary press on a chip is its `change`, a secondary press opens `menu`.
+#[allow(clippy::too_many_arguments)]
+fn chips(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usize>, w: f32, change: impl Fn(i64) -> Change, menu: SettingsMenu, intent: &mut Option<Intent>) {
+    let r = ui.segmented(key, items, selected, &CHIPS.w_px(w));
+    if (r.response.changed || r.response.clicked) && let Some(id) = r.chosen_id {
+        *intent = Some(Intent::Setting(change(id)));
     }
+    context(ui, r.secondary.is_some(), &r.response.handle, menu, intent);
+}
+/// The rescan row (`localwave-button` / `SETTING`): a press focuses it, as Swift's rows take the focus.
+const RESCAN: pxui::Button = pxui::Button::DEFAULT.variant(variant::SETTING).detail("Usually not needed — folders are watched").focus_on_click(true);
+/// LocalWave's settings row button (`localwave-button` / `SETTING`): the settings row with the title and detail, the dotted chevron at
+/// its end and the hairline under it.
+pub(super) fn row_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
+    ui.set_node_layout(&c.line, &Node::row().w(Size::Grow).h(Size::Fit));
+    ui.set_node_layout(&c.row, &ROW);
+    labels(ui, c.text_of(&c.label), c.text_of(&c.detail));
+    let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
+    let color = Rgba::token(INK);
+    ui.canvas(&glyph, move |paint, rect| {
+        for step in 0..6 {
+            let step = step as f32 * 1.5;
+            paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5), Fill::new(color));
+            paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5), Fill::new(color));
+        }
+    });
+    hairline(ui, &c.row);
 }
 /// A settings row: a press focuses it, as Swift's rows take the focus.
 const SETTING: pxui::Pressable<'static> = PLAIN.focus_on_click(true);
@@ -131,7 +133,7 @@ pub(super) fn view(
         },
     );
     ui.within(&page, &mut |ui| {
-        if back(ui, "back", if state.privacy_visible { "‹ Settings" } else { "‹ Library" }) {
+        if ui.button("back", if state.privacy_visible { "‹ Settings" } else { "‹ Library" }, &SETTINGS_LINK).clicked {
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
@@ -150,8 +152,8 @@ pub(super) fn view(
                     ui.label(body, PARAGRAPH_14.color(SECONDARY));
                 }); });
             }
-            if back(ui, "full-privacy-policy", "Full privacy policy") { *intent = Some(Intent::PrivacyPolicy); }
-            if back(ui, "support", "Support") { *intent = Some(Intent::Support); }
+            if ui.button("full-privacy-policy", "Full privacy policy", &SETTINGS_LINK).clicked { *intent = Some(Intent::PrivacyPolicy); }
+            if ui.button("support", "Support", &SETTINGS_LINK).clicked { *intent = Some(Intent::Support); }
             if !player.message.is_empty() { ui.label(player.message, NOTICE); }
             return;
         }
@@ -175,48 +177,22 @@ pub(super) fn view(
         let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
         let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Offline space", cache_detail);
-            let strip = Node::row().w_px(174.0).h_px(32.0).pad(2.0).look(PANEL_FILL);
-            ui.row(strip, |ui| {
-                for (value, label, name) in [(4, "4 GB", "Use 4 GB"), (8, "8 GB", "Use 8 GB"), (16, "16 GB", "Use 16 GB")] {
-                    option(ui, value, (label, name), settings.cache_gb == value, (Change::CacheGB(value), SettingsMenu::Cache), intent);
-                }
-            });
+            let current = CACHE_SEGMENTS.iter().position(|s| s.id == Some(settings.cache_gb));
+            chips(ui, "cache-size", &CACHE_SEGMENTS, current, 174.0, Change::CacheGB, SettingsMenu::Cache, intent);
         });
         setting_row(ui, &cache, "Offline space", SettingsMenu::Cache, intent);
         let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {
             labels(ui, "Appearance", "");
-            let strip = Node::row().w_px(204.0).h_px(32.0).pad(2.0).look(PANEL_FILL);
-            ui.row(strip, |ui| {
-                for (value, label, name) in [
-                    (Appearance::System, "System", "Use system appearance"),
-                    (Appearance::Light, "Light", "Use light appearance"),
-                    (Appearance::Dark, "Dark", "Use dark appearance"),
-                ] {
-                    option(ui, value as i64, (label, name), settings.appearance == value, (Change::Appearance(value), SettingsMenu::Appearance), intent);
-                }
-            });
+            let current = APPEARANCES.iter().position(|a| *a == settings.appearance);
+            chips(ui, "appearance-chips", &APPEARANCE_SEGMENTS, current, 204.0, |id| Change::Appearance(APPEARANCES[id as usize]), SettingsMenu::Appearance, intent);
         });
         setting_row(ui, &appearance, "Appearance", SettingsMenu::Appearance, intent);
-        let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {
-            labels(ui, "Rescan all sources", "Usually not needed — folders are watched");
-            let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
-            let color = Rgba::token(INK);
-            ui.canvas(&glyph, move |paint, rect| {
-                for step in 0..6 {
-                    let step = step as f32 * 1.5;
-                    paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5), Fill::new(color));
-                    paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5), Fill::new(color));
-                }
-            });
-        });
-        ui.a11y_name(&rescan.handle, "Rescan all sources");
-        hairline(ui, &rescan.handle);
-        if rescan.clicked {
+        if ui.button("rescan", "Rescan all sources", &RESCAN).clicked {
             *intent = Some(Intent::Files(crate::files::Request::Roots));
         }
         ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
-            if back(ui, "about-privacy", "About & Privacy") { *intent = Some(Intent::ShowPrivacy); }
+            if ui.button("about-privacy", "About & Privacy", &SETTINGS_LINK).clicked { *intent = Some(Intent::ShowPrivacy); }
             ui.label(if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, PARAGRAPH_14.color(SECONDARY));
             if !player.settings_message.is_empty() { ui.label(player.settings_message, NOTICE); }
             if !player.message.is_empty() { ui.label(player.message, NOTICE); }
@@ -304,7 +280,7 @@ mod tests {
             .iter()
             .find(|node| {
                 ui.a11y_name_of(node) == name
-                    && (node.is_role(Role::Button) || node.is_role(Role::Toggle))
+                    && (node.is_role(Role::Button) || node.is_role(Role::Toggle) || node.is_role(Role::Radio))
             })
             .unwrap_or_else(|| panic!("missing {name}"))
             .rect;

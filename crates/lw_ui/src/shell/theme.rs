@@ -141,12 +141,12 @@ const fn text(color: ColorToken, size: f32) -> Look {
 }
 /// Secondary 14-point text: a sidebar "+ label" row, a text link.
 pub(super) const LINK_TEXT: Look = text(SECONDARY, 14.0);
-/// Secondary 15-point text: a back link.
-pub(super) const BACK_TEXT: Look = text(SECONDARY, 15.0);
 /// An unselected settings choice: secondary 13-point text on the panel fill.
-pub(super) const CHOICE: Look = text(SECONDARY, 13.0).fill(Rgba::token(PANEL));
+const CHOICE: Look = text(SECONDARY, 13.0).fill(Rgba::token(PANEL));
 /// The selected settings choice: paper 13-point text on ink.
-pub(super) const CHOICE_ON: Look = text(PAPER, 13.0).fill(Rgba::token(INK));
+const CHOICE_ON: Look = text(PAPER, 13.0).fill(Rgba::token(INK));
+const CHOICE_LOOKS: States = States::of(CHOICE);
+const CHOICE_ON_LOOKS: States = States::of(CHOICE_ON);
 /// A compact tab bar button: ink 14-point text on paper.
 pub(super) const TAB_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token(PAPER)));
 /// The current compact tab: on the selected fill.
@@ -229,6 +229,10 @@ pub(super) mod variant {
     pub(in crate::shell) const COMPACT: u16 = 10;
     /// `localwave-row`: a desktop song row.
     pub(in crate::shell) const SONG_ROW: u16 = 11;
+    /// `localwave-segmented`: the settings chips on the panel fill, the chosen one ink.
+    pub(in crate::shell) const CHIPS: u16 = 12;
+    /// `localwave-button`: a settings row (title, detail, the dotted chevron and the hairline).
+    pub(in crate::shell) const SETTING: u16 = 13;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -273,9 +277,13 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
 /// hovered or disabled, ink while held, its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
-/// variant is the kit's own button.
+/// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`).
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
+    if c.variant == variant::SETTING {
+        super::settings::row_body(ui, c);
+        return;
+    }
     if ![variant::ROW, variant::TOOL, variant::KEY].contains(&c.variant) {
         ui.slot(c.built_in);
         return;
@@ -343,11 +351,26 @@ fn modal_body(ui: &mut Ui, c: &pxui::bodies::ModalConfig) {
     ui.slot(c.content);
 }
 
-/// LocalWave's segmented (registered as `localwave-segmented`), the `SORT` look for any variant (LocalWave has no other strip): the
+/// LocalWave's segmented (registered as `localwave-segmented`). `CHIPS`: Swift's settings chips, the strip `padding` in on the panel
+/// fill, each chip sharing it (28 high, at least 40 wide, 8 in, 13-point text), the stored choice ink with paper text. Any other
+/// variant, the `SORT` look: the
 /// strip fit to its keys 8 apart; each key fit to its 13-point text 10 in at each side, secondary on paper, the chosen one ink on the
 /// selected fill inside a 1.5-point ink border.
 fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     use pxui::bodies::BodyConfig;
+    if c.variant == variant::CHIPS {
+        // the strip keeps the width its caller gave (`Segmented::w_px`)
+        let w = ui.node_layout(&c.strip).w;
+        ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h(Size::Fit));
+        ui.set_node_layout(&c.strip, &Node::row().w(w).h_px(32.0).pad(c.padding));
+        ui.style(&c.strip, &PANEL_LOOKS, State::default());
+        // the stored choice: the controller applies a press a frame later
+        let chosen = if c.has_stored != 0 { c.stored == c.index } else { c.has_selected != 0 && c.selected == c.index };
+        ui.set_node_layout(&c.node, &Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).min_w(40.0));
+        ui.style(&c.node, if chosen { &CHOICE_ON_LOOKS } else { &CHOICE_LOOKS }, State::default());
+        ui.text(&c.node, c.text_of(&c.text));
+        return;
+    }
     ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h_px(30.0));
     ui.set_node_layout(&c.strip, &Node::row().w(Size::Fit).h(Size::Grow).gap(8.0));
     ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h_px(30.0).pad_x(10.0).align(Align::Center));
@@ -472,6 +495,25 @@ mod body_tests {
     fn colored(ui: &Ui, color: [u8; 4]) -> Vec<[f32; 4]> { ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.color == color).map(|i| i.rect).collect() }
     const INK_RGBA: [u8; 4] = [0x11, 0x11, 0x11, 255];
     const SELECTED_RGBA: [u8; 4] = [0xD3, 0xD3, 0xD3, 255];
+
+    /// U4a.7 bodies: `CHIPS` chips share their strip, 28 high, the stored choice on ink; a `SETTING` row is at least 60 high. The kit's
+    /// bodies draw neither.
+    #[test]
+    fn settings_bodies_draw_their_structures() {
+        const ITEMS: [pxui::Segment; 2] = [pxui::Segment::new("4 GB").id(4), pxui::Segment::new("8 GB").id(8)];
+        const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(32.0).padding(2.0).variant(variant::CHIPS).w_px(120.0);
+        const SETTING: pxui::Button = pxui::Button::DEFAULT.variant(variant::SETTING).detail("Detail");
+        let mut build = |ui: &mut Ui| { ui.column(Node::column().w(Size::Grow), |ui| {
+            ui.segmented("chips", &ITEMS, Some(1), &CHIPS);
+            ui.button("rescan", "Rescan", &SETTING);
+        }); };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        let ink_chips = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[3] - r[1] == 28.0).count();
+        assert_eq!((ink_chips(&app), ink_chips(&kit)), (1, 0), "the stored chip is a 28-point ink chip");
+        assert_eq!((node(&app, "Rescan").h >= 60.0, node(&kit, "Rescan").h >= 60.0), (true, false), "a settings row is at least 60 high");
+    }
 
     /// `localwave-button` / `ROW` with `Button::axis(Axis::Column)`: the detail sits under the title, both from the box's start.
     #[test]

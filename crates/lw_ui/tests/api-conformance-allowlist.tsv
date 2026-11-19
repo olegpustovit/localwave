@@ -33,8 +33,5 @@ lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h
 lw_ui/src/shell/onboarding.rs	R7	let choose = ui.pressable("choose-folder", node, &PLAIN.look(&INK_LOOKS), |ui, _| {	drift: audit #60 Choose a folder -> Button (U4)
 lw_ui/src/shell/onboarding.rs	R7	let header = ui.pressable("drive-toggle", Node::row().w(Size::Grow).h_px(19.5).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #61 Drive disclosure -> disclosure (G10, U4)
 lw_ui/src/shell/queue_sheet.rs	R7	let play = ui.pressable("play-queued", node, &PLAIN, |ui, _| {	composite: play-queued body (audit #58)
-lw_ui/src/shell/settings.rs	R2	Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).role(Role::Toggle).flags(Flags::CLICKABLE | Flags::FOCUSABLE | Flags::FIT_TEXT).min_w(40.0).look(if selected { CHOICE_ON } else { CHOICE }),
-lw_ui/src/shell/settings.rs	R2	Node::column().w(Size::Grow).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(BACK_TEXT),
 lw_ui/src/shell/settings.rs	R7	let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: appearance settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: cache settings row with context menu (audit #65)
-lw_ui/src/shell/settings.rs	R7	let rescan = ui.pressable("rescan", ROW.role(Role::Button), &SETTING, |ui, _| {	drift: audit #66 Rescan all sources -> Button with detail/accessory (U4)
