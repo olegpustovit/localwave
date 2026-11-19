@@ -283,8 +283,8 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// the start (`Button::pad`, `gap`): the leading glyph, the title (in `Button::label`, else secondary 14 points filling the row), the
 /// detail (in `Button::detail_label`, else the caption; `Button::axis(Axis::Column)` stacks it under the title from the top) and the
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
-/// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink; checked keeps its look while
-/// hovered or disabled, ink while held, its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
+/// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink (the kit's state priority picks it:
+/// disabled, checked, held, hovered), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
 /// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point rule as wide
 /// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
@@ -316,14 +316,12 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         return;
     }
     let s = &c.state;
-    let checked = tool && s.checked != 0;
-    let state = State::default().hovered(s.hovered != 0 && !checked).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0 && !checked).checked(s.checked != 0);
+    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
     let states = c.states_of(&c.states);
     if let Some(states) = states {
         ui.style(&c.row, states, state);
     }
-    // a tool's ink: the checked look's while checked, held or not
-    let ink = states.map(|s| if checked { s.checked.text } else { s.pick(state).text }).or(c.label().and_then(|l| l.fields().color).map(Rgba::token));
+    let ink = states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token));
     let mut _icon = None;
     if tool && let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), ink) {
         let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };
