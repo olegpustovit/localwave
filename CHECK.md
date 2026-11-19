@@ -175,11 +175,15 @@ LocalWave f7d3131..8ced207 and pxui 233baadd..56bd3dde (ABI 1.93–1.97; see `do
 legacy bodies gone; `tools/dx/abi_drop.py --check` passes (keep list: C-only calls with no successor). Tier B, `LOCALWAVE_OFFLINE=1 make
 check` (289), gcmp (identical to U2b), surface/ledger, release abi_bench both modes (every page within its unchanged limit, no ratio worse
 than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allowance) passed. Found by a ported test: the text field wrote its outputs before refusing a call outside a frame (fixed in U2c.4).
+Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
+paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
 ## NEXT: U2c review and landing, then U3
 
 1. Independent review of U2c (§13), then land per the lifecycle (pxui first, `tools/check-pxui-remote.sh`, online `make check`).
-2. Then U3 per the plan. U5.3's drop list shrank: what is left is the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
+2. Then U3 per the plan. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
+   `pxui_ui_variant`, `pxui_ui_text`, the `pxui_frame`/`pxui_ui_frame` pair (U5.2), the prefix renames of `pxui_panel`, `pxui_within`,
+   `pxui_part` and `pxui_slot`, the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
 
 ### CP1 actions (from the U2b review)
 
@@ -208,8 +212,11 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
   (`PXUI_FEATURE_TEXT_FIELD_KEYED`, `_SEGMENTED_RESULT`, `_WIDGETS_KEYED`, ids are never reused), unused header records `PxuiF32MutSpan`
   and `PxuiTouch` (before U2c), and `PxuiThemeSnapshot`'s `int64_t` token slots that carry a `float`.
 - Engine API that only core tests still call (no export): `Ui::set_colors` (the light/dark token table), `Ui::button(text)`,
-  `Ui::toggle(text, on)`, the integer-size `Paint::text_*`/`cap` calls.
-- The search, line and value fields and the text area may, like the text field before U2c.4, write outputs before a refusal (unverified).
+  `Ui::toggle(text, on)`, the integer-size `Paint::text_*`/`cap` calls. Deleting `set_colors` (review item, test ported to the theme
+  palette, goldens unchanged) makes the direct engine's palette fallback about 60 instructions cheaper and the static wrapper about
+  25, so static abi_bench Overlays reads 1.01107-1.01125 against its 1.011 limit; deferred to CP1 action (a). Patch:
+  `scratch/u2c-review-set-colors.diff` (local only).
+- `pxui_ui_set_role` returns 0 for a stale box, while `pxui_ui_a11y_name` and `pxui_ui_a11y_number` return `PXUI_ERR_STALE`.
 - The dynamic release abi_bench run took 60.42 s again (rc 0; CP1 action (c)).
 
 ## Commands
