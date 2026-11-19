@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-19. Resume at [U2c](#next-u2c-delete-the-1x-twins-then-u3).
+Updated 2026-11-19. Resume at [U2c review](#next-u2c-review-and-landing-then-u3).
 
 ## What we're doing
 
@@ -168,10 +168,18 @@ bodies reference. Thin margins: static Overlays (about 27 instructions under 1.0
 Independent review: land after fixes; the renderer fence now also clears `building` (a C split callback could build during
 draw), static `drop_target` refuses a stale box, header/hash/bench docs, D30 (abi_bench closure, harness changes accepted).
 
-## NEXT: U2c (delete the 1.x twins), then U3
+### U2c on branch `u2c` (review pending)
 
-1. U2c on branch `u2c`: delete the 1.x twins accumulated in U1b–U2b (D28); the successor takes the plain name; callers codemodded.
-2. Then U3 per the plan.
+LocalWave f7d3131..8ced207 and pxui 233baadd..56bd3dde (ABI 1.93–1.97; see `docs/rust-port.md` U2c rows and
+`scratch/u2c-final-report.md`, local only). 101 superseded exports deleted (343 to 242), each successor under the plain name, the engine
+legacy bodies gone; `tools/dx/abi_drop.py --check` passes (keep list: C-only calls with no successor). Tier B, `LOCALWAVE_OFFLINE=1 make
+check` (289), gcmp (identical to U2b), surface/ledger, release abi_bench both modes (every page within its unchanged limit, no ratio worse
+than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allowance) passed. Found by a ported test: the text field wrote its outputs before refusing a call outside a frame (fixed in U2c.4).
+
+## NEXT: U2c review and landing, then U3
+
+1. Independent review of U2c (§13), then land per the lifecycle (pxui first, `tools/check-pxui-remote.sh`, online `make check`).
+2. Then U3 per the plan. U5.3's drop list shrank: what is left is the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
 
 ### CP1 actions (from the U2b review)
 
@@ -195,6 +203,14 @@ draw), static `drop_target` refuses a stale box, header/hash/bench docs, D30 (ab
 - `Segment::detail` reaches the engine in both link modes but no body config exposes it.
 - `box_ops.rs` `last_press_within`: a touch Began is not matched like a mouse press.
 - `lw_apple_sys` `history::tests::snapshots_preserve_other_songs_and_reject_invalid_starts`: its preferences suite is named by pid and thread and persists, so it flaked once in `make check`.
+- U2c left for U5 (2.0 re-baseline): dead record fields and old recorded sizes kept (`PxuiSegmentedDesc.names` must be empty; the
+  64/96/104-byte segmented, 96/104/192-byte button and other pre-change record sizes are still read), feature ids naming deleted calls
+  (`PXUI_FEATURE_TEXT_FIELD_KEYED`, `_SEGMENTED_RESULT`, `_WIDGETS_KEYED`, ids are never reused), unused header records `PxuiF32MutSpan`
+  and `PxuiTouch` (before U2c), and `PxuiThemeSnapshot`'s `int64_t` token slots that carry a `float`.
+- Engine API that only core tests still call (no export): `Ui::set_colors` (the light/dark token table), `Ui::button(text)`,
+  `Ui::toggle(text, on)`, the integer-size `Paint::text_*`/`cap` calls.
+- The search, line and value fields and the text area may, like the text field before U2c.4, write outputs before a refusal (unverified).
+- The dynamic release abi_bench run took 60.42 s again (rc 0; CP1 action (c)).
 
 ## Commands
 
