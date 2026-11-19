@@ -328,7 +328,7 @@ pub(super) fn table(
                 "songs",
                 &SectionList::new(if placeholder { 1 } else { collection.rows.len() }).row_h(if placeholder { 83.6 } else { 38.0 }).lead(if find { 0.0 } else { leading }).header(heading_layout.height).overlay_scrollbar().measured(),
                 &|i| if placeholder { 0 } else { collection.row_keys[i] },
-                &mut |ui, part, content_y| match part {
+                &mut |ui, part, cell| match part {
                     SectionPart::Leading if detail => {
                         super::detail::header(ui, catalog, state, player, width, intent)
                     }
@@ -360,7 +360,7 @@ pub(super) fn table(
                             entry: &entry,
                             viewport,
                         }
-                        .row(ui, index, content_y, intent);
+                        .row(ui, index, cell.y, intent);
                     }
                 },
             );

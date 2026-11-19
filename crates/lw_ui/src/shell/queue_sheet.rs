@@ -306,7 +306,7 @@ pub(super) fn queue_rows(
     }
     // a row is keyed by its occurrence, so it keeps its identity when the queue reorders
     let rows = SectionList::new(entries.len()).row_h(m.row).reorder(true);
-    let list = ui.section_list("queue-entries", &rows, &|index| entries[index].id as i64, &mut |ui, part, _| {
+    let list = ui.section_list("queue-entries", &rows, &|index| entries[index].id as i64, &mut |ui, part, cell| {
         let SectionPart::Row(index) = part else { return };
         let entry = entries[index];
         let row = catalog
@@ -320,6 +320,7 @@ pub(super) fn queue_rows(
             }
         });
         let artist = row.map_or("", |row| row.artist);
+        ui.a11y_name(&cell.handle, title);
         ui.row(Node::row().w(Size::Grow).h_px(m.row).gap(m.gap).align(Align::Center).padding(Edges::ZERO.l(m.lead).r(m.trail)).look(PAPER_FILL), |ui| {
             // the list's handle: a press lifts the row at once (touch too) and the list reports the move
             let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(m.grip).h_px(m.row));

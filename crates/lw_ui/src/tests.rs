@@ -403,6 +403,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
                 && node.rect.w > 1000.0
                 && node.rect.x == 10.0
         })
+        .inspect(|node| assert_eq!(ui.a11y_name_of(node), "Repeated queue song", "a queue row is named by its title (U2b.4.10)"))
         .map(|node| node.rect)
         .collect();
     assert!(rows.len() > 3 && rows.len() < 30);
