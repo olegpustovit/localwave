@@ -443,15 +443,12 @@ impl Frame {
                     ));
                 }
             } else {
-                // The grip lifts its row (the list's reorder, no carry): the pointer stays captured until the release after Escape,
-                // and the lifted row (Track 00002) stays built while the scroll moves its place out of the window.
-                let held = (1..21).contains(&phase);
-                let lifted = ui.a11y_nodes().iter().any(|node| {
-                    node.is_role(pxui::ui::Role::Button)
-                        && ui.a11y_name_of(node) == "Track 00002"
-                        && node.states & pxui::A11yStates::VISIBLE.bits() != 0
-                });
-                if held != ui.captured() || carrying.is_some() || (phase < 20 && held && !lifted) {
+                // The grip lifts its row on the press (the list's reorder, no carry): the pointer stays captured until the release
+                // after Escape, and the lifted row (Track 00002) stays built while the scroll moves its place out of the window.
+                let held = phase < 21;
+                // built (the frame a scroll lands it may sit a frame behind the pointer, outside the list's clip)
+                let lifted = ui.a11y_nodes().iter().any(|node| node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node) == "Track 00002");
+                if held != ui.captured() || carrying.is_some() || ((1..20).contains(&phase) && !lifted) {
                     return Err(format!(
                         "Queue drag did not survive hover/scroll or cancel correctly: frame={frames} phase={phase} held={held} captured={} lifted={lifted} carry={:?}",
                         ui.captured(),
