@@ -114,44 +114,13 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::TextFieldConfig) {
     }
 }
 
-fn overlay(
-    ui: &mut Ui,
-    inset: f32,
-    key: &'static str,
-    label: &str,
-    dimensions: (f32, Size),
-    close: Intent,
-    intent: &mut Option<Intent>,
-    build: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
-) {
-    let (width, height) = dimensions;
-    let content = ui.content_rect();
-    // Swift's 12% is of the window below the status inset (phone only; desktop windows keep content-rect math).
-    let inset = if content.w < super::compact::BREAKPOINT {
-        inset
-    } else {
-        0.0
-    };
-    let top = inset + ((content.h - inset) * 0.12).min(96.0);
-    let width = width.min(content.w);
-    let max_height = (content.h - top - 16.0).max(0.0);
-    // The popup is just the card: a full-view popup would paint its own sheet fill over the page.
-    // Press-outside dismissal is the popup's; shell() draws the dim over the live page.
-    let open = ui.popup(key, &Overlay::DEFAULT.at(pxui::Point::new(content.x + (content.w - width) * 0.5, content.y + top)).w_px(width).h_px(60.0).max_h_px(max_height).name(label), |ui| {
-            let card = ui.node(
-                "card",
-                Node::column().w_px(width).h(height).role(Role::Dialog).flags(Flags::BLOCKING | Flags::CLIP).max_h(max_height).look(PAPER_FILL),
-            );
-            ui.set_role(&card, Role::Dialog, pxui::A11yStates::MODAL);
-            ui.a11y_name(&card, label);
-            ui.within(&card, &mut |ui| build(ui, intent));
-        }).open;
-    if !open && intent.is_none() {
-        *intent = Some(close);
-    }
-    if intent.is_some_and(|i| i == close || matches!(i, Intent::ActivateCommand(_))) {
-        ui.dismiss_popup();
-    }
+/// The palette and the shortcuts card: a modal centred across, its top edge at Swift's 12% rule (`commands::top`).
+const OVERLAY_TOP: Overlay = Overlay::DEFAULT.present(pxui::Presentation::Top);
+
+/// Swift's 12% is of the window below the status inset (phone only; desktop windows keep content-rect math), capped at 96.
+fn top(content: Rect, inset: f32) -> f32 {
+    let inset = if content.w < super::compact::BREAKPOINT { inset } else { 0.0 };
+    inset + ((content.h - inset) * 0.12).min(96.0)
 }
 
 pub(super) fn palette_view(
@@ -166,15 +135,9 @@ pub(super) fn palette_view(
     let results = state.command_results(catalog);
     let items = state.command_items(catalog);
     let result_limit = 420.0_f32.min((height - 176.0).max(60.0));
-    overlay(
-        ui,
-        state.top_inset,
-        "commands",
-        "Search and commands",
-        ((width - 32.0).clamp(0.0, 600.0), Size::Fit),
-        Intent::CloseCommands,
-        intent,
-        &mut |ui, intent| {
+    let top = top(content, state.top_inset);
+    let palette = OVERLAY_TOP.at(pxui::Point::new(0.0, top)).w_px((width - 32.0).clamp(0.0, 600.0).min(width)).max_h_px((height - top - 16.0).max(0.0));
+    let open = ui.modal("commands", &palette.name("Search and commands"), |ui| {
             let mut selected = state.command_selected.min(items.len().saturating_sub(1));
             if !items.is_empty() {
                 if ui.key_pressed(pxui::KeyCode::ArrowDown, pxui::Mods::ANY) {
@@ -243,8 +206,10 @@ pub(super) fn palette_view(
             } else if items.is_empty() {
                 ui.set_state(&list, -1);
             }
-        },
-    );
+        }).open;
+    if !open && intent.is_none() {
+        *intent = Some(Intent::CloseCommands);
+    }
 }
 
 fn result_row(
@@ -368,18 +333,11 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
             .map_or(19.6, |m| m.height.max(19.6));
     }
     let body_height: f32 = 44.0 + 25.2 + 12.0 + heights.iter().sum::<f32>() + 11.0 * 8.0;
-    overlay(
-        ui,
-        inset,
-        "shortcuts",
-        "Keyboard shortcuts",
-        (
-            card,
-            Size::Px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))),
-        ),
-        Intent::CloseShortcuts,
-        intent,
-        &mut |ui, _| {
+    let content = ui.content_rect();
+    let top = top(content, inset);
+    let shortcuts = OVERLAY_TOP.at(pxui::Point::new(0.0, top)).w_px(card.min(content.w)).max_h_px((content.h - top - 16.0).max(0.0));
+    let open = ui.modal("shortcuts", &shortcuts.name("Keyboard shortcuts"), |ui| {
+        ui.column(Node::column().w(Size::Grow).h_px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))), |ui| {
             ui.scroll_view("shortcuts", Node::DEFAULT.h(Size::Grow), |ui| {
                 let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
@@ -403,8 +361,11 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                     });
                 });
             });
-        },
-    );
+        });
+    }).open;
+    if !open && intent.is_none() {
+        *intent = Some(Intent::CloseShortcuts);
+    }
 }
 
 #[cfg(test)]

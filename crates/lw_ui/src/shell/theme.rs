@@ -355,10 +355,10 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     }
 }
 
-/// LocalWave's modal sheet (registered as `localwave-modal`): a bottom sheet (the queue) is paper edge to edge, without the kit
-/// sheet's 1-point edge; every other presentation is the kit's sheet as it is.
+/// LocalWave's modal sheet (registered as `localwave-modal`): a bottom sheet (the queue) and a top one (the palette and the shortcuts
+/// card) are paper edge to edge, without the kit sheet's 1-point edge; every other presentation is the kit's sheet as it is.
 fn modal_body(ui: &mut Ui, c: &pxui::bodies::ModalConfig) {
-    if c.present == 1 {
+    if c.present == 1 || c.present == 3 {
         let layout = ui.node_layout(&c.node).padding(Edges::ZERO);
         ui.set_node_layout(&c.node, &layout);
         ui.style(&c.node, &PAPER_LOOKS, State::default());
