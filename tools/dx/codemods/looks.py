@@ -5,6 +5,8 @@
   (`ui.color(PAPER)` -> `&PAPER_FILL`); an `if c { A } else { B }` fill maps both arms.
 - `detail::line(ui, key, value, (size, line_height, weight, tracking), ui.color(T), Flags::NONE)` -> `ui.label(value, CONST)`
   with CONST from `LINES` (a keyless label in a `theme.rs` line-box style).
+- compact's `line(ui, key, value, size, ui.color(T))` (compact.rs, compact/list.rs) -> `ui.label(value, CONST)`, CONST from
+  `COMPACT_LINES`.
 Fills, styles or call shapes missing from the tables are printed as skipped and left for hand edits; no scope analysis, the
 compiler flags misses. Usage: looks.py [--dry-run] FILE...
 """
@@ -35,6 +37,15 @@ LINES = {
     ("(14.0, 19.6, 400, 0.0)", "ui.color(SECONDARY)"): "ARTIST_SUMMARY",
     ("(13.0, 18.2, 500, 0.0)", "ui.color(SECONDARY)"): "SECTION_CAPTION",
 }
+COMPACT_LINES = {
+    ("28.0", "ui.color(INK)"): "PHONE_TITLE",
+    ("16.0", "ui.color(INK)"): "GROUP_TITLE",
+    ("15.0", "ui.color(INK)"): "ROW_TITLE",
+    ("14.0", "ui.color(INK)"): "MINI_TITLE",
+    ("14.0", "ui.color(SECONDARY)"): "EMPTY_NOTE",
+    ("13.0", "ui.color(SECONDARY)"): "ROW_NOTE",
+    ("12.0", "ui.color(SECONDARY)"): "SMALL_NOTE",
+}
 CONTAINER = re.compile(r"(?<![\w.])container\(")
 # `line(` is detail's own helper only inside detail.rs (compact.rs has a five-argument `line`)
 DETAIL_LINE = re.compile(r"(?<![\w.])(?:super::)?detail::line\(")
@@ -56,7 +67,7 @@ def fill(text):
     return None
 
 
-def rewrite(source, detail):
+def rewrite(source, detail, compact=False):
     m = mask(source)
     edits, skipped = [], []
 
@@ -96,6 +107,21 @@ def rewrite(source, detail):
                 skip(match.start(), "line style")
                 continue
             edits.append((match.start(), end + 1, f"ui.label({norm(source[slice(*parts[2])])}, {style})"))
+    if compact:
+        for match in LOCAL_LINE.finditer(m):
+            if m[max(0, match.start() - 3):match.start()] == "fn ":
+                continue
+            open_ = match.end() - 1
+            end = close(m, open_)
+            parts = args(m, open_, end)
+            if len(parts) != 5 or norm(source[slice(*parts[0])]) != "ui":
+                skip(match.start(), "compact line call shape")
+                continue
+            style = COMPACT_LINES.get((norm(source[slice(*parts[3])]), norm(source[slice(*parts[4])])))
+            if style is None:
+                skip(match.start(), "compact line style")
+                continue
+            edits.append((match.start(), end + 1, f"ui.label({norm(source[slice(*parts[2])])}, {style})"))
     return sorted(edits), skipped
 
 
@@ -113,7 +139,8 @@ def main():
     total = 0
     for path in options.files:
         source = path.read_text()
-        edits, skipped = rewrite(source, path.name == "detail.rs")
+        compact = path.name == "compact.rs" or (path.name == "list.rs" and path.parent.name == "compact")
+        edits, skipped = rewrite(source, path.name == "detail.rs", compact)
         for n, why, call in skipped:
             print(f"skipped {path}:{n} ({why}): {call}")
         if edits:
@@ -137,4 +164,8 @@ if __name__ == "__main__":
     assert "ui.label(&g.title, CARD_TITLE);" in out, out
     assert 'ui.label(if album { "Album" } else { "Artist" }, SUMMARY);' in out, out
     assert [why for _, why, _ in skipped] == ["fill"] and "ui.color(ACCENT)" in out, skipped
+    src = 'fn g(ui: &mut Ui) { line(ui, "count", &group.count, 12.0, ui.color(SECONDARY)); line(ui, "title", t, 15.0, ink); }'
+    edits, skipped = rewrite(src, False, True)
+    out = apply(src, edits)
+    assert "ui.label(&group.count, SMALL_NOTE);" in out and [why for _, why, _ in skipped] == ["compact line style"], (out, skipped)
     main()

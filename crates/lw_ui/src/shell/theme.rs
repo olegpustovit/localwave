@@ -71,6 +71,26 @@ pub(super) const SUMMARY: Label = line_box(13.0, 18.2, 400, 0.0).color(SECONDARY
 pub(super) const ARTIST_SUMMARY: Label = line_box(14.0, 19.6, 400, 0.0).color(SECONDARY);
 /// A section caption (Songs, the song count): 13 points medium, secondary.
 pub(super) const SECTION_CAPTION: Label = line_box(13.0, 18.2, 500, 0.0).color(SECONDARY);
+/// One phone line at `points` filling its row: lines 1.4 times the size, end ellipsis, the theme's weight.
+const fn phone_line(points: f32) -> Label {
+    Label::BODY.size(points).line_height(points * 1.4).lines(1).ellipsis().grow().h_px(points * 1.4)
+}
+/// A phone page title: 28 points, ink.
+pub(super) const PHONE_TITLE: Label = phone_line(28.0).color(INK);
+/// A phone album or artist row title: 16 points, ink.
+pub(super) const GROUP_TITLE: Label = phone_line(16.0).color(INK);
+/// A phone song row title: 15 points, ink.
+pub(super) const ROW_TITLE: Label = phone_line(15.0).color(INK);
+/// The playing phone song row's title: 15 points, the accent.
+pub(super) const ROW_TITLE_NOW: Label = phone_line(15.0).color(ColorToken::ACCENT);
+/// The mini player's title: 14 points, ink.
+pub(super) const MINI_TITLE: Label = phone_line(14.0).color(INK);
+/// An empty phone page's note: 14 points, secondary.
+pub(super) const EMPTY_NOTE: Label = phone_line(14.0).color(SECONDARY);
+/// A phone song row's artist or file note: 13 points, secondary.
+pub(super) const ROW_NOTE: Label = phone_line(13.0).color(SECONDARY);
+/// A small phone note (the mini player's artist, a row count, the player notice): 12 points, secondary.
+pub(super) const SMALL_NOTE: Label = phone_line(12.0).color(SECONDARY);
 
 /// A button with no look of its own: its contents draw it.
 pub(super) const BARE: States = States::of(Look::NONE);

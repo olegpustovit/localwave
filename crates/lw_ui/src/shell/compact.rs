@@ -36,23 +36,6 @@ fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, ac
 /// A library mode tab: as wide as its label and count, 44 points high.
 const MODE_TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE);
 
-fn line(ui: &mut Ui, key: &'static str, value: &str, size: f32, color: Rgba) {
-    let node = ui.node(
-        key,
-        Node {
-            look: Look::NONE.text(color),
-            ..Node::column().w(Size::Grow).h_px(size * 1.4).role(Role::Label)
-        },
-    );
-    ui.text_line_box(
-        &node,
-        value,
-        Label::BODY.size(size).line_height(size * 1.4).lines(1).ellipsis(),
-        &[],
-    )
-    .unwrap();
-}
-
 fn artwork(
     ui: &mut Ui,
     catalog: &Catalog,
@@ -163,7 +146,7 @@ pub(super) fn view(
                                     Route::Lists => "Lists",
                                     _ => "Library",
                                 };
-                                line(ui, "heading", title, 28.0, ui.color(INK));
+                                ui.label(title, PHONE_TITLE);
                             }
                         },
                     );
@@ -324,18 +307,8 @@ fn mini(
                 );
                 let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PANEL_FILL);
                 ui.within(&labels, &mut |ui| {
-                    line(
-                        ui,
-                        "title",
-                        if player.title.is_empty() {
-                            "Nothing playing"
-                        } else {
-                            player.title
-                        },
-                        14.0,
-                        ui.color(INK),
-                    );
-                    line(ui, "artist", player.artist, 12.0, ui.color(SECONDARY));
+                    ui.label(if player.title.is_empty() { "Nothing playing" } else { player.title }, MINI_TITLE);
+                    ui.label(player.artist, SMALL_NOTE);
                 });
             });
             ui.a11y_name(&open.handle, "Open Now Playing");
@@ -389,7 +362,7 @@ fn groups(
         &catalog.collections
     };
     if groups.is_empty() {
-        line(ui, "empty-groups", "Nothing here yet.", 14.0, ui.color(SECONDARY));
+        ui.label("Nothing here yet.", EMPTY_NOTE);
         return;
     }
     ui.grid_list(
@@ -403,8 +376,8 @@ fn groups(
                 artwork(ui, catalog, player, group.artwork_row, 44.0);
                 let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
                 ui.within(&labels, &mut |ui| {
-                    line(ui, "title", &group.title, 16.0, ui.color(INK));
-                    line(ui, "count", &group.count, 12.0, ui.color(SECONDARY));
+                    ui.label(&group.title, GROUP_TITLE);
+                    ui.label(&group.count, SMALL_NOTE);
                 });
             });
             ui.a11y_name(&card.handle, &group.title);
@@ -589,7 +562,7 @@ fn expanded(
                     },
                 );
                 if !player.message.is_empty() {
-                    line(ui, "notice", player.message, 12.0, ui.color(SECONDARY));
+                    ui.label(player.message, SMALL_NOTE);
                 }
             },
         );

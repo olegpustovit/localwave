@@ -62,7 +62,7 @@ pub(super) fn songs(
     };
     let detail_page = matches!(state.route, Route::Album(_) | Route::Collection(_));
     if collection.rows.is_empty() && artist.is_none() && !detail_page {
-        line(ui, "empty", "No songs here yet.", 14.0, ui.color(SECONDARY));
+        ui.label("No songs here yet.", EMPTY_NOTE);
         return;
     }
     let cx = Cx {
@@ -161,12 +161,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
             }
             let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
             ui.within(&labels, &mut |ui| {
-                let ink = if player.current_id == Some(row.id) {
-                    ui.tokens().accent
-                } else {
-                    ui.color(INK)
-                };
-                line(ui, "title", row.title, 15.0, ink);
+                ui.label(row.title, if player.current_id == Some(row.id) { ROW_TITLE_NOW } else { ROW_TITLE });
                 let note = if selecting {
                     row.artist
                 } else if numbered {
@@ -174,7 +169,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 } else {
                     row.subtitle
                 };
-                line(ui, "artist", note, 13.0, ui.color(SECONDARY));
+                ui.label(note, ROW_NOTE);
             });
             if selecting {
                 if cx.list.is_some() {
