@@ -9,11 +9,9 @@ const GROUP: Label = TEXT_12.grow().h_px(30.0).color(SECONDARY);
 const LIBRARY: [(&str, Route); 3] = [("Albums", Route::Albums), ("Artists", Route::Artists), ("Songs", Route::Songs)];
 /// The Library group: 32-point sidebar rows, as tall as its three rows.
 const SIDE: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().fit();
-/// The Lists group: the sidebar rows, scrolling, "+ New list" after the last. A song carried over a playlist row lights it (in the
-/// cell: only playlists take a song, so no list-wide drop look).
-const SIDE_LISTS: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().trail(32.0);
-/// A playlist row while a carried song is over it.
-const DROPPING: States = States::of(SELECTED_FILL);
+/// The Lists group: the sidebar rows, scrolling, "+ New list" after the last. A song carried over a playlist row lights it in the
+/// selected fill (the other lists are `NO_DROP` rows).
+const SIDE_LISTS: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().trail(32.0).drop_look(SELECTED_FILL);
 /// A sidebar row's title (ink while its row is selected) and its count.
 const SIDE_TITLE: Label = TEXT_14.grow().h_px(20.0).color(SECONDARY);
 const SIDE_COUNT: Label = MONO_12.w_px(44.0).h_px(18.0).color(SECONDARY);
@@ -92,19 +90,21 @@ pub(super) fn sidebar(ui: &mut Ui, catalog: &Catalog, state: &ShellState, intent
             _ => None,
         };
         let collections = &catalog.collections;
-        let lists = ui.selection_list("lists", collections.len(), &|i| collections[i].key as i64, &mut state.side_lists.borrow_mut(), &SIDE_LISTS, &mut |ui, part, cell| match part {
+        let mut side_lists = state.side_lists.borrow_mut();
+        // only playlists take a song
+        for (i, flags) in side_lists.rows.iter_mut().enumerate() {
+            *flags = if playlist(i).is_some() { *flags & !pxui::ListState::NO_DROP } else { *flags | pxui::ListState::NO_DROP };
+        }
+        let lists = ui.selection_list("lists", collections.len(), &|i| collections[i].key as i64, &mut side_lists, &SIDE_LISTS, &mut |ui, part, cell| match part {
             SectionPart::Row(i) => {
                 let collection = &collections[i];
                 ui.a11y_name(&cell.handle, &collection.title);
                 ui.label(&collection.title, SIDE_TITLE.color(if cell.selected { INK } else { SECONDARY }));
                 ui.label(&collection.count, SIDE_COUNT);
                 if let Some(list) = playlist(i)
-                    && let Some((dropped, song)) = super::songs::song_drop(ui, &cell.handle)
+                    && let Some((true, song)) = super::songs::song_drop(ui, &cell.handle)
                 {
-                    if dropped {
-                        *intent = Some(Intent::AddToList { song, list });
-                    }
-                    ui.style(&cell.handle, &DROPPING, State::default());
+                    *intent = Some(Intent::AddToList { song, list });
                 }
             }
             SectionPart::Trailing => {

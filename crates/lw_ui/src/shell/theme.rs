@@ -458,7 +458,7 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0);
     if c.variant == variant::SIDE_ROW {
         ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));
-        ui.style(&c.row, if s.checked != 0 || c.drop == 3 { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS }, state);
+        ui.style(&c.row, if s.checked != 0 { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS }, state);
     } else if c.variant == variant::SONG_ROW {
         ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
         ui.style(&c.row, if s.checked != 0 { &SELECTED_LOOKS } else { &SONG_ROW_LOOKS }, state);
