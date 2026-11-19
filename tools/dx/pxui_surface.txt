@@ -3757,10 +3757,11 @@ pxui_types::ffi::PxuiListResult::EMPTY const PxuiListResult
 pxui_types::ffi::PxuiListResult::activated field usize
 pxui_types::ffi::PxuiListResult::anchor field usize
 pxui_types::ffi::PxuiListResult::drop_at field usize
+pxui_types::ffi::PxuiListResult::focused field u8
 pxui_types::ffi::PxuiListResult::handle field PxuiBox
 pxui_types::ffi::PxuiListResult::moved_from field usize
 pxui_types::ffi::PxuiListResult::moved_to field usize
-pxui_types::ffi::PxuiListResult::reserved field u32
+pxui_types::ffi::PxuiListResult::reserved field [u8; 3]
 pxui_types::ffi::PxuiListResult::row field PxuiBox
 pxui_types::ffi::PxuiListResult::secondary field usize
 pxui_types::ffi::PxuiListResult::selected field usize
@@ -5898,6 +5899,7 @@ pxui_types::ui::ListResponse impl Default
 pxui_types::ui::ListResponse struct
 pxui_types::ui::ListResponse::activated field Option<usize>
 pxui_types::ui::ListResponse::drop_at field Option<usize>
+pxui_types::ui::ListResponse::focused field bool
 pxui_types::ui::ListResponse::handle field PxuiBox
 pxui_types::ui::ListResponse::moved field Option<(usize, usize)>
 pxui_types::ui::ListResponse::row field Option<PxuiBox>
