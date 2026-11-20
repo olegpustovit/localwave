@@ -2739,16 +2739,12 @@ pxui_types::TextSpans impl Clone
 pxui_types::TextSpans impl Copy
 pxui_types::TextSpans impl Debug
 pxui_types::TextSpans impl Default
-pxui_types::TextSpans impl Eq
-pxui_types::TextSpans impl PartialEq
-pxui_types::TextSpans impl StructuralPartialEq
-pxui_types::TextSpans struct
+pxui_types::TextSpans struct <'a>
 pxui_types::TextSpans::MAX const usize
-pxui_types::TextSpans::as_slice fn (&self) -> Option<&[TextSpan]>
-pxui_types::TextSpans::count field u32
-pxui_types::TextSpans::new fn (spans: &[TextSpan]) -> Option<Self>
+pxui_types::TextSpans::new fn const (spans: &'a [TextSpan]) -> Self
+pxui_types::TextSpans::reserved field u32
 pxui_types::TextSpans::size field u32
-pxui_types::TextSpans::spans field [TextSpan; 8]
+pxui_types::TextSpans::spans field Strided<TextSpan>
 pxui_types::TextTraits impl Clone
 pxui_types::TextTraits impl Copy
 pxui_types::TextTraits impl Debug
@@ -5362,16 +5358,12 @@ pxui_types::text::TextSpans impl Clone
 pxui_types::text::TextSpans impl Copy
 pxui_types::text::TextSpans impl Debug
 pxui_types::text::TextSpans impl Default
-pxui_types::text::TextSpans impl Eq
-pxui_types::text::TextSpans impl PartialEq
-pxui_types::text::TextSpans impl StructuralPartialEq
-pxui_types::text::TextSpans struct
+pxui_types::text::TextSpans struct <'a>
 pxui_types::text::TextSpans::MAX const usize
-pxui_types::text::TextSpans::as_slice fn (&self) -> Option<&[TextSpan]>
-pxui_types::text::TextSpans::count field u32
-pxui_types::text::TextSpans::new fn (spans: &[TextSpan]) -> Option<Self>
+pxui_types::text::TextSpans::new fn const (spans: &'a [TextSpan]) -> Self
+pxui_types::text::TextSpans::reserved field u32
 pxui_types::text::TextSpans::size field u32
-pxui_types::text::TextSpans::spans field [TextSpan; 8]
+pxui_types::text::TextSpans::spans field Strided<TextSpan>
 pxui_types::text::Wrap enum
 pxui_types::text::Wrap impl Clone
 pxui_types::text::Wrap impl Copy
