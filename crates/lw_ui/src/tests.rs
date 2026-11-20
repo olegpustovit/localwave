@@ -2276,7 +2276,9 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
     player.playing = true;
     player.revision += 1;
     assert_eq!(press(&state, &player, &[], Space.code(), false, false), Some(Intent::Pause));
-    // arrows reach the list, which selects the keyboard's row (the widget owns Shift ranges; pxui tests them)
+    // arrows reach the list, which selects the keyboard's row; Shift ranges are the widget's, covered pxui-side by
+    // pxui author::collection::tests::selection_list_selects_with_the_mouse_and_the_keyboard (Shift-click, Shift-Up from the
+    // anchor; both link modes) and pxui_core widgets_list_keys_multi (Shift-click)
     for (mods, key) in [(&[][..], ArrowUp), (&[Shift][..], ArrowDown)] {
         assert_eq!(press(&state, &player, mods, key.code(), false, false), Some(Intent::Selected(0)), "{key:?}");
     }
@@ -2284,8 +2286,8 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
     assert_eq!(state.selected_song_ids(&catalog).count(), 1);
     assert_eq!(press(&state, &player, &[Alt], Enter.code(), false, false), Some(Intent::PlayRow(0)));
     assert_eq!(press(&state, &player, &[], Escape.code(), false, true), None, "Escape during a carry is the carry's");
-    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Selected(0)), "the list clears on Escape");
-    state.apply(Intent::Selected(0));
+    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Select(crate::Selection::Clear)), "the list clears on Escape");
+    state.apply(Intent::Select(crate::Selection::Clear));
     assert_eq!(state.selected_song_ids(&catalog).count(), 0);
     state.apply(Intent::ShowSettings);
     assert_eq!(press(&state, &player, &[Meta], ch('['), false, false), Some(Intent::CloseSettings));
@@ -2433,7 +2435,7 @@ fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
         Some(Intent::PlaySelection)
     );
     // row 1 alone
-    state.apply(Intent::Select(Selection::Clear));
+    state.apply(Intent::Select(crate::Selection::Clear));
     state.apply(Intent::Select(crate::Selection::Toggle(1)));
     assert_eq!(
         press(&mut ui, &state, &[], Enter.code()),

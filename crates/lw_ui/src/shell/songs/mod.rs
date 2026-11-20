@@ -334,7 +334,9 @@ pub(super) fn table(
             if let Some(i) = r.selected
                 && intent.is_none()
             {
-                *intent = Some(Intent::Selected(i));
+                // a change that leaves no row selected (Escape) is the app's Clear (read on a change frame only)
+                let none = !state.song_rows.borrow().rows.iter().any(|f| f & pxui::ListState::SELECTED != 0);
+                *intent = Some(if none { Intent::Select(crate::Selection::Clear) } else { Intent::Selected(i) });
             }
             // Swift plays the whole selection; one row keeps its playback position
             if let Some(i) = r.activated {

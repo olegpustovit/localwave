@@ -1520,7 +1520,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
     assert_eq!(run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, x, y1, 0)]), None, "a cancelled drag moves nothing");
     let title = (from.x + 200.0, from.y + from.h / 2.0);
     run(&mut ui, &state, &[pointer(input::wire::POINTER_PRESSED, title.0, title.1, 0)]);
-    assert!(matches!(run(&mut ui, &state, &[escape]), Some(Intent::Selected(_))), "a held press leaves Escape to the list's selection");
+    assert_eq!(run(&mut ui, &state, &[escape]), Some(Intent::Select(crate::Selection::Clear)), "a held press leaves Escape to the selection");
     run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, title.0, title.1, 0)]);
     state.apply(Intent::Select(crate::Selection::Clear));
     state.apply(Intent::SortBy(Some((crate::browse::Sort::Title, true))));
@@ -1744,10 +1744,10 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
         tap(&mut ui, &mut state, &mut run, input::Key::Enter.code()),
         Some(Intent::PlaySelection)
     );
-    assert!(matches!(
+    assert_eq!(
         tap(&mut ui, &mut state, &mut run, input::Key::Escape.code()),
-        Some(Intent::Selected(_))
-    ));
+        Some(Intent::Select(Selection::Clear))
+    );
     assert!(ids(&state).is_empty());
 }
 
