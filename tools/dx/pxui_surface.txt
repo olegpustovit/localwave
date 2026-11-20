@@ -260,7 +260,6 @@ pxui::FrameIn::keyboard fn const (self, keyboard: Keyboard) -> FrameIn<'a>
 pxui::FrameIn::new fn const (width: f32, height: f32) -> FrameIn<'a>
 pxui::FrameIn::reduced_motion fn const (self, on: bool) -> FrameIn<'a>
 pxui::FrameIn::scale fn const (self, scale: f32) -> FrameIn<'a>
-pxui::FrameIn::snapshot fn const unsafe (input: &'a Input) -> FrameIn<'a>
 pxui::FrameIn::surface fn const (self, surface: u64) -> FrameIn<'a>
 pxui::FrameIn::time fn const (self, time: f64) -> FrameIn<'a>
 pxui::FrameIn::wire field FrameIn
@@ -2520,6 +2519,7 @@ pxui_types::PxuiBox::box_key field i64
 pxui_types::PxuiBox::box_slot field u64
 pxui_types::PxuiBox::generation field u32
 pxui_types::PxuiBox::index field u64
+pxui_types::PxuiBox::ui field u32
 pxui_types::PxuiPanel impl Clone
 pxui_types::PxuiPanel impl Copy
 pxui_types::PxuiPanel impl Debug
