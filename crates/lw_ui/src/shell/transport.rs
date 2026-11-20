@@ -76,7 +76,7 @@ pub(super) fn transport(
 const MODE_ICON: pxui::IconButton = ICON_44X40.look(&MODE_LOOKS);
 const MODE_LOOKS: States = ICON_PLATE_LOOKS.checked(ICON_INVERSE_LOOKS.idle);
 /// The repeat key's name by `RepeatMode`.
-const REPEAT_NAMES: [&str; 3] = ["Repeat off", "Repeat all", "Repeat one"];
+pub(super) const REPEAT_NAMES: [&str; 3] = ["Repeat off", "Repeat all", "Repeat one"];
 /// The up-next panel while a song is held over it: a 2-point accent frame.
 const UP_NEXT_DROP: States = States::of(Look::NONE.border(Rgba::token(ColorToken::ACCENT), 2.0));
 

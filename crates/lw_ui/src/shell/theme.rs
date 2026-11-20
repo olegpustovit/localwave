@@ -157,8 +157,8 @@ pub(super) const PAPER_LOOKS: States = States::of(PAPER_FILL);
 pub(super) const PANEL_LOOKS: States = States::of(PANEL_FILL);
 /// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
 pub(super) const INK_LOOKS: States = States::of(INK_FILL);
-/// A mode key on the key fill.
-pub(super) const KEY_LOOKS: States = States::of(KEY_FILL);
+/// A phone mode key: ink on the key fill, paper on ink while on (checked).
+pub(super) const MODE_KEY_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).checked(INK_FILL.text(Rgba::token(PAPER)));
 /// `rest` while idle, `lit` while hovered or held.
 const fn lit(rest: Look, lit: Look) -> States {
     States::of(rest).hover(lit).pressed(lit)
@@ -282,7 +282,7 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// detail (in `Button::detail_label`, else the caption; `Button::axis(Axis::Column)` stacks it under the title from the top) and the
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink (the kit's state priority picks it:
-/// disabled, checked, held, hovered), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL`, inked in the label's colour without a look. Any other
+/// disabled, checked, held, hovered), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL` without the fade, inked in its look's colour for the state (else its label's), its detail before its label. Any other
 /// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point rule as wide
 /// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
@@ -330,6 +330,12 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     if !glyph.is_empty() && !tool {
         ui.label(glyph, ROW_GLYPH);
     }
+    let detail = c.text_of(&c.detail);
+    // a KEY's detail (the phone queue key's count) leads its label
+    let lead_detail = c.variant == variant::KEY && !detail.is_empty();
+    if lead_detail {
+        ui.label(detail, c.detail_label().unwrap_or(CAPTION));
+    }
     match (text.is_empty(), c.label()) {
         (true, _) => {}
         // the tool's label is the button's name: no second accessible node
@@ -344,8 +350,7 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
             ui.text(&title, text);
         }
     }
-    let detail = c.text_of(&c.detail);
-    if !detail.is_empty() {
+    if !detail.is_empty() && !lead_detail {
         ui.label(detail, c.detail_label().unwrap_or(CAPTION));
     }
     if !accessory.is_empty() {
@@ -705,6 +710,20 @@ mod body_tests {
         assert_eq!(chip.h, 32.0);
         assert!(colored(&app, INK_RGBA).contains(&[chip.x, chip.y, chip.x + chip.w, chip.y + chip.h]), "on: the ink plate");
         assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 32.0), "the kit's checkbox: the theme line selects the body");
+    }
+
+    /// `localwave-button` `KEY` inks its label in its look's colour for the state (U2b.4.30, the caller's table as given): the phone
+    /// mode key's label is ink on the key fill, and paper (no ink glyph) on the ink fill while on.
+    #[test]
+    fn localwave_key_inks_its_label_in_its_looks_colour() {
+        const MODE: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Fit, Size::Px(44.0)).gap(6.0).label(TEXT_14).look(&MODE_KEY_LOOKS);
+        for on in [false, true] {
+            let mut ui = ui(true);
+            frames(&mut ui, &mut |ui| { ui.button("k", "Shuffle", &MODE.selected(on)); });
+            let key = node(&ui, "Shuffle");
+            let glyphs = colored(&ui, INK_RGBA).iter().filter(|r| r[0] > key.x && r[2] < key.x + key.w && r[1] >= key.y && r[3] <= key.y + key.h).count();
+            assert_eq!(glyphs > 0, !on, "on {on}: {glyphs} ink glyphs in {key:?}");
+        }
     }
 
     /// `segmented.body = localwave-segmented` (`SORT`): keys fit to their text 8 apart, 30 high, the chosen one bordered in a 1.5-point ink

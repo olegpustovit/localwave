@@ -33,8 +33,9 @@ fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, ac
     .clicked
 }
 /// A library mode tab: as wide as its label and count, 44 points high.
-/// A library mode key: filling its line, 44 points high; its look follows the mode.
-const MODE_KEY: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered();
+/// Swift's `WaveModeKeys` (compact): a key filling its line, 44 points high, its icon and 14-point label centred, ink on the key
+/// fill, paper on ink while on (`localwave-button` / `KEY`); the queue's count leads its label in Geist Mono 11.
+const MODE_KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Px(44.0)).gap(6.0).centered().label(TEXT_14).detail_label(MONO_11.color(INK)).look(&MODE_KEY_LOOKS);
 const MODE_TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE);
 
 fn artwork(
@@ -374,30 +375,6 @@ fn groups(
     );
 }
 
-/// Swift's `WaveModeKeys` (compact): icon + label key on a light fill, ink when active.
-fn mode_key(
-    ui: &mut Ui,
-    key: &'static str,
-    label: &str,
-    icon: Icon,
-    active: bool,
-    mut inner: impl FnMut(&mut Ui),
-) -> bool {
-    let mode = MODE_KEY.look(if active { &INK_LOOKS } else { &KEY_LOOKS });
-    let color = if active { Rgba::token(PAPER) } else { Rgba::token(INK) };
-    let button = ui.button_content(key, &mode, |ui, _| {
-        ui.row(Node::row().w(Size::Fit).h(Size::Fit).gap(6.0).align(Align::Center), |ui| {
-            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-            ui.canvas(&glyph, move |paint, rect| {
-                kit::paint_icon(paint, icon, rect.x, rect.y, color)
-            });
-            inner(ui);
-        });
-    });
-    ui.a11y_name(&button.handle, label);
-    button.clicked
-}
-
 #[allow(clippy::too_many_arguments)] // Keep ticking position separate from stable player data.
 fn expanded(
     ui: &mut Ui,
@@ -505,43 +482,16 @@ fn expanded(
                     spacer(ui, "modes-gap", 14.0);
                     ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(PANEL_FILL),
                         |ui| {
-                            if mode_key(
-                                ui,
-                                "shuffle",
-                                if player.shuffled { "Shuffle on" } else { "Shuffle off" },
-                                Icon::Shuffle,
-                                player.shuffled,
-                                |ui| {
-                                    let c = if player.shuffled { PAPER } else { INK };
-                                    ui.label("Shuffle", TEXT_14.color(c));
-                                },
-                            ) {
+                            if ui.button("shuffle", "Shuffle", &MODE_KEY.icon(icon_drawing(Icon::Shuffle)).selected(player.shuffled)).clicked {
                                 *intent = Some(Intent::Shuffle);
                             }
-                            let again = player.repeat != RepeatMode::None;
-                            if mode_key(
-                                ui,
-                                "repeat",
-                                match player.repeat {
-                                    RepeatMode::None => "Repeat off",
-                                    RepeatMode::All => "Repeat all",
-                                    RepeatMode::One => "Repeat one",
-                                },
-                                Icon::Repeat,
-                                again,
-                                |ui| {
-                                    let c = if again { PAPER } else { INK };
-                                    let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
-                                    ui.label(label, TEXT_14.color(c));
-                                },
-                            ) {
+                            let (label, icon) = if player.repeat == RepeatMode::One { ("One", Icon::RepeatOne) } else { ("Repeat", Icon::Repeat) };
+                            let repeat = MODE_KEY.icon(icon_drawing(icon)).selected(player.repeat != RepeatMode::None).name(transport::REPEAT_NAMES[player.repeat as usize]);
+                            if ui.button("repeat", label, &repeat).clicked {
                                 *intent = Some(Intent::Repeat);
                             }
-                            if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
-                                let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                                ui.label(count, MONO_11.color(INK));
-                                ui.label("up next", BODY_INK);
-                            }) {
+                            let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
+                            if ui.button("queue", "up next", &MODE_KEY.icon(icon_drawing(Icon::Queue)).detail(count).name("Show full queue")).clicked {
                                 *intent = Some(Intent::ShowQueue);
                             }
                         },
@@ -1141,13 +1091,13 @@ mod tests {
         let names: Vec<String> = ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_string()).collect();
         for want in [
             "Close now playing", "Weather Systems", "Favorite current song", "Elapsed time", "Remaining time",
-            "Playback position", "Start time", "Duration", "Shuffle off", "Repeat off", "Show full queue",
+            "Playback position", "Start time", "Duration", "Shuffle", "Repeat off", "Show full queue",
             "Previous", "Play", "Next",
         ] {
             assert!(names.iter().any(|name| name == want), "missing {want}: {names:?}");
         }
         for (label, want, time) in [
-            ("Shuffle off", Intent::Shuffle, 6.0),
+            ("Shuffle", Intent::Shuffle, 6.0),
             ("Repeat off", Intent::Repeat, 7.0),
             ("Next", Intent::Next, 8.0),
             ("Previous", Intent::Previous, 9.0),
