@@ -232,6 +232,7 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
     under 1.03 (U4a 18-24), static Overlays 27-33 under 1.011. buildtime: a run under outside load read a +1.83 s / c +1.31 s
     (over); the quiet rerun passes every measure (a +1.09 s, c +0.37 s). No limit changed.
   CP1 post-fix run (pxui 8af33e34): static Overlays 1.01103-1.01121 vs 1.011 (+8 to +14 instructions; gallery-only change).
+  U5a (orchestrator ruling 20 Nov, owner rule: minor): after U5.2's Ui-serial handle check (mandated validation, ~4 wrapper instructions a box call; duplicate checks removed in pxui 9453102b, ABI 1.137) dynamic Lists reads 1.03032 vs 1.03 (~100 over) and static Overlays 1.01105 vs 1.011 (3 over). Rejected: moving the check into the engine (+~1600 a frame on both sides; moves the ratio, not the work). Open: a node-head presence byte for the Opt tags, or the 2.0 record review.
 - (b) Measure the per-row `drop_target`/drop-look cost in the U4a.5 queue workload; the gallery Lists page does not exercise it.
   Done at U4a.6 (release COUNTING bundle, 76e50e5 / pxui 24f2965f, load 3.3-3.9): full-queue-playlist-editor build CPU
   p50/p99 812/916 µs with reorder on vs 846/997 with it off (a temporary patch); the per-row reorder cost is below run-to-run
