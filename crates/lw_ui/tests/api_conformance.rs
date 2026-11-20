@@ -5,7 +5,8 @@
 //! `#[cfg(test)]` items are blanked first). Every violation is `file<TAB>rule<TAB>snippet`;
 //! `api-conformance-allowlist.tsv` lists the known ones, optionally followed by `<TAB>reason`
 //! (required for R7). The test fails on a new violation, on a stale allowlist line and on an R7
-//! line without a reason, so the allowlist only shrinks; every U package must shrink it.
+//! line without a reason, so the allowlist only shrinks. Since U4b.5 every line must be a composite pressable (`composite:`
+//! reason), a D7 deferral (`D7:`) or a listed dynamic colour (`dynamic colour:`): no drift line is allowed.
 //!
 //! Rules:
 //! - R1 struct literal of a pxui style/option type; of a pxui value type (`Node`, `Edges`, `Look`, `Rgba`, `Font`,
@@ -551,6 +552,10 @@ fn api_conformance_matches_allowlist() {
         let (file, rule, snippet, reason) = (cols.next().unwrap_or(""), cols.next().unwrap_or(""), cols.next().unwrap_or(""), cols.next().unwrap_or(""));
         if rule == "R7" && reason.trim().is_empty() {
             problems.push(format!("R7 allowlist line without a reason: {line}"));
+        }
+        // U4b.5 lock-in: the allowlist is at its final size, every line a composite pressable, a D7 deferral or a listed dynamic colour
+        if !["composite:", "D7:", "dynamic colour:"].iter().any(|p| reason.starts_with(p)) {
+            problems.push(format!("allowlist line that is not a composite, D7 or listed dynamic colour (U4b.5: no drift lines): {line}"));
         }
         *allowed.entry(format!("{file}\t{rule}\t{snippet}")).or_default() += 1;
     }
