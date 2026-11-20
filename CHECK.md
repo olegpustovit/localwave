@@ -258,6 +258,10 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
   clear in Select mode only (D9: iOS has no select-all outside edit mode).
 - U4b (orchestrator): pxui has no iOS accessibility bridge. VoiceOver on iPhone does not get pxui's accessibility values (for
   example the section index's letter, U2b.4.34); the macOS and AT-SPI bridges carry them. For CP1 and the plan's iOS items.
+- U4b review 2 (pxui, found 20 Nov): `Ui::focus_default(&list.handle)` does nothing for a `SelectionList::fit()` list: its
+  `ListResult::handle` is the fitted rows column, which is not in the hit tree, so the key press finds no focusable ancestor
+  (a scrolling list's handle is its scroll box and works). No LocalWave list both fits and is a default key target; fix with a
+  test when one is (ui_lists.rs `selection_rows` `out.handle`).
 - U4a package end: under the scratch dark test_ui patch (gcmp dark dumps only), test failures vary from run to run; one run showed a
   warm-allocation assertion at 3 against 0 under load. Not seen in the shipping (light) suite or `make check`. Investigate at CP1:
   warm allocations are a hard rule.

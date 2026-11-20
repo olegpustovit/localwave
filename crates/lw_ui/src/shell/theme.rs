@@ -195,10 +195,15 @@ pub(super) const FIND_PROMPT: Look = Look::NONE.text(Rgba::token(TERTIARY)).font
 pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).font(PALETTE_FONT);
 /// A song or artist table row: paper, a 60 percent panel wash while hovered or held, the selected fill while selected (checked).
 pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH).checked(SELECTED_FILL);
-/// A phone song row: paper (a touch highlights through the row's gesture), the selected fill while marked.
-pub(super) const PHONE_ROW_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL);
-/// A desktop folder table row: paper over a 1-point line rule, in every state (Swift's rows take no hover or selection look).
-const FOLDER_ROW_LOOKS: States = States::of(PAPER_FILL.border(Rgba::token(super::kit::LINE), 1.0).sides(pxui::draw::flags::rect::BOTTOM));
+/// The keyboard's row (focused): the kit's row focus treatment, a 1-point accent rule along its leading edge.
+const FOCUS_RULE: Look = PAPER_FILL.border(Rgba::token(ColorToken::ACCENT), 1.0).sides(pxui::draw::flags::rect::LEFT);
+/// A phone song row: paper (a touch highlights through the row's gesture), the selected fill while marked, the accent rule on the
+/// keyboard's row.
+pub(super) const PHONE_ROW_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL).focus(FOCUS_RULE);
+/// A desktop folder table row: paper over a 1-point line rule (Swift's rows take no hover or selection look); the keyboard's row
+/// takes the accent along its leading edge and its rule.
+const FOLDER_ROW_LOOKS: States = States::of(PAPER_FILL.border(Rgba::token(super::kit::LINE), 1.0).sides(pxui::draw::flags::rect::BOTTOM))
+    .focus(FOCUS_RULE.sides(pxui::draw::flags::rect::LEFT | pxui::draw::flags::rect::BOTTOM));
 /// Swift's quick hover and release fade (`motion::out(QUICK)`, 140 ms) as a node's own transition.
 pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { duration: crate::motion::QUICK, points: crate::motion::OUT };
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
@@ -762,6 +767,42 @@ mod body_tests {
         frames(&mut kit, &mut build);
         assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 56.0, 200.0, 112.0]], "the marked row, 56 points, on the selected fill");
         assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+    }
+
+    /// Review 2: a list or table that selects nothing (`SelectMode::None`) still shows the keyboard's row. After an arrow key reaches
+    /// the window's default key target, the phone row (`PHONE_ROW`) and the folder table row (`FOLDER_ROW`) under the keyboard draw the
+    /// accent rule along their leading edge; the other rows do not.
+    #[test]
+    fn the_keyboard_row_of_a_list_that_selects_nothing_is_styled_focused() {
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).row_h(56.0).variant(variant::PHONE_ROW).bare();
+        const COLUMNS: [pxui::Column; 1] = [pxui::Column::new("Name").share(1.0)];
+        const TABLE: pxui::Table = pxui::Table::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).bare().row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(38.0)).variant(variant::FOLDER_ROW);
+        let list = std::cell::RefCell::new(pxui::ListState { rows: vec![0; 3], ..pxui::ListState::new() });
+        let table = std::cell::RefCell::new(pxui::TableState::new());
+        let mut phone = |ui: &mut Ui| {
+            let r = ui.selection_list("rows", 3, &|i| i as i64, &mut list.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("content", Node::row().w(Size::Grow).h_px(20.0)); });
+            ui.focus_default(&r.handle);
+        };
+        let mut folder = |ui: &mut Ui| {
+            let r = ui.table("entries", &COLUMNS, 3, &|i| i as i64, &mut table.borrow_mut(), &TABLE, &mut |ui, _, _, _| { ui.node("cell", Node::row().w(Size::Grow).h_px(20.0)); });
+            ui.focus_default(&r.rows.handle);
+        };
+        for (build, row_h, top) in [(&mut phone as &mut dyn FnMut(&mut Ui), 56.0, 0.0), (&mut folder, 38.0, 38.0)] {
+            let mut ui = ui(true);
+            let accent = { let a = ui.theme().tokens.accent; [a.r, a.g, a.b, a.a] };
+            frames(&mut ui, build);
+            // the accent's 1-point leading rules, by the row they start in
+            let rules = |ui: &Ui| colored(ui, accent).into_iter().filter(|r| r[2] - r[0] == 1.0).map(|r| ((r[1] - top) / row_h) as usize).collect::<Vec<_>>();
+            assert!(rules(&ui).is_empty(), "no keyboard row before a key: {:?}", rules(&ui));
+            for code in [input::Key::ArrowDown.code()] {
+                let events = [pxui::Event::key(pxui::Event::KEY_PRESSED, code), pxui::Event::key(pxui::Event::KEY_RELEASED, code)];
+                let mut frame = FrameIn::new(200.0, 300.0);
+                (frame.wire.events, frame.wire.event_count) = (events.as_ptr(), events.len());
+                crate::testing::frame(&mut ui, &frame, build).unwrap();
+                frames(&mut ui, build);
+            }
+            assert_eq!(rules(&ui), vec![1], "row height {row_h}: the keyboard's row (the second, after one arrow) is styled focused");
+        }
     }
 
     /// `selection_list.body = localwave-row` / `SONG_ROW`: a song row is as tall as its cells (no inset; the list's row height is only
