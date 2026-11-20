@@ -61,7 +61,7 @@ pub(super) fn confirm_delete(
         .row_index(song)
         .map(|index| catalog.row(index).title);
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete Song").danger().disabled(!title.is_some())];
-    let sheet = ui.dialog("delete-song", "Delete song?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
+    let sheet = ui.dialog("delete-song", "Delete song?", &buttons, &super::files::SHEET_DIALOG.w_px(width), &mut |ui| {
         settings::paragraph(ui, "song-name", title.unwrap_or("This song changed. Try again."), width - 40.0, DIALOG_NAME);
         let consequences = "It leaves your library and lists. The audio file is not deleted.";
         settings::paragraph(ui, "consequences", consequences, width - 40.0, DIALOG_NOTE);

@@ -70,7 +70,7 @@ pub(super) fn confirm_remove(
     });
     let enabled = folder.is_some() && player.files.is_some_and(|files| !files.busy);
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().primary().disabled(!enabled)];
-    let sheet = ui.dialog("remove-source", "Remove folder?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
+    let sheet = ui.dialog("remove-source", "Remove folder?", &buttons, &SHEET_DIALOG.w_px(width), &mut |ui| {
         let name = folder.map_or("This folder changed. Reload folders and try again.", |folder| folder.name.as_str());
         settings::paragraph(ui, "folder-name", name, width - 40.0, DIALOG_NAME);
         let consequences = "Its songs leave the library. Files are not deleted.";
@@ -103,45 +103,43 @@ fn plate_h(ui: &Ui) -> f32 {
     if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 36.0 }
 }
 /// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
-/// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row; `variant::FORM` puts them 4 apart instead of 12.
-/// `variant::CHOICES` (Swift's Add music sheet): 16 in and 8 apart, the 20-point title, the content, then each button with a
-/// detail as a full-width choice on the panel fill (its 17-point title over its detail paragraph) and the others as 100-point keys.
+/// the kit's buttons (`DialogConfig.built_in`, U2b.4.38), which the button body draws as the sheet's keys (`sheet_key`); `variant::FORM`
+/// puts the rows 4 apart instead of 12. `variant::CHOICES` (Swift's Add music sheet): 16 in and 8 apart, the 20-point title, the
+/// content, then the buttons as choices.
 pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
     let choices = c.variant == variant::CHOICES;
     ui.column(if choices { CHOICES_SHEET } else if c.variant == variant::FORM { SHEET.gap(4.0) } else { SHEET }, |ui| {
         ui.label(c.text_of(&c.title), if choices { SHEET_TITLE } else { TEXT_24.grow().h_px(36.0).color(INK) });
         ui.slot(c.content);
-        let height = plate_h(ui);
-        let mut buttons = |ui: &mut Ui| {
-            for i in 0..c.buttons.len {
-                let (enabled, ink) = (c.disabled >> i & 1 == 0, if c.danger >> i & 1 != 0 { DANGER } else { INK });
-                let detail = if choices { c.text_at(&c.details, i) } else { "" };
-                // a choice fills the sheet's width; a key is 100 points on the panel fill, its label centred; pressable while enabled
-                let flags = if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE };
-                let node = if detail.is_empty() { Node::row().w_px(100.0).h_px(height).center() } else { CHOICE };
-                let button = ui.part(pxui::Part::button(i as u8), node.role(Role::Button).flags(flags).look(PANEL_FILL));
-                let label = c.text_at(&c.buttons, i);
-                ui.a11y_name(&button, label);
-                ui.set_role(&button, Role::Button, if enabled { pxui::A11yStates::ENABLED } else { pxui::A11yStates::NONE });
-                ui.within(&button, &mut |ui| {
-                    if detail.is_empty() {
-                        ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
-                    } else {
-                        ui.label(label, OPTION_TITLE.role(Role::Unknown));
-                        settings::paragraph(ui, "detail", detail, sheet_width(ui) - 56.0, OPTION_DETAIL);
-                    }
-                });
-            }
-        };
         if choices {
             spacer(ui, "gap", 4.0);
-            buttons(ui);
-        } else {
-            let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), &PAPER_FILL);
-            ui.within(&actions, &mut buttons);
         }
+        ui.slot(c.built_in);
     });
 }
+/// A sheet's button (`localwave-button` with its sheet's variant: `SHEET`, `FORM`, `CHOICES`; the kit builds it, its presses, focus and
+/// state): the buttons' row 40 high (a `CHOICES` sheet's a column 8 apart); a key 100 points wide (`plate_h` high), its 13-point label
+/// centred in ink, the danger red or secondary while disabled; a `CHOICES` button with a detail a full-width choice, its 17-point title
+/// over its detail paragraph. Both on the panel fill.
+pub(super) fn sheet_key(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
+    use pxui::bodies::BodyConfig;
+    let state = State::from(c.state);
+    let (label, detail) = (c.text_of(&c.label), c.text_of(&c.detail));
+    let choice = c.variant == variant::CHOICES && !detail.is_empty();
+    // the kit's row of the buttons is each button's line
+    ui.set_node_layout(&c.line, &if c.variant == variant::CHOICES { Node::column().w(Size::Grow).h(Size::Fit).gap(8.0) } else { Node::row().w(Size::Grow).h_px(40.0) });
+    ui.set_node_layout(&c.row, &if choice { CHOICE } else { Node::row().w_px(100.0).h_px(plate_h(ui)).center() });
+    ui.style(&c.row, &PANEL_LOOKS, state);
+    if choice {
+        ui.label(label, OPTION_TITLE.role(Role::Unknown));
+        settings::paragraph(ui, "detail", detail, sheet_width(ui) - 56.0, OPTION_DETAIL);
+    } else {
+        let ink = if state.disabled { SECONDARY } else if c.danger() { DANGER } else { INK };
+        ui.label(label, TEXT_13.color(ink).role(Role::Unknown));
+    }
+}
+/// A confirmation sheet (`localwave-sheet` / `SHEET`; its keys `sheet_key`).
+pub(super) const SHEET_DIALOG: Dialog = Dialog::DEFAULT.variant(variant::SHEET);
 /// The Add music sheet's card: paper, 16 in, 8 apart.
 const CHOICES_SHEET: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0).look(PAPER_FILL);
 /// A sheet choice: the sheet's width, 12 by 10 in, its title 2 over its detail.

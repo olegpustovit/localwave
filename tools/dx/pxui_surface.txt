@@ -3398,6 +3398,7 @@ pxui_types::ffi::PxuiDescription::text field Str
 pxui_types::ffi::PxuiDialogConfig impl Clone
 pxui_types::ffi::PxuiDialogConfig impl Copy
 pxui_types::ffi::PxuiDialogConfig struct
+pxui_types::ffi::PxuiDialogConfig::built_in field PxuiSlot
 pxui_types::ffi::PxuiDialogConfig::buttons field Slice<Str>
 pxui_types::ffi::PxuiDialogConfig::cancel_at field i64
 pxui_types::ffi::PxuiDialogConfig::content field PxuiSlot

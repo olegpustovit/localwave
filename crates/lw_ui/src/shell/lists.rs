@@ -59,7 +59,7 @@ pub(super) fn confirm_delete(
     let width = (width - 32.0).clamp(240.0, 420.0);
     let title = playlist_title(catalog, list);
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Delete List").danger().primary().disabled(!title.is_some())];
-    let sheet = ui.dialog("delete-list", "Delete list?", &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
+    let sheet = ui.dialog("delete-list", "Delete list?", &buttons, &super::files::SHEET_DIALOG.w_px(width), &mut |ui| {
         settings::paragraph(ui, "list-name", title.unwrap_or("This list changed. Try again."), width - 40.0, DIALOG_NAME);
         settings::paragraph(ui, "consequences", "The songs stay in your library and folders.", width - 40.0, DIALOG_NOTE);
     });
@@ -85,7 +85,7 @@ pub(super) fn name_dialog(
     };
     let valid = !state.playlist_name_too_long && !state.playlist_name.as_str().trim().is_empty();
     let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new(confirm).primary().disabled(!valid)];
-    let sheet = ui.dialog("list-name", heading, &buttons, &Dialog::DEFAULT.w_px(width), &mut |ui| {
+    let sheet = ui.dialog("list-name", heading, &buttons, &super::files::SHEET_DIALOG.w_px(width), &mut |ui| {
         let field = ui.node("list-name-field", Node::DEFAULT.w(Size::Grow).h(Size::Px(40.0)));
         ui.within(&field, &mut |ui| {
             if let Some(value) = ui.text_field("list-name", state.playlist_name.as_str(), &LIST_NAME).changed {

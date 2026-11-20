@@ -251,7 +251,7 @@ pub(super) mod variant {
     pub(in crate::shell) const LINK: u16 = 14;
     /// `localwave-button`: the primary key, its label centred (on the caller's ink look).
     pub(in crate::shell) const PRIMARY: u16 = 15;
-    /// `localwave-sheet` (`Dialog::variant`): a form (Edit Metadata), its labels and fields 4 apart.
+    /// `localwave-sheet` (`Dialog::variant`): a form (Edit Metadata), its labels and fields 4 apart; its buttons the sheet's keys.
     pub(in crate::shell) const FORM: u16 = 16;
     /// `localwave-tabs`: the phone library modes and a phone folder's filters, each its label and count over a 2-point underline,
     /// 20 apart.
@@ -264,7 +264,8 @@ pub(super) mod variant {
     pub(in crate::shell) const PHONE_ROW: u16 = 20;
     /// `localwave-progress`: a plain 4-point bar, placed by its caller (the Folders page's meters).
     pub(in crate::shell) const BAR: u16 = 21;
-    /// `localwave-sheet` (`Dialog::variant`): Swift's Add music sheet, its detailed buttons full-width choices.
+    /// `localwave-sheet` (`Dialog::variant`): Swift's Add music sheet, its detailed buttons full-width choices (the button body, given
+    /// the sheet's variant, `files::sheet_key`).
     pub(in crate::shell) const CHOICES: u16 = 22;
     /// `localwave-heading`: a desktop song column heading (any other table heading is the kit's).
     pub(in crate::shell) const SONG_HEADING: u16 = 23;
@@ -272,6 +273,9 @@ pub(super) mod variant {
     pub(in crate::shell) const FOLDER_ROW: u16 = 24;
     /// `localwave-heading`: a desktop folder table heading.
     pub(in crate::shell) const FOLDER_HEADING: u16 = 25;
+    /// `localwave-sheet` (`Dialog::variant`): a confirmation sheet; its buttons (the kit's, given the sheet's variant) the sheet's keys
+    /// (`files::sheet_key`).
+    pub(in crate::shell) const SHEET: u16 = 26;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -322,11 +326,16 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink (the kit's state priority picks it:
 /// disabled, checked, held, hovered; the danger colour for `Button::danger` unless disabled), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL` without the fade, inked in its look's colour for the state (else its label's), its detail before its label. Any other
 /// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point ink rule as wide
-/// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row.
+/// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row. `SHEET`, `FORM`, `CHOICES`:
+/// a sheet's button, which the kit builds with its sheet's variant (`files::sheet_key`).
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
     if c.variant == variant::SETTING {
         super::settings::row_body(ui, c);
+        return;
+    }
+    if [variant::SHEET, variant::FORM, variant::CHOICES].contains(&c.variant) {
+        super::files::sheet_key(ui, c);
         return;
     }
     if ![variant::ROW, variant::TOOL, variant::KEY, variant::LINK, variant::PRIMARY].contains(&c.variant) {
@@ -707,6 +716,37 @@ mod body_tests {
             let (a, b) = (node(&ui, "Above"), node(&ui, "Below"));
             assert_eq!(b.y - (a.y + a.h), gap, "variant {}: {a:?} {b:?}", dialog.variant);
         }
+    }
+
+    /// U2b.4.38: a sheet's buttons are the kit's (`DialogConfig.built_in`), drawn by the button body as the sheet's keys for the sheet's
+    /// variant: a confirmation sheet's keys 100 by 44 (a phone's plate) on the panel fill, a disabled one not enabled; an Add music
+    /// sheet's detailed button a choice as wide as the sheet's content, its Close a 100-point key under it. The kit takes their presses.
+    #[test]
+    fn localwave_sheet_keys_are_the_kits_buttons_in_the_sheets_look() {
+        let ui_of = ui;
+        let button = |ui: &Ui, name: &str| ui.a11y_nodes().iter().find(|n| n.is_role(Role::Button) && ui.a11y_name_of(n) == name).map(|n| (n.rect, n.states & pxui::A11yStates::ENABLED.bits() != 0)).unwrap_or_else(|| panic!("no button {name}"));
+        let mut ui = ui(true);
+        let chosen = std::cell::Cell::new(None);
+        let mut build = |ui: &mut Ui| {
+            let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().disabled(true)];
+            if let Some(i) = ui.dialog("d", "Remove folder?", &buttons, &super::super::files::SHEET_DIALOG.w_px(180.0), &mut |_| {}).chosen { chosen.set(Some(i)); }
+        };
+        frames(&mut ui, &mut build);
+        let ((cancel, on), (remove, remove_on)) = (button(&ui, "Cancel"), button(&ui, "Remove"));
+        assert_eq!((cancel.w, cancel.h, remove.w, on, remove_on), (100.0, 44.0, 100.0, true, false), "{cancel:?} {remove:?}");
+        assert_eq!(remove.x - cancel.x, 100.0, "the keys sit side by side from the start");
+        let id = ui.a11y_nodes().iter().find(|n| n.is_role(Role::Button) && ui.a11y_name_of(n) == "Cancel").unwrap().id;
+        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..Default::default() }]);
+        crate::testing::frame(&mut ui, &FrameIn::new(200.0, 300.0), &mut build).unwrap();
+        assert_eq!(chosen.get(), Some(0), "the kit takes the key's press");
+        let mut ui = ui_of(true);
+        frames(&mut ui, &mut |ui| {
+            let buttons = [DialogButton::new("A folder").detail("Watched for changes."), DialogButton::new("Close").cancel()];
+            ui.dialog("m", "Add music", &buttons, &Dialog::DEFAULT.variant(variant::CHOICES).w_px(180.0), &mut |_| {});
+        });
+        let ((choice, _), (close, _)) = (button(&ui, "A folder"), button(&ui, "Close"));
+        assert_eq!((choice.w, close.w, close.x), (180.0 - 32.0 - 2.0, 100.0, choice.x), "a full-width choice (the sheet's content inside its 1-point border), Close a key under it: {choice:?} {close:?}");
+        assert!(close.y >= choice.y + choice.h + 8.0, "8 apart: {choice:?} {close:?}");
     }
 
     /// `button.body = localwave-button`: a `ROW` button is exactly its size (the kit's line adds a margin round its box), its accessory
