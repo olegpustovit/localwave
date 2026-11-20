@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-20. U4a landed (LocalWave rust-port fac487c, pxui rust-port 517d61db, ABI 1.123; online make check 304 tests green, pxui remote check ok). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). NEXT: U4b (compact, files, detail; restore compact hardware Return/⌘A/Esc), then CP1.
+Updated 2026-11-20. U4a landed (LocalWave rust-port fac487c, pxui rust-port 517d61db, ABI 1.123; online make check 304 tests green, pxui remote check ok). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). U4b package end done on `u4b` (LocalWave 0be2cb9 + status, pxui f09c9113, ABI 1.129). NEXT: independent U4b review, then landing, then CP1.
 
 ## What we're doing
 
@@ -178,34 +178,28 @@ than U2b) and buildtime against CP0 (clean pxui 27.17 s vs 26.02 s, within allow
 Review fixes (pxui 333bf96f, ABI 1.98): eleven more exports wrote outputs before a refusal, now only on success; dead old-caller
 paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming deleted exports fixed.
 
-## U4a package end done; NEXT: U4a ready to land (orchestrator)
+## U4b package end done; NEXT: independent U4b review, then landing, then CP1
 
-U4a (desktop shell) steps are done on branch `u4a` in both repos, nothing pushed: LocalWave e95dbe0..13535f2 and pxui 6eadaa1c..517d61db
-(ABI 1.99–1.123, gap steps U2b.4.1–U2b.4.28, U2b.4.7 and U2b.4.22 unused; see `docs/rust-port.md` rows and `scratch/u4a-final-report.md`, local only). Every desktop
-row is on its widget per the site map; the api_conformance allowlist is 32 lines (only composite, D7 and listed dynamic rows);
-the helpers side_item, side_row, add_row, find::button, queue_action, settings::back, settings::option, underlined, result_row and
-commands::overlay are deleted. Tier B in both repos, release abi_bench in both modes and gcmp light/dark against the package-start
-bases are in the final report.
+U4b (compact, files, detail) is done on branch `u4b` in both repos, nothing pushed: LocalWave rust-port..0be2cb9 (+ this status
+commit) and pxui rust-port..f09c9113 (ABI 1.124-1.129; gap steps U2b.4.29-U2b.4.36; next gap number U2b.4.37). Every compact, files
+and detail site is on its widget per the site map and the rulings (#73 desktop folder table on `ui.table` + `table_head` with
+U2b.4.36 `TableHeadConfig.built_in`; ruling 3 phone folder list on `selection_list` Toggle/None, #80 composites deleted). The
+api_conformance allowlist is at its final size, 10 lines (9 composite pressables + the D7 byline), and U4b.5 fails any line without
+a composite/D7/dynamic-colour reason. Account (commits, signatures beside the ledger, D9, drift list, perf, Tier B, questions):
+`scratch/u4b-final-report.md`, local only.
 
-0. RESOLVED (was BLOCKED): the dynamic abi_bench Collections wall gate failed at pxui ac35443f because pxui_core `flatten_tree`
-   walked the gallery outline's 100,000 nodes every frame (about half the frame), its speed set by code placement. Ruling option 3:
-   gap step U2b.4.17 (pxui fd9203b1, LocalWave d4e1c96, ABI 1.112) gives `Ui::tree` a `revision: Option<u64>` (as
-   `ListState::revision`); a warm frame walks no node. Release abi_bench passes every page in both modes over 3 runs each
-   (dynamic Collections x1.0186-1.0270, 4.6-6.5 us per 1000 nodes); details in `scratch/u4a-final-report.md`.
-   Review fix round: findings 1-14 done (gap steps U2b.4.18-21, .23-.28; ABI 1.113-1.122; pxui e4ae5d28..ee031ac2, LocalWave
-   aa3a485..989bc26); re-review R1-R6 done (pxui 61697c35, 735e022a, 517d61db, ABI 1.123; LocalWave d532195..13535f2). Package
-   end (20 Nov) at LocalWave 13535f2 / pxui 517d61db: Tier B both repos green (contention retries passed alone), gcmp light/dark
-   identical to the review round plus R1's new test, release abi_bench static passes every page in 3 runs (Overlays
-   1.01058-1.01068 against 1.011), dynamic instruction gates pass in 3 runs. Minor misses (dynamic wall flaps, edge dynamic
-   margins, buildtime c 5.05%) are deferred to CP1 action (f) under the owner ruling of 20 Nov, with their figures there; no limit
-   changed. Account: `scratch/u4a-final-report.md`, "Review fix round".
-1. NEXT: U4a ready to land (orchestrator): pxui `rust-port` first, `tools/check-pxui-remote.sh`, then LocalWave with an online
-   `make check`.
-2. Orchestrator rulings carried by U4a (19 Nov): GAP U2b.4.16 shape A (`PickerFieldConfig.list`); abi_bench option (a) (regrouping
+1. NEXT: independent U4b review (questions in the report: arrow keys open a folder in the desktop table, per the site map's
+   `rows.selected`; a `Table::bare()` would remove the table-frame D9), then landing (pxui `rust-port` first,
+   `tools/check-pxui-remote.sh`, LocalWave online `make check`), then CP1 (U4b.6: Tier C, iOS build and probes, make performance).
+2. Package end (20 Nov): Tier B both repos green (LocalWave `LOCALWAVE_OFFLINE=1 make check` 307 tests; pxui all, static, doc,
+   gallery, gates); gcmp light/dark vs package-start bases rc 1 with the same D9 classes (focus/scroll folded into lists and tabs,
+   the rail letters, mode-key and player names) plus frame shifts; warm-allocation tests green; release abi_bench instruction gates
+   pass in both modes; dynamic Lists wall flap and buildtime figures under CP1 action (f).
+3. Orchestrator rulings carried by U4a (19 Nov): GAP U2b.4.16 shape A (`PickerFieldConfig.list`); abi_bench option (a) (regrouping
    the C node/look/shadow/font records for fewer checks, about 190 instructions a Lists frame) left undone and recorded below for
    the 2.0 record review; the static Overlays margin of about 16 instructions is accepted as code placement and must not drop further
    (20 Nov: it went over at ee031ac2, 1.0110-1.0112, and is back under at 517d61db, 21-28 under; carried by CP1 action (f)).
-3. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
+4. U5.3's drop list shrank. What is left: `pxui_scope`, `pxui_ui_animate_keys_repeat`, `pxui_ui_hovered`,
    `pxui_ui_variant`, `pxui_ui_text`, the `pxui_frame`/`pxui_ui_frame` pair (U5.2), the prefix renames of `pxui_panel`, `pxui_within`,
    `pxui_part` and `pxui_slot`, the keep list in `tools/dx/abi_drop.py` and the record cleanup below.
 
@@ -230,6 +224,11 @@ bases are in the final report.
     `scratch/u4b-430-abi-dyn-{before2,after2}.log`, both rc 101 on the known wall flaps).
   - buildtime `--compare 16dc635` c (clean pxui_dylib): 24.32 s vs 23.15 s, +1.17 s against a 1.16 s allowance (5.05%); another
     agent's av-drift and a video encoder ran during it (load 2.2 at start, 10.0 at end). Every other measure passes.
+  - U4b package end (LocalWave 0be2cb9 / pxui f09c9113; logs `scratch/u4b-final-abi-{static,dynamic,dynamic2}.log`,
+    `scratch/u4b-final-buildtime{,2}.log`): dynamic abi_bench wall flap Lists x1.0671 / x1.0646 (15.5 / 15.0 us per 1000 nodes) in
+    the quiet run (x1.0242 in the earlier one); every instruction gate passes in both modes; dynamic Lists margin 10-16 instructions
+    under 1.03 (U4a 18-24), static Overlays 27-33 under 1.011. buildtime: a run under outside load read a +1.83 s / c +1.31 s
+    (over); the quiet rerun passes every measure (a +1.09 s, c +0.37 s). No limit changed.
 - (b) Measure the per-row `drop_target`/drop-look cost in the U4a.5 queue workload; the gallery Lists page does not exercise it.
   Done at U4a.6 (release COUNTING bundle, 76e50e5 / pxui 24f2965f, load 3.3-3.9): full-queue-playlist-editor build CPU
   p50/p99 812/916 µs with reorder on vs 846/997 with it off (a temporary patch); the per-row reorder cost is below run-to-run
@@ -248,6 +247,9 @@ bases are in the final report.
   reverse-scroll -9%, song-drag -14%, indicators -13%) and build CPU p99. Zero warm allocations everywhere.
 
 ## Found (separate fixes later)
+
+- U4b package end: `files::compact_folder` counts selectable and marked rows with two passes over the shown rows every frame
+  (pre-existing, O(n) per frame, not added by U4b). Fold them into the per-key flag pass (U4b.4/5) with a cached count.
 
 - U4a review (ruling, accepted for now): the compact (phone) layout lost hardware ⌘A and Esc when finding 3 deleted the app's
   selection copy, and hardware Return when R2 deleted the shell's Enter path (170d633); U4b must restore all three when the
