@@ -153,8 +153,6 @@ pub(super) const TAB_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token
 pub(super) const TAB_ON_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token(SELECTED)));
 /// A Find tool, a card or a row on paper.
 pub(super) const PAPER_LOOKS: States = States::of(PAPER_FILL);
-/// The current Find tool or route: on the selected fill.
-pub(super) const SELECTED_LOOKS: States = States::of(SELECTED_FILL);
 /// A key on the panel fill.
 pub(super) const PANEL_LOOKS: States = States::of(PANEL_FILL);
 /// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
@@ -171,8 +169,8 @@ pub(super) const ICON_LOOKS: States = lit(INK_TEXT, INK_TEXT.fill(Rgba::token(PA
 pub(super) const ICON_PLATE_LOOKS: States = lit(INK_TEXT.fill(Rgba::token(KEY)), INK_TEXT.fill(Rgba::token(PANEL)));
 /// An icon key in inverse (Play, an active mode): paper icon on ink.
 pub(super) const ICON_INVERSE_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
-/// A sidebar route row: paper, the panel fill while hovered or held.
-pub(super) const SIDE_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_FILL);
+/// A sidebar route row: paper, the panel fill while hovered or held, the selected fill while selected (checked).
+pub(super) const SIDE_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_FILL).checked(SELECTED_FILL);
 /// The sidebar search row: the panel fill, the selected fill while hovered or held.
 pub(super) const SEARCH_ROW_LOOKS: States = lit(PANEL_FILL, SELECTED_FILL);
 /// The phone song menu's backdrop: near-black at a quarter alpha, the same in both appearances.
@@ -189,8 +187,8 @@ pub(super) const PALETTE_FONT: Font = Font::BODY.size(20.0);
 pub(super) const FIND_PROMPT: Look = Look::NONE.text(Rgba::token(TERTIARY)).font(FIND_FONT);
 /// The command palette's empty prompt: secondary.
 pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).font(PALETTE_FONT);
-/// A song or artist table row: paper, a 60 percent panel wash while hovered or held.
-pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH);
+/// A song or artist table row: paper, a 60 percent panel wash while hovered or held, the selected fill while selected (checked).
+pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH).checked(SELECTED_FILL);
 /// Swift's quick hover and release fade (`motion::out(QUICK)`, 140 ms) as a node's own transition.
 pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { duration: crate::motion::QUICK, points: crate::motion::OUT };
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
@@ -450,13 +448,14 @@ fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
 /// follow.
 fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     let s = &c.state;
-    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0);
+    // one look table a variant; the kit picks its look for the state (disabled > checked > pressed > hovered, U2b.4.20)
+    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
     if c.variant == variant::SIDE_ROW {
         ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));
-        ui.style(&c.row, if s.checked != 0 { &SELECTED_LOOKS } else { &SIDE_ROW_LOOKS }, state);
+        ui.style(&c.row, &SIDE_ROW_LOOKS, state);
     } else if c.variant == variant::SONG_ROW {
         ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
-        ui.style(&c.row, if s.checked != 0 { &SELECTED_LOOKS } else { &SONG_ROW_LOOKS }, state);
+        ui.style(&c.row, &SONG_ROW_LOOKS, state);
     }
     ui.slot(c.content);
 }
