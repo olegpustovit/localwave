@@ -272,6 +272,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U2b.4.34 | Section index value text | done (u4b, not landed) | LocalWave 377e383, pxui 4d8e0ca7. A section index's value reads its current letter. ABI 1.126. |
 | U2b.4.35 | ButtonConfig::danger | done (u4b, not landed) | LocalWave 377e383 and 1a4fb56, pxui 3d4cc3cb. `Button::danger` is told to a body. ABI 1.127. |
 | U2b.4.36 | TableHeadConfig.built_in | done (u4b, not landed) | LocalWave edea3ca, pxui f09c9113. A table heading body runs the kit's heading for tables it does not style. ABI 1.129. |
+| U2b.4.37 | Table SelectMode, open_on_click, bare | done (u4b, not landed) | LocalWave 7bb0f61, pxui 17068da2. `Table::mode(SelectMode)` replaces `multi()`; `open_on_click` and `bare` as SelectionList's. ABI 1.130. |
 | U2b.5 | Top-anchored overlay | done | LocalWave 7814615, pxui 755ed30d. Presentation::Top (Overlay::at's y, max_h cap); PxuiSheetDesc.top/max_h. ABI 1.90. |
 | U2b.6 | Picker fill contract | done | LocalWave ef524a8, pxui 3a2277d1. Fill contract documented; a typed query and a kept worker result allocate nothing per frame (#82). |
 | U2b.7 | Value and theme gaps | done | LocalWave 20e14dc, pxui 14d86f0d. Token alpha (D19), ColorToken::ACCENT, SearchField variant/action, Button::icon_size, icons in body configs (D18). ABI 1.91. |
@@ -302,7 +303,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U4b.1 | compact.rs | done (u4b, not landed) | LocalWave 5257cbf, 14c7f49, 7a8308f, 838f365. Gear icon_button, expanded player Full modal, mode keys KEY (N1), library modes and tab bar kit tabs (#19, #21, N8). |
 | U4b.2 | compact/list.rs | done (u4b, not landed) | LocalWave 40f15c5, d647aba, 9e4f0cb, 5fe6532, 1a4fb56, daaf74d. Word/more/swipe buttons, KEY/MARK/deck, the A-Z rail on section_index, artist link, the phone songs list on selection_list (None/Toggle, #29 reorder), Return/Cmd-A/Esc restored. |
 | U4b.3 | detail.rs | done (u4b, not landed) | LocalWave 1986dea. Folder link LINK (ink rule), desktop back KEY. |
-| U4b.4 | files.rs | done (u4b, not landed) | LocalWave d2888bc, 10688ca, 2f324f6, 0d74d56, 0dd4277. files.rs keys/links/meters/filters (#67, #69-#79), source card composite (#71), Add music dialog (#81), desktop folder table on ui.table (#73), phone folder list on selection_list (ruling 3, #80). |
+| U4b.4 | files.rs | done (u4b, not landed) | LocalWave d2888bc, 10688ca, 2f324f6, 0d74d56, 0dd4277. files.rs keys/links/meters/filters (#67, #69-#79), source card composite (#71), Add music dialog (#81), desktop folder table on ui.table (#73; review round 7bb0f61: None + open_on_click + bare, opens on press or Return), phone folder list on selection_list (ruling 3, #80; its counts prepared per key, 7bb0f61). |
 | U4b.5 | Lock-in: api_conformance allowlist at its final size | done (u4b, not landed) | LocalWave 0be2cb9. Allowlist 10 lines (9 composite + D7 byline); every line must carry a composite/D7/dynamic colour reason. Package end: scratch/u4b-final-report.md. |
 | U4b.6 | CP1: Tier C and iOS probes | todo |  |
 | U5.1 | Events and surfaces (OS-1, 32–34) | todo |  |

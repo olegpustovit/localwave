@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-20. U4a landed (LocalWave rust-port fac487c, pxui rust-port 517d61db, ABI 1.123; online make check 304 tests green, pxui remote check ok). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). U4b package end done on `u4b` (LocalWave 0be2cb9 + status, pxui f09c9113, ABI 1.129). NEXT: independent U4b review, then landing, then CP1.
+Updated 2026-11-20. U4a landed (LocalWave rust-port fac487c, pxui rust-port 517d61db, ABI 1.123; online make check 304 tests green, pxui remote check ok). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). U4b package end and review round done on `u4b` (LocalWave 7bb0f61 + status, pxui 17068da2, ABI 1.130). NEXT: independent U4b review, then landing, then CP1.
 
 ## What we're doing
 
@@ -181,15 +181,17 @@ paths deleted; `ui_section_index_result` renamed `ui_section_index`; docs naming
 ## U4b package end done; NEXT: independent U4b review, then landing, then CP1
 
 U4b (compact, files, detail) is done on branch `u4b` in both repos, nothing pushed: LocalWave rust-port..0be2cb9 (+ this status
-commit) and pxui rust-port..f09c9113 (ABI 1.124-1.129; gap steps U2b.4.29-U2b.4.36; next gap number U2b.4.37). Every compact, files
+commit) and pxui rust-port..17068da2 (ABI 1.124-1.130; gap steps U2b.4.29-U2b.4.37; next gap number U2b.4.38). Review round
+(orchestrator rulings): U2b.4.37 `Table::mode(SelectMode)` replaces `multi()`, with `open_on_click` and `bare` (pxui 17068da2,
+LocalWave 7bb0f61): the folder table selects nothing, opens on a press or Return, never on an arrow, and has no frame;
+`compact_folder`'s per-frame counting passes are folded into its per-key flag pass (a warm frame walks no row; test counter). Every compact, files
 and detail site is on its widget per the site map and the rulings (#73 desktop folder table on `ui.table` + `table_head` with
 U2b.4.36 `TableHeadConfig.built_in`; ruling 3 phone folder list on `selection_list` Toggle/None, #80 composites deleted). The
 api_conformance allowlist is at its final size, 10 lines (9 composite pressables + the D7 byline), and U4b.5 fails any line without
 a composite/D7/dynamic-colour reason. Account (commits, signatures beside the ledger, D9, drift list, perf, Tier B, questions):
 `scratch/u4b-final-report.md`, local only.
 
-1. NEXT: independent U4b review (questions in the report: arrow keys open a folder in the desktop table, per the site map's
-   `rows.selected`; a `Table::bare()` would remove the table-frame D9), then landing (pxui `rust-port` first,
+1. NEXT: independent U4b review, then landing (pxui `rust-port` first,
    `tools/check-pxui-remote.sh`, LocalWave online `make check`), then CP1 (U4b.6: Tier C, iOS build and probes, make performance).
 2. Package end (20 Nov): Tier B both repos green (LocalWave `LOCALWAVE_OFFLINE=1 make check` 307 tests; pxui all, static, doc,
    gallery, gates); gcmp light/dark vs package-start bases rc 1 with the same D9 classes (focus/scroll folded into lists and tabs,
@@ -248,8 +250,6 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
 
 ## Found (separate fixes later)
 
-- U4b package end: `files::compact_folder` counts selectable and marked rows with two passes over the shown rows every frame
-  (pre-existing, O(n) per frame, not added by U4b). Fold them into the per-key flag pass (U4b.4/5) with a cached count.
 
 - U4a review (ruling, accepted for now): the compact (phone) layout lost hardware ⌘A and Esc when finding 3 deleted the app's
   selection copy, and hardware Return when R2 deleted the shell's Enter path (170d633); U4b must restore all three when the
