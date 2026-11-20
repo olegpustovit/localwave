@@ -3,8 +3,8 @@ use super::*;
 use crate::FilesFilter;
 use crate::files::{Folder, Location, Request, Target};
 
-/// The add music sheet: what does not change between frames.
-const ADD_MUSIC: Overlay = Overlay::DEFAULT.name("Add music");
+/// The Add music sheet (`localwave-sheet` / `CHOICES`).
+const ADD_MUSIC: Dialog = Dialog::DEFAULT.variant(variant::CHOICES);
 /// A sheet's paper card: 20-point padding, 12 between its parts.
 pub(super) const SHEET: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0).look(PAPER_FILL);
 /// A folder page's Back and summary bar, 16 points under the header; it wraps on a phone.
@@ -60,8 +60,7 @@ pub(super) fn confirm_remove(
     target: Target,
     intent: &mut Option<Intent>,
 ) {
-    let pxui::ViewSize { width, .. } = ui.view_size();
-    let width = (width - 32.0).clamp(240.0, 420.0);
+    let width = sheet_width(ui);
     let folder = player.files.and_then(|files| {
         files.sources.iter().find(|folder| {
             files.account == Some(target.user)
@@ -105,28 +104,53 @@ fn plate_h(ui: &Ui) -> f32 {
 }
 /// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
 /// the buttons (100 wide, panel fill, the danger ones in red) in a 40-point row; `variant::FORM` puts them 4 apart instead of 12.
+/// `variant::CHOICES` (Swift's Add music sheet): 16 in and 8 apart, the 20-point title, the content, then each button with a
+/// detail as a full-width choice on the panel fill (its 17-point title over its detail paragraph) and the others as 100-point keys.
 pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
-    ui.column(if c.variant == variant::FORM { SHEET.gap(4.0) } else { SHEET }, |ui| {
-        ui.label(c.text_of(&c.title), TEXT_24.grow().h_px(36.0).color(INK));
+    let choices = c.variant == variant::CHOICES;
+    ui.column(if choices { CHOICES_SHEET } else if c.variant == variant::FORM { SHEET.gap(4.0) } else { SHEET }, |ui| {
+        ui.label(c.text_of(&c.title), if choices { SHEET_TITLE } else { TEXT_24.grow().h_px(36.0).color(INK) });
         ui.slot(c.content);
-        let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), &PAPER_FILL);
-        ui.within(&actions, &mut |ui| {
-            let height = if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 36.0 };
+        let height = plate_h(ui);
+        let mut buttons = |ui: &mut Ui| {
             for i in 0..c.buttons.len {
                 let (enabled, ink) = (c.disabled >> i & 1 == 0, if c.danger >> i & 1 != 0 { DANGER } else { INK });
-                // a 100-point button on the panel fill, its label centred, pressable while enabled
+                let detail = if choices { c.text_at(&c.details, i) } else { "" };
+                // a choice fills the sheet's width; a key is 100 points on the panel fill, its label centred; pressable while enabled
                 let flags = if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE };
-                let button = ui.part(pxui::Part::button(i as u8), Node::row().w_px(100.0).h_px(height).center().role(Role::Button).flags(flags).look(PANEL_FILL));
+                let node = if detail.is_empty() { Node::row().w_px(100.0).h_px(height).center() } else { CHOICE };
+                let button = ui.part(pxui::Part::button(i as u8), node.role(Role::Button).flags(flags).look(PANEL_FILL));
                 let label = c.text_at(&c.buttons, i);
                 ui.a11y_name(&button, label);
                 ui.set_role(&button, Role::Button, if enabled { pxui::A11yStates::ENABLED } else { pxui::A11yStates::NONE });
                 ui.within(&button, &mut |ui| {
-                    ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
+                    if detail.is_empty() {
+                        ui.label(label, TEXT_13.color(if enabled { ink } else { SECONDARY }).role(Role::Unknown));
+                    } else {
+                        ui.label(label, OPTION_TITLE.role(Role::Unknown));
+                        settings::paragraph(ui, "detail", detail, sheet_width(ui) - 56.0, OPTION_DETAIL);
+                    }
                 });
             }
-        });
+        };
+        if choices {
+            spacer(ui, "gap", 4.0);
+            buttons(ui);
+        } else {
+            let actions = container(ui, "actions", Axis::Row, Size::Grow, Size::Px(40.0), &PAPER_FILL);
+            ui.within(&actions, &mut buttons);
+        }
     });
 }
+/// The Add music sheet's card: paper, 16 in, 8 apart.
+const CHOICES_SHEET: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0).look(PAPER_FILL);
+/// A sheet choice: the sheet's width, 12 by 10 in, its title 2 over its detail.
+const CHOICE: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0);
+/// A sheet's width: the view less 16 points a side, 240 to 420.
+fn sheet_width(ui: &Ui) -> f32 {
+    (ui.view_size().width - 32.0).clamp(240.0, 420.0)
+}
+
 /// The desktop folder page's Back (`localwave-button` / `ROW`): Swift's plain secondary "‹ Back", 64 by 40, named "Back".
 const FILES_BACK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Px(64.0), Size::Px(40.0)).align(Justify::Start).label(TEXT_14.color(SECONDARY).role(Role::Unknown)).name("Back");
 /// The Folders page's "+" (Add music): the 24-point plus in ink.
@@ -677,37 +701,23 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
     }
 }
 
-/// Swift's Add music sheet: a folder or some files.
+/// Swift's Add music sheet: a folder or some files (`localwave-sheet` / `CHOICES`); Close, Escape or a press outside closes it.
 pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Option<Intent>) {
-    let pxui::ViewSize { width, .. } = ui.view_size();
-    let width = (width - 32.0).clamp(240.0, 420.0);
     let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
-    let open = ui.modal("add-music", &ADD_MUSIC.w_px(width), |ui| {
-        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0).look(PAPER_FILL), |ui| {
-            ui.label("Add music", SHEET_TITLE);
-            ui.label("Files stay where they are", CAPTION.grow());
-            spacer(ui, "gap", 4.0);
-            for (key, title, detail, action) in [
-                ("add-folder", "A folder", "Watched for changes. iCloud Drive, Google Drive, Dropbox, On My iPhone, USB drives, SMB servers.", Intent::ChooseFolder),
-                ("add-files", "Some files", "Play them now; they join the library too.", Intent::ChooseAudio),
-            ] {
-                let option = ui.node(key, Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(PANEL_FILL));
-                ui.a11y_name(&option, title);
-                ui.within(&option, &mut |ui| {
-                    ui.label(title, OPTION_TITLE);
-                    settings::paragraph(ui, "detail", detail, width - 56.0, OPTION_DETAIL);
-                });
-                if enabled && ui.signal(&option).clicked {
-                    *intent = Some(action);
-                }
-            }
-            if ui.button("close-add-music", "Close", &PLATE.size(Size::Px(100.0), Size::Px(plate_h(ui)))).clicked {
-                *intent = Some(Intent::CloseSourceMenu);
-            }
-        });
-    }).open;
-    if !open && intent.is_none() {
-        *intent = Some(Intent::CloseSourceMenu);
+    let buttons = [
+        DialogButton::new("A folder").detail("Watched for changes. iCloud Drive, Google Drive, Dropbox, On My iPhone, USB drives, SMB servers.").disabled(!enabled),
+        DialogButton::new("Some files").detail("Play them now; they join the library too.").disabled(!enabled),
+        DialogButton::new("Close").cancel(),
+    ];
+    let sheet = ui.dialog("add-music", "Add music", &buttons, &ADD_MUSIC.w_px(sheet_width(ui)), &mut |ui| {
+        ui.label("Files stay where they are", CAPTION.grow());
+    });
+    match sheet.chosen {
+        Some(0) => *intent = Some(Intent::ChooseFolder),
+        Some(1) => *intent = Some(Intent::ChooseAudio),
+        Some(_) => *intent = Some(Intent::CloseSourceMenu),
+        None if sheet.dismissed => *intent = Some(Intent::CloseSourceMenu),
+        None => {}
     }
 }
 

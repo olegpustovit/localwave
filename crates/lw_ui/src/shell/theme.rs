@@ -257,6 +257,8 @@ pub(super) mod variant {
     pub(in crate::shell) const PHONE_ROW: u16 = 20;
     /// `localwave-progress`: a plain 4-point bar, placed by its caller (the Folders page's meters).
     pub(in crate::shell) const BAR: u16 = 21;
+    /// `localwave-sheet` (`Dialog::variant`): Swift's Add music sheet, its detailed buttons full-width choices.
+    pub(in crate::shell) const CHOICES: u16 = 22;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
