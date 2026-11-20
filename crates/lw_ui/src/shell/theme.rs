@@ -302,7 +302,7 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink (the kit's state priority picks it:
 /// disabled, checked, held, hovered; the danger colour for `Button::danger` unless disabled), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL` without the fade, inked in its look's colour for the state (else its label's), its detail before its label. Any other
-/// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point rule as wide
+/// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point ink rule as wide
 /// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     use pxui::bodies::BodyConfig;
@@ -324,10 +324,11 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let row = if c.centered != 0 || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
     ui.set_node_layout(&c.row, &row);
     if c.variant == variant::LINK {
-        // the text over a 1-point rule as wide as it
+        // the text over a 1-point rule as wide as it, in the text's colour (ruling 3)
+        // shortcut: every LINK caller inks its text, so the rule is ink; a link in another colour needs its own rule look
         ui.column(Node::column().w(Size::Fit).h(Size::Fit), |ui| {
             ui.label(c.text_of(&c.label), c.label().unwrap_or(TEXT_14.color(SECONDARY)));
-            rule(ui, "underline", false);
+            container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), &INK_FILL);
         });
         return;
     }
@@ -597,7 +598,7 @@ mod body_tests {
     const SELECTED_RGBA: [u8; 4] = [0xD3, 0xD3, 0xD3, 255];
 
     /// U4a.7/U4a.8 bodies: `CHIPS` chips share their strip, 28 high, the stored choice on ink; a `SETTING` row is at least 60 high; a
-    /// `LINK` underlines its text with a 1-point rule as wide as it; `PRIMARY` centres its label on ink; `localwave-disclosure` is a
+    /// `LINK` underlines its text with a 1-point rule as wide as it, in the text's ink; `PRIMARY` centres its label on ink; `localwave-disclosure` is a
     /// 19.5-point header, its content under it while open. The kit's bodies draw none of these.
     #[test]
     fn settings_and_onboarding_bodies_draw_their_structures() {
@@ -620,8 +621,8 @@ mod body_tests {
         assert_eq!((ink_chips(&app), ink_chips(&kit)), (1, 0), "the stored chip is a 28-point ink chip");
         assert_eq!((node(&app, "Rescan").h >= 60.0, node(&kit, "Rescan").h >= 60.0), (true, false), "a settings row is at least 60 high");
         let link = node(&app, "Link");
-        let rules = |ui: &Ui| ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.rect[3] - i.rect[1] == 1.0 && i.rect[1] >= link.y && i.rect[1] < link.y + link.h).count();
-        assert!(rules(&app) >= 1 && rules(&kit) == 0, "the link is underlined");
+        let rules = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[3] - r[1] == 1.0 && r[1] >= link.y && r[1] < link.y + link.h).count();
+        assert!(rules(&app) >= 1 && rules(&kit) == 0, "the link is underlined in its text's ink");
         let plates = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[2] - r[0] == 200.0 && r[3] - r[1] == 52.0).count();
         let go = node(&app, "Go");
         let label = colored(&app, [0xF3, 0xF3, 0xF3, 255]).into_iter().filter(|r| r[1] >= go.y && r[3] <= go.y + go.h).fold((f32::MAX, 0.0f32), |(a, b), r| (a.min(r[0]), b.max(r[2])));

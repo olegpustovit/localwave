@@ -65,21 +65,14 @@ pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f
     BACK + body_height(width, route, folder)
         + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
 }
+/// The desktop back key (`localwave-button` / `KEY`): 96 by 40, the chevron and "Back" 26 points in, centred in the row, secondary
+/// with no plate.
+const BACK_KEY: pxui::Button = pxui::Button::DEFAULT.variant(super::theme::variant::KEY).size(Size::Px(96.0), Size::Px(BACK)).pad(Edges::ZERO.l(26.0)).gap(4.0)
+    .icon(icon_drawing(Icon::Back)).label(BODY_DIM).look(&DIM_LOOKS);
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     let row = ui.node("back-row", Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
-        const BUTTON: pxui::Button = pxui::Button::sized(96.0, BACK).look(&BARE).name("Back");
-        let back = ui.button_content("back", &BUTTON, |ui, _| {
-            ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(4.0).align(Align::End).padding(Edges::ZERO.l(26.0)),
-                |ui| {
-                    let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-                    let color = Rgba::token(SECONDARY);
-                    ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-                    ui.label("Back", BODY_DIM);
-                },
-            );
-        });
-        if back.clicked {
+        if ui.button("back", "Back", &BACK_KEY).clicked {
             *intent = Some(Intent::Navigate(parent));
         }
     });
@@ -90,6 +83,9 @@ pub(super) const fn link(size: f32, line_height: f32) -> pxui::Button<'static> {
     pxui::Button::DEFAULT.variant(super::theme::variant::ROW).size(Size::Grow, Size::Px(line_height)).look(&BARE)
         .label(Label::BODY.size(size).line_height(line_height).lines(1).ellipsis().color(SECONDARY).grow())
 }
+
+/// The album's "Folder:" link (`localwave-button` / `LINK`): its 13-point ink text over an ink rule, 18.2 points high.
+const FOLDER_LINK: pxui::Button = pxui::Button::DEFAULT.variant(super::theme::variant::LINK).size(Size::Fit, Size::Px(18.2)).pad(Edges::ZERO).label(TEXT_13.h_px(17.2).color(INK));
 
 pub(super) fn header(
     ui: &mut Ui,
@@ -193,12 +189,7 @@ fn header_body(
                 spacer(ui, "folder-gap", 4.0);
                 ui.id("folder", |ui| { ui.row(Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
                     ui.label("Folder:", CAPTION);
-                    let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {
-                        ui.label(&target.label, TEXT_13.h_px(17.2).color(INK));
-                        container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), &INK_FILL);
-                    });
-                    ui.a11y_name(&link.handle, &target.label);
-                    if link.clicked {
+                    if ui.button("link", &target.label, &FOLDER_LINK).clicked {
                         *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
                     }
                 }); });
