@@ -274,15 +274,16 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
     });
 }
 
+/// A source folder's card: 17 in, 8 under; the folder card's line border (ink while the folder needs reconnecting).
+const SOURCE_CARD: Node = Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).margin(Edges::ZERO.b(8.0));
+const FOLDER_CARD_LOOKS: States = States::of(FOLDER_CARD);
+const FOLDER_CARD_ERROR_LOOKS: States = States::of(FOLDER_CARD_ERROR);
+
 fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut Option<Intent>) {
     let target = Target { user, source: folder.id, root: folder.root };
     let error = folder.error.is_some();
-    let card = ui.node(
-        Key::Id(folder.id),
-        Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).role(if error { Role::Group } else { Role::Button }).flags(Flags::CLICKABLE | Flags::FOCUSABLE).margin(Edges::ZERO.b(8.0)).look(if error { FOLDER_CARD_ERROR } else { FOLDER_CARD }),
-    );
-    ui.a11y_name(&card, &folder.name);
-    ui.within(&card, &mut |ui| {
+    let looks = if error { &FOLDER_CARD_ERROR_LOOKS } else { &FOLDER_CARD_LOOKS };
+    let card = ui.pressable(Key::Id(folder.id), SOURCE_CARD.role(if error { Role::Group } else { Role::Button }), &PLAIN.look(looks), |ui, _| {
         let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), &PAPER_FILL);
         ui.within(&top, &mut |ui| {
             ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
@@ -321,10 +322,10 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
             });
         }
     });
-    let signal = ui.signal(&card);
-    if signal.pressed && signal.button == Some(1) {
-        *intent = Some(Intent::SourceMenu(target, signal.pointer));
-    } else if !error && intent.is_none() && signal.clicked {
+    ui.a11y_name(&card.handle, &folder.name);
+    if card.secondary {
+        *intent = Some(Intent::SourceMenu(target, ui.signal(&card.handle).pointer));
+    } else if !error && intent.is_none() && card.clicked {
         *intent = Some(Intent::Files(Request::Browse(Location { user, source: folder.id, parent: None })));
     }
 }
@@ -465,6 +466,9 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     });
 }
 
+/// A phone folder row: 56 points, 12 between its parts, 6 in from the end.
+const ROW_56: Node = Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).padding(Edges::ZERO.r(6.0));
+
 /// Swift's mobileFolder: back and item count, title with options, breadcrumb, Play folder / Shuffle / Keep offline
 /// keys, All / Offline / In cloud tabs and 56 pt file rows (tap plays, "…" opens the song menu). Gap: no Select mode.
 fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), width: f32, intent: &mut Option<Intent>) {
@@ -570,13 +574,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             }
             let Some(entry) = directory.entry(files_filter, index) else { return };
             let other = !entry.directory && !entry.audio;
-            let row = ui.node(
-                Key::Id(entry.id),
-                Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).padding(Edges::ZERO.r(6.0)),
-            );
-            ui.a11y_name(&row, &entry.name);
-            let signal = ui.signal(&row);
-            ui.within(&row, &mut |ui| {
+            let mut content = |ui: &mut Ui| {
                 ui.column(Node::column().w_px(16.0).h_px(16.0), |ui| match entry.glyph {
                     Some(glyph) if entry.audio => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
                     _ => mark(ui, entry.directory, Rgba::token(SECONDARY)),
@@ -605,13 +603,23 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                         *intent = Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
                     }
                 }
-            });
+            };
+            // a folder or audio row is pressable (browse, play, import; marks in Select mode); another file is a plain row
+            let (row, clicked) = if other {
+                let row = ui.node(Key::Id(entry.id), ROW_56.role(Role::Row));
+                ui.within(&row, &mut |ui| content(ui));
+                (row, false)
+            } else {
+                let r = ui.pressable(Key::Id(entry.id), ROW_56.role(Role::Button), &PLAIN, |ui, _| content(ui));
+                (r.handle, r.clicked)
+            };
+            ui.a11y_name(&row, &entry.name);
             ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
-            if signal.clicked && intent.is_none() && selecting {
+            if clicked && intent.is_none() && selecting {
                 if entry.song.is_some() {
                     *intent = Some(Intent::Select(crate::Selection::Toggle(index)));
                 }
-            } else if signal.clicked && intent.is_none() {
+            } else if clicked && intent.is_none() {
                 *intent = if entry.directory {
                     Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })))
                 } else if let Some(song) = entry.song {
