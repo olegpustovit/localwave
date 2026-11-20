@@ -316,7 +316,7 @@ const SWIPE: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).centered
 const SWIPE_ARMED: pxui::Button = SWIPE.label(TEXT_13.color(PAPER)).look(&INK_LOOKS);
 
 /// Swift's LWMenuButton: a secondary "…" in a 44 pt target.
-const MORE: pxui::IconButton = ICON_44.look(&ICON_DIM_LOOKS);
+pub(in crate::shell) const MORE: pxui::IconButton = ICON_44.look(&ICON_DIM_LOOKS);
 
 /// `refreshing` holds from release until `end_refresh`, so its first frame starts the load; it can
 /// read once more after the end, which `refresh_ending` keeps from starting another.
@@ -483,7 +483,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
 
 /// The back key (`localwave-button` / `KEY`): 96 by 44, the chevron and the parent's name from its start, secondary with no plate;
 /// named "Back".
-const BACK_KEY: pxui::Button =
+pub(in crate::shell) const BACK_KEY: pxui::Button =
     pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Px(96.0), Size::Px(44.0)).icon(icon_drawing(Icon::Back)).label(LEAD_DIM).look(&DIM_LOOKS).name("Back");
 /// Swift's detail back row: chevron and the parent's name, 44 pt tall.
 fn back_row(

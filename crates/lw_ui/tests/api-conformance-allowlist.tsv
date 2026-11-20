@@ -6,19 +6,8 @@ lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAI
 lw_ui/src/shell/compact/list.rs	R7	let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {	composite: artist page album card (audit #34)
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/files.rs	R2	Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).role(if error { Role::Group } else { Role::Button }).flags(Flags::CLICKABLE | Flags::FOCUSABLE).margin(Edges::ZERO.b(8.0)).look(if error { FOLDER_CARD_ERROR } else { FOLDER_CARD }),
-lw_ui/src/shell/files.rs	R2	Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(LINK_TEXT),
 lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),
 lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).role(if entry.directory || entry.audio { Role::Button } else { Role::Row }).flags(if entry.directory || entry.audio { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).padding(Edges::ZERO.r(6.0)),
-lw_ui/src/shell/files.rs	R2	Node::row().w_px(width).h_px(height).center().role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(Look::NONE.fill(Rgba::token(fill)))
-lw_ui/src/shell/files.rs	R2	let add = ui.node("add-music", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }));
-lw_ui/src/shell/files.rs	R2	let back = ui.node("back", Node::row().w(Size::Fit).h_px(44.0).gap(4.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let more = ui.node("actions", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let more = ui.node("source-options", Node::column().w_px(44.0).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let node = ui.node(id, Node::column().w_px(52.0).h_px(52.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(if kept { INK_FILL } else { PANEL_FILL }));
 lw_ui/src/shell/files.rs	R2	let option = ui.node(key, Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0).role(Role::Button).flags(if enabled { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }).look(PANEL_FILL));
-lw_ui/src/shell/files.rs	R2	let select = ui.node("select", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).padding(Edges::ZERO.l(12.0)));
-lw_ui/src/shell/files.rs	R2	let show = ui.node("show", Node::row().w(Size::Fit).h_px(44.0).align(Align::Center).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
-lw_ui/src/shell/files.rs	R2	let tab = ui.node(key, Node::column().w(Size::Fit).h_px(44.0).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE));
 lw_ui/src/shell/settings.rs	R7	let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: appearance settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: cache settings row with context menu (audit #65)

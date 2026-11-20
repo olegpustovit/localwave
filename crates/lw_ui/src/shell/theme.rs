@@ -246,7 +246,8 @@ pub(super) mod variant {
     pub(in crate::shell) const PRIMARY: u16 = 15;
     /// `localwave-sheet` (`Dialog::variant`): a form (Edit Metadata), its labels and fields 4 apart.
     pub(in crate::shell) const FORM: u16 = 16;
-    /// `localwave-tabs`: the phone library modes, each its label and count over a 2-point underline, 20 apart.
+    /// `localwave-tabs`: the phone library modes and a phone folder's filters, each its label and count over a 2-point underline,
+    /// 20 apart.
     pub(in crate::shell) const MODE: u16 = 17;
     /// `localwave-tabs`: the phone tab bar, its tabs sharing the bar 44 high.
     pub(in crate::shell) const TABBAR: u16 = 18;
@@ -254,6 +255,8 @@ pub(super) mod variant {
     pub(in crate::shell) const MARK: u16 = 19;
     /// `localwave-row`: a phone song row.
     pub(in crate::shell) const PHONE_ROW: u16 = 20;
+    /// `localwave-progress`: a plain 4-point bar, placed by its caller (the Folders page's meters).
+    pub(in crate::shell) const BAR: u16 = 21;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -564,9 +567,11 @@ fn badge_body(ui: &mut Ui, c: &pxui::bodies::BadgeConfig) {
 }
 
 /// LocalWave's progress (registered as `localwave-progress`), the `METER` look: a 4-point line track 10 points under the row
-/// above, 8 in from each side, filled in ink to the value (no label: the caller lays its own).
+/// above, 8 in from each side, filled in ink to the value (no label: the caller lays its own); `BAR` the track alone, as wide as
+/// its row (the caller places it).
 fn progress_body(ui: &mut Ui, c: &pxui::bodies::ProgressConfig) {
-    ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)));
+    let bar = Node::row().w(Size::Grow).h_px(4.0);
+    ui.set_node_layout(&c.row, &if c.variant == variant::BAR { bar } else { bar.margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)) });
     let track = ui.part(pxui::Part::TRACK, Node::row().w(Size::Grow).h(Size::Grow).look(LINE_FILL));
     let fraction = c.value().map_or(0.0, |v| v.clamp(0.0, 1.0));
     ui.within(&track, &mut |ui| { ui.node("fill", Node::column().w(Size::Pct(fraction)).h(Size::Grow).look(INK_FILL)); });
