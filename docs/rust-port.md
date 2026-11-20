@@ -273,6 +273,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U2b.4.35 | ButtonConfig::danger | done (u4b, not landed) | LocalWave 377e383 and 1a4fb56, pxui 3d4cc3cb. `Button::danger` is told to a body. ABI 1.127. |
 | U2b.4.36 | TableHeadConfig.built_in | done (u4b, not landed) | LocalWave edea3ca, pxui f09c9113. A table heading body runs the kit's heading for tables it does not style. ABI 1.129. |
 | U2b.4.37 | Table SelectMode, open_on_click, bare | done (u4b, not landed) | LocalWave 7bb0f61, pxui 17068da2. `Table::mode(SelectMode)` replaces `multi()`; `open_on_click` and `bare` as SelectionList's. ABI 1.130. |
+| U2b.4.38 | Dialog built_in (the kit's dialog buttons for a registered dialog body) | done (u4b, not landed) | LocalWave b038594, pxui 07cc8cac. `DialogConfig.built_in`; `sheet_body` hand-built buttons deleted; sheet keys are the button body's SHEET/FORM/CHOICES variants. ABI 1.131 (also the 1.124 caller-looks note and `PXUI_SELECT_*`). |
+| U4b review | Independent review rulings 1-8 | done (u4b, not landed) | LocalWave 27b747a, b73ff72, 0272c56, 07d7693, b038594, 40bf0df; pxui 77f9ab8d, 07cc8cac. Tier B green; abi_bench instruction gates pass (Lists wall flap deferred to CP1 f). |
 | U2b.5 | Top-anchored overlay | done | LocalWave 7814615, pxui 755ed30d. Presentation::Top (Overlay::at's y, max_h cap); PxuiSheetDesc.top/max_h. ABI 1.90. |
 | U2b.6 | Picker fill contract | done | LocalWave ef524a8, pxui 3a2277d1. Fill contract documented; a typed query and a kept worker result allocate nothing per frame (#82). |
 | U2b.7 | Value and theme gaps | done | LocalWave 20e14dc, pxui 14d86f0d. Token alpha (D19), ColorToken::ACCENT, SearchField variant/action, Button::icon_size, icons in body configs (D18). ABI 1.91. |
