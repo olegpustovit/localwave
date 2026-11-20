@@ -973,29 +973,6 @@ pub fn shell(
             }
         });
     }
-    if intent.is_none()
-        && !state.commands_visible
-        && !state.shortcuts_visible
-        && !state.queue_visible
-        && !state.settings_visible
-        && state.song_menu.is_none()
-        && state.list_dialog.is_none()
-        && state.delete_list.is_none()
-        && state.metadata.is_none()
-        && state.delete_song.is_none()
-        && state.remove_source.is_none()
-        && ui.key_pressed(KeyCode::Enter, Mods::ANY)
-        && !input_was_focused
-        && !ui.text_input_focused()
-        && let Some(collection) = state.collection(catalog)
-    {
-        // Swift plays the whole selection; one row keeps its playback position.
-        if state.marked_count() > 1 {
-            *intent = Some(Intent::PlaySelection);
-        } else if let Some(index) = state.selected.filter(|&i| i < collection.rows.len()) {
-            *intent = Some(Intent::PlayRow(index));
-        }
-    }
     let settings_shortcut = ui.key_pressed(KeyCode::Char(','), Mods::META);
     if !state.commands_visible && !state.shortcuts_visible && settings_shortcut {
         *intent = Some(Intent::ShowSettings);

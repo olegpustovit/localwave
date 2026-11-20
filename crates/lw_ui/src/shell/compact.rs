@@ -1615,9 +1615,11 @@ mod tests {
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
+                // the desktop songs list plays its selected row on Return (its `activated`); the compact list is not a
+                // selection_list yet, so hardware Return there plays nothing until U4b moves it onto one (re-review R2)
                 assert_eq!(
                     intent,
-                    if step == 2 {
+                    if step == 2 && width >= 1000.0 {
                         Some(Intent::PlayRow(0))
                     } else {
                         None
