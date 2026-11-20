@@ -1016,25 +1016,6 @@ pub fn shell(
             *intent = Some(Intent::ShowShortcuts);
         }
     }
-    // Swift's Esc closes the compact Now Playing panel (wide layouts keep it docked).
-    if intent.is_none()
-        && state.player_expanded
-        && !state.settings_visible
-        && !state.commands_visible
-        && !state.shortcuts_visible
-        && !state.queue_visible
-        && state.settings_menu.is_none()
-        && state.source_menu.is_none()
-        && state.remove_source.is_none()
-        && state.song_menu.is_none()
-        && state.list_menu.is_none()
-        && state.list_dialog.is_none()
-        && state.delete_list.is_none()
-        && ui.view_size().width < compact::BREAKPOINT
-        && ui.key_pressed(KeyCode::Escape, Mods::ANY)
-    {
-        *intent = Some(Intent::TogglePlayer);
-    }
     if !state.commands_visible
         && !state.shortcuts_visible
         && state.settings_visible

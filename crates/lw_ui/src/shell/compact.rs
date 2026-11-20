@@ -5,10 +5,9 @@
 //! typed input and consumes intents. Never add app-owned recognizers to fix routing.
 //!
 use super::*;
-use pxui::{DismissOpts, GestureOpts};
 
-/// Drag down to dismiss with UIKit's sheet thresholds.
-const DISMISS: GestureOpts = GestureOpts::DEFAULT.dismiss(DismissOpts::DEFAULT);
+/// The expanded player: a sheet filling the content area that a drag down dismisses (UIKit's sheet thresholds).
+const PLAYER_SHEET: pxui::Overlay = pxui::Overlay::DEFAULT.present(pxui::Presentation::Full).dismiss(pxui::DismissOpts::DEFAULT).name("Now playing");
 
 pub(super) mod list;
 pub(super) mod page;
@@ -121,19 +120,7 @@ pub(super) fn view(
                             } else if library {
                                 ui.label("Library", PAGE_TITLE);
                                 // Swift's header gear; Settings stays one tap away.
-                                let settings = ui.pressable("settings", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
-                                ui.a11y_name(&settings.handle, "Settings");
-                                let color = Rgba::token(INK);
-                                ui.canvas(&settings.handle, move |paint, rect| {
-                                    kit::paint_icon(
-                                        paint,
-                                        Icon::Settings,
-                                        rect.x + (rect.w - 20.0) / 2.0,
-                                        rect.y + (rect.h - 20.0) / 2.0,
-                                        color,
-                                    )
-                                });
-                                if settings.clicked {
+                                if ui.icon_button("settings", icon_drawing(Icon::Settings), "Settings", &ICON_44.look(&ICON_LOOKS)).clicked {
                                     *intent = Some(Intent::ShowSettings);
                                 }
                             } else {
@@ -422,171 +409,167 @@ fn expanded(
     intent: &mut Option<Intent>,
 ) {
     use lw_core::queue::RepeatMode;
-    let root_node = Node::column().w(Size::Grow).h(Size::Grow).look(PAPER_FILL);
     let favorite = player
         .current_id
         .map(|id| (id, catalog.row_index(id).is_some_and(|i| catalog.row(i).favorite)));
     // Swift `artworkRegionHeight`: what the fixed rows leave, never below 124.
     let region = (size.1 - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0)).max(124.0);
     let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
-    // The root takes the pointer for its dismiss gesture but is no tab stop.
-    let root = ui.pressable("expanded-player", root_node, &PLAIN.tab_stop(false), |ui, _| {
-        ui.row(Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
-            let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), &PAPER_FILL);
-            ui.within(&left, &mut |ui| {
-                if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
-                    *intent = Some(Intent::TogglePlayer);
-                }
-            });
-            ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
-                ui.label("Playing from", CAPTION);
-                ui.label(player.context, TEXT_13.color(INK));
-            });
-            container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), &PAPER_FILL);
-        });
-        ui.row(Node::row().w(Size::Grow).h_px(region).justify(Justify::Center).padding(Edges::ZERO.t(4.0)),
-            |ui| {
-                artwork(
-                    ui,
-                    catalog,
-                    player,
-                    player.current_id.and_then(|id| catalog.row_index(id)),
-                    art_size,
-                );
-            },
-        );
-        ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0, 16.0, 10.0)),
-            |ui| {
-                let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
-                ui.within(&info, &mut |ui| {
-                    let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
-                    ui.within(&names, &mut |ui| {
-                        let title = ui.node(
-                            "title",
-                            Node::column().w(Size::Grow).h_px(27.6).role(Role::Label).look(INK_TEXT),
-                        );
-                        ui.text_line_box(
-                            &title,
-                            if player.title.is_empty() { "Nothing playing" } else { player.title },
-                            Label::BODY.size(24.0).weight(500).tracking(TIGHT_3).line_height(27.6).lines(1).ellipsis(),
-                            &[],
-                        )
-                        .unwrap();
-                        if player.current_id.is_some() {
-                            byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), intent);
-                        }
-                    });
-                    if now::favorite_button(ui, favorite)
-                        && let Some((song, on)) = favorite
-                    {
-                        *intent = Some(Intent::SetFavorite { song, on: !on });
+    // the sheet fills the content area; a window inset above it (the desktop title bar) stays clear, as the shell's padding keeps it
+    let inset = (ui.content_rect().h - size.1).max(0.0);
+    let open = ui.modal("expanded-player", &PLAYER_SHEET, |ui| {
+        let root = ui.node("player", Node::column().w(Size::Grow).h_px(size.1).margin(Edges::ZERO.t(inset)));
+        crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
+        ui.within(&root, &mut |ui| {
+            ui.row(Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
+                let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), &PAPER_FILL);
+                ui.within(&left, &mut |ui| {
+                    if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
+                        *intent = Some(Intent::TogglePlayer);
                     }
                 });
-                spacer(ui, "clock-gap", 14.0);
-                ui.row(Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
-                    matrix_clock(ui, position.max(0.0) as u64, 72.0, INK);
-                    ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                    ui.column(Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End).padding(Edges::ZERO.b(2.0)),
-                        |ui| {
-                            if let Some(info) = player.info {
-                                ui.label(&info.summary, MONO_DIM);
-                            }
-                            small_clock(
-                                ui,
-                                "remaining",
-                                (player.duration - position).max(0.0) as u64,
-                                true,
-                                50.0,
-                                SECONDARY,
+                ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
+                    ui.label("Playing from", CAPTION);
+                    ui.label(player.context, TEXT_13.color(INK));
+                });
+                container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), &PAPER_FILL);
+            });
+            ui.row(Node::row().w(Size::Grow).h_px(region).justify(Justify::Center).padding(Edges::ZERO.t(4.0)),
+                |ui| {
+                    artwork(
+                        ui,
+                        catalog,
+                        player,
+                        player.current_id.and_then(|id| catalog.row_index(id)),
+                        art_size,
+                    );
+                },
+            );
+            ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0, 16.0, 10.0)),
+                |ui| {
+                    let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
+                    ui.within(&info, &mut |ui| {
+                        let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
+                        ui.within(&names, &mut |ui| {
+                            let title = ui.node(
+                                "title",
+                                Node::column().w(Size::Grow).h_px(27.6).role(Role::Label).look(INK_TEXT),
                             );
+                            ui.text_line_box(
+                                &title,
+                                if player.title.is_empty() { "Nothing playing" } else { player.title },
+                                Label::BODY.size(24.0).weight(500).tracking(TIGHT_3).line_height(27.6).lines(1).ellipsis(),
+                                &[],
+                            )
+                            .unwrap();
+                            if player.current_id.is_some() {
+                                byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), intent);
+                            }
+                        });
+                        if now::favorite_button(ui, favorite)
+                            && let Some((song, on)) = favorite
+                        {
+                            *intent = Some(Intent::SetFavorite { song, on: !on });
+                        }
+                    });
+                    spacer(ui, "clock-gap", 14.0);
+                    ui.row(Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
+                        matrix_clock(ui, position.max(0.0) as u64, 72.0, INK);
+                        ui.node("flex", Node::DEFAULT.w(Size::Grow));
+                        ui.column(Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End).padding(Edges::ZERO.b(2.0)),
+                            |ui| {
+                                if let Some(info) = player.info {
+                                    ui.label(&info.summary, MONO_DIM);
+                                }
+                                small_clock(
+                                    ui,
+                                    "remaining",
+                                    (player.duration - position).max(0.0) as u64,
+                                    true,
+                                    50.0,
+                                    SECONDARY,
+                                );
+                            },
+                        );
+                    });
+                    spacer(ui, "seek-gap", 14.0);
+                    seek(ui, player, position, intent);
+                    let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), &PAPER_FILL);
+                    ui.within(&times, &mut |ui| {
+                        let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
+                        ui.a11y_name(&start, "Start time");
+                        ui.node("flex", Node::DEFAULT.w(Size::Grow));
+                        let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, SECONDARY);
+                        ui.a11y_name(&total, "Duration");
+                    });
+                    spacer(ui, "modes-gap", 14.0);
+                    ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(PANEL_FILL),
+                        |ui| {
+                            if mode_key(
+                                ui,
+                                "shuffle",
+                                if player.shuffled { "Shuffle on" } else { "Shuffle off" },
+                                Icon::Shuffle,
+                                player.shuffled,
+                                |ui| {
+                                    let c = if player.shuffled { PAPER } else { INK };
+                                    ui.label("Shuffle", TEXT_14.color(c));
+                                },
+                            ) {
+                                *intent = Some(Intent::Shuffle);
+                            }
+                            let again = player.repeat != RepeatMode::None;
+                            if mode_key(
+                                ui,
+                                "repeat",
+                                match player.repeat {
+                                    RepeatMode::None => "Repeat off",
+                                    RepeatMode::All => "Repeat all",
+                                    RepeatMode::One => "Repeat one",
+                                },
+                                Icon::Repeat,
+                                again,
+                                |ui| {
+                                    let c = if again { PAPER } else { INK };
+                                    let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
+                                    ui.label(label, TEXT_14.color(c));
+                                },
+                            ) {
+                                *intent = Some(Intent::Repeat);
+                            }
+                            if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
+                                let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
+                                ui.label(count, MONO_11.color(INK));
+                                ui.label("up next", BODY_INK);
+                            }) {
+                                *intent = Some(Intent::ShowQueue);
+                            }
                         },
                     );
-                });
-                spacer(ui, "seek-gap", 14.0);
-                seek(ui, player, position, intent);
-                let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), &PAPER_FILL);
-                ui.within(&times, &mut |ui| {
-                    let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
-                    ui.a11y_name(&start, "Start time");
-                    ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                    let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, SECONDARY);
-                    ui.a11y_name(&total, "Duration");
-                });
-                spacer(ui, "modes-gap", 14.0);
-                ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(PANEL_FILL),
-                    |ui| {
-                        if mode_key(
-                            ui,
-                            "shuffle",
-                            if player.shuffled { "Shuffle on" } else { "Shuffle off" },
-                            Icon::Shuffle,
-                            player.shuffled,
-                            |ui| {
-                                let c = if player.shuffled { PAPER } else { INK };
-                                ui.label("Shuffle", TEXT_14.color(c));
-                            },
-                        ) {
-                            *intent = Some(Intent::Shuffle);
-                        }
-                        let again = player.repeat != RepeatMode::None;
-                        if mode_key(
-                            ui,
-                            "repeat",
-                            match player.repeat {
-                                RepeatMode::None => "Repeat off",
-                                RepeatMode::All => "Repeat all",
-                                RepeatMode::One => "Repeat one",
-                            },
-                            Icon::Repeat,
-                            again,
-                            |ui| {
-                                let c = if again { PAPER } else { INK };
-                                let label = if player.repeat == RepeatMode::One { "One" } else { "Repeat" };
-                                ui.label(label, TEXT_14.color(c));
-                            },
-                        ) {
-                            *intent = Some(Intent::Repeat);
-                        }
-                        if mode_key(ui, "queue", "Show full queue", Icon::Queue, false, |ui| {
-                            let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                            ui.label(count, MONO_11.color(INK));
-                            ui.label("up next", BODY_INK);
-                        }) {
-                            *intent = Some(Intent::ShowQueue);
-                        }
-                    },
-                );
-                if !player.message.is_empty() {
-                    ui.label(player.message, SMALL_NOTE);
-                }
-            },
-        );
-        // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
-        ui.row(Node::row().w(Size::Grow).h_px(86.0).gap(2.0).padding(Edges::new(2.0, 2.0, 2.0, 0.0)).look(SELECTED_FILL),
-            |ui| {
-                let key = ((size.0 - 8.0) / 3.0).max(1.0);
-                if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
-                    *intent = Some(Intent::Previous);
-                }
-                play(ui, player, (key, 84.0), intent);
-                if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
-                    *intent = Some(Intent::Next);
-                }
-            },
-        );
-    });
-    // Drag down to dismiss (UIKit sheet thresholds); the button inside stays the alternative.
-    let drag = ui.gesture(&root.handle, &DISMISS);
-    if drag.dismiss != 0.0 {
-        ui.set_node_layout(
-            &root.handle,
-            &ui.node_layout(&root.handle).w(Size::Px(size.0)).h(Size::Px(size.1)).at(0.0, drag.dismiss),
-        );
-    }
-    if drag.dismiss_committed && intent.is_none() {
+                    if !player.message.is_empty() {
+                        ui.label(player.message, SMALL_NOTE);
+                    }
+                },
+            );
+            // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
+            ui.row(Node::row().w(Size::Grow).h_px(86.0).gap(2.0).padding(Edges::new(2.0, 2.0, 2.0, 0.0)).look(SELECTED_FILL),
+                |ui| {
+                    let key = ((size.0 - 8.0) / 3.0).max(1.0);
+                    if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
+                        *intent = Some(Intent::Previous);
+                    }
+                    play(ui, player, (key, 84.0), intent);
+                    if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
+                        *intent = Some(Intent::Next);
+                    }
+                },
+            );
+        });
+    })
+    .open;
+    if !open && intent.is_none() {
         *intent = Some(Intent::TogglePlayer);
     }
-    crate::motion::enter(ui, &root.handle, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
 }
 
 #[cfg(test)]

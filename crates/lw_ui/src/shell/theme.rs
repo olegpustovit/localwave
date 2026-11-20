@@ -353,10 +353,11 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     }
 }
 
-/// LocalWave's modal sheet (registered as `localwave-modal`): a bottom sheet (the queue) and a top one (the palette and the shortcuts
-/// card) are paper edge to edge, without the kit sheet's 1-point edge; every other presentation is the kit's sheet as it is.
+/// LocalWave's modal sheet (registered as `localwave-modal`): a bottom sheet (the queue), a top one (the palette and the shortcuts
+/// card) and a full one (the phone's expanded player) are paper edge to edge, without the kit sheet's 1-point edge; a centred sheet
+/// is the kit's as it is.
 fn modal_body(ui: &mut Ui, c: &pxui::bodies::ModalConfig) {
-    if matches!(c.presentation(), pxui::Presentation::Bottom | pxui::Presentation::Top) {
+    if matches!(c.presentation(), pxui::Presentation::Bottom | pxui::Presentation::Top | pxui::Presentation::Full) {
         let layout = ui.node_layout(&c.node).padding(Edges::ZERO);
         ui.set_node_layout(&c.node, &layout);
         ui.style(&c.node, &PAPER_LOOKS, State::default());
@@ -555,11 +556,11 @@ mod body_tests {
         assert_eq!((detail.x, detail.y), (button.x, button.y + 28.0), "{button:?} {detail:?}");
     }
 
-    /// `modal.body = localwave-modal`: a bottom or top sheet's content starts at the sheet's own edge (no kit edge or inset); a
+    /// `modal.body = localwave-modal`: a bottom, top or full sheet's content starts at the sheet's own edge (no kit edge or inset); a
     /// centred modal is the kit's sheet, its content one point in.
     #[test]
     fn localwave_modal_dresses_bottom_sheets_and_leaves_centred_ones_to_the_kit() {
-        for (present, inset) in [(pxui::Presentation::Bottom, 0.0), (pxui::Presentation::Top, 0.0), (pxui::Presentation::Centered, 1.0)] {
+        for (present, inset) in [(pxui::Presentation::Bottom, 0.0), (pxui::Presentation::Top, 0.0), (pxui::Presentation::Full, 0.0), (pxui::Presentation::Centered, 1.0)] {
             for (app, inset) in [(true, inset), (false, 1.0)] {
                 let mut ui = ui(app);
                 let sheet = Overlay::DEFAULT.present(present).name("Sheet");
