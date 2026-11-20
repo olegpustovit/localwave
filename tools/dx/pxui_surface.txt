@@ -1276,9 +1276,12 @@ pxui::bodies::ButtonConfig impl BodyConfig
 pxui::bodies::ButtonConfig impl Deref
 pxui::bodies::ButtonConfig struct (_)
 pxui::bodies::ButtonConfig::accessory_label fn (&self) -> Option<Label>
+pxui::bodies::ButtonConfig::content_axis fn (&self) -> Option<Axis>
 pxui::bodies::ButtonConfig::detail_label fn (&self) -> Option<Label>
+pxui::bodies::ButtonConfig::height fn (&self) -> Option<Size>
 pxui::bodies::ButtonConfig::icon fn (&self) -> Option<Icon>
 pxui::bodies::ButtonConfig::label fn (&self) -> Option<Label>
+pxui::bodies::ButtonConfig::width fn (&self) -> Option<Size>
 pxui::bodies::CheckboxConfig impl BodyConfig
 pxui::bodies::CheckboxConfig impl Deref
 pxui::bodies::CheckboxConfig struct (_)
@@ -1322,6 +1325,7 @@ pxui::bodies::MenuRowConfig struct (_)
 pxui::bodies::ModalConfig impl BodyConfig
 pxui::bodies::ModalConfig impl Deref
 pxui::bodies::ModalConfig struct (_)
+pxui::bodies::ModalConfig::presentation fn (&self) -> Presentation
 pxui::bodies::PanelConfig impl BodyConfig
 pxui::bodies::PanelConfig impl Deref
 pxui::bodies::PanelConfig struct (_)
@@ -1329,6 +1333,8 @@ pxui::bodies::PickerConfig impl BodyConfig
 pxui::bodies::PickerConfig impl Deref
 pxui::bodies::PickerConfig struct (_)
 pxui::bodies::PickerConfig::art fn (&self) -> Option<PickArt>
+pxui::bodies::PickerConfig::head fn (&self) -> Option<Handle>
+pxui::bodies::PickerConfig::image fn (&self) -> Option<Image>
 pxui::bodies::PickerFieldConfig impl BodyConfig
 pxui::bodies::PickerFieldConfig impl Deref
 pxui::bodies::PickerFieldConfig struct (_)
@@ -4073,6 +4079,10 @@ pxui_types::ffi::PxuiRingDesc::width field f32
 pxui_types::ffi::PxuiRowConfig impl Clone
 pxui_types::ffi::PxuiRowConfig impl Copy
 pxui_types::ffi::PxuiRowConfig struct
+pxui_types::ffi::PxuiRowConfig::DROP_AFTER const u8
+pxui_types::ffi::PxuiRowConfig::DROP_BEFORE const u8
+pxui_types::ffi::PxuiRowConfig::DROP_NONE const u8
+pxui_types::ffi::PxuiRowConfig::DROP_OVER const u8
 pxui_types::ffi::PxuiRowConfig::content field PxuiSlot
 pxui_types::ffi::PxuiRowConfig::drop field u8
 pxui_types::ffi::PxuiRowConfig::index field usize

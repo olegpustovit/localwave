@@ -114,10 +114,10 @@ extern "C" fn prompt_width(inner: f32) -> f32 { (inner + 2.0 * FIELD_SIDE - 40.0
 /// hint. A row that starts a group has its heading above it: secondary 12 points, 12 in, its line 10 below the row above and 4 above
 /// its row.
 pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
-    if c.has_head != 0 {
-        ui.style(&c.head, &PALETTE_HEADING, State::default());
+    if let Some(head) = c.head() {
+        ui.style(&head, &PALETTE_HEADING, State::default());
         // a node's text sits centred in its box, 2 points under `FOOTNOTE`'s line box: the box starts 2 higher (10 above the text's line)
-        ui.set_node_layout(&c.head, &Node::column().w(Size::Grow).h_px(FOOTNOTE_LINE).margin(Edges::new(12.0, 8.0, 12.0, 6.0)));
+        ui.set_node_layout(&head, &Node::column().w(Size::Grow).h_px(FOOTNOTE_LINE).margin(Edges::new(12.0, 8.0, 12.0, 6.0)));
     }
     ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center));
     ui.style(&c.row, &PALETTE_ROW, State::default().checked(c.current != 0));
@@ -125,8 +125,7 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
     if let Some(pxui::PickArt::Image(_)) = art {
         let art = container(ui, "artwork", Axis::Column, Size::Px(28.0), Size::Px(28.0), &PANEL_FILL);
         ui.set_role(&art, Role::Image, pxui::A11yStates::NONE);
-        if c.has_image != 0 {
-            let image = c.image;
+        if let Some(image) = c.image() {
             // a descriptor that went bad between frames draws nothing (`Paint::image` refuses it)
             ui.canvas(&art, move |paint, rect| {
                 let _ = paint.image(rect, &image, &COVER_ART);
