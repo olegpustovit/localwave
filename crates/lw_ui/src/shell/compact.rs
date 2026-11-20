@@ -2012,9 +2012,11 @@ mod tests {
             if !link.is_empty() {
                 assert!(has(&ui, Role::Button, link), "album artist link");
             }
-            for (name, want) in [("Back", Intent::Navigate(parent)), ("Play", Intent::PlayRow(0)), ("Shuffle", Intent::ShuffleCollection)] {
+            // an empty list's keys are disabled (they play nothing), so a press on them is ignored
+            let empty = route == Route::Collection(lists - 1);
+            for (name, want) in [("Back", Some(Intent::Navigate(parent))), ("Play", (!empty).then_some(Intent::PlayRow(0))), ("Shuffle", (!empty).then_some(Intent::ShuffleCollection))] {
                 click(&mut ui, name);
-                assert_eq!(idle(&mut ui, &c, &state, t), Some(want), "{name} on {route:?}");
+                assert_eq!(idle(&mut ui, &c, &state, t), want, "{name} on {route:?}");
                 t += 1.0;
                 idle(&mut ui, &c, &state, t);
                 t += 1.0;

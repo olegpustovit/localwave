@@ -438,7 +438,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                 let name = if collection.title.is_empty() { "Unknown artist" } else { &collection.title };
                 titles(ui, name, &collection.summary);
                 spacer(ui, "keys-gap", 8.0);
-                play_keys(ui, None, intent);
+                play_keys(ui, None, !collection.rows.is_empty(), intent);
                 spacer(ui, "albums-gap", 16.0);
                 let cell = album_cell(width);
                 for (line, pair) in albums.chunks(2).enumerate() {
@@ -538,16 +538,16 @@ fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>)
 }
 
 /// Play and Shuffle keys.
-fn play_keys(ui: &mut Ui, offline: Option<bool>, intent: &mut Option<Intent>) {
+fn play_keys(ui: &mut Ui, offline: Option<bool>, enabled: bool, intent: &mut Option<Intent>) {
     ui.row(Node::row().w(Size::Grow).h_px(PLAY_BAR).gap(8.0).pad_x(16.0), |ui| {
-        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play))).clicked {
+        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).disabled(!enabled)).clicked {
             *intent = Some(Intent::PlayRow(0));
         }
-        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle))).clicked {
+        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle)).disabled(!enabled)).clicked {
             *intent = Some(Intent::ShuffleCollection);
         }
         if let Some(kept) = offline
-            && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept)).clicked
+            && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept).disabled(!enabled)).clicked
         {
             *intent = Some(Intent::Page(crate::PageAction::KeepOffline));
         }
@@ -718,7 +718,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                 });
             });
             spacer(ui, "keys-gap", 16.0);
-            play_keys(ui, offline_state(cx), intent);
+            play_keys(ui, offline_state(cx), !collection.rows.is_empty(), intent);
         });
     }); }); });
 }
@@ -741,7 +741,7 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
             nav_row(ui, cx, "Lists", Route::Lists, intent);
             titles(ui, &collection.title, &collection.summary);
             spacer(ui, "keys-gap", 8.0);
-            play_keys(ui, offline_state(cx), intent);
+            play_keys(ui, offline_state(cx), !collection.rows.is_empty(), intent);
             spacer(ui, "list-gap", 16.0);
         });
     }); }); });

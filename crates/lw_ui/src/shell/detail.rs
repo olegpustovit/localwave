@@ -216,13 +216,13 @@ fn keys(
 ) {
     ui.row(Node::row().w_px(width).h_px(KEYS).gap(8.0), |ui| {
         let enabled = !group.ids.is_empty();
-        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play))).clicked && enabled {
+        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).disabled(!enabled)).clicked {
             *intent = Some(Intent::PlayRow(0));
         }
-        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle))).clicked && enabled {
+        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle)).disabled(!enabled)).clicked {
             *intent = Some(Intent::ShuffleCollection);
         }
-        if album && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept)).clicked && enabled {
+        if album && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept).disabled(!enabled)).clicked {
             *intent = Some(Intent::Page(crate::PageAction::KeepOffline));
         }
     });
