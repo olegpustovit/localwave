@@ -147,10 +147,6 @@ const CHOICE: Look = text(SECONDARY, 13.0).fill(Rgba::token(PANEL));
 const CHOICE_ON: Look = text(PAPER, 13.0).fill(Rgba::token(INK));
 const CHOICE_LOOKS: States = States::of(CHOICE);
 const CHOICE_ON_LOOKS: States = States::of(CHOICE_ON);
-/// A compact tab bar button: ink 14-point text on paper.
-pub(super) const TAB_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token(PAPER)));
-/// The current compact tab: on the selected fill.
-pub(super) const TAB_ON_LOOKS: States = States::of(text(INK, 14.0).fill(Rgba::token(SELECTED)));
 /// A Find tool, a card or a row on paper.
 pub(super) const PAPER_LOOKS: States = States::of(PAPER_FILL);
 /// A key on the panel fill.
@@ -237,6 +233,10 @@ pub(super) mod variant {
     pub(in crate::shell) const PRIMARY: u16 = 15;
     /// `localwave-sheet` (`Dialog::variant`): a form (Edit Metadata), its labels and fields 4 apart.
     pub(in crate::shell) const FORM: u16 = 16;
+    /// `localwave-tabs`: the phone library modes, each its label and count over a 2-point underline, 20 apart.
+    pub(in crate::shell) const MODE: u16 = 17;
+    /// `localwave-tabs`: the phone tab bar, its tabs sharing the bar 44 high.
+    pub(in crate::shell) const TABBAR: u16 = 18;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -267,6 +267,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_progress_body("localwave-progress", progress_body)?;
     ui.register_checkbox_body("localwave-chip", chip_body)?;
     ui.register_segmented_body("localwave-segmented", segment_body)?;
+    ui.register_tabs_body("localwave-tabs", tabs_body)?;
     ui.register_search_field_body("localwave-search", search_body)?;
     ui.register_modal_body("localwave-modal", modal_body)?;
     ui.register_inspector_section_body("localwave-disclosure", super::onboarding::disclosure_body)?;
@@ -397,6 +398,40 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     ui.style(&c.node, if chosen { &SORT_CHOSEN } else { &PAPER_LOOKS }, State::default());
     ui.label(c.text_of(&c.text), TEXT_13.color(if chosen { INK } else { SECONDARY }).role(Role::Unknown));
 }
+/// A phone tab bar tab: paper, on the selected fill while in use (checked).
+const TABBAR_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL);
+/// A library mode's label: secondary, ink while in use.
+const MODE_LOOKS: States = States::of(SECONDARY_TEXT).checked(INK_TEXT);
+/// A library mode's underline: paper, ink while in use.
+const UNDERLINE_LOOKS: States = States::of(PAPER_FILL).checked(INK_FILL);
+/// LocalWave's tabs (registered as `localwave-tabs`). `MODE`: Swift's phone library modes: the bar fit to its tabs 20 apart, 44
+/// high; each tab its 15-point label and the caption count 6 apart in a 42-point line over a 2-point underline, the label and underline
+/// ink on the tab in use. Any other variant, the `TABBAR` look: the bar filling its parent, its tabs sharing it 44 high from its top, each its
+/// 14-point ink title centred on paper, the tab in use on the selected fill.
+fn tabs_body(ui: &mut Ui, c: &pxui::bodies::TabsConfig) {
+    use pxui::bodies::BodyConfig;
+    let s = &c.state;
+    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).checked(s.checked != 0);
+    // the bar draws nothing of its own (the kit's header look and its rule are off)
+    ui.style(&c.bar, &BARE, State::default());
+    if c.variant == variant::MODE {
+        ui.set_node_layout(&c.bar, &Node::row().w(Size::Fit).h_px(44.0).gap(20.0));
+        ui.set_node_layout(&c.node, &Node::column().w(Size::Fit).h(Size::Grow));
+        ui.row(Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
+            let ink = MODE_LOOKS.pick(state).text.as_token().unwrap_or(SECONDARY);
+            ui.label(c.text_of(&c.text), TEXT_15.color(ink).role(Role::Unknown));
+            ui.label(c.text_of(&c.detail), CAPTION);
+        });
+        let underline = ui.node("underline", Node::row().w(Size::Grow).h_px(2.0));
+        ui.style(&underline, &UNDERLINE_LOOKS, state);
+        return;
+    }
+    ui.set_node_layout(&c.bar, &Node::row().w(Size::Grow).h(Size::Grow));
+    ui.set_node_layout(&c.node, &Node::row().w(Size::Grow).h_px(44.0).align(Align::Center).justify(Justify::Center));
+    ui.style(&c.node, &TABBAR_LOOKS, state);
+    ui.label(c.text_of(&c.text), BODY_INK.role(Role::Unknown));
+}
+
 /// The chosen sort key: the selected fill inside a 1.5-point ink border.
 const SORT_CHOSEN: States = States::of(SELECTED_FILL.border(Rgba::token(INK), 1.5));
 

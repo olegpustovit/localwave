@@ -7,6 +7,7 @@ dialog.body = localwave-sheet
 button.body = localwave-button
 checkbox.body = localwave-chip
 segmented.body = localwave-segmented
+tabs.body = localwave-tabs
 search_field.body = localwave-search
 selection_list.body = localwave-row
 table_head.body = localwave-heading

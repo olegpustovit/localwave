@@ -14,29 +14,17 @@ pub(super) mod page;
 
 pub(super) const BREAKPOINT: f32 = 620.0;
 
-/// A compact tab bar button: the full width of its slot, 44 points high, its title centred.
-const TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(44.0)).centered();
+/// The library modes (`localwave-tabs` / `MODE`): label and count, ink with a 2 pt underline on the one in use.
+const MODE: pxui::Tabs = pxui::Tabs::DEFAULT.name("Library view").variant(variant::MODE);
+const MODE_ROUTES: [Route; 3] = [Route::Albums, Route::Artists, Route::Songs];
+/// The main navigation (`localwave-tabs` / `TABBAR`): four tabs sharing the bar, the one in use on the selected fill.
+const TABBAR: pxui::Tabs = pxui::Tabs::DEFAULT.name("Main navigation").variant(variant::TABBAR);
+const MAIN_TABS: [pxui::Segment; 4] = [pxui::Segment::new("Library"), pxui::Segment::new("Folders"), pxui::Segment::new("Lists"), pxui::Segment::new("Find")];
+const MAIN_ROUTES: [Route; 4] = [Route::Albums, Route::Files, Route::Lists, Route::Find];
 
-/// Swift's library mode: label and count, ink with a 2 pt underline when active.
-fn mode_tab(ui: &mut Ui, key: &'static str, label: &'static str, count: &str, active: bool) -> bool {
-    let ink = if active { INK } else { SECONDARY };
-    let tab = MODE_TAB.selected(active).name(label);
-    ui.button_content(key, &tab, |ui, _| {
-        ui.column(Node::column().w(Size::Fit).h(Size::Grow), |ui| {
-            ui.row(Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
-                ui.label(label, TEXT_15.color(ink));
-                ui.label(count, CAPTION);
-            });
-            container(ui, "underline", Axis::Row, Size::Grow, Size::Px(2.0), if active { &INK_FILL } else { &PAPER_FILL });
-        });
-    })
-    .clicked
-}
-/// A library mode tab: as wide as its label and count, 44 points high.
 /// Swift's `WaveModeKeys` (compact): a key filling its line, 44 points high, its icon and 14-point label centred, ink on the key
 /// fill, paper on ink while on (`localwave-button` / `KEY`); the queue's count leads its label in Geist Mono 11.
 const MODE_KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Px(44.0)).gap(6.0).centered().label(TEXT_14).detail_label(MONO_11.color(INK)).look(&MODE_KEY_LOOKS);
-const MODE_TAB: pxui::Button = pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().look(&BARE);
 
 fn artwork(
     ui: &mut Ui,
@@ -150,17 +138,15 @@ pub(super) fn view(
                             "library-tabs",
                             Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
-                        ui.set_role(&tabs, Role::Group, pxui::A11yStates::NONE);
-                        ui.a11y_name(&tabs, "Library view");
                         ui.within(&tabs, &mut |ui| {
-                            for (key, label, count, route) in [
-                                ("mode-albums", "Albums", &catalog.album_count, Route::Albums),
-                                ("mode-artists", "Artists", &catalog.artist_count, Route::Artists),
-                                ("mode-songs", "Songs", &catalog.song_count, Route::Songs),
-                            ] {
-                                if mode_tab(ui, key, label, count, state.route == route) {
-                                    *intent = Some(Intent::Navigate(route));
-                                }
+                            let modes = [
+                                pxui::Segment::new("Albums").detail(&catalog.album_count),
+                                pxui::Segment::new("Artists").detail(&catalog.artist_count),
+                                pxui::Segment::new("Songs").detail(&catalog.song_count),
+                            ];
+                            let r = ui.tabs("library-modes", &modes, MODE_ROUTES.iter().position(|&r| r == state.route), &MODE);
+                            if r.response.clicked && let Some(i) = r.chosen {
+                                *intent = Some(Intent::Navigate(MODE_ROUTES[i]));
                             }
                             if state.route == Route::Songs {
                                 container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
@@ -238,8 +224,6 @@ pub(super) fn view(
             Size::Px(54.0),
             &PAPER_FILL,
         );
-        ui.set_role(&nav, Role::Group, pxui::A11yStates::NONE);
-        ui.a11y_name(&nav, "Main navigation");
         ui.within(&nav, &mut |ui| {
             let selected = match state.route {
                 Route::Files => 1,
@@ -247,24 +231,10 @@ pub(super) fn view(
                 Route::Find => 3,
                 _ => 0,
             };
-            for (index, (key, title, route)) in [
-                ("tab-library", "Library", Route::Albums),
-                ("tab-folders", "Folders", Route::Files),
-                ("tab-lists", "Lists", Route::Lists),
-                ("tab-find", "Find", Route::Find),
-            ]
-            .into_iter()
-            .enumerate()
-            {
-                let current = !state.settings_visible && selected == index;
-                let tab = TAB.look(if current { &TAB_ON_LOOKS } else { &TAB_LOOKS }).selected(current).name(title);
-                if ui.button_content(key, &tab, |ui, _| {
-                    ui.label(title, BODY_INK);
-                })
-                .clicked
-                {
-                    *intent = Some(Intent::Navigate(route));
-                }
+            let r = ui.tabs("main-tabs", &MAIN_TABS, (!state.settings_visible).then_some(selected), &TABBAR);
+            // a tap on the tab in use pops its stack to the root (iOS): Library on an album page goes back to Albums
+            if r.response.clicked && let Some(i) = r.chosen {
+                *intent = Some(Intent::Navigate(MAIN_ROUTES[i]));
             }
         });
     });
@@ -573,8 +543,8 @@ mod tests {
         let node = ui
             .a11y_nodes()
             .iter()
-            .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
-            .unwrap_or_else(|| panic!("missing button {name}"));
+            .find(|node| (node.is_role(Role::Button) || node.is_role(Role::Tab)) && ui.a11y_name_of(node) == name)
+            .unwrap_or_else(|| panic!("missing button or tab {name}"));
         ui.inject_a11y(&[pxui::A11yAction {
             id: node.id,
             action_code: 1,
@@ -653,6 +623,12 @@ mod tests {
         );
         state.apply(Intent::TogglePlayer);
         frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 11.0);
+        // Tapping the tab in use pops its stack to the root (iOS): Library on an album page goes back to Albums.
+        click(&mut ui, "Library");
+        assert_eq!(
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 11.5),
+            Some(Intent::Navigate(Route::Albums))
+        );
         click(&mut ui, "Lists");
         assert_eq!(
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 12.0),
@@ -1812,11 +1788,11 @@ mod tests {
         assert!(has(&ui, Role::Button, "Settings"));
         assert!(!has(&ui, Role::Button, "Files"));
         for tab in ["Albums", "Artists", "Songs"] {
-            assert!(has(&ui, Role::Button, tab), "{tab}");
+            assert!(has(&ui, Role::Tab, tab), "{tab}");
         }
         let mut nav: Vec<_> = ["Library", "Folders", "Lists", "Find"]
             .into_iter()
-            .map(|name| (rect_of(&ui, Role::Button, name).x, name))
+            .map(|name| (rect_of(&ui, Role::Tab, name).x, name))
             .collect();
         let order: Vec<_> = nav.iter().map(|entry| entry.1).collect();
         nav.sort_by(|a, b| a.0.total_cmp(&b.0));
