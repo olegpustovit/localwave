@@ -310,7 +310,8 @@ pub(super) const MENU_CHOICE: u16 = 2;
 /// LocalWave's context menu row (registered as `localwave-menu`): 13-point text 12 points in, ink or the danger red; `MENU_PANEL`
 /// and `MENU_CHOICE` rows also take the paper (or selected) fill and their own accessible role and states.
 pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
-    let (enabled, selected) = (c.state.disabled == 0, c.state.checked != 0);
+    let state = State::from(c.state);
+    let (enabled, selected) = (!state.disabled, state.checked);
     ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0));
     let ink = if c.danger != 0 { DANGER } else { INK };
     if c.variant == 0 {

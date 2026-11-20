@@ -337,10 +337,10 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(c.width().unwrap_or(Size::Fit)).h(c.height().unwrap_or(Size::Fit)));
     // a column (`Button::axis`): a ROW stacks its title over its detail from the top; a centred KEY (the deck) its icon over its label
-    let row = if c.content_axis() == Some(Axis::Column) { Node::column().align(if c.centered != 0 { Align::Center } else { Align::Start }) } else { Node::row().align(Align::Center) };
+    let row = if c.content_axis() == Some(Axis::Column) { Node::column().align(if c.centered() { Align::Center } else { Align::Start }) } else { Node::row().align(Align::Center) };
     let row = row.w(if c.width().is_none() { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap);
     let row = if c.variant == variant::TOOL { row.transition(Some(FADE)) } else { row };
-    let row = if c.centered != 0 || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
+    let row = if c.centered() || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
     ui.set_node_layout(&c.row, &row);
     if c.variant == variant::LINK {
         // the text over a 1-point rule as wide as it, in the text's colour (ruling 3)
@@ -351,14 +351,13 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         });
         return;
     }
-    let s = &c.state;
-    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
+    let state = State::from(c.state);
     let states = c.states_of(&c.states);
     if let Some(states) = states {
         ui.style(&c.row, states, state);
     }
     // a destructive key (`Button::danger`) inks in the danger colour unless disabled
-    let ink = if c.danger() && s.disabled == 0 { Some(Rgba::token(DANGER)) } else { states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token)) };
+    let ink = if c.danger() && !state.disabled { Some(Rgba::token(DANGER)) } else { states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token)) };
     let mut _icon = None;
     if tool && let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), ink) {
         let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };
@@ -449,8 +448,7 @@ const UNDERLINE_LOOKS: States = States::of(PAPER_FILL).checked(INK_FILL);
 /// 14-point ink title centred on paper, the tab in use on the selected fill.
 fn tabs_body(ui: &mut Ui, c: &pxui::bodies::TabsConfig) {
     use pxui::bodies::BodyConfig;
-    let s = &c.state;
-    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).checked(s.checked != 0);
+    let state = State::from(c.state);
     // the bar draws nothing of its own (the kit's header look and its rule are off)
     ui.style(&c.bar, &BARE, State::default());
     if c.variant == variant::MODE {
@@ -496,7 +494,7 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
         }
         let clear = ui.part(pxui::Part::CLEAR, Node::column().w_px(side).h_px(side).align(Align::Center).justify(Justify::Center).margin(Edges::ZERO.r(if compact { -10.0 } else { 0.0 })));
         // the kit owns the key's state (U2b.4.23); its look's ink draws the X
-        let state = State::default().hovered(c.clear.hovered != 0).pressed(c.clear.pressed != 0);
+        let state = State::from(c.clear);
         ui.style(&clear, keys, state);
         let ink = keys.pick(state).text;
         ui.within(&clear, &mut |ui| {
@@ -540,9 +538,8 @@ fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
 /// (a payload carried over it draws no line: the songs list takes no drops). `PHONE_ROW`: a 56-point phone song row, a stack (its
 /// content and the swipe actions under it), paper, on the selected fill while marked. Any other variant keeps the kit's row. The caller's cells follow.
 fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
-    let s = &c.state;
-    // one look table a variant; the kit picks its look for the state (disabled > checked > pressed > hovered, U2b.4.20)
-    let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
+    // one look table a variant; the kit picks its look for the state (disabled > checked > pressed > hovered > focused, U2b.4.20)
+    let state = State::from(c.state);
     if c.variant == variant::SIDE_ROW {
         ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));
         ui.style(&c.row, &SIDE_ROW_LOOKS, state);
@@ -559,9 +556,7 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
 /// table row keeps the kit's.
 fn table_row_body(ui: &mut Ui, c: &pxui::bodies::TableRowConfig) {
     if c.variant == variant::FOLDER_ROW {
-        let s = &c.state;
-        let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
-        ui.style(&c.row, &FOLDER_ROW_LOOKS, state);
+        ui.style(&c.row, &FOLDER_ROW_LOOKS, State::from(c.state));
     }
     ui.slot(c.content);
 }

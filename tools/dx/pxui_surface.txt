@@ -1291,6 +1291,7 @@ pxui::bodies::ButtonConfig impl BodyConfig
 pxui::bodies::ButtonConfig impl Deref
 pxui::bodies::ButtonConfig struct (_)
 pxui::bodies::ButtonConfig::accessory_label fn (&self) -> Option<Label>
+pxui::bodies::ButtonConfig::centered fn (&self) -> bool
 pxui::bodies::ButtonConfig::content_axis fn (&self) -> Option<Axis>
 pxui::bodies::ButtonConfig::danger fn (&self) -> bool
 pxui::bodies::ButtonConfig::detail_label fn (&self) -> Option<Label>
@@ -2633,6 +2634,7 @@ pxui_types::State impl Copy
 pxui_types::State impl Debug
 pxui_types::State impl Default
 pxui_types::State impl Eq
+pxui_types::State impl From<PxuiStateDesc>
 pxui_types::State impl PartialEq
 pxui_types::State impl StructuralPartialEq
 pxui_types::State struct
@@ -4379,6 +4381,7 @@ pxui_types::ffi::PxuiStateDesc impl Clone
 pxui_types::ffi::PxuiStateDesc impl Copy
 pxui_types::ffi::PxuiStateDesc impl Debug
 pxui_types::ffi::PxuiStateDesc impl Default
+pxui_types::ffi::PxuiStateDesc impl From<PxuiStateDesc>
 pxui_types::ffi::PxuiStateDesc struct
 pxui_types::ffi::PxuiStateDesc::checked field u8
 pxui_types::ffi::PxuiStateDesc::disabled field u8
@@ -5615,6 +5618,7 @@ pxui_types::theme::State impl Copy
 pxui_types::theme::State impl Debug
 pxui_types::theme::State impl Default
 pxui_types::theme::State impl Eq
+pxui_types::theme::State impl From<PxuiStateDesc>
 pxui_types::theme::State impl PartialEq
 pxui_types::theme::State impl StructuralPartialEq
 pxui_types::theme::State struct
