@@ -808,8 +808,10 @@ pxui::Table impl PartialEq
 pxui::Table impl StructuralPartialEq
 pxui::Table struct
 pxui::Table::DEFAULT const Table
+pxui::Table::bare fn const (self) -> Table
 pxui::Table::head fn const (self, head: TableHead) -> Table
-pxui::Table::multi fn const (self) -> Table
+pxui::Table::mode fn const (self, mode: SelectMode) -> Table
+pxui::Table::open_on_click fn const (self, on: bool) -> Table
 pxui::Table::row_h fn const (self, points: f32) -> Table
 pxui::Table::variant fn const (self, variant: u16) -> Table
 pxui::TableHead impl Clone
@@ -4429,14 +4431,16 @@ pxui_types::ffi::PxuiTableDesc impl Copy
 pxui_types::ffi::PxuiTableDesc struct
 pxui_types::ffi::PxuiTableDesc::anchor field usize
 pxui_types::ffi::PxuiTableDesc::ascending field u8
+pxui_types::ffi::PxuiTableDesc::bare field u8
 pxui_types::ffi::PxuiTableDesc::columns field Slice<PxuiColumn>
 pxui_types::ffi::PxuiTableDesc::flags field PxuiU8MutSpan
 pxui_types::ffi::PxuiTableDesc::has_revision field u8
 pxui_types::ffi::PxuiTableDesc::has_sort field u8
 pxui_types::ffi::PxuiTableDesc::head_h field f32
 pxui_types::ffi::PxuiTableDesc::head_variant field u16
-pxui_types::ffi::PxuiTableDesc::multi field u8
-pxui_types::ffi::PxuiTableDesc::reserved2 field [u8; 6]
+pxui_types::ffi::PxuiTableDesc::mode field u8
+pxui_types::ffi::PxuiTableDesc::open_on_click field u8
+pxui_types::ffi::PxuiTableDesc::reserved2 field [u8; 4]
 pxui_types::ffi::PxuiTableDesc::revision field u64
 pxui_types::ffi::PxuiTableDesc::row_h field f32
 pxui_types::ffi::PxuiTableDesc::rows field usize

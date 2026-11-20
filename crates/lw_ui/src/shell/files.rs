@@ -194,9 +194,9 @@ const FOLDER_COLUMNS: [pxui::Column; 6] = [
 ];
 /// The Time column's index: its heading and cells end 20 points before the column's end.
 const TIME: usize = 5;
-/// The desktop folder table: 38-point rows (`localwave-row` / `FOLDER_ROW`) under 38-point headings (`localwave-heading` /
-/// `FOLDER_HEADING`).
-const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT.row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(38.0).variant(variant::FOLDER_HEADING)).variant(variant::FOLDER_ROW);
+/// The desktop folder table: no frame, nothing selected, a press or Return opens a row (the arrows only move the keyboard's row);
+/// 38-point rows (`localwave-row` / `FOLDER_ROW`) under 38-point headings (`localwave-heading` / `FOLDER_HEADING`).
+const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).bare().row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(38.0).variant(variant::FOLDER_HEADING)).variant(variant::FOLDER_ROW);
 /// A folder table heading (`localwave-heading` / `FOLDER_HEADING`): Swift's 12-point secondary title; Time's ends 20 points in.
 pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
     if c.index == TIME {
@@ -463,9 +463,8 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         }));
     });
     drop(table);
-    // a folder opens on the press (or key) that selects it, or on Return; opening clears the selection (`Intent::Files`)
-    let rows = r.map(|r| r.rows);
-    let open = rows.and_then(|rows| rows.selected.or(rows.activated)).filter(|&i| entries.get(i).is_some_and(|entry| entry.directory));
+    // a folder opens on a press or Return (`activated`), never on an arrow key
+    let open = r.and_then(|r| r.rows.activated).filter(|&i| entries.get(i).is_some_and(|entry| entry.directory));
     if let Some(i) = open && intent.is_none() {
         *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entries[i].id), ..location })));
     }
@@ -486,8 +485,28 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     let selecting = state.selecting;
     // Marks index the shown rows; "all" covers the saved songs among them.
     let shown = directory.shown(files_filter, show_non_audio);
-    let selectable = (0..shown).filter(|&i| directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
-    let selected = (0..shown).filter(|&i| state.is_marked(i) && directory.entry(files_filter, i).is_some_and(|entry| entry.song.is_some())).count();
+    // the rows keep their builds while the snapshot, the filter, the mode and the marks hold; their flags (a plain file, and in Select
+    // mode any row without a saved song, disabled) and the header's counts are prepared then in one pass, never on a warm frame
+    let revision = pxui::hash_of(&(files.revision, files_filter as u8, selecting, show_non_audio, state.selection_revision));
+    let mut marks = state.song_rows.borrow_mut();
+    if marks.revision != Some(revision) {
+        marks.rows.resize(shown, 0);
+        let (mut selectable, mut selected) = (0, 0);
+        for (i, flags) in marks.rows.iter_mut().enumerate() {
+            let entry = directory.entry(files_filter, i);
+            let song = entry.is_some_and(|entry| entry.song.is_some());
+            let off = entry.is_none_or(|entry| if selecting { !song } else { !entry.directory && !entry.audio });
+            *flags = *flags & pxui::ListState::SELECTED | if off { pxui::ListState::DISABLED } else { 0 };
+            selectable += usize::from(song);
+            selected += usize::from(song && *flags & pxui::ListState::SELECTED != 0);
+        }
+        marks.revision = Some(revision);
+        state.folder_counts.set((selectable, selected));
+        #[cfg(test)]
+        tests::FOLDER_PASSES.set(tests::FOLDER_PASSES.get() + 1);
+    }
+    drop(marks);
+    let (selectable, selected) = state.folder_counts.get();
     use super::compact::list::{BACK_KEY, MORE, WORD};
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
@@ -574,17 +593,6 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     let rows = PHONE_FOLDER.trail(if footer { 56.0 } else { 0.0 })
         .mode(if selecting { pxui::SelectMode::Toggle } else { pxui::SelectMode::None }).open_on_click(!selecting);
     let mut marks = state.song_rows.borrow_mut();
-    // the rows keep their builds while the snapshot, the filter, the mode and the marks hold; their flags are written then (a plain
-    // file, and in Select mode any row without a saved song, disabled), not every frame
-    let revision = pxui::hash_of(&(files.revision, files_filter as u8, selecting, show_non_audio, state.selection_revision));
-    if marks.revision != Some(revision) {
-        marks.rows.resize(shown, 0);
-        for (i, flags) in marks.rows.iter_mut().enumerate() {
-            let off = directory.entry(files_filter, i).is_none_or(|entry| if selecting { entry.song.is_none() } else { !entry.directory && !entry.audio });
-            *flags = *flags & pxui::ListState::SELECTED | if off { pxui::ListState::DISABLED } else { 0 };
-        }
-        marks.revision = Some(revision);
-    }
     let mut r = None;
     ui.within(&list, &mut |ui| {
         r = Some(ui.selection_list("directory-entries", shown, &|i| directory.entry(files_filter, i).map_or(i as i64, |entry| entry.id), &mut marks, &rows, &mut |ui, part, cell| {
@@ -744,6 +752,11 @@ fn legend(ui: &mut Ui) {
 mod tests {
     use super::*;
     use crate::files::{Directory, Entry, Folder, Snapshot};
+
+    thread_local! {
+        /// How many times the phone folder list prepared its row flags and counts (an O(rows) pass), for the warm-frame check.
+        pub(super) static FOLDER_PASSES: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    }
     use pxui::{Event, FrameIn, Platform};
     use std::sync::Arc;
 
@@ -967,10 +980,14 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm folder page allocates");
             }
         }
-        // U4b.4 #73: the table's folder row opens on its press (again after the request cleared the selection); a plain file's row
-        // is disabled and takes none
+        // U4b.4 #73 / U2b.4.37: the table's folder row opens on a press, again on the next press (nothing is selected), and on Return,
+        // never on an arrow key; a plain file's row is disabled and takes none
         let mut with_folder = Directory { location, source_root: 5, ..Default::default() };
-        with_folder.entries = vec![Entry { id: 9, name: "Takes".into(), directory: true, ..Default::default() }, entry(3, "cover.jpg", false, None)];
+        with_folder.entries = vec![
+            Entry { id: 9, name: "Takes".into(), directory: true, ..Default::default() },
+            Entry { id: 10, name: "Mixes".into(), directory: true, ..Default::default() },
+            entry(3, "cover.jpg", false, None),
+        ];
         files.directory = Some(Arc::new(with_folder));
         files.revision += 1;
         for _ in 0..3 {
@@ -979,7 +996,13 @@ mod tests {
         let browse = Intent::Files(Request::Browse(Location { parent: Some(9), ..location }));
         assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse));
         state.apply(browse);
-        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse), "the request cleared the selection");
+        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse), "a second press opens again");
+        for (key, want) in [(input::Key::ArrowDown, None), (input::Key::ArrowUp, None), (input::Key::Enter, Some(browse))] {
+            let mut intent = None;
+            let (down, up) = (Event::key(Event::KEY_PRESSED, key.code()), Event::key(Event::KEY_RELEASED, key.code()));
+            frame(&mut ui, &files, &catalog, &state, &mut time, &[down, up], &mut intent);
+            assert_eq!(intent, want, "{key:?}: arrows never open, Return opens the keyboard's row");
+        }
         assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "cover.jpg"), None);
         let row = |name: &str| ui.a11y_nodes().iter().find(|node| node.role == Role::Row as u32 && ui.a11y_name_of(node) == name).map(|node| node.states & pxui::A11yStates::ENABLED.bits() != 0);
         assert_eq!((row("Takes"), row("cover.jpg")), (Some(true), Some(false)), "the folder's row is enabled, the plain file's disabled");
@@ -1370,6 +1393,16 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact folder page allocates");
             }
         }
+        // the rows' flags and the header's counts (one pass over every shown row) are prepared per snapshot, filter, mode and marks:
+        // a warm frame reads them and walks no row (U4b review ruling 3)
+        let passes = FOLDER_PASSES.get();
+        for _ in 0..10 {
+            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
+        assert_eq!(FOLDER_PASSES.get(), passes, "a warm frame prepares nothing");
+        state.apply(Intent::SelectMode(true));
+        frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        assert_eq!(FOLDER_PASSES.get(), passes + 1, "a mode change prepares once");
     }
 
     #[test]

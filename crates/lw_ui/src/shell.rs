@@ -57,6 +57,8 @@ pub struct ShellState {
     song_table: std::cell::RefCell<pxui::TableState>,
     /// The desktop folder table's widths and rows (their flags written per files snapshot, cleared by a files request).
     folder_table: std::cell::RefCell<pxui::TableState>,
+    /// The phone folder list's (saved songs, marked saved songs), prepared with its row flags (`files::compact_folder`).
+    folder_counts: std::cell::Cell<(usize, usize)>,
     /// The songs list's scroll box key, as it reported last frame (its heading reads the scroll from it).
     song_list: std::cell::Cell<i64>,
     /// The marked rows' count and first index, kept where the flags change (never by scanning per frame).
@@ -125,6 +127,7 @@ impl Default for ShellState {
             song_live: std::cell::RefCell::new((Vec::new(), Vec::new())),
             song_table: std::cell::RefCell::new(pxui::TableState::new()),
             folder_table: std::cell::RefCell::new(pxui::TableState::new()),
+            folder_counts: std::cell::Cell::new((0, 0)),
             song_list: std::cell::Cell::new(0),
             song_marks: (0, None),
             remap_scratch: Vec::new(),
@@ -216,9 +219,6 @@ impl ShellState {
             self.clear_selection();
             self.selection_revision = self.selection_revision.wrapping_add(1);
         }
-    }
-    fn is_marked(&self, index: usize) -> bool {
-        self.song_rows.borrow().rows.get(index).is_some_and(|f| f & pxui::ListState::SELECTED != 0)
     }
     /// How many rows are marked.
     fn marked_count(&self) -> usize {
