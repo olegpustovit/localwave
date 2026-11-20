@@ -2115,6 +2115,7 @@ pxui_types::Environment impl Default
 pxui_types::Environment impl PartialEq
 pxui_types::Environment impl StructuralPartialEq
 pxui_types::Environment struct
+pxui_types::Environment::keyboard_animation fn const (self, frame: [f32; 4], from: [f32; 4], started: f64, duration: f64, curve: u32, visible: bool) -> Environment
 pxui_types::Environment::keyboard_curve field u32
 pxui_types::Environment::keyboard_duration field f64
 pxui_types::Environment::keyboard_frame field [f32; 4]
@@ -2122,7 +2123,9 @@ pxui_types::Environment::keyboard_from field [f32; 4]
 pxui_types::Environment::keyboard_started field f64
 pxui_types::Environment::keyboard_visible field u32
 pxui_types::Environment::new fn const (safe_area: [f32; 4]) -> Environment
+pxui_types::Environment::reserved field u32
 pxui_types::Environment::safe_area field [f32; 4]
+pxui_types::Environment::size field u32
 pxui_types::Event impl Clone
 pxui_types::Event impl Copy
 pxui_types::Event impl Debug
@@ -2308,6 +2311,7 @@ pxui_types::Keyboard::VALID const u32
 pxui_types::Keyboard::flags field u32
 pxui_types::Keyboard::frame field [f32; 4]
 pxui_types::Keyboard::new fn const (frame: Rect, flags: u32) -> Keyboard
+pxui_types::Keyboard::size field u32
 pxui_types::Keyboard::valid fn (&self) -> bool
 pxui_types::Label impl Clone
 pxui_types::Label impl Copy
@@ -2814,6 +2818,8 @@ pxui_types::Touch::finger field u64
 pxui_types::Touch::new fn const (device: u64, finger: u64, at: [f64; 2], time: f64, pressure: f32, phase: u32) -> Touch
 pxui_types::Touch::phase field u32
 pxui_types::Touch::pressure field f32
+pxui_types::Touch::reserved field u32
+pxui_types::Touch::size field u32
 pxui_types::Touch::time field f64
 pxui_types::Touch::x field f64
 pxui_types::Touch::y field f64

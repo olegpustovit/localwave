@@ -533,7 +533,7 @@ mod tests {
         let built = ROW_BUILDS.get();
         for tick in 0..20 {
             let events = [pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 195.0, 400.0), pxui::Event::pointer(pxui::Event::SCROLLED, 0, 0.0, if tick % 10 < 5 { -1.0 } else { 1.0 })];
-            let mut input = FrameIn::new(390.0, 844.0).time(20.0 + tick as f64 / 60.0).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
+            let mut input = FrameIn::new(390.0, 844.0).time(20.0 + tick as f64 / 60.0).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
             input.events = &events[..];
             crate::testing::frame(&mut ui, &input, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None)).unwrap();
         }
@@ -568,10 +568,7 @@ mod tests {
         let mut intent = None;
         crate::testing::frame(
             ui,
-            &FrameIn::new(width, 844.0).time(time).environment(pxui::Environment {
-                    safe_area: [59.0, 0.0, 34.0, 0.0],
-                    ..Default::default()
-                }),
+            &FrameIn::new(width, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])),
             &mut |ui| shell(ui, player, position, catalog, state, &mut intent),
         )
         .unwrap();
@@ -799,7 +796,7 @@ mod tests {
         }
         let mut intent = None;
         *time += 1.0;
-        let mut frame_in = FrameIn::new(390.0, 844.0).time(*time).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
+        let mut frame_in = FrameIn::new(390.0, 844.0).time(*time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
         frame_in.events = &events[..2 * pressed.len()];
         crate::testing::frame(ui, &frame_in, &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent)).unwrap();
         *time += 1.0;
@@ -961,7 +958,7 @@ mod tests {
         assert!(ui.text_input_focused(), "the phone Find query is focused when Find opens");
         time += 1.0;
         let mut intent = None;
-        crate::testing::frame(&mut ui, &FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() }),
+        crate::testing::frame(&mut ui, &FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])),
             &mut |ui| { shell(ui, &player, 0.0, &catalog, &state, &mut intent); ui.unfocus(); }).unwrap();
         for _ in 0..2 {
             time += 1.0;
@@ -1261,20 +1258,12 @@ mod tests {
             } else {
                 400.0
             };
-            let touch = pxui::Touch {
-                device: u64::MAX,
-                finger: 7,
-                x: 200.0,
-                y: point,
-                time,
-                pressure: 1.0,
-                phase: match tick % 5 {
+            let touch = pxui::Touch::new(u64::MAX, 7, [200.0, point], time, 1.0, match tick % 5 {
                     0 | 3 => 0,
                     1 => 1,
                     2 => 2,
                     _ => 3,
-                },
-            };
+                });
             let event = pxui::Event {
                 kind: pxui::Event::TOUCH,
                 text: pxui::Str {
@@ -1428,13 +1417,7 @@ mod tests {
                 let mut intent = None;
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn::new(width, 844.0).time(tick as f64).environment(pxui::Environment {
-                            safe_area: [59.0, 0.0, 34.0, 0.0],
-                            ..Default::default()
-                        }).keyboard(pxui::Keyboard {
-                            frame: [0.0, bottom, width, 844.0 - bottom],
-                            flags: pxui::Keyboard::VALID | pxui::Keyboard::ANIMATING,
-                        }),
+                    &FrameIn::new(width, 844.0).time(tick as f64).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])).keyboard(pxui::Keyboard::new(pxui::geom::Rect::new(0.0, bottom, width, 844.0 - bottom), pxui::Keyboard::VALID | pxui::Keyboard::ANIMATING)),
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
@@ -1540,7 +1523,7 @@ mod tests {
                 crate::testing::frame(
                     &mut ui,
                     &{
-                        let mut frame = FrameIn::new(390.0, 844.0).time(10.0).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
+                        let mut frame = FrameIn::new(390.0, 844.0).time(10.0).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                         frame.events = &events[..2];
                         frame
                     },
@@ -1594,10 +1577,7 @@ mod tests {
                 crate::testing::frame(
                     &mut ui,
                     &{
-                        let mut frame = FrameIn::new(width, 844.0).time(2.0 + tick as f64).environment(pxui::Environment {
-                            safe_area: [59.0, 0.0, 34.0, 0.0],
-                            ..Default::default()
-                        });
+                        let mut frame = FrameIn::new(width, 844.0).time(2.0 + tick as f64).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                         frame.events = &events[..2];
                         frame
                     },
@@ -1647,15 +1627,7 @@ mod tests {
         at: (f32, f32),
         time: f64,
     ) -> Option<Intent> {
-        let touch = pxui::Touch {
-            device: u64::MAX,
-            finger: 3,
-            x: f64::from(at.0),
-            y: f64::from(at.1),
-            time,
-            pressure: 1.0,
-            phase,
-        };
+        let touch = pxui::Touch::new(u64::MAX, 3, [f64::from(at.0), f64::from(at.1)], time, 1.0, phase);
         let event = pxui::Event {
             kind: pxui::Event::TOUCH,
             text: pxui::Str {
@@ -1672,10 +1644,7 @@ mod tests {
         crate::testing::frame(
             ui,
             &{
-                let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment {
-                    safe_area: [59.0, 0.0, 34.0, 0.0],
-                    ..Default::default()
-                });
+                let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                 frame.events = std::slice::from_ref(&event);
                 frame
             },
@@ -1905,10 +1874,7 @@ mod tests {
             crate::testing::frame(
                 ui,
                 &{
-                    let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment {
-                        safe_area: [59.0, 0.0, 34.0, 0.0],
-                        ..Default::default()
-                    });
+                    let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                     frame.events = std::slice::from_ref(&event);
                     frame
                 },
