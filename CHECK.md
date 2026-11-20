@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-20. U4b landed (LocalWave rust-port 490e8ec, pxui rust-port 07cc8cac, ABI 1.131; online make check 310 tests green, pxui remote check ok), after U4a (fac487c / 517d61db). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). CP1 (U4b.6) MEASURED on branch cp1 (scratch/cp1-report.md, local only): Tier B green; make performance FAILS twice (16 of 28 gated workloads over build CPU p99 1.5 ms, 9 over frame CPU 2.5 ms, zero warm allocations on gated rows; p50 20-50% above U0.8, not bisected); release abi_bench all pages pass in both modes (3 valid runs each); make ios-build passes; pxui ios_spike does NOT compile (touch.rs: `reorder` field and `section_list` return type), so the touch and lifecycle probes did not run; the compact flows are not automatable here (no gesture driver), only launch observed; buildtime: only clean pxui workspace is over its allowance (+2.05 s vs de53440, +1.38 s vs 16dc635, 27.9 s of the 30 s budget). NEXT: orchestrator decision on the performance misses and the ios_spike break, then CP1 actions (a)-(f).
+Updated 2026-11-20. CP1 (U4b.6) done on top of U4b (LocalWave 490e8ec / pxui 07cc8cac, ABI 1.131): Tier B green; make performance misses build CPU p99 on most workloads, but an interleaved A/B against U0.8 (4675f7d) on the same machine shows the current code equal or faster (songs, clock-120, long-scroll, theme-switch), so the miss is this machine's current speed, not the code; resize p99 is ~11% above U0.8 (2525/2538 vs 2261/2263 us) and goes to action (e); zero warm allocations on every gated workload; the settings workload was aborting since U4a.7 (chips became radios) and runs again. ios_spike compiles again; touch probe OK (0 allocs); the lifecycle probe found 1 warm allocation a gallery frame (pxui_gallery kit_page String), fixed with test warm_gallery_phone. abi_bench: all gates pass in both modes except static Overlays at 1.0110-1.0112 vs 1.011 (placement noise, deferred to (f)). make ios-build passes; the nine compact flows need a manual simulator/device check (no gesture driver). NEXT: CP1 actions (a)-(f), then U5a.
 
 ## What we're doing
 
@@ -210,6 +210,7 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
 - (a) Make the abi_bench pages' call shapes deterministic (static Overlays sits about 27 instructions under 1.011, and whether the
   gallery crate inlines a sixth `button::<&str>` call swings it by about 180). No limit change.
 - (f) Wrapper headroom (one dedicated CP1 step; limits unchanged). Owner ruling 2026-11-20: a minor benchmark miss (noise level,
+  CP1 post-fix run (pxui 8af33e34): static Overlays 1.01103-1.01121 vs 1.011 (+8 to +14 instructions; gallery-only change).
   no growth in work) is deferred here with its figures; only big offenders block. No-drift, zero warm allocations and real
   performance stay hard rules. Parts: option (b) `Overlay.look` by reference (`Option<&Look>`) and the panel record's look by
   pointer (about 25 dynamic instructions a panel); a trimmed frame entry (about 370 instructions a frame of trust-boundary and
@@ -238,6 +239,7 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
 - (c) Split the dynamic abi_bench target (start/Author vs the pages): the run takes about 59 s of the runner's 60 s cap. Never raise the cap.
 - (d) 2.0 cut: the owner decides whether `PxuiUi.theme` (the handle's public first field) is frozen ABI.
 - (e) U4a.6 fresh-row gap (owner, 19 Nov: accepted for now; the CP1 performance step owns it, together with option (i), the
+  CP1 adds: resize build CPU p99 ~11% above U0.8 in an interleaved A/B (2525/2538 vs 2261/2263 us, cp1 3d0cb03); profile it here.
   per-row list revision in Found). Two cuts landed: the list row box holds the row view (pxui 0c74f978) and `pxui_ui_style` takes
   one look (pxui f76bdac3, ABI 1.108). Thread instructions per fresh song row in the list's build loop (scroll jump, lite probe):
   050d029 29.5k; 44c3b45 35.8k; after the cuts 33.1-33.5k (+3.6-4.0k). Of that: the row node 1.3k, `row_in` (signal, selection,
