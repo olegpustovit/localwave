@@ -309,10 +309,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U4b.5 | Lock-in: api_conformance allowlist at its final size | done (landed: LocalWave 490e8ec, pxui 07cc8cac) | LocalWave 0be2cb9. Allowlist 10 lines (9 composite + D7 byline); every line must carry a composite/D7/dynamic colour reason. Package end: scratch/u4b-final-report.md. |
 | U4b.6 | CP1: Tier C and iOS probes | done | LocalWave 3d0cb03 + pxui 8af33e34. Gate misses are machine speed (A/B vs U0.8); gallery warm allocation fixed; manual compact flows open. |
 | U4b.7 | CP1a: abi_bench actions (a), (c), (f), resize (e) | done | LocalWave bcaf517 + pxui 6bc2b6ac (ABI 1.132). abi_bench_start own target; Overlays page one button call site; `Overlay.look` by reference and `PxuiPanel.look` by pointer (static Overlays 1.0100, dynamic Controls 1.0289, Overlays 1.0278; Lists 1.0300 unchanged); frame-entry trim found no repeated work; resize +11-14% build instructions traced to sidebar views rebuilt every frame (evidence in CHECK.md). make performance: zero warm allocations on all 28 gated workloads, build CPU misses as at CP1. |
-| U5.1 | Events and surfaces (OS-1, 32–34) | todo |  |
-| U5.2 | Frames and handles | todo |  |
+| U5.1 | Events and surfaces (OS-1, 32–34) | done | LocalWave 1e51903 + pxui 6547fc6f (ABI 1.133). Sized 64-byte `PxuiEvent` with a surface, `pxui_ui_add_surface`/`remove_surface` (one surface per Ui, shortcut), borrowed `FrameIn::events`, `FILE_DROPPED` reserved; C-level rejection tests. |
+| U5.2 | Frames and handles | done | LocalWave f091089 + pxui 9faf7b53 (ABI 1.134). One frame call (`pxui_ui_frame` and `FrameIn::snapshot` deleted), `PxuiBox.ui` Ui serial checked by every box-taking call (`core_box(engine, raw)`). abi_bench measured at 1.136 (CHECK.md): misses, see U5.4. |
 | U5.3 | Drop legacy exports | todo |  |
-| U5.4 | Sizes (OS-36) | todo |  |
+| U5.4 | Sizes (OS-36) | partial | pxui + LocalWave 7b46f2f (ABI 1.135: the old-size reads deleted) and 6dc71a5 (ABI 1.136: Touch, Environment, Keyboard, FrameIn sized). Open: sizes on LookDesc/StateDesc/CurveDesc/AnchorDesc/TextInputOptions/TextMetrics/LayerInfo/Bodies, strided spans (events, a11y, layers), the `node_ok` regroup. BLOCKED: abi_bench at 1.136 misses dynamic Lists (1.0309 vs 1.03) and static Overlays (1.01103 vs 1.011) by real added work (scratch/u5a). |
 | U5.5 | Record changes (DX7.7) | todo |  |
 | U5.6 | Encodings (OS-41) | todo |  |
 | U5.7 | C vocabulary and menu rows | todo |  |
