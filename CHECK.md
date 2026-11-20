@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-20. U4a landed (LocalWave rust-port fac487c, pxui rust-port 517d61db, ABI 1.123; online make check 304 tests green, pxui remote check ok). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). U4b package end and review round done on `u4b` (LocalWave 7bb0f61 + status, pxui 17068da2, ABI 1.130). Independent review items 1-8 done (pxui 07cc8cac, ABI 1.131; LocalWave 40bf0df). NEXT: U4b ready to land (orchestrator).
+Updated 2026-11-20. U4b landed (LocalWave rust-port 490e8ec, pxui rust-port 07cc8cac, ABI 1.131; online make check 310 tests green, pxui remote check ok), after U4a (fac487c / 517d61db). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). NEXT: CP1 (U4b.6): Tier C, make performance, release abi_bench both modes, make ios-build, iOS probes and compact smoke flows, buildtime, then CP1 actions (a)-(f).
 
 ## What we're doing
 
