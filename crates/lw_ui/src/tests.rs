@@ -2905,6 +2905,48 @@ fn a_focused_sidebar_list_leaves_the_global_shortcuts_on() {
     assert!(!ui.text_input_focused(), "a focused list is not a text editor");
 }
 
+/// Keys the focused sidebar list does not handle fall through to the songs list (the window's default key target): ⌘A selects every
+/// song and Esc clears them; Return stays with the sidebar, which opens its keyboard row (macOS).
+#[test]
+fn a_focused_sidebar_leaves_select_all_and_escape_to_the_songs() {
+    let songs = (0..3).map(|id| lw_core::Song { id: Some(id), title: format!("T{id}"), artist: "A".into(), album: "B".into(), duration: Some(60.0), ..Default::default() });
+    let catalog = prepared(songs.collect());
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.set_a11y(true);
+    let mut state = ShellState::default();
+    state.apply(Intent::Navigate(catalog::Route::Songs));
+    let player = PlayerView::default();
+    let mut intent = None;
+    let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
+        let mut frame = FrameIn::new(1440.0, 872.0);
+        frame.wire.events = events.as_ptr();
+        frame.wire.event_count = events.len();
+        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
+        let taken = intent.take();
+        if let Some(i) = taken.clone() { state.apply(i); }
+        taken
+    };
+    for _ in 0..2 { step(&mut ui, &mut state, &[]); }
+    let row = pxui::testing::find(&ui, pxui::ui::Role::ListItem, "Songs").unwrap();
+    let (x, y) = (f64::from(row.x + 20.0), f64::from(row.y + 10.0));
+    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y), pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y)]);
+    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]);
+    step(&mut ui, &mut state, &[]);
+    let key = |kind, key: input::Key| pxui::Event::key(kind, key.code());
+    let select_all = [key(input::wire::KEY_PRESSED, input::Key::Meta), pxui::Event::key(input::wire::KEY_PRESSED, 'a' as u32),
+        pxui::Event::key(input::wire::KEY_RELEASED, 'a' as u32), key(input::wire::KEY_RELEASED, input::Key::Meta)];
+    step(&mut ui, &mut state, &select_all);
+    assert_eq!(state.selected_song_ids(&catalog).count(), 3, "⌘A with the sidebar focused selects every song");
+    step(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::Escape)]);
+    assert_eq!(state.selected_song_ids(&catalog).count(), 0, "Esc with the sidebar focused clears the songs' selection");
+    step(&mut ui, &mut state, &select_all);
+    assert_eq!(
+        step(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::Enter)]),
+        Some(Intent::Navigate(catalog::Route::Songs)),
+        "Return stays with the focused sidebar"
+    );
+}
+
 fn press(ui: &mut Ui, name: &str, nth: usize) {
     let id = ui
         .a11y_nodes()
