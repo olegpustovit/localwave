@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-20. U4a package end done on `u4a`: review fix round (findings 1-14) and re-review (R1-R6) closed; minor abi_bench and buildtime misses deferred to CP1 action (f) (owner ruling, 20 Nov). NEXT: U4a ready to land (orchestrator).
+Updated 2026-11-20. U4a landed (LocalWave rust-port fac487c, pxui rust-port 517d61db, ABI 1.123; online make check 304 tests green, pxui remote check ok). Minor abi_bench and buildtime misses are deferred to CP1 action (f) (owner ruling, 20 Nov: only big offenders block; no drift, zero warm allocations and real performance stay hard rules). NEXT: U4b (compact, files, detail; restore compact hardware Return/⌘A/Esc), then CP1.
 
 ## What we're doing
 
