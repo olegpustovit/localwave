@@ -84,24 +84,11 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
         }
     });
 }
-/// A one-line secondary text link: a pressable button laying one line in the given metrics.
-pub(super) fn link(
-    ui: &mut Ui,
-    key: &'static str,
-    value: &str,
-    // tracking in ems
-    (size, line_height, weight, tracking): (f32, f32, u16, f32),
-) -> pxui::Response {
-    let node = Node::column().w(Size::Grow).h_px(line_height).role(Role::Button).look(SECONDARY_TEXT);
-    let link = ui.pressable(key, node, &PLAIN, |_, _| {});
-    ui.text_line_box(
-        &link.handle,
-        value,
-        Label::BODY.size(size).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis(),
-        &[],
-    )
-    .unwrap();
-    link
+/// A one-line secondary text link (an album's artist; `localwave-button` / `ROW`): the row's width and `line_height` tall, its
+/// text `size` points in that line, ellipsised; no plate.
+pub(super) const fn link(size: f32, line_height: f32) -> pxui::Button<'static> {
+    pxui::Button::DEFAULT.variant(super::theme::variant::ROW).size(Size::Grow, Size::Px(line_height)).look(&BARE)
+        .label(Label::BODY.size(size).line_height(line_height).lines(1).ellipsis().color(SECONDARY).grow())
 }
 
 pub(super) fn header(
@@ -185,8 +172,7 @@ fn header_body(
                 && !artist.is_empty()
             {
                 spacer(ui, "artist-gap", 6.0);
-                let link = link(ui, "artist", crate::clip(artist), (18.0, 25.2, 400, 0.0));
-                if link.clicked
+                if ui.button("artist", crate::clip(artist), &link(18.0, 25.2)).clicked
                     && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                 {
                     *intent = Some(Intent::Navigate(Route::Artist(index)));

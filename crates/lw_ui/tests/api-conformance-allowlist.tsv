@@ -8,7 +8,6 @@ lw_ui/src/shell/compact/list.rs	R7	let grip = ui.pressable("reorder", Node::colu
 lw_ui/src/shell/compact/list.rs	R7	let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {	composite: compact song row with gestures (audit #27)
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #42 folder link -> Button LINK variant (U4)
-lw_ui/src/shell/detail.rs	R7	let link = ui.pressable(key, node, &PLAIN, |_, _| {});	drift: audit #39 artist link -> Button LINK variant (U4)
 lw_ui/src/shell/files.rs	R2	Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).role(if error { Role::Group } else { Role::Button }).flags(Flags::CLICKABLE | Flags::FOCUSABLE).margin(Edges::ZERO.b(8.0)).look(if error { FOLDER_CARD_ERROR } else { FOLDER_CARD }),
 lw_ui/src/shell/files.rs	R2	Node::column().w_px(width).h_px(height).role(Role::Button).flags(Flags::CLICKABLE | Flags::FOCUSABLE).look(LINK_TEXT),
 lw_ui/src/shell/files.rs	R2	Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),

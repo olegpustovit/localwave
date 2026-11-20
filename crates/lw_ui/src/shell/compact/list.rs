@@ -707,8 +707,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
-                        let link = detail::link(ui, "artist", crate::clip(artist), (17.0, 23.8, 400, 0.0));
-                        if link.clicked
+                        if ui.button("artist", crate::clip(artist), &detail::link(17.0, 23.8)).clicked
                             && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                         {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
