@@ -497,6 +497,51 @@ mod tests {
     use super::*;
     use pxui::{FrameIn, Platform};
 
+    thread_local! {
+        /// How many phone song rows were built (`list::row`), for the kept-row check.
+        pub(super) static ROW_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+    }
+
+    /// Review 7: the phone songs list keeps its rows with a revision (U2b.4.13), so a warm frame rebuilds no unchanged row: idle
+    /// frames build none, the playing song changing rebuilds the rows in view once, and a scroll builds only the rows it changes.
+    #[test]
+    fn a_warm_phone_songs_frame_rebuilds_no_unchanged_row() {
+        let catalog = catalog(200);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let state = songs_state();
+        let mut player = PlayerView { title: "Track 00000", initialized: true, duration: 240.0, ..Default::default() };
+        // counts real builds: a debug build's verify pass rebuilds every kept view
+        ui.verify_views(false);
+        for tick in 0..4 {
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64);
+        }
+        let built = ROW_BUILDS.get();
+        for tick in 4..14 {
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64);
+        }
+        assert_eq!(ROW_BUILDS.get(), built, "a warm frame rebuilds no row");
+        player.current_id = Some(3);
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 14.0);
+        let shown = ROW_BUILDS.get() - built;
+        assert!((1..20).contains(&shown), "the playing song rebuilds the rows in view once: {shown}");
+        for tick in 15..20 {
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64);
+        }
+        assert_eq!(ROW_BUILDS.get(), built + shown, "then they are kept again");
+        // a scroll rebuilds the page's view every frame; the rows that stay in view are kept
+        let built = ROW_BUILDS.get();
+        for tick in 0..20 {
+            let events = [pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 195.0, 400.0), pxui::Event::pointer(pxui::Event::SCROLLED, 0, 0.0, if tick % 10 < 5 { -1.0 } else { 1.0 })];
+            let mut input = FrameIn::new(390.0, 844.0).time(20.0 + tick as f64 / 60.0).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
+            (input.wire.events, input.wire.event_count) = (events.as_ptr(), events.len());
+            crate::testing::frame(&mut ui, &input, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None)).unwrap();
+        }
+        // each frame scrolls one row: it builds the row coming into view and the rows the pointer's hover leaves and enters (at most
+        // four), never the dozen rows that stay in view (the rows were rebuilt every frame without the revision: 15-18 a frame)
+        assert!(ROW_BUILDS.get() - built <= 20 * 4, "a scroll frame rebuilds the rows in view: {}", ROW_BUILDS.get() - built);
+    }
+
     fn catalog(count: usize) -> Catalog {
         crate::tests::prepared(
             (0..count)

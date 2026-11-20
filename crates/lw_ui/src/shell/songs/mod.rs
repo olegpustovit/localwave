@@ -286,13 +286,7 @@ pub(super) fn table(
             let mut song_rows = state.song_rows.borrow_mut();
             // a kept row shows what these hold; the playing and copying rows follow their place on screen, so they rebuild every frame
             song_rows.revision = Some(crate::hash((revision, player.current_id, reorder, state.entry_revision)));
-            {
-                let (live, found) = &mut *state.song_live.borrow_mut();
-                for &i in live.iter() { if let Some(f) = song_rows.rows.get_mut(i) { *f &= !pxui::ListState::LIVE; } }
-                live.clear();
-                for &i in found.iter() { if let Some(f) = song_rows.rows.get_mut(i) { *f |= pxui::ListState::LIVE; live.push(i); } }
-                found.clear();
-            }
+            mark_live(state, &mut song_rows);
             let r = ui.selection_list(
                 "songs",
                 count,
@@ -378,6 +372,16 @@ pub(super) fn table(
         first.get(),
         end.get(),
     ));
+}
+
+/// Moves `ListState::LIVE` from the rows flagged last frame to the rows whose build last frame found live (`song_live`): those rows
+/// rebuild every frame, the rest are kept while the list's revision holds.
+pub(in crate::shell) fn mark_live(state: &ShellState, rows: &mut pxui::ListState) {
+    let (live, found) = &mut *state.song_live.borrow_mut();
+    for &i in live.iter() { if let Some(f) = rows.rows.get_mut(i) { *f &= !pxui::ListState::LIVE; } }
+    live.clear();
+    for &i in found.iter() { if let Some(f) = rows.rows.get_mut(i) { *f |= pxui::ListState::LIVE; live.push(i); } }
+    found.clear();
 }
 
 pub(in crate::shell) mod row;

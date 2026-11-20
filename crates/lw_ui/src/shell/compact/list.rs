@@ -90,8 +90,13 @@ pub(super) fn songs(
             // Select mode toggles a row a tap; outside it a tap plays (the list selects nothing)
             .mode(if cx.selecting { pxui::SelectMode::Toggle } else { pxui::SelectMode::None }).open_on_click(!cx.selecting);
         let mut song_rows = state.song_rows.borrow_mut();
-        // shortcut: the phone rows rebuild every frame (as the section list did); keep them with a revision when profiling asks
-        song_rows.revision = None;
+        // a kept row shows what these hold (U2b.4.13, as the desktop list); a swiped row follows its gesture, so it rebuilds every frame
+        song_rows.revision = Some(crate::hash((
+            (state.revision, std::sync::Arc::as_ptr(&catalog.library) as usize, collection.rows.as_ptr() as usize),
+            (player.current_id, player.artwork.map_or(0, crate::artwork::Images::revision)),
+            (cx.selecting, cx.list, cx.numbered, width.to_bits()),
+        )));
+        super::super::songs::mark_live(state, &mut song_rows);
         let r = ui.selection_list(
             "songs",
             collection.rows.len(),
@@ -176,10 +181,11 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, cell: &pxui::CellState, intent: &
             ui.checkbox("mark", row.title, cell.selected, &MARK);
         }
         if numbered {
-            let mut digits = [0u8; 24];
-            let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
+            // the track number, else the row's place: both prepared on the worker (`track_label`, the song table's numbers)
+            let place = collection.song_table.as_ref().map_or("", |table| table.number_label(index));
+            let number = crate::song_text::body_value(&row, crate::catalog::SongColumn::Number, true, place);
             ui.id("track", |ui| { ui.row(Node::row().w_px(22.0).h_px(18.2).justify(Justify::End), |ui| {
-                ui.label(digits, MONO_13.color(SECONDARY));
+                ui.label(number, MONO_13.color(SECONDARY));
             }); });
         } else {
             artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
@@ -229,6 +235,12 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, cell: &pxui::CellState, intent: &
         more = ui.icon_button("actions", icon_drawing(Icon::More), row.actions_label, &MORE).clicked;
     }); });
     let active = g.swiping || g.swipe_open;
+    // a row off rest (swiping, open or settling) rebuilds every frame until it is back: its last settling frame resets `open_swipe`
+    if active || g.swipe != 0.0 || state.open_swipe.get().is_some_and(|(open, _)| open == index) {
+        state.song_live.borrow_mut().1.push(index);
+    }
+    #[cfg(test)]
+    super::tests::ROW_BUILDS.set(super::tests::ROW_BUILDS.get() + 1);
     match state.open_swipe.get() {
         Some((open, other)) if active && open != index => {
             ui.close_swipe(&other);
