@@ -4,7 +4,7 @@
 //! (+ Keep offline on albums) keys; the artist page adds its album grid (180-point cards, 20/28-point
 //! gaps, prepared per artist) before the scoped song table. Albums add Swift's mono format line after the
 //! summary and, once the library worker resolved it, an underlined "Folder:" link that opens that Files folder.
-use super::compact::list::{key, offline_key};
+use super::compact::list::{offline_key, PLAY_KEY, PLAY_PRIMARY};
 use super::*;
 use lw_core::context::PlaybackContext;
 
@@ -239,13 +239,13 @@ fn keys(
 ) {
     ui.row(Node::row().w_px(width).h_px(KEYS).gap(8.0), |ui| {
         let enabled = !group.ids.is_empty();
-        if key(ui, "play", "Play", Icon::Play, true) && enabled {
+        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play))).clicked && enabled {
             *intent = Some(Intent::PlayRow(0));
         }
-        if key(ui, "shuffle", "Shuffle", Icon::Shuffle, false) && enabled {
+        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle))).clicked && enabled {
             *intent = Some(Intent::ShuffleCollection);
         }
-        if album && offline_key(ui, kept) && enabled {
+        if album && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept)).clicked && enabled {
             *intent = Some(Intent::Page(crate::PageAction::KeepOffline));
         }
     });

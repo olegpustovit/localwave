@@ -153,6 +153,16 @@ pub(super) const PAPER_LOOKS: States = States::of(PAPER_FILL);
 pub(super) const PANEL_LOOKS: States = States::of(PANEL_FILL);
 /// A key on the ink fill (Play, Reconnect, an active mode key, an armed swipe action).
 pub(super) const INK_LOOKS: States = States::of(INK_FILL);
+/// A key with no plate in secondary ink (the phone back key).
+pub(super) const DIM_LOOKS: States = States::of(SECONDARY_TEXT);
+/// A phone play key: ink on the panel fill (a kept Keep offline key looks the same).
+pub(super) const PLAY_KEY_LOOKS: States = States::of(PANEL_FILL.text(Rgba::token(INK)));
+/// The phone Play key: paper on ink.
+pub(super) const PLAY_PRIMARY_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
+/// A selection deck key: ink on the key plate, tertiary while disabled.
+pub(super) const DECK_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).disabled(KEY_FILL.text(Rgba::token(TERTIARY)));
+/// The deck's Remove key: the danger colour on the key plate, tertiary while disabled.
+pub(super) const DECK_REMOVE_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(DANGER))).disabled(KEY_FILL.text(Rgba::token(TERTIARY)));
 /// A phone mode key: ink on the key fill, paper on ink while on (checked).
 pub(super) const MODE_KEY_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).checked(INK_FILL.text(Rgba::token(PAPER)));
 /// `rest` while idle, `lit` while hovered or held.
@@ -240,6 +250,8 @@ pub(super) mod variant {
     pub(in crate::shell) const MODE: u16 = 17;
     /// `localwave-tabs`: the phone tab bar, its tabs sharing the bar 44 high.
     pub(in crate::shell) const TABBAR: u16 = 18;
+    /// `localwave-chip`: the phone selection mark, a 20-point square (ink with a paper check when on, a secondary outline off).
+    pub(in crate::shell) const MARK: u16 = 19;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -302,8 +314,8 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let tool = ![variant::ROW, variant::PRIMARY].contains(&c.variant);
     let [l, t, r, b] = c.padding;
     ui.set_node_layout(&c.line, &Node::row().w(c.width().unwrap_or(Size::Fit)).h(c.height().unwrap_or(Size::Fit)));
-    // a ROW asked for a column (`Button::axis`) stacks its title over its detail from the top
-    let row = if c.content_axis() == Some(Axis::Column) { Node::column() } else { Node::row().align(Align::Center) };
+    // a column (`Button::axis`): a ROW stacks its title over its detail from the top; a centred KEY (the deck) its icon over its label
+    let row = if c.content_axis() == Some(Axis::Column) { Node::column().align(if c.centered != 0 { Align::Center } else { Align::Start }) } else { Node::row().align(Align::Center) };
     let row = row.w(if c.width().is_none() { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap);
     let row = if c.variant == variant::TOOL { row.transition(Some(FADE)) } else { row };
     let row = if c.centered != 0 || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
@@ -475,11 +487,24 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
 
 /// A chip's text: 13 points, secondary, paper while checked.
 const CHIP_LABEL: Label = TEXT_13;
-/// LocalWave's checkbox (registered as `localwave-chip`), the `CHIP` look for any variant (LocalWave has no other checkbox): a
+/// LocalWave's checkbox (registered as `localwave-chip`). `MARK`: the phone selection mark (`variant::MARK`). Any other variant, the `CHIP` look: a
 /// 32-point pill 12 in at each side, fit to its text centred down it, on the panel fill, ink while checked.
 fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
     use pxui::bodies::BodyConfig;
     let on = c.on != 0;
+    if c.variant == variant::MARK {
+        ui.set_node_layout(&c.row, &Node::column().w_px(20.0).h_px(20.0));
+        let (ink, outline, paper) = (Rgba::token(INK), Rgba::token(SECONDARY), Rgba::token(PAPER));
+        ui.canvas(&c.row, move |paint, rect| {
+            if on {
+                paint.fill(Rect::new(rect.x, rect.y, 20.0, 20.0), Fill::new(ink));
+                crate::icons::offline(paint, pxui::geom::Rect { x: rect.x + 3.0, y: rect.y + 3.0, w: 14.0, h: 14.0 }, true, paper);
+            } else {
+                paint.stroke(Rect::new(rect.x, rect.y, 20.0, 20.0), Stroke::new(outline).width(1.5));
+            }
+        });
+        return;
+    }
     ui.set_node_layout(&c.row, &Node::row().w(Size::Fit).h_px(32.0).pad_x(12.0).align(Align::Center).flags(Flags::CLIP));
     ui.style(&c.row, if on { &INK_LOOKS } else { &PANEL_LOOKS }, State::default());
     ui.label(c.text_of(&c.label), CHIP_LABEL.color(if on { PAPER } else { SECONDARY }).role(Role::Unknown));

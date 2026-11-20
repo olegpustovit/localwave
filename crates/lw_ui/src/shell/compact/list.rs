@@ -139,7 +139,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         let mut more = false;
         let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {
             if selecting {
-                checkbox(ui, state.is_marked(index));
+                ui.checkbox("mark", row.title, state.is_marked(index), &MARK);
             }
             if numbered {
                 let mut digits = [0u8; 24];
@@ -524,6 +524,10 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         }); }); });
 }
 
+/// The back key (`localwave-button` / `KEY`): 96 by 44, the chevron and the parent's name from its start, secondary with no plate;
+/// named "Back".
+const BACK_KEY: pxui::Button =
+    pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Px(96.0), Size::Px(44.0)).icon(icon_drawing(Icon::Back)).label(LEAD_DIM).look(&DIM_LOOKS).name("Back");
 /// Swift's detail back row: chevron and the parent's name, 44 pt tall.
 fn back_row(
     ui: &mut Ui,
@@ -534,16 +538,7 @@ fn back_row(
 ) {
     ui.id("back-row", |ui| { ui.row(Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center).padding(Edges::ZERO.t(10.0).l(6.0)),
         |ui| {
-            const BACK: pxui::Button = pxui::Button::sized(96.0, 44.0).look(&BARE).name("Back");
-            let back = ui.button_content("back", &BACK, |ui, _| {
-                ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
-                    let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-                    let color = Rgba::token(SECONDARY);
-                    ui.canvas(&glyph, move |paint, rect| kit::paint_icon(paint, Icon::Back, rect.x, rect.y, color));
-                    ui.label(label, LEAD_DIM);
-                });
-            });
-            if back.clicked {
+            if ui.button("back", label, &BACK_KEY).clicked {
                 *intent = Some(Intent::Navigate(parent));
             }
             extras(ui, intent);
@@ -563,11 +558,11 @@ fn titles(ui: &mut Ui, title: &str, summary: &str) {
 fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>) {
     let kept = catalog.view.as_ref().and_then(|view| view.find.as_ref()).is_some_and(|find| find.pinned);
     ui.row(Node::row().w(Size::Grow).h_px(ROW).gap(8.0).padding(Edges::ZERO.l(16.0).r(16.0).t(2.0)), |ui| {
-        if key(ui, "play-results", "Play results", Icon::Play, false) {
+        if ui.button("play-results", "Play results", &PLAY_KEY.icon(icon_drawing(Icon::Play))).clicked {
             *intent = Some(Intent::PlayRow(0));
         }
         let (label, icon) = if kept { ("Kept offline", Icon::Check) } else { ("Keep results offline", Icon::Down) };
-        if key(ui, "keep-results-offline", label, icon, false) {
+        if ui.button("keep-results-offline", label, &PLAY_KEY.icon(icon_drawing(icon)).selected(kept)).clicked {
             *intent = Some(Intent::TogglePins);
         }
     });
@@ -576,14 +571,14 @@ fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>)
 /// Play and Shuffle keys.
 fn play_keys(ui: &mut Ui, offline: Option<bool>, intent: &mut Option<Intent>) {
     ui.row(Node::row().w(Size::Grow).h_px(PLAY_BAR).gap(8.0).pad_x(16.0), |ui| {
-        if key(ui, "play", "Play", Icon::Play, true) {
+        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play))).clicked {
             *intent = Some(Intent::PlayRow(0));
         }
-        if key(ui, "shuffle", "Shuffle", Icon::Shuffle, false) {
+        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle))).clicked {
             *intent = Some(Intent::ShuffleCollection);
         }
         if let Some(kept) = offline
-            && offline_key(ui, kept)
+            && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept)).clicked
         {
             *intent = Some(Intent::Page(crate::PageAction::KeepOffline));
         }
@@ -595,25 +590,14 @@ fn offline_state(cx: &Cx<'_>) -> Option<bool> {
     matches!(&*cx.collection.context, lw_core::context::PlaybackContext::Album { .. })
         .then(|| !cx.collection.rows.is_empty() && cx.collection.rows.iter().all(|&row| cx.catalog.row(row).pinned))
 }
-pub(in crate::shell) fn offline_key(ui: &mut Ui, kept: bool) -> bool {
-    let label = if kept { "Kept offline" } else { "Keep offline" };
-    let key = PLAY_KEY.look(&PANEL_LOOKS).name(label);
-    ui.button_content("keep-offline", &key, |ui, _| {
-        ui.row(KEY_CONTENT, |ui| {
-            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-            let color = Rgba::token(INK);
-            ui.canvas(&glyph, move |paint, rect| {
-                crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, kept, color)
-            });
-            ui.label(label, LEAD_INK);
-        });
-    })
-    .clicked
+/// The Keep offline key: the offline icon (Kept while kept) and checked while kept.
+pub(in crate::shell) const fn offline_key(kept: bool) -> pxui::Button<'static> {
+    PLAY_KEY.icon(icon_drawing(if kept { Icon::Kept } else { Icon::Offline })).selected(kept)
 }
-/// A play key: its slot's width, `PLAY_BAR` high, the icon and label centred.
-const PLAY_KEY: pxui::Button = pxui::Button::DEFAULT.size(Size::Grow, Size::Px(PLAY_BAR)).centered();
-/// A key's icon and label, 8 points apart.
-const KEY_CONTENT: Node = Node::row().w(Size::Fit).h(Size::Fit).gap(8.0).align(Align::Center);
+/// Swift's playKeyButtons (`localwave-button` / `KEY`): its slot's width, `PLAY_BAR` high, the icon and 15-point label centred 8
+/// apart, ink on the panel fill; `PLAY_PRIMARY` paper on ink (Play).
+pub(in crate::shell) const PLAY_KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Px(PLAY_BAR)).gap(8.0).centered().label(TEXT_15).look(&PLAY_KEY_LOOKS);
+pub(in crate::shell) const PLAY_PRIMARY: pxui::Button = PLAY_KEY.look(&PLAY_PRIMARY_LOOKS);
 
 /// Select-mode part of a lead's cache key: the marks only matter while selecting.
 fn select_revision(state: &ShellState) -> (bool, u64) {
@@ -679,20 +663,13 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
 pub(in crate::shell) const WORD: pxui::Button =
     pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO.l(4.0).r(4.0)).label(TEXT_16.color(INK));
 
-/// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
-pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
-    let node = ui.node("checkbox", Node::column().w_px(20.0).h_px(20.0));
-    let (ink, outline, paper) = (Rgba::token(INK), Rgba::token(SECONDARY), Rgba::token(PAPER));
-    ui.canvas(&node, move |paint, rect| {
-        if marked {
-            paint.fill(Rect::new(rect.x, rect.y, 20.0, 20.0), Fill::new(ink));
-            crate::icons::offline(paint, pxui::geom::Rect { x: rect.x + 3.0, y: rect.y + 3.0, w: 14.0, h: 14.0 }, true, paper);
-        } else {
-            paint.stroke(Rect::new(rect.x, rect.y, 20.0, 20.0), Stroke::new(outline).width(1.5));
-        }
-    });
-}
+/// Swift's 20 pt selection mark (`localwave-chip` / `MARK`): a passive checkbox, the row carries the action.
+pub(in crate::shell) const MARK: pxui::Checkbox = pxui::Checkbox::DEFAULT.size(20.0).passive(true).variant(variant::MARK);
 
+/// A selection deck key (`localwave-button` / `KEY`, its icon over its 12-point label): ink on the key plate, tertiary while
+/// disabled; `DECK_REMOVE` in the danger colour.
+const DECK: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Grow).axis(Axis::Column).gap(4.0).centered().label(TEXT_12).look(&DECK_LOOKS);
+const DECK_REMOVE: pxui::Button = DECK.look(&DECK_REMOVE_LOOKS);
 /// Swift's selection deck: Play next, Add to list, Offline, then Queue (Remove inside a list). Returns the pressed
 /// key ("play-next", "add-to-list", "offline", "queue" or "remove") and the key's rectangle.
 pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {
@@ -704,28 +681,14 @@ pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option
         ui.within(&deck, &mut |ui| {
             for (key, label, glyph) in [
                 ("play-next", "Play next", Icon::Next),
-                ("add-to-list", "Add to list", Icon::Clear),
-                ("offline", "Offline", Icon::Down),
+                ("add-to-list", "Add to list", Icon::Add),
+                ("offline", "Offline", Icon::Offline),
                 (if remove { "remove" } else { "queue" }, if remove { "Remove" } else { "Queue" }, if remove { Icon::Clear } else { Icon::Queue }),
             ] {
-                let tone = if !enabled { TERTIARY } else if key == "remove" { DANGER } else { INK };
-                let ink = Rgba::token(tone);
-                let node = Node::column().w(Size::Grow).h(Size::Grow).gap(4.0).center().role(Role::Button).look(KEY_FILL);
-                let key_node = ui.pressable(key, node, &PLAIN.disabled(!enabled), |ui, _| {
-                    let icon = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-                    ui.canvas(&icon, move |paint, rect| match key {
-                        "add-to-list" => {
-                            paint.fill(Rect::new(rect.x + 3.0, rect.y + 9.25, 14.0, 1.5), Fill::new(ink));
-                            paint.fill(Rect::new(rect.x + 9.25, rect.y + 3.0, 1.5, 14.0), Fill::new(ink));
-                        }
-                        "offline" => crate::icons::offline(paint, pxui::geom::Rect { x: rect.x, y: rect.y, w: 20.0, h: 20.0 }, false, ink),
-                        _ => kit::paint_icon(paint, glyph, rect.x, rect.y, ink),
-                    });
-                    ui.label(label, TEXT_12.color(tone));
-                });
-                ui.a11y_name(&key_node.handle, label);
-                if key_node.clicked {
-                    pressed = Some((key, ui.rect(&key_node.handle)));
+                let style = if key == "remove" { DECK_REMOVE } else { DECK };
+                let r = ui.button(key, label, &style.icon(icon_drawing(glyph)).disabled(!enabled));
+                if r.clicked {
+                    pressed = Some((key, ui.rect(&r.handle)));
                 }
             }
         });
@@ -814,21 +777,4 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
             spacer(ui, "list-gap", 16.0);
         });
     }); }); });
-}
-
-/// Swift's playKeyButtons: a 52 pt key, ink for Play.
-pub(in crate::shell) fn key(ui: &mut Ui, id: &'static str, label: &'static str, icon: Icon, primary: bool) -> bool {
-    let key = PLAY_KEY.look(if primary { &INK_LOOKS } else { &PANEL_LOOKS }).name(label);
-    let tone = if primary { PAPER } else { INK };
-    let color = Rgba::token(tone);
-    ui.button_content(id, &key, |ui, _| {
-        ui.row(KEY_CONTENT, |ui| {
-            let glyph = ui.node("icon", Node::column().w_px(20.0).h_px(20.0));
-            ui.canvas(&glyph, move |paint, rect| {
-                kit::paint_icon(paint, icon, rect.x, rect.y, color)
-            });
-            ui.label(label, TEXT_15.color(tone));
-        });
-    })
-    .clicked
 }

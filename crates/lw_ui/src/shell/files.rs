@@ -495,7 +495,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
 /// Swift's mobileFolder: back and item count, title with options, breadcrumb, Play folder / Shuffle / Keep offline
 /// keys, All / Offline / In cloud tabs and 56 pt file rows (tap plays, "…" opens the song menu). Gap: no Select mode.
 fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), width: f32, intent: &mut Option<Intent>) {
-    use super::compact::list::key;
+    use super::compact::list::PLAY_PRIMARY;
     let files_filter = state.files_filter;
     let selecting = state.selecting;
     // Marks index the shown rows; "all" covers the saved songs among them.
@@ -565,7 +565,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     }
     let ready = !directory.songs.is_empty() && !files.busy;
     ui.row(Node::row().w(Size::Grow).h_px(52.0).gap(8.0).margin(Edges::ZERO.t(12.0).b(8.0)), |ui| {
-        if key(ui, "play-folder", "Play folder", Icon::Play, true) && ready {
+        if ui.button("play-folder", "Play folder", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play))).clicked && ready {
             *intent = Some(Intent::PlayFolder);
         }
         for (id, name, offline) in [("shuffle", "Shuffle folder", false), ("keep-offline", if directory.kept { "Kept offline" } else { "Keep folder offline" }, true)] {
@@ -653,7 +653,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                 if selecting {
                     // Swift's trailing 44 pt checkbox, on saved songs only.
                     if entry.song.is_some() {
-                        ui.id("select-cell", |ui| { ui.row(Node::row().w_px(44.0).h_px(44.0).center(), |ui| super::compact::list::checkbox(ui, state.is_marked(index))); });
+                        ui.id("select-cell", |ui| { ui.row(Node::row().w_px(44.0).h_px(44.0).center(), |ui| { ui.checkbox("mark", &entry.name, state.is_marked(index), &super::compact::list::MARK); }); });
                     }
                 } else if entry.directory {
                     // Folder rows: Open folder / Play folder / Shuffle folder.
