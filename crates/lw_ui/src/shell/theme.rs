@@ -554,7 +554,8 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
         ui.style(&c.row, &SIDE_ROW_LOOKS, state);
     } else if c.variant == variant::SONG_ROW {
         ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
-        ui.style(&c.row, &SONG_ROW_LOOKS, state);    } else if c.variant == variant::PHONE_ROW {
+        ui.style(&c.row, &SONG_ROW_LOOKS, state);
+    } else if c.variant == variant::PHONE_ROW {
         ui.set_node_layout(&c.row, &Node::stack().w(Size::Grow).h_px(56.0));
         ui.style(&c.row, &PHONE_ROW_LOOKS, state);
     }
