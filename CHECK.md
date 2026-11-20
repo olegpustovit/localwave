@@ -224,6 +224,10 @@ bases are in the final report.
     Instruction counts unchanged; at U2b.4.17 the pages read Controls 1.054-1.056, Overlays 1.045-1.047. Not bisected.
   - Edge dynamic instruction margins against 1.03: Controls 1.02952-1.02953 (140-142 instructions under), Overlays
     1.02886-1.02902 (65-76 under), Lists 1.02992-1.02994 (18-24 under). Static Overlays 1.01058-1.01068 against 1.011 (21-28 under).
+  - U4b U2b.4.30 (accepted minor, orchestrator 20 Nov): dynamic abi_bench Controls direct instructions 294664 -> 294906 (+242,
+    +0.08%; one token check of a built-in button's text colour, the icon button's three key colours), wrapper ratio 1.02951 ->
+    1.02948; Kit -1597, Lists -430, others flat; no allocations (base d89af298, after adebdbd0;
+    `scratch/u4b-430-abi-dyn-{before2,after2}.log`, both rc 101 on the known wall flaps).
   - buildtime `--compare 16dc635` c (clean pxui_dylib): 24.32 s vs 23.15 s, +1.17 s against a 1.16 s allowance (5.05%); another
     agent's av-drift and a video encoder ran during it (load 2.2 at start, 10.0 at end). Every other measure passes.
 - (b) Measure the per-row `drop_target`/drop-look cost in the U4a.5 queue workload; the gallery Lists page does not exercise it.
