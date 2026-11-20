@@ -696,7 +696,8 @@ mod tests {
             ui.inject_a11y(&[pxui::A11yAction { id: node.id, action_code: 1, ..Default::default() }]);
             time += 1.0;
             let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
-            assert!(matches!(intent, Some(Intent::Select(Selection::Toggle(_)))), "{intent:?}");
+            // the list toggled the row's mark (`SelectMode::Toggle`) and reports it
+            assert!(matches!(intent, Some(Intent::Selected(_))), "{intent:?}");
             state.apply(intent.unwrap());
             assert_eq!(state.marked_count(), count);
             for _ in 0..2 {
@@ -728,8 +729,37 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "select-mode frame {tick} allocated");
             }
         }
+        // hardware keys reach the list (the window's default key target): Command-A marks every row and Escape clears them, in
+        // Select mode only (iOS has no select-all outside edit mode); Return plays the keyboard's row
+        let rows = state.collection(&catalog).unwrap().rows.len();
+        let intent = keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Meta, input::Key::KeyChar('a')]);
+        assert!(matches!(intent, Some(Intent::Selected(_))), "{intent:?}");
+        state.apply(intent.unwrap());
+        assert_eq!(state.marked_count(), rows, "Command-A marks every row");
+        assert_eq!(keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Escape]), Some(Intent::Select(Selection::Clear)));
+        state.apply(Intent::Select(Selection::Clear));
         assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)));
         assert!(!state.selecting());
+        assert_eq!(keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Meta, input::Key::KeyChar('a')]), None, "no select-all outside Select mode");
+        assert_eq!(state.marked_count(), 0);
+        let intent = keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Enter]);
+        assert!(matches!(intent, Some(Intent::PlayRow(_))), "Return plays the keyboard's row: {intent:?}");
+    }
+    /// `pressed` pressed in order and released in reverse in one frame at 390 points; the intent of that frame (one more to settle).
+    fn keys(ui: &mut Ui, catalog: &Catalog, state: &ShellState, player: &PlayerView<'_>, time: &mut f64, pressed: &[input::Key]) -> Option<Intent> {
+        let mut events = [pxui::Event::default(); 4];
+        for (i, key) in pressed.iter().enumerate() {
+            events[i] = pxui::Event::key(pxui::Event::KEY_PRESSED, key.code());
+            events[2 * pressed.len() - 1 - i] = pxui::Event::key(pxui::Event::KEY_RELEASED, key.code());
+        }
+        let mut intent = None;
+        *time += 1.0;
+        let mut frame_in = FrameIn::new(390.0, 844.0).time(*time).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
+        (frame_in.wire.events, frame_in.wire.event_count) = (events.as_ptr(), 2 * pressed.len());
+        crate::testing::frame(ui, &frame_in, &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent)).unwrap();
+        *time += 1.0;
+        frame(ui, catalog, state, player, 0.0, 390.0, *time);
+        intent
     }
 
     #[test]
@@ -1029,6 +1059,15 @@ mod tests {
         t += 0.05;
         intent = finger(&mut ui, &c, &state, 2, to, t).or(intent);
         assert_eq!(intent, Some(Intent::MoveListRow { from: 0, to: 2 }));
+        // a screen reader moves a row too: each row offers Move up (128) and Move down (256), reported as the same move
+        for _ in 0..2 {
+            t += 0.5;
+            idle(&mut ui, &c, &state, t);
+        }
+        let row = *ui.a11y_nodes().iter().find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == "Track 00001").unwrap();
+        assert_eq!(row.actions & (128 | 256), 128 | 256, "the row offers its moves");
+        ui.inject_a11y(&[pxui::A11yAction { id: row.id, action_code: 256, ..Default::default() }]);
+        assert_eq!(idle(&mut ui, &c, &state, t + 0.5), Some(Intent::MoveListRow { from: 1, to: 2 }));
     }
 
     fn click_menu(ui: &mut Ui, name: &str) {
@@ -1524,15 +1563,11 @@ mod tests {
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
-                // the desktop songs list plays its selected row on Return (its `activated`); the compact list is not a
-                // selection_list yet, so hardware Return there plays nothing until U4b moves it onto one (re-review R2)
+                // once the field let Return go, the songs list plays its keyboard's row on it (its `activated`): the desktop list
+                // its selected row, the phone list (selecting nothing) the row the app's selection brought the keyboard to
                 assert_eq!(
                     intent,
-                    if step == 2 && width >= 1000.0 {
-                        Some(Intent::PlayRow(0))
-                    } else {
-                        None
-                    },
+                    if step == 2 { Some(Intent::PlayRow(0)) } else { None },
                     "width {width}, frame {tick}"
                 );
                 assert_eq!(
@@ -1681,33 +1716,34 @@ mod tests {
         idle(&mut ui, &c, &state, t);
         for round in 0..4 {
             mem_sys::local_reset();
-            let resting = rect_of(&ui, Role::ListItem, "Track 00000").x;
+            // the list owns the row's box; a swipe moves its content (the title with it)
+            let resting = rect_of(&ui, Role::Label, "Track 00000").x;
             // A short drag left opens the trailing strip; its button queues the song and closes.
             let (next, intent) = swipe_row(&mut ui, &c, &state, "Track 00000", -60.0, t + 1.0);
             assert_eq!(intent, None, "a swipe is not a tap");
-            let shifted = rect_of(&ui, Role::ListItem, "Track 00000").x;
+            let shifted = rect_of(&ui, Role::Label, "Track 00000").x;
             assert!(shifted <= resting - 60.0, "row shows its action: {resting} -> {shifted}");
             let (next, intent) = tap_action(&mut ui, &c, &state, "Add to queue", next);
             assert_eq!(intent, Some(Intent::AppendSong(0)));
-            assert_eq!(rect_of(&ui, Role::ListItem, "Track 00000").x, resting, "closed after the action");
+            assert_eq!(rect_of(&ui, Role::Label, "Track 00000").x, resting, "closed after the action");
             // A short drag right opens the leading strip: Play next.
             let (next, intent) = swipe_row(&mut ui, &c, &state, "Track 00000", 60.0, next + 0.5);
             assert_eq!(intent, None);
-            assert!(rect_of(&ui, Role::ListItem, "Track 00000").x >= resting + 60.0);
+            assert!(rect_of(&ui, Role::Label, "Track 00000").x >= resting + 60.0);
             let (next, intent) = tap_action(&mut ui, &c, &state, "Play next", next);
             assert_eq!(intent, Some(Intent::PlayNext(0)));
             // A full swipe commits its side on release without opening, and never plays the row.
             let (next, intent) = swipe_row(&mut ui, &c, &state, "Track 00001", -140.0, next + 0.5);
             assert_eq!(intent, Some(Intent::AppendSong(1)));
-            assert_eq!(rect_of(&ui, Role::ListItem, "Track 00001").x, resting);
+            assert_eq!(rect_of(&ui, Role::Label, "Track 00001").x, resting);
             let (next, intent) = swipe_row(&mut ui, &c, &state, "Track 00001", 140.0, next + 0.5);
             assert_eq!(intent, Some(Intent::PlayNext(1)));
-            assert_eq!(rect_of(&ui, Role::ListItem, "Track 00001").x, resting);
+            assert_eq!(rect_of(&ui, Role::Label, "Track 00001").x, resting);
             // Swiping another row closes the open one.
             let (next, _) = swipe_row(&mut ui, &c, &state, "Track 00000", -60.0, next + 0.5);
             let (mut t2, _) = swipe_row(&mut ui, &c, &state, "Track 00001", -60.0, next + 0.5);
-            assert_eq!(rect_of(&ui, Role::ListItem, "Track 00000").x, resting, "first row closed");
-            assert!(rect_of(&ui, Role::ListItem, "Track 00001").x < resting - 60.0);
+            assert_eq!(rect_of(&ui, Role::Label, "Track 00000").x, resting, "first row closed");
+            assert!(rect_of(&ui, Role::Label, "Track 00001").x < resting - 60.0);
             // Tapping an open row closes it instead of playing.
             let r = rect_of(&ui, Role::ListItem, "Track 00001");
             finger(&mut ui, &c, &state, 0, (100.0, r.y + 30.0), t2 + 0.1);
@@ -1717,7 +1753,7 @@ mod tests {
                 t2 += 0.5;
                 idle(&mut ui, &c, &state, t2);
             }
-            assert_eq!(rect_of(&ui, Role::ListItem, "Track 00001").x, resting);
+            assert_eq!(rect_of(&ui, Role::Label, "Track 00001").x, resting);
             t = t2;
             if round >= 2 {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm swipe round {round}");

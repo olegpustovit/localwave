@@ -177,44 +177,11 @@ pub(super) struct Rows<'a> {
     pub(super) entry: &'a crate::motion::Page,
     pub(super) viewport: Viewport,
 }
-pub(in crate::shell) const LIST_ROW: &str = "localwave.list-row:";
 /// A song row's actions key: 32 points, the secondary ink, no wash.
 const ROW_MORE: pxui::IconButton = pxui::IconButton::sized(32.0, 32.0).look(&ROW_MORE_LOOKS);
 const ROW_MORE_LOOKS: States = States::of(SECONDARY_TEXT);
 /// Carry kind of a row drag; the target resolves the selection from the song id.
 pub(crate) const SONG_DRAG: &str = "localwave.song:";
-
-pub(in crate::shell) fn drop_target(ui: &mut Ui, visual: &Handle, index: usize, intent: &mut Option<Intent>) {
-    let Some(drop) = ui.drop_target(visual).and_then(|drop| {
-        let (dropped, payload) = match drop {
-            pxui::DropRef::Hover(p) => (false, p),
-            pxui::DropRef::Dropped(p) => (true, p),
-        };
-        payload
-            .kind
-            .strip_prefix(LIST_ROW)?
-            .parse::<usize>()
-            .ok()
-            .map(|from| (dropped, from))
-    }) else {
-        return;
-    };
-    let (dropped, from) = drop;
-    let after =
-        ui.signal(visual).pointer.1 >= ui.rect(visual).y + ui.rect(visual).h * 0.5;
-    let before = index + usize::from(after);
-    // Final position once the dragged row leaves its slot.
-    let to = if from < before { before - 1 } else { before };
-    if to == from {
-        return;
-    }
-    ui.canvas_over(visual, move |paint, rect| {
-        paint.fill(Rect::new(rect.x, if after { rect.y + rect.h - 2.0 } else { rect.y }, rect.w, 2.0), Fill::new(Rgba::token(INK)));
-    });
-    if dropped {
-        *intent = Some(Intent::MoveListRow { from, to });
-    }
-}
 
 impl Rows<'_> {
     /// Rows of a list in saved order can be dragged to reorder (not while sorted).

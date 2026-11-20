@@ -82,15 +82,23 @@ pub(super) fn songs(
         Route::Collection(_) => collection_lead_height(),
         _ => 0.0,
     };
-    // Swift's Find "Play results" / "Keep results offline" keys close the song list (one 56 pt row here).
+    // Swift's Find "Play results" / "Keep results offline" keys close the song list (the list's trailer, one 56 pt row here).
     let find_keys = state.route == Route::Find;
     ui.stack(Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
-        let list = ui.section_list(
-            "compact-songs",
-            &SectionList::new(collection.rows.len() + usize::from(find_keys)).row_h(ROW).lead(lead).trail(if cx.selecting { BAR } else { 0.0 }).overlay_scrollbar(),
-            // the find keys row after the songs has no song
-            &|i| collection.row_keys.get(i).copied().unwrap_or(0),
-            &mut |ui, part, _| match part {
+        let reorder = cx.selecting && cx.list.is_some();
+        let list = PHONE_SONGS.lead(lead).trail(if find_keys { ROW } else { 0.0 } + if cx.selecting { BAR } else { 0.0 }).reorder(reorder)
+            // Select mode toggles a row a tap; outside it a tap plays (the list selects nothing)
+            .mode(if cx.selecting { pxui::SelectMode::Toggle } else { pxui::SelectMode::None }).open_on_click(!cx.selecting);
+        let mut song_rows = state.song_rows.borrow_mut();
+        // shortcut: the phone rows rebuild every frame (as the section list did); keep them with a revision when profiling asks
+        song_rows.revision = None;
+        let r = ui.selection_list(
+            "songs",
+            collection.rows.len(),
+            &|i| collection.row_keys[i],
+            &mut song_rows,
+            &list,
+            &mut |ui, part, cell| match part {
                 SectionPart::Leading => {
                     match state.route {
                         Route::Artist(index) => artist_lead(ui, &cx, index, intent),
@@ -99,14 +107,32 @@ pub(super) fn songs(
                         _ => {}
                     }
                 }
+                SectionPart::Trailing if find_keys => find_result_keys(ui, catalog, intent),
                 SectionPart::Header | SectionPart::Trailing => {}
-                SectionPart::Row(index) if index == collection.rows.len() => {
-                    find_result_keys(ui, catalog, intent)
-                }
-                SectionPart::Row(index) => row(ui, &cx, index, intent),
+                SectionPart::Row(index) => row(ui, &cx, index, &cell, intent),
             },
         );
-        let list = list.handle;
+        drop(song_rows);
+        if let Some(i) = r.selected
+            && intent.is_none()
+        {
+            // a change that leaves no row marked (Escape) is the app's Clear
+            let none = !state.song_rows.borrow().rows.iter().any(|f| f & pxui::ListState::SELECTED != 0);
+            *intent = Some(if none { Intent::Select(Selection::Clear) } else { Intent::Selected(i) });
+        }
+        if let Some(i) = r.activated {
+            match state.open_swipe.get() {
+                // a tap on a row whose swipe actions show closes them
+                Some((open, row)) if open == i => ui.close_swipe(&row),
+                _ => *intent = Some(if state.marked_count() > 1 { Intent::PlaySelection } else { Intent::PlayRow(i) }),
+            }
+        }
+        if let Some((from, to)) = r.moved {
+            *intent = Some(Intent::MoveListRow { from, to });
+        }
+        let list = r.handle;
+        // the window's default key target: Return plays the keyboard's row; Command-A and Escape mark in Select mode only
+        ui.focus_default(&list);
         refresh(ui, &list, state, intent);
         if cx.selecting {
             ui.id("selection-bar", |ui| selection_bar(ui, &cx, intent));
@@ -117,7 +143,13 @@ pub(super) fn songs(
     });
 }
 
-fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
+/// The phone songs list (`localwave-row` / `PHONE_ROW`): 56-point rows, the overlay scrollbar, no frame.
+const PHONE_SONGS: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(ROW).overlay_scrollbar().variant(variant::PHONE_ROW).bare();
+
+/// Row `index`'s content in its list row (`cell`, the body's stack on paper, the selected fill while marked): the swipe gestures on
+/// the row, its content offset by the swipe over the revealed action, the mark, artwork or track number, labels, state glyph,
+/// duration and "…" (the grip in a list's Select mode).
+fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, cell: &pxui::CellState, intent: &mut Option<Intent>) {
     let Cx {
         catalog,
         collection,
@@ -129,196 +161,153 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         ..
     } = *cx;
     let row = catalog.row(collection.rows[index]);
-    let cell = ui.node("swipe-row", Node::stack().w(Size::Grow).h(Size::Grow).flags(Flags::CLIP));
-    ui.within(&cell, &mut |ui| {
-        let selected = state.selected == Some(index);
-        let row_node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).align(Align::Center).role(Role::ListItem).padding(Edges::ZERO.l(16.0).r(6.0)).look(if selected { SELECTED_FILL } else { PAPER_FILL });
-        // Touch gestures are taken on the row after it is declared; `more` is read once the row exists.
-        let mut more = false;
-        let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {
-            if selecting {
-                ui.checkbox("mark", row.title, state.is_marked(index), &MARK);
-            }
-            if numbered {
-                let mut digits = [0u8; 24];
-                let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
-                ui.id("track", |ui| { ui.row(Node::row().w_px(22.0).h_px(18.2).justify(Justify::End), |ui| {
-                    ui.label(digits, MONO_13.color(SECONDARY));
-                }); });
-            } else {
-                artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
-            }
-            let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
-            ui.within(&labels, &mut |ui| {
-                ui.label(row.title, if player.current_id == Some(row.id) { ROW_TITLE_NOW } else { ROW_TITLE });
-                let note = if selecting {
-                    row.artist
-                } else if numbered {
-                    if row.availability == Some(lw_core::FileAvailability::InCloud) { row.cloud_note } else { row.file_note }
-                } else {
-                    row.subtitle
-                };
-                ui.label(note, ROW_NOTE);
-            });
-            if selecting {
-                if cx.list.is_some() {
-                    reorder_grip(ui, index, row.title);
-                }
-                return;
-            }
-            if row.pinned
-                || row.availability != Some(lw_core::FileAvailability::OnDevice)
-                || matches!(
-                    row.state,
-                    lw_core::FileState::CopyPending | lw_core::FileState::Failed
-                )
-            {
-                let holder = container(
-                    ui,
-                    "state",
-                    Axis::Row,
-                    Size::Px(if row.pinned { 14.0 } else { 10.0 }),
-                    Size::Px(10.0),
-                    &PAPER_FILL,
-                );
-                ui.within(&holder, &mut |ui| {
-                    super::super::songs::row::glyph(
-                        ui,
-                        (row.state, row.availability, row.pinned),
-                        true,
-                    );
-                });
-            }
-            ui.label(row.duration, MONO_DIM);
-            more = ui.icon_button("actions", icon_drawing(Icon::More), row.actions_label, &MORE).clicked;
-        });
-        // Touch only: a mouse never starts a gesture, so desktop rows read rest.
-        let g = ui.gesture(
-            &node.handle,
-            &if selecting { SELECTING_ROW } else { SWIPE_ROW },
-        );
-        let active = g.swiping || g.swipe_open;
-        match state.open_swipe.get() {
-            Some((open, other)) if active && open != index => {
-                ui.close_swipe(&other);
-                state.open_swipe.set(Some((index, node.handle)));
-            }
-            Some((open, _)) if open == index && active => {
-                state.open_swipe.set(Some((index, node.handle)));
-            }
-            Some((open, _)) if open == index && g.swipe == 0.0 => state.open_swipe.set(None),
-            None if active => state.open_swipe.set(Some((index, node.handle))),
-            _ => {}
+    let node = cell.handle;
+    ui.a11y_name(&node, row.title);
+    // Touch only: a mouse never starts a gesture, so desktop rows read rest.
+    let g = ui.gesture(&node, &if selecting { SELECTING_ROW } else { SWIPE_ROW });
+    let mut content = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).align(Align::Center).padding(Edges::ZERO.l(16.0).r(6.0));
+    if g.swipe != 0.0 {
+        // `swipe` is the row's own x offset; LocalWave never mirrors, so positive reveals the leading side.
+        content = content.w(Size::Px(width)).h(Size::Px(ROW)).at(g.swipe, 0.0).look(PAPER_FILL);
+    }
+    let mut more = false;
+    ui.id("song", |ui| { ui.row(content, |ui| {
+        if selecting {
+            ui.checkbox("mark", row.title, cell.selected, &MARK);
         }
-        if g.swipe != 0.0 {
-            // `swipe` is the row's own x offset; LocalWave never mirrors, so positive reveals the leading side.
-            ui.set_node_layout(
-                &node.handle,
-                &ui.node_layout(&node.handle).w(Size::Px(width)).h(Size::Px(ROW)).at(g.swipe, 0.0),
-            );
-        }
-        if g.highlighted {
-            ui.style(
-                &node.handle,
-                &pxui::theme::States::of(row_node.look.fill(Rgba::token(SELECTED))),
-                State::default(),
-            );
-        }
-        ui.a11y_name(&node.handle, row.title);
-        let clicked = node.clicked;
-        let node = node.handle;
-        if more {
-            let rect = ui.rect(&node);
-            *intent = Some(Intent::SongMenu(
-                index,
-                row.id,
-                collection.key,
-                (rect.x + rect.w - 44.0, rect.y),
-            ));
-        }
-        if selecting && cx.list.is_some() {
-            super::super::songs::row::drop_target(ui, &node, index, intent);
-        }
-        let leading = g.swipe > 0.0;
-        let (key, label, trailing) = match cx.list {
-            Some(list) => (
-                "remove",
-                "Remove",
-                Intent::RemoveFromList { song: row.id, list },
-            ),
-            None => ("add-to-queue", "Add to queue", Intent::AppendSong(row.id)),
-        };
-        let (key, label, action) = if leading {
-            ("play-next", "Play next", Intent::PlayNext(row.id))
+        if numbered {
+            let mut digits = [0u8; 24];
+            let digits = stack_fmt(&mut digits, format_args!("{}", row.track_number.map_or(index as u64 + 1, |n| n.max(0) as u64)));
+            ui.id("track", |ui| { ui.row(Node::row().w_px(22.0).h_px(18.2).justify(Justify::End), |ui| {
+                ui.label(digits, MONO_13.color(SECONDARY));
+            }); });
         } else {
-            (key, label, trailing)
-        };
-        if g.swipe != 0.0 {
-            ui.id("swipe-actions", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).justify(if leading { Justify::Start } else { Justify::End }).z(-1),
-                |ui| {
-                    let revealed = g.swipe.abs();
-                    let style = if revealed >= SWIPE_FULL { SWIPE_ARMED } else { SWIPE };
-                    if ui.button(key, label, &style.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow)).clicked {
-                        *intent = Some(action);
-                        ui.close_swipe(&node);
-                    }
-                },
-            ); });
+            artwork(ui, catalog, player, Some(collection.rows[index]), 40.0);
         }
-        // A full swipe lasts one frame; the row settles closed on its own.
-        if intent.is_none() && (g.swipe_commit_leading || g.swipe_commit_trailing) {
-            *intent = Some(if g.swipe_commit_leading {
-                Intent::PlayNext(row.id)
+        let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
+        ui.within(&labels, &mut |ui| {
+            ui.label(row.title, if player.current_id == Some(row.id) { ROW_TITLE_NOW } else { ROW_TITLE });
+            let note = if selecting {
+                row.artist
+            } else if numbered {
+                if row.availability == Some(lw_core::FileAvailability::InCloud) { row.cloud_note } else { row.file_note }
             } else {
-                trailing
+                row.subtitle
+            };
+            ui.label(note, ROW_NOTE);
+        });
+        if selecting {
+            if cx.list.is_some() {
+                reorder_grip(ui);
+            }
+            return;
+        }
+        if row.pinned
+            || row.availability != Some(lw_core::FileAvailability::OnDevice)
+            || matches!(
+                row.state,
+                lw_core::FileState::CopyPending | lw_core::FileState::Failed
+            )
+        {
+            let holder = container(
+                ui,
+                "state",
+                Axis::Row,
+                Size::Px(if row.pinned { 14.0 } else { 10.0 }),
+                Size::Px(10.0),
+                &PAPER_FILL,
+            );
+            ui.within(&holder, &mut |ui| {
+                super::super::songs::row::glyph(
+                    ui,
+                    (row.state, row.availability, row.pinned),
+                    true,
+                );
             });
         }
-        if g.long_pressed && intent.is_none() {
-            let rect = ui.rect(&node);
-            *intent = Some(Intent::SongMenu(
-                index,
-                row.id,
-                collection.key,
-                (rect.x + rect.w * 0.5 - 100.0, rect.y + rect.h),
-            ));
+        ui.label(row.duration, MONO_DIM);
+        more = ui.icon_button("actions", icon_drawing(Icon::More), row.actions_label, &MORE).clicked;
+    }); });
+    let active = g.swiping || g.swipe_open;
+    match state.open_swipe.get() {
+        Some((open, other)) if active && open != index => {
+            ui.close_swipe(&other);
+            state.open_swipe.set(Some((index, node)));
         }
-        if clicked && intent.is_none() {
-            if selecting {
-                *intent = Some(Intent::Select(Selection::Toggle(index)));
-            } else if g.swipe_open {
-                ui.close_swipe(&node);
-            } else {
-                *intent = Some(Intent::PlayRow(index));
-            }
+        Some((open, _)) if open == index && active => {
+            state.open_swipe.set(Some((index, node)));
         }
-    });
+        Some((open, _)) if open == index && g.swipe == 0.0 => state.open_swipe.set(None),
+        None if active => state.open_swipe.set(Some((index, node))),
+        _ => {}
+    }
+    if g.highlighted {
+        ui.style(&node, &pxui::theme::States::of(SELECTED_FILL), State::default());
+    }
+    if more {
+        let rect = ui.rect(&node);
+        *intent = Some(Intent::SongMenu(
+            index,
+            row.id,
+            collection.key,
+            (rect.x + rect.w - 44.0, rect.y),
+        ));
+    }
+    let leading = g.swipe > 0.0;
+    let (key, label, trailing) = match cx.list {
+        Some(list) => (
+            "remove",
+            "Remove",
+            Intent::RemoveFromList { song: row.id, list },
+        ),
+        None => ("add-to-queue", "Add to queue", Intent::AppendSong(row.id)),
+    };
+    let (key, label, action) = if leading {
+        ("play-next", "Play next", Intent::PlayNext(row.id))
+    } else {
+        (key, label, trailing)
+    };
+    if g.swipe != 0.0 {
+        ui.id("swipe-actions", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).justify(if leading { Justify::Start } else { Justify::End }).z(-1),
+            |ui| {
+                let revealed = g.swipe.abs();
+                let style = if revealed >= SWIPE_FULL { SWIPE_ARMED } else { SWIPE };
+                if ui.button(key, label, &style.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow)).clicked {
+                    *intent = Some(action);
+                    ui.close_swipe(&node);
+                }
+            },
+        ); });
+    }
+    // A full swipe lasts one frame; the row settles closed on its own.
+    if intent.is_none() && (g.swipe_commit_leading || g.swipe_commit_trailing) {
+        *intent = Some(if g.swipe_commit_leading {
+            Intent::PlayNext(row.id)
+        } else {
+            trailing
+        });
+    }
+    if g.long_pressed && intent.is_none() {
+        let rect = ui.rect(&node);
+        *intent = Some(Intent::SongMenu(
+            index,
+            row.id,
+            collection.key,
+            (rect.x + rect.w * 0.5 - 100.0, rect.y + rect.h),
+        ));
+    }
 }
 
-/// Swift's edit-mode drag handle: dragging it reorders the playlist (`MoveListRow` on drop).
-fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
-    use super::super::songs::row::LIST_ROW;
-    let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});
-    ui.a11y_name(&grip.handle, "Reorder track");
-    // The finger takes the handle at once as a held press, so the list neither scrolls nor refreshes.
-    ui.gesture(&grip.handle, &HELD_TOUCH);
-    ui.canvas(&grip.handle, move |paint, rect| {
+/// Swift's edit-mode drag handle: the list's handle (a press lifts the row at once, touch too; the list reports the move, and each
+/// row offers Move up and Move down to assistive technology).
+fn reorder_grip(ui: &mut Ui) {
+    let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(44.0).h_px(44.0));
+    ui.a11y_name(&grip, "Reorder track");
+    ui.canvas(&grip, move |paint, rect| {
         for y in [-5.0, 0.0, 5.0] {
             paint.fill(Rect::new(rect.x + 13.0, rect.y + rect.h * 0.5 + y - 1.0, 18.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
         }
     });
-    if grip.held || grip.clicked {
-        let mut digits = [0u8; 24];
-        let id = stack_fmt(&mut digits, format_args!("{}", index)).as_bytes();
-        let mut kind = [0u8; 48];
-        kind[..LIST_ROW.len()].copy_from_slice(LIST_ROW.as_bytes());
-        let len = LIST_ROW.len() + id.len();
-        kind[LIST_ROW.len()..len].copy_from_slice(id);
-        ui.carry(
-            if grip.clicked { None } else { Some(&grip.handle) },
-            std::str::from_utf8(&kind[..len]).expect("list drag kind is ASCII"),
-            title,
-        );
-    }
 }
 
 /// A swipe action key (`localwave-button` / `ROW`, centred): secondary on the panel fill; `SWIPE_ARMED` past a full swipe, paper on

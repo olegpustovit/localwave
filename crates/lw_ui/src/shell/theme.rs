@@ -195,6 +195,8 @@ pub(super) const FIND_PROMPT: Look = Look::NONE.text(Rgba::token(TERTIARY)).font
 pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).font(PALETTE_FONT);
 /// A song or artist table row: paper, a 60 percent panel wash while hovered or held, the selected fill while selected (checked).
 pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH).checked(SELECTED_FILL);
+/// A phone song row: paper (a touch highlights through the row's gesture), the selected fill while marked.
+pub(super) const PHONE_ROW_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL);
 /// Swift's quick hover and release fade (`motion::out(QUICK)`, 140 ms) as a node's own transition.
 pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { duration: crate::motion::QUICK, points: crate::motion::OUT };
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
@@ -250,6 +252,8 @@ pub(super) mod variant {
     pub(in crate::shell) const TABBAR: u16 = 18;
     /// `localwave-chip`: the phone selection mark, a 20-point square (ink with a paper check when on, a secondary outline off).
     pub(in crate::shell) const MARK: u16 = 19;
+    /// `localwave-row`: a phone song row.
+    pub(in crate::shell) const PHONE_ROW: u16 = 20;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -513,8 +517,8 @@ fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
 /// LocalWave's selectable row (registered as `localwave-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
 /// panel fill while hovered or held, on the selected fill while selected or under a list's drop look. `SONG_ROW`: a song row as tall as
 /// its cells (no inset; they place themselves), paper with the panel wash while hovered or held, on the selected fill while selected
-/// (a payload carried over it draws no line: the songs list takes no drops). Any other variant keeps the kit's row. The caller's cells
-/// follow.
+/// (a payload carried over it draws no line: the songs list takes no drops). `PHONE_ROW`: a 56-point phone song row, a stack (its
+/// content and the swipe actions under it), paper, on the selected fill while marked. Any other variant keeps the kit's row. The caller's cells follow.
 fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     let s = &c.state;
     // one look table a variant; the kit picks its look for the state (disabled > checked > pressed > hovered, U2b.4.20)
@@ -524,7 +528,9 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
         ui.style(&c.row, &SIDE_ROW_LOOKS, state);
     } else if c.variant == variant::SONG_ROW {
         ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
-        ui.style(&c.row, &SONG_ROW_LOOKS, state);
+        ui.style(&c.row, &SONG_ROW_LOOKS, state);    } else if c.variant == variant::PHONE_ROW {
+        ui.set_node_layout(&c.row, &Node::stack().w(Size::Grow).h_px(56.0));
+        ui.style(&c.row, &PHONE_ROW_LOOKS, state);
     }
     ui.slot(c.content);
 }
@@ -712,6 +718,21 @@ mod body_tests {
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
         assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 0.0, 200.0, 32.0]], "the selected row on the selected fill");
+        assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+    }
+
+    /// `selection_list.body = localwave-row` / `PHONE_ROW`: a phone row is 56 points, on the selected fill while marked (the kit's list row has its own look).
+    #[test]
+    fn localwave_phone_row_draws_the_phone_row() {
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::Toggle).row_h(56.0).variant(variant::PHONE_ROW).bare().fit();
+        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![0, pxui::ListState::SELECTED], ..pxui::ListState::new() });
+        let mut build = |ui: &mut Ui| {
+            ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("content", Node::row().w(Size::Grow).h_px(20.0)); });
+        };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 56.0, 200.0, 112.0]], "the marked row, 56 points, on the selected fill");
         assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
     }
 

@@ -355,9 +355,7 @@ pub(super) fn table(
             // Keep a song drag alive while its source row scrolls out of the virtual window.
             if ui
                 .carrying()
-                .is_some_and(|payload| {
-                    payload.kind.starts_with(LIST_ROW) || payload.kind.starts_with(SONG_DRAG)
-                })
+                .is_some_and(|payload| payload.kind.starts_with(SONG_DRAG))
             {
                 ui.transfer_carry(&list);
             }
