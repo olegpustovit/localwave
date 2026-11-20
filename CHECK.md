@@ -192,8 +192,9 @@ bases are in the final report.
    gap step U2b.4.17 (pxui fd9203b1, LocalWave d4e1c96, ABI 1.112) gives `Ui::tree` a `revision: Option<u64>` (as
    `ListState::revision`); a warm frame walks no node. Release abi_bench passes every page in both modes over 3 runs each
    (dynamic Collections x1.0186-1.0270, 4.6-6.5 us per 1000 nodes); details in `scratch/u4a-final-report.md`.
-   NEXT: an independent review fix round on U2b.4.17 and the U4a diff (fixes as `[U2b.4.17 fix]`/`[U4a.<k> fix]` commits). Do not
-   mark U4a done before it.
+   Review fix round: findings 1-8 and 10-14 done (gap steps U2b.4.18-21, 24-28; ABI 1.121). Finding 9b (search clear key) is a GAP
+   awaiting a ruling. Package end BLOCKED: static abi_bench Overlays 1.0112 over 1.011 since U2b.4.28 (placement; see
+   scratch/u4a-handoff-report.md). NEXT: rulings on 9b and Overlays, finish the package end, then re-review, then landing.
 1. Next: an independent drift review of the U4a diff against the ledger (no re-implemented kit behaviour in LocalWave), then the
    orchestrator lands (pxui `rust-port` first, `tools/check-pxui-remote.sh`, then LocalWave with an online `make check`).
 2. Orchestrator rulings carried by U4a (19 Nov): GAP U2b.4.16 shape A (`PickerFieldConfig.list`); abi_bench option (a) (regrouping
