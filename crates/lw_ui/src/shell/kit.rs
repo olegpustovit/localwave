@@ -420,8 +420,7 @@ pub(super) mod button_tests {
                 ui,
                 &{
                     let mut frame = FrameIn::new(1440.0, 71.0).time(time);
-                    frame.wire.events = events.as_ptr();
-                    frame.wire.event_count = events.len();
+                    frame.events = &events[..];
                     frame
                 },
                 &mut |ui| {
@@ -558,12 +557,7 @@ pub(super) mod button_tests {
         let mut build = |ui: &mut Ui| {
             clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&ICON_PLATE_LOOKS)).clicked);
         };
-        let input = |time, events: &[Event]| {
-            let mut frame = FrameIn::new(320.0, 240.0).time(time);
-            frame.wire.events = events.as_ptr();
-            frame.wire.event_count = events.len();
-            frame
-        };
+        fn input(time: f64, events: &[Event]) -> FrameIn<'_> { FrameIn::new(320.0, 240.0).time(time).events(events) }
         for time in [0.0, 0.1] {
             crate::testing::frame(&mut ui, &input(time, &[]), &mut build).unwrap();
         }

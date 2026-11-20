@@ -833,7 +833,7 @@ mod body_tests {
             for code in [input::Key::ArrowDown.code()] {
                 let events = [pxui::Event::key(pxui::Event::KEY_PRESSED, code), pxui::Event::key(pxui::Event::KEY_RELEASED, code)];
                 let mut frame = FrameIn::new(200.0, 300.0);
-                (frame.wire.events, frame.wire.event_count) = (events.as_ptr(), events.len());
+                frame.events = &events[..];
                 crate::testing::frame(&mut ui, &frame, build).unwrap();
                 frames(&mut ui, build);
             }

@@ -785,8 +785,7 @@ mod tests {
             ui,
             &{
                 let mut frame = FrameIn::new(size.0, size.1).time(*time);
-                frame.wire.events = events.as_ptr();
-                frame.wire.event_count = events.len();
+                frame.events = &events[..];
                 frame
             },
             &mut |ui| {

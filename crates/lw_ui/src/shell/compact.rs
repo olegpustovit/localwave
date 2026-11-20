@@ -534,7 +534,7 @@ mod tests {
         for tick in 0..20 {
             let events = [pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 195.0, 400.0), pxui::Event::pointer(pxui::Event::SCROLLED, 0, 0.0, if tick % 10 < 5 { -1.0 } else { 1.0 })];
             let mut input = FrameIn::new(390.0, 844.0).time(20.0 + tick as f64 / 60.0).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
-            (input.wire.events, input.wire.event_count) = (events.as_ptr(), events.len());
+            input.events = &events[..];
             crate::testing::frame(&mut ui, &input, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None)).unwrap();
         }
         // each frame scrolls one row: it builds the row coming into view and the rows the pointer's hover leaves and enters (at most
@@ -800,7 +800,7 @@ mod tests {
         let mut intent = None;
         *time += 1.0;
         let mut frame_in = FrameIn::new(390.0, 844.0).time(*time).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
-        (frame_in.wire.events, frame_in.wire.event_count) = (events.as_ptr(), 2 * pressed.len());
+        frame_in.events = &events[..2 * pressed.len()];
         crate::testing::frame(ui, &frame_in, &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent)).unwrap();
         *time += 1.0;
         frame(ui, catalog, state, player, 0.0, 390.0, *time);
@@ -1235,8 +1235,7 @@ mod tests {
                 &mut ui,
                 &{
                     let mut frame = FrameIn::new(390.0, 844.0).time(1000.0 + tick as f64 / 60.0);
-                    frame.wire.events = events.as_ptr();
-                    frame.wire.event_count = events.len();
+                    frame.events = &events[..];
                     frame
                 },
                 &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
@@ -1290,8 +1289,7 @@ mod tests {
                 &mut ui,
                 &{
                     let mut frame = FrameIn::new(390.0, 844.0).time(time);
-                    frame.wire.events = &event;
-                    frame.wire.event_count = 1;
+                    frame.events = std::slice::from_ref(&event);
                     frame
                 },
                 &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -1543,8 +1541,7 @@ mod tests {
                     &mut ui,
                     &{
                         let mut frame = FrameIn::new(390.0, 844.0).time(10.0).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() });
-                        frame.wire.events = events.as_ptr();
-                        frame.wire.event_count = 2;
+                        frame.events = &events[..2];
                         frame
                     },
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -1601,8 +1598,7 @@ mod tests {
                             safe_area: [59.0, 0.0, 34.0, 0.0],
                             ..Default::default()
                         });
-                        frame.wire.events = events.as_ptr();
-                        frame.wire.event_count = 2;
+                        frame.events = &events[..2];
                         frame
                     },
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -1680,8 +1676,7 @@ mod tests {
                     safe_area: [59.0, 0.0, 34.0, 0.0],
                     ..Default::default()
                 });
-                frame.wire.events = &event;
-                frame.wire.event_count = 1;
+                frame.events = std::slice::from_ref(&event);
                 frame
             },
             &mut |ui| shell(ui, &player, 0.0, c, state, &mut intent),
@@ -1914,8 +1909,7 @@ mod tests {
                         safe_area: [59.0, 0.0, 34.0, 0.0],
                         ..Default::default()
                     });
-                    frame.wire.events = &event;
-                    frame.wire.event_count = 1;
+                    frame.events = std::slice::from_ref(&event);
                     frame
                 },
                 &mut |ui| shell(ui, &player, 0.0, &c, &state, &mut None),

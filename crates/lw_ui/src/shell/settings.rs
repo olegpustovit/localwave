@@ -296,13 +296,11 @@ mod tests {
         frame: &mut FrameIn,
         event: Event,
     ) -> Option<Intent> {
-        frame.wire.events = &event;
-        frame.wire.event_count = 1;
         frame.wire.time += 0.02;
-        let result = build(ui, state, player, 0.0, frame);
-        frame.wire.events = std::ptr::null();
-        frame.wire.event_count = 0;
-        result
+        // a copy that borrows the event for this call only
+        let mut input = *frame;
+        input.events = std::slice::from_ref(&event);
+        build(ui, state, player, 0.0, &mut input)
     }
     fn click(
         ui: &mut Ui,
