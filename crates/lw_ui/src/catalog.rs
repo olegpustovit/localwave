@@ -149,8 +149,9 @@ pub struct Collection {
     /// A representative row with artwork, prepared once with the collection.
     pub artwork_row: Option<usize>,
     pub song_table: Option<Arc<SongTable>>,
-    /// First position of each distinct initial letter in row order (Swift's compact A-Z index).
-    pub sections: Vec<(&'static str, usize)>,
+    /// Each distinct initial letter in row order (Swift's compact A-Z index) and, beside it, its first position.
+    pub letters: Vec<&'static str>,
+    pub starts: Vec<usize>,
 }
 
 const LETTERS: [&str; 27] = [
@@ -644,7 +645,7 @@ impl Library {
             _ => String::new(),
         };
         let lead = if format.is_empty() { String::new() } else { format!("{summary} · ") };
-        let mut sections = Vec::new();
+        let (mut letters, mut starts) = (Vec::new(), Vec::new());
         let mut seen = 0u32;
         for (position, index) in rows.iter().enumerate() {
             let letter = match self
@@ -659,7 +660,8 @@ impl Library {
             };
             if seen & (1 << letter) == 0 {
                 seen |= 1 << letter;
-                sections.push((LETTERS[letter], position));
+                letters.push(LETTERS[letter]);
+                starts.push(position);
             }
         }
         Collection {
@@ -668,7 +670,8 @@ impl Library {
             lead,
             format,
             folder: None,
-            sections,
+            letters,
+            starts,
             row_keys,
             title: crate::clip(title).into(),
             subtitle: crate::clip(subtitle).into(),

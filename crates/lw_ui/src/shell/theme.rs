@@ -283,6 +283,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_checkbox_body("localwave-chip", chip_body)?;
     ui.register_segmented_body("localwave-segmented", segment_body)?;
     ui.register_tabs_body("localwave-tabs", tabs_body)?;
+    ui.register_section_index_body("localwave-index", index_body)?;
     ui.register_search_field_body("localwave-search", search_body)?;
     ui.register_modal_body("localwave-modal", modal_body)?;
     ui.register_inspector_section_body("localwave-disclosure", super::onboarding::disclosure_body)?;
@@ -527,6 +528,21 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
         ui.style(&c.row, &SONG_ROW_LOOKS, state);
     }
     ui.slot(c.content);
+}
+
+/// A section index letter: secondary 11 points in a 17-point step.
+const INDEX_LETTER: Label = TEXT_11.h_px(17.0).color(SECONDARY).role(Role::Unknown);
+/// LocalWave's section index (registered as `localwave-index`): Swift's phone A-Z rail, 28 points wide and 17 a letter (the kit
+/// reads the letter under the pointer from that share), each letter 6 points in from the end.
+fn index_body(ui: &mut Ui, c: &pxui::bodies::SectionIndexConfig) {
+    use pxui::bodies::BodyConfig;
+    let count = c.letters.len;
+    ui.set_node_layout(&c.node, &Node::column().w_px(28.0).h_px(count as f32 * 17.0));
+    for i in 0..count {
+        ui.row(Node::row().w(Size::Grow).h_px(17.0).align(Align::Center).justify(Justify::End).padding(Edges::ZERO.r(6.0)), |ui| {
+            ui.label(c.text_at(&c.letters, i), INDEX_LETTER);
+        });
+    }
 }
 
 /// A badge's text: paper 11 points in a 16-point line.

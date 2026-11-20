@@ -1801,10 +1801,13 @@ mod tests {
         // Rows carry the prepared "Artist · Album" line and a "…" menu.
         assert!(has(&ui, Role::Label, "Example artist · Album 00"));
         assert!(has(&ui, Role::Button, "Actions for A00"));
-        assert!(has(&ui, Role::Group, "Section index"));
-        // Tapping a letter jumps to its first song; dragging over the index follows the finger.
+        // The index is the kit's section index (a slider over the letters, 17 points each); choosing a letter jumps to its first
+        // song (an assistive SetValue here), and dragging over the index follows the pointer or the finger.
+        let index = rect_of(&ui, Role::Slider, "Section index");
+        let letter = |k: usize| (index.x + index.w * 0.5, index.y + 17.0 * k as f32 + 8.5);
         assert!(!has(&ui, Role::ListItem, "Z50"));
-        click(&mut ui, "Z");
+        let id = ui.a11y_nodes().iter().find(|node| node.is_role(Role::Slider) && ui.a11y_name_of(node) == "Section index").unwrap().id;
+        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 4, payload: 25.0, ..Default::default() }]);
         for step in 1..4 {
             idle(&mut ui, &c, &state, t + f64::from(step));
         }
@@ -1812,8 +1815,8 @@ mod tests {
         assert!(has(&ui, Role::ListItem, "Z50"), "jumped to Z");
         let top = rect_of(&ui, Role::ListItem, "Z50").y;
         assert!(top < 700.0, "Z is in view: {top}");
-        let (x, y) = centre(rect_of(&ui, Role::Button, "A"));
-        let (_, m) = centre(rect_of(&ui, Role::Button, "M"));
+        let (x, y) = letter(0);
+        let (_, m) = letter(12);
         let pointer = |ui: &mut Ui, kind: u32, y: f32, time: f64| {
             let event = pxui::Event::pointer(kind, 0, f64::from(x), f64::from(y));
             let player = PlayerView {
@@ -1845,8 +1848,8 @@ mod tests {
         assert!(has(&ui, Role::ListItem, "M24"), "dragged to M");
         // A finger drag over the rail follows the finger too (pxui touch_drag), not the rows' swipe or scroll.
         t += 5.0;
-        let (fx, fy) = centre(rect_of(&ui, Role::Button, "A"));
-        let (_, ty) = centre(rect_of(&ui, Role::Button, "T"));
+        let (fx, fy) = letter(0);
+        let (_, ty) = letter(19);
         finger(&mut ui, &c, &state, 0, (fx, fy), t);
         finger(&mut ui, &c, &state, 1, (fx, (fy + ty) / 2.0), t + 0.05);
         finger(&mut ui, &c, &state, 1, (fx, ty), t + 0.1);

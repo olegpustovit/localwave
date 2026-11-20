@@ -21,8 +21,6 @@ const SWIPE_ROW: GestureOpts = GestureOpts::DEFAULT.long_press().swipe_actions(
 const HELD_TOUCH: GestureOpts = GestureOpts::DEFAULT.touch_drag();
 /// Pull to refresh at the framework's distance.
 const PULL: GestureOpts = GestureOpts::DEFAULT.pull_to_refresh();
-const RAIL_STEP: f32 = 17.0;
-const RAIL_WIDTH: f32 = 28.0;
 
 struct Cx<'a> {
     catalog: &'a Catalog,
@@ -372,48 +370,18 @@ fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
     );
 }
 
-/// Swift's trailing index: tap or drag over a letter jumps to its first song.
+/// Swift's trailing index (`section_index`, drawn by `localwave-index`): a press or drag over a letter jumps to its first song.
 fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
-    ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End),
-        |ui| {
-            let rail = ui.node(
-                "index",
-                Node::column().w_px(RAIL_WIDTH).h_px(collection.sections.len() as f32 * RAIL_STEP).role(Role::Group),
-            );
-            ui.a11y_name(&rail, "Section index");
-            let top = ui.rect(&rail).y;
-            let mut dragging = false;
-            ui.within(&rail, &mut |ui| {
-                for (letter, first) in collection.sections.iter().copied() {
-                    let node = Node::row().w_px(RAIL_WIDTH).h_px(RAIL_STEP).align(Align::Center).role(Role::Button).justify(Justify::End).padding(Edges::ZERO.r(6.0));
-                    // The rail takes the pointer, never Tab.
-                    let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {
-                        ui.label(letter, TEXT_11.h_px(RAIL_STEP).color(SECONDARY));
-                    });
-                    ui.a11y_name(&key.handle, letter);
-                    // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
-                    ui.gesture(&key.handle, &HELD_TOUCH);
-                    let signal = ui.signal(&key.handle);
-                    if signal.held {
-                        dragging = true;
-                        // The press holds while the pointer or finger drags over the index; the letter comes from its y.
-                        let under = (((signal.pointer.1 - top) / RAIL_STEP).max(0.0) as usize)
-                            .min(collection.sections.len() - 1);
-                        if ui.state(&rail, -1) != under as i64 {
-                            ui.set_state(&rail, under as i64);
-                            jump(ui, list, collection.sections[under].1, collection.rows.len());
-                        }
-                    } else if signal.clicked {
-                        jump(ui, list, first, collection.rows.len());
-                    }
-                }
-            });
-            if !dragging && ui.state(&rail, -1) != -1 {
-                ui.set_state(&rail, -1);
-            }
-        },
-    );
+    ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End), |ui| {
+        let index = ui.section_index("index", &collection.letters, &RAIL);
+        // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
+        ui.gesture(&index.response.handle, &HELD_TOUCH);
+        if let Some(letter) = index.chosen {
+            jump(ui, list, collection.starts[letter], collection.rows.len());
+        }
+    });
 }
+const RAIL: pxui::SectionIndex = pxui::SectionIndex::DEFAULT.name("Section index");
 
 const BACK_ROW: f32 = 54.0;
 const TITLE_BLOCK: f32 = 33.6 + 4.0 + 18.2;

@@ -5,7 +5,6 @@ lw_ui/src/shell/compact.rs	R7	let card = ui.pressable("group", node, &PLAIN, |ui
 lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {	composite: mini player open (audit #22)
 lw_ui/src/shell/compact/list.rs	R7	let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {	composite: artist page album card (audit #34)
 lw_ui/src/shell/compact/list.rs	R7	let grip = ui.pressable("reorder", Node::column().w_px(44.0).h_px(44.0).role(Role::Button), &PLAIN, |_, _| {});	drift: audit #29 reorder grip -> list reorder (G8, U4)
-lw_ui/src/shell/compact/list.rs	R7	let key = ui.pressable(letter, node, &PLAIN.tab_stop(false), |ui, _| {	drift: audit #33 A-Z rail -> section_index (G9, U4)
 lw_ui/src/shell/compact/list.rs	R7	let node = ui.pressable("song", row_node, &PLAIN, |ui, _| {	composite: compact song row with gestures (audit #27)
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/detail.rs	R7	let link = ui.pressable("link", Node::column().w(Size::Fit).h_px(18.2).role(Role::Button), &PLAIN, |ui, _| {	drift: audit #42 folder link -> Button LINK variant (U4)
