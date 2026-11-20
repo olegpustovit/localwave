@@ -6,6 +6,5 @@ lw_ui/src/shell/compact.rs	R7	let open = ui.pressable("open-player", node, &PLAI
 lw_ui/src/shell/compact/list.rs	R7	let card = ui.pressable(Key::Id(index as i64), node, &PLAIN, |ui, _| {	composite: artist page album card (audit #34)
 lw_ui/src/shell/detail.rs	R7	let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {	composite: artist album card (audit #43)
 lw_ui/src/shell/files.rs	R7	let card = ui.pressable(Key::Id(folder.id), SOURCE_CARD.role(if error { Role::Group } else { Role::Button }), &PLAIN.look(looks), |ui, _| {	composite: source folder card with its buttons and secondary press (audit #71)
-lw_ui/src/shell/files.rs	R7	let r = ui.pressable(Key::Id(entry.id), ROW_56.role(Role::Button), &PLAIN, |ui, _| content(ui));	composite: phone folder row (browse/play/import, marks, "…") (audit #80)
 lw_ui/src/shell/settings.rs	R7	let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: appearance settings row with context menu (audit #65)
 lw_ui/src/shell/settings.rs	R7	let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {	composite: cache settings row with context menu (audit #65)
