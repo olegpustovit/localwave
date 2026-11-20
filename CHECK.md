@@ -252,6 +252,10 @@ bases are in the final report.
 - U4a review (ruling, accepted for now): the compact (phone) layout lost hardware ⌘A and Esc when finding 3 deleted the app's
   selection copy, and hardware Return when R2 deleted the shell's Enter path (170d633); U4b must restore all three when the
   compact list moves onto `selection_list` (`find_done_dismisses_input_without_playing_the_selected_song` expects None at 320/390).
+  Resolved in U4b.2/6 (LocalWave daaf74d on U2b.4.33): Return plays the keyboard's row at every width; Command-A and Escape mark and
+  clear in Select mode only (D9: iOS has no select-all outside edit mode).
+- U4b (orchestrator): pxui has no iOS accessibility bridge. VoiceOver on iPhone does not get pxui's accessibility values (for
+  example the section index's letter, U2b.4.34); the macOS and AT-SPI bridges carry them. For CP1 and the plan's iOS items.
 - U4a package end: under the scratch dark test_ui patch (gcmp dark dumps only), test failures vary from run to run; one run showed a
   warm-allocation assertion at 3 against 0 under load. Not seen in the shipping (light) suite or `make check`. Investigate at CP1:
   warm allocations are a hard rule.
