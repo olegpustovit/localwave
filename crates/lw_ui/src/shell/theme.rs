@@ -259,6 +259,8 @@ pub(super) mod variant {
     pub(in crate::shell) const BAR: u16 = 21;
     /// `localwave-sheet` (`Dialog::variant`): Swift's Add music sheet, its detailed buttons full-width choices.
     pub(in crate::shell) const CHOICES: u16 = 22;
+    /// `localwave-heading`: a desktop song column heading (any other table heading is the kit's).
+    pub(in crate::shell) const SONG_HEADING: u16 = 23;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -754,7 +756,7 @@ mod body_tests {
         let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
         let table = std::cell::RefCell::new(pxui::TableState::new());
         let mut build = |ui: &mut Ui| {
-            ui.column(Node::column().w(Size::Grow).h_px(40.0), |ui| { ui.table_head("head", &COLUMNS, &mut table.borrow_mut(), &pxui::TableHead::DEFAULT.h_px(40.0)); });
+            ui.column(Node::column().w(Size::Grow).h_px(40.0), |ui| { ui.table_head("head", &COLUMNS, &mut table.borrow_mut(), &pxui::TableHead::DEFAULT.h_px(40.0).variant(variant::SONG_HEADING)); });
             ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
                 ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("cells", Node::column().w(Size::Grow).h_px(44.0)); });
             });
@@ -771,6 +773,24 @@ mod body_tests {
         assert!((32.0..34.0).contains(&number) && (68.0..70.0).contains(&title), "headings 32 and 8 in: # at {number}, Title at {title}");
         let (number, title) = (first(&kit, 0.0, 60.0), first(&kit, 60.0, 200.0));
         assert!((title - 60.0 - number).abs() < 2.0, "the kit insets both alike: # at {number}, Title at {title}");
+    }
+
+    /// `table_head.body = localwave-heading` (U2b.4.36): a heading that is not a song column's (no `SONG_HEADING`) runs the kit's
+    /// built-in heading, drawing exactly what the kit draws (instances and accessibility).
+    #[test]
+    fn localwave_heading_draws_the_kit_heading_for_other_tables() {
+        const COLUMNS: [pxui::Column; 2] = [pxui::Column::new("Name").share(1.0), pxui::Column::new("Time").w_px(84.0).grip(false)];
+        let table = std::cell::RefCell::new(pxui::TableState::new());
+        let mut build = |ui: &mut Ui| {
+            ui.column(Node::column().w(Size::Grow).h_px(38.0), |ui| { ui.table_head("head", &COLUMNS, &mut table.borrow_mut(), &pxui::TableHead::DEFAULT.h_px(38.0)); });
+        };
+        let (mut app, mut kit) = (ui(true), ui(false));
+        frames(&mut app, &mut build);
+        frames(&mut kit, &mut build);
+        let drawn = |ui: &Ui| (format!("{:?}", ui.layers().flat_map(|l| l.instances.iter()).collect::<Vec<_>>()), ui.a11y_nodes().iter().map(|n| (n.role, n.states, ui.a11y_name_of(n).to_owned())).collect::<Vec<_>>());
+        let (app, kit) = (drawn(&app), drawn(&kit));
+        assert!(kit.1.iter().any(|n| n.2 == "Name"), "the kit names its headings");
+        assert_eq!(app, kit, "the app body hands another table's heading to the kit");
     }
 
     /// `badge.body = localwave-badge` and `progress.body = localwave-progress`: the badge is paper text on an ink plate 16 points high;

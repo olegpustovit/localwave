@@ -187,7 +187,7 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                 &mut |ui| {
                     ui.id("component", |ui| { ui.column(Node::column().w_px(width).h(Size::Grow), |ui| {
                         let height = heading_height(ui, &catalog, columns, None);
-                        ui.table_head("song-columns", &heading_columns(columns), &mut state, &pxui::TableHead::DEFAULT.h_px(height));
+                        ui.table_head("song-columns", &heading_columns(columns), &mut state, &pxui::TableHead::DEFAULT.h_px(height).variant(crate::shell::theme::variant::SONG_HEADING));
                     }); });
                 },
             )

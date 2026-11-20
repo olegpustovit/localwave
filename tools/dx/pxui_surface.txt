@@ -4447,6 +4447,7 @@ pxui_types::ffi::PxuiTableHeadConfig impl Clone
 pxui_types::ffi::PxuiTableHeadConfig impl Copy
 pxui_types::ffi::PxuiTableHeadConfig struct
 pxui_types::ffi::PxuiTableHeadConfig::ascending field u8
+pxui_types::ffi::PxuiTableHeadConfig::built_in field PxuiSlot
 pxui_types::ffi::PxuiTableHeadConfig::has_ascending field u8
 pxui_types::ffi::PxuiTableHeadConfig::index field usize
 pxui_types::ffi::PxuiTableHeadConfig::node field PxuiBox

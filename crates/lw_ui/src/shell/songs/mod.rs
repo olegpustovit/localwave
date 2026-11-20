@@ -146,12 +146,17 @@ fn heading_height(
     }
     height + 20.5
 }
-/// LocalWave's song column heading (registered as `localwave-heading`; LocalWave has no other table heading, so any variant): Swift's
+/// LocalWave's table heading (registered as `localwave-heading`): a song column's (`SONG_HEADING`) as below, any other the kit's
+/// built-in heading (U2b.4.36). The song heading is Swift's
 /// 12-point medium secondary heading wrapping at words, 32 points in on "#" and 8 on the others, 8 from the column's end, centred down
 /// the heading between 10 points above and 10.5 below; Time is fit to its pixel-rounded width and ends at its column's end; the sorted
 /// column shows its arrow.
 pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
     use pxui::bodies::BodyConfig;
+    if c.variant != super::theme::variant::SONG_HEADING {
+        ui.slot(c.built_in);
+        return;
+    }
     let Some(&column) = Column::ALL.get(c.index) else { return };
     let left = if column == Column::Number { 32.0 } else { 8.0 };
     // 7 at the end: the heading row's 1-point separator follows the heading, a point narrower than its column (`heading_columns`)
@@ -317,7 +322,7 @@ pub(super) fn table(
                         let sort = table.sort.map(|(id, dir)| (id, dir == pxui::Sort::Ascending));
                         ui.view_of("song-heading", &(widths.map(f32::to_bits), sort, heading_height.to_bits()), |ui| {
                             // paper under a 1-point line rule: the theme's `table_head` look
-                            let h = ui.table_head("song-columns", &columns, &mut table, &pxui::TableHead::DEFAULT.h_px(heading_height));
+                            let h = ui.table_head("song-columns", &columns, &mut table, &pxui::TableHead::DEFAULT.h_px(heading_height).variant(super::theme::variant::SONG_HEADING));
                             if h.sorted {
                                 let by = table.sort.and_then(|(id, dir)| Some((Column::ALL[id as usize].sort()?, dir == pxui::Sort::Ascending)));
                                 *intent = Some(Intent::SortBy(by));
