@@ -402,7 +402,7 @@ const SEARCH_TEXT: Look = INK_TEXT.font(Font::BODY.size(15.0));
 /// The phone Find field's text: 26 points medium, ink.
 const FIND_TEXT: Look = INK_TEXT.font(FIND_FONT);
 /// LocalWave's search field (registered as `localwave-search`). `COMPACT`: Swift's phone Find field: a 56-point line of the 26-point
-/// editor (focused on its first build; the placeholder tertiary) and the 44-point clear glyph 10 points past the gutter, an ink rule
+/// editor (the placeholder tertiary; the app focuses it when Find opens) and the 44-point clear glyph 10 points past the gutter, an ink rule
 /// 1.5 points under it. Any other variant (`DESKTOP`): a 44-point paper line of the 15-point editor and a 36-point clear key on the key
 /// plate. The clear key shows on an empty query too, as Swift's does.
 fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
@@ -414,10 +414,6 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
     let line = ui.node("line", Node::row().w(Size::Grow).h_px(height).align(Align::Center));
     ui.within(&line, &mut |ui| {
         let editor = ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h(Size::Grow).inset(Edges::ZERO.l(if compact { 0.0 } else { 2.0 })).look(if compact { FIND_TEXT } else { SEARCH_TEXT }));
-        if compact && ui.state(&editor, 0) == 0 {
-            ui.focus_box(&editor);
-            ui.set_state(&editor, 1);
-        }
         if !ui.slot(c.editor) && compact {
             ui.style(&editor, &States::of(FIND_PROMPT), State::default());
         }

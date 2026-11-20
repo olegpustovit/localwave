@@ -960,6 +960,32 @@ mod tests {
         assert_eq!(index(&ui), before, "leaving select mode keeps the index");
     }
 
+    /// Finding 9: Swift's phone Find takes the keyboard when it opens. The app focuses the query (its own policy, outside the
+    /// `localwave-search` body) on the field's first build, and only then: a field the user left stays unfocused.
+    #[test]
+    fn phone_find_focuses_its_query_when_it_opens() {
+        let catalog = catalog(40);
+        let player = PlayerView::default();
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Find));
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        let mut time = 0.0;
+        for _ in 0..2 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        assert!(ui.text_input_focused(), "the phone Find query is focused when Find opens");
+        time += 1.0;
+        let mut intent = None;
+        crate::testing::frame(&mut ui, &FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment { safe_area: [59.0, 0.0, 34.0, 0.0], ..Default::default() }),
+            &mut |ui| { shell(ui, &player, 0.0, &catalog, &state, &mut intent); ui.unfocus(); }).unwrap();
+        for _ in 0..2 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        assert!(!ui.text_input_focused(), "the query is focused once, when the field is first built");
+    }
+
     #[test]
     fn phone_select_mode_reaches_songs_artist_and_find_pages_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);

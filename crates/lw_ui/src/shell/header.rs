@@ -107,8 +107,15 @@ pub(super) fn compact_find(
             |ui| {
                 ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
                 ui.column(Node::column().h_px(57.5), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
-                    if let Some(value) = ui.search_field("find-songs", state.query.as_str(), &FIND_COMPACT).changed {
+                    let field = ui.search_field("find-songs", state.query.as_str(), &FIND_COMPACT);
+                    let editor = field.response.handle;
+                    if let Some(value) = field.changed {
                         *intent = Some(Query::new(value).map_or(Intent::SearchTooLong, Intent::Search));
+                    }
+                    // Swift's phone Find takes the keyboard when it opens: the query is focused on the field's first build
+                    if ui.state(&editor, 0) == 0 {
+                        ui.focus_box(&editor);
+                        ui.set_state(&editor, 1);
                     }
                 }); });
                 spacer(ui, "tokens-gap", 12.0);
