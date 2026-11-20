@@ -132,7 +132,7 @@ pub(super) fn compact_find(
                         ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
                             ui.label(&summary.label, SECTION_CAPTION);
                         });
-                        if super::compact::list::word(ui, "select", "Select", false) {
+                        if ui.button("select", "Select", &super::compact::list::WORD).clicked {
                             *intent = Some(Intent::SelectMode(true));
                         }
                     });

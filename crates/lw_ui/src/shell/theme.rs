@@ -161,6 +161,8 @@ const fn lit(rest: Look, lit: Look) -> States {
 }
 /// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
 pub(super) const ICON_LOOKS: States = lit(INK_TEXT, INK_TEXT.fill(Rgba::token(PANEL)));
+/// A secondary icon key with no resting plate (the phone rows' "…"): the panel fill while hovered or held.
+pub(super) const ICON_DIM_LOOKS: States = lit(SECONDARY_TEXT, SECONDARY_TEXT.fill(Rgba::token(PANEL)));
 /// An icon key on the key plate.
 pub(super) const ICON_PLATE_LOOKS: States = lit(INK_TEXT.fill(Rgba::token(KEY)), INK_TEXT.fill(Rgba::token(PANEL)));
 /// An icon key in inverse (Play, an active mode): paper icon on ink.
@@ -201,7 +203,8 @@ const PRESS: [pxui::theme::Curve; 2] = [crate::motion::spring(crate::motion::INS
 /// The localwave-* body variants (`Button::variant`, `SelectionList::variant`, `Badge::variant`, `Progress::variant`): one number
 /// each, so a body never mistakes another kind's variant for its own.
 pub(super) mod variant {
-    /// `localwave-button`: a full-width row (the sidebar's Search, "+ label" and shortcuts rows; source rows), laid out from its start.
+    /// `localwave-button`: a full-width row (the sidebar's Search, "+ label" and shortcuts rows; source rows), laid out from its start;
+    /// fit and centred, a phone word key (Select, Done) or swipe action.
     pub(in crate::shell) const ROW: u16 = 1;
     /// `localwave-row`: a sidebar route or list row.
     pub(in crate::shell) const SIDE_ROW: u16 = 2;

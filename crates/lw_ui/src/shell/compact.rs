@@ -153,7 +153,7 @@ pub(super) fn view(
                                 ui.label("Title \u{2193}", BODY_INK);
                                 if !state.selecting
                                     && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
-                                    && list::word(ui, "select", "Select", false)
+                                    && ui.button("select", "Select", &list::WORD).clicked
                                 {
                                     *intent = Some(Intent::SelectMode(true));
                                 }

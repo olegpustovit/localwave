@@ -192,7 +192,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
                 });
             }
             ui.label(row.duration, MONO_DIM);
-            more = more_button(ui, row.actions_label);
+            more = ui.icon_button("actions", icon_drawing(Icon::More), row.actions_label, &MORE).clicked;
         });
         // Touch only: a mouse never starts a gesture, so desktop rows read rest.
         let g = ui.gesture(
@@ -258,7 +258,9 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, intent: &mut Option<Intent>) {
         if g.swipe != 0.0 {
             ui.id("swipe-actions", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).justify(if leading { Justify::Start } else { Justify::End }).z(-1),
                 |ui| {
-                    if swipe_action(ui, key, label, g.swipe.abs()) {
+                    let revealed = g.swipe.abs();
+                    let style = if revealed >= SWIPE_FULL { SWIPE_ARMED } else { SWIPE };
+                    if ui.button(key, label, &style.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow)).clicked {
                         *intent = Some(action);
                         ui.close_swipe(&node);
                     }
@@ -321,36 +323,13 @@ fn reorder_grip(ui: &mut Ui, index: usize, title: &str) {
     }
 }
 
-/// A swipe action key: as wide as the swipe has revealed, its look armed past the full swipe.
-const SWIPE: pxui::Button = pxui::Button::DEFAULT.centered();
-fn swipe_action(ui: &mut Ui, key: &'static str, label: &'static str, revealed: f32) -> bool {
-    let armed = revealed >= SWIPE_FULL;
-    let action = SWIPE.size(Size::Px(revealed.max(SWIPE_ACTION)), Size::Grow);
-    let action = action.look(if armed { &INK_LOOKS } else { &PANEL_LOOKS }).name(label);
-    ui.button_content(key, &action, |ui, _| {
-        ui.label(label, TEXT_13.color(if armed { PAPER } else { SECONDARY }));
-    })
-    .clicked
-}
+/// A swipe action key (`localwave-button` / `ROW`, centred): secondary on the panel fill; `SWIPE_ARMED` past a full swipe, paper on
+/// ink. The caller sizes it to what the swipe has revealed.
+const SWIPE: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).centered().label(TEXT_13.color(SECONDARY)).look(&PANEL_LOOKS);
+const SWIPE_ARMED: pxui::Button = SWIPE.label(TEXT_13.color(PAPER)).look(&INK_LOOKS);
 
-/// Swift's LWMenuButton: a bare "…" in a 44 pt target.
-/// The row's "…" key: 44 points square.
-const MORE: pxui::Button = pxui::Button::sized(44.0, 44.0).look(&BARE);
-fn more_button(ui: &mut Ui, label: &str) -> bool {
-    let button = ui.button_content("actions", &MORE, |_, _| {});
-    ui.a11y_name(&button.handle, label);
-    let color = Rgba::token(SECONDARY);
-    ui.canvas(&button.handle, move |paint, rect| {
-        kit::paint_icon(
-            paint,
-            Icon::More,
-            rect.x + (rect.w - 20.0) / 2.0,
-            rect.y + (rect.h - 20.0) / 2.0,
-            color,
-        );
-    });
-    button.clicked
-}
+/// Swift's LWMenuButton: a secondary "…" in a 44 pt target.
+const MORE: pxui::IconButton = ICON_44.look(&ICON_DIM_LOOKS);
 
 /// `refreshing` holds from release until `end_refresh`, so its first frame starts the load; it can
 /// read once more after the end, which `refresh_ending` keeps from starting another.
@@ -653,12 +632,12 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
             container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
             // Playlists edit (select and remove); the others select.
             if !(playlist && collection.rows.is_empty())
-                && word(ui, "select", if playlist { "Edit" } else { "Select" }, false)
+                && ui.button("select", if playlist { "Edit" } else { "Select" }, &WORD).clicked
             {
                 *intent = Some(Intent::SelectMode(true));
             }
             if !matches!(state.route, Route::Artist(_))
-                && more_button(ui, if playlist { "List actions" } else { "Album actions" })
+                && ui.icon_button("page-actions", icon_drawing(Icon::More), if playlist { "List actions" } else { "Album actions" }, &MORE).clicked
             {
                 *intent = Some(Intent::PageMenu((cx.width - 8.0, BACK_ROW)));
             }
@@ -673,14 +652,14 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
 pub(in crate::shell) fn selection_header(ui: &mut Ui, selected: usize, selectable: usize, rows: usize, intent: &mut Option<Intent>) {
     ui.id("selection-header", |ui| { ui.row(Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center).padding(Edges::ZERO.t(10.0).l(12.0).r(12.0)), |ui| {
         let all = selected > 0 && selected == selectable;
-        if word(ui, "select-all", if all { "Deselect all" } else { "Select all" }, false) {
+        if ui.button("select-all", if all { "Deselect all" } else { "Select all" }, &WORD).clicked {
             *intent = Some(Intent::Select(if all { Selection::Clear } else { Selection::All(rows) }));
         }
         container(ui, "left-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
         let mut buffer = [0u8; 40];
         ui.label(selected_label(&mut buffer, selected), LEAD_INK);
         container(ui, "right-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
-        if word(ui, "done", "Done", true) {
+        if ui.button("done", "Done", &WORD).clicked {
             *intent = Some(Intent::SelectMode(false));
         }
     }); });
@@ -695,17 +674,10 @@ fn selected_label(buffer: &mut [u8; 40], count: usize) -> &str {
     std::str::from_utf8(&buffer[..used]).unwrap_or("")
 }
 
-/// A 44 pt text button (Swift's Select / Done at 16 pt).
-pub(in crate::shell) fn word(ui: &mut Ui, key: &'static str, label: &'static str, _medium: bool) -> bool {
-    let word = WORD.name(label);
-    ui.button_content(key, &word, |ui, _| {
-        ui.label(label, TEXT_16.color(INK));
-    })
-    .clicked
-}
-/// A text button: as wide as its word plus 4 points either side, 44 points high.
-const WORD: pxui::Button =
-    pxui::Button::DEFAULT.size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO.l(4.0).r(4.0)).look(&BARE);
+/// Swift's 44 pt text button (Select, Done, Select all at 16 pt, `localwave-button` / `ROW`): as wide as its word plus 4 points
+/// either side, ink.
+pub(in crate::shell) const WORD: pxui::Button =
+    pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO.l(4.0).r(4.0)).label(TEXT_16.color(INK));
 
 /// Swift's 20 pt selection square: ink with a check when marked, an outline otherwise.
 pub(in crate::shell) fn checkbox(ui: &mut Ui, marked: bool) {
