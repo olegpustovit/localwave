@@ -1289,6 +1289,7 @@ pxui::bodies::ButtonConfig impl Deref
 pxui::bodies::ButtonConfig struct (_)
 pxui::bodies::ButtonConfig::accessory_label fn (&self) -> Option<Label>
 pxui::bodies::ButtonConfig::content_axis fn (&self) -> Option<Axis>
+pxui::bodies::ButtonConfig::danger fn (&self) -> bool
 pxui::bodies::ButtonConfig::detail_label fn (&self) -> Option<Label>
 pxui::bodies::ButtonConfig::height fn (&self) -> Option<Size>
 pxui::bodies::ButtonConfig::icon fn (&self) -> Option<Icon>
@@ -3202,6 +3203,7 @@ pxui_types::ffi::PxuiButtonConfig::bare field u8
 pxui_types::ffi::PxuiButtonConfig::built_in field PxuiSlot
 pxui_types::ffi::PxuiButtonConfig::centered field u8
 pxui_types::ffi::PxuiButtonConfig::content_align field u8
+pxui_types::ffi::PxuiButtonConfig::danger field u8
 pxui_types::ffi::PxuiButtonConfig::detail field Str
 pxui_types::ffi::PxuiButtonConfig::detail_box field PxuiLabelBox
 pxui_types::ffi::PxuiButtonConfig::detail_style field PxuiLabelStyle
@@ -3222,7 +3224,7 @@ pxui_types::ffi::PxuiButtonConfig::lead_word field u32
 pxui_types::ffi::PxuiButtonConfig::line field PxuiBox
 pxui_types::ffi::PxuiButtonConfig::padding field [f32; 4]
 pxui_types::ffi::PxuiButtonConfig::reserved field u8
-pxui_types::ffi::PxuiButtonConfig::reserved2 field [u8; 9]
+pxui_types::ffi::PxuiButtonConfig::reserved2 field [u8; 8]
 pxui_types::ffi::PxuiButtonConfig::reserved3 field u8
 pxui_types::ffi::PxuiButtonConfig::reserved4 field [u8; 6]
 pxui_types::ffi::PxuiButtonConfig::row field PxuiBox
