@@ -210,7 +210,6 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
 - (a) Make the abi_bench pages' call shapes deterministic (static Overlays sits about 27 instructions under 1.011, and whether the
   gallery crate inlines a sixth `button::<&str>` call swings it by about 180). No limit change.
 - (f) Wrapper headroom (one dedicated CP1 step; limits unchanged). Owner ruling 2026-11-20: a minor benchmark miss (noise level,
-  CP1 post-fix run (pxui 8af33e34): static Overlays 1.01103-1.01121 vs 1.011 (+8 to +14 instructions; gallery-only change).
   no growth in work) is deferred here with its figures; only big offenders block. No-drift, zero warm allocations and real
   performance stay hard rules. Parts: option (b) `Overlay.look` by reference (`Option<&Look>`) and the panel record's look by
   pointer (about 25 dynamic instructions a panel); a trimmed frame entry (about 370 instructions a frame of trust-boundary and
@@ -232,6 +231,7 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
     the quiet run (x1.0242 in the earlier one); every instruction gate passes in both modes; dynamic Lists margin 10-16 instructions
     under 1.03 (U4a 18-24), static Overlays 27-33 under 1.011. buildtime: a run under outside load read a +1.83 s / c +1.31 s
     (over); the quiet rerun passes every measure (a +1.09 s, c +0.37 s). No limit changed.
+  CP1 post-fix run (pxui 8af33e34): static Overlays 1.01103-1.01121 vs 1.011 (+8 to +14 instructions; gallery-only change).
 - (b) Measure the per-row `drop_target`/drop-look cost in the U4a.5 queue workload; the gallery Lists page does not exercise it.
   Done at U4a.6 (release COUNTING bundle, 76e50e5 / pxui 24f2965f, load 3.3-3.9): full-queue-playlist-editor build CPU
   p50/p99 812/916 µs with reorder on vs 846/997 with it off (a temporary patch); the per-row reorder cost is below run-to-run
@@ -239,7 +239,6 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
 - (c) Split the dynamic abi_bench target (start/Author vs the pages): the run takes about 59 s of the runner's 60 s cap. Never raise the cap.
 - (d) 2.0 cut: the owner decides whether `PxuiUi.theme` (the handle's public first field) is frozen ABI.
 - (e) U4a.6 fresh-row gap (owner, 19 Nov: accepted for now; the CP1 performance step owns it, together with option (i), the
-  CP1 adds: resize build CPU p99 ~11% above U0.8 in an interleaved A/B (2525/2538 vs 2261/2263 us, cp1 3d0cb03); profile it here.
   per-row list revision in Found). Two cuts landed: the list row box holds the row view (pxui 0c74f978) and `pxui_ui_style` takes
   one look (pxui f76bdac3, ABI 1.108). Thread instructions per fresh song row in the list's build loop (scroll jump, lite probe):
   050d029 29.5k; 44c3b45 35.8k; after the cuts 33.1-33.5k (+3.6-4.0k). Of that: the row node 1.3k, `row_in` (signal, selection,
@@ -249,6 +248,7 @@ a composite/D7/dynamic-colour reason. Account (commits, signatures beside the le
   2135-2245 -> 2331-2398 us (still over base's spread); list-dialogs mean 1.81-1.83M -> 1.80-1.82M (-0.3%), build CPU p99
   2152-2159 -> 2049-2139 us; every other song workload is lower in mean instructions (fling -17%, long-scroll -9%,
   reverse-scroll -9%, song-drag -14%, indicators -13%) and build CPU p99. Zero warm allocations everywhere.
+  CP1 adds: resize build CPU p99 ~11% above U0.8 in an interleaved A/B (2525/2538 vs 2261/2263 us, cp1 3d0cb03); profile it here.
 
 ## Found (separate fixes later)
 
