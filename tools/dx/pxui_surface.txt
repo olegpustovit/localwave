@@ -4123,6 +4123,7 @@ pxui_types::ffi::PxuiScrubOut::size field u32
 pxui_types::ffi::PxuiSearchFieldConfig impl Clone
 pxui_types::ffi::PxuiSearchFieldConfig impl Copy
 pxui_types::ffi::PxuiSearchFieldConfig struct
+pxui_types::ffi::PxuiSearchFieldConfig::clear field PxuiStateDesc
 pxui_types::ffi::PxuiSearchFieldConfig::editor field PxuiSlot
 pxui_types::ffi::PxuiSearchFieldConfig::icon field Str
 pxui_types::ffi::PxuiSearchFieldConfig::key field i64

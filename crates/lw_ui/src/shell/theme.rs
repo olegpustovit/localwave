@@ -417,8 +417,8 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
             ui.style(&editor, &States::of(FIND_PROMPT), State::default());
         }
         let clear = ui.part(pxui::Part::CLEAR, Node::column().w_px(side).h_px(side).align(Align::Center).justify(Justify::Center).margin(Edges::ZERO.r(if compact { -10.0 } else { 0.0 })));
-        let s = ui.signal(&clear);
-        let state = State::default().hovered(s.hovered).pressed(s.held);
+        // the kit owns the key's state (U2b.4.23); its look's ink draws the X
+        let state = State::default().hovered(c.clear.hovered != 0).pressed(c.clear.pressed != 0);
         ui.style(&clear, keys, state);
         let ink = keys.pick(state).text;
         ui.within(&clear, &mut |ui| {
