@@ -4412,6 +4412,7 @@ pxui_types::ffi::PxuiSwipeIn::trailing field f32
 pxui_types::ffi::PxuiTabConfig impl Clone
 pxui_types::ffi::PxuiTabConfig impl Copy
 pxui_types::ffi::PxuiTabConfig struct
+pxui_types::ffi::PxuiTabConfig::bar field PxuiBox
 pxui_types::ffi::PxuiTabConfig::detail field Str
 pxui_types::ffi::PxuiTabConfig::index field usize
 pxui_types::ffi::PxuiTabConfig::node field PxuiBox
