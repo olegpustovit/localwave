@@ -197,6 +197,8 @@ pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).
 pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH).checked(SELECTED_FILL);
 /// A phone song row: paper (a touch highlights through the row's gesture), the selected fill while marked.
 pub(super) const PHONE_ROW_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL);
+/// A desktop folder table row: paper over a 1-point line rule, in every state (Swift's rows take no hover or selection look).
+const FOLDER_ROW_LOOKS: States = States::of(PAPER_FILL.border(Rgba::token(super::kit::LINE), 1.0).sides(pxui::draw::flags::rect::BOTTOM));
 /// Swift's quick hover and release fade (`motion::out(QUICK)`, 140 ms) as a node's own transition.
 pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { duration: crate::motion::QUICK, points: crate::motion::OUT };
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
@@ -261,6 +263,10 @@ pub(super) mod variant {
     pub(in crate::shell) const CHOICES: u16 = 22;
     /// `localwave-heading`: a desktop song column heading (any other table heading is the kit's).
     pub(in crate::shell) const SONG_HEADING: u16 = 23;
+    /// `localwave-row` (`table_row`): a desktop folder table row, paper over a line rule in every state.
+    pub(in crate::shell) const FOLDER_ROW: u16 = 24;
+    /// `localwave-heading`: a desktop folder table heading.
+    pub(in crate::shell) const FOLDER_HEADING: u16 = 25;
 }
 
 /// A tool key's label: 13 points in an 18.2-point line, whole-pixel width; the body inks it.
@@ -286,6 +292,7 @@ pub(crate) fn register_bodies(ui: &mut Ui) -> Result<(), pxui::Error> {
     ui.register_dialog_body("localwave-sheet", super::files::sheet_body)?;
     ui.register_button_body("localwave-button", button_body)?;
     ui.register_selection_list_body("localwave-row", row_body)?;
+    ui.register_table_row_body("localwave-row", table_row_body)?;
     ui.register_table_head_body("localwave-heading", super::songs::heading_body)?;
     ui.register_badge_body("localwave-badge", badge_body)?;
     ui.register_progress_body("localwave-progress", progress_body)?;
@@ -543,6 +550,17 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     ui.slot(c.content);
 }
 
+/// LocalWave's table row (registered as `localwave-row` for `table_row`): a desktop folder row (`FOLDER_ROW`) on its look; any other
+/// table row keeps the kit's.
+fn table_row_body(ui: &mut Ui, c: &pxui::bodies::TableRowConfig) {
+    if c.variant == variant::FOLDER_ROW {
+        let s = &c.state;
+        let state = State::default().hovered(s.hovered != 0).pressed(s.pressed != 0).focused(s.focused != 0).disabled(s.disabled != 0).checked(s.checked != 0);
+        ui.style(&c.row, &FOLDER_ROW_LOOKS, state);
+    }
+    ui.slot(c.content);
+}
+
 /// A section index letter: secondary 11 points in a 17-point step.
 const INDEX_LETTER: Label = TEXT_11.h_px(17.0).color(SECONDARY).role(Role::Unknown);
 /// LocalWave's section index (registered as `localwave-index`): Swift's phone A-Z rail, 28 points wide and 17 a letter (the kit
@@ -592,7 +610,7 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body", "table_head.body", "inspector_section.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "table_row.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body", "table_head.body", "inspector_section.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();

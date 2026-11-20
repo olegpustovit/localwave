@@ -11,6 +11,7 @@ tabs.body = localwave-tabs
 section_index.body = localwave-index
 search_field.body = localwave-search
 selection_list.body = localwave-row
+table_row.body = localwave-row
 table_head.body = localwave-heading
 badge.body = localwave-badge
 progress.body = localwave-progress

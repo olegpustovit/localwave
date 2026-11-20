@@ -146,13 +146,16 @@ fn heading_height(
     }
     height + 20.5
 }
-/// LocalWave's table heading (registered as `localwave-heading`): a song column's (`SONG_HEADING`) as below, any other the kit's
-/// built-in heading (U2b.4.36). The song heading is Swift's
+/// LocalWave's table heading (registered as `localwave-heading`): a song column's (`SONG_HEADING`) as below, a folder table's
+/// (`FOLDER_HEADING`, `files::heading_body`), any other the kit's built-in heading (U2b.4.36). The song heading is Swift's
 /// 12-point medium secondary heading wrapping at words, 32 points in on "#" and 8 on the others, 8 from the column's end, centred down
 /// the heading between 10 points above and 10.5 below; Time is fit to its pixel-rounded width and ends at its column's end; the sorted
 /// column shows its arrow.
 pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
     use pxui::bodies::BodyConfig;
+    if c.variant == super::theme::variant::FOLDER_HEADING {
+        return super::files::heading_body(ui, c);
+    }
     if c.variant != super::theme::variant::SONG_HEADING {
         ui.slot(c.built_in);
         return;

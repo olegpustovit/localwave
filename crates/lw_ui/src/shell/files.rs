@@ -165,15 +165,6 @@ const FILTER: pxui::Tabs = pxui::Tabs::DEFAULT.name("Availability filter").varia
 /// "show" after the hidden files' count (`localwave-button` / `ROW`, Swift's word key): its secondary word, 44 high.
 const SHOW: pxui::Button = super::compact::list::WORD.pad(Edges::ZERO).label(BODY_DIM).name("Show non-audio files");
 
-/// A table cell: fixed `Some(width)` or a weighted share of the remaining row.
-fn cell(ui: &mut Ui, key: &'static str, fixed: Option<f32>, share: f32, end: bool, build: &mut dyn FnMut(&mut Ui)) {
-    let node = ui.node(
-        key,
-        Node::row().w(fixed.map_or(Size::Grow, Size::Px)).h(Size::Grow).grow(share).align(Align::Center).justify(if end { Justify::End } else { Justify::Start }).padding(Edges::ZERO.l(8.0).r(if end { 20.0 } else { 8.0 })),
-    );
-    ui.within(&node, build);
-}
-
 /// Swift's folder/file marks in the # column, drawn as outlines.
 fn mark(ui: &mut Ui, directory: bool, color: Rgba) {
     let node = ui.node("mark", Node::column().w_px(16.0).h_px(16.0));
@@ -192,17 +183,28 @@ const ADD_STEPS: [&str; 3] = [
     "Play your music from the library",
 ];
 
-/// A column of the folder table: header label, fixed width or weighted share, right alignment.
-const COLUMNS: [(&str, Option<f32>, f32, bool); 5] = [
-    ("Name", None, 2.2, false),
-    ("Kind", None, 1.5, false),
-    ("Size", None, 1.0, false),
-    ("On device", None, 1.2, false),
-    ("Time", Some(84.0), 0.0, true),
+/// The desktop folder table's columns: "#" and Time point-wide, the others sharing the rest by weight.
+const FOLDER_COLUMNS: [pxui::Column; 6] = [
+    pxui::Column::new("#").w_px(56.0).grip(false),
+    pxui::Column::new("Name").share(2.2),
+    pxui::Column::new("Kind").share(1.5),
+    pxui::Column::new("Size").share(1.0),
+    pxui::Column::new("On device").share(1.2),
+    pxui::Column::new("Time").w_px(84.0).grip(false),
 ];
-/// The column cells' keys, by `COLUMNS` index: ids, never the column titles.
-const COLUMN_IDS: [&str; 5] = ["c0", "c1", "c2", "c3", "c4"];
-const NUMBER: f32 = 56.0;
+/// The Time column's index: its heading and cells end 20 points before the column's end.
+const TIME: usize = 5;
+/// The desktop folder table: 38-point rows (`localwave-row` / `FOLDER_ROW`) under 38-point headings (`localwave-heading` /
+/// `FOLDER_HEADING`).
+const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT.row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(38.0).variant(variant::FOLDER_HEADING)).variant(variant::FOLDER_ROW);
+/// A folder table heading (`localwave-heading` / `FOLDER_HEADING`): Swift's 12-point secondary title; Time's ends 20 points in.
+pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
+    if c.index == TIME {
+        let layout = ui.node_layout(&c.node).justify(Justify::End).padding(Edges::ZERO.l(8.0).r(20.0));
+        ui.set_node_layout(&c.node, &layout);
+    }
+    ui.label(c.text_of(&c.title), FOOTNOTE.role(Role::Unknown));
+}
 
 pub(super) fn view(
     ui: &mut Ui,
@@ -416,59 +418,37 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         ui.label("Nothing here.", TEXT_14.grow().h_px(48.0).color(SECONDARY));
         return;
     }
-    let head = ui.node("folder-columns", Node::row().w(Size::Grow).h_px(38.0));
-    ui.within(&head, &mut |ui| {
-        cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
-            ui.label("#", FOOTNOTE);
-        });
-        for (index, (label, fixed, share, end)) in COLUMNS.into_iter().enumerate() {
-            if compact && matches!(label, "Kind" | "Size") {
-                continue;
-            }
-            cell(ui, COLUMN_IDS[index], fixed, share, end, &mut |ui| {
-                ui.label(label, FOOTNOTE);
-            });
-        }
-    });
-    ui.canvas_over(&head, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
     // The parent participates in the identity, giving each destination its own scroll state.
     let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
     let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
-    // Desktop lists every file greyed (Swift); the compact list honours Show non-audio files.
-    let shown = directory.entries.len() - if compact && !directory.show_non_audio { directory.non_audio } else { 0 };
+    let entries = &directory.entries;
+    let mut table = state.folder_table.borrow_mut();
+    // the rows keep their builds while the snapshot holds; its flags (plain files disabled) are written once a snapshot
+    if table.selection.revision != Some(files.revision) {
+        table.selection.rows.resize(entries.len(), 0);
+        for (flags, entry) in table.selection.rows.iter_mut().zip(entries) {
+            let plain = !entry.directory && !entry.audio;
+            *flags = *flags & pxui::ListState::SELECTED | if plain { pxui::ListState::DISABLED } else { 0 };
+        }
+        table.selection.revision = Some(files.revision);
+    }
+    // Desktop lists every file, the plain ones greyed (Swift).
+    let mut r = None;
     ui.within(&list, &mut |ui| {
-        ui.grid_list("directory-entries", shown, &pxui::GridList::DEFAULT.w_px(width).h_px(38.0), &mut |ui, index| {
-            let entry = &directory.entries[index];
+        r = Some(ui.table("directory-entries", &FOLDER_COLUMNS, entries.len(), &|i| entries[i].id, &mut table, &FOLDER_TABLE, &mut |ui, index, column, cell| {
+            let entry = &entries[index];
             let other = !entry.directory && !entry.audio;
             let tone = if other { TERTIARY } else { SECONDARY };
-            let color = Rgba::token(tone);
-            let ink = if other { TERTIARY } else { INK };
-            let row = ui.node(
-                Key::Id(entry.id),
-                Node::row().w(Size::Grow).h_px(38.0).role(if entry.directory { Role::Button } else { Role::Row }).flags(if entry.directory { Flags::CLICKABLE | Flags::FOCUSABLE } else { Flags::NONE }),
-            );
-            ui.a11y_name(&row, &entry.name);
-            let signal = ui.signal(&row);
-            ui.within(&row, &mut |ui| {
-                cell(ui, "number", Some(NUMBER), 0.0, false, &mut |ui| {
-                    if entry.audio {
-                        ui.label(&entry.number, TEXT_13.color(tone));
-                    } else {
-                        mark(ui, entry.directory, color);
-                    }
-                });
-                cell(ui, COLUMN_IDS[0], None, COLUMNS[0].2, false, &mut |ui| {
-                    ui.label(&entry.name, TEXT_14.grow().color(ink));
-                });
-                if !compact {
-                    cell(ui, COLUMN_IDS[1], None, COLUMNS[1].2, false, &mut |ui| {
-                        ui.label(&entry.kind, TEXT_14.grow().color(tone));
-                    });
-                    cell(ui, COLUMN_IDS[2], None, COLUMNS[2].2, false, &mut |ui| {
-                        ui.label(&entry.size, MONO_12.grow().color(tone));
-                    });
+            match column {
+                0 if entry.audio => { ui.label(&entry.number, TEXT_13.color(tone)); }
+                0 => mark(ui, entry.directory, Rgba::token(tone)),
+                1 => {
+                    ui.a11y_name(&cell.handle, &entry.name);
+                    ui.label(&entry.name, TEXT_14.grow().color(if other { TERTIARY } else { INK }));
                 }
-                cell(ui, COLUMN_IDS[3], None, COLUMNS[3].2, false, &mut |ui| match entry.glyph {
+                2 => { ui.label(&entry.kind, TEXT_14.grow().color(tone)); }
+                3 => { ui.label(&entry.size, MONO_12.grow().color(tone)); }
+                4 => match entry.glyph {
                     Some(glyph) => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
                     None if entry.audio => {
                         // Not imported yet: Swift imports on play; here the row offers Import.
@@ -477,18 +457,21 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
                         }
                     }
                     None => {}
-                });
-                cell(ui, COLUMN_IDS[4], COLUMNS[4].1, 0.0, true, &mut |ui| {
-                    ui.label(&entry.time, MONO_12.color(tone));
-                });
-            });
-            ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
-            if signal.clicked && entry.directory && intent.is_none() {
-                *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })));
+                },
+                _ => { ui.row(TIME_CELL, |ui| { ui.label(&entry.time, MONO_12.color(tone)); }); }
             }
-        });
+        }));
     });
+    drop(table);
+    // a folder opens on the press (or key) that selects it, or on Return; opening clears the selection (`Intent::Files`)
+    let rows = r.map(|r| r.rows);
+    let open = rows.and_then(|rows| rows.selected.or(rows.activated)).filter(|&i| entries.get(i).is_some_and(|entry| entry.directory));
+    if let Some(i) = open && intent.is_none() {
+        *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entries[i].id), ..location })));
+    }
 }
+/// A folder table's Time cell: its text ends 12 points before the kit's 8-point inset (20 in all, as its heading).
+const TIME_CELL: Node = Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End).padding(Edges::ZERO.r(12.0));
 
 /// A phone folder row: 56 points, 12 between its parts, 6 in from the end.
 const ROW_56: Node = Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).padding(Edges::ZERO.r(6.0));
@@ -961,6 +944,22 @@ mod tests {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "warm folder page allocates");
             }
         }
+        // U4b.4 #73: the table's folder row opens on its press (again after the request cleared the selection); a plain file's row
+        // is disabled and takes none
+        let mut with_folder = Directory { location, source_root: 5, ..Default::default() };
+        with_folder.entries = vec![Entry { id: 9, name: "Takes".into(), directory: true, ..Default::default() }, entry(3, "cover.jpg", false, None)];
+        files.directory = Some(Arc::new(with_folder));
+        files.revision += 1;
+        for _ in 0..3 {
+            frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
+        let browse = Intent::Files(Request::Browse(Location { parent: Some(9), ..location }));
+        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse));
+        state.apply(browse);
+        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse), "the request cleared the selection");
+        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "cover.jpg"), None);
+        let row = |name: &str| ui.a11y_nodes().iter().find(|node| node.role == Role::Row as u32 && ui.a11y_name_of(node) == name).map(|node| node.states & pxui::A11yStates::ENABLED.bits() != 0);
+        assert_eq!((row("Takes"), row("cover.jpg")), (Some(true), Some(false)), "the folder's row is enabled, the plain file's disabled");
         // Nothing saved: Play folder, Shuffle and Keep offline are disabled; kept shows Kept offline.
         let mut empty = Directory { location, source_root: 5, ..Default::default() };
         empty.entries = vec![entry(3, "cover.jpg", false, None)];

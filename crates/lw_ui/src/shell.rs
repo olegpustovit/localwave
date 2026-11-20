@@ -55,6 +55,8 @@ pub struct ShellState {
     song_live: std::cell::RefCell<(Vec<usize>, Vec<usize>)>,
     /// The songs list's heading: its sort (written from the applied sort before each build) and laid-out widths.
     song_table: std::cell::RefCell<pxui::TableState>,
+    /// The desktop folder table's widths and rows (their flags written per files snapshot, cleared by a files request).
+    folder_table: std::cell::RefCell<pxui::TableState>,
     /// The songs list's scroll box key, as it reported last frame (its heading reads the scroll from it).
     song_list: std::cell::Cell<i64>,
     /// The marked rows' count and first index, kept where the flags change (never by scanning per frame).
@@ -122,6 +124,7 @@ impl Default for ShellState {
             song_rows: std::cell::RefCell::new(pxui::ListState::new()),
             song_live: std::cell::RefCell::new((Vec::new(), Vec::new())),
             song_table: std::cell::RefCell::new(pxui::TableState::new()),
+            folder_table: std::cell::RefCell::new(pxui::TableState::new()),
             song_list: std::cell::Cell::new(0),
             song_marks: (0, None),
             remap_scratch: Vec::new(),
@@ -369,6 +372,8 @@ impl ShellState {
         if matches!(intent, Intent::Navigate(_) | Intent::Files(_)) {
             self.files_filter = crate::FilesFilter::All;
             self.folder_menu = None;
+            // the folder that opened (or a request's next snapshot) starts unselected; the flags are written again
+            self.folder_table.get_mut().selection = pxui::ListState::new();
         }
         // Marks index the folder's rows, which another folder replaces.
         if matches!(intent, Intent::Files(_) | Intent::FilesFilter(_)) && self.selecting && self.route == Route::Files {
