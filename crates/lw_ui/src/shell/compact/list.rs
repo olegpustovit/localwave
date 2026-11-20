@@ -635,9 +635,9 @@ pub(in crate::shell) const WORD: pxui::Button =
 pub(in crate::shell) const MARK: pxui::Checkbox = pxui::Checkbox::DEFAULT.size(20.0).passive(true).variant(variant::MARK);
 
 /// A selection deck key (`localwave-button` / `KEY`, its icon over its 12-point label): ink on the key plate, tertiary while
-/// disabled; `DECK_REMOVE` in the danger colour.
+/// disabled; `DECK_REMOVE` destructive (`Button::danger`: the danger colour).
 const DECK: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Grow).axis(Axis::Column).gap(4.0).centered().label(TEXT_12).look(&DECK_LOOKS);
-const DECK_REMOVE: pxui::Button = DECK.look(&DECK_REMOVE_LOOKS);
+const DECK_REMOVE: pxui::Button = DECK.danger();
 /// Swift's selection deck: Play next, Add to list, Offline, then Queue (Remove inside a list). Returns the pressed
 /// key ("play-next", "add-to-list", "offline", "queue" or "remove") and the key's rectangle.
 pub(in crate::shell) fn deck(ui: &mut Ui, enabled: bool, remove: bool) -> Option<(&'static str, pxui::geom::Rect)> {

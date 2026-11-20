@@ -161,8 +161,6 @@ pub(super) const PLAY_KEY_LOOKS: States = States::of(PANEL_FILL.text(Rgba::token
 pub(super) const PLAY_PRIMARY_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
 /// A selection deck key: ink on the key plate, tertiary while disabled.
 pub(super) const DECK_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).disabled(KEY_FILL.text(Rgba::token(TERTIARY)));
-/// The deck's Remove key: the danger colour on the key plate, tertiary while disabled.
-pub(super) const DECK_REMOVE_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(DANGER))).disabled(KEY_FILL.text(Rgba::token(TERTIARY)));
 /// A phone mode key: ink on the key fill, paper on ink while on (checked).
 pub(super) const MODE_KEY_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).checked(INK_FILL.text(Rgba::token(PAPER)));
 /// `rest` while idle, `lit` while hovered or held.
@@ -299,7 +297,7 @@ const ROW_TEXT: Look = LINK_TEXT;
 /// detail (in `Button::detail_label`, else the caption; `Button::axis(Axis::Column)` stacks it under the title from the top) and the
 /// accessory at the end (in `Button::accessory_label`, else Geist Mono 11, secondary); the caller's look per state. `TOOL`: the same
 /// row led by the icon (`Button::icon`, `icon_size` square) and the label, both in the look's ink (the kit's state priority picks it:
-/// disabled, checked, held, hovered), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL` without the fade, inked in its look's colour for the state (else its label's), its detail before its label. Any other
+/// disabled, checked, held, hovered; the danger colour for `Button::danger` unless disabled), its fill fading over Swift's quick 140 ms (`FADE`). `KEY`: as `TOOL` without the fade, inked in its look's colour for the state (else its label's), its detail before its label. Any other
 /// variant is the kit's own button. `SETTING`: a settings row (`settings::row_body`). `LINK`: the label over a 1-point rule as wide
 /// as it. `PRIMARY`: as `ROW`, its contents centred. `Button::centered` centres any of them along the row.
 fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
@@ -335,7 +333,8 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     if let Some(states) = states {
         ui.style(&c.row, states, state);
     }
-    let ink = states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token));
+    // a destructive key (`Button::danger`) inks in the danger colour unless disabled
+    let ink = if c.danger() && s.disabled == 0 { Some(Rgba::token(DANGER)) } else { states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token)) };
     let mut _icon = None;
     if tool && let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), ink) {
         let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };

@@ -1808,6 +1808,9 @@ mod tests {
         assert!(!has(&ui, Role::ListItem, "Z50"));
         let id = ui.a11y_nodes().iter().find(|node| node.is_role(Role::Slider) && ui.a11y_name_of(node) == "Section index").unwrap().id;
         ui.inject_a11y(&[pxui::A11yAction { id, action_code: 4, payload: 25.0, ..Default::default() }]);
+        idle(&mut ui, &c, &state, t);
+        let index_node = *ui.a11y_nodes().iter().find(|node| node.id == id).unwrap();
+        assert_eq!(ui.a11y_value_of(&index_node), Some("Z"), "the index says its letter (U2b.4.34)");
         for step in 1..4 {
             idle(&mut ui, &c, &state, t + f64::from(step));
         }
