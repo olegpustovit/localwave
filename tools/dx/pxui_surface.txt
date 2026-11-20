@@ -2234,8 +2234,7 @@ pxui_types::FrameIn::APPEARANCE_UNKNOWN const u32
 pxui_types::FrameIn::MAIN const u64
 pxui_types::FrameIn::appearance field u32
 pxui_types::FrameIn::environment field Environment
-pxui_types::FrameIn::event_count field usize
-pxui_types::FrameIn::events field *const Event
+pxui_types::FrameIn::events field Strided<Event>
 pxui_types::FrameIn::height field f32
 pxui_types::FrameIn::keyboard field Keyboard
 pxui_types::FrameIn::new fn const (width: f32, height: f32) -> FrameIn
@@ -3052,8 +3051,8 @@ pxui_types::ffi::A11yAction::end field u32
 pxui_types::ffi::A11yAction::id field u64
 pxui_types::ffi::A11yAction::payload field f64
 pxui_types::ffi::A11yAction::reserved field u32
-pxui_types::ffi::A11yAction::reserved_tail field u32
-pxui_types::ffi::A11yActionSpan type = Slice<A11yAction>
+pxui_types::ffi::A11yAction::size field u32
+pxui_types::ffi::A11yActionSpan type = Strided<A11yAction>
 pxui_types::ffi::A11yNode impl Clone
 pxui_types::ffi::A11yNode impl Copy
 pxui_types::ffi::A11yNode impl Debug
@@ -3074,16 +3073,17 @@ pxui_types::ffi::A11yNode::parent field u32
 pxui_types::ffi::A11yNode::rect field Rect
 pxui_types::ffi::A11yNode::role field u32
 pxui_types::ffi::A11yNode::selection field [u32; 2]
+pxui_types::ffi::A11yNode::size field u32
 pxui_types::ffi::A11yNode::states field u32
 pxui_types::ffi::A11yNode::value field A11yValue
 pxui_types::ffi::A11yTree impl Clone
 pxui_types::ffi::A11yTree impl Copy
 pxui_types::ffi::A11yTree impl Debug
 pxui_types::ffi::A11yTree struct
-pxui_types::ffi::A11yTree::actions field Slice<A11yAction>
+pxui_types::ffi::A11yTree::actions field Strided<A11yAction>
 pxui_types::ffi::A11yTree::child_count field u32
 pxui_types::ffi::A11yTree::first_child field u32
-pxui_types::ffi::A11yTree::nodes field Slice<A11yNode>
+pxui_types::ffi::A11yTree::nodes field Strided<A11yNode>
 pxui_types::ffi::A11yTree::revision field u64
 pxui_types::ffi::A11yTree::strings field Str
 pxui_types::ffi::A11yValue impl Clone
@@ -3115,7 +3115,7 @@ pxui_types::ffi::Input impl Default
 pxui_types::ffi::Input struct
 pxui_types::ffi::Input::buttons field Slice<u32>
 pxui_types::ffi::Input::dt field f64
-pxui_types::ffi::Input::events field Slice<Event>
+pxui_types::ffi::Input::events field Strided<Event>
 pxui_types::ffi::Input::fps field f64
 pxui_types::ffi::Input::frame field i64
 pxui_types::ffi::Input::keys field Slice<u32>
@@ -3136,7 +3136,7 @@ pxui_types::ffi::Output::arranged_nodes field u64
 pxui_types::ffi::Output::built_nodes field u64
 pxui_types::ffi::Output::damage field Damage
 pxui_types::ffi::Output::draw_revision field u64
-pxui_types::ffi::Output::layers field Slice<PxuiLayerInfo>
+pxui_types::ffi::Output::layers field Strided<PxuiLayerInfo>
 pxui_types::ffi::Output::platform field PlatformOut
 pxui_types::ffi::Output::rebuilt_views field u64
 pxui_types::ffi::Output::repaint_at field f64
@@ -3793,6 +3793,8 @@ pxui_types::ffi::PxuiLayerInfo::dirty field Slice<PxuiDirty>
 pxui_types::ffi::PxuiLayerInfo::id field u32
 pxui_types::ffi::PxuiLayerInfo::instances field Slice<Instance>
 pxui_types::ffi::PxuiLayerInfo::key field i64
+pxui_types::ffi::PxuiLayerInfo::reserved field u32
+pxui_types::ffi::PxuiLayerInfo::size field u32
 pxui_types::ffi::PxuiLineFieldConfig impl Clone
 pxui_types::ffi::PxuiLineFieldConfig impl Copy
 pxui_types::ffi::PxuiLineFieldConfig struct
@@ -4315,7 +4317,7 @@ pxui_types::ffi::PxuiSignal::flags field u32
 pxui_types::ffi::PxuiSignal::has_a11y_select field u8
 pxui_types::ffi::PxuiSignal::has_a11y_value field u8
 pxui_types::ffi::PxuiSignal::has_subtree_press field u8
-pxui_types::ffi::PxuiSignal::keys field Slice<Event>
+pxui_types::ffi::PxuiSignal::keys field Strided<Event>
 pxui_types::ffi::PxuiSignal::pinch field f64
 pxui_types::ffi::PxuiSignal::pointer field [f32; 2]
 pxui_types::ffi::PxuiSignal::press_point field [f32; 2]
@@ -4727,6 +4729,18 @@ pxui_types::ffi::Slice impl From<&'static [u8]>
 pxui_types::ffi::Slice struct <T>
 pxui_types::ffi::Slice::len field usize
 pxui_types::ffi::Slice::ptr field *const T
+pxui_types::ffi::Strided impl Clone
+pxui_types::ffi::Strided impl Copy
+pxui_types::ffi::Strided impl Debug
+pxui_types::ffi::Strided impl Default
+pxui_types::ffi::Strided struct <T>
+pxui_types::ffi::Strided::as_slice fn unsafe <'a>(&self) -> Option<&'a [T]> where T: 'a
+pxui_types::ffi::Strided::at fn unsafe <'a>(&self, index: usize) -> &'a T where T: 'a
+pxui_types::ffi::Strided::is_valid fn (&self) -> bool
+pxui_types::ffi::Strided::len field usize
+pxui_types::ffi::Strided::of fn const (records: &[T]) -> Self
+pxui_types::ffi::Strided::ptr field *const T
+pxui_types::ffi::Strided::stride field usize
 pxui_types::ffi::ThemeTokens impl Clone
 pxui_types::ffi::ThemeTokens impl Copy
 pxui_types::ffi::ThemeTokens impl Debug
