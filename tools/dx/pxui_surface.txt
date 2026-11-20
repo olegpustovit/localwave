@@ -2516,14 +2516,13 @@ pxui_types::PxuiPanel impl Debug
 pxui_types::PxuiPanel impl Default
 pxui_types::PxuiPanel struct
 pxui_types::PxuiPanel::has_height field u8
-pxui_types::PxuiPanel::has_look field u8
 pxui_types::PxuiPanel::has_max_height field u8
 pxui_types::PxuiPanel::has_stroke field u8
 pxui_types::PxuiPanel::height field f32
-pxui_types::PxuiPanel::look field PxuiLookDesc
+pxui_types::PxuiPanel::look field *const PxuiLookDesc
 pxui_types::PxuiPanel::max_height field f32
 pxui_types::PxuiPanel::padding field i64
-pxui_types::PxuiPanel::reserved field [u8; 3]
+pxui_types::PxuiPanel::reserved field [u8; 4]
 pxui_types::PxuiPanel::size field u32
 pxui_types::PxuiPanel::stroke field Rgba
 pxui_types::PxuiPanel::width field f32
@@ -6027,8 +6026,8 @@ pxui_types::ui::Overlay::dismiss_initial field bool
 pxui_types::ui::Overlay::dismiss_initial fn const (self) -> Overlay<'a>
 pxui_types::ui::Overlay::h field Option<f32>
 pxui_types::ui::Overlay::h_px fn const (self, h: f32) -> Overlay<'a>
-pxui_types::ui::Overlay::look field Option<Look>
-pxui_types::ui::Overlay::look fn const (self, look: Look) -> Overlay<'a>
+pxui_types::ui::Overlay::look field Option<&'a Look>
+pxui_types::ui::Overlay::look fn const (self, look: &'a Look) -> Overlay<'a>
 pxui_types::ui::Overlay::max_h field Option<f32>
 pxui_types::ui::Overlay::max_h_px fn const (self, h: f32) -> Overlay<'a>
 pxui_types::ui::Overlay::name field Option<&'a str>
