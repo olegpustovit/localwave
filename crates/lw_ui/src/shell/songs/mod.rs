@@ -160,7 +160,7 @@ pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
     if c.text_of(&c.title).is_empty() {
         return;
     }
-    let value = heading_value(column, (c.has_ascending != 0).then_some(c.ascending != 0));
+    let value = heading_value(column, c.ascending());
     let style = TABLE_HEADING.color(SECONDARY).role(Role::Unknown);
     let Size::Px(w) = layout.w else { return };
     let _label = if column == Column::Time {

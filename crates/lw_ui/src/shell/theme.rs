@@ -380,7 +380,7 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
         ui.set_node_layout(&c.strip, &Node::row().w(w).h_px(32.0).pad(c.padding));
         ui.style(&c.strip, &PANEL_LOOKS, State::default());
         // the stored choice: the controller applies a press a frame later
-        let chosen = if c.has_stored != 0 { c.stored == c.index } else { c.has_selected != 0 && c.selected == c.index };
+        let chosen = c.stored().or(c.selected()) == Some(c.index);
         ui.set_node_layout(&c.node, &Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).min_w(40.0));
         ui.style(&c.node, if chosen { &CHOICE_ON_LOOKS } else { &CHOICE_LOOKS }, State::default());
         ui.text(&c.node, c.text_of(&c.text));
@@ -389,7 +389,7 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h_px(30.0));
     ui.set_node_layout(&c.strip, &Node::row().w(Size::Fit).h(Size::Grow).gap(8.0));
     ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h_px(30.0).pad_x(10.0).align(Align::Center));
-    let chosen = c.has_selected != 0 && c.selected == c.index;
+    let chosen = c.selected() == Some(c.index);
     ui.style(&c.node, if chosen { &SORT_CHOSEN } else { &PAPER_LOOKS }, State::default());
     ui.label(c.text_of(&c.text), TEXT_13.color(if chosen { INK } else { SECONDARY }).role(Role::Unknown));
 }
@@ -478,7 +478,7 @@ fn badge_body(ui: &mut Ui, c: &pxui::bodies::BadgeConfig) {
 fn progress_body(ui: &mut Ui, c: &pxui::bodies::ProgressConfig) {
     ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(4.0).margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)));
     let track = ui.part(pxui::Part::TRACK, Node::row().w(Size::Grow).h(Size::Grow).look(LINE_FILL));
-    let fraction = if c.has_value != 0 { c.value.clamp(0.0, 1.0) } else { 0.0 };
+    let fraction = c.value().map_or(0.0, |v| v.clamp(0.0, 1.0));
     ui.within(&track, &mut |ui| { ui.node("fill", Node::column().w(Size::Pct(fraction)).h(Size::Grow).look(INK_FILL)); });
 }
 

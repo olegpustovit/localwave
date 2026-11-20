@@ -1356,6 +1356,7 @@ pxui::bodies::PopupConfig struct (_)
 pxui::bodies::ProgressConfig impl BodyConfig
 pxui::bodies::ProgressConfig impl Deref
 pxui::bodies::ProgressConfig struct (_)
+pxui::bodies::ProgressConfig::value fn (&self) -> Option<f32>
 pxui::bodies::RadioConfig impl BodyConfig
 pxui::bodies::RadioConfig impl Deref
 pxui::bodies::RadioConfig struct (_)
@@ -1371,6 +1372,8 @@ pxui::bodies::SectionIndexConfig struct (_)
 pxui::bodies::SegmentedConfig impl BodyConfig
 pxui::bodies::SegmentedConfig impl Deref
 pxui::bodies::SegmentedConfig struct (_)
+pxui::bodies::SegmentedConfig::selected fn (&self) -> Option<usize>
+pxui::bodies::SegmentedConfig::stored fn (&self) -> Option<usize>
 pxui::bodies::SelectionListConfig impl BodyConfig
 pxui::bodies::SelectionListConfig impl Deref
 pxui::bodies::SelectionListConfig struct (_)
@@ -1386,6 +1389,7 @@ pxui::bodies::SplitConfig struct (_)
 pxui::bodies::TableHeadConfig impl BodyConfig
 pxui::bodies::TableHeadConfig impl Deref
 pxui::bodies::TableHeadConfig struct (_)
+pxui::bodies::TableHeadConfig::ascending fn (&self) -> Option<bool>
 pxui::bodies::TableRowConfig impl BodyConfig
 pxui::bodies::TableRowConfig impl Deref
 pxui::bodies::TableRowConfig struct (_)
