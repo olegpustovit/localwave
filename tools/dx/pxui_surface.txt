@@ -702,6 +702,7 @@ pxui::SectionIndex::name fn const (self, name: &'a str) -> SectionIndex<'a>
 pxui::SectionIndex::variant fn const (self, variant: u16) -> SectionIndex<'a>
 pxui::Segment use pxui_types::ui::Segment
 pxui::Segmented use author::Segmented
+pxui::SelectMode use pxui_types::ui::SelectMode
 pxui::SelectionList use pxui_types::ui::SelectionList
 pxui::Signal impl Clone
 pxui::Signal impl Debug
@@ -4239,7 +4240,7 @@ pxui_types::ffi::PxuiSelectionListDesc::has_revision field u8
 pxui_types::ffi::PxuiSelectionListDesc::header_height field f32
 pxui_types::ffi::PxuiSelectionListDesc::leading_height field f32
 pxui_types::ffi::PxuiSelectionListDesc::measured field u8
-pxui_types::ffi::PxuiSelectionListDesc::multi field u8
+pxui_types::ffi::PxuiSelectionListDesc::mode field u8
 pxui_types::ffi::PxuiSelectionListDesc::open_on_click field u8
 pxui_types::ffi::PxuiSelectionListDesc::overlay_scrollbar field u8
 pxui_types::ffi::PxuiSelectionListDesc::reorder field u8
@@ -6213,6 +6214,17 @@ pxui_types::ui::Segmented::variant field u16
 pxui_types::ui::Segmented::variant fn const (self, variant: u16) -> Segmented<'a>
 pxui_types::ui::Segmented::w field Option<f32>
 pxui_types::ui::Segmented::w_px fn const (self, w: f32) -> Segmented<'a>
+pxui_types::ui::SelectMode enum
+pxui_types::ui::SelectMode impl Clone
+pxui_types::ui::SelectMode impl Copy
+pxui_types::ui::SelectMode impl Debug
+pxui_types::ui::SelectMode impl Eq
+pxui_types::ui::SelectMode impl PartialEq
+pxui_types::ui::SelectMode impl StructuralPartialEq
+pxui_types::ui::SelectMode::Multi variant = 1
+pxui_types::ui::SelectMode::None variant = 3
+pxui_types::ui::SelectMode::Single variant = 0
+pxui_types::ui::SelectMode::Toggle variant = 2
 pxui_types::ui::SelectionList impl Clone
 pxui_types::ui::SelectionList impl Copy
 pxui_types::ui::SelectionList impl Debug
@@ -6232,8 +6244,8 @@ pxui_types::ui::SelectionList::lead fn const (self, h: f32) -> SelectionList
 pxui_types::ui::SelectionList::leading_height field f32
 pxui_types::ui::SelectionList::measured field bool
 pxui_types::ui::SelectionList::measured fn const (self) -> SelectionList
-pxui_types::ui::SelectionList::multi field bool
-pxui_types::ui::SelectionList::multi fn const (self) -> SelectionList
+pxui_types::ui::SelectionList::mode field SelectMode
+pxui_types::ui::SelectionList::mode fn const (self, mode: SelectMode) -> SelectionList
 pxui_types::ui::SelectionList::open_on_click field bool
 pxui_types::ui::SelectionList::open_on_click fn const (self, on: bool) -> SelectionList
 pxui_types::ui::SelectionList::overlay_scrollbar field bool

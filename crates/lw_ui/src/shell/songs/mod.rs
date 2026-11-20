@@ -180,7 +180,7 @@ pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
 }
 
 /// The desktop songs list: multi-selection, measured rows, the overlay scrollbar, LocalWave's song rows, no frame.
-const SONGS: pxui::SelectionList = pxui::SelectionList::DEFAULT.multi().row_h(38.0).measured().overlay_scrollbar().variant(super::theme::variant::SONG_ROW).bare();
+const SONGS: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::Multi).row_h(38.0).measured().overlay_scrollbar().variant(super::theme::variant::SONG_ROW).bare();
 
 /// The song columns' headings this frame: every column (hidden ones 0 wide), the sortable ones sort keys other than the original order.
 fn heading_columns(widths: [f32; 8]) -> [pxui::Column<'static>; 8] {

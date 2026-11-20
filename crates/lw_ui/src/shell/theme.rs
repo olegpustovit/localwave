@@ -720,7 +720,7 @@ mod body_tests {
     /// points into its column and Title's 8 (the kit's heading insets both alike).
     #[test]
     fn localwave_song_row_and_heading_draw_their_structures() {
-        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.multi().row_h(38.0).measured().variant(variant::SONG_ROW).bare();
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::Multi).row_h(38.0).measured().variant(variant::SONG_ROW).bare();
         const COLUMNS: [pxui::Column; 2] = [pxui::Column::new("#").id(0).w_px(59.0).grip(false), pxui::Column::new("Title").id(1).w_px(139.0).grip(false)];
         let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
         let table = std::cell::RefCell::new(pxui::TableState::new());
