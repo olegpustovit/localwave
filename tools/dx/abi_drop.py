@@ -14,7 +14,7 @@ PX = os.path.join(ROOT, "pxui")
 SKIP_DIRS = {"target", ".git", "abi", "docs", "fixtures", "specification", "scratch", "include", "__pycache__"}
 EXTS = (".rs", ".c", ".m", ".mm", ".h", ".sh", ".py", ".swift")
 # Files that only define, list or document exports; never callers.
-# C-only calls with no successor export: no pre-change twin, kept until U5.3 decides.
+# C-only calls with no successor export and no twin: U5.3 decided to keep each in 2.0 (a job a C app has no other call for; validated and fuzzed).
 KEEP = {
     "pxui_paint_caret_x", "pxui_paint_selection", "pxui_paint_ratio", "pxui_paint_input_region",  # canvas text helpers
     "pxui_ui_input",  # the routed input record for an app's own content
