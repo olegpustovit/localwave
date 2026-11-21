@@ -361,7 +361,7 @@ mod tests {
             ui,
             &{
                 let mut frame = FrameIn::new(1000.0, 700.0).time(*time).reduced_motion(true);
-                frame.events = &events[..];
+                frame = frame.events(&events[..]);
                 frame
             },
             &mut |ui| {

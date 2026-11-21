@@ -420,7 +420,7 @@ pub(super) mod button_tests {
                 ui,
                 &{
                     let mut frame = FrameIn::new(1440.0, 71.0).time(time);
-                    frame.events = &events[..];
+                    frame = frame.events(&events[..]);
                     frame
                 },
                 &mut |ui| {

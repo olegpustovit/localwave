@@ -314,12 +314,12 @@ pub(in crate::shell) mod tests {
             ];
             frame.wire.time = base;
             let mut frame = frame;
-            frame.events = &down[..];
+            frame = frame.events(&down[..]);
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
-            frame.events = &[];
+            frame = frame.events(&[]);
             let mut settled_revision = None;
             for time in [0.07, 0.15, 0.3] {
                 frame.wire.time = base + time;
@@ -353,7 +353,7 @@ pub(in crate::shell) mod tests {
             }
             let up = pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, 70.0, 15.0);
             let mut frame = frame;
-            frame.events = std::slice::from_ref(&up);
+            frame = frame.events(std::slice::from_ref(&up));
             frame.wire.time = base + 0.4;
             let mut intent = None;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
@@ -361,7 +361,7 @@ pub(in crate::shell) mod tests {
             })
             .unwrap();
             assert_eq!(intent, Some(Intent::PlayRow(0)));
-            frame.events = &[];
+            frame = frame.events(&[]);
             for time in [0.47, 0.55] {
                 frame.wire.time = base + time;
                 crate::testing::frame(&mut ui, &frame, &mut |ui| {
@@ -376,13 +376,13 @@ pub(in crate::shell) mod tests {
             }
             let leave = pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 390.0, 90.0);
             let mut frame = frame;
-            frame.events = std::slice::from_ref(&leave);
+            frame = frame.events(std::slice::from_ref(&leave));
             frame.wire.time = base + 0.6;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);
             })
             .unwrap();
-            frame.events = &[];
+            frame = frame.events(&[]);
             frame.wire.time = base + 0.8;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 build(ui, &catalogs[0], &state, &mut None);

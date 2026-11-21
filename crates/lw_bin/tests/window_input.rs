@@ -931,7 +931,7 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
             &mut ui,
             &{
                 let mut frame = pxui::FrameIn::new(1440.0, 872.0).time(frame as f64);
-                frame.events = &wire[..];
+                frame = frame.events(&wire[..]);
                 frame
             },
             &mut |ui| lw_ui::shell(ui, &player, position, &catalog, &state, &mut intent),

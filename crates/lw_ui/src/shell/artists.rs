@@ -389,7 +389,7 @@ mod tests {
             &mut ui,
             &{
                 let mut frame = frame.time(entered);
-                frame.events = std::slice::from_ref(&pointer);
+                frame = frame.events(std::slice::from_ref(&pointer));
                 frame
             },
             &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),

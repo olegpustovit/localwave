@@ -299,7 +299,7 @@ mod tests {
         frame.wire.time += 0.02;
         // a copy that borrows the event for this call only
         let mut input = *frame;
-        input.events = std::slice::from_ref(&event);
+        input = input.events(std::slice::from_ref(&event));
         build(ui, state, player, 0.0, &mut input)
     }
     fn click(

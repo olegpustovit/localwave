@@ -1205,7 +1205,7 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         &mut ui,
         &{
             let mut frame = frame;
-            frame.events = &press[..];
+            frame = frame.events(&press[..]);
             frame
         },
         &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -1252,7 +1252,7 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;
@@ -1592,7 +1592,7 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;
@@ -1772,7 +1772,7 @@ fn select_all_is_a_no_op_while_find_is_focused() {
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(1440.0, 872.0).time(time);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;
@@ -2036,7 +2036,7 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;
@@ -2286,7 +2286,7 @@ fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocati
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;

@@ -454,7 +454,7 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         "the modal's drag keeps its lifted row while its place scrolls out of the virtual window"
     );
     let release = pointer(input::wire::POINTER_RELEASED, grips[2].1);
-    frame.events = std::slice::from_ref(&release);
+    frame = frame.events(std::slice::from_ref(&release));
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
     })
@@ -467,12 +467,12 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         })
     );
     let scroll_back = pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, 30.0);
-    frame.events = std::slice::from_ref(&scroll_back);
+    frame = frame.events(std::slice::from_ref(&scroll_back));
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
-    frame.events = &[];
+    frame = frame.events(&[]);
     let activate = |ui: &mut Ui, name: &str| {
         let id = ui
             .a11y_nodes()
@@ -565,14 +565,14 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         assert!(intent.is_none());
     }
     let escape = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code());
-    frame.events = std::slice::from_ref(&escape);
+    frame = frame.events(std::slice::from_ref(&escape));
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
     assert_eq!(intent.take(), Some(Intent::CloseQueue));
     state.apply(Intent::CloseQueue);
-    frame.events = &[];
+    frame = frame.events(&[]);
     state.apply(Intent::ShowQueue);
     frame.wire.width = 390.0;
     frame.wire.height = 778.0;
@@ -810,7 +810,7 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         }
         assert!(ui.carrying().is_none());
     }
-    frame.events = &[];
+    frame = frame.events(&[]);
     let visible_first_grip = ui
         .a11y_nodes()
         .iter()
@@ -957,7 +957,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
             })
             .unwrap();
             assert!(intent.is_none());
-            frame.events = &keyboard[..];
+            frame = frame.events(&keyboard[..]);
         }
         mem_sys::local_reset();
         frame.wire.time += 0.01;
@@ -972,7 +972,7 @@ fn find_token_chips_toggle_without_warm_allocations_wrap_and_reject_oversized_qu
         };
         assert_eq!(intent, Some(Intent::Search(Query::new(expected).unwrap())));
         state.apply(intent.take().unwrap());
-        frame.events = &[];
+        frame = frame.events(&[]);
         frame.wire.time += 0.01;
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, &state, &mut intent)
@@ -1134,7 +1134,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         &mut ui,
         &{
             let mut frame = frame;
-            frame.events = &click[..];
+            frame = frame.events(&click[..]);
             frame
         },
         &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -1153,7 +1153,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
         &mut ui,
         &{
             let mut frame = frame;
-            frame.events = std::slice::from_ref(&typed);
+            frame = frame.events(std::slice::from_ref(&typed));
             frame
         },
         &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -1188,7 +1188,7 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
             &mut ui,
             &{
                 let mut frame = frame.time(tick as f64 / 60.0);
-                frame.events = &wheel[..];
+                frame = frame.events(&wheel[..]);
                 frame
             },
             &mut |ui| shell(ui, &player, 0.0, &found, &state, &mut intent),
@@ -1323,7 +1323,7 @@ fn sort_headers_request_orders_and_selection_follows_the_prepared_playback_rows(
         &mut ui,
         &{
             let mut frame = frame;
-            frame.events = std::slice::from_ref(&enter);
+            frame = frame.events(std::slice::from_ref(&enter));
             frame
         },
         &mut |ui| shell(ui, &player, 0.0, &sorted, &state, &mut intent),
@@ -1815,7 +1815,7 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
             &mut ui,
             &{
                 let mut frame = FrameIn::new(1440.0, 872.0).time(frame as f64 / 60.0);
-                frame.events = &events[..];
+                frame = frame.events(&events[..]);
                 frame
             },
             &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
@@ -1916,7 +1916,7 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
             &mut ui,
             &{
                 let mut frame = frame.time(tick as f64 / 60.0);
-                frame.events = &events[..];
+                frame = frame.events(&events[..]);
                 frame
             },
             &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
@@ -2000,7 +2000,7 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
         &state,
         &{
             let mut frame = frame;
-            frame.events = std::slice::from_ref(&enter);
+            frame = frame.events(std::slice::from_ref(&enter));
             frame
         },
         &mut intent,
@@ -2041,7 +2041,7 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(width.get(), 872.0).time(time);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;
@@ -2192,7 +2192,7 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
     let mut run = |state: &ShellState, player: &PlayerView<'_>, events: &[Event], carry: bool| {
         let mut frame = FrameIn::new(1440.0, 872.0).time(tick as f64 / 60.0);
         tick += 1;
-        frame.events = &events[..];
+        frame = frame.events(&events[..]);
         let mut intent = None;
         ui.frame(&frame, &mut |ui| {
             if carry { ui.carry(None, "song", "1"); }
@@ -2341,7 +2341,7 @@ fn back_new_list_delete_return_and_dialog_enter_follow_swift_with_gating() {
         time += 0.02;
         let frame = {
             let mut frame = FrameIn::new(1440.0, 872.0).time(time);
-            frame.events = &events[..];
+            frame = frame.events(&events[..]);
             frame
         };
         let mut intent = None;
@@ -2513,7 +2513,7 @@ fn favorite_key_heart_and_menu_emit_set_favorite_from_the_current_state() {
             time += 0.02;
             let frame = {
                 let mut frame = FrameIn::new(1440.0, 872.0).time(time);
-                frame.events = &events[..];
+                frame = frame.events(&events[..]);
                 frame
             };
             let mut intent = None;
@@ -2828,7 +2828,7 @@ fn sidebar_rows_take_arrow_keys_and_enter_from_the_focused_list() {
     let mut intent = None;
     let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         let mut frame = FrameIn::new(1440.0, 872.0);
-        frame.events = &events[..];
+        frame = frame.events(&events[..]);
         crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
         let taken = intent.take();
         if let Some(i) = taken.clone() { state.apply(i); }
@@ -2857,7 +2857,7 @@ fn a_focused_sidebar_list_leaves_the_global_shortcuts_on() {
     let mut intent = None;
     let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         let mut frame = FrameIn::new(1440.0, 872.0);
-        frame.events = &events[..];
+        frame = frame.events(&events[..]);
         crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
         let taken = intent.take();
         if let Some(i) = taken.clone() { state.apply(i); }
@@ -2892,7 +2892,7 @@ fn a_focused_sidebar_leaves_select_all_and_escape_to_the_songs() {
     let mut intent = None;
     let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         let mut frame = FrameIn::new(1440.0, 872.0);
-        frame.events = &events[..];
+        frame = frame.events(&events[..]);
         crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
         let taken = intent.take();
         if let Some(i) = taken.clone() { state.apply(i); }

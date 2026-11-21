@@ -392,7 +392,7 @@ impl App {
             .keyboard(platform.keyboard())
             .reduced_motion(preferences.reduced_motion != 0 || status.settings.reduce_motion);
         input.wire.appearance = preferences.appearance;
-        input.events = &wire[..];
+        input = input.events(&wire[..]);
         let mut position = status.position;
         frame.view(&mut view, &mut position, &mut input);
         let seek_duration = view.duration;
