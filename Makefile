@@ -14,7 +14,7 @@ target/sdl/lib/libSDL3.a:
 lib:
 	@test -e pxui/Cargo.toml || git submodule update --init pxui
 	cargo build --locked $(CARGOFLAGS) --manifest-path pxui/Cargo.toml -p pxui_dylib $(if $(COUNTING),--features counting) --target-dir target
-	ln -sfn libpxui.dylib $(PRODUCTS)/libpxui.1.dylib
+	ln -sfn libpxui.dylib $(PRODUCTS)/libpxui.2.dylib
 
 build: target/sdl/lib/libSDL3.a lib
 	cargo build --locked $(CARGOFLAGS) -p lw_bin --bin localwave $(if $(COUNTING),--features counting)

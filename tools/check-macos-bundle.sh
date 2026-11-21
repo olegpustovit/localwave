@@ -5,7 +5,7 @@ app=${1:-target/bundle/LocalWave.app}
 codesign --verify --deep --strict "$app"
 test "$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist")" = com.olegpustovit.localwave
 test "$(/usr/libexec/PlistBuddy -c 'Print LSMinimumSystemVersion' "$app/Contents/Info.plist")" = 15.0
-python3 - "$app/Contents/MacOS/localwave" "$app/Contents/Frameworks/libpxui.1.dylib" <<'PY'
+python3 - "$app/Contents/MacOS/localwave" "$app/Contents/Frameworks/libpxui.2.dylib" <<'PY'
 import re, subprocess, sys
 
 def version(text):
@@ -26,14 +26,14 @@ print('LocalWave bundle: default executable stack verified')
 rpaths = re.findall(r'cmd LC_RPATH\s+cmdsize \d+\s+path (.+) \(offset \d+\)', load_commands)
 assert rpaths == ['@executable_path/../Frameworks'], ('bundle rpaths', rpaths)
 identity = subprocess.run(['otool', '-D', sys.argv[2]], check=True, text=True, capture_output=True).stdout.splitlines()[1:]
-assert identity == ['@rpath/libpxui.1.dylib'], ('bundled dylib ID', identity)
+assert identity == ['@rpath/libpxui.2.dylib'], ('bundled dylib ID', identity)
 print('LocalWave bundle: bundled dylib ID and portable rpath verified')
 PY
 test "$(find "$app/Contents/Frameworks" -type f | wc -l | tr -d ' ')" = 1
-otool -L "$app/Contents/MacOS/localwave" | grep -q '@rpath/libpxui.1.dylib'
-for binary in "$app/Contents/MacOS/localwave" "$app/Contents/Frameworks/libpxui.1.dylib"; do
+otool -L "$app/Contents/MacOS/localwave" | grep -q '@rpath/libpxui.2.dylib'
+for binary in "$app/Contents/MacOS/localwave" "$app/Contents/Frameworks/libpxui.2.dylib"; do
     dependencies=$(otool -L "$binary" | tail -n +2 | awk '{print $1}')
-    if printf '%s\n' "$dependencies" | grep -Ev '^(/usr/lib/|/System/Library/|@rpath/libpxui.1.dylib$)'; then
+    if printf '%s\n' "$dependencies" | grep -Ev '^(/usr/lib/|/System/Library/|@rpath/libpxui.2.dylib$)'; then
         echo "Unbundled dependency in $binary" >&2; exit 1
     fi
 done

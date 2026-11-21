@@ -21,7 +21,7 @@ if [ -z "${SKIP_BUILD:-}" ]; then
     -derivedDataPath "$OUT/dd" CODE_SIGNING_ALLOWED=NO build > "$OUT/xcodebuild.log" 2>&1 || { tail -20 "$OUT/xcodebuild.log"; exit 1; }
   cargo build -p lw_bin
   # target/ is shared with other worktrees, which overwrite target/debug/localwave; keep a private copy.
-  mkdir -p "$OUT/bin" && cp target/debug/localwave target/debug/libpxui.1.dylib "$OUT/bin/"
+  mkdir -p "$OUT/bin" && cp target/debug/localwave target/debug/libpxui.2.dylib "$OUT/bin/"
 fi
 [ -n "${SKIP_SWIFT:-}" ] || xcrun simctl install "$SIM" "$(ls -d "$OUT"/dd/Build/Products/Debug-iphonesimulator/*.app | head -1)"
 

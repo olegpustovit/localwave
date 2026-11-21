@@ -78,7 +78,7 @@ measure() {
   rm -rf "$px"
   # lw_bin links the dynamic libpxui from its target dir, as `make lib` provides it.
   quiet "$tree" "$lw" build -q --manifest-path pxui/Cargo.toml -p pxui_dylib
-  ln -sfn libpxui.dylib "$lw/debug/libpxui.1.dylib"
+  ln -sfn libpxui.dylib "$lw/debug/libpxui.2.dylib"
   quiet "$tree" "$lw" build -q -p lw_ui
   quiet "$tree" "$lw" clean -q -p lw_ui
   rec d "$label" "$tree" "$lw" build -q -p lw_ui

@@ -79,7 +79,7 @@ a { color: var(--signal); }
   <div class="stack">
     <div><span class="n">lw_bin</span><span class="d">Entry point. Owns the window, the Metal device and the frame loop. Links <code>ogpu_metal</code> and <code>pxui_sdl</code> statically, as Rays does.</span></div>
     <div><span class="n">lw_ui</span><span class="d">All views: shell, Library, Player, Files, sheet/dialog/menu presenter, command palette, canvas drawings. Talks to pxui through the safe <code>pxui</code> wrapper.</span></div>
-    <div class="dy"><span class="n">libpxui.1.dylib</span><span class="d">Shared library, built from <code>pxui/</code> (submodule) by <code>make lib</code>. Lives in <code>Contents/Frameworks</code>, loaded through <code>@rpath</code>.</span></div>
+    <div class="dy"><span class="n">libpxui.2.dylib</span><span class="d">Shared library, built from <code>pxui/</code> (submodule) by <code>make lib</code>. Lives in <code>Contents/Frameworks</code>, loaded through <code>@rpath</code>.</span></div>
     <div><span class="n">lw_core</span><span class="d">Models, queue and shuffle, SQLite repositories and FTS5 search, import, FLAC tag parser, offline cache, preferences. No UI, no Apple calls.</span></div>
     <div><span class="n">lw_apple_sys</span><span class="d">Objective-C shim with a C header: queue player, audio session, Now Playing and remote commands, bookmarks, file coordinator and presenter, ImageIO thumbnails, tag reading, waveform PCM, pickers, share, appearance and reduce-motion signals.</span></div>
   </div>
@@ -94,9 +94,9 @@ a { color: var(--signal); }
   packaging/bundle-macos.sh   bundle-ios.sh   Info.plist   *.entitlements
   tools/check-pxui-remote.sh  (copied from rays: refuses an unpushed submodule pointer)</code></pre>
 <pre><code>make lib      # cargo build --release --manifest-path pxui/Cargo.toml -p pxui_dylib --target-dir target
-              # ln -sfn libpxui.dylib target/release/libpxui.1.dylib
+              # ln -sfn libpxui.dylib target/release/libpxui.2.dylib
 make build    # cargo build --release -p lw_bin        (the pxui crate links the dylib found in target/release)
-make install  # packaging/bundle-macos.sh: LocalWave.app/Contents/{MacOS/localwave, Frameworks/libpxui.1.dylib, ...}
+make install  # packaging/bundle-macos.sh: LocalWave.app/Contents/{MacOS/localwave, Frameworks/libpxui.2.dylib, ...}
               # install_name_tool rpath -> @executable_path/../Frameworks, sign dylibs first, then the app</code></pre>
   <p>Three things differ from the Rays script and must be added:</p>
   <ul>
@@ -210,7 +210,7 @@ make install  # packaging/bundle-macos.sh: LocalWave.app/Contents/{MacOS/localwa
   <div>
     <div class="phase"><span class="id">P0</span><h3>Scaffold and bundle</h3>
       <p>Add the submodule, workspace, Makefile and bundle script. Ship an empty pxui window as a signed, sandboxed <code>LocalWave.app</code>. Delete <code>localwave-tui</code>, its SwiftPM target and the SwiftTUI dependency, and update <code>AGENTS.md</code>.</p>
-      <p class="gate"><b>Gate:</b> <code>otool -L</code> shows <code>@rpath/libpxui.1.dylib</code>; <code>codesign --verify --deep --strict</code> passes; the app launches from <code>/Applications</code>.</p></div>
+      <p class="gate"><b>Gate:</b> <code>otool -L</code> shows <code>@rpath/libpxui.2.dylib</code>; <code>codesign --verify --deep --strict</code> passes; the app launches from <code>/Applications</code>.</p></div>
     <div class="phase"><span class="id">P1</span><h3>Core in Rust, no UI</h3>
       <p>Port Domain and Data (about 4,000 lines of Swift): models, queue and shuffle, SQLite repositories, FTS5 search with BM25, import, FLAC parser, offline cache. Open the existing <code>musicApp29.sqlite</code> as is, with the system SQLite. Port the 18 SwiftPM data test files to <code>cargo t</code>.</p>
       <p class="gate"><b>Gate:</b> Rust and Swift read each other's database; <code>songKey</code> and <code>pathId</code> are byte-identical on a fixture library; <code>cargo t</code> under 30 s.</p></div>
