@@ -3369,6 +3369,22 @@ pxui_types::ffi::PxuiDescription::has field u8
 pxui_types::ffi::PxuiDescription::reserved field [u8; 7]
 pxui_types::ffi::PxuiDescription::start field i64
 pxui_types::ffi::PxuiDescription::text field Str
+pxui_types::ffi::PxuiDiagnostics impl Clone
+pxui_types::ffi::PxuiDiagnostics impl Copy
+pxui_types::ffi::PxuiDiagnostics impl Debug
+pxui_types::ffi::PxuiDiagnostics struct
+pxui_types::ffi::PxuiDiagnostics::calls field u64
+pxui_types::ffi::PxuiDiagnostics::has_cpu field u8
+pxui_types::ffi::PxuiDiagnostics::has_text_layouts field u8
+pxui_types::ffi::PxuiDiagnostics::new fn () -> PxuiDiagnostics
+pxui_types::ffi::PxuiDiagnostics::phase_cpu_nanos field [u64; 7]
+pxui_types::ffi::PxuiDiagnostics::phase_nanos field [u64; 7]
+pxui_types::ffi::PxuiDiagnostics::rebuilt field u64
+pxui_types::ffi::PxuiDiagnostics::rebuilt_prefix field Str
+pxui_types::ffi::PxuiDiagnostics::reserved field u8
+pxui_types::ffi::PxuiDiagnostics::size field u32
+pxui_types::ffi::PxuiDiagnostics::text_layouts field u64
+pxui_types::ffi::PxuiDiagnostics::timing field u8
 pxui_types::ffi::PxuiDialogConfig impl Clone
 pxui_types::ffi::PxuiDialogConfig impl Copy
 pxui_types::ffi::PxuiDialogConfig struct
