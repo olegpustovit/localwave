@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-21. U5b done (not landed): U5.3 drops and renames, U5.7 C vocabulary and one menu-row record, U5.8 features, U5.9 OS remainder (diagnostics, create status, contracts), U5.10 extension set, U5.11 re-baseline: ABI 2.0, `libpxui.2`, `fixtures/abi/2.0`, `abi-frozen`/`abi-compat` green, `PxuiUi.theme` frozen (CP1 (d) resolved, owner 21 Nov). Tier B green (`make check`, `cargo t --all`, static, gallery, gates), release abi_bench within the CP1 (f) figures, `make bundle` and the bundle check pass. NEXT: U5b independent review, then CP2 (U5.12), then U6.
+Updated 2026-11-21. U5b independent source review found four blockers, now fixed in separate commits (menu text budget, diagnostics ownership, pre-validation variant mutation, accessibility surface routing); a fifth fix bounds pending accessibility actions across calls. Current: LocalWave d27b612 / pxui f0b3aee0 on u5b, unlanded and unpushed. Owner approved the surface API/ledger correction and regeneration of the unreleased 2.0 baseline. NEXT: qualify/fix warm submenu allocations and validate Linux accessibility, then final Tier B/review/landing, CP2 (U5.12), U6. CP2/U6 are not started.
 
 ## What we're doing
 
@@ -45,6 +45,31 @@ Each package has the following lifecycle:
 - **GAP protocol (U3–U4):** a LocalWave site the ledger can't express gets a gap step `U2b.4.<n>`, added to the ledger and built on the current `u<N>` branch.
 
 ## Where it stands
+
+
+### U5b independent review and fixes (21 Nov; not landed)
+
+Independent review: `scratch/u5b-review.md`. Original four findings plus native surface propagation and pending-action teardown now pass source re-review. No runtime, broad-validation or Linux claim follows from source review alone.
+
+| Fix | LocalWave | pxui |
+|---|---|---|
+| U5.7 aggregate menu text/shortcut/submenu budget | 70c5816 | b39573f4 |
+| U5.9 diagnostics respects callback/renderer/poison ownership | 16c8930 | 3a673d0f |
+| U5.3 refused builders never install descriptor variants | 9b57a34 | 5f091ccb |
+| U5.9 surface-aware actions, bridge update/removal, native host routing, pending actions cleared on teardown | 36bfc99 | 4b0f1e83 |
+| U5.9 4096 pending accessibility actions across calls, atomic refusal and warm storage reuse | d27b612 | f0b3aee0 |
+
+Owner decision (21 Nov, this Codex session): correct surface routing in the 2.0 API and ledger, then regenerate the unreleased baseline. `PxuiA11yAction.surface` names its nonzero destination; `A11yBridge::update(surface, tree)`/`remove_surface(surface)` and `Accessibility::frame(ui, surface)` preserve it. The layout/snapshot tools and `abi-fixture.sh 0` regenerated the baseline; no gate was weakened. The snapshot gate passes after the baseline commit.
+
+Evidence in `scratch/u5b/review-*.log`: framework Tier A checks and shape/deps/header/snapshot gates; full static API suite (316); focused ABI menu/diagnostics/variant/surface/queue tests; native VoiceOver bridge round trips on non-main surface 7; bridge docs and new injection doctest; frozen/compat gates against the regenerated 2.0 fixture. LocalWave api_conformance, binary build/test compilation, surface and two-way ledger checks pass on the surface correction. First sandboxed full static attempt timed out at the unchanged 60 s run bound; unrestricted runs pass in about 34 s. Full Tier B and benchmarks must be repeated after all runtime fixes.
+
+Still open before landing/CP2:
+
+- Warm submenu allocations: dynamic wrapper `overlays.rs` constructs a fresh flat row Vec; core `ui_text.rs` builds keep/related Vecs and formats the submenu key. Fix as a separate runtime step with static/dynamic warm-allocation and submenu behavior coverage. Do not defer into U6's runtime freeze.
+- Linux accessibility: installed Rust target cannot build native dependencies without x86_64-linux-gnu-gcc/g++. Local container setup was started with kernel installation and is still live; its process handle is in the scratch continuation note. Revalidate that handle before starting any replacement setup. No Linux pass is claimed.
+- Pending accessibility queue is now bounded at the public injection boundary; Linux bridge traffic and lifecycle still need qualification.
+- Final Tier B, fingerprints, hot-path release abi_bench (variant/menu changes), review and online landing; then all CP2 and U6 work from the original prompt.
+
 
 ### U0.1–U0.8 landed on `rust-port`
 
