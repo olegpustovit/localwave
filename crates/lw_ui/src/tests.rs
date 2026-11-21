@@ -441,10 +441,8 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         pointer(input::wire::POINTER_MOVED, grips[2].1),
         pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, -30.0),
     ] {
-        let mut frame = frame;
-        frame.events = std::slice::from_ref(&event);
         frame.wire.time += 0.01;
-        crate::testing::frame(&mut ui, &frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame.events(std::slice::from_ref(&event)), &mut |ui| {
             shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
@@ -550,12 +548,10 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
             pxui::Event::pointer(input::wire::POINTER_MOVED, 0, (queue_rect.x + 100.0) as f64, (queue_rect.y + 100.0) as f64),
             pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if cycle % 2 == 0 { -4.0 } else { 4.0 }),
         ];
-        let mut frame = frame;
-        frame.events = &events[..];
         frame.wire.time += 0.02;
         player.revision += 1;
         position += 1.0;
-        crate::testing::frame(&mut ui, &frame, &mut |ui| {
+        crate::testing::frame(&mut ui, &frame.events(&events[..]), &mut |ui| {
             shell(ui, &player, position, &catalog, &state, &mut intent)
         })
         .unwrap();
@@ -716,12 +712,10 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             Some(event(input::wire::POINTER_RELEASED, third, 10.0)),
             None,
         ] {
-            let mut frame = frame;
-            frame.events = e.as_slice();
             frame.wire.time += 0.01;
             player.revision += 1;
             position += 1.0;
-            crate::testing::frame(&mut ui, &frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame.events(e.as_slice()), &mut |ui| {
                 shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
@@ -762,12 +756,10 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             Some(scroll(30.0)),
             None,
         ] {
-            let mut frame = frame;
-            frame.events = e.as_slice();
             frame.wire.time += 0.02;
             player.revision += 1;
             position += 1.0;
-            crate::testing::frame(&mut ui, &frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame.events(e.as_slice()), &mut |ui| {
                 shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
@@ -809,10 +801,8 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             cancel,
             event(input::wire::POINTER_RELEASED, third, 10.0),
         ] {
-            let mut frame = frame;
-            frame.events = std::slice::from_ref(&e);
             frame.wire.time += 0.01;
-            crate::testing::frame(&mut ui, &frame, &mut |ui| {
+            crate::testing::frame(&mut ui, &frame.events(std::slice::from_ref(&e)), &mut |ui| {
                 shell(ui, &player, position, &catalog, &state, &mut intent)
             })
             .unwrap();
