@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-21. U5b is under review on both local u5b branches. Menu budget, warm submenus, reentrant menus, UTF-8 clipping, diagnostics/variant guards, accessibility routing and payload validation, runner fixtures, and warm tooltip wrapping are fixed. macOS full framework qualification passed in 160.063 s before the latest Linux regression and tooltip commits. The focused Linux C/D-Bus routing and teardown test passed (pxui 71ebaf0d). The full Linux ABI suite has no recorded result and the local container service is currently unreachable. NEXT: resolve the inspector header and description callback contracts described in scratch/u5b-found-warm-audit.md, finish the remaining warm allocation work, then final Tier B/review/landing, CP2 and U6.
+Updated 2026-11-21. U5b is under review on both local u5b branches. Menu budget, warm submenus, reentrant menus, UTF-8 clipping, diagnostics/variant guards, accessibility routing and payload validation, runner fixtures, warm tooltip wrapping and inspector bar storage are fixed. The Linux ABI suite passed 162 tests, and AT-SPI passed 11 using a private D-Bus server. macOS full framework qualification passed in 160.063 s before the latest fixes. NEXT: resolve the inspector header and description callback contracts described in scratch/u5b-found-warm-audit.md, finish the remaining warm allocation work, then final Tier B/review/landing, CP2 and U6.
 
 ## What we're doing
 
