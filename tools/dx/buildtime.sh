@@ -39,6 +39,7 @@ if [ -n "$REV" ]; then
   WT=$(mktemp -d "${TMPDIR:-/tmp}/buildtime-wt.XXXXXX")
   rmdir "$WT"
   git -C "$ROOT" worktree add -q --detach "$WT" "$REV"
+  touch "$WT/.metadata_never_index"
   git -C "$WT" submodule init -q pxui
   git -C "$WT" config submodule.pxui.url "$ROOT/pxui"
   git -C "$WT" -c protocol.file.allow=always submodule update -q pxui
@@ -67,7 +68,7 @@ quiet() {
 
 # measure <tree> <target root> <label>: one round of a..f.
 measure() {
-  local tree=$1 px=$2/px lw=$2/lw label=$3
+  local tree=$1 px=$2/px lw=$2/lw label=$3 library_name
   rm -rf "$px"
   rec a "$label" "$tree/pxui" "$px" build -q --workspace
   quiet "$tree/pxui" "$px" check -q -p pxui_core
@@ -78,7 +79,9 @@ measure() {
   rm -rf "$px"
   # lw_bin links the dynamic libpxui from its target dir, as `make lib` provides it.
   quiet "$tree" "$lw" build -q --manifest-path pxui/Cargo.toml -p pxui_dylib
-  ln -sfn libpxui.dylib "$lw/debug/libpxui.2.dylib"
+  # The comparison tree may link an older major; stage the install name its own library declares.
+  library_name=$(otool -D "$lw/debug/libpxui.dylib" | tail -n 1)
+  ln -sfn libpxui.dylib "$lw/debug/${library_name##*/}"
   quiet "$tree" "$lw" build -q -p lw_ui
   quiet "$tree" "$lw" clean -q -p lw_ui
   rec d "$label" "$tree" "$lw" build -q -p lw_ui
