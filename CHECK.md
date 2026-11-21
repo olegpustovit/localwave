@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-21. U5b independent source review found four blockers, now fixed in separate commits (menu text budget, diagnostics ownership, pre-validation variant mutation, accessibility surface routing); a fifth fix bounds pending accessibility actions across calls. Current: LocalWave d27b612 / pxui f0b3aee0 on u5b, unlanded and unpushed. Owner approved the surface API/ledger correction and regeneration of the unreleased 2.0 baseline. NEXT: qualify/fix warm submenu allocations and validate Linux accessibility, then final Tier B/review/landing, CP2 (U5.12), U6. CP2/U6 are not started.
+Updated 2026-11-21. U5b is under review on both local u5b branches. Menu budget, warm submenus, reentrant menus, UTF-8 clipping, diagnostics/variant guards, accessibility routing and payload validation, runner fixtures, and warm tooltip wrapping are fixed. macOS full framework qualification passed in 160.063 s before the latest Linux regression and tooltip commits. The focused Linux C/D-Bus routing and teardown test passed (pxui 71ebaf0d). The full Linux ABI suite has no recorded result and the local container service is currently unreachable. NEXT: resolve the inspector header and description callback contracts described in scratch/u5b-found-warm-audit.md, finish the remaining warm allocation work, then final Tier B/review/landing, CP2 and U6.
 
 ## What we're doing
 
