@@ -2776,6 +2776,7 @@ pxui_types::Tokens::DEFAULT const Tokens
 pxui_types::Tokens::accent field Rgba
 pxui_types::Tokens::border fn const (&self) -> Rgba
 pxui_types::Tokens::control field Rgba
+pxui_types::Tokens::dark field bool
 pxui_types::Tokens::density field f32
 pxui_types::Tokens::display_size field f32
 pxui_types::Tokens::edge fn const (&self) -> Rgba
@@ -4753,6 +4754,7 @@ pxui_types::ffi::ThemeTokens impl From<Tokens>
 pxui_types::ffi::ThemeTokens struct
 pxui_types::ffi::ThemeTokens::accent field Rgba
 pxui_types::ffi::ThemeTokens::control field Rgba
+pxui_types::ffi::ThemeTokens::dark field u8
 pxui_types::ffi::ThemeTokens::density field f32
 pxui_types::ffi::ThemeTokens::display_size field i64
 pxui_types::ffi::ThemeTokens::font_size field i64
@@ -4766,7 +4768,7 @@ pxui_types::ffi::ThemeTokens::panel field Rgba
 pxui_types::ffi::ThemeTokens::radius field [f32; 3]
 pxui_types::ffi::ThemeTokens::reduced_motion field u8
 pxui_types::ffi::ThemeTokens::reserved field [u8; 3]
-pxui_types::ffi::ThemeTokens::reserved_tail field [u8; 3]
+pxui_types::ffi::ThemeTokens::reserved_tail field [u8; 2]
 pxui_types::ffi::ThemeTokens::size field u32
 pxui_types::ffi::ThemeTokens::space field [f32; 4]
 pxui_types::ffi::ThemeTokens::title_size field i64
@@ -5774,6 +5776,7 @@ pxui_types::theme::Tokens::DEFAULT const Tokens
 pxui_types::theme::Tokens::accent field Rgba
 pxui_types::theme::Tokens::border fn const (&self) -> Rgba
 pxui_types::theme::Tokens::control field Rgba
+pxui_types::theme::Tokens::dark field bool
 pxui_types::theme::Tokens::density field f32
 pxui_types::theme::Tokens::display_size field f32
 pxui_types::theme::Tokens::edge fn const (&self) -> Rgba

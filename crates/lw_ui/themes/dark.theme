@@ -1,3 +1,4 @@
+tokens.dark = true
 tokens.panel = #101010
 tokens.foreground = #EDEDED
 tokens.control = #1A1A1A
