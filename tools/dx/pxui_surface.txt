@@ -3290,12 +3290,14 @@ pxui_types::ffi::PxuiButtonDesc::lead_user field *mut c_void
 pxui_types::ffi::PxuiButtonDesc::name field Str
 pxui_types::ffi::PxuiButtonDesc::padding field [f32; 4]
 pxui_types::ffi::PxuiButtonDesc::reserved field u8
-pxui_types::ffi::PxuiButtonDesc::reserved2 field [u8; 7]
+pxui_types::ffi::PxuiButtonDesc::reserved2 field u8
 pxui_types::ffi::PxuiButtonDesc::reserved3 field [u8; 6]
+pxui_types::ffi::PxuiButtonDesc::reserved5 field [u8; 4]
 pxui_types::ffi::PxuiButtonDesc::selected field u8
 pxui_types::ffi::PxuiButtonDesc::size field u32
 pxui_types::ffi::PxuiButtonDesc::states field *const PxuiLookDesc
 pxui_types::ffi::PxuiButtonDesc::text field Str
+pxui_types::ffi::PxuiButtonDesc::variant field u16
 pxui_types::ffi::PxuiButtonDesc::w field f32
 pxui_types::ffi::PxuiButtonDesc::w_kind field u8
 pxui_types::ffi::PxuiCellBuild type = Option<extern "C" fn(*mut c_void, *mut c_void, usize, usize)>
@@ -3335,8 +3337,10 @@ pxui_types::ffi::PxuiCheckboxDesc::look field *const PxuiLookDesc
 pxui_types::ffi::PxuiCheckboxDesc::on field u8
 pxui_types::ffi::PxuiCheckboxDesc::passive field u8
 pxui_types::ffi::PxuiCheckboxDesc::reserved field u8
+pxui_types::ffi::PxuiCheckboxDesc::reserved_variant field [u8; 6]
 pxui_types::ffi::PxuiCheckboxDesc::size field u32
 pxui_types::ffi::PxuiCheckboxDesc::text field Str
+pxui_types::ffi::PxuiCheckboxDesc::variant field u16
 pxui_types::ffi::PxuiColorSpan impl Clone
 pxui_types::ffi::PxuiColorSpan impl Copy
 pxui_types::ffi::PxuiColorSpan impl Debug
@@ -3437,8 +3441,10 @@ pxui_types::ffi::PxuiDialogDesc::default_at field i64
 pxui_types::ffi::PxuiDialogDesc::details field Slice<Str>
 pxui_types::ffi::PxuiDialogDesc::disabled field u64
 pxui_types::ffi::PxuiDialogDesc::key field Str
+pxui_types::ffi::PxuiDialogDesc::reserved_variant field [u8; 6]
 pxui_types::ffi::PxuiDialogDesc::size field u32
 pxui_types::ffi::PxuiDialogDesc::title field Str
+pxui_types::ffi::PxuiDialogDesc::variant field u16
 pxui_types::ffi::PxuiDialogDesc::width field f32
 pxui_types::ffi::PxuiDialogResult impl Clone
 pxui_types::ffi::PxuiDialogResult impl Copy
@@ -3649,9 +3655,10 @@ pxui_types::ffi::PxuiIconButtonDesc::name field Str
 pxui_types::ffi::PxuiIconButtonDesc::press field *const Curve
 pxui_types::ffi::PxuiIconButtonDesc::press_scale field f32
 pxui_types::ffi::PxuiIconButtonDesc::reserved field u8
-pxui_types::ffi::PxuiIconButtonDesc::reserved2 field [u8; 6]
+pxui_types::ffi::PxuiIconButtonDesc::reserved2 field [u8; 4]
 pxui_types::ffi::PxuiIconButtonDesc::size field u32
 pxui_types::ffi::PxuiIconButtonDesc::states field *const PxuiLookDesc
+pxui_types::ffi::PxuiIconButtonDesc::variant field u16
 pxui_types::ffi::PxuiIconButtonDesc::w field f32
 pxui_types::ffi::PxuiIconButtonDesc::w_kind field u8
 pxui_types::ffi::PxuiIconDraw type = Option<extern "C" fn(*mut c_void, *mut c_void, Rect, Rgba, *const PxuiPaintInfo)>
@@ -3712,8 +3719,9 @@ pxui_types::ffi::PxuiKeyedDesc struct
 pxui_types::ffi::PxuiKeyedDesc::key field Str
 pxui_types::ffi::PxuiKeyedDesc::name field Str
 pxui_types::ffi::PxuiKeyedDesc::new fn (key: &str, name: &str) -> PxuiKeyedDesc
-pxui_types::ffi::PxuiKeyedDesc::reserved field u32
+pxui_types::ffi::PxuiKeyedDesc::reserved field u16
 pxui_types::ffi::PxuiKeyedDesc::size field u32
+pxui_types::ffi::PxuiKeyedDesc::variant field u16
 pxui_types::ffi::PxuiKeyframeDesc impl Clone
 pxui_types::ffi::PxuiKeyframeDesc impl Copy
 pxui_types::ffi::PxuiKeyframeDesc impl Default
@@ -3737,10 +3745,10 @@ pxui_types::ffi::PxuiLabelBox::SET_ALL const u32
 pxui_types::ffi::PxuiLabelBox::SET_HEIGHT const u32
 pxui_types::ffi::PxuiLabelBox::SET_ROLE const u32
 pxui_types::ffi::PxuiLabelBox::height field f32
-pxui_types::ffi::PxuiLabelBox::reserved field [u8; 2]
 pxui_types::ffi::PxuiLabelBox::role field u8
 pxui_types::ffi::PxuiLabelBox::set field u32
 pxui_types::ffi::PxuiLabelBox::size field u32
+pxui_types::ffi::PxuiLabelBox::variant field u16
 pxui_types::ffi::PxuiLabelBox::whole_pixels field u8
 pxui_types::ffi::PxuiLabelConfig impl Clone
 pxui_types::ffi::PxuiLabelConfig impl Copy
@@ -3878,8 +3886,9 @@ pxui_types::ffi::PxuiMaybeRange::start field i64
 pxui_types::ffi::PxuiMenuBarDesc struct
 pxui_types::ffi::PxuiMenuBarDesc::label field Str
 pxui_types::ffi::PxuiMenuBarDesc::menus field Slice<PxuiMenuDesc>
-pxui_types::ffi::PxuiMenuBarDesc::reserved field u32
+pxui_types::ffi::PxuiMenuBarDesc::reserved field u16
 pxui_types::ffi::PxuiMenuBarDesc::size field u32
+pxui_types::ffi::PxuiMenuBarDesc::variant field u16
 pxui_types::ffi::PxuiMenuDesc impl Clone
 pxui_types::ffi::PxuiMenuDesc impl Copy
 pxui_types::ffi::PxuiMenuDesc struct
@@ -3903,7 +3912,7 @@ pxui_types::ffi::PxuiMenuExtra::max_h field f32
 pxui_types::ffi::PxuiMenuExtra::max_rows field u32
 pxui_types::ffi::PxuiMenuExtra::name field Str
 pxui_types::ffi::PxuiMenuExtra::padding field f32
-pxui_types::ffi::PxuiMenuExtra::reserved field u32
+pxui_types::ffi::PxuiMenuExtra::reserved field u16
 pxui_types::ffi::PxuiMenuExtra::reserved2 field [u8; 3]
 pxui_types::ffi::PxuiMenuExtra::reserved3 field [u8; 7]
 pxui_types::ffi::PxuiMenuExtra::reserved4 field u32
@@ -3912,6 +3921,7 @@ pxui_types::ffi::PxuiMenuExtra::selected field Slice<u8>
 pxui_types::ffi::PxuiMenuExtra::size field u32
 pxui_types::ffi::PxuiMenuExtra::submenus field Slice<PxuiSubmenu>
 pxui_types::ffi::PxuiMenuExtra::swatches field Slice<PxuiSwatch>
+pxui_types::ffi::PxuiMenuExtra::variant field u16
 pxui_types::ffi::PxuiMenuItemConfig impl Clone
 pxui_types::ffi::PxuiMenuItemConfig impl Copy
 pxui_types::ffi::PxuiMenuItemConfig struct
@@ -4234,12 +4244,13 @@ pxui_types::ffi::PxuiSegmentedDesc::name field Str
 pxui_types::ffi::PxuiSegmentedDesc::names field Slice<Str>
 pxui_types::ffi::PxuiSegmentedDesc::padding field f32
 pxui_types::ffi::PxuiSegmentedDesc::reserved field [u8; 2]
-pxui_types::ffi::PxuiSegmentedDesc::reserved2 field u32
+pxui_types::ffi::PxuiSegmentedDesc::reserved2 field u16
 pxui_types::ffi::PxuiSegmentedDesc::reserved3 field [u8; 7]
 pxui_types::ffi::PxuiSegmentedDesc::reserved4 field [u8; 7]
 pxui_types::ffi::PxuiSegmentedDesc::selected field usize
 pxui_types::ffi::PxuiSegmentedDesc::size field u32
 pxui_types::ffi::PxuiSegmentedDesc::states field *const PxuiLookDesc
+pxui_types::ffi::PxuiSegmentedDesc::variant field u16
 pxui_types::ffi::PxuiSegmentedDesc::w field f32
 pxui_types::ffi::PxuiSegmentedResult impl Clone
 pxui_types::ffi::PxuiSegmentedResult impl Copy
@@ -4551,8 +4562,10 @@ pxui_types::ffi::PxuiTextFieldDesc::capitalization field u8
 pxui_types::ffi::PxuiTextFieldDesc::key field Str
 pxui_types::ffi::PxuiTextFieldDesc::name field Str
 pxui_types::ffi::PxuiTextFieldDesc::reserved field u8
+pxui_types::ffi::PxuiTextFieldDesc::reserved_variant field [u8; 6]
 pxui_types::ffi::PxuiTextFieldDesc::size field u32
 pxui_types::ffi::PxuiTextFieldDesc::value field Str
+pxui_types::ffi::PxuiTextFieldDesc::variant field u16
 pxui_types::ffi::PxuiTextStyle impl Clone
 pxui_types::ffi::PxuiTextStyle impl Copy
 pxui_types::ffi::PxuiTextStyle impl Debug
@@ -4626,7 +4639,8 @@ pxui_types::ffi::PxuiToggleDesc::knob field *const PxuiLookDesc
 pxui_types::ffi::PxuiToggleDesc::on field u8
 pxui_types::ffi::PxuiToggleDesc::press_row field u8
 pxui_types::ffi::PxuiToggleDesc::reserved field u8
-pxui_types::ffi::PxuiToggleDesc::reserved2 field [u8; 7]
+pxui_types::ffi::PxuiToggleDesc::reserved2 field u8
+pxui_types::ffi::PxuiToggleDesc::reserved3 field [u8; 4]
 pxui_types::ffi::PxuiToggleDesc::row_h field f32
 pxui_types::ffi::PxuiToggleDesc::size field u32
 pxui_types::ffi::PxuiToggleDesc::style field PxuiLabelStyle
@@ -4634,6 +4648,7 @@ pxui_types::ffi::PxuiToggleDesc::switch_h field f32
 pxui_types::ffi::PxuiToggleDesc::switch_w field f32
 pxui_types::ffi::PxuiToggleDesc::text field Str
 pxui_types::ffi::PxuiToggleDesc::track field *const PxuiLookDesc
+pxui_types::ffi::PxuiToggleDesc::variant field u16
 pxui_types::ffi::PxuiTreeNode impl Clone
 pxui_types::ffi::PxuiTreeNode impl Copy
 pxui_types::ffi::PxuiTreeNode impl Default
