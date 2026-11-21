@@ -207,31 +207,9 @@ pxui::Feature impl Eq
 pxui::Feature impl PartialEq
 pxui::Feature impl StructuralPartialEq
 pxui::Feature::A11yBridge variant = pxui_types::feature::A11Y_BRIDGE
-pxui::Feature::ButtonContent variant = pxui_types::feature::BUTTON_CONTENT
-pxui::Feature::ButtonParts variant = pxui_types::feature::BUTTON_PARTS
-pxui::Feature::ColorTokens variant = pxui_types::feature::COLOR_TOKENS
-pxui::Feature::DialogResponse variant = pxui_types::feature::DIALOG_RESPONSE
-pxui::Feature::Dismiss variant = pxui_types::feature::DISMISS
 pxui::Feature::ExtensionSet variant = pxui_types::feature::EXTENSION_SET
-pxui::Feature::FrameSurface variant = pxui_types::feature::FRAME_SURFACE
-pxui::Feature::IconButtonCurves variant = pxui_types::feature::ICON_BUTTON_CURVES
-pxui::Feature::IconWord variant = pxui_types::feature::ICON_WORD
-pxui::Feature::ImageChecked variant = pxui_types::feature::IMAGE_CHECKED
-pxui::Feature::ItemText variant = pxui_types::feature::ITEM_TEXT
-pxui::Feature::LabelNode variant = pxui_types::feature::LABEL_NODE
-pxui::Feature::LookTokens variant = pxui_types::feature::LOOK_TOKENS
-pxui::Feature::MenuItemIds variant = pxui_types::feature::MENU_ITEM_IDS
-pxui::Feature::MenuMaxH variant = pxui_types::feature::MENU_MAX_H
 pxui::Feature::Metal variant = pxui_types::feature::METAL
-pxui::Feature::SegmentedResult variant = pxui_types::feature::SEGMENTED_RESULT
-pxui::Feature::SegmentedStoredFocus variant = pxui_types::feature::SEGMENTED_STORED_FOCUS
-pxui::Feature::SwipeActions variant = pxui_types::feature::SWIPE_ACTIONS
-pxui::Feature::TextWorker variant = pxui_types::feature::TEXT_WORKER
-pxui::Feature::ToggleResponse variant = pxui_types::feature::TOGGLE_RESPONSE
-pxui::Feature::ViewKeyed variant = pxui_types::feature::VIEW_KEYED
 pxui::Feature::Vulkan variant = pxui_types::feature::VULKAN
-pxui::Feature::WidgetVariants variant = pxui_types::feature::WIDGET_VARIANTS
-pxui::Feature::WidgetsKeyed variant = pxui_types::feature::WIDGETS_KEYED
 pxui::Fill impl Clone
 pxui::Fill impl Copy
 pxui::Fill impl Debug
@@ -3010,34 +2988,9 @@ pxui_types::draw::kind::TRIANGLE const u8
 pxui_types::draw::nine_slice fn (rect: [f32; 4], uv: [f32; 4], image: [f32; 2], inset: [f32; 4], tint: [u8; 4]) -> [Instance; 9]
 pxui_types::feature mod
 pxui_types::feature::A11Y_BRIDGE const u32
-pxui_types::feature::BUTTON_CONTENT const u32
-pxui_types::feature::BUTTON_PARTS const u32
-pxui_types::feature::COLOR_TOKENS const u32
-pxui_types::feature::DIALOG_RESPONSE const u32
-pxui_types::feature::DISMISS const u32
 pxui_types::feature::EXTENSION_SET const u32
-pxui_types::feature::FRAME_SURFACE const u32
-pxui_types::feature::ICON_BUTTON_CURVES const u32
-pxui_types::feature::ICON_WORD const u32
-pxui_types::feature::IMAGE_CHECKED const u32
-pxui_types::feature::ITEM_TEXT const u32
-pxui_types::feature::LABEL_NODE const u32
-pxui_types::feature::LABEL_TEXT const u32
-pxui_types::feature::LOOK_TOKENS const u32
-pxui_types::feature::MENU_ITEM_IDS const u32
-pxui_types::feature::MENU_MAX_H const u32
 pxui_types::feature::METAL const u32
-pxui_types::feature::SEGMENTED_RESPONSE const u32
-pxui_types::feature::SEGMENTED_RESULT const u32
-pxui_types::feature::SEGMENTED_STORED_FOCUS const u32
-pxui_types::feature::SWIPE_ACTIONS const u32
-pxui_types::feature::TEXT_FIELD_KEYED const u32
-pxui_types::feature::TEXT_WORKER const u32
-pxui_types::feature::TOGGLE_RESPONSE const u32
-pxui_types::feature::VIEW_KEYED const u32
 pxui_types::feature::VULKAN const u32
-pxui_types::feature::WIDGETS_KEYED const u32
-pxui_types::feature::WIDGET_VARIANTS const u32
 pxui_types::ffi mod
 pxui_types::ffi::A11yAction impl Clone
 pxui_types::ffi::A11yAction impl Copy
