@@ -5,7 +5,8 @@ pxui::A11yBridge struct (_)
 pxui::A11yBridge::connect fn (name: &str) -> Option<Self>
 pxui::A11yBridge::fd fn (&self) -> i32
 pxui::A11yBridge::pump fn (&mut self, out: &mut dyn FnMut(A11yAction)) -> bool
-pxui::A11yBridge::update fn (&mut self, tree: &A11yTree) -> bool
+pxui::A11yBridge::remove_surface fn (&mut self, surface: u64) -> bool
+pxui::A11yBridge::update fn (&mut self, surface: u64, tree: &A11yTree) -> bool
 pxui::A11yNode use pxui_types::ffi::A11yNode
 pxui::A11yStates impl Clone
 pxui::A11yStates impl Copy
@@ -3004,6 +3005,7 @@ pxui_types::ffi::A11yAction::id field u64
 pxui_types::ffi::A11yAction::payload field f64
 pxui_types::ffi::A11yAction::reserved field u32
 pxui_types::ffi::A11yAction::size field u32
+pxui_types::ffi::A11yAction::surface field u64
 pxui_types::ffi::A11yActionSpan type = Strided<A11yAction>
 pxui_types::ffi::A11yNode impl Clone
 pxui_types::ffi::A11yNode impl Copy

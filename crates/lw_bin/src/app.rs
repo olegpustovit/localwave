@@ -399,7 +399,7 @@ impl App {
         // VoiceOver follows the real client; workloads keep their own a11y setting.
         #[cfg(target_os = "macos")]
         if perf.is_none() {
-            accessibility.frame(ui);
+            accessibility.frame(ui, input.wire.surface);
         }
         ui.frame(&input, &mut |ui| {
             lw_ui::shell(
