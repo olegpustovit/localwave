@@ -19,7 +19,7 @@ twins where one call suffices). Names may differ only where an existing public t
     ui.view_of("visual", &(icon, inverse, row.hovered, row.held), |ui| { /* build */ });
 
     const KEY: IconButton = IconButton::sized(36.0, 36.0).press_scale(0.96);
-    if ui.icon_button("play", Icon::Play, "Play", &KEY.look(&theme.key)).clicked { .. }
+    if ui.icon_button("play", Icon::glyph('\u{e000}'), "Play", &KEY.look(&theme.key)).clicked { .. }
 
     const ITEMS: [MenuItem; 3] = [MenuItem::new("Play next"), MenuItem::new("Add to playlist"), MenuItem::new("Delete").danger()];
     let menu = ui.menu("song-menu", at, &ITEMS, &Menu::DEFAULT.row_h(36.0));
@@ -42,9 +42,7 @@ Host setup and input in U1a
     theme.set_color(SURFACE, paper);
     ui.set_theme(&theme)?;
 
-    let mut input = FrameIn::new(width, height).scale(pixel_scale).time(now);
-    input.wire.events = events.as_ptr();
-    input.wire.event_count = events.len();
+    let input = FrameIn::new(width, height).scale(pixel_scale).time(now).events(&events);
     ui.frame(&input, &mut |ui| {
         if ui.key_pressed(KeyCode::Char('o'), Mods::META) { /* open */ }
         ui.themed(&theme, &mut |ui| { /* build a scoped subtree */ });
@@ -64,9 +62,10 @@ A public generic is a one-expression `#[inline]` shell (K: Into<Key>, F: FnMut, 
 never into an `#[inline(always)]` one (gate shape). A `Ui` built with `debug_assertions` verifies its retained views (`verify_views`);
 there is no process-wide switch. The wrapper's only state outside a `Ui` is listed, with its bounds, in pxui's composite.rs.
 
-Keep event records and payloads alive during the frame. A host with a full `Input`
-can borrow it through `unsafe FrameIn::snapshot(&input)` with its backing spans live.
-Output queries copy the descriptor, and a renderer's acknowledgement preserves
+Keep event records and payloads alive during the frame. `FrameIn::events` borrows the
+slice. Each event names the same registered surface as its frame. The former full
+`Input` snapshot frame entry was removed in U5.2. Output queries copy the descriptor,
+and a renderer's acknowledgement preserves
 the bytes already lent to a layer reader. Body names resolve in the destination UI,
 with an error on root installation and a built-in fallback in a scoped theme.
 `Mods::ANY` accepts every modifier state, and `Mods::NONE` requires no modifiers.
@@ -126,3 +125,19 @@ OS-grade (owner, 2026-11-17): pxui is the future OS base — see os_criteria.md 
   interactive control from nodes or `pressable` when pxui has a widget for that job (tabs, segmented, selection list, table header,
   checkbox, toggle, menu, dialog, button, slider/scrub, text field, tree, picker, tooltip) is DRIFT: use the widget + a registered body
   + theme looks/variants; if the widget can't express it, report a pxui gap.
+
+## Reconciliation with the API redesign proposal
+
+The [API redesign proposal, version 6](https://artifacts.microapps.space/a/mr55jcx8k90t) records the original design and measurements. The implemented contract is the ledger in `pxui/docs/api.md`. Its machine list was verified in both directions against the public Rust surface. The proposal examples differ from the resulting API in these places.
+
+| Proposal | pxui 2.0 |
+| --- | --- |
+| `Node::h(44.0)` and keyed `row` / `column` / `stack` | A point length uses `h_px(44.0)`. `h` takes a `Size`. Containers use sibling positions. `ui.id` adds a stable key scope. |
+| `pressable(key, node, &States, build)` | `pressable(key, node, &Pressable, build)` carries the looks in the options. The callback receives the interaction state. |
+| `Icon::Play` in the case study | The app supplies `Icon::glyph(char)` or `Icon::draw(callback, word)`. |
+| `button_with`, `toggle_with` and `segmented_with` | D25 uses `button`, `toggle` and `segmented` with the style parameter. The C ABI keeps the documented string-only `*_plain` fast paths. |
+| `list(key, count, height, build)` | The list also takes `row_key`, so the row's identity follows its model id. |
+| `local_bool`, `local_i64`, `local_f32` | One `state` / `set_state` pair owns the integer node slot. `text_state` / `set_text_state` owns its separate text slot. |
+| Compatibility from the proposed ABI 1.N baseline | U5.11 establishes ABI 2.0 and `libpxui.2`. `Ui::new` rejects incompatible libraries and `pxui_ui_create` rejects unsupported app versions. |
+
+The proposal's labels, `view_of`, `icon_button`, `menu`, disabled scope and public testing harness retain their core shape. The ledger also records later additions for virtual collections, body configs, native accessibility and surface registration.
