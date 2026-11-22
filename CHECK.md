@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-22. U5b is under review on both local u5b branches. The owner approved borrowing the inspector title from the UI and writing text-area descriptions into a reusable buffer. Focused regressions pass in both link modes, including accepted renames, tooltip timing and nested descriptions with zero warm Rust allocations. The C inspector title lifetime test passes. Linux ABI and private-bus AT-SPI passed 162 and 11 tests respectively during the accessibility review. NEXT: finish Tier B, compare fingerprints, rerun the release ABI benchmarks, then land U5b and run CP2 before U6.
+Updated 2026-11-22. U5b is under review on both local branches. The owner-approved borrowed inspector title and reusable editor description buffer passed both link modes and the C frame-lifetime test. The full framework and offline LocalWave suites passed at pxui e6e52052 / LocalWave f5566e0, with identical draw and accessibility fingerprints across 9,590 unique frames against U5a. Private scratch placement fix d7f770ac restored dynamic Controls and Layout to their instruction limits. NEXT: finish the CP0 build-time comparison and confirm the U5.4 Bodies decision. The earlier 80-byte whole-record benchmark conflicts with the checked-in 132-byte 2.0 ABI. Then rerun final qualification and land U5b before CP2 and U6.
 
 ## What we're doing
 
