@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-22. U5b landed at LocalWave 4eeed4e and pxui d4ba6ebc. CP2 passed macOS bundle and idle smoke, the Rust iOS device build and the iOS 18.6 simulator idle smoke. All 28 gated signed workloads measured zero warm Rust allocations. Six diagnostic timing misses and quiet comparison runs are in [the deferred list](docs/u-plan/deferred.md). NEXT: U6 docs, literal sweep and freeze.
+Updated 2026-11-22. The U6 candidate is on rust-port at LocalWave 4564228 and pxui 8f7c5b2b. Its 6,348-item surface matches the ledger, all 1,560 doctests passed, and production source matches CP2. CP2 passed the macOS bundle and idle smoke, the Rust iOS device build, the iOS 18.6 simulator idle smoke and zero warm Rust allocations across all 28 gated workloads. Benchmark follow-ups are in [the deferred list](docs/u-plan/deferred.md). The 2.0 tag and close-out await the records lint scope decision.
 
 ## What we're doing
 

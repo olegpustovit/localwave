@@ -321,14 +321,14 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U5.10 | Extension set | done | pxui d650edc9 + LocalWave f18d263 (ABI 1.154): ext manifest holds the Rays set and diagnostics; extension body kinds documented. |
 | U5.11 | Re-baseline: major 2 | done | pxui 45658786 + LocalWave pointer (ABI 2.0): `libpxui.2`, 2.0 manifests and `fixtures/abi/2.0`, `abi_built` 0 refused, 1.x app refused (test), one history row in docs/abi.md, header cleaned, `PxuiUi.theme` frozen (owner 21 Nov 2026); `abi-frozen` and `abi-compat` green. |
 | U5.12 | CP2: Tier C | platform and allocations pass, timing deferred | pxui d4ba6ebc / LocalWave 513a927: macOS bundle and idle smoke, full Rust iOS device build, iOS 18.6 simulator first frame and idle smoke. Signed run completed 30 workloads, 28 gated workloads had zero warm allocations. Both release ABI modes completed with the known Overlays and Lists misses. Six app timing misses under heavy load, quiet replay and build-time runs tracked in [the deferred list](u-plan/deferred.md). |
-| U6.1 | Docs gate | todo |  |
-| U6.2 | Literal sweep (Batch H) | todo |  |
-| U6.3 | Docs (Batch J) | todo |  |
-| U6.4 | deny(missing_docs) | todo |  |
-| U6.5 | Records lint (DX7.9) | todo |  |
-| U6.6 | Ledger check | todo |  |
-| U6.7 | Freeze (DX7.12) | todo |  |
-| U6.8 | Close-out | todo |  |
+| U6.1 | Docs gate | done | pxui 5bdaa0b1 / LocalWave 939b3ac. Scan past test modules and inline attributes, including public types, fields, constants, variants and modules. |
+| U6.2 | Literal sweep (Batch H) | done | pxui ba5199d5 and 8f7c5b2b / LocalWave da439e1 and 7cdb719. Use constructors in examples and fixtures. Gallery goldens and all 18 gallery tests pass. |
+| U6.3 | Docs (Batch J) | done | pxui 3148f632 / LocalWave 5213097. Public contracts, generated C field docs, guide and reference spec. All 1,560 doctests pass across both link modes. |
+| U6.4 | deny(missing_docs) | done | pxui 45763230 / LocalWave ea71d4a. Both public crates deny missing docs and the temporary exception list is gone. |
+| U6.5 | Records lint (DX7.9) | authoring check landed, internal scope pending | pxui 31d6b262, 8cc24a7c and b857e24f / LocalWave 85aa85a, 49f27fd and 1b94d77. The standard gate checks authoring examples, tests and tools. Extending the sweep to runtime construction would require fresh CP2 qualification. |
+| U6.6 | Ledger check | done | pxui 55149867 / LocalWave aa0ba6b. The 6,348-item public surface matches the ledger in both directions. Reference proposal differences are documented. |
+| U6.7 | Freeze (DX7.12) | candidate published, tag pending | pxui 8f7c5b2b / LocalWave 4564228. Production matches CP2 in both repos. ABI gates pass and release samples show zero warm Rust allocations. [Benchmark follow-ups](u-plan/deferred.md) retain the original limits. |
+| U6.8 | Close-out | pending freeze | Branch cleanup follows the 2.0 tag. |
 
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
