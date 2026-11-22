@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-22. U5b landed at LocalWave 4eeed4e and pxui d4ba6ebc. The 132-byte body record passes release qualification, the ABI and two-way ledger gates pass, and all 9,590 baseline draw and accessibility fingerprints match. Both release link modes measured zero warm allocations. The owner directed us to track timing follow-ups in [the deferred list](docs/u-plan/deferred.md) and proceed with the stable API. NEXT: CP2 platform and allocation qualification, then U6.
+Updated 2026-11-22. U5b landed at LocalWave 4eeed4e and pxui d4ba6ebc. CP2 passed macOS bundle and idle smoke, the Rust iOS device build and the iOS 18.6 simulator idle smoke. All 28 gated signed workloads measured zero warm Rust allocations. Six diagnostic timing misses and quiet comparison runs are in [the deferred list](docs/u-plan/deferred.md). NEXT: U6 docs, literal sweep and freeze.
 
 ## What we're doing
 

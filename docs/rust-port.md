@@ -320,7 +320,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U5.9 | OS remainder | done | pxui 1f5dfb4b, e3be1411, 3e23611d + LocalWave bd2c918, 99b9c09, 6c09963 (ABI 1.151-1.153): `pxui_ui_diagnostics` (ext) and `pxui_counter` in the ext set, one create call with fonts and status, layer roles, a11y surfaces, renderer-held Ui, header contracts, OS-6 decision. Review fixes pxui 3a673d0f / LocalWave 16c8930 guard diagnostics; pxui 4b0f1e83 carries accessibility destinations, removes closed surfaces, clears pending requests at teardown, and routes native host actions. Owner approved the unreleased baseline/ledger correction; static, ABI routing and native surface-7 checks pass. Linux ABI (162 tests) and AT-SPI (11 tests) pass, including two-surface action routing and teardown on a private D-Bus server (pxui 71ebaf0d, e575d22f). Queue-bound review fix pxui f0b3aee0 / LocalWave d27b612 refuses whole batches past 4096 pending requests, with frame reset, teardown and zero-warm-allocation regression. Wrapped tooltips (15488a98) and the inspector bar with large hint lists (43b83eaa) allocate nothing once warm in both link modes. Inspector action slices, formatted button and rename keys, clipped chips and action descriptors reuse storage (6fe9dd4b, ea318093). Editor tooltip keys reuse storage and still restart hover on a new token (d0e29b9c). The owner approved a UI-borrowed inspector title and a reusable output buffer for editor descriptions (pxui e6e52052). Focused tests pass in both link modes for accepted renames, hover timing, and warm allocation reuse, including nested descriptions on separate Ui instances. A C test verifies that later header calls preserve earlier title views within the frame. Private scratch placement (pxui d7f770ac) restored the hot field offsets and brought dynamic Controls and Layout back under their instruction limits. Collection item text (pxui ccbce34f) clips oversized Rust labels identically in both link modes, with a tree accessibility regression. The C path still validates text against its size and UTF-8 limits. |
 | U5.10 | Extension set | done | pxui d650edc9 + LocalWave f18d263 (ABI 1.154): ext manifest holds the Rays set and diagnostics; extension body kinds documented. |
 | U5.11 | Re-baseline: major 2 | done | pxui 45658786 + LocalWave pointer (ABI 2.0): `libpxui.2`, 2.0 manifests and `fixtures/abi/2.0`, `abi_built` 0 refused, 1.x app refused (test), one history row in docs/abi.md, header cleaned, `PxuiUi.theme` frozen (owner 21 Nov 2026); `abi-frozen` and `abi-compat` green. |
-| U5.12 | CP2: Tier C | todo |  |
+| U5.12 | CP2: Tier C | platform and allocations pass, timing deferred | pxui d4ba6ebc / LocalWave 513a927: macOS bundle and idle smoke, full Rust iOS device build, iOS 18.6 simulator first frame and idle smoke. Signed run completed 30 workloads, 28 gated workloads had zero warm allocations. Both release ABI modes completed with the known Overlays and Lists misses. Six app timing misses under heavy load, quiet replay and build-time runs tracked in [the deferred list](u-plan/deferred.md). |
 | U6.1 | Docs gate | todo |  |
 | U6.2 | Literal sweep (Batch H) | todo |  |
 | U6.3 | Docs (Batch J) | todo |  |
@@ -336,7 +336,7 @@ U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI
 
 ## Latest performance
 
-The CP1 (U4b.6) signed counting release run (LocalWave 911d69e, pxui 07cc8cac) on an Apple M1 Mac mini failed the gate: 16 of 28 gated workloads missed build CPU p99 < 1,500 µs, and 9 of those also frame CPU p99 < 2,500 µs. All gated workloads had zero warm Rust allocations (the measured-first-navigation and measured-first-menu-open rows allocate by design, 1,195 and 125). Start load 3.58 (5-minute average), peak under 4. A second run (start load 3.16) missed 15 workloads on build CPU (queue-carry-scroll-cancel and artist-detail-scoped-scroll passed, idle-600-return missed) with the same magnitudes (`scratch/cp1/perf1.log`, `perf2.log`). Work wall p99 stayed under 3,100 µs everywhere. The last U0.8 run (load 2.3–2.8) passed all 30 workloads (build CPU p99 max 1,477 µs); p50 values are now about 20–50% higher on every workload, including idle-like ones, so the machine's current speed (see the 19 Nov U4a.6 note in CHECK.md) is not separated from a code change; no bisect was run.
+CP2 ran the signed counting release on the Apple M1 Mac mini (LocalWave `513a927`, pxui `d4ba6ebc`). All 30 workloads completed. All 28 gated workloads recorded zero warm Rust allocations, reached the warm-up boundary and rendered their expected frames. The two measured first-use cases recorded 1,195 and 125 allocations, matching CP1. Six workloads exceeded their timing budgets. Start and end one-minute system load were 32.39 and 6.06, above the maximum of 4, so timings are diagnostic. The quiet replay and build-time comparison are in [the deferred list](u-plan/deferred.md).
 
 Gate (owner decision for this M1 Mac mini, 2026-11-15): build CPU p99 < 1,500 µs, frame CPU p99
 < 2,500 µs, frame work wall p99 < 8,000 µs (half a 60 Hz vsync), zero warm allocations. Work wall is
@@ -353,35 +353,36 @@ Times are µs; CPU is p50/p99/max, build wall is p50/p95/p99/max, work wall is p
 
 | Workload | Build CPU | Build wall | Frame CPU | Work wall | Alloc max | Gate |
 | --- | --- | --- | --- | --- | --- | --- |
-| songs-original | 1068/1467/1478 | 1079/1482/1675/- | 1769/2211/2240 | 1614/2077/2395/2914 | 0 | pass |
-| find-filters-title-descending | 1042/1308/1317 | 1072/1295/1378/- | 1664/1954/1958 | 1537/1848/2020/2037 | 0 | pass |
-| queue-occurrences | 1309/1730/1735 | 1313/1700/1856/- | 1858/2491/2552 | 1778/2277/2408/7673 | 0 | miss: build CPU |
-| queue-carry-scroll-cancel | 1033/1575/1586 | 1046/1413/1568/- | 1636/2373/2424 | 1488/2097/2164/2234 | 0 | miss: build CPU |
-| full-queue-playlist-editor | 837/950/953 | 836/965/987/- | 1421/1569/1589 | 1261/1397/1491/1535 | 0 | pass |
-| albums-artwork | 1051/1648/1657 | 1064/1370/1664/- | 2056/2721/2808 | 1872/2368/2545/2608 | 0 | miss: build CPU, frame CPU |
-| waveform-scrub-and-scroll | 773/1431/1480 | 793/1389/1432/- | 1468/2187/2218 | 1296/1975/2022/2035 | 0 | pass |
-| files-indexed-directory | 1392/1773/1820 | 1395/1776/1843/- | 2131/2575/2584 | 1959/2385/2477/2812 | 0 | miss: build CPU, frame CPU |
-| external-drop-hover-and-cancel | 536/713/716 | 534/704/724/- | 1109/1380/1390 | 955/1150/1223/1240 | 0 | pass |
-| artists-measured-columns | 1139/1448/1460 | 1139/1407/1507/- | 1770/2111/2126 | 1618/1915/2002/2076 | 0 | pass |
-| songs-playing-indicator | 1247/1701/1723 | 1248/1574/1719/- | 1888/2298/2322 | 1716/2095/2159/2225 | 0 | miss: build CPU |
-| songs-long-scroll | 1444/1834/1847 | 1445/1792/1943/- | 2109/2499/2513 | 1942/2290/2449/2777 | 0 | miss: build CPU |
-| album-detail-scoped-scroll | 817/938/965 | 815/940/983/- | 1492/1803/1880 | 1332/1499/1588/1644 | 0 | pass |
-| artist-detail-scoped-scroll | 934/1535/1641 | 945/1340/1637/- | 1692/2392/2416 | 1511/2002/2231/2377 | 0 | miss: build CPU |
-| list-dialogs-menu-and-name | 834/2098/2100 | 847/1991/2096/- | 1437/2730/2747 | 1291/2484/2598/2640 | 0 | miss: build CPU, frame CPU |
-| metadata-editor-typing | 801/2026/2029 | 797/1901/2102/- | 1382/2710/2765 | 1213/2357/2602/2726 | 0 | miss: build CPU, frame CPU |
-| song-drag-carry-hover-cancel | 1435/1788/1796 | 1455/1768/1806/- | 2047/2474/2491 | 1927/2267/2353/2414 | 0 | miss: build CPU |
-| fling | 852/1339/1361 | 870/1288/1337/- | 1493/2026/2030 | 1319/1753/1835/1838 | 0 | pass |
-| reverse-scroll | 1231/1603/1616 | 1262/1605/1640/- | 1910/2313/2314 | 1772/2128/2273/2582 | 0 | miss: build CPU |
-| scroll-jump | 686/2314/2393 | 684/2023/2474/- | 1321/2968/2991 | 1139/2496/2929/2939 | 0 | miss: build CPU, frame CPU |
-| non-song-lists | 780/2225/2283 | 781/1416/2279/- | 1419/2876/2908 | 1238/1980/2724/2759 | 0 | miss: build CPU, frame CPU |
-| search-typing | 979/1178/1197 | 977/1098/1207/- | 1597/1829/1894 | 1422/1581/1673/2094 | 0 | pass |
-| measured-first-navigation | 761/5222/5568 | 771/1632/5520/- | 1386/5883/6300 | 1227/2207/6032/6223 | 1195 | measured |
-| text-typing | 1782/2035/2044 | 1780/2024/2067/- | 2474/2846/2911 | 2299/2611/2725/2815 | 0 | miss: build CPU, frame CPU |
-| measured-first-menu-open | 633/1871/3101 | 638/844/1867/- | 1246/2516/3860 | 1083/1334/2338/3733 | 125 | measured |
-| resize | 1764/2543/2554 | 1783/2477/2605/- | 2328/3301/3394 | 2139/3010/3268/3484 | 0 | miss: build CPU, frame CPU |
-| theme-switch | 1615/2626/2708 | 1648/2330/2635/- | 2262/3291/3379 | 2139/2840/3141/3299 | 0 | miss: build CPU, frame CPU |
-| idle-600-return | 1076/1488/1516 | 1078/1422/1519/- | 1721/2160/2238 | 1547/1948/2022/2023 | 0 | pass |
-| clock-120 | 635/768/777 | 633/758/784/- | 1286/1585/1641 | 1097/1330/1367/1394 | 0 | pass |
+| songs-original | 686/1295/1413 | 763/1764/2686/- | 1193/1817/2144 | 1241/2765/3886/6707 | 0 | pass |
+| find-filters-title-descending | 737/1061/1082 | 751/1018/1187/- | 1297/1685/1688 | 1220/1526/1664/1795 | 0 | pass |
+| queue-occurrences | 968/1571/1637 | 1091/3555/5867/- | 1509/2405/2525 | 1525/6474/8484/16589 | 0 | miss: build CPU, work wall |
+| queue-carry-scroll-cancel | 735/1310/1329 | 779/1743/3386/- | 1289/2031/2043 | 1239/2398/3927/5387 | 0 | pass |
+| full-queue-playlist-editor | 506/771/773 | 526/752/825/- | 992/1412/1432 | 882/1256/1405/2846 | 0 | pass |
+| albums-artwork | 622/1051/1105 | 653/1440/2232/- | 1268/1732/1813 | 1200/2711/5654/7061 | 0 | pass |
+| waveform-scrub-and-scroll | 550/1026/1096 | 677/1950/3092/- | 1071/1688/1877 | 1090/4519/6342/9417 | 0 | pass |
+| settings-menus-appearance | 756/1259/1281 | 910/3201/5206/- | 1208/1703/1773 | 1391/4096/7304/13833 | 0 | pass |
+| files-indexed-directory | 882/1120/1392 | 922/1403/2440/- | 1473/1780/2068 | 1379/1952/2911/3321 | 0 | pass |
+| external-drop-hover-and-cancel | 415/717/729 | 430/1404/1558/- | 962/1318/1321 | 888/1881/2290/4578 | 0 | pass |
+| artists-measured-columns | 741/1208/1254 | 787/1513/2267/- | 1243/1733/1849 | 1236/2076/3212/4338 | 0 | pass |
+| songs-playing-indicator | 827/1482/1581 | 872/1684/3059/- | 1395/2055/2127 | 1330/2761/3549/3623 | 0 | pass |
+| songs-long-scroll | 1003/1463/1662 | 1132/2430/4106/- | 1559/2104/2128 | 1560/2802/4456/6078 | 0 | pass |
+| album-detail-scoped-scroll | 542/738/801 | 559/743/894/- | 1111/1528/1617 | 1025/1384/1482/2154 | 0 | pass |
+| artist-detail-scoped-scroll | 639/953/994 | 654/887/1186/- | 1153/1718/1725 | 1076/1551/1941/2138 | 0 | pass |
+| list-dialogs-menu-and-name | 857/2187/2191 | 1076/2601/3711/- | 1422/2634/2743 | 1580/4081/7773/12810 | 0 | miss: build CPU, frame CPU |
+| metadata-editor-typing | 994/1429/1491 | 1002/1549/2060/- | 1523/1999/2066 | 1429/2173/3157/3390 | 0 | pass |
+| song-drag-carry-hover-cancel | 1000/1433/1584 | 1095/2420/3079/- | 1542/2167/2282 | 1636/3013/4711/6792 | 0 | pass |
+| fling | 650/1084/1338 | 681/1496/2657/- | 1266/1684/1865 | 1161/2204/3303/4487 | 0 | pass |
+| reverse-scroll | 913/1341/1544 | 945/2657/3329/- | 1497/1975/2151 | 1446/3128/4746/4842 | 0 | pass |
+| scroll-jump | 571/1469/1500 | 573/1371/1578/- | 1218/2102/2106 | 1066/1846/2058/2456 | 0 | pass |
+| non-song-lists | 685/2025/2134 | 718/1471/3643/- | 1328/2707/2975 | 1312/2303/4239/4861 | 0 | miss: build CPU, frame CPU |
+| search-typing | 760/847/906 | 759/878/1539/- | 1298/1460/1560 | 1176/1352/2128/2257 | 0 | pass |
+| measured-first-navigation | 667/3025/3423 | 670/1884/3343/- | 1242/3822/4098 | 1126/2448/3985/3995 | 1195 | measured |
+| text-typing | 1426/1534/1571 | 1425/1512/1575/- | 2048/2210/2243 | 1918/2048/2156/2169 | 0 | miss: build CPU |
+| measured-first-menu-open | 539/1371/2167 | 536/636/1368/- | 1082/1928/2825 | 958/1184/1810/2713 | 125 | measured |
+| resize | 1405/1945/2178 | 1454/2577/4720/- | 1962/2722/2885 | 1905/3499/5464/5535 | 0 | miss: build CPU, frame CPU |
+| theme-switch | 1159/1836/2517 | 1176/2129/3073/- | 1763/2494/3091 | 1660/2701/4794/6446 | 0 | miss: build CPU |
+| idle-600-return | 882/1120/1162 | 905/1112/1313/- | 1475/1725/1782 | 1374/1609/2125/20068 | 0 | pass |
+| clock-120 | 343/461/589 | 342/634/712/- | 790/1060/1116 | 695/1133/1685/1901 | 0 | pass |
 
 ## Build time
 
