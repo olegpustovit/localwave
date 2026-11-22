@@ -1572,6 +1572,8 @@ U5.11 Re-baseline. Major 2:
 
  docs/abi.md history collapsed to one 2.0 row.
 
+Owner decision (22 Nov 2026): proceed to the stable 2.0 API with benchmark timing follow-ups tracked in docs/u-plan/deferred.md. Keep the existing limits and workloads. ABI, correctness, parity and warm-allocation checks remain part of release qualification. Record any unqualified timing measurement as deferred, with the evidence needed to close it.
+
 U5.12 CP2. Tier C (orchestrator): make performance, release abi_bench, make bundle + tools/check-macos-bundle.sh, make ios-build, buildtime. The perf table is replaced.
 
 Done when: every abi2_cut.md bullet and OS finding assigned here is done or written as a decision; every export is validated and fuzzed; gates abi-header/snapshot/frozen/compat/exports are green on the 2.0 baseline; LocalWave runs on libpxui.2 (bounded suite, bundle check, fingerprints identical); CP2 green; independent review PASS.

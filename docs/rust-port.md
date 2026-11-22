@@ -330,6 +330,10 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U6.7 | Freeze (DX7.12) | todo |  |
 | U6.8 | Close-out | todo |  |
 
+
+U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
+
+
 ## Latest performance
 
 The CP1 (U4b.6) signed counting release run (LocalWave 911d69e, pxui 07cc8cac) on an Apple M1 Mac mini failed the gate: 16 of 28 gated workloads missed build CPU p99 < 1,500 µs, and 9 of those also frame CPU p99 < 2,500 µs. All gated workloads had zero warm Rust allocations (the measured-first-navigation and measured-first-menu-open rows allocate by design, 1,195 and 125). Start load 3.58 (5-minute average), peak under 4. A second run (start load 3.16) missed 15 workloads on build CPU (queue-carry-scroll-cancel and artist-detail-scoped-scroll passed, idle-600-return missed) with the same magnitudes (`scratch/cp1/perf1.log`, `perf2.log`). Work wall p99 stayed under 3,100 µs everywhere. The last U0.8 run (load 2.3–2.8) passed all 30 workloads (build CPU p99 max 1,477 µs); p50 values are now about 20–50% higher on every workload, including idle-like ones, so the machine's current speed (see the 19 Nov U4a.6 note in CHECK.md) is not separated from a code change; no bisect was run.
