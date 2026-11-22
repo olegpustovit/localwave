@@ -69,7 +69,7 @@ def build(kind, path, parsed):
     if kind == "Image" and base is None and named.keys() == {"size", "vk_image_view", "mtl_texture", "width", "height", "format"}:
         if named["size"] == f"core::mem::size_of::<{path}>() as u32" and named["format"] == f"{path}::FORMAT_RGBA8":
             return f"{path}::rgba8({', '.join(named[name] for name in ('width', 'height', 'vk_image_view', 'mtl_texture'))})"
-    if kind == "Event" and base in DEFAULTS and "kind" in named and set(named) <= {"kind", "code", "x", "y"}:
+    if kind == "Event" and (base in DEFAULTS or base == f"{path}::default()") and "kind" in named and set(named) <= {"kind", "code", "x", "y"}:
         if "x" in named or "y" in named:
             return f"{path}::pointer({named['kind']}, {named.get('code', '0')}, {named.get('x', '0.0')}, {named.get('y', '0.0')})"
         if "code" in named:
@@ -82,21 +82,26 @@ def build(kind, path, parsed):
             return chain
         # Wire FrameIn has no setters. Use mutations for checked and deliberately malformed test records alike.
         return assign(chain, [(name, v) for name, v in items if name not in {"width", "height"}])
-    if kind == "SectionList" and "count" in named and vanilla:
-        chain = f"{path}::new({named['count']})"
+    if kind == "SectionList" and (base is not None or "count" in named):
+        chain = base or f"{path}::new({named['count']})"
         setters = {"row_height": "row_h", "leading_height": "lead", "header_height": "header", "trailing_height": "trail", "reorder": "reorder"}
+        extras = []
         for name, v in items:
             if name in setters:
                 chain += f".{setters[name]}({v})"
             elif name in {"overlay_scrollbar", "measured"} and v in {"true", "false"}:
                 if v == "true":
                     chain += f".{name}()"
+                elif base is not None:
+                    extras.append((name, v))
+            elif name == "count" and base is not None:
+                extras.append((name, v))
             elif name != "count":
                 return None
-        return chain
+        return assign(chain, extras)
     if kind == "TextSpan" and vanilla and {"start", "end"} <= named.keys():
         return assign(f"{path}::new({named['start']}, {named['end']})", [(n, v) for n, v in items if n not in {"start", "end"}])
-    if kind in {"Event", "FrameIn", "Image", "Str", "TextSpan"} and base is not None:
+    if kind in {"Event", "FrameIn", "Image", "Str", "TextSpan", "Rgba"} and base is not None:
         # Preserve wire fields for tests where a builder would normalize or reject the input.
         return assign(f"{path}::default()" if vanilla else base, items)
     table = SETTERS.get(kind)
@@ -143,12 +148,18 @@ def assign(base, fields):
 
 def rewrite(source, tests_only=False):
     m = mask(source)
+    aliases = {alias: kind for kind, alias in re.findall(r"\b(\w+)\s+as\s+([A-Z]\w*)\b", m)
+               if LITERAL.fullmatch(kind + " {")}
+    pattern = LITERAL if not aliases else re.compile(
+        LITERAL.pattern.replace("|SectionList|Str)", "|SectionList|Str|" + "|".join(sorted(aliases)) + ")"))
     test_ranges = []
     if tests_only:
-        test_module = r"#\[cfg\(test\)\]\s*(?:#\[[^\n]*\]\s*)*(?:pub\s+)?mod\s+\w+\s*\{"
-        test_ranges = [(test.end(), close(m, test.end() - 1)) for test in re.finditer(test_module, m)]
+        attribute_tail = r"\s*(?:#\[[^\n]*\]\s*)*"
+        test_module = r"#\[cfg\((?:all\(\s*)?test[^\]\n]*\]" + attribute_tail + r"(?:pub\s+)?mod\s+\w+\s*\{"
+        test_fn = r"#\[test\]" + attribute_tail + r"(?:pub\s+)?fn\s+\w+[^{};]*\{"
+        test_ranges = [(test.end(), close(m, test.end() - 1)) for test in re.finditer(f"{test_module}|{test_fn}", m)]
     edits, skipped = [], []
-    for match in LITERAL.finditer(m):
+    for match in pattern.finditer(m):
         if tests_only and not any(start <= match.start() < end for start, end in test_ranges):
             continue
         before = m[:match.start()].rstrip()
@@ -163,7 +174,7 @@ def rewrite(source, tests_only=False):
         parsed = fields(source, m, open_, end)
         if parsed is None:
             continue
-        new = build(match[2], match[1], parsed)
+        new = build(aliases.get(match[2], match[2]), match[1], parsed)
         if new is None:
             skipped.append((line_of(source, match.start()), " ".join(source[match.start():end + 1].split())[:140]))
             continue
@@ -177,7 +188,7 @@ def apply(source, edits):
     return source
 
 
-def apply_qualification(source, path):
+def apply_qualification(source, path, test_files=()):
     """Touch only fenced rustdoc examples, test modules and standalone qualification sources."""
     docs = re.compile(r"(?m)^(?P<prefix>[ \t]*//[/!]) ?```(?:rust)?[ \t]*\n(?P<body>(?:(?P=prefix).*\n)*?)(?P=prefix) ?```[ \t]*$")
     edits, skipped = [], []
@@ -190,7 +201,7 @@ def apply_qualification(source, path):
         if changes:
             replacement = "".join(prefix + (" " + line if line else "") + "\n" for line in apply(snippet, changes).splitlines())
             edits.append((block.start("body"), block.end("body"), replacement))
-    standalone = "tests" in path.parts or path.stem.startswith("test_") or any(part in {"pxui_gallery", "abi_bench"} for part in path.parts)
+    standalone = path in test_files or "tests" in path.parts or path.stem.startswith("test_") or path.stem.endswith("_tests") or any(part in {"pxui_gallery", "abi_bench", "abi_equal", "ios_spike"} for part in path.parts)
     changes, gaps = rewrite(source, tests_only=not standalone)
     return edits + changes, skipped + gaps
 
@@ -201,12 +212,19 @@ def main():
     parser.add_argument("--qualification", action="store_true", help="Limit source edits to examples, tests and gallery or benchmark tools")
     parser.add_argument("files", nargs="+", type=Path)
     options = parser.parse_args()
+    test_files = set()
+    if options.qualification:
+        external = re.compile(r"#\[cfg\((?:all\(\s*)?test[^\]\n]*\]\s*(?:#\[[^\n]*\]\s*)*mod\s+(\w+)\s*;")
+        for path in options.files:
+            for module in external.findall(mask(path.read_text())):
+                test_files.add(path.with_name(module + ".rs"))
+                test_files.add(path.with_name(module) / "mod.rs")
     total = 0
     for path in options.files:
         source = original = path.read_text()
         count = 0
         for _ in range(4):  # a literal nested in a rewritten one is taken on the next pass
-            edits, skipped = apply_qualification(source, path) if options.qualification else rewrite(source)
+            edits, skipped = apply_qualification(source, path, test_files) if options.qualification else rewrite(source)
             if not edits:
                 break
             count += len(edits)
