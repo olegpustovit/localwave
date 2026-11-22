@@ -158,7 +158,7 @@ pxui::Column::w_px fn const (self, points: f32) -> Column<'a>
 pxui::Commands use pxui_types::Commands
 pxui::CompleteFn type <'a>= dyn Fn(&str, usize) -> Vec<Completion> + 'a
 pxui::ContextAtFn type <'a>= dyn Fn(&str, usize) -> CodeContext + 'a
-pxui::DescribeFn type <'a>= dyn Fn(&str, usize) -> Option<(usize, usize, String)> + 'a
+pxui::DescribeFn type <'a>= dyn Fn(&str, usize, &mut String) -> Option<(usize, usize)> + 'a
 pxui::Dialog use pxui_types::ui::Dialog
 pxui::DialogButton use pxui_types::ui::DialogButton
 pxui::Disclosure impl Clone
@@ -1413,7 +1413,7 @@ pxui::ext::grip fn (ui: &mut Ui, label: Arguments<'_>, axis: Axis, rect: Option<
 pxui::ext::inspector_bar fn (ui: &mut Ui, hints: &[(&str, &str)], count: i64)
 pxui::ext::inspector_body fn (ui: &mut Ui, f: &mut dyn FnMut(&mut Ui))
 pxui::ext::inspector_button fn (ui: &mut Ui, key: &str, label: &str) -> bool
-pxui::ext::inspector_header fn (ui: &mut Ui, key: &str, kind: Option<&str>, badge: Option<&str>, index: Option<&str>, rename: Option<Rc<dyn Fn(&str) -> bool>>, actions: &[HeadAction], reset: Option<&str>, reset_enabled: bool, title: &str, detail: &str) -> Head
+pxui::ext::inspector_header fn <'ui>(ui: &'ui mut Ui, key: &str, kind: Option<&str>, badge: Option<&str>, index: Option<&str>, rename: Option<Rc<dyn Fn(&str) -> bool>>, actions: &[HeadAction], reset: Option<&str>, reset_enabled: bool, title: &str, detail: &str) -> Head<'ui>
 pxui::ext::inspector_label_x fn (ui: &Ui) -> f32
 pxui::ext::inspector_message fn (ui: &mut Ui, key: &str, message: &str)
 pxui::ext::inspector_readout fn (ui: &mut Ui, width: Option<f32>, key: &str, label: &str, value: &str)
@@ -5899,9 +5899,9 @@ pxui_types::ui::Head impl Debug
 pxui_types::ui::Head impl Eq
 pxui_types::ui::Head impl PartialEq
 pxui_types::ui::Head impl StructuralPartialEq
-pxui_types::ui::Head struct
+pxui_types::ui::Head struct <'ui>
 pxui_types::ui::Head::chosen field Option<i64>
-pxui_types::ui::Head::renamed field String
+pxui_types::ui::Head::renamed field &'ui str
 pxui_types::ui::Head::reset_pressed field bool
 pxui_types::ui::HeadAction impl Clone
 pxui_types::ui::HeadAction impl Debug

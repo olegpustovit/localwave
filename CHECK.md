@@ -1,6 +1,6 @@
 # CHECK — handoff for the pxui Unification Plan
 
-Updated 2026-11-21. U5b is under review on both local u5b branches. Menu budget, warm submenus, reentrant menus, UTF-8 clipping, diagnostics/variant guards, accessibility routing and payload validation, runner fixtures, warm tooltip wrapping, inspector bar storage, inspector header scratch, and editor tooltip wait-key reuse are fixed. The Linux ABI suite passed 162 tests, and AT-SPI passed 11 using a private D-Bus server. macOS full framework qualification passed in 160.063 s before the latest fixes. The offline LocalWave check passed all 310 Rust tests at pxui d0e29b9c and the two-way Rust ledger check is green. NEXT: owner ruling on the two owned-text contracts, inspector header rename results and text-area descriptions (scratch/u5b-owned-text-api-decision.md gives the proposed signatures and tests). Then finish allocation qualification, Tier B/review/landing, CP2 and U6.
+Updated 2026-11-22. U5b is under review on both local u5b branches. The owner approved borrowing the inspector title from the UI and writing text-area descriptions into a reusable buffer. Focused regressions pass in both link modes, including accepted renames, tooltip timing and nested descriptions with zero warm Rust allocations. The C inspector title lifetime test passes. Linux ABI and private-bus AT-SPI passed 162 and 11 tests respectively during the accessibility review. NEXT: finish Tier B, compare fingerprints, rerun the release ABI benchmarks, then land U5b and run CP2 before U6.
 
 ## What we're doing
 
@@ -63,12 +63,9 @@ Owner decision (21 Nov, this Codex session): correct surface routing in the 2.0 
 
 Evidence in `scratch/u5b/review-*.log`: framework Tier A checks and shape/deps/header/snapshot gates; full static API suite (316); focused ABI menu/diagnostics/variant/surface/queue tests; native VoiceOver bridge round trips on non-main surface 7; bridge docs and new injection doctest; frozen/compat gates against the regenerated 2.0 fixture. LocalWave api_conformance, binary build/test compilation, surface and two-way ledger checks pass on the surface correction. First sandboxed full static attempt timed out at the unchanged 60 s run bound; unrestricted runs pass in about 34 s. Full Tier B and benchmarks must be repeated after all runtime fixes.
 
-Still open before landing/CP2:
+The nested submenu regressions cover warm allocations and submenu behavior in both link modes. The Linux ABI and private-bus AT-SPI runs exercised surface routing and teardown. The Linux test container is stopped. A desktop AT-SPI registry and libatspi integration was outside those runs.
 
-- Warm submenu allocations: dynamic wrapper `overlays.rs` constructs a fresh flat row Vec; core `ui_text.rs` builds keep/related Vecs and formats the submenu key. Fix as a separate runtime step with static/dynamic warm-allocation and submenu behavior coverage. Do not defer into U6's runtime freeze.
-- Linux accessibility: installed Rust target cannot build native dependencies without x86_64-linux-gnu-gcc/g++. Local container setup was started with kernel installation and is still live; its process handle is in the scratch continuation note. Revalidate that handle before starting any replacement setup. No Linux pass is claimed.
-- Pending accessibility queue is now bounded at the public injection boundary; Linux bridge traffic and lifecycle still need qualification.
-- Final Tier B, fingerprints, hot-path release abi_bench (variant/menu changes), review and online landing; then all CP2 and U6 work from the original prompt.
+Remaining before landing: final Tier B, fingerprints, hot-path release abi_bench and the online landing checks. CP2 and U6 follow.
 
 
 ### U0.1–U0.8 landed on `rust-port`
