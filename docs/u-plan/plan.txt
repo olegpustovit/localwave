@@ -1518,6 +1518,8 @@ U5.3 Drop legacy exports (abi_drop.py; the union of both lists).
 
  From this plan: choice_keyed kind 1 (U2a.2), pxui_ui_checkbox_keyed (U2a.3), pxui_verify_new_views (D22), pxui_theme_load (OS-28), anything U1–U2 marked "cut at 2.0".
 
+Owner decision (22 Nov 2026): retain the 132-byte Bodies record (size prefix and 64 two-byte slots); correct the obsolete 80-byte whole-record abi_bench assertion to pin this layout. All runtime instruction, wall-time and allocation limits remain unchanged.
+
 U5.4 Sizes (OS-36). Size prefix on PxuiEvent, Touch, A11yNode/Action/Tree, TextInputOptions, AnchorDesc, Look, Tokens/ThemeSnapshot/States, PxuiBodies, CurveDesc, TextMetrics, LayerInfo, StateDesc, Environment and Keyboard. Arrays cross as {ptr, len, stride}. Old-size reads are removed:
 
  button 96/104 and icon button 96;
