@@ -6,7 +6,7 @@ CARGOFLAGS = $(if $(filter release,$(PROFILE)),--release)
 COUNTING ?=
 PRODUCTS = target/$(if $(filter release,$(PROFILE)),release,debug)
 
-.PHONY: lib build bundle sign notarize install check performance ios-build ios-run
+.PHONY: lib build bundle sign notarize install check performance compositor-smoke ios-build ios-run
 
 target/sdl/lib/libSDL3.a:
 	packaging/build-sdl-macos.sh
@@ -79,6 +79,12 @@ performance: bundle
 	  $(PERFORMANCE_CHECK) --performance-idle-600 || performance_result=1; \
 	  $(PERFORMANCE_CHECK) --performance-clock-120 || performance_result=1; \
 	  exit "$$performance_result"
+
+# Exercise promoted layers on the production display-link path in the signed counting bundle.
+compositor-smoke: PROFILE = release
+compositor-smoke: COUNTING = 1
+compositor-smoke: bundle
+	PXUI_TIMER_PACING=0 PXUI_NO_LAYERS=0 tools/run-compositor-smoke.sh
 
 # iOS builds use the shared target/ and keep the shipping Swift app installed (release, like the Mac app).
 
