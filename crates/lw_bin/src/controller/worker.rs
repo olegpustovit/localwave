@@ -74,7 +74,8 @@ impl Worker {
             let mut library = factory()?;
             let settings = library.load_settings();
             let catalog = library.catalog()?;
-            shared.inbox.lock().unwrap().catalog = Some(Arc::new(catalog.clone()));
+            // with its remap from the presented (empty) catalog, like every later delivery
+            shared.publish_catalog(&catalog);
             library.release_all_playback()?;
             let mut saved = library.load_player_state()?;
             let context = Arc::new(library.playback_context(saved.context_data.as_deref()));

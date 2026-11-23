@@ -998,6 +998,9 @@ fn set_favorite_persists_on_the_library_worker_and_refreshes_the_catalog() {
             std::thread::yield_now();
         }
     };
+    // the first delivery carries its remap from the presented (empty) catalog: the host's refresh requires one
+    wait(&|| shared.inbox.lock().unwrap().catalog.is_some());
+    assert!(shared.inbox.lock().unwrap().catalog.as_ref().unwrap().remap.is_some());
     for (revision, song, on) in [(0, 0, false), (1, 1, true), (2, 1, false), (3, 9000, true)] {
         let command = if revision == 0 {
             Command::RefreshCatalog

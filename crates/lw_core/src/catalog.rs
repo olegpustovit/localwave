@@ -423,7 +423,8 @@ impl LibraryRepository {
         let mut found = Vec::with_capacity(ids.len());
         for chunk in ids.chunks(500) {
             let list: Vec<String> = chunk.iter().map(i64::to_string).collect();
-            self.db.query(&format!("SELECT s.id,s.sourceId,f.parentPathId,d.relativePath FROM songs s JOIN source_paths f ON f.sourceId=s.sourceId AND f.relativePath=s.relativePath AND f.isDirectory=0 LEFT JOIN source_paths d ON d.sourceId=f.sourceId AND d.pathId=f.parentPathId AND d.isDirectory=1 WHERE f.parentPathId IS NOT NULL AND s.id IN ({})", list.join(",")), &[], &mut |row| {
+            // `+` keeps SQLite off lw_paths_parent (a scan of every path in the source per song); f is found by its relative path.
+            self.db.query(&format!("SELECT s.id,s.sourceId,f.parentPathId,d.relativePath FROM songs s JOIN source_paths f ON f.sourceId=s.sourceId AND f.relativePath=s.relativePath AND f.isDirectory=0 LEFT JOIN source_paths d ON d.sourceId=f.sourceId AND d.pathId=f.parentPathId AND d.isDirectory=1 WHERE +f.parentPathId IS NOT NULL AND s.id IN ({})", list.join(",")), &[], &mut |row| {
                 found.push((required(row.integer(0)?)?, required(row.integer(1)?)?, required(row.integer(2)?)?, row.text(3)?.map(str::to_owned)));
                 Ok(())
             })?;
