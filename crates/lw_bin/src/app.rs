@@ -477,8 +477,11 @@ impl App {
         (*repaint) = ui.repaint_at();
         if perf.is_some() || ui.draw_revision() != (*revision) {
             let draw_cpu = frame.cpu_time()?;
-            let drawn = graphics.draw(window, ui, frame.gpu_trace())
-                .map_err(|error| graphics_error(ui, error))?;
+            let drawn = if perf.is_some() {
+                graphics.draw_forced(window, ui, frame.gpu_trace())
+            } else {
+                graphics.draw(window, ui, frame.gpu_trace())
+            }.map_err(|error| graphics_error(ui, error))?;
             frame.finish_frame(ui, draw_cpu, graphics.acquire_wall())?;
             frame.audit(ui, artwork, player);
             if drawn {
@@ -493,8 +496,10 @@ impl App {
                         preferences.reduced_motion
                     );
                 }
-            } else {
+            } else if graphics.needs_present() {
                 (*repaint) = Some(now + 1.0 / 60.0);
+            } else {
+                *revision = ui.draw_revision();
             }
         }
         Ok((intent, seek_duration))
@@ -513,8 +518,10 @@ impl App {
         if graphics.draw(window, &self.ui, None).map_err(|error| graphics_error(&self.ui, error))? {
             self.draws += 1;
             self.revision = self.ui.draw_revision();
-        } else {
+        } else if graphics.needs_present() {
             self.repaint = Some(now + 1.0 / 60.0);
+        } else {
+            self.revision = self.ui.draw_revision();
         }
         Ok(())
     }

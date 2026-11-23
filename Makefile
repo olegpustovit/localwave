@@ -58,7 +58,7 @@ performance: bundle
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-files || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-drop || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artists || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-indicators || performance_result=1; \
+	  PXUI_FRAME_REASONS=1 target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-indicators || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-long-scroll || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-album-detail || performance_result=1; \
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artist-detail || performance_result=1; \

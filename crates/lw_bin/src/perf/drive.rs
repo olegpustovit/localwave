@@ -999,6 +999,18 @@ impl Perf {
                 graphics.close().map_err(|error| error.to_string())?;
             }
             self.report(frame.trace_frames, counts, artwork_bytes)?;
+            if workload == Some(Workload::SongIndicators)
+                && std::env::var_os("PXUI_FRAME_REASONS").is_some_and(|value| value == "1")
+            {
+                let reasons = ui.frame_reasons();
+                println!(
+                    "LocalWave song indicator scheduling: ambient={} interactive={} finite={} transition={}",
+                    reasons.idle_loop, reasons.active_loop, reasons.finite_keys, reasons.transition,
+                );
+                if reasons.idle_loop == 0 {
+                    return Err("Song indicator workload missed ambient repaint requests".into());
+                }
+            }
             return Ok(Some(Schedule::Exit));
         }
         Ok(None)
