@@ -813,6 +813,67 @@ impl Perf {
         }
     }
 
+    pub(crate) fn check_song_indicator_scheduler(
+        &self,
+        catalog: &lw_ui::catalog::Catalog,
+    ) -> Result<(), String> {
+        if self.workload != Workload::SongIndicators {
+            return Ok(());
+        }
+        // The measured frames deliberately scroll and force a present. Sample the same
+        // indicator with a settled viewport and fixed playback position after timing ends.
+        let mut ui = Ui::new(
+            &pxui::UiDesc::new(pxui::Platform::Apple)
+                .font_size(15.0)
+                .fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)]),
+        )
+        .map_err(|error| error.to_string())?;
+        let _themes =
+            lw_bin::appearance::Themes::new(&mut ui).map_err(|error| error.to_string())?;
+        ui.set_a11y(true);
+        let state = lw_ui::ShellState::default();
+        let player = lw_ui::PlayerView {
+            current_id: self.indicator_song,
+            initialized: true,
+            playing: true,
+            duration: 240.0,
+            ..Default::default()
+        };
+        for time in [0.0, 1.0, 2.0] {
+            ui.frame(&FrameIn::new(1440.0, 872.0).time(time), &mut |ui| {
+                lw_ui::shell(ui, &player, 0.0, catalog, &state, &mut None);
+            })
+            .map_err(|error| error.to_string())?;
+        }
+        let visible = ui.a11y_nodes().iter().any(|node| {
+            node.is_role(pxui::ui::Role::Image)
+                && node.states & pxui::A11yStates::VISIBLE.bits() != 0
+                && ui.a11y_name_of(node) == "Playing"
+        });
+        if !visible {
+            return Err("Song indicator cadence fixture has no visible playing row".into());
+        }
+        let before = ui.frame_reasons();
+        for _ in 0..20 {
+            let deadline = ui
+                .repaint_at()
+                .ok_or("Playing indicator has no repaint deadline")?;
+            if ((deadline - ui.now()) - 0.05).abs() > 1e-6 || !ui.step(deadline) {
+                return Err("Playing indicator missed its 20 Hz ambient repaint cadence".into());
+            }
+        }
+        let after = ui.frame_reasons();
+        let (ambient, stepped) = (
+            after.idle_loop - before.idle_loop,
+            after.stepped - before.stepped,
+        );
+        println!("LocalWave song indicator scheduling: ambient={ambient} stepped={stepped} hz=20");
+        if (ambient, stepped) != (20, 20) {
+            return Err("Song indicator telemetry did not record all 20 ambient steps".into());
+        }
+        Ok(())
+    }
+
     pub(crate) fn record(
         &mut self,
         frame: Frame,
@@ -1104,18 +1165,6 @@ impl Perf {
                 graphics.close().map_err(|error| error.to_string())?;
             }
             self.report(frame.trace_frames, counts, artwork_bytes)?;
-            if workload == Some(Workload::SongIndicators)
-                && std::env::var_os("PXUI_FRAME_REASONS").is_some_and(|value| value == "1")
-            {
-                let reasons = ui.frame_reasons();
-                println!(
-                    "LocalWave song indicator scheduling: ambient={} interactive={} finite={} transition={}",
-                    reasons.idle_loop, reasons.active_loop, reasons.finite_keys, reasons.transition,
-                );
-                if reasons.idle_loop == 0 {
-                    return Err("Song indicator workload missed ambient repaint requests".into());
-                }
-            }
             return Ok(Some(Schedule::Exit));
         }
         Ok(None)

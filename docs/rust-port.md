@@ -330,8 +330,8 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U6.7 | Freeze (DX7.12) | candidate published, tag pending | pxui 8f7c5b2b / LocalWave 4564228. Production matches CP2 in both repos. ABI gates pass and release samples show zero warm Rust allocations. [Benchmark follow-ups](u-plan/deferred.md) retain the original limits. |
 | U6.8 | Close-out | pending freeze | Branch cleanup follows the 2.0 tag. |
 | PERF damage | Damage-limited frames, transition steps, shown-only progress | done; `make performance` pending (needs a 1440x872 window) | pxui a64120b4 / LocalWave HEAD. Playing with the indicator animating: CPU 112% -> 7-12%, GPU 46% -> 4.0%. A damage-limited frame equals a full redraw; a warm step allocates nothing. |
-| R1 | Scheduling and late drawable acquisition (ABI 2.7) | implemented | Independent Mac mini playback measured 38.4 presents/s and 30.811 GPU ms/s before R1, 17.8 and 15.256 at 20 Hz, and 17.4 and 12.774 at 15 Hz. The approved cadence stays at 20 Hz. |
-| R2 | Fixed-capacity damage lists (ABI 2.6) | implemented | The independent Mac mini run measured a 4.66× reduction in canvas fragment time against the 5× target. R0 refreshes the gallery fixture. |
+| R1 | Scheduling and late drawable acquisition (ABI 2.7) | Mac mini playback target met | Wave 1 measured 14.8 presents/s against the R0 baseline of 36.6/s and the target of 17/s. The signed indicator check keeps the approved 20 Hz cadence. |
+| R2 | Fixed-capacity damage lists (ABI 2.6) | implemented, fragment target open | Wave 1 reduced playing-list canvas fragment time from 16.638 to 3.480 GPU ms/s (4.78× against the 5× target). The 200- and 5,000-seed oracles and the gallery fixture pass. |
 
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
