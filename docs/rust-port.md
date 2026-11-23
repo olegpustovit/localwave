@@ -335,6 +335,41 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
 
 
+## Render plan R0
+
+| ID | State | Evidence |
+| --- | --- | --- |
+| R0.1 | done | Signed, isolated 10,000-song scenarios use an eight-second silent WAV with repeat-one playback. The runner filters Metal System Trace rows to the fixture PID and writes one JSON file per scenario. |
+| R0.2 | done | ABI 2.5 exposes cumulative frame scheduling reasons and the sampled animation key and curve. LocalWave reports build reasons in the same log. |
+| R0.3 | done | 200 and 5,000 seeds pass on the Metal host and offscreen renderer, on lavapipe, and in the mock's dirty-buffer replay. The native comparisons cover every pixel. |
+| R0.4 | done | Before and after V1, recordings with glyph masks removed matched byte for byte (155,544 bytes). The refreshed 291,096-byte bodies fixture passes. |
+| R0.5 | done | The host reproduced the missing split callback error. It now records blur against its canvas, resumes with Load, and uses a full redraw for a damaged blurred backdrop. The host blur pixel test passes. |
+| R0.6 | done | The snapshot gate checks Mach-O current version against the ABI. The linked library reports 2.5.0 current and 2.0.0 compatible. |
+| R0.7 | done | Both hosted pxui jobs passed. Linux ran the unchanged headless core suite and the lavapipe oracle. The macOS job ran the mock, non-window host, wrapper and ABI gates. |
+| R0.8 | Mac mini recorded | The 1×, 1440×872, AC-powered Mac mini capture is in [energy-baseline.json](energy-baseline.json). The M1 Air reference capture is pending. |
+| R0.9 | done | The Now panel matrix clock's final retained row `changed-6`, node key `7297453466019787712`, runs `Curve::Steps { count: 2, duration: 0.14 }` after a 96 ms delay. The seven staggered once-only opacity runs recur each elapsed second. Telemetry measured 15.5 immediate finite-keyframe repaint requests per second with zero unkeyed-transition requests. R1 owns scheduling changes. |
+
+The 5-second Mac mini baseline recorded 183 presents during playing-list, 0 during idle, 338
+during pointer motion and 25 while hidden. On the independent repeat, idle and hidden matched and
+playing-list and pointer recorded 193 and 342 presents. The exact count check reported both
+differences. GPU timing uses the Metal trace interval. CPU time brackets the trace recorder, and
+the app counters cover the interval between fixture readiness and shutdown.
+
+Tier B passed 1,141 pxui cases, 596 dynamic and 578 static wrapper doctests,
+the gallery, framework gates and LocalWave's 327 checks. The hosted macOS and Linux pxui jobs
+passed. The existing LocalWave hosted Rust job still stops at formatting diffs on unchanged
+files. [Hosted verification](https://github.com/olegpustovit/localwave/actions/runs/45214005497)
+
+The signed performance matrix passed before and after R0. The 28 gated workloads recorded
+zero warm Rust allocations in both runs. Worst p99 build CPU changed from 1.332 to 1.313 ms,
+frame CPU from 1.996 to 2.131 ms, and frame work wall from 6.558 to 4.285 ms. The Rust arm64
+iOS device build passed.
+
+Release ABI benchmark runs on the archived pre-R0 head and on R0 failed the same
+`abi_bench_pages` instruction-ratio gates. Static missed Overlays, Layout and Lists. Dynamic
+missed Controls, Overlays, Layout and Lists. The gates and energy baseline retain their
+original thresholds and values.
+
 ## Latest performance
 
 CP2 ran the signed counting release on the Apple M1 Mac mini (LocalWave `513a927`, pxui `d4ba6ebc`). All 30 workloads completed. All 28 gated workloads recorded zero warm Rust allocations, reached the warm-up boundary and rendered their expected frames. The two measured first-use cases recorded 1,195 and 125 allocations, matching CP1. Six workloads exceeded their timing budgets. Start and end one-minute system load were 32.39 and 6.06, above the maximum of 4, so timings are diagnostic. The quiet replay and build-time comparison are in [the deferred list](u-plan/deferred.md).
