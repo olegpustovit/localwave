@@ -92,6 +92,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
 }
 pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorToken) {
     use pxui::{ui::Keyframe, Keyframes};
+    const FADE: Keyframes = Keyframes::DEFAULT.rate(crate::motion::PLAYBACK_RATE);
     const ROW_KEYS: [&str; 7] = [
         "changed-0", "changed-1", "changed-2", "changed-3", "changed-4", "changed-5", "changed-6",
     ];
@@ -178,7 +179,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorT
                 ui.retain_view_on_resize();
             });
             ui.set_node_layout(&visual, &Node::column().w(Size::Grow).h_px(unit).at(0.0, y));
-            if animate {
+            if animate && mask != 0 {
                 let delay = row as f32 * 0.016;
                 let curve = crate::motion::steps(2, crate::motion::QUICK);
                 ui.animate_keys(
@@ -188,7 +189,7 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorT
                         Keyframe::opacity(delay, 0.0).curve(curve),
                         Keyframe::opacity(delay + crate::motion::QUICK, 1.0).curve(curve),
                     ],
-                    &Keyframes::DEFAULT,
+                    &FADE,
                 );
             }
             y += unit;

@@ -404,6 +404,9 @@ pub(super) mod button_tests {
                         assert!((dot.rect[2] - dot.rect[0] - 43.0 / 7.0 * 0.78).abs() < 0.001);
                         assert!((dot.rect[3] - dot.rect[1] - 43.0 / 7.0 * 0.78).abs() < 0.001);
                     }
+                    if offset == 0.0 && seconds != 0 {
+                        assert_eq!(ui.repaint_at(), Some(time + 0.05), "a ticking clock uses the shared ambient cadence");
+                    }
                     if offset >= 0.236 {
                         assert!(
                             ui.repaint_at().is_none(),
