@@ -1,0 +1,101 @@
+{
+  "label": "Mac mini",
+  "model": "Macmini9,1",
+  "scenarios": {
+    "playing-list": {
+      "machine": "Macmini9,1",
+      "scenario": "playing-list",
+      "seconds": 5,
+      "drawable": [
+        1440,
+        872
+      ],
+      "presents": 183,
+      "presents_per_s": 36.6,
+      "gpu_ms_per_s": {
+        "Render Command 0 / Fragment": 16.6375,
+        "Render Command 0 / Vertex": 8.6727,
+        "Render Command 1 / Fragment": 2.2339,
+        "Render Command 1 / Vertex": 0.2483
+      },
+      "cpu_percent": 2.4014,
+      "idle_wakeups_per_s": 0.05,
+      "app_counters": {
+        "draws": 392,
+        "transition": 0,
+        "finite_keys": 209,
+        "stepped": 338
+      }
+    },
+    "idle": {
+      "machine": "Macmini9,1",
+      "scenario": "idle",
+      "seconds": 5,
+      "drawable": [
+        1440,
+        872
+      ],
+      "presents": 0,
+      "presents_per_s": 0.0,
+      "gpu_ms_per_s": {},
+      "cpu_percent": 0.4002,
+      "idle_wakeups_per_s": 0.1658,
+      "app_counters": {
+        "draws": 0,
+        "transition": 0,
+        "finite_keys": 0,
+        "stepped": 0
+      }
+    },
+    "pointer": {
+      "machine": "Macmini9,1",
+      "scenario": "pointer",
+      "seconds": 5,
+      "drawable": [
+        1440,
+        872
+      ],
+      "presents": 338,
+      "presents_per_s": 67.6,
+      "gpu_ms_per_s": {
+        "Render Command 0 / Fragment": 17.4163,
+        "Render Command 0 / Vertex": 15.5823,
+        "Render Command 1 / Fragment": 4.1644,
+        "Render Command 1 / Vertex": 0.5017
+      },
+      "cpu_percent": 6.5465,
+      "idle_wakeups_per_s": 0.0,
+      "app_counters": {
+        "draws": 780,
+        "transition": 0,
+        "finite_keys": 196,
+        "stepped": 270
+      }
+    },
+    "hidden": {
+      "machine": "Macmini9,1",
+      "scenario": "hidden",
+      "seconds": 5,
+      "drawable": [
+        1440,
+        872
+      ],
+      "presents": 25,
+      "presents_per_s": 5.0,
+      "gpu_ms_per_s": {
+        "Render Command 0 / Fragment": 4.7305,
+        "Render Command 0 / Vertex": 1.0729,
+        "Render Command 1 / Fragment": 0.3187,
+        "Render Command 1 / Vertex": 0.0383
+      },
+      "cpu_percent": 1.6614,
+      "idle_wakeups_per_s": 0.2708,
+      "app_counters": {
+        "draws": 55,
+        "transition": 0,
+        "finite_keys": 22,
+        "stepped": 30
+      }
+    }
+  }
+}
