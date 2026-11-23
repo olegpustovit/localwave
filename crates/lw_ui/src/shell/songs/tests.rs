@@ -34,6 +34,45 @@ fn catalog(count: usize) -> Catalog {
 }
 
 #[test]
+fn song_availability_moves_on_resize_without_rebuilding_the_mark() {
+    let mut first = song(0);
+    first.file_state = lw_core::FileState::Failed;
+    let catalog = crate::tests::prepared(vec![first, song(1)]);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    ui.verify_views(false);
+    let state = ShellState::default();
+    let player = PlayerView::default();
+    let frame = |ui: &mut Ui, width| {
+        crate::testing::frame(
+            ui,
+            &FrameIn::new(width, 872.0).reduced_motion(true),
+            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
+        ).unwrap();
+    };
+    let mark = |ui: &Ui| {
+        ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "File unavailable — retry")
+            .expect("the failed song's state glyph").rect
+    };
+    for _ in 0..3 {
+        frame(&mut ui, 1440.0);
+    }
+    let before = mark(&ui);
+    frame(&mut ui, 1280.0);
+    let after = mark(&ui);
+    assert_eq!(ui.rebuilt_named("availability-view"), 0);
+    let mut fresh = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    fresh.set_a11y(true);
+    for _ in 0..3 {
+        frame(&mut fresh, 1280.0);
+    }
+    let expected = mark(&fresh);
+    assert_ne!(before.x, expected.x, "the status column moves on resize");
+    assert_eq!(after, expected, "the retained mark follows the status column");
+    assert_eq!((after.w, after.h), (10.0, 10.0));
+}
+
+#[test]
 fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_densities() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = catalog(2);
@@ -893,6 +932,7 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                 overflowing += overflow;
                 let layouts = ui.text_layout_count();
                 let mut build = |ui: &mut Ui| {
+                    let density = ui.density();
                     for (position, &index) in collection.rows.iter().enumerate() {
                         let row = catalog.row(index);
                         let current = current == Some(index);
@@ -901,10 +941,10 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                         let layout = row_layout(
                             ui,
                             &catalog,
-                            index,
+                            (index, &row),
                             (position + 1, number),
                             numbered,
-                            widths,
+                            (widths, density),
                             current,
                         );
                         let root = ui.node(
@@ -920,24 +960,17 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                                     continue;
                                 }
                                 let (w, h) = layout.sizes[column as usize];
-                                label(
-                                    ui,
-                                    column as i64,
-                                    body_value(
-                                        &row,
-                                        column,
-                                        numbered,
-                                        number,
-                                    ),
+                                ui.label_at(
+                                    (column as i64).into(),
                                     Rect {
                                         x: column as usize as f32 * 100.0,
                                         y: layout.y(baseline(column)),
                                         w,
                                         h,
                                     },
+                                    body_value(&row, column, numbered, number),
                                     body_label(column, current).color(INK),
-                                    Role::Label,
-                                );
+                                ).unwrap();
                             }
                         });
                     }
@@ -2117,7 +2150,8 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     let (_, _, intent) = drag!("T2", t0, "drop");
     assert_eq!(intent, None);
     // A carried song lights a playlist row it is over, never a smart list (only playlists take a song).
-    let lit = |ui: &Ui, rect: Rect| ui.layers().flat_map(|l| l.instances.iter()).any(|i| i.color == [0xD3, 0xD3, 0xD3, 255] && i.rect == [rect.x, rect.y, rect.x + rect.w, rect.y + rect.h]);
+    // the lit fill is the sidebar row under the menu's 2-point spacing its list row carries
+    let lit = |ui: &Ui, rect: Rect| ui.layers().flat_map(|l| l.instances.iter()).any(|i| i.color == [0xD3, 0xD3, 0xD3, 255] && i.rect[0] == rect.x && i.rect[2] == rect.x + rect.w && i.rect[1] >= rect.y - 0.5 && i.rect[3] <= rect.y + rect.h + 2.5 && i.rect[3] - i.rect[1] > 20.0);
     let favorites = find(&ui, Role::ListItem, "Favorites");
     let (x, y) = centre(find(&ui, Role::ListItem, "T2"));
     run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y)]);
@@ -2127,7 +2161,8 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
         let (tx, ty) = centre(target);
         run(&mut ui, &[pointer(input::wire::POINTER_MOVED, tx, ty)]);
         run(&mut ui, &[]);
-        assert_eq!(lit(&ui, target), lights, "a song over {target:?} lights it: {lights}");
+        let fills: Vec<_> = ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.color == [0xD3, 0xD3, 0xD3, 255]).map(|i| i.rect).collect();
+        assert_eq!(lit(&ui, target), lights, "a song over {target:?} lights it: {lights} {fills:?}");
     }
     run(&mut ui, &[pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code())]);
     run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, x, y)]);
@@ -2142,6 +2177,9 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
         run(&mut ui, &[]);
         assert_eq!(mem_sys::local_alloc_count(), 0, "warm frame during a drag");
     }
+    ui.verify_views(false);
+    run(&mut ui, &[]);
+    assert_eq!(ui.rebuilt_named("up-next"), 0, "a stationary song carry keeps the queue rows");
 }
 
 #[test]

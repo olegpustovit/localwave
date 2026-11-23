@@ -61,6 +61,27 @@ impl App {
             (*repaint) = Some(now);
             return Ok(Some(Schedule::NextFrame));
         }
+        if let lw_ui::Intent::AudioRoute(at) = intent {
+            (*command_error) = lw_apple_sys::window::route_picker(at).err().map(|_| "Could not show audio outputs.");
+            (*error_revision) += 1;
+            (*repaint) = Some(now);
+            return Ok(Some(Schedule::NextFrame));
+        }
+        if intent == lw_ui::Intent::TryDemo {
+            // the FilesWorker copies and indexes it; the library opens now and fills as the scan reports
+            let result = lw_apple_sys::preferences::AppPaths::resources()
+                .ok()
+                .and_then(|resources| lw_bin::demo::bundled(&resources))
+                .ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))
+                .and_then(|bundle| files.try_demo(bundle));
+            if result.is_ok() {
+                shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
+            }
+            (*command_error) = result.err().map(|_| "Folder work is busy or unavailable. Try again.");
+            (*error_revision) += 1;
+            (*repaint) = Some(now);
+            return Ok(Some(Schedule::NextFrame));
+        }
         if matches!(
             intent,
             lw_ui::Intent::ChooseFolder
@@ -541,6 +562,7 @@ impl App {
                 | lw_ui::Intent::TogglePanel
                 | lw_ui::Intent::TogglePlayer
                 | lw_ui::Intent::ShowQueue
+                | lw_ui::Intent::FindShowAll
                 | lw_ui::Intent::CloseQueue
                 | lw_ui::Intent::NamePlaylist
                 | lw_ui::Intent::NewList(_)
@@ -569,6 +591,8 @@ impl App {
                 lw_ui::Intent::Files(_)
                 | lw_ui::Intent::ChooseFolder
                 | lw_ui::Intent::ChooseAudio
+                | lw_ui::Intent::TryDemo
+                | lw_ui::Intent::AudioRoute(_)
                 | lw_ui::Intent::ReconnectSource(_) => {
                     unreachable!("handled above")
                 }

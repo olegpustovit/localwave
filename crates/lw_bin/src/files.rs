@@ -79,6 +79,9 @@ impl Debounce {
 }
 
 enum Job {
+    /// Copy the bundled demo library into Application Support and index it as a folder (`crate::demo`); nothing when the library
+    /// already has songs.
+    Demo(PathBuf),
     Add {
         user: i64,
         path: FileSelection,
@@ -186,6 +189,13 @@ impl FilesWorker {
             }
             Request::Remove(target) => self.job(Job::Remove(target)),
         }
+    }
+    /// Installs and indexes the bundled demo library from `bundle` (`crate::demo::bundled`; onboarding's "Try the demo library").
+    pub fn try_demo(&self, bundle: PathBuf) -> io::Result<()> {
+        if !bundle.is_absolute() {
+            return Err(io::ErrorKind::InvalidInput.into());
+        }
+        self.job(Job::Demo(bundle))
     }
     pub fn add_folder(&self, user: i64, path: PathBuf) -> io::Result<()> {
         if !path.is_absolute() {
@@ -530,11 +540,12 @@ fn refresh_sources(
                     pinned += usize::from(kept);
                 }
             }
+            let display = usize::try_from(id - 1).ok().and_then(|index| library.reference_sources.get(index));
             Ok(Folder {
                 id,
                 root: source.path_id,
                 name: lw_ui::clip_owned(name),
-                path: lw_ui::clip_owned(path.to_string_lossy().into_owned()),
+                path: lw_ui::clip_owned(display.map_or_else(|| path.to_string_lossy().into_owned(), |d| d.0.clone())),
                 current: source.is_current,
                 count: if songs > 0 {
                     format!("{songs} songs")
@@ -546,7 +557,7 @@ fn refresh_sources(
                 } else {
                     String::new()
                 },
-                scanned: format::age(now, source.last_synced_at),
+                scanned: display.map_or_else(|| format::age(now, source.last_synced_at), |d| d.1.clone()),
                 error: source.sync_error.map(lw_ui::clip_owned),
                 local: if songs > 0 { local as f32 / songs as f32 } else { 0.0 },
             })
@@ -891,6 +902,24 @@ fn execute(
             browse_directory(library, snapshot, location)?;
             (location, true, None)
         }
+        Job::Demo(bundle) => {
+            // Swift's `installIfEmpty`: another import may have filled the library first
+            if library.repository.song_count("").map_err(io::Error::other)? > 0 {
+                return Ok(String::new());
+            }
+            // Application Support beside the container's Documents (iOS and macOS alike); a test container's own
+            let support = library.paths().documents.parent().ok_or_else(|| io::Error::other("The app container is unavailable."))?.join("Library/Application Support");
+            let folder = crate::demo::prepare(&bundle, &support)?;
+            let user = library.current_sources()?.user.id;
+            // shortcut: Swift also reports a partial index (fewer than 92 songs); add the count check if a recording ever fails to import
+            let source = library.register_selected_folder(user, &FileSelection::from(folder), now(), &shared.cancelled)?;
+            let location = Location {
+                user,
+                source: source.id.ok_or_else(|| io::Error::other("Source is not saved"))?,
+                parent: Some(source.path_id),
+            };
+            (location, true, None)
+        }
         Job::Add { user, path } => {
             let source = library.register_selected_folder(user, &path, now(), &shared.cancelled)?;
             let location = Location {
@@ -1017,6 +1046,53 @@ mod tests {
         debounce.forget(2);
         assert_eq!(debounce.take_due(start + Duration::from_secs(9)), None);
         assert_eq!(debounce.next(start), None);
+    }
+
+    /// The demo job copies the bundled catalog's recordings into the container's Application Support and indexes them as a source;
+    /// a library that already has songs is left as it is.
+    #[test]
+    fn demo_library_installs_into_the_container_and_indexes_as_a_source() {
+        let base = std::env::temp_dir().join(format!("lw-files-demo-{}", std::process::id()));
+        let _cleanup = Cleanup(base.clone());
+        let bundle = base.join("Bundle/DemoLibrary");
+        std::fs::create_dir_all(&bundle).unwrap();
+        let tagged = include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged.flac");
+        let mut tracks = Vec::new();
+        for i in 0..crate::demo::TRACKS {
+            std::fs::write(bundle.join(format!("demo-{i}.flac")), tagged).unwrap();
+            tracks.push(format!(r#"{{"resource":"demo-{i}.flac","relativePath":"Artist {}/{i:02} Song.flac","bytes":{}}}"#, i % 4, tagged.len()));
+        }
+        std::fs::write(bundle.join("localwave-demo-catalog.json"), format!(r#"{{"version":1,"tracks":[{}]}}"#, tracks.join(","))).unwrap();
+        assert_eq!(crate::demo::bundled(&base.join("Bundle")).as_deref(), Some(bundle.as_path()));
+        let worker_base = base.clone();
+        let mut worker = FilesWorker::open_quiet(
+            move || {
+                LibraryWorker::open(
+                    &worker_base.join("library.sqlite"),
+                    Preferences::open(Some(&format!("localwave.files-demo.{}", std::process::id())))?,
+                    AppPaths {
+                        documents: worker_base.join("Documents"),
+                        caches: worker_base.join("Caches"),
+                        temporary: worker_base.join("tmp"),
+                        test_database: None,
+                    },
+                    crate::library::headless_table_styles(),
+                )
+            },
+            wake,
+            Some(Duration::from_millis(30)),
+        )
+        .unwrap();
+        worker.try_demo(bundle.clone()).unwrap();
+        until(&mut worker, |snapshot| snapshot.catalog_revision >= 1 && !snapshot.busy);
+        let installed = base.join("Library/Application Support/LocalWave/Demo Library");
+        assert!(installed.join("Artist 3/91 Song.flac").is_file(), "{}", worker.snapshot().message);
+        assert_eq!(worker.snapshot().sources.len(), 1);
+        assert_eq!(worker.snapshot().message, "92 imported, 0 unchanged, 0 awaiting download.");
+        // a second try leaves the filled library alone
+        worker.try_demo(bundle).unwrap();
+        until(&mut worker, |snapshot| !snapshot.busy);
+        assert_eq!(worker.snapshot().sources.len(), 1);
     }
 
     #[test]

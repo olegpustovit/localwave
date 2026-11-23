@@ -77,8 +77,15 @@ pub(crate) struct App {
     smoke_finished: bool,
     /// Reference-golden mode: (last draw count, time it changed, READY printed).
     reference: Option<(usize, f64, bool)>,
+    reference_capture: Option<std::path::PathBuf>,
     /// Reference overlay screen still to open once the page below it has drawn.
     reference_overlay: Option<String>,
+    /// The folder golden asked the FilesWorker for its directory: the capture waits until the directory has arrived.
+    reference_directory: bool,
+    /// Goldens' system appearance: 2 (dark) with LOCALWAVE_REFERENCE_DARK, else 1 (Swift's light canvas).
+    reference_appearance: u32,
+    /// The bundle carries the demo library (checked once at startup; reference captures show it as Swift's fixture does).
+    demo: bool,
     /// Reference position still to seek to once the prepared item reports its duration.
     reference_seek: Option<f64>,
     pub(super) shell_state: lw_ui::ShellState,
@@ -99,6 +106,7 @@ pub(super) fn open(
     smoke: bool,
     trace_frames: bool,
     reference: Option<String>,
+    reference_capture: Option<std::path::PathBuf>,
 ) -> Result<Box<App>, String> {
     if cfg!(target_os = "ios") && workload.is_some() {
         return Err("The signed 1440x872 performance matrix requires the macOS host".into());
@@ -195,7 +203,7 @@ pub(super) fn open(
     let files = lw_bin::files::FilesWorker::open(
         move || {
             if let Some(base) = files_base {
-                LibraryWorker::open(
+                let mut library = LibraryWorker::open(
                     &base.join("library.sqlite"),
                     lw_apple_sys::preferences::Preferences::open(Some(&format!(
                         "com.olegpustovit.localwave.{}",
@@ -208,7 +216,13 @@ pub(super) fn open(
                         test_database: None,
                     },
                     table_styles,
-                )
+                )?;
+                // Reference fixtures store availability; probing their few real audio files would differ from Swift.
+                library.trust_stored_availability = seeded;
+                if seeded {
+                    library.reference_sources = reference::source_display()?;
+                }
+                Ok(library)
             } else {
                 LibraryWorker::current(table_styles)
             }
@@ -275,8 +289,14 @@ pub(super) fn open(
         smoke_check,
         smoke_finished,
         reference: reference_state,
+        reference_capture,
         reference_seek: reference.as_ref().map(|_| reference::position()).transpose()?,
         reference_overlay: reference.clone().filter(|screen| reference::is_overlay(screen)),
+        reference_directory: false,
+        reference_appearance: if std::env::var_os("LOCALWAVE_REFERENCE_DARK").is_some() { 2 } else { 1 },
+        demo: reference.is_some()
+            || (workload.is_none() && !smoke
+                && lw_apple_sys::preferences::AppPaths::resources().ok().and_then(|resources| lw_bin::demo::bundled(&resources)).is_some()),
         shell_state,
         command_error,
         error_revision,
@@ -332,6 +352,7 @@ impl App {
             shell_state,
             perf,
             events,
+            demo,
             ..
         } = self;
         let smoke = *smoke;
@@ -340,17 +361,12 @@ impl App {
             .ok_or("App graphics have already closed")?;
         let wire = encoded.encode(events);
         let clock = frame.begin(ui)?;
-        // The previous frame's row window; requests flush with this frame and install before the next.
-        text.request(
-            ui,
-            player.catalog(),
-            shell_state.song_text_window(player.catalog()),
-        );
+        let scale = window.scale() as f32;
         gpu::configure_artwork(
             graphics,
             extent.logical.0 as f32,
             extent.logical.1 as f32,
-            window.scale() as f32,
+            scale,
         )?;
         player
             .sync_media_artwork(graphics.images().epoch(), artwork.ready_images())
@@ -383,18 +399,27 @@ impl App {
             volume: status.volume,
             shuffled: status.shuffled,
             repeat: status.repeat,
+            demo: *demo,
+            route: lw_apple_sys::window::ROUTE_PICKER,
             duration: status.duration,
         };
         let mut input = FrameIn::new(extent.logical.0 as f32, extent.logical.1 as f32)
-            .scale(window.scale() as f32)
+            .scale(scale)
             .time(now)
-            .environment(platform.environment())
+            .environment(platform.environment().overlay_scrollers(preferences.overlay_scrollers != 0))
             .keyboard(platform.keyboard())
             .reduced_motion(preferences.reduced_motion != 0 || status.settings.reduce_motion);
         input.wire.appearance = preferences.appearance;
         input = input.events(&wire[..]);
         let mut position = status.position;
         frame.view(&mut view, &mut position, &mut input);
+        // A window resize changes the table's wrap widths. The list prepares rows for the new layout.
+        let previous = ui.view_size();
+        let same_extent = (previous.width, previous.height) == (input.wire.width, input.wire.height)
+            && ui.density() == scale.round().max(1.0);
+        let catalog = player.catalog();
+        let lookahead = if same_extent { shell_state.song_text_window(catalog) } else { None };
+        text.request(ui, catalog, lookahead);
         let seek_duration = view.duration;
         // VoiceOver follows the real client; workloads keep their own a11y setting.
         #[cfg(target_os = "macos")]
@@ -406,7 +431,7 @@ impl App {
                 ui,
                 &view,
                 position,
-                player.catalog(),
+                catalog,
                 shell_state,
                 &mut intent,
             )
@@ -498,7 +523,15 @@ impl App {
             frame.external_input(&mut self.events);
             self.input(window)?;
         }
-        let next_preferences = self.environment.snapshot();
+        let mut next_preferences = self.environment.snapshot();
+        // goldens (Swift's iOS canvas) and workloads keep one scroller style whatever this Mac's pointing device sets
+        if self.reference.is_some() || self.perf.is_some() {
+            next_preferences.overlay_scrollers = 1;
+        }
+        // goldens render Swift's canvas appearance (light, or dark with LOCALWAVE_REFERENCE_DARK) whatever this Mac's
+        if self.reference.is_some() {
+            next_preferences.appearance = self.reference_appearance;
+        }
         let preferences_changed = next_preferences != self.preferences;
         self.preferences = next_preferences;
         if let Some(appearance) = self.perf.as_ref().and_then(|perf| perf.appearance(self.frames)) {
@@ -513,7 +546,10 @@ impl App {
             })
             .map_err(|error| error.to_string())?;
         // Kept/availability labels come from the FilesWorker; re-read them when songs or pins change.
-        if library_changed && self.shell_state.files_visible() && self.files.snapshot().account.is_some() {
+        // A Roots refresh would replace the reference capture's pending Browse in the worker inbox.
+        if library_changed && self.shell_state.files_visible() && self.files.snapshot().account.is_some()
+            && (!self.reference_directory || self.files.snapshot().directory.is_some())
+        {
             let request = self.files.snapshot().directory.as_ref().map_or(
                 lw_ui::files::Request::Roots,
                 |directory| lw_ui::files::Request::Browse(directory.location),
@@ -658,12 +694,15 @@ impl App {
             return Ok(Schedule::NextFrame);
         }
         let mut settle = None;
+        // a page that went idle in fewer frames (the phone's full-screen player) has drawn too
+        let page_idle = self.reference.as_ref().is_some_and(|(draws, changed, _)| *draws == self.draws && observed_at >= *changed + 1.0);
         if self.reference_overlay.is_some()
-            && self.draws >= 10
+            && (self.draws >= 10 || page_idle)
             && self.player.status().initialized
             && (self.reference_overlay.as_deref() != Some("folder") || self.files.snapshot().account.is_some())
         {
             let screen = self.reference_overlay.take().unwrap_or_default();
+            self.reference_directory = screen == "folder";
             reference::route(self, &screen, true)?;
             self.repaint = Some(now);
         }
@@ -675,8 +714,24 @@ impl App {
         if let Some((draws, changed, printed)) = &mut self.reference {
             if *draws != self.draws {
                 (*draws, *changed) = (self.draws, observed_at);
-            } else if !*printed && self.draws > 0 && observed_at >= *changed + 2.0 {
+            } else if !*printed && self.draws > 0 && observed_at >= *changed + 2.0 && self.reference_overlay.is_none()
+                && (!self.reference_directory || self.files.snapshot().directory.is_some())
+            {
                 *printed = true;
+                if let Some(path) = &self.reference_capture {
+                    let (w, h) = self.extent.logical;
+                    if self.extent.drawable != (w, h) || self.ui.density() != 1.0 {
+                        return Err("Reference capture requires a 1× drawable and UI density".into());
+                    }
+                    let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
+                    let (width, height, pixels) = graphics.screenshot(window, &self.ui).map_err(|error| graphics_error(&self.ui, error))?;
+                    if (i64::from(width), i64::from(height)) != (w, h) {
+                        return Err(format!("Reference drawable {width}x{height} does not match the {w}x{h} point canvas"));
+                    }
+                    let png = reference::capture_png((width, height, &pixels), self.top_inset.ceil() as u32)?;
+                    std::fs::write(path, png).map_err(|error| format!("Could not write {}: {error}", path.display()))?;
+                    println!("LOCALWAVE_REFERENCE_CAPTURED={width}x{height} ui_density=1 drawable_scale=1");
+                }
                 println!("LOCALWAVE_REFERENCE_READY={}x{} inset={}", self.extent.logical.0, self.extent.logical.1, self.top_inset.ceil());
             }
             settle = (!*printed).then_some(*changed + 2.0);

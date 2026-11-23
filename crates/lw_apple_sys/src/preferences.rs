@@ -357,6 +357,10 @@ impl AppPaths {
             },
         })
     }
+    /// The main bundle's resources (`Contents/Resources` on macOS, the bundle root on iOS); an unbundled binary's directory.
+    pub fn resources() -> io::Result<PathBuf> {
+        path(unsafe { lw_app_path(5) })
+    }
     pub fn generated(&self) -> Vec<PathBuf> {
         let mut paths = vec![
             self.documents.join("CoverArt"),

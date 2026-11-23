@@ -21,9 +21,18 @@ use std::cmp::Ordering;
 use std::io;
 
 fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlite::Result<Catalog> {
-    let songs = repository.search_songs("", count, 0)?;
-    let mut catalog = Catalog::new(songs);
+    let mut songs = repository.search_songs("", count, 0)?;
+    // Swift lists the library in insertion order (`insertionSongs`, and its id-order hydration of the page); dates order only Recently added
+    songs.sort_by_key(|song| song.id);
     let user = repository.user(identity)?;
+    let sources = user.as_ref().map(|user| repository.sources(user.id)).transpose()?.unwrap_or_default();
+    // a source that needs reconnecting blocks its songs (Swift's `stateKey` "blocked")
+    let blocked: Vec<(i64, String)> = sources.iter()
+        .filter(|source| source.sync_error.is_some())
+        // the folder's own name, as its Folders card shows it
+        .filter_map(|source| Some((source.id?, lw_apple_sys::preferences::file_path(&source.dir_path).ok()?.file_name()?.to_string_lossy().into_owned())))
+        .collect();
+    let mut catalog = Catalog::with_blocked(songs, &blocked);
     let source_count = user
         .as_ref()
         .map(|user| repository.source_count(user.id))
@@ -33,7 +42,7 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
     library.set_source_count(source_count);
     if let Some(user) = user {
         let mut source_roots = std::collections::HashMap::new();
-        for source in repository.sources(user.id)? {
+        for source in sources {
             let Some(id) = source.id else { continue };
             let name = lw_apple_sys::preferences::file_path(&source.dir_path)
                 .ok()
@@ -390,7 +399,7 @@ mod tests {
         let prepared = worker.catalog_view(Some(&catalog), Some(find)).unwrap();
         assert_eq!(
             &*prepared.collection(Route::Find).unwrap().ids,
-            [ids[1], ids[0]],
+            [ids[0], ids[1]],
             "Find retains library order and deduplicates FTS matches"
         );
         assert!(Arc::ptr_eq(&catalog.library, &prepared.library));

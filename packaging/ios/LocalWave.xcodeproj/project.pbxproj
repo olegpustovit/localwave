@@ -28,7 +28,7 @@
             productReference = A00000000000000000000007;
             productType = "com.apple.product-type.application";
         };
-        A00000000000000000000003 = { isa = PBXGroup; children = (A00000000000000000000016, A00000000000000000000008, A00000000000000000000009, A00000000000000000000004); sourceTree = "<group>"; };
+        A00000000000000000000003 = { isa = PBXGroup; children = (A00000000000000000000016, A00000000000000000000008, A00000000000000000000009, A00000000000000000000020, A00000000000000000000004); sourceTree = "<group>"; };
         A00000000000000000000004 = { isa = PBXGroup; children = (A00000000000000000000007); name = Products; sourceTree = "<group>"; };
         A00000000000000000000005 = {
             isa = PBXShellScriptBuildPhase;
@@ -41,12 +41,14 @@
             shellPath = /bin/sh;
             shellScript = "set -eu\nmkdir -p \"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH\"\ncp \"$LOCALWAVE_RUST_EXECUTABLE\" \"$TARGET_BUILD_DIR/$EXECUTABLE_PATH\"\n";
         };
-        A00000000000000000000006 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000A, A0000000000000000000000B); runOnlyForDeploymentPostprocessing = 0; };
+        A00000000000000000000006 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A0000000000000000000000A, A0000000000000000000000B, A00000000000000000000021); runOnlyForDeploymentPostprocessing = 0; };
         A00000000000000000000007 = { isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LocalWave.app; sourceTree = BUILT_PRODUCTS_DIR; };
         A00000000000000000000008 = { isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ../../localwave/Assets.xcassets; sourceTree = SOURCE_ROOT; };
         A00000000000000000000009 = { isa = PBXFileReference; lastKnownFileType = text.xml; path = ../../localwave/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
         A0000000000000000000000A = { isa = PBXBuildFile; fileRef = A00000000000000000000008; };
         A0000000000000000000000B = { isa = PBXBuildFile; fileRef = A00000000000000000000009; };
+        A00000000000000000000020 = { isa = PBXFileReference; lastKnownFileType = folder; path = ../../localwave/DemoLibrary; sourceTree = SOURCE_ROOT; };
+        A00000000000000000000021 = { isa = PBXBuildFile; fileRef = A00000000000000000000020; };
         A00000000000000000000010 = { isa = XCConfigurationList; buildConfigurations = (A00000000000000000000012, A00000000000000000000013); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
         A00000000000000000000011 = { isa = XCConfigurationList; buildConfigurations = (A00000000000000000000014, A00000000000000000000015); defaultConfigurationIsVisible = 0; defaultConfigurationName = Debug; };
         A00000000000000000000012 = { isa = XCBuildConfiguration; baseConfigurationReference = A00000000000000000000016; buildSettings = {}; name = Debug; };

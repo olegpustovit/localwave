@@ -63,6 +63,20 @@ pub(in crate::shell) fn equalizer(ui: &mut Ui, playing: bool, visible: bool, id:
 }
 
 pub(in crate::shell) fn availability(ui: &mut Ui, row: Row<'_>, visible: bool) {
+    if row.blocked {
+        // Swift's blocked glyph: a tertiary 1.5-point outline with a 2-point bar along its foot
+        let root = ui.node("availability", Node::stack().w_px(10.0).h_px(10.0).role(Role::Image));
+        ui.a11y_name(&root, "Source needs reconnecting");
+        ui.canvas(&root, |paint, rect| {
+            let ink = Fill::new(Rgba::token(TERTIARY)).fractional();
+            let (x, y) = (rect.x, rect.y);
+            paint.fill(Rect::new(x, y, 10.0, 1.5), ink);
+            paint.fill(Rect::new(x, y + 1.5, 1.5, 7.0), ink);
+            paint.fill(Rect::new(x + 8.5, y + 1.5, 1.5, 7.0), ink);
+            paint.fill(Rect::new(x, y + 8.0, 10.0, 2.0), ink);
+        });
+        return ui.set_state(&root, -1);
+    }
     glyph(ui, (row.state, row.availability, row.pinned), visible);
 }
 
@@ -172,14 +186,14 @@ pub(super) struct Rows<'a> {
     pub(super) state: &'a ShellState,
     pub(super) player: &'a PlayerView<'a>,
     pub(super) widths: [f32; 8],
+    pub(super) density: f32,
     pub(super) revision: u64,
     pub(super) numbered: bool,
     pub(super) entry: &'a crate::motion::Page,
     pub(super) viewport: Viewport,
 }
 /// A song row's actions key: 32 points, the secondary ink, no wash.
-const ROW_MORE: pxui::IconButton = pxui::IconButton::sized(32.0, 32.0).look(&ROW_MORE_LOOKS);
-const ROW_MORE_LOOKS: States = States::of(SECONDARY_TEXT);
+const ROW_MORE: pxui::IconButton = pxui::IconButton::sized(32.0, 32.0);
 /// Carry kind of a row drag; the target resolves the selection from the song id.
 pub(crate) const SONG_DRAG: &str = "localwave.song:";
 
@@ -211,6 +225,7 @@ impl Rows<'_> {
             state,
             player,
             widths,
+            density,
             revision,
             numbered,
             entry,
@@ -221,19 +236,23 @@ impl Rows<'_> {
         let current = player.current_id == Some(row.id);
         let revision = crate::hash((revision, current));
         let number = table.number_label(index);
-        let layout = row_layout(
+        let measure = |ui: &mut Ui| row_layout(
             ui,
             catalog,
-            collection.rows[index],
+            (collection.rows[index], &row),
             (index + 1, number),
             numbered,
-            widths,
+            (widths, density),
             current,
         );
-        let y = cell.y - viewport.offset + layout.y(11.0);
-        let visible = y + 11.0 > (viewport.leading - viewport.offset).max(0.0) + viewport.heading
-            && y < viewport.height;
-        let visual_revision = if current || row.state == lw_core::FileState::CopyPending {
+        let active_mark = current || row.state == lw_core::FileState::CopyPending;
+        let laid_out = (active_mark || reorder).then(|| measure(ui));
+        let visible = active_mark && {
+            let layout = laid_out.unwrap();
+            let y = cell.y - viewport.offset + layout.y(11.0);
+            y + 11.0 > (viewport.leading - viewport.offset).max(0.0) + viewport.heading && y < viewport.height
+        };
+        let visual_revision = if active_mark {
             // its marks pause out of view: the list rebuilds the row every frame (`ListState::LIVE`, set from this next frame)
             state.song_live.borrow_mut().1.push(index);
             crate::hash((revision, current && player.playing, visible))
@@ -258,91 +277,101 @@ impl Rows<'_> {
             "song-visual",
             &visual_revision,
             |ui| {
-                let root = ui.node("song", Node::column().w(Size::Grow).h_px(layout.height));
-                ui.within(&root, &mut |ui| {
-                    let copy = |ui: &mut Ui| {
-                        let mut x = 0.0;
-                        for column in Column::ALL {
-                            let w = widths[column as usize];
-                            if w == 0.0 {
-                                continue;
-                            }
-                            if !(column == Column::Number && current)
-                                && !matches!(column, Column::State | Column::Actions)
-                            {
-                                let value = body_value(&row, column, numbered, number);
-                                let (fit, h) = layout.sizes[column as usize];
-                                let y = layout.y(baseline(column));
-                                let left = if column == Column::Number { 32.0 } else { 8.0 };
-                                label(
-                                    ui,
-                                    column as i64,
-                                    value,
-                                    Rect {
-                                        x: x + if column == Column::Time {
-                                            w - 8.0 - fit
-                                        } else {
-                                            left
-                                        },
-                                        y,
-                                        w: fit,
-                                        h,
+                if visual_revision == revision { ui.retain_palette_paint(); }
+                let layout = laid_out.unwrap_or_else(|| measure(ui));
+                let copy = |ui: &mut Ui| {
+                    let mut x = 0.0;
+                    for column in Column::ALL {
+                        let w = widths[column as usize];
+                        if w == 0.0 {
+                            continue;
+                        }
+                        if !(column == Column::Number && current)
+                            && !matches!(column, Column::State | Column::Actions)
+                        {
+                            let value = body_value(&row, column, numbered, number);
+                            let (fit, h) = layout.sizes[column as usize];
+                            let y = layout.y(baseline(column));
+                            let left = if column == Column::Number { 32.0 } else { 8.0 };
+                            ui.label_at(
+                                ["#", "title", "artist", "album", "format", "state", "time", "actions"][column as usize].into(),
+                                Rect {
+                                    x: x + if column == Column::Time {
+                                        w - 8.0 - fit
+                                    } else {
+                                        left
                                     },
-                                    body_label(column, current).color(if column == Column::Title { INK } else { SECONDARY }),
-                                    Role::Label,
-                                );
-                            }
-                            x += w;
+                                    y,
+                                    w: fit.max(0.0),
+                                    h,
+                                },
+                                value,
+                                body_label(column, current).color(if column == Column::Title { INK } else { SECONDARY }),
+                            ).unwrap();
                         }
-                    };
-                    // the playing and copying rows rebuild their marks while their text holds: it keeps a view of its own
-                    if visual_revision != revision { ui.view_of("song-copy", &revision, copy); } else { copy(ui) }
-                    if current {
-                        ui.id("equalizer-position", |ui| { ui.column(Node::column().w_px(14.0).h_px(11.0).at(32.0, layout.y(11.0)),
-                            |ui| {
-                                ui.view_of("equalizer-view", &visual_revision, |ui| equalizer(ui, player.playing, visible, row.id));
-                            },
-                        ); });
+                        x += w;
                     }
-                    if widths[Column::State as usize] > 0.0 {
-                        let x = widths[..Column::State as usize].iter().sum::<f32>() + 8.0;
-                        ui.id("availability-position", |ui| { ui.column(Node::column().w_px(10.0).h_px(10.0).at(x, layout.y(10.0)),
-                            |ui| {
-                                let visual = ui.view_of("availability-view", &visual_revision, |ui| availability(ui, row, visible));
-                                let previous = ui.state(&visual, -1);
-                                let next = row.state as i64;
-                                if previous != next {
-                                    ui.set_state(&visual, next);
-                                    if previous >= 0 && !ui.tokens().reduced_motion {
-                                        ui.animate_keys(
-                                            &visual,
-                                            &[
-                                                Keyframe::scale(0.0, 0.3, 0.3).curve(crate::motion::spring(crate::motion::BASE)),
-                                                Keyframe::scale(crate::motion::BASE, 1.0, 1.0).curve(crate::motion::spring(crate::motion::BASE)),
-                                            ],
-                                            &Keyframes::DEFAULT,
-                                        );
-                                    }
-                                }
-                            },
-                        ); });
-                    }
-                    let x = widths[..7].iter().sum::<f32>();
-                    ui.id("actions-position", |ui| { ui.column(Node::column().w_px(32.0).h_px(32.0).at(x, (layout.height - 32.0) * 0.5), |ui| {
-                        let more = ui.icon_button("actions", icon_drawing(Icon::RowMore), row.actions_label, &ROW_MORE);
-                        if more.clicked {
-                            let at = ui.rect(&more.handle);
-                            *intent = Some(Intent::SongMenu(
-                                index,
-                                row.id,
-                                collection.key,
-                                (at.x, at.y + at.h),
-                            ));
+                };
+                if visual_revision != revision {
+                    ui.view_of("song-copy", &revision, |ui| {
+                        copy(ui);
+                        ui.retain_palette_labels();
+                    });
+                } else {
+                    copy(ui);
+                }
+                if current {
+                    let bars = ui.view_of("equalizer-view", &visual_revision, |ui| {
+                        equalizer(ui, player.playing, visible, row.id);
+                    });
+                    ui.set_node_layout(&bars, &Node::column().w_px(14.0).h_px(11.0).at(32.0, layout.y(11.0)));
+                }
+                if widths[Column::State as usize] > 0.0 {
+                    let x = widths[..Column::State as usize].iter().sum::<f32>() + 8.0;
+                    let pending = row.state == lw_core::FileState::CopyPending;
+                    let glyph = (row.blocked, row.state as u8, row.availability.map(|value| value as u8), row.pinned, pending && visible);
+                    let mark = ui.view_of("availability-view", &glyph, |ui| {
+                        // The glyph is always 10 points. The column layout below positions the retained mark.
+                        ui.retain_view_on_resize();
+                        if !pending { ui.retain_palette_paint(); }
+                        availability(ui, row, visible);
+                    });
+                    ui.set_node_layout(&mark, &Node::column().w_px(10.0).h_px(10.0).at(x, layout.y(10.0)));
+                    let previous = ui.state(&mark, -1);
+                    let next = row.state as i64;
+                    if previous != next {
+                        ui.set_state(&mark, next);
+                        if previous >= 0 && !ui.tokens().reduced_motion {
+                            ui.animate_keys(
+                                &mark,
+                                &[
+                                    Keyframe::scale(0.0, 0.3, 0.3).curve(crate::motion::spring(crate::motion::BASE)),
+                                    Keyframe::scale(crate::motion::BASE, 1.0, 1.0).curve(crate::motion::spring(crate::motion::BASE)),
+                                ],
+                                &Keyframes::DEFAULT,
+                            );
                         }
-                    }); });
-                });
+                    }
+                }
+                let x = widths[..7].iter().sum::<f32>();
+                {
+                    // placed itself: a positioning column per row is a node per fresh row
+                    let more = ui.icon_button("actions", icon_drawing(Icon::RowMore), row.actions_label, &ROW_MORE);
+                    ui.set_at(&more.handle, (x, (layout.height - 32.0) * 0.5));
+                    if more.clicked {
+                        let at = ui.rect(&more.handle);
+                        *intent = Some(Intent::SongMenu(
+                            index,
+                            row.id,
+                            collection.key,
+                            (at.x, at.y + at.h),
+                        ));
+                    }
+                }
+                // The placed cells stay out of flow. The separator also gives the measured row its height.
+                let separator = ui.node("separator", Node::column().w(Size::Grow).h_px(layout.height));
                 let last = index + 1 == collection.rows.len();
-                ui.canvas_over(&root, move |paint, rect| {
+                ui.canvas(&separator, move |paint, rect| {
                     paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
                     if last {
                         paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
@@ -351,17 +380,11 @@ impl Rows<'_> {
             },
         );
         if reorder {
-            // the list's handle: a press lifts the row at once (touch too) and the list reports the move
+            // the list's handle over the number column: a press lifts the row at once (touch too) and the list reports the move;
+            // Swift's desktop rows draw no grip
             ui.id("grip", |ui| {
-                let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(24.0).h_px(layout.height).at(2.0, 0.0));
+                let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(24.0).h_px(laid_out.unwrap().height).at(2.0, 0.0));
                 ui.a11y_name(&grip, "Reorder track");
-                ui.canvas(&grip, move |paint, rect| {
-                    for x in [8.0, 12.0] {
-                        for y in [-4.0, 0.0, 4.0] {
-                            paint.fill(Rect::new(rect.x + x, rect.y + rect.h * 0.5 + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
-                        }
-                    }
-                });
             });
         }
         entry.row(ui, &visual, index);

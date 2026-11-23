@@ -8,6 +8,21 @@ pub(crate) fn play(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     paint.triangle(at((7.0, 4.6)), at((7.0, 19.4)), at((19.4, 12.0)), Fill::new(color));
 }
+/// LW-prev and LW-next, mirrored across the key's centre.
+pub(crate) fn skip(paint: &mut Paint<'_>, rect: Rect, next: bool, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| {
+        (rect.x + if next { x } else { 24.0 - x } * scale, rect.y + y * scale)
+    };
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    paint.curve(at((18.0, 5.0)), at((18.0, 12.0)), at((18.0, 19.0)), stroke);
+    let [a, b, c] = [(5.0, 5.5), (15.0, 12.0), (5.0, 18.5)];
+    paint.triangle(at(a), at(b), at(c), Fill::new(color));
+    for (a, b) in [(a, b), (b, c), (c, a)] {
+        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    }
+}
+
 pub(crate) fn heart(paint: &mut Paint<'_>, rect: Rect, filled: bool, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
@@ -28,6 +43,123 @@ pub(crate) fn heart(paint: &mut Paint<'_>, rect: Rect, filled: bool, color: Rgba
             paint.cubic(points.map(mirror), Stroke::new(color).width(1.6 * scale));
         }
     }
+}
+/// LW-search.imageset: a radius-6 lens at (10.5, 10.5) and its handle `m20 20-5-5`, 1.6-unit round strokes.
+pub(crate) fn search(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    paint.circle(at((10.5, 10.5)), 6.0 * scale, None, Some(stroke));
+    paint.curve(at((20.0, 20.0)), at((17.5, 17.5)), at((15.0, 15.0)), stroke);
+}
+/// LW-plus.imageset: `M12 5v14M5 12h14`, 1.6-unit round strokes.
+pub(crate) fn plus(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    paint.curve(at((12.0, 5.0)), at((12.0, 12.0)), at((12.0, 19.0)), stroke);
+    paint.curve(at((5.0, 12.0)), at((12.0, 12.0)), at((19.0, 12.0)), stroke);
+}
+/// LW-more.imageset: three 2.8-unit dots on the horizontal centerline.
+pub(crate) fn more(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    for x in [5.5, 12.0, 18.5] {
+        paint.circle((rect.x + x * scale, rect.y + 12.0 * scale), 1.4 * scale, Some(Fill::new(color)), None);
+    }
+}
+/// LW-queue.imageset: three lines and an outlined play mark.
+pub(crate) fn queue(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    for (a, b) in [
+        ((4.0, 6.0), (20.0, 6.0)),
+        ((4.0, 12.0), (14.0, 12.0)),
+        ((4.0, 18.0), (12.0, 18.0)),
+        ((16.0, 15.0), (16.0, 21.0)),
+        ((16.0, 21.0), (21.0, 18.0)),
+        ((21.0, 18.0), (16.0, 15.0)),
+    ] {
+        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    }
+}
+/// LW-side.imageset: `M4 5h16v14H4zM15 5v14`, 1.6-unit round strokes (the now panel's toggle).
+pub(crate) fn side(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    for (a, b) in [((4.0, 5.0), (20.0, 5.0)), ((20.0, 5.0), (20.0, 19.0)), ((20.0, 19.0), (4.0, 19.0)), ((4.0, 19.0), (4.0, 5.0)), ((15.0, 5.0), (15.0, 19.0))] {
+        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    }
+}
+/// LW-set.imageset: `M4 7h10M18 7h2M4 17h4M12 17h8` and radius-2 knobs at (16, 7) and (10, 17), 1.6-unit round strokes.
+pub(crate) fn settings(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    for (a, b) in [((4.0, 7.0), (14.0, 7.0)), ((18.0, 7.0), (20.0, 7.0)), ((4.0, 17.0), (8.0, 17.0)), ((12.0, 17.0), (20.0, 17.0))] {
+        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    }
+    for centre in [(16.0, 7.0), (10.0, 17.0)] {
+        paint.circle(at(centre), 2.0 * scale, None, Some(stroke));
+    }
+}
+/// LW-route.imageset: a screen `M5 17H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-1` (1.6-unit round strokes,
+/// its 1-unit corners squared) over the filled triangle `M12 14l5 6H7z` (the audio route key).
+pub(crate) fn route(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    let path = [(5.0, 17.0), (3.0, 17.0), (3.0, 4.0), (21.0, 4.0), (21.0, 17.0), (19.0, 17.0)];
+    for pair in path.windows(2) {
+        let (a, b) = (pair[0], pair[1]);
+        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    }
+    paint.triangle(at((12.0, 14.0)), at((17.0, 20.0)), at((7.0, 20.0)), Fill::new(color));
+}
+/// LW-folder.imageset: `M3.5 6.5h6l2 2h9v10h-17z`, 1.6-unit round strokes (the onboarding's Choose a folder).
+pub(crate) fn folder(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    let path = [(3.5, 6.5), (9.5, 6.5), (11.5, 8.5), (20.5, 8.5), (20.5, 18.5), (3.5, 18.5), (3.5, 6.5)];
+    for pair in path.windows(2) {
+        let (a, b) = (pair[0], pair[1]);
+        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    }
+}
+/// LW-close.imageset: `M6 6l12 12M18 6 6 18`, 1.6-unit round strokes.
+pub(crate) fn close(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    paint.curve(at((6.0, 6.0)), at((12.0, 12.0)), at((18.0, 18.0)), stroke);
+    paint.curve(at((18.0, 6.0)), at((12.0, 12.0)), at((6.0, 18.0)), stroke);
+}
+/// LW-drag.imageset: six round 2.8-unit dots at x 9 and 15, y 7, 12 and 17.
+pub(crate) fn drag(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    for x in [9.0, 15.0] {
+        for y in [7.0, 12.0, 17.0] {
+            paint.circle((rect.x + x * scale, rect.y + y * scale), 1.4 * scale, Some(Fill::new(color)), None);
+        }
+    }
+}
+/// LW-back.imageset: `M15 5l-7 7 7 7`, 1.6-unit round strokes.
+pub(crate) fn back(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    paint.curve(at((15.0, 5.0)), at((11.5, 8.5)), at((8.0, 12.0)), stroke);
+    paint.curve(at((8.0, 12.0)), at((11.5, 15.5)), at((15.0, 19.0)), stroke);
+}
+/// LW-chev.imageset: `m9 6 6 6-6 6`, 1.6-unit round strokes (a row that opens a page).
+pub(crate) fn chevron(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
+    let scale = rect.w.min(rect.h) / 24.0;
+    let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
+    let stroke = Stroke::new(color).width(1.6 * scale);
+    paint.curve(at((9.0, 6.0)), at((12.0, 9.0)), at((15.0, 12.0)), stroke);
+    paint.curve(at((15.0, 12.0)), at((12.0, 15.0)), at((9.0, 18.0)), stroke);
 }
 pub(crate) fn offline(paint: &mut Paint<'_>, rect: Rect, kept: bool, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;

@@ -1,6 +1,9 @@
 use super::*;
 use crate::browse;
 
+/// The collection key of the track menu the full-screen player opens on the playing song (Swift's `presentTrackMenu`).
+pub(in crate::shell) const NOW_MENU: u64 = u64::MAX;
+
 pub(in crate::shell) fn popup(
     ui: &mut Ui,
     catalog: &Catalog,
@@ -11,8 +14,8 @@ pub(in crate::shell) fn popup(
     intent: &mut Option<Intent>,
 ) {
     let click = at;
-    // A folder page row has no collection; its saved song only has to exist.
-    let files = state.route == Route::Files;
+    // A folder page row and the playing song (`NOW_MENU`) have no collection; the saved song only has to exist.
+    let files = state.route == Route::Files || target.2 == NOW_MENU;
     let present = if files {
         catalog.row_index(target.1).is_some()
     } else {

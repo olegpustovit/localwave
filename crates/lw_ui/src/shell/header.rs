@@ -22,11 +22,16 @@ pub(super) fn header(
     let find_summary = collection
         .and(catalog.view.as_ref())
         .and_then(|view| view.find.as_ref());
+    let kind = list_kind(catalog, state);
     let root = Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(32.0, 28.0, 32.0, 0.0));
     ui.column(root, |ui| {
         if results {
             spacer(ui, "results-caption-gap", 6.0);
             ui.label("Search", BODY_DIM.grow());
+        }
+        if let Some(kind) = kind {
+            spacer(ui, "kind-gap", 6.0);
+            ui.label(kind, CAPTION.grow());
         }
         let title = match state.route {
             Route::Find if results => find_summary.map_or("“…”", |summary| summary.title.as_str()),
@@ -43,15 +48,8 @@ pub(super) fn header(
             Size::Px(34.0),
             &PAPER_FILL,
         );
-        ui.within(&heading, &mut |ui| {
-            ui.label(title, HEADING);
-            if !results
-                && !matches!(state.route, Route::Albums | Route::Artists)
-                && ui.icon_button("refresh", icon_drawing(Icon::Refresh), "Refresh library", &ICON_36.look(&ICON_PLATE_LOOKS)).clicked
-            {
-                *intent = Some(Intent::RefreshLibrary);
-            }
-        });
+        // Swift's desktop heading has no refresh key: catalogs refresh on library changes (the phone pulls to refresh)
+        ui.within(&heading, &mut |ui| { ui.label(title, HEADING); });
         if state.route == Route::Find && !results {
             ui.id("find-query", |ui| { ui.column(Node::column().h_px(44.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                 if let Some(value) = ui.search_field("find-songs", state.query.as_str(), &FIND_DESKTOP).changed {
@@ -74,7 +72,42 @@ pub(super) fn header(
             spacer(ui, "album-header-bottom", 1.0);
         } else if state.route == Route::Find {
             find::toolbar(ui, catalog, state, intent);
+        } else if kind.is_some() {
+            list_tools(ui, collection.is_some_and(|group| !group.ids.is_empty()), intent);
         }
+    });
+}
+
+/// Swift's list pages lead with their kind: "Automatic list" (Favorites and the smart lists) or "List" (a playlist).
+pub(super) fn list_kind(catalog: &Catalog, state: &ShellState) -> Option<&'static str> {
+    match (state.route, state.collection(catalog).map(|group| &*group.context)) {
+        (Route::Collection(_), Some(lw_core::context::PlaybackContext::Automatic(_))) => Some("Automatic list"),
+        (Route::Collection(_), Some(lw_core::context::PlaybackContext::Playlist { .. })) => Some("List"),
+        _ => None,
+    }
+}
+
+/// The desktop heading's height over a song table: 28 above the 34-point title, 6 and the 19.6-point line under it, 18 below; a
+/// list page adds its kind's line (6 and 18.2) and its tools (30, 14 and the hairline).
+pub(super) fn height(catalog: &Catalog, state: &ShellState) -> f32 {
+    105.6 + if list_kind(catalog, state).is_some() { 6.0 + 18.2 + 30.0 + 15.0 } else { 0.0 }
+}
+
+/// Swift's `desktopPlayTools`: Play and Shuffle keys, 14 points over a hairline across the page.
+fn list_tools(ui: &mut Ui, enabled: bool, intent: &mut Option<Intent>) {
+    let tools = ui.node("list-tools", Node::column().w(Size::Grow).h_px(30.0 + 15.0));
+    ui.within(&tools, &mut |ui| {
+        ui.row(Node::row().w(Size::Grow).h_px(30.0).gap(8.0), |ui| {
+            if ui.button("play", "Play", &TOOL.icon(icon_drawing(Icon::Play)).icon_size(16.0).disabled(!enabled)).clicked {
+                *intent = Some(Intent::PlayRow(0));
+            }
+            if ui.button("shuffle", "Shuffle", &TOOL.icon(icon_drawing(Icon::Shuffle)).icon_size(16.0).disabled(!enabled)).clicked {
+                *intent = Some(Intent::ShuffleCollection);
+            }
+        });
+    });
+    ui.canvas_over(&tools, move |paint, rect| {
+        paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(Rgba::token(LINE)).fractional())
     });
 }
 
@@ -106,7 +139,7 @@ pub(super) fn compact_find(
         ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(16.0, 20.0, 16.0, 0.0)),
             |ui| {
                 ui.label("Find", TEXT_13.grow().h_px(21.0).color(SECONDARY));
-                ui.column(Node::column().h_px(57.5), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
+                ui.column(Node::column().h_px(56.0), |ui| { ui.view_of("find-query", &state.query_revision, |ui| {
                     let field = ui.search_field("find-songs", state.query.as_str(), &FIND_COMPACT);
                     let editor = field.response.handle;
                     if let Some(value) = field.changed {
@@ -127,15 +160,18 @@ pub(super) fn compact_find(
                     .and(catalog.view.as_ref())
                     .and_then(|view| view.find.as_ref())
                 {
-                    spacer(ui, "songs-gap", 7.0);
-                    ui.row(Node::row().align(Align::Center).w(Size::Grow).h_px(44.0), |ui| {
+                    // Swift's `sectionLabel`: 20 above (find_tokens' 12-point tail and 8), the 18.2-point line, 8 under. Swift has no
+                    // visible Select (an accessibility action only); its 44-point key centres on the line without moving it
+                    spacer(ui, "songs-gap", 8.0);
+                    ui.row(Node::row().align(Align::Center).w(Size::Grow).h_px(18.2), |ui| {
                         ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
                             ui.label(&summary.label, SECTION_CAPTION);
                         });
-                        if ui.button("select", "Select", &super::compact::list::WORD).clicked {
+                        if super::compact::list::select_for_assistive(ui) {
                             *intent = Some(Intent::SelectMode(true));
                         }
                     });
+                    spacer(ui, "rows-gap", 8.0);
                 }
             },
         );
@@ -193,14 +229,14 @@ pub(super) fn content(
     catalog: &Catalog,
     state: &ShellState,
     player: &PlayerView<'_>,
-    width: f32,
+    size: (f32, f32),
     intent: &mut Option<Intent>,
 ) {
     ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| match state.route {
-        Route::Albums => albums::gallery(ui, catalog, state, player, width, intent),
-        Route::Artists => artists::table(ui, catalog, state, player, width, intent),
-        Route::Lists => compact::collections(ui, catalog, player, width, intent),
-        _ => songs::table(ui, catalog, state, player, width, intent),
+        Route::Albums => albums::gallery(ui, catalog, state, player, size.0, intent),
+        Route::Artists => artists::table(ui, catalog, state, player, size.0, intent),
+        Route::Lists => compact::collections(ui, catalog, player, true, intent),
+        _ => songs::table(ui, catalog, state, player, size, intent),
     });
 }
 

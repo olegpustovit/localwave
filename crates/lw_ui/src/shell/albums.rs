@@ -46,20 +46,22 @@ pub(super) fn gallery(
         onboarding::empty_library(ui, catalog, state, width, intent);
         return;
     }
+    let compact = ui.view_size().width < compact::BREAKPOINT;
     let row_revision = (
         state.revision,
         player.current_id,
         player.artwork.map_or(0, crate::artwork::Images::revision),
         std::sync::Arc::as_ptr(&catalog.library) as usize,
+        compact,
     );
     let entry = crate::motion::Page::new(ui, state.entry_revision);
     let groups = &catalog.albums;
     let order = &catalog.album_orders[state.album_sort as usize];
-    let compact = ui.view_size().width < compact::BREAKPOINT;
     let inset = if compact { 16.0 } else { 32.0 };
-    let gap = if compact { 16.0 } else { 20.0 };
+    // Swift's adaptive grid: 145-point columns 12 apart and rows 20 apart on a phone, 150 and 20 / 28 on the desktop
+    let (gap, row_gap) = if compact { (12.0, 20.0) } else { (20.0, 28.0) };
     let available = (width - inset * 2.0).max(1.0);
-    let columns = ((available + gap) / if compact { 156.0 } else { 170.0 })
+    let columns = ((available + gap) / if compact { 157.0 } else { 170.0 })
         .floor()
         .max(1.0) as usize;
     let cell = (available - (columns - 1) as f32 * gap) / columns as f32;
@@ -71,7 +73,7 @@ pub(super) fn gallery(
         .look(PANEL_FILL);
     ui.section_list(
         "groups",
-        &SectionList::new(groups.len().div_ceil(columns)).row_h(card_height + 28.0).lead(if compact { 16.0 } else { 172.6 }).trail(12.0).overlay_scrollbar(),
+        &SectionList::new(groups.len().div_ceil(columns)).row_h(card_height + row_gap).lead(if compact { 16.0 } else { 172.6 }).trail(12.0).overlay_scrollbar(),
         // a row is a line of cards
         &|line| line as i64,
         &mut |ui, part, _| match part {
@@ -105,7 +107,12 @@ pub(super) fn gallery(
                                 );
                                 ui.a11y_name(&art, "Album artwork");
                                 ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).grow().h_px(17.5).color(INK));
-                                ui.label(&group.subtitle, CAPTION.grow());
+                                // Swift's phone card names the artist alone; the desktop adds the year
+                                let caption = match group.context.as_ref() {
+                                    lw_core::context::PlaybackContext::Album { artist, .. } if compact => crate::clip(artist),
+                                    _ => group.subtitle.as_str(),
+                                };
+                                ui.label(caption, CAPTION.grow());
                             });
                             ui.a11y_name(&card.handle, &group.title);
                             if card.clicked {

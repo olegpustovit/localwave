@@ -82,11 +82,14 @@ pub(super) fn songs(
         Route::Collection(_) => collection_lead_height(),
         _ => 0.0,
     };
-    // Swift's Find "Play results" / "Keep results offline" keys close the song list (the list's trailer, one 56 pt row here).
+    // Swift's Find "Play results" / "Keep results offline" keys close the song list (the list's trailer, one 56 pt row here); past
+    // eight songs it lists the first eight over its "Show all N songs" key until that is pressed
     let find_keys = state.route == Route::Find;
+    let capped = find_keys && !state.find_all && collection.rows.len() > FIND_FIRST;
+    let shown = if capped { FIND_FIRST } else { collection.rows.len() };
     ui.stack(Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
         let reorder = cx.selecting && cx.list.is_some();
-        let list = PHONE_SONGS.lead(lead).trail(if find_keys { ROW } else { 0.0 } + if cx.selecting { BAR } else { 0.0 }).reorder(reorder)
+        let list = PHONE_SONGS.lead(lead).trail(if find_keys { ROW } else { 0.0 } + if capped { SHOW_ALL } else { 0.0 } + if cx.selecting { BAR } else { 0.0 }).reorder(reorder)
             // Select mode toggles a row a tap; outside it a tap plays (the list selects nothing)
             .mode(if cx.selecting { pxui::SelectMode::Toggle } else { pxui::SelectMode::None }).open_on_click(!cx.selecting);
         let mut song_rows = state.song_rows.borrow_mut();
@@ -99,7 +102,7 @@ pub(super) fn songs(
         super::super::songs::mark_live(state, &mut song_rows);
         let r = ui.selection_list(
             "songs",
-            collection.rows.len(),
+            shown,
             &|i| collection.row_keys[i],
             &mut song_rows,
             &list,
@@ -112,7 +115,12 @@ pub(super) fn songs(
                         _ => {}
                     }
                 }
-                SectionPart::Trailing if find_keys => find_result_keys(ui, catalog, intent),
+                SectionPart::Trailing if find_keys => {
+                    if capped {
+                        show_all(ui, &collection.count, intent);
+                    }
+                    find_result_keys(ui, catalog, intent);
+                }
                 SectionPart::Header | SectionPart::Trailing => {}
                 SectionPart::Row(index) => row(ui, &cx, index, &cell, intent),
             },
@@ -143,7 +151,9 @@ pub(super) fn songs(
             ui.id("selection-bar", |ui| selection_bar(ui, &cx, intent));
         }
         if state.route == Route::Songs && state.sort == Sort::Title && state.ascending {
-            ui.id("rail", |ui| rail(ui, &list, collection));
+            let top = ui.content_rect().y.max(state.top_inset);
+            let above = (ui.rect(&list).y - top).max(0.0);
+            ui.id("rail", |ui| rail(ui, &list, (&collection.letters, &collection.starts), (ROW, collection.rows.len()), above));
         }
     });
 }
@@ -176,7 +186,7 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, cell: &pxui::CellState, intent: &
         content = content.w(Size::Px(width)).h(Size::Px(ROW)).at(g.swipe, 0.0).look(PAPER_FILL);
     }
     let mut more = false;
-    ui.id("song", |ui| { ui.row(content, |ui| {
+    let mut build = |ui: &mut Ui| { ui.id("song", |ui| { ui.row(content, |ui| {
         if selecting {
             ui.checkbox("mark", row.title, cell.selected, &MARK);
         }
@@ -193,7 +203,10 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, cell: &pxui::CellState, intent: &
         let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
         ui.within(&labels, &mut |ui| {
             ui.label(row.title, if player.current_id == Some(row.id) { ROW_TITLE_NOW } else { ROW_TITLE });
-            let note = if selecting {
+            // a blocked row's prepared line is "<source> needs reconnecting" whatever the page
+            let note = if row.blocked {
+                row.subtitle
+            } else if selecting {
                 row.artist
             } else if numbered {
                 if row.availability == Some(lw_core::FileAvailability::InCloud) { row.cloud_note } else { row.file_note }
@@ -208,32 +221,42 @@ fn row(ui: &mut Ui, cx: &Cx<'_>, index: usize, cell: &pxui::CellState, intent: &
             }
             return;
         }
-        if row.pinned
+        let glyph = row.blocked
+            || row.pinned
             || row.availability != Some(lw_core::FileAvailability::OnDevice)
-            || matches!(
-                row.state,
-                lw_core::FileState::CopyPending | lw_core::FileState::Failed
-            )
-        {
-            let holder = container(
-                ui,
-                "state",
-                Axis::Row,
-                Size::Px(if row.pinned { 14.0 } else { 10.0 }),
-                Size::Px(10.0),
-                &PAPER_FILL,
-            );
-            ui.within(&holder, &mut |ui| {
-                super::super::songs::row::glyph(
-                    ui,
-                    (row.state, row.availability, row.pinned),
-                    true,
-                );
-            });
+            || matches!(row.state, lw_core::FileState::CopyPending | lw_core::FileState::Failed);
+        // Swift's state glyph and time share an inner row 8 apart; a blocked row has no time
+        if glyph || !row.blocked {
+            ui.id("state-time", |ui| { ui.row(Node::row().w(Size::Fit).h(Size::Fit).gap(8.0).align(Align::Center), |ui| {
+                if glyph {
+                    ui.stack(Node::stack().w_px(if row.pinned { 14.0 } else { 10.0 }).h_px(10.0).center(), |ui| {
+                        super::super::songs::row::availability(ui, row, true);
+                    });
+                }
+                if !row.blocked {
+                    ui.label(row.duration, MONO_DIM);
+                }
+            }); });
         }
-        ui.label(row.duration, MONO_DIM);
-        more = ui.icon_button("actions", icon_drawing(Icon::More), row.actions_label, &MORE).clicked;
-    }); });
+        // a blank where a blocked row's actions key was
+        if row.blocked {
+            ui.node("actions", Node::row().w_px(44.0).h_px(44.0));
+        } else {
+            more = ui.icon_button("actions", icon_sized(Icon::More, 18.0), row.actions_label, &MORE).clicked;
+        }
+    }); }); };
+    if row.blocked {
+        // Swift fades the whole blocked row to 0.45; a view's opacity fades its subtree. Its key holds what the row shows.
+        let key = (row.id, player.current_id, player.artwork.map_or(0, crate::artwork::Images::revision), width.to_bits(), selecting, numbered, g.swipe.to_bits());
+        let faded = ui.view_of("blocked", &key, &mut build);
+        ui.set_view(&faded, &pxui::ViewTransform::DEFAULT.opacity(0.45));
+    } else {
+        build(ui);
+    }
+    // Swift's hairline over every row but the first, 16 points in
+    if index > 0 {
+        ui.canvas_over(&node, |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y, rect.w - 16.0, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
+    }
     let active = g.swiping || g.swipe_open;
     // a row off rest (swiping, open or settling) rebuilds every frame until it is back: its last settling frame resets `open_swipe`
     if active || g.swipe != 0.0 || state.open_swipe.get().is_some_and(|(open, _)| open == index) {
@@ -358,9 +381,9 @@ fn refresh(ui: &mut Ui, list: &Handle, state: &ShellState, intent: &mut Option<I
 
 /// Scroll so `target` starts the viewport (reveal only scrolls the minimum, so aim at the row that
 /// ends it when moving down).
-fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
-    let visible = ((ui.rect(list).h / ROW) as usize).max(1);
-    let top = (ui.scroll(list).painted / ROW) as usize;
+fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize, row_height: f32) {
+    let visible = ((ui.rect(list).h / row_height) as usize).max(1);
+    let top = (ui.scroll(list).painted / row_height) as usize;
     ui.reveal(
         list,
         if target < top {
@@ -371,14 +394,21 @@ fn jump(ui: &mut Ui, list: &Handle, target: usize, count: usize) {
     );
 }
 
-/// Swift's trailing index (`section_index`, drawn by `localwave-index`): a press or drag over a letter jumps to its first song.
-fn rail(ui: &mut Ui, list: &Handle, collection: &Collection) {
-    ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End), |ui| {
-        let index = ui.section_index("index", &collection.letters, &RAIL);
+/// A press or drag over a letter jumps to the first row in that section.
+/// Swift overlays the page's scroll view, header and list: the rail also accounts for the header above the list.
+pub(super) fn rail(
+    ui: &mut Ui,
+    list: &Handle,
+    (letters, starts): (&[&str], &[usize]),
+    (row_height, count): (f32, usize),
+    above: f32,
+) {
+    ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End).margin(Edges::ZERO.t(-above)), |ui| {
+        let index = ui.section_index("index", letters, &RAIL);
         // A finger on the rail is a held press-and-drag, not a scroll or a row swipe underneath.
         ui.gesture(&index.response.handle, &HELD_TOUCH);
         if let Some(letter) = index.chosen {
-            jump(ui, list, collection.starts[letter], collection.rows.len());
+            jump(ui, list, starts[letter], count, row_height);
         }
     });
 }
@@ -401,12 +431,12 @@ fn artist_lead_height(catalog: &Catalog, artist: usize, width: f32) -> f32 {
     let rows = albums.div_ceil(2);
     BACK_ROW
         + TITLE_BLOCK
-        + 8.0
+        + 16.0
         + PLAY_BAR
         + 16.0
         + rows as f32 * album_card(width)
         + rows.saturating_sub(1) as f32 * 20.0
-        + 20.0
+        + 16.0
         + SECTION_LABEL
 }
 
@@ -437,7 +467,7 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                 nav_row(ui, cx, "Library", Route::Artists, intent);
                 let name = if collection.title.is_empty() { "Unknown artist" } else { &collection.title };
                 titles(ui, name, &collection.summary);
-                spacer(ui, "keys-gap", 8.0);
+                spacer(ui, "keys-gap", 16.0);
                 play_keys(ui, None, !collection.rows.is_empty(), intent);
                 spacer(ui, "albums-gap", 16.0);
                 let cell = album_cell(width);
@@ -483,7 +513,8 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
                         }
                     });
                 }
-                spacer(ui, "songs-gap", 20.0);
+                // Swift's album grid pads 16 under its cards
+                spacer(ui, "songs-gap", 16.0);
                 ui.column(Node::column().w(Size::Grow).h_px(SECTION_LABEL).padding(Edges::ZERO.l(16.0).t(20.0).b(8.0)),
                     |ui| {
                         ui.label("Songs", SECTION_CAPTION);
@@ -493,10 +524,11 @@ fn artist_lead(ui: &mut Ui, cx: &Cx<'_>, artist: usize, intent: &mut Option<Inte
         }); }); });
 }
 
-/// The back key (`localwave-button` / `KEY`): 96 by 44, the chevron and the parent's name from its start, secondary with no plate;
-/// named "Back".
+/// A 44-point Back key with an 18-point chevron and the parent's name.
 pub(in crate::shell) const BACK_KEY: pxui::Button =
-    pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Px(96.0), Size::Px(44.0)).icon(icon_drawing(Icon::Back)).label(LEAD_DIM).look(&DIM_LOOKS).name("Back");
+    pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(44.0)).align(Justify::Start)
+        .pad(Edges::ZERO.l(10.0).r(12.0)).gap(4.0).icon(icon_drawing(Icon::Back)).icon_size(18.0)
+        .label(LEAD_DIM).look(&DIM_LOOKS).name("Back");
 /// Swift's detail back row: chevron and the parent's name, 44 pt tall.
 fn back_row(
     ui: &mut Ui,
@@ -505,7 +537,7 @@ fn back_row(
     intent: &mut Option<Intent>,
     extras: &mut dyn FnMut(&mut Ui, &mut Option<Intent>),
 ) {
-    ui.id("back-row", |ui| { ui.row(Node::row().w(Size::Grow).h_px(BACK_ROW).align(Align::Center).padding(Edges::ZERO.t(10.0).l(6.0)),
+    ui.id("back-row", |ui| { ui.row(Node::row().w(Size::Grow).h_px(BACK_ROW).gap(4.0).align(Align::Center).padding(Edges::ZERO.t(10.0).r(16.0)),
         |ui| {
             if ui.button("back", label, &BACK_KEY).clicked {
                 *intent = Some(Intent::Navigate(parent));
@@ -521,6 +553,28 @@ fn titles(ui: &mut Ui, title: &str, summary: &str) {
         ui.label(title, PAGE_TITLE);
         spacer(ui, "gap", 4.0);
         ui.label(summary, SUMMARY);
+    });
+}
+
+/// The songs Find lists before its "Show all" key.
+const FIND_FIRST: usize = 8;
+/// Swift's "Show all N songs" key: 8 points down, 56 high on the panel, 16 in at each side.
+const SHOW_ALL: f32 = 8.0 + 56.0;
+const SHOW_ALL_KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Px(56.0)).centered().label(TEXT_15.color(INK)).look(&PANEL_LOOKS).name("Show all songs");
+fn show_all(ui: &mut Ui, count: &str, intent: &mut Option<Intent>) {
+    ui.row(Node::row().w(Size::Grow).h_px(SHOW_ALL).padding(Edges::ZERO.l(16.0).r(16.0).t(8.0)), |ui| {
+        // the count is worker-prepared; the words around it are fixed: one label per part, no formatting a frame
+        ui.id("show-all", |ui| {
+            if ui.button_content("show-all", &SHOW_ALL_KEY, |ui, _| {
+                ui.row(Node::row().w(Size::Fit).h(Size::Fit).gap(4.0), |ui| {
+                    ui.label("Show all", TEXT_15.color(INK).role(Role::Unknown));
+                    ui.label(count, TEXT_15.color(INK).role(Role::Unknown));
+                    ui.label("songs", TEXT_15.color(INK).role(Role::Unknown));
+                });
+            }).clicked {
+                *intent = Some(Intent::FindShowAll);
+            }
+        });
     });
 }
 
@@ -540,10 +594,10 @@ fn find_result_keys(ui: &mut Ui, catalog: &Catalog, intent: &mut Option<Intent>)
 /// Play and Shuffle keys.
 fn play_keys(ui: &mut Ui, offline: Option<bool>, enabled: bool, intent: &mut Option<Intent>) {
     ui.row(Node::row().w(Size::Grow).h_px(PLAY_BAR).gap(8.0).pad_x(16.0), |ui| {
-        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).disabled(!enabled)).clicked {
+        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).icon_size(18.0).disabled(!enabled)).clicked {
             *intent = Some(Intent::PlayRow(0));
         }
-        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle)).disabled(!enabled)).clicked {
+        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle)).icon_size(18.0).disabled(!enabled)).clicked {
             *intent = Some(Intent::ShuffleCollection);
         }
         if let Some(kept) = offline
@@ -583,21 +637,28 @@ fn nav_row(ui: &mut Ui, cx: &Cx<'_>, label: &'static str, parent: Route, intent:
     if !state.selecting {
         back_row(ui, label, parent, intent, &mut |ui, intent| {
             container(ui, "nav-space", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
-            // Playlists edit (select and remove); the others select.
-            if !(playlist && collection.rows.is_empty())
+            // Playlists edit (select and remove); albums and automatic lists select; Swift's artist page has Back alone.
+            if !(playlist && collection.rows.is_empty()) && !matches!(state.route, Route::Artist(_))
                 && ui.button("select", if playlist { "Edit" } else { "Select" }, &WORD).clicked
             {
                 *intent = Some(Intent::SelectMode(true));
             }
             if !matches!(state.route, Route::Artist(_))
-                && ui.icon_button("page-actions", icon_drawing(Icon::More), if playlist { "List actions" } else { "Album actions" }, &MORE).clicked
+                && ui.icon_button("page-actions", icon_sized(Icon::More, 22.0), if playlist { "List actions" } else { "Album actions" }, &ICON_44.look(&ICON_LOOKS)).clicked
             {
-                *intent = Some(Intent::PageMenu((cx.width - 8.0, BACK_ROW)));
+                *intent = Some(Intent::PageMenu((cx.width - 16.0, BACK_ROW)));
             }
         });
         return;
     }
     selection_header(ui, state.marked_count(), collection.rows.len(), collection.rows.len(), intent);
+}
+
+/// Swift's phone Songs and Find reach select mode only through an accessibility action ("Select songs" on its sort button): a
+/// 1-point unpainted button named "Select" that assistive technologies press and the page never shows.
+pub(in crate::shell) fn select_for_assistive(ui: &mut Ui) -> bool {
+    const SELECT: pxui::Button = pxui::Button::DEFAULT.variant(variant::ASSISTIVE);
+    ui.button("select", "Select", &SELECT).clicked
 }
 
 /// Swift's WaveMobileSelectionHeader: Select all, "N selected", Done. `selectable` rows count toward "all";
@@ -681,10 +742,11 @@ fn selection_bar(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     }
 }
 
-/// Compact album page lead-in: back, 150 pt artwork beside title, artist and summary, Play/Shuffle.
-const ALBUM_ART: f32 = 150.0;
+/// Compact album page lead-in (Swift's compact albumDetail): back, 4 points down the 152 pt artwork beside title, artist,
+/// summary and format, bottom-aligned, then Play/Shuffle 16 points around.
+const ALBUM_ART: f32 = 152.0;
 fn album_lead_height() -> f32 {
-    BACK_ROW + ALBUM_ART + 16.0 + PLAY_BAR + 16.0
+    BACK_ROW + 4.0 + ALBUM_ART + 16.0 + PLAY_BAR + 16.0
 }
 fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     let Cx { catalog, collection, state, player, width, .. } = *cx;
@@ -699,22 +761,27 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Library", Route::Albums, intent);
+            spacer(ui, "art-gap", 4.0);
             ui.row(Node::row().w(Size::Grow).h_px(ALBUM_ART).gap(16.0).pad_x(16.0), |ui| {
                 let art = container(ui, "artwork", Axis::Stack, Size::Px(ALBUM_ART), Size::Px(ALBUM_ART), &PANEL_FILL);
                 paint_artwork(ui, &art, collection.artwork_row.map(|row| catalog.row(row)), ALBUM_ART, player.artwork);
                 ui.a11y_name(&art, "Album artwork");
-                ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(6.0).justify(Justify::End), |ui| {
-                    ui.label(&collection.title, PARAGRAPH_24.color(INK));
+                ui.column(Node::column().w(Size::Grow).h(Size::Grow).justify(Justify::End), |ui| {
+                    ui.label(&collection.title, PHONE_ALBUM_TITLE);
                     if let lw_core::context::PlaybackContext::Album { artist, .. } = collection.context.as_ref()
                         && !artist.is_empty()
                     {
+                        spacer(ui, "artist-gap", 2.0);
                         if ui.button("artist", crate::clip(artist), &detail::link(17.0, 23.8)).clicked
                             && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
                         {
                             *intent = Some(Intent::Navigate(Route::Artist(index)));
                         }
                     }
-                    ui.label(&collection.summary, MONO_13.grow().color(SECONDARY));
+                    spacer(ui, "summary-gap", 8.0);
+                    ui.label(&collection.summary, SUMMARY);
+                    spacer(ui, "format-gap", 2.0);
+                    ui.label(&collection.format, MONO_12.color(SECONDARY));
                 });
             });
             spacer(ui, "keys-gap", 16.0);
@@ -725,7 +792,7 @@ fn album_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
 
 /// Compact list page lead-in (playlists, Favorites and the other automatic lists).
 fn collection_lead_height() -> f32 {
-    BACK_ROW + TITLE_BLOCK + 8.0 + PLAY_BAR + 16.0
+    BACK_ROW + TITLE_BLOCK + 16.0 + PLAY_BAR + 16.0
 }
 fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
     let Cx { catalog, collection, state, .. } = *cx;
@@ -739,8 +806,13 @@ fn collection_lead(ui: &mut Ui, cx: &Cx<'_>, intent: &mut Option<Intent>) {
         let column = container(ui, "lead", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
         ui.within(&column, &mut |ui| {
             nav_row(ui, cx, "Lists", Route::Lists, intent);
-            titles(ui, &collection.title, &collection.summary);
-            spacer(ui, "keys-gap", 8.0);
+            // Swift's phone list page counts songs only; automatic lists keep "updates itself"
+            let summary = match collection.context.as_ref() {
+                lw_core::context::PlaybackContext::Playlist { .. } => collection.summary.split(" · ").next().unwrap_or_default(),
+                _ => collection.summary.as_str(),
+            };
+            titles(ui, &collection.title, summary);
+            spacer(ui, "keys-gap", 16.0);
             play_keys(ui, offline_state(cx), !collection.rows.is_empty(), intent);
             spacer(ui, "list-gap", 16.0);
         });

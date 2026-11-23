@@ -22,6 +22,12 @@ const TABBAR: pxui::Tabs = pxui::Tabs::DEFAULT.name("Main navigation").variant(v
 const MAIN_TABS: [pxui::Segment; 4] = [pxui::Segment::new("Library"), pxui::Segment::new("Folders"), pxui::Segment::new("Lists"), pxui::Segment::new("Find")];
 const MAIN_ROUTES: [Route; 4] = [Route::Albums, Route::Files, Route::Lists, Route::Find];
 
+const LIBRARY_TITLE_HEIGHT: f32 = 50.0;
+const LIBRARY_TOTALS_HEIGHT: f32 = 60.0;
+const LIBRARY_TABS_HEIGHT: f32 = 44.0;
+const TAB_RULE_OVERLAP: f32 = 2.0;
+const LIBRARY_HEADER_HEIGHT: f32 = LIBRARY_TITLE_HEIGHT + LIBRARY_TOTALS_HEIGHT + LIBRARY_TABS_HEIGHT + 1.0 - TAB_RULE_OVERLAP;
+
 /// Swift's `WaveModeKeys` (compact): a key filling its line, 44 points high, its icon and 14-point label centred, ink on the key
 /// fill, paper on ink while on (`localwave-button` / `KEY`); the queue's count leads its label in Geist Mono 11.
 const MODE_KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Px(44.0)).gap(6.0).centered().label(TEXT_14).detail_label(MONO_11.color(INK)).look(&MODE_KEY_LOOKS);
@@ -80,7 +86,7 @@ pub(super) fn view(
                 position,
                 catalog,
                 (width, height - top.max(state.top_inset) - bottom),
-                state.entry_revision,
+                (state.entry_revision, state.queue_visible),
                 intent,
             );
             return;
@@ -95,11 +101,13 @@ pub(super) fn view(
                     let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
                     // Select mode swaps the Songs title for Swift's selection header.
                     let picking = state.selecting && state.route == Route::Songs;
-                    // Swift's compact header: 10 pt pad with the glyph cap 4 pt higher than a 33.6 box; Lists centres in 54.
-                    let pad = Edges::new(16.0, if library { 6.0 } else { 0.0 }, if library { 6.0 } else { 16.0 }, if library { 0.0 } else { 10.0 });
+                    // Swift's compact header: its 10-point pad (measured: the title's ink 14 points down); Lists (`listsHeader`) centres in 54
+                    // with nothing under it
+                    let lists = state.route == Route::Lists;
+                    let pad = Edges::new(16.0, if library { 10.0 } else { 0.0 }, if library { 6.0 } else { 16.0 }, if library || lists { 0.0 } else { 10.0 });
                     ui.row(Node::row()
                             .w(Size::Grow)
-                            .h_px(if picking { 54.0 } else if library { 50.0 } else { 64.0 })
+                            .h_px(if picking || lists { 54.0 } else if library { LIBRARY_TITLE_HEIGHT } else { 64.0 })
                             .align(if library { Align::Start } else { Align::Center })
                             .padding(if picking { Edges::ZERO } else { pad }),
                         |ui| {
@@ -109,20 +117,20 @@ pub(super) fn view(
                             } else if library {
                                 ui.label("Library", PAGE_TITLE);
                                 // Swift's header gear; Settings stays one tap away.
-                                if ui.icon_button("settings", icon_drawing(Icon::Settings), "Settings", &ICON_44.look(&ICON_LOOKS)).clicked {
+                                if ui.icon_button("settings", icon_sized(Icon::Settings, 22.0), "Settings", &ICON_44.look(&ICON_LOOKS)).clicked {
                                     *intent = Some(Intent::ShowSettings);
                                 }
                             } else {
-                                let title = match state.route {
-                                    Route::Lists => "Lists",
-                                    _ => "Library",
-                                };
-                                ui.label(title, PHONE_TITLE);
+                                if lists {
+                                    ui.label("Lists", PAGE_TITLE);
+                                } else {
+                                    ui.label("Library", PHONE_TITLE);
+                                }
                             }
                         },
                     );
                     if library {
-                        ui.id("library-summary", |ui| { ui.row(Node::row().w(Size::Grow).h_px(60.0).gap(10.0).align(Align::End).padding(Edges::ZERO.l(16.0).r(16.0).b(14.0)),
+                        ui.id("library-summary", |ui| { ui.row(Node::row().w(Size::Grow).h_px(LIBRARY_TOTALS_HEIGHT).gap(10.0).align(Align::End).padding(Edges::ZERO.l(16.0).r(16.0).b(16.0)),
                             |ui| {
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
                                 clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, INK);
@@ -136,7 +144,7 @@ pub(super) fn view(
                         ); });
                         let tabs = ui.node(
                             "library-tabs",
-                            Node::row().w(Size::Grow).h_px(44.0).gap(20.0).pad_x(16.0).align(Align::Center),
+                            Node::row().w(Size::Grow).h_px(LIBRARY_TABS_HEIGHT).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
                         ui.within(&tabs, &mut |ui| {
                             let modes = [
@@ -153,13 +161,14 @@ pub(super) fn view(
                                 ui.label("Title \u{2193}", BODY_INK);
                                 if !state.selecting
                                     && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
-                                    && ui.button("select", "Select", &list::WORD).clicked
+                                    && list::select_for_assistive(ui)
                                 {
                                     *intent = Some(Intent::SelectMode(true));
                                 }
                             }
                         });
-                        rule(ui, "tabs-divider", false);
+                        // Swift's mode underline hangs over its header's rule: the rule sits 2 points up, under the underline's foot
+                        ui.node("tabs-divider", Node::column().w(Size::Grow).h_px(1.0).margin(Edges::ZERO.t(-TAB_RULE_OVERLAP)).look(LINE_FILL));
                     }
                 }
                 let content = ui.view_of("compact-content", &revision, |ui| {
@@ -190,14 +199,14 @@ pub(super) fn view(
                                     settings::view(ui, player, state, width, intent);
                                 } else {
                                     match state.route {
-                                        Route::Files => files::view(ui, player, state, width, intent),
+                                        Route::Files => files::view(ui, player, state, intent),
                                         Route::Albums => {
                                             albums::gallery(ui, catalog, state, player, width, intent)
                                         }
                                         Route::Artists => {
-                                            groups(ui, catalog, player, true, width, intent)
+                                            groups(ui, catalog, player, width, intent)
                                         }
-                                        Route::Lists => collections(ui, catalog, player, width, intent),
+                                        Route::Lists => collections(ui, catalog, player, false, intent),
                                         _ => list::songs(ui, catalog, state, player, width, intent),
                                     }
                                 }
@@ -213,8 +222,7 @@ pub(super) fn view(
                     0.0,
                 );
             });
-        rule(ui, "mini-divider", false);
-        mini(ui, player, catalog, intent);
+        mini(ui, player, position, width, catalog, intent);
         rule(ui, "nav-divider", false);
         let nav = container(
             ui,
@@ -231,7 +239,8 @@ pub(super) fn view(
                 Route::Find => 3,
                 _ => 0,
             };
-            let r = ui.tabs("main-tabs", &MAIN_TABS, (!state.settings_visible).then_some(selected), &TABBAR);
+            // Settings opens over its section (Swift's `showSettings`): the section's tab stays in use
+            let r = ui.tabs("main-tabs", &MAIN_TABS, Some(selected), &TABBAR);
             // a tap on the tab in use pops its stack to the root (iOS): Library on an album page goes back to Albums
             if r.response.clicked && let Some(i) = r.chosen {
                 *intent = Some(Intent::Navigate(MAIN_ROUTES[i]));
@@ -244,42 +253,45 @@ pub(super) fn view(
 fn mini(
     ui: &mut Ui,
     player: &PlayerView<'_>,
+    position: f64,
+    width: f32,
     catalog: &Catalog,
     intent: &mut Option<Intent>,
 ) {
-    ui.row(Node::row().w(Size::Grow).h_px(64.0).gap(8.0).pad(8.0).align(Align::Center).look(PANEL_FILL),
+    // Swift's compact `WaveTransport`: 63 points on paper, the open area (40-point artwork, 15-point title over the 13-point
+    // artist) and the 64-point ink play key, under the 2-point ink progress line 1 point over its top edge
+    ui.row(Node::row().w(Size::Grow).h_px(63.0).align(Align::Center).look(PAPER_FILL),
         |ui| {
-            let node = Node::row().w(Size::Grow).h_px(48.0).gap(10.0).align(Align::Center).role(Role::Button);
+            let fraction = if player.duration > 0.0 { (position / player.duration).clamp(0.0, 1.0) } else { 0.0 };
+            ui.node("progress", Node::row().w_px((fraction as f32 * width).round()).h_px(2.0).at(0.0, -1.0).look(INK_FILL));
+            let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).padding(Edges::ZERO.l(16.0).r(12.0)).align(Align::Center).role(Role::Button);
             let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {
                 artwork(
                     ui,
                     catalog,
                     player,
                     player.current_id.and_then(|id| catalog.row_index(id)),
-                    44.0,
+                    40.0,
                 );
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PANEL_FILL);
+                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
                 ui.within(&labels, &mut |ui| {
-                    ui.label(if player.title.is_empty() { "Nothing playing" } else { player.title }, MINI_TITLE);
-                    ui.label(player.artist, SMALL_NOTE);
+                    ui.label(if player.title.is_empty() { "Nothing playing" } else { player.title }, ROW_TITLE);
+                    ui.label(player.artist, ROW_NOTE);
                 });
             });
             ui.a11y_name(&open.handle, "Open Now Playing");
             if open.clicked {
                 *intent = Some(Intent::TogglePlayer);
             }
-            play(ui, player, (44.0, 44.0), intent);
-            if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
-                *intent = Some(Intent::Next);
-            }
+            play(ui, player, (64.0, 63.0), 22.0, intent);
         },
     );
 }
 
-fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Option<Intent>) {
+fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), points: f32, intent: &mut Option<Intent>) {
     if ui.icon_button(
         "play",
-        icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }),
+        if player.playing { icon_drawing(Icon::Pause) } else { icon_sized(Icon::Play, points) },
         if player.playing { "Pause" } else { "Play" },
         &icon_key(size.0, size.1).look(&ICON_INVERSE_LOOKS),
     ).clicked {
@@ -291,58 +303,141 @@ fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), intent: &mut Opt
     }
 }
 
+/// Swift's Lists page (`listsBody`, the phone's and the desktop's): the "Automatic" lists, then "Yours" (the playlists), each a
+/// 64-point row (44-point artwork, the medium title over "updates itself" or the list's minutes, the count at its end) under a
+/// hairline 16 points in (not over a section's first), then the dashed "New list" key. `title`: the desktop page's own "Lists"
+/// heading (the phone's page header has it).
 pub(super) fn collections(
     ui: &mut Ui,
     catalog: &Catalog,
     player: &PlayerView<'_>,
-    width: f32,
+    title: bool,
     intent: &mut Option<Intent>,
 ) {
-    groups(ui, catalog, player, false, width, intent);
+    use lw_core::context::PlaybackContext;
+    // a plain scrolling column (the kit's scroll view draws a frame Swift's page has none of)
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP), |ui| {
+        // its rows keep their build while the column scrolls (a moving scroll rebuilds only the view that holds it)
+        let revision = (std::sync::Arc::as_ptr(&catalog.library) as usize, catalog.collections.as_ptr() as usize, player.artwork.map_or(0, crate::artwork::Images::revision), title);
+        ui.view_of("lists-content", &revision, |ui| {
+            if title {
+                ui.row(Node::row().w(Size::Grow).h_px(10.0 + 44.0).padding(Edges::ZERO.l(16.0).t(10.0).r(16.0)), |ui| {
+                    ui.label("Lists", PAGE_TITLE);
+                });
+            }
+            for (key, section, automatic) in [("automatic", "Automatic", true), ("yours", "Yours", false)] {
+                ui.id(key, |ui| {
+                    ui.row(Node::row().w(Size::Grow).h_px(20.0 + 18.2 + 8.0).padding(Edges::new(16.0, 20.0, 16.0, 8.0)), |ui| {
+                        ui.label(section, SECTION_LABEL);
+                    });
+                    let mut first = true;
+                    for (index, group) in catalog.collections.iter().enumerate() {
+                        if matches!(&*group.context, PlaybackContext::Automatic(_)) != automatic {
+                            continue;
+                        }
+                        let divider = !std::mem::take(&mut first);
+                        ui.id(Key::Id(group.key as i64), |ui| {
+                            if group_row(ui, 64.0, 14.0, &group.title, &mut |ui| {
+                                artwork(ui, catalog, player, group.artwork_row, 44.0);
+                                ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
+                                    ui.label(&group.title, LIST_TITLE);
+                                    ui.label(if automatic { "updates itself" } else { &group.subtitle }, LIST_NOTE);
+                                });
+                                ui.label(&group.count, LIST_NOTE);
+                            }, divider) {
+                                *intent = Some(Intent::Navigate(Route::Collection(index)));
+                            }
+                        });
+                    }
+                });
+            }
+            ui.row(Node::row().w(Size::Grow).h_px(12.0 + 56.0).padding(Edges::ZERO.l(16.0).t(12.0).r(16.0)), |ui| {
+                let new = ui.button("new-list", "New list", &NEW_LIST);
+                // Swift's dashed 1.5-point hairline round the key: 5 on, 4 off
+                ui.canvas_over(&new.handle, |paint, rect| {
+                    let ink = Fill::new(Rgba::token(LINE)).fractional();
+                    let mut x = 0.0;
+                    while x < rect.w {
+                        let w = 5.0f32.min(rect.w - x);
+                        paint.fill(Rect::new(rect.x + x, rect.y, w, 1.5), ink);
+                        paint.fill(Rect::new(rect.x + x, rect.y + rect.h - 1.5, w, 1.5), ink);
+                        x += 9.0;
+                    }
+                    let mut y = 0.0;
+                    while y < rect.h {
+                        let h = 5.0f32.min(rect.h - y);
+                        paint.fill(Rect::new(rect.x, rect.y + y, 1.5, h), ink);
+                        paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + y, 1.5, h), ink);
+                        y += 9.0;
+                    }
+                });
+                if new.clicked {
+                    *intent = Some(Intent::NewList(None));
+                }
+            });
+        });
+    });
+}
+
+/// A Lists section's label: 13 points medium, secondary.
+const SECTION_LABEL: Label = TEXT_13.weight(500).grow().color(SECONDARY);
+/// A list row's title (15 points medium) and its notes (13 points, secondary).
+const LIST_TITLE: Label = TEXT_15.weight(500).grow().color(INK);
+const LIST_NOTE: Label = TEXT_13.color(SECONDARY);
+/// The dashed "New list" key: Swift's 18-point plus 8 before its 15-point label, centred, 56 high.
+const NEW_LIST: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(56.0)).align(Justify::Center).centered()
+    .look(&BARE).icon(icon_drawing(Icon::Plus)).icon_size(18.0).gap(8.0).label(TEXT_15.color(SECONDARY));
+
+/// One tappable row of a group page, `h` high, its parts `gap` apart 16 points in, under a hairline 16 points in when `divider`;
+/// named `name`. Reports a click.
+fn group_row(ui: &mut Ui, h: f32, gap: f32, name: &str, content: &mut dyn FnMut(&mut Ui), divider: bool) -> bool {
+    let node = Node::row().w(Size::Grow).h_px(h).gap(gap).pad_x(16.0).align(Align::Center).role(Role::Button);
+    let card = ui.pressable("group", node, &PLAIN, |ui, _| content(ui));
+    if divider {
+        ui.canvas_over(&card.handle, |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y, rect.w - 16.0, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
+    }
+    ui.a11y_name(&card.handle, name);
+    card.clicked
 }
 
 fn groups(
     ui: &mut Ui,
     catalog: &Catalog,
     player: &PlayerView<'_>,
-    artists: bool,
     width: f32,
     intent: &mut Option<Intent>,
 ) {
-    let groups = if artists {
-        &catalog.artists
-    } else {
-        &catalog.collections
-    };
+    let groups = &catalog.artists;
     if groups.is_empty() {
         ui.label("Nothing here yet.", EMPTY_NOTE);
         return;
     }
-    ui.grid_list(
-        "compact-groups",
-        groups.len(),
-        &pxui::GridList::DEFAULT.w_px(width).h_px(68.0),
-        &mut |ui, index| {
-            let group = &groups[index];
-            let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).pad_x(16.0).align(Align::Center).role(Role::Button);
-            let card = ui.pressable("group", node, &PLAIN, |ui, _| {
-                artwork(ui, catalog, player, group.artwork_row, 44.0);
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
-                ui.within(&labels, &mut |ui| {
-                    ui.label(&group.title, GROUP_TITLE);
-                    ui.label(&group.count, SMALL_NOTE);
-                });
-            });
-            ui.a11y_name(&card.handle, &group.title);
-            if card.clicked {
-                *intent = Some(Intent::Navigate(if artists {
-                    Route::Artist(index)
-                } else {
-                    Route::Collection(index)
-                }));
-            }
-        },
-    );
+    const ROW: f32 = 64.0;
+    ui.stack(Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
+        let list = ui.grid_list(
+            "compact-groups",
+            groups.len(),
+            &pxui::GridList::DEFAULT.w_px(width).h_px(ROW),
+            &mut |ui, index| {
+                let group = &groups[index];
+                // Swift's phone `artistRows`: 44-point artwork, the medium name over "N albums · M songs", the 18-point chevron
+                if group_row(ui, ROW, 14.0, &group.title, &mut |ui| {
+                    artwork(ui, catalog, player, group.artwork_row, 44.0);
+                    let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
+                    ui.within(&labels, &mut |ui| {
+                        ui.label(&group.title, LIST_TITLE);
+                        ui.label(&group.summary, ROW_NOTE);
+                    });
+                    let chevron = ui.node("chevron", Node::row().w_px(18.0).h_px(18.0));
+                    ui.canvas(&chevron, |paint, rect| crate::icons::chevron(paint, rect, Rgba::token(INK)));
+                }, index > 0) {
+                    *intent = Some(Intent::Navigate(Route::Artist(index)));
+                }
+            },
+        );
+        let (letters, starts) = &catalog.artist_index;
+        list::rail(ui, &list, (letters, starts), (ROW, groups.len()), LIBRARY_HEADER_HEIGHT);
+    });
 }
 
 #[allow(clippy::too_many_arguments)] // Keep ticking position separate from stable player data.
@@ -352,7 +447,7 @@ fn expanded(
     position: f64,
     catalog: &Catalog,
     size: (f32, f32),
-    generation: u64,
+    (generation, dimmed): (u64, bool),
     intent: &mut Option<Intent>,
 ) {
     use lw_core::queue::RepeatMode;
@@ -367,19 +462,33 @@ fn expanded(
     let open = ui.modal("expanded-player", &PLAYER_SHEET, |ui| {
         let root = ui.node("player", Node::column().w(Size::Grow).h_px(size.1).margin(Edges::ZERO.t(inset)));
         crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
+        // the queue sheet over it: Swift's 0.32 scrim (the page's own scrim lies under this modal)
+        if dimmed {
+            ui.canvas_over(&root, |paint, rect| paint.fill(rect, Fill::new(SCRIM_INK.alpha(82))));
+        }
         ui.within(&root, &mut |ui| {
             ui.row(Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
                 let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), &PAPER_FILL);
                 ui.within(&left, &mut |ui| {
-                    if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
+                    if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_LOOKS)).clicked {
                         *intent = Some(Intent::TogglePlayer);
                     }
                 });
                 ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
                     ui.label("Playing from", CAPTION);
-                    ui.label(player.context, TEXT_13.color(INK));
+                    ui.label(player.context, TEXT_13.weight(500).color(INK));
                 });
-                container(ui, "balance", Axis::Row, Size::Px(88.0), Size::Px(1.0), &PAPER_FILL);
+                // Swift's audio route (an iOS picker; LocalWave has no native one yet) and the track actions, 44 points each
+                super::transport::route_key(ui, player, intent);
+                if let Some(id) = player.current_id {
+                    let more = ui.icon_button("track-actions", icon_sized(Icon::More, 22.0), "Track actions", &ICON_44.look(&ICON_LOOKS));
+                    if more.clicked {
+                        let at = ui.rect(&more.handle);
+                        *intent = Some(Intent::SongMenu(0, id, super::songs::NOW_MENU, (at.x + at.w - 44.0, at.y + at.h)));
+                    }
+                } else {
+                    ui.node("actions-slot", Node::column().w_px(44.0).h_px(44.0));
+                }
             });
             ui.row(Node::row().w(Size::Grow).h_px(region).justify(Justify::Center).padding(Edges::ZERO.t(4.0)),
                 |ui| {
@@ -441,27 +550,31 @@ fn expanded(
                     });
                     spacer(ui, "seek-gap", 14.0);
                     seek(ui, player, position, intent);
-                    let times = container(ui, "times", Axis::Row, Size::Grow, Size::Px(15.4), &PAPER_FILL);
-                    ui.within(&times, &mut |ui| {
-                        let start = small_clock(ui, "start", 0, false, 40.0, SECONDARY);
+                    spacer(ui, "seek-times-gap", 6.0);
+                    ui.row(Node::row().w(Size::Grow).h_px(15.4), |ui| {
+                        let style = MONO_11.color(SECONDARY);
+                        let start = ui.label("0:00", style);
                         ui.a11y_name(&start, "Start time");
+                        ui.a11y_number(&start, 0.0, 0.0, f64::MAX, 1.0).expect("valid start time");
                         ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                        let total = small_clock(ui, "duration", player.duration.max(0.0) as u64, false, 40.0, SECONDARY);
+                        let seconds = player.duration.max(0.0) as u64;
+                        let total = ui.label_fmt(format_args!("{}:{:02}", seconds / 60, seconds % 60), style);
                         ui.a11y_name(&total, "Duration");
+                        ui.a11y_number(&total, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid duration");
                     });
                     spacer(ui, "modes-gap", 14.0);
-                    ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(PANEL_FILL),
+                    ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(SELECTED_FILL),
                         |ui| {
-                            if ui.button("shuffle", "Shuffle", &MODE_KEY.icon(icon_drawing(Icon::Shuffle)).selected(player.shuffled)).clicked {
+                            if ui.button("shuffle", "Shuffle", &MODE_KEY.icon(icon_sized(Icon::Shuffle, 16.0)).selected(player.shuffled)).clicked {
                                 *intent = Some(Intent::Shuffle);
                             }
                             let (label, icon) = if player.repeat == RepeatMode::One { ("One", Icon::RepeatOne) } else { ("Repeat", Icon::Repeat) };
-                            let repeat = MODE_KEY.icon(icon_drawing(icon)).selected(player.repeat != RepeatMode::None).name(transport::REPEAT_NAMES[player.repeat as usize]);
+                            let repeat = MODE_KEY.icon(icon_sized(icon, 16.0)).selected(player.repeat != RepeatMode::None).name(transport::REPEAT_NAMES[player.repeat as usize]);
                             if ui.button("repeat", label, &repeat).clicked {
                                 *intent = Some(Intent::Repeat);
                             }
                             let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                            if ui.button("queue", "up next", &MODE_KEY.icon(icon_drawing(Icon::Queue)).detail(count).name("Show full queue")).clicked {
+                            if ui.button("queue", "up next", &MODE_KEY.icon(icon_sized(Icon::Queue, 16.0)).gap(4.0).detail(count).name("Show full queue")).clicked {
                                 *intent = Some(Intent::ShowQueue);
                             }
                         },
@@ -475,11 +588,11 @@ fn expanded(
             ui.row(Node::row().w(Size::Grow).h_px(86.0).gap(2.0).padding(Edges::new(2.0, 2.0, 2.0, 0.0)).look(SELECTED_FILL),
                 |ui| {
                     let key = ((size.0 - 8.0) / 3.0).max(1.0);
-                    if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
+                    if ui.icon_button("previous", icon_sized(Icon::Previous, 28.0), "Previous", &icon_key(key, 84.0).look(&PLAY_KEY_LOOKS)).clicked {
                         *intent = Some(Intent::Previous);
                     }
-                    play(ui, player, (key, 84.0), intent);
-                    if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key, 84.0).look(&ICON_PLATE_LOOKS)).clicked {
+                    play(ui, player, (key, 84.0), 28.0, intent);
+                    if ui.icon_button("next", icon_sized(Icon::Next, 28.0), "Next", &icon_key(key, 84.0).look(&PLAY_KEY_LOOKS)).clicked {
                         *intent = Some(Intent::Next);
                     }
                 },
@@ -941,6 +1054,40 @@ mod tests {
         assert_eq!(index(&ui), before, "leaving select mode keeps the index");
     }
 
+    #[test]
+    fn phone_artist_index_jumps_to_the_first_artist_in_a_section() {
+        let catalog = crate::tests::prepared((0..36).map(|id| lw_core::Song {
+            id: Some(id),
+            title: format!("Track {id}"),
+            artist: if id < 24 { format!("Artist {id:02}") } else { format!("The Zebra {id:02}") },
+            ..Default::default()
+        }).collect());
+        assert_eq!(catalog.artist_index, (vec!["A", "Z"], vec![0, 24]));
+
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Artists));
+        let player = PlayerView::default();
+        for tick in 1..4 {
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64);
+        }
+        assert!(names(&ui).iter().any(|name| name == "Artist 00"));
+        assert!(!names(&ui).iter().any(|name| name == "The Zebra 24"));
+        let index = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Section index").unwrap();
+        ui.inject_a11y(&[pxui::A11yAction { id: index.id, action_code: 4, payload: 1.0, ..Default::default() }]);
+        for tick in 4..8 {
+            assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64), None);
+        }
+        assert!(names(&ui).iter().any(|name| name == "The Zebra 24"));
+        assert!(!names(&ui).iter().any(|name| name == "Artist 00"));
+
+        mem_sys::set_peer(pxui::library_counter);
+        mem_sys::local_reset();
+        frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 8.0);
+        assert_eq!(mem_sys::local_alloc_count(), 0);
+    }
+
     /// Finding 9: Swift's phone Find takes the keyboard when it opens. The app focuses the query (its own policy, outside the
     /// `localwave-search` body) on the field's first build, and only then: a field the user left stays unfocused.
     #[test]
@@ -965,6 +1112,30 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
         assert!(!ui.text_input_focused(), "the query is focused once, when the field is first built");
+    }
+
+    /// Swift's phone Find lists its first eight songs over "Show all N songs"; the key lists them all, and a new query caps them again.
+    #[test]
+    fn phone_find_lists_eight_songs_until_show_all() {
+        let mut catalog = catalog(40);
+        let player = PlayerView::default();
+        let mut state = songs_state();
+        state.apply(Intent::Navigate(Route::Find));
+        state.apply(Intent::Search(Query::new("Track").unwrap()));
+        catalog.project(state.request(&catalog).unwrap(), (0..40).collect());
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut time = 0.0;
+        for _ in 0..3 {
+            time += 1.0;
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+        }
+        let rows = |ui: &Ui| names(ui).iter().filter(|name| name.starts_with("Actions for Track")).count();
+        assert!(rows(&ui) <= 8, "{} rows before Show all", rows(&ui));
+        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Show all songs"), Some(Intent::FindShowAll));
+        assert!(state.find_all && !names(&ui).iter().any(|name| name == "Show all songs"));
+        state.apply(Intent::Search(Query::new("Track 1").unwrap()));
+        assert!(!state.find_all);
     }
 
     #[test]
@@ -994,9 +1165,19 @@ mod tests {
                 frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
             }
             let seen = names(&ui);
-            assert!(seen.iter().any(|name| name == "Select"), "{page} lacks Select: {seen:?}");
             assert!(!seen.iter().any(|name| name == "Album actions" || name == "List actions"), "{page}");
-            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)), "{page}");
+            if page == "artist" {
+                // Swift's phone artist page has Back alone; select mode is still the same deck
+                assert!(!seen.iter().any(|name| name == "Select"), "artist shows Select: {seen:?}");
+                state.apply(Intent::SelectMode(true));
+                for _ in 0..2 {
+                    time += 1.0;
+                    frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
+                }
+            } else {
+                assert!(seen.iter().any(|name| name == "Select"), "{page} lacks Select: {seen:?}");
+                assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)), "{page}");
+            }
             let seen = names(&ui);
             for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue"] {
                 assert!(seen.iter().any(|name| name == want), "{page} missing {want}: {seen:?}");
@@ -1473,8 +1654,8 @@ mod tests {
         let chip = rect_of(Role::CheckBox, "flac");
         let clear = rect_of(Role::Button, "Clear");
         assert_eq!((chip.h, clear.w, clear.h), (32.0, 44.0, 44.0));
-        // 20 pt top pad, 21 pt caption, 56 pt field, 1.5 pt rule, 12 pt gap.
-        assert_eq!(chip.y - caption.y, 21.0 + 56.0 + 1.5 + 12.0);
+        // 20 pt top pad, 21 pt caption, 56 pt field (its 1.5 pt rule over its foot, as Swift's overlay), 12 pt gap.
+        assert_eq!(chip.y - caption.y, 21.0 + 56.0 + 12.0);
         assert!(chip.x == 16.0 && clear.x + clear.w > 390.0 - 16.0);
         assert!(
             ui.a11y_nodes()
@@ -2004,6 +2185,61 @@ mod tests {
             idle(ui, c, state, t);
         }
         (t, intent)
+    }
+
+    #[test]
+    fn queue_sheet_over_the_full_screen_player_takes_its_taps() {
+        let c = catalog(10);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = songs_state();
+        state.apply(Intent::TogglePlayer);
+        let mut t = 1.0;
+        for _ in 0..3 { idle(&mut ui, &c, &state, t); t += 1.0; }
+        state.apply(Intent::ShowQueue);
+        for _ in 0..3 { idle(&mut ui, &c, &state, t); t += 1.0; }
+        // the sheet opened from the player sits over it: a tap on its close key reaches the sheet
+        let at = centre(rect_of(&ui, Role::Button, "Close queue"));
+        assert_eq!(finger(&mut ui, &c, &state, 0, at, t), None);
+        assert_eq!(finger(&mut ui, &c, &state, 2, at, t + 0.05), Some(Intent::CloseQueue));
+    }
+
+    /// Swift's audio route key shows where the platform has the picker (iOS) and asks for it; elsewhere its slot stays empty.
+    #[test]
+    fn full_screen_player_audio_route_key_follows_the_platform() {
+        let c = catalog(10);
+        for route in [true, false] {
+            let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+            ui.set_a11y(true);
+            let mut state = songs_state();
+            state.apply(Intent::TogglePlayer);
+            let player = PlayerView { initialized: true, current_id: Some(3), title: "Track 00003", route, ..Default::default() };
+            let mut t = 1.0;
+            for _ in 0..3 { frame(&mut ui, &c, &state, &player, 0.0, 390.0, t); t += 1.0; }
+            assert_eq!(names(&ui).iter().any(|name| name == "Audio output"), route);
+            if route {
+                assert!(matches!(press(&mut ui, &c, &mut state, &player, &mut t, "Audio output"), Some(Intent::AudioRoute(_))));
+            }
+        }
+    }
+
+    #[test]
+    fn full_screen_player_track_actions_open_a_menu_over_it() {
+        let c = catalog(10);
+        let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
+        ui.set_a11y(true);
+        let mut state = songs_state();
+        state.apply(Intent::TogglePlayer);
+        let player = PlayerView { initialized: true, current_id: Some(3), title: "Track 00003", ..Default::default() };
+        let mut t = 1.0;
+        for _ in 0..3 { frame(&mut ui, &c, &state, &player, 0.0, 390.0, t); t += 1.0; }
+        let opened = press(&mut ui, &c, &mut state, &player, &mut t, "Track actions");
+        assert!(matches!(opened, Some(Intent::SongMenu(_, 3, super::super::songs::NOW_MENU, _))), "{opened:?}");
+        // the menu sits over the player and takes the press
+        let item = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Play next").map(|node| node.id).expect("the track menu shows");
+        ui.inject_a11y(&[pxui::A11yAction { id: item, action_code: 1, ..Default::default() }]);
+        t += 1.0;
+        assert_eq!(frame(&mut ui, &c, &state, &player, 0.0, 390.0, t), Some(Intent::PlayNext(3)));
     }
 
     #[test]

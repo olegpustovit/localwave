@@ -22,6 +22,23 @@ pub fn open_link(link: Link) -> io::Result<()> {
     }
 }
 
+/// Whether this platform has the audio route key: AVKit's route picker on iOS and macOS (Swift's shipping Mac app is its iOS
+/// build, which shows the key).
+pub const ROUTE_PICKER: bool = cfg!(any(target_os = "ios", target_os = "macos"));
+
+/// Present the system audio route picker from the key at `anchor` (window points, top-left origin). Main thread; an error when no
+/// window or picker button is there.
+pub fn route_picker(anchor: (f32, f32)) -> io::Result<()> {
+    unsafe extern "C" {
+        fn lw_window_route_picker(x: f64, y: f64) -> i32;
+    }
+    if unsafe { lw_window_route_picker(f64::from(anchor.0), f64::from(anchor.1)) } == 0 {
+        Err(io::Error::other("Could not show audio outputs"))
+    } else {
+        Ok(())
+    }
+}
+
 /// Select a file in Finder. Callable from any thread; the caller must hold the source's grant
 /// and pass the path it resolved. macOS only: iOS has no Finder, so it reports an error.
 pub fn reveal(path: &std::path::Path) -> io::Result<()> {

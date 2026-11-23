@@ -65,6 +65,7 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=CoreMedia");
         println!("cargo:rustc-link-lib=framework=ImageIO");
         println!("cargo:rustc-link-lib=framework=CoreGraphics");
+        println!("cargo:rustc-link-lib=framework=AVKit");
         if os == "macos" {
             println!("cargo:rustc-link-lib=framework=CoreServices");
         }

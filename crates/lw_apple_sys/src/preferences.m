@@ -183,6 +183,9 @@ char *lw_app_path(unsigned int slot) {
             NSString *testID = NSProcessInfo.processInfo.environment[@"LOCALWAVE_UI_TEST_ID"];
             if (![[NSUUID alloc] initWithUUIDString:testID]) return NULL;
             url = [[manager URLsForDirectory:NSDocumentDirectory inDomains:NSUserDomainMask].firstObject URLByAppendingPathComponent:[NSString stringWithFormat:@"uitest-%@.sqlite", testID]];
+        } else if (slot == 5) {
+            NSString *resources = NSBundle.mainBundle.resourcePath;
+            url = resources ? [NSURL fileURLWithPath:resources isDirectory:YES] : nil;
         }
         return url ? strdup(url.path.UTF8String) : NULL;
     }

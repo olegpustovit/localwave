@@ -45,8 +45,11 @@ pub(super) fn small_clock(
         let text = std::str::from_utf8(&buffer[..len]).unwrap_or("");
         // `text_chars` places the layout top: the first baseline lies `baseline` under it (the digits share one layout's
         // metrics, so "0" measures it from a cached layout)
-        let baseline = paint.text_service().measure("0", CLOCK, None).map_or(BASELINE - 4.0, |m| m.baseline);
-        paint.text_chars(pxui::Point::new(rect.x, rect.y + BASELINE - baseline), CLOCK.color(color), text);
+        let zero = paint.text_service().measure("0", CLOCK, None);
+        let baseline = zero.as_ref().map_or(BASELINE - 4.0, |m| m.baseline);
+        // a remaining clock ends at the box's end (Swift's trailing stack); Geist Mono gives "-", ":" and digits one advance
+        let x = if remaining { rect.x + rect.w - zero.map_or(0.0, |m| m.width) * text.len() as f32 } else { rect.x };
+        paint.text_chars(pxui::Point::new(x, rect.y + BASELINE - baseline), CLOCK.color(color), text);
     });
     node
 }
@@ -90,7 +93,7 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
 pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorToken) {
     use pxui::{ui::Keyframe, Keyframes};
     const ROW_KEYS: [&str; 7] = [
-        "row-0", "row-1", "row-2", "row-3", "row-4", "row-5", "row-6",
+        "changed-0", "changed-1", "changed-2", "changed-3", "changed-4", "changed-5", "changed-6",
     ];
     fn label(seconds: u64) -> ([u8; 24], usize) {
         let mut buffer = [0u8; 24];
@@ -120,52 +123,75 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorT
         }
         let (before_buffer, before_len) = label(ui.state(&previous, seconds as i64) as u64);
         let before = &before_buffer[..before_len];
-        let revision = crate::hash((shown, before));
-        // Seven fading rows, shared by every changed digit, bound animation storage on carries.
+        let colon = shown_len - 3;
+        let masks = std::array::from_fn::<_, 7, _>(|row| {
+            let mut masks = [0u128; 2];
+            for (index, byte) in shown.iter().copied().enumerate() {
+                let bits = if index == colon {
+                    [0, 0, 1, 0, 1, 0, 0][row]
+                } else {
+                    DIGITS[(byte - b'0') as usize][row]
+                };
+                let changing = usize::from(before.get(index) != Some(&byte));
+                masks[changing] |= u128::from(bits) << (index * 5);
+            }
+            masks
+        });
+        let row_paint = move |paint: &mut pxui::Paint<'_>, rect: Rect, mask: u128| {
+            let fill = Fill::new(Rgba::token(color)).fractional();
+            let mut x = rect.x;
+            for index in 0..shown_len {
+                let count = if index == colon { 1 } else { 5 };
+                let mut bits = ((mask >> (index * 5)) & 31) as u8;
+                while bits != 0 {
+                    let column = count - 1 - bits.ilog2() as usize;
+                    paint.fill(Rect::new(x + column as f32 * unit, rect.y, unit * 0.78, unit * 0.78), fill);
+                    bits &= !(1 << (count - 1 - column));
+                }
+                x += (count + 1) as f32 * unit;
+            }
+        };
+        // Only the changing dots need separate table entries for their row-by-row fades.
+        let stable = masks.map(|row| row[0]);
+        let common = (shown_len, colon, unit.to_bits(), color.0);
+        let stable = ui.view_of("stable", &(stable, common), |ui| {
+            ui.retain_palette_paint();
+            let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
+            ui.canvas(&cells, move |paint, rect| {
+                let mut y = 0.0;
+                for mask in stable {
+                    row_paint(paint, Rect { y: rect.y + y, ..rect }, mask);
+                    y += unit;
+                }
+            });
+            ui.retain_view_on_resize();
+        });
+        ui.set_node_layout(&stable, &Node::column().w(Size::Grow).h_px(height).at(0.0, 0.0));
+        let animate = old != seconds && !ui.tokens().reduced_motion;
+        let mut y = 0.0;
         for (row, key) in ROW_KEYS.into_iter().enumerate() {
-            ui.id(key, |ui| { ui.column(Node::column().h_px(unit), |ui| { ui.view_of(key, &revision, |ui| {
-                ui.id("row", |ui| { ui.stack(Node::stack().w(Size::Grow).h(Size::Grow), |ui| {
-                    for changing in [false, true] {
-                        let visual = ui.view_of(if changing { "changed" } else { "stable" }, &revision, |ui| {
-                                let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
-                                ui.canvas(&cells, move |paint, rect| {
-                                    let color = Rgba::token(color);
-                                    let (shown, before) = (&shown_buffer[..shown_len], &before_buffer[..before_len]);
-                                    let mut x = rect.x;
-                                    for (index, byte) in shown.iter().copied().enumerate() {
-                                        let count = if byte == b':' { 1 } else { 5 };
-                                        if (before.get(index) != Some(&byte)) == changing {
-                                            let bits = if byte == b':' {
-                                                [0, 0, 1, 0, 1, 0, 0][row]
-                                            } else {
-                                                DIGITS[(byte - b'0') as usize][row]
-                                            };
-                                            for column in 0..count {
-                                                if bits & (1 << (count - 1 - column)) != 0 {
-                                                    paint.fill(Rect::new(x + column as f32 * unit, rect.y, unit * 0.78, unit * 0.78), Fill::new(color).fractional());
-                                                }
-                                            }
-                                        }
-                                        x += (count + 1) as f32 * unit;
-                                    }
-                                });
-                            });
-                        if changing && old != seconds && !ui.tokens().reduced_motion {
-                            let delay = row as f32 * 0.016;
-                            let curve = crate::motion::steps(2, crate::motion::QUICK);
-                            ui.animate_keys(
-                                &visual,
-                                &[
-                                    Keyframe::opacity(0.0, 0.0).curve(curve),
-                                    Keyframe::opacity(delay, 0.0).curve(curve),
-                                    Keyframe::opacity(delay + crate::motion::QUICK, 1.0).curve(curve),
-                                ],
-                                &Keyframes::DEFAULT,
-                            );
-                        }
-                    }
-                }); });
-            }); }); });
+            let mask = masks[row][1];
+            let visual = ui.view_of(key, &(mask, common), |ui| {
+                ui.retain_palette_paint();
+                let cells = ui.node("cells", Node::column().w(Size::Grow).h(Size::Grow));
+                ui.canvas(&cells, move |paint, rect| row_paint(paint, rect, mask));
+                ui.retain_view_on_resize();
+            });
+            ui.set_node_layout(&visual, &Node::column().w(Size::Grow).h_px(unit).at(0.0, y));
+            if animate {
+                let delay = row as f32 * 0.016;
+                let curve = crate::motion::steps(2, crate::motion::QUICK);
+                ui.animate_keys(
+                    &visual,
+                    &[
+                        Keyframe::opacity(0.0, 0.0).curve(curve),
+                        Keyframe::opacity(delay, 0.0).curve(curve),
+                        Keyframe::opacity(delay + crate::motion::QUICK, 1.0).curve(curve),
+                    ],
+                    &Keyframes::DEFAULT,
+                );
+            }
+            y += unit;
         }
     });
 }

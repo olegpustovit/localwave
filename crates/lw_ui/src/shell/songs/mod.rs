@@ -17,18 +17,6 @@ use super::*;
 use crate::catalog::SongColumn as Column;
 use crate::song_text::{body_label, body_line_height, body_value};
 
-fn label(
-    ui: &mut Ui,
-    key: impl Into<pxui::Key>,
-    value: &str,
-    rect: Rect,
-    style: Label,
-    role: Role,
-) -> Handle {
-    let node = ui.node(key, Node::column().at(rect.x, rect.y).w_px(rect.w.max(0.0)).h_px(rect.h).role(role).look(text_look(style)));
-    ui.text_line_box(&node, value, style, &[]).unwrap();
-    node
-}
 #[derive(Clone, Copy)]
 struct RowLayout {
     sizes: [(f32, f32); 8],
@@ -52,13 +40,12 @@ impl RowLayout {
 fn row_layout(
     ui: &mut Ui,
     catalog: &Catalog,
-    index: usize,
+    (index, row): (usize, &crate::catalog::Row<'_>),
     (number, number_label): (usize, &str),
     numbered: bool,
-    widths: [f32; 8],
+    (widths, density): ([f32; 8], f32),
     current: bool,
 ) -> RowLayout {
-    let row = catalog.row(index);
     let mut layout = RowLayout {
         sizes: [(0.0, 0.0); 8],
         ascent: 0.0,
@@ -80,7 +67,8 @@ fn row_layout(
                 // the cell's own label: measuring keys match drawing and prewarm
                 table_text_size(
                     ui,
-                    body_value(&row, column, numbered, number_label),
+                    density,
+                    body_value(row, column, numbered, number_label),
                     available,
                     catalog.song_body_width(index, column, number, numbered),
                     &body_label(column, current),
@@ -205,7 +193,7 @@ pub(super) fn table(
     catalog: &Catalog,
     state: &ShellState,
     player: &PlayerView<'_>,
-    width: f32,
+    (width, height): (f32, f32),
     intent: &mut Option<Intent>,
 ) {
     let Some(collection) = state.collection(catalog) else {
@@ -235,7 +223,7 @@ pub(super) fn table(
             state.collection(catalog).is_some_and(|group| group.folder.is_some()),
         )
     } else {
-        105.6
+        super::header::height(catalog, state)
     };
     let widths = table.columns(
         catalog,
@@ -245,9 +233,11 @@ pub(super) fn table(
         state.route,
     );
     let heading_height = heading_height(ui, catalog, widths, applied);
+    // Overlays change the shell revision without changing the song rows behind them.
     let revision = crate::hash((
-        state.revision,
+        state.entry_revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
+        catalog.view.as_ref().map(|view| std::sync::Arc::as_ptr(view) as usize),
         widths.map(f32::to_bits),
     ));
     let entry = crate::motion::Page::new(ui, state.entry_revision);
@@ -271,7 +261,7 @@ pub(super) fn table(
                 leading: if find { 0.0 } else { leading },
                 heading: heading_height,
                 offset: 0.0,
-                height: 0.0,
+                height: if find { 0.0 } else { height },
             };
             // the heading shows the applied sort; a click cycles it (none, ascending, descending) and the app sorts
             state.song_table.borrow_mut().sort = applied.filter(|(sort, _)| *sort != Sort::Original).and_then(|(sort, up)| {
@@ -279,13 +269,15 @@ pub(super) fn table(
                 Some((id, if up { pxui::Sort::Ascending } else { pxui::Sort::Descending }))
             });
             let columns = heading_columns(widths);
-            let rows = Rows { catalog, collection, table, state, player, widths, revision, numbered, entry: &entry, viewport };
+            let rows = Rows { catalog, collection, table, state, player, widths, density: ui.density(), revision, numbered, entry: &entry, viewport };
             let reorder = rows.reorderable();
             let count = if placeholder { 0 } else { collection.rows.len() };
             let list = SONGS.lead(if find { 0.0 } else { leading }).header(heading_height).trail(if placeholder { 83.6 } else { 0.0 }).reorder(reorder);
             let mut song_rows = state.song_rows.borrow_mut();
-            // a kept row shows what these hold; the playing and copying rows follow their place on screen, so they rebuild every frame
-            song_rows.revision = Some(crate::hash((revision, player.current_id, reorder, state.entry_revision)));
+            // Ordinary rows use the list box for input and retain their cells separately.
+            // Keep the list's row scope stable when sorting a playlist adds or removes the grab handle.
+            song_rows.revision = matches!(state.route, Route::Collection(_))
+                .then(|| crate::hash((revision, player.current_id, reorder, state.entry_revision)));
             mark_live(state, &mut song_rows);
             let r = ui.selection_list(
                 "songs",
@@ -312,7 +304,9 @@ pub(super) fn table(
                         // the scroll box the list reported last frame (its rows' window for the playing marks)
                         if let Some(list) = ui.box_of_key(Key::Resolved(state.song_list.get())) {
                             viewport.offset = ui.scroll(&list).painted;
-                            viewport.height = ui.rect(&list).h;
+                            if find {
+                                viewport.height = ui.rect(&list).h;
+                            }
                         }
                         let mut table = state.song_table.borrow_mut();
                         // kept while the columns and the sort hold (the heading pins over the rows: a scroll moves it, nothing more)
@@ -398,6 +392,7 @@ pub(super) fn song_drop(ui: &mut Ui, target: &Handle) -> Option<(bool, i64)> {
     Some((dropped, id))
 }
 mod menu;
+pub(in crate::shell) use menu::NOW_MENU;
 pub(super) use menu::{list_rows, popup, LISTS_MENU, LIST_ROWS, MENU, NEW_LIST};
 #[cfg(test)]
 mod tests;

@@ -199,7 +199,9 @@ pub struct SongTable {
 }
 
 fn state(row: Row<'_>) -> (u8, bool, Option<lw_core::FileAvailability>) {
+    // Swift's `stateKey`: blocked first, then copying or failed, pinned, the availability
     let exceptional = match row.state {
+        _ if row.blocked => 3,
         lw_core::FileState::CopyPending => 1,
         lw_core::FileState::Failed => 2,
         _ => 0,

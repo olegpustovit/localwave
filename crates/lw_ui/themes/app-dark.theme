@@ -1,7 +1,19 @@
 menu_row.body = localwave-menu
+# The desktop song table's actions key uses the kit's default icon button.
+icon_button.fill = #00000000
+icon_button.text = #00000000
+icon_button.radius = 0
 popup.idle.border = #262626
 table_head.idle.fill = #101010
 table_head.idle.border = #262626
+table_head.hover.fill = #101010
+table_head.hover.border = #262626
+table_head.pressed.fill = #101010
+table_head.pressed.border = #262626
+table_head.focus.fill = #101010
+table_head.focus.border = #262626
+table_head.checked.fill = #101010
+table_head.checked.border = #262626
 toggle.body = localwave-toggle
 dialog.body = localwave-sheet
 button.body = localwave-button

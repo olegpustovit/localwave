@@ -20,16 +20,7 @@ impl Worker {
                 if eviction.files != 0 {
                     self.dirty_catalog();
                 }
-                let bytes = eviction.remaining_bytes;
-                let usage = if bytes >= 1_000_000_000 {
-                    format!("{:.1} GB", bytes as f64 / 1_000_000_000.0)
-                } else if bytes >= 1_000_000 {
-                    format!("{:.1} MB", bytes as f64 / 1_000_000.0)
-                } else if bytes >= 1_000 {
-                    format!("{:.1} KB", bytes as f64 / 1_000.0)
-                } else {
-                    format!("{bytes} bytes")
-                };
+                let usage = file_bytes(eviction.remaining_bytes);
                 let summary = format!(
                     "{usage} cached. Kept songs may exceed the limit; Added Files are never removed."
                 );
@@ -99,5 +90,29 @@ impl Worker {
                 None
             }
         };
+    }
+}
+
+/// Swift's `ByteCountFormatter.string(fromByteCount:countStyle: .file)` in English: "Zero KB", bytes, whole KB, MB to one place
+/// and GB to two, in decimal units.
+/// shortcut: no unit promotion at a rounding edge (999,999 bytes reads "1000 KB", Swift "1 MB"); add it if such sizes show.
+fn file_bytes(bytes: u64) -> String {
+    match bytes {
+        0 => "Zero KB".into(),
+        1 => "1 byte".into(),
+        2..1_000 => format!("{bytes} bytes"),
+        1_000..1_000_000 => format!("{} KB", (bytes as f64 / 1e3).round()),
+        1_000_000..1_000_000_000 => format!("{:.1} MB", bytes as f64 / 1e6),
+        _ => format!("{:.2} GB", bytes as f64 / 1e9),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn cache_sizes_read_like_swifts_file_byte_counts() {
+        for (bytes, text) in [(0, "Zero KB"), (1, "1 byte"), (512, "512 bytes"), (6_600, "7 KB"), (6_600_000, "6.6 MB"), (1_234_000_000, "1.23 GB")] {
+            assert_eq!(super::file_bytes(bytes), text);
+        }
     }
 }

@@ -11,11 +11,13 @@ pub(super) const TERTIARY: ColorToken = ColorToken(5);
 pub(super) const LINE: ColorToken = ColorToken(6);
 pub(super) const KEY: ColorToken = ColorToken(7);
 pub(super) const DANGER: ColorToken = ColorToken(8);
+/// Swift's `key2`: the play, shuffle and option keys' plate.
+pub(super) const KEY2: ColorToken = ColorToken(9);
 pub(super) const fn rgb(hex: u32) -> Rgba {
     Rgba::rgb((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
 }
 /// The (light, dark) pair of each token, in token order.
-pub(super) const COLORS: [(Rgba, Rgba); 9] = [
+pub(super) const COLORS: [(Rgba, Rgba); 10] = [
     (rgb(0xF3F3F3), rgb(0x101010)),
     (rgb(0xE6E6E6), rgb(0x1A1A1A)),
     (rgb(0xD3D3D3), rgb(0x2A2A2A)),
@@ -25,6 +27,7 @@ pub(super) const COLORS: [(Rgba, Rgba); 9] = [
     (rgb(0xDADADA), rgb(0x262626)),
     (rgb(0xFBFBFB), rgb(0x1F1F1F)),
     (rgb(0xD21A1A), rgb(0xD21A1A)),
+    (rgb(0xDADADA), rgb(0x2E2E2E)),
 ];
 /// Gives a root or scoped theme LocalWave's palette for the selected appearance.
 pub fn apply_palette(theme: &mut pxui::ThemeHandle, dark: bool) {
@@ -112,8 +115,14 @@ pub(super) enum Icon {
     RowMore,
     /// Add (to a list): a 14-point plus of 1.5-point bars.
     Add,
-    /// Add music (the Folders page): a 24-point plus of 1.5-point bars, past the 20-point box.
+    /// Swift's LW-search vector (a lens), scaled to the box it is given.
+    Search,
+    /// Swift's LW-plus vector, scaled to the box it is given (the sidebar's add rows, Add music).
     Plus,
+    /// Swift's LW-folder vector, scaled to the box it is given (the onboarding's Choose a folder).
+    Folder,
+    /// Swift's LW-route vector, scaled to the box it is given (the audio route key).
+    Route,
 }
 pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32, color: Rgba) {
     match icon {
@@ -131,12 +140,7 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             paint.fill(Rect::new(x + 4.0, y + 3.0, 4.0, 14.0), Fill::new(color));
             paint.fill(Rect::new(x + 12.0, y + 3.0, 4.0, 14.0), Fill::new(color));
         }
-        Icon::Queue => {
-            for dy in [5.0, 10.0, 15.0] {
-                paint.fill(Rect::new(x + 2.0, y + dy, 2.0, 1.5), Fill::new(color));
-                paint.fill(Rect::new(x + 6.0, y + dy, 12.0, 1.5), Fill::new(color));
-            }
-        }
+        Icon::Queue => crate::icons::queue(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Previous | Icon::Next => {
             let next = matches!(icon, Icon::Next);
             paint.fill(Rect::new(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0), Fill::new(color));
@@ -145,10 +149,7 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
                 paint.fill(Rect::new(x + if next { 4.0 } else { 15.0 - w }, y + 4.0 + row as f32, w, 1.0), Fill::new(color));
             }
         }
-        Icon::Panel => {
-            paint.stroke(Rect::new(x + 2.0, y + 3.0, 16.0, 14.0), Stroke::new(color));
-            paint.line((x + 12.0, y + 3.0), (x + 12.0, y + 17.0), Stroke::new(color));
-        }
+        Icon::Panel => crate::icons::side(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Shuffle => {
             crate::icons::shuffle(
                 paint,
@@ -179,25 +180,10 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), Stroke::new(color));
             paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), Stroke::new(color));
         }
-        Icon::Clear => {
-            paint.line((x + 5.0, y + 5.0), (x + 15.0, y + 15.0), Stroke::new(color));
-            paint.line((x + 15.0, y + 5.0), (x + 5.0, y + 15.0), Stroke::new(color));
-        }
-        Icon::More => {
-            for dx in [3.0, 9.0, 15.0] {
-                paint.fill(Rect::new(x + dx, y + 9.0, 2.5, 2.5), Fill::new(color));
-            }
-        }
-        Icon::Settings => {
-            for (dy, knob) in [(5.0, 12.0), (10.0, 6.0), (15.0, 13.0)] {
-                paint.fill(Rect::new(x + 2.0, y + dy, 16.0, 1.5), Fill::new(color));
-                paint.fill(Rect::new(x + knob - 1.5, y + dy - 2.0, 3.0, 5.5), Fill::new(color));
-            }
-        }
-        Icon::Back => {
-            paint.line((x + 12.0, y + 4.0), (x + 6.0, y + 10.0), Stroke::new(color));
-            paint.line((x + 6.0, y + 10.0), (x + 12.0, y + 16.0), Stroke::new(color));
-        }
+        Icon::Clear => crate::icons::close(paint, Rect::new(x, y, 20.0, 20.0), color),
+        Icon::More => crate::icons::more(paint, Rect::new(x, y, 20.0, 20.0), color),
+        Icon::Settings => crate::icons::settings(paint, Rect::new(x, y, 20.0, 20.0), color),
+        Icon::Back => crate::icons::back(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Check => {
             paint.line((x + 4.0, y + 10.0), (x + 8.0, y + 14.0), Stroke::new(color));
             paint.line((x + 8.0, y + 14.0), (x + 16.0, y + 5.0), Stroke::new(color));
@@ -206,10 +192,10 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             paint.fill(Rect::new(x + 3.0, y + 9.25, 14.0, 1.5), Fill::new(color));
             paint.fill(Rect::new(x + 9.25, y + 3.0, 1.5, 14.0), Fill::new(color));
         }
-        Icon::Plus => {
-            paint.fill(Rect::new(x - 2.0, y + 9.25, 24.0, 1.5), Fill::new(color));
-            paint.fill(Rect::new(x + 9.25, y - 2.0, 1.5, 24.0), Fill::new(color));
-        }
+        Icon::Search => crate::icons::search(paint, Rect::new(x, y, 20.0, 20.0), color),
+        Icon::Plus => crate::icons::plus(paint, Rect::new(x, y, 20.0, 20.0), color),
+        Icon::Folder => crate::icons::folder(paint, Rect::new(x, y, 20.0, 20.0), color),
+        Icon::Route => crate::icons::route(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Offline | Icon::Kept => crate::icons::offline(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::Kept), color),
         Icon::Heart | Icon::HeartFilled => crate::icons::heart(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::HeartFilled), color),
         Icon::RepeatOne => {
@@ -219,6 +205,7 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
             let _ = paint.text_spans(pxui::Point::new(x + 19.0, y + 15.0), REPEAT_ONE, 8.0, "1", &one);
         }
         Icon::RowMore => {
+            let color = Rgba::token(SECONDARY);
             for dx in [5.5, 12.0, 18.5] {
                 paint.circle((x + 2.0 + dx * (2.0 / 3.0), y + 10.0), 1.4 * (2.0 / 3.0), Some(Fill::new(color)), None);
             }
@@ -230,10 +217,10 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
     }
 }
 /// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
-const ICONS: [Icon; 23] = [
+const ICONS: [Icon; 26] = [
     Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
     Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check, Icon::Offline, Icon::Kept,
-    Icon::RepeatOne, Icon::Heart, Icon::HeartFilled, Icon::RowMore, Icon::Add, Icon::Plus,
+    Icon::RepeatOne, Icon::Heart, Icon::HeartFilled, Icon::RowMore, Icon::Add, Icon::Search, Icon::Plus, Icon::Folder, Icon::Route,
 ];
 /// The repeat-one mark: Geist Mono 9 in a 12-point line.
 const REPEAT_ONE: Label = MONO_9.w_px(8.0).h_px(12.0);
@@ -245,14 +232,36 @@ const _: () = {
         i += 1;
     }
 };
-/// The one drawing of every kit icon button: `word` names the icon. Play, Shuffle and the offline marks fill the square they are
-/// given (`Button::icon_size`); the others draw in a 20-point square at its origin.
+/// The one drawing of every kit icon button: `word`'s low byte names the icon, the bits above it a size in quarter points
+/// (`icon_sized`). Play, Shuffle, the offline marks and Swift's vectors (lens, plus, side, heart) fill the square they are given
+/// (`Button::icon_size`, or the sized square about its centre; close too); the others draw in a 20-point square at its origin.
 fn draw_icon(paint: &mut pxui::Paint<'_>, at: pxui::geom::Rect, ink: Rgba, word: u32) {
-    match ICONS.get(word as usize) {
+    let points = (word >> 8) as f32 / 4.0;
+    let at = if points > 0.0 {
+        pxui::geom::Rect { x: at.x + (at.w - points) / 2.0, y: at.y + (at.h - points) / 2.0, w: points, h: points }
+    } else {
+        at
+    };
+    match ICONS.get((word & 0xff) as usize) {
+        Some(Icon::More) => crate::icons::more(paint, at, ink),
         Some(Icon::Play) => crate::icons::play(paint, at, ink),
+        Some(icon @ (Icon::Previous | Icon::Next)) if points > 0.0 => {
+            crate::icons::skip(paint, at, matches!(icon, Icon::Next), ink);
+        }
         Some(Icon::Shuffle) => crate::icons::shuffle(paint, at, ink),
+        Some(Icon::Repeat) => crate::icons::repeat(paint, at, ink),
         Some(Icon::Offline) => crate::icons::offline(paint, at, false, ink),
         Some(Icon::Kept) => crate::icons::offline(paint, at, true, ink),
+        Some(Icon::Search) => crate::icons::search(paint, at, ink),
+        Some(Icon::Plus) => crate::icons::plus(paint, at, ink),
+        Some(Icon::Folder) => crate::icons::folder(paint, at, ink),
+        Some(Icon::Settings) => crate::icons::settings(paint, at, ink),
+        Some(Icon::Route) => crate::icons::route(paint, at, ink),
+        Some(Icon::Panel) => crate::icons::side(paint, at, ink),
+        Some(Icon::Clear) => crate::icons::close(paint, at, ink),
+        Some(Icon::Back) => crate::icons::back(paint, at, ink),
+        Some(Icon::Heart) => crate::icons::heart(paint, at, false, ink),
+        Some(Icon::HeartFilled) => crate::icons::heart(paint, at, true, ink),
         Some(&icon) => paint_icon(paint, icon, at.x, at.y, ink),
         None => {}
     }
@@ -261,11 +270,17 @@ fn draw_icon(paint: &mut pxui::Paint<'_>, at: pxui::geom::Rect, ink: Rgba, word:
 pub(super) const fn icon_drawing(icon: Icon) -> pxui::Icon {
     pxui::Icon::draw(draw_icon, icon as u32)
 }
+/// `icon` drawn at Swift's `points` (an `LWIcon` size) about the centre of the square it is given.
+pub(super) const fn icon_sized(icon: Icon, points: f32) -> pxui::Icon {
+    pxui::Icon::draw(draw_icon, icon as u32 | ((points * 4.0) as u32) << 8)
+}
 
 // SwiftUI wraps table labels, then fits their line box to physical pixels.
 pub(super) fn heading_size(ui: &mut Ui, value: &str, available: f32, natural: f32) -> (f32, f32) {
+    let density = ui.density();
     table_text_size(
         ui,
+        density,
         value,
         available,
         natural,
@@ -281,6 +296,7 @@ pub(super) const TABLE_LINE: f32 = 16.8;
 pub(crate) const TIGHT_3: f32 = -0.030_000_001;
 pub(super) fn table_text_size(
     ui: &mut Ui,
+    density: f32,
     value: &str,
     available: f32,
     natural: f32,
@@ -296,7 +312,6 @@ pub(super) fn table_text_size(
     } else {
         (natural, 1)
     };
-    let density = ui.density();
     (
         (width * density).ceil() / density,
         line_height * lines.max(1) as f32,
@@ -337,6 +352,18 @@ pub(super) mod button_tests {
     use super::*;
     use pxui::{Event, FrameIn, Platform, ThemeHandle};
     use std::cell::Cell;
+    #[test]
+    fn matrix_clock_reuses_rows_when_only_the_seconds_digit_advances() {
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.verify_views(false);
+        for (index, seconds) in [753, 754, 755].into_iter().enumerate() {
+            let input = FrameIn::new(400.0 + index as f32, 80.0).time(index as f64);
+            crate::testing::frame(&mut ui, &input, &mut |ui| matrix_clock(ui, seconds, 43.0, INK)).unwrap();
+        }
+        assert_eq!(ui.rebuilt_named("stable"), 0);
+        assert!(ui.rebuilt_named("changed") > 0);
+    }
+
     #[test]
     fn matrix_digits_match_swift_geometry_stagger_changed_rows_and_stop_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);

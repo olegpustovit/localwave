@@ -7,6 +7,32 @@ pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
 }
 
 #[test]
+fn playlist_name_dialog_keeps_desktop_song_visuals() {
+    let catalog = prepared((0..40).map(|id| lw_core::Song {
+        id: Some(id),
+        title: format!("Track {id}"),
+        ..Default::default()
+    }).collect());
+    let mut state = ShellState::default();
+    let player = PlayerView::default();
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
+    ui.verify_views(false);
+    let frame = FrameIn::new(1440.0, 872.0).reduced_motion(true);
+    let mut draw = |state: &ShellState| {
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut None)
+        }).unwrap();
+        ui.rebuilt_named("song-visual")
+    };
+    assert!(draw(&state) > 0);
+    draw(&state);
+    for intent in [Intent::NewList(None), Intent::CancelPlaylistName] {
+        state.apply(intent);
+        assert_eq!(draw(&state), 0);
+    }
+}
+
+#[test]
 fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = prepared(
@@ -40,10 +66,12 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
             "compact-library"
         };
         let mut initial_rows = 0;
-        for tick in 0..20 {
+        // warm-up shows every second the ticks below show, then plays as they do: some frames keep the transport, some rebuild it
+        for tick in 0..40 {
             frame.wire.time = tick as f64 * 0.05;
+            let position = if tick < 20 { tick as f64 } else { 14.0 + (tick - 20) as f64 * 0.05 };
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
-                shell(ui, &player, tick as f64, &catalog, &state, &mut None)
+                shell(ui, &player, position, &catalog, &state, &mut None)
             })
             .unwrap();
             let _ = ui.output(); // The native host consumes the ABI output on every frame.
@@ -53,6 +81,8 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
             initial_rows > 0,
             "the retained-view counter must observe the initial build at width {width}"
         );
+        // the transport and clock rebuild when what they show moves (a playhead step, a second), not every tick
+        let (mut transports, mut clocks) = (0, 0);
         for tick in 1..=20 {
             let position = 12.0 + tick as f64 * 0.05;
             frame.wire.time += 0.05;
@@ -77,14 +107,14 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
                 );
             }
             if width == 1440.0 {
-                assert!(ui.rebuilt_named("transport") > 0);
-                assert!(ui.rebuilt_named("playback-clock") > 0);
+                transports += ui.rebuilt_named("transport");
+                clocks += ui.rebuilt_named("playback-clock");
                 let seek = ui
                     .a11y_nodes()
                     .iter()
                     .find(|node| ui.a11y_name_of(node) == "Playback position")
                     .unwrap();
-                assert!((seek.value.now - position).abs() < 0.001);
+                assert!((seek.value.now - position).abs() <= 240.0 / 2048.0 + 0.001, "{} at {position}", seek.value.now);
                 let clock = ui
                     .a11y_nodes()
                     .iter()
@@ -100,6 +130,11 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
                 pxui::library_counter(mem_sys::COUNT_LOCAL_ALLOCS),
                 ui.text_layout_count() - layouts
             );
+        }
+        if width == 1440.0 {
+            // a second of 0.05 s ticks: about nine 0.117 s playhead steps, one or two clock seconds
+            assert!(transports > 0 && transports < 20, "{transports} transport rebuilds");
+            assert!(clocks > 0 && clocks <= 2, "{clocks} clock rebuilds");
         }
         let updated = PlayerView {
             revision: player.revision + 1,
@@ -389,6 +424,12 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         ui.a11y_nodes().len() < 700,
         "ten thousand occurrences remain virtual"
     );
+    let sheet = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| ui.a11y_name_of(node) == "Playback queue")
+        .expect("the playback queue sheet");
+    assert!((sheet.rect.h - frame.wire.height * 0.86).abs() < 1.0, "the sheet cap includes the space outside the scroll region");
     let queue_rect = ui
         .a11y_nodes()
         .iter()
@@ -853,7 +894,8 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
     for (name, expected) in [
         ("Duplicate queued song", Intent::PlayQueue(3)),
         ("Remove from queue", Intent::RemoveQueue(3)),
-        ("Clear up next", Intent::ClearQueue),
+        // Swift's panel heading opens the full queue; Clear and Undo are the sheet's
+        ("Show full queue", Intent::ShowQueue),
     ] {
         let node = ui
             .a11y_nodes()
@@ -885,22 +927,9 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         shell(ui, &player, position, &cleared, &state, &mut intent)
     })
     .unwrap();
-    let undo = ui
-        .a11y_nodes()
-        .iter()
-        .find(|node| ui.a11y_name_of(node) == "Undo clear up next")
-        .unwrap()
-        .id;
-    ui.inject_a11y(&[pxui::A11yAction {
-        id: undo,
-        action_code: 1,
-        ..Default::default()
-    }]);
-    crate::testing::frame(&mut ui, &frame, &mut |ui| {
-        shell(ui, &player, position, &cleared, &state, &mut intent)
-    })
-    .unwrap();
-    assert_eq!(intent, Some(Intent::UndoQueue));
+    let names: Vec<_> = ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_owned()).collect();
+    assert!(names.iter().any(|name| name == "Up next cleared."), "the cleared panel says so: {names:?}");
+    assert!(!names.iter().any(|name| name == "Undo clear up next" || name == "Clear up next"), "the panel has no Clear or Undo key (Swift)");
     assert!(
         !ui.a11y_nodes()
             .iter()
@@ -1368,7 +1397,6 @@ fn transport_buttons_return_intents_and_update_retained_labels() {
     };
     let frame = FrameIn::new(1440.0, 872.0);
     for (name, expected) in [
-        ("Refresh library", Intent::RefreshLibrary),
         ("Play", Intent::Play),
         ("Pause", Intent::Pause),
         ("Previous", Intent::Previous),
@@ -2011,7 +2039,8 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
     assert_eq!(find(&ui, "Track 010").rect.w - before.w, 320.0);
     state.apply(Intent::Navigate(catalog::Route::Collection(0)));
     build(&mut ui, &state, &frame, &mut intent);
-    assert!((find(&ui, "Track 001").rect.y - (before.y - 10.0 * 38.0)).abs() < 0.001);
+    // a list page leads with its kind's line (6 + 18.2) and its Play/Shuffle tools (30 + 15) over the songs' heading
+    assert!((find(&ui, "Track 001").rect.y - (before.y - 10.0 * 38.0 + 6.0 + 18.2 + 30.0 + 15.0)).abs() < 0.001);
     assert!(
         !ui.a11y_nodes()
             .iter()
@@ -2797,6 +2826,12 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
             "Never played", "New list", "Keyboard shortcuts",
         ]
     );
+    let favorites = |role| {
+        ui.a11y_nodes().iter().find(|n| n.is_role(role) && ui.a11y_name_of(n) == "Favorites").unwrap().rect
+    };
+    let row = favorites(pxui::Role::ListItem);
+    let label = favorites(pxui::Role::Label);
+    assert!((label.y - row.y - (row.h - label.h + 2.0) / 2.0).abs() < 0.001, "the leading gap belongs above the playlist label");
     for (name, expected) in [
         ("Search", Intent::ShowCommands),
         ("Dropbox", Intent::Files(files::Request::Browse(location(6)))),

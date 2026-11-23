@@ -910,6 +910,7 @@ pxui::TextWorker::new fn () -> Result<TextWorker, Error>
 pxui::ThemeHandle impl Default
 pxui::ThemeHandle impl Drop
 pxui::ThemeHandle struct (_)
+pxui::ThemeHandle::animate_swap fn (&mut self, on: bool)
 pxui::ThemeHandle::density fn (&mut self, density: f32)
 pxui::ThemeHandle::from_tokens fn (tokens: Tokens) -> ThemeHandle
 pxui::ThemeHandle::parse fn (source: &str) -> Result<ThemeHandle, Error>
@@ -1025,6 +1026,7 @@ pxui::Ui::key_down fn (&self, key: KeyCode) -> bool
 pxui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool
 pxui::Ui::keyboard fn (&self) -> Keyboard
 pxui::Ui::label fn (&mut self, text: &str, style: Label) -> Handle
+pxui::Ui::label_at fn (&mut self, key: Key, rect: Rect, text: &str, style: Label) -> Result<Handle, Error>
 pxui::Ui::label_digits fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::Ui::label_fmt fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::Ui::last_error fn (&self) -> &str
@@ -1117,6 +1119,9 @@ pxui::Ui::repaint_at fn (&self) -> Option<f64>
 pxui::Ui::request_cursor fn (&mut self, shape: Cursor)
 pxui::Ui::request_frame fn (&mut self)
 pxui::Ui::resolve fn (&self, style: &Label) -> TextStyle
+pxui::Ui::retain_palette_labels fn (&mut self)
+pxui::Ui::retain_palette_paint fn (&mut self)
+pxui::Ui::retain_view_on_resize fn (&mut self)
 pxui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
 pxui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::Ui::row fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
@@ -1797,6 +1802,7 @@ pxui::ui::Ui::key_down fn (&self, key: KeyCode) -> bool
 pxui::ui::Ui::key_pressed fn (&self, key: KeyCode, mods: Mods) -> bool
 pxui::ui::Ui::keyboard fn (&self) -> Keyboard
 pxui::ui::Ui::label fn (&mut self, text: &str, style: Label) -> Handle
+pxui::ui::Ui::label_at fn (&mut self, key: Key, rect: Rect, text: &str, style: Label) -> Result<Handle, Error>
 pxui::ui::Ui::label_digits fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::ui::Ui::label_fmt fn (&mut self, args: Arguments<'_>, style: Label) -> Handle
 pxui::ui::Ui::last_error fn (&self) -> &str
@@ -1889,6 +1895,9 @@ pxui::ui::Ui::repaint_at fn (&self) -> Option<f64>
 pxui::ui::Ui::request_cursor fn (&mut self, shape: Cursor)
 pxui::ui::Ui::request_frame fn (&mut self)
 pxui::ui::Ui::resolve fn (&self, style: &Label) -> TextStyle
+pxui::ui::Ui::retain_palette_labels fn (&mut self)
+pxui::ui::Ui::retain_palette_paint fn (&mut self)
+pxui::ui::Ui::retain_view_on_resize fn (&mut self)
 pxui::ui::Ui::reveal fn (&mut self, list: &Handle, index: usize)
 pxui::ui::Ui::root_at fn (&self, point: Point, roots: &[Key]) -> Option<Key>
 pxui::ui::Ui::row fn <F: FnMut(&mut Ui)>(&mut self, node: Node, f: F) -> Handle
@@ -2093,6 +2102,8 @@ pxui_types::Environment impl Default
 pxui_types::Environment impl PartialEq
 pxui_types::Environment impl StructuralPartialEq
 pxui_types::Environment struct
+pxui_types::Environment::OVERLAY_SCROLLERS const u32
+pxui_types::Environment::SCROLLER_HOLD const f64
 pxui_types::Environment::keyboard_animation fn const (self, frame: [f32; 4], from: [f32; 4], started: f64, duration: f64, curve: u32, visible: bool) -> Environment
 pxui_types::Environment::keyboard_curve field u32
 pxui_types::Environment::keyboard_duration field f64
@@ -2101,8 +2112,9 @@ pxui_types::Environment::keyboard_from field [f32; 4]
 pxui_types::Environment::keyboard_started field f64
 pxui_types::Environment::keyboard_visible field u32
 pxui_types::Environment::new fn const (safe_area: [f32; 4]) -> Environment
-pxui_types::Environment::reserved field u32
+pxui_types::Environment::overlay_scrollers fn const (self, on: bool) -> Environment
 pxui_types::Environment::safe_area field [f32; 4]
+pxui_types::Environment::scrollers field u32
 pxui_types::Environment::size field u32
 pxui_types::Event impl Clone
 pxui_types::Event impl Copy
@@ -2308,6 +2320,7 @@ pxui_types::Label::color fn const (self, token: ColorToken) -> Label
 pxui_types::Label::ellipsis fn const (self) -> Label
 pxui_types::Label::ellipsis_head fn const (self) -> Label
 pxui_types::Label::ellipsis_middle fn const (self) -> Label
+pxui_types::Label::ellipsis_none fn const (self) -> Label
 pxui_types::Label::font fn const (self, family: u16) -> Label
 pxui_types::Label::grow fn const (self) -> Label
 pxui_types::Label::h_px fn const (self, points: f32) -> Label
@@ -5261,6 +5274,7 @@ pxui_types::text::Label::color fn const (self, token: ColorToken) -> Label
 pxui_types::text::Label::ellipsis fn const (self) -> Label
 pxui_types::text::Label::ellipsis_head fn const (self) -> Label
 pxui_types::text::Label::ellipsis_middle fn const (self) -> Label
+pxui_types::text::Label::ellipsis_none fn const (self) -> Label
 pxui_types::text::Label::font fn const (self, family: u16) -> Label
 pxui_types::text::Label::grow fn const (self) -> Label
 pxui_types::text::Label::h_px fn const (self, points: f32) -> Label

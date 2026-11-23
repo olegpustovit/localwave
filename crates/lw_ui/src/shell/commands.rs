@@ -99,7 +99,9 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PickerFieldConfig) {
         });
     }
     let results = 420.0_f32.min((height - 176.0).max(60.0));
-    ui.set_node_layout(&c.list, &Node::column().w(Size::Grow).h(Size::Fit).pad(6.0).min_h(60.0).max_h(results));
+    ui.set_node_layout(&c.list, &Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(6.0, 6.0, 6.0, 0.0)).min_h(60.0).max_h(results));
+    // The bottom inset scrolls with the results and leaves the bottom of the viewport visible.
+    ui.within(&c.list, &mut |ui| spacer(ui, "results-bottom", 6.0));
 }
 
 /// The query field's sides: 18 points in from the card's edges.
@@ -143,7 +145,10 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
             };
             type Line = ((f32, f32), (f32, f32));
             let lines: &[Line] = match kind {
-                Icon::Chevron => &[((5.0, 3.0), (10.0, 8.0)), ((10.0, 8.0), (5.0, 13.0))],
+                Icon::Chevron => {
+                    crate::icons::chevron(paint, rect, Rgba::token(INK));
+                    return;
+                }
                 Icon::Queue | Icon::Rows => &[((2.0, 4.0), (14.0, 4.0)), ((2.0, 8.0), (14.0, 8.0)), ((2.0, 12.0), (11.0, 12.0))],
                 Icon::Folder => &[
                     ((1.0, 4.0), (6.0, 4.0)),
@@ -200,10 +205,17 @@ const PALETTE_STATUS: Label = TEXT_14.grow().h_px(48.0).color(SECONDARY);
 /// The palette and the shortcuts card: a modal centred across, its top edge at Swift's 12% rule (`commands::top`).
 const OVERLAY_TOP: Overlay = Overlay::DEFAULT.present(pxui::Presentation::Top);
 
-/// Swift's 12% is of the window below the status inset (phone only; desktop windows keep content-rect math), capped at 96.
+/// Swift's 12% (capped at 96) is of the area below the status inset on the phone and below the titlebar on the desktop, whose
+/// content Swift lays out under it.
 fn top(content: Rect, inset: f32) -> f32 {
-    let inset = if content.w < super::compact::BREAKPOINT { inset } else { 0.0 };
     inset + ((content.h - inset) * 0.12).min(96.0)
+}
+
+fn overlay_border(ui: &mut Ui, card: &Handle) {
+    // Swift centers its one-point stroke half a point outside the card.
+    ui.canvas_over(card, |paint, rect| {
+        paint.stroke(Rect::new(rect.x - 0.5, rect.y - 0.5, rect.w + 1.0, rect.h + 1.0), Stroke::new(Rgba::token(LINE)));
+    });
 }
 
 pub(super) fn palette_view(
@@ -224,7 +236,7 @@ pub(super) fn palette_view(
         let row = cover(index)?;
         player.artwork?.get(row.cover_art_id, row.cover_art_path?, 28.0, None)
     };
-    let open = ui.modal("commands", &palette.name("Search and commands"), |ui| {
+    let modal = ui.modal("commands", &palette.name("Search and commands"), |ui| {
         let r = ui.picker("palette", "Search songs, folders, or type a command", state.command_query.as_str(), &PALETTE.image(&image), &mut |_, rows| {
             for (index, item) in items.iter().enumerate() {
                 let heading = if index == 0 || items[index - 1].group != item.group { item.group } else { "" };
@@ -249,8 +261,14 @@ pub(super) fn palette_view(
                 ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, PALETTE_STATUS);
             });
         }
-    }).open;
-    if !open && intent.is_none() {
+    });
+    if modal.open {
+        const LOOK: pxui::theme::States = pxui::theme::States::of(
+            PAPER_FILL.shadow(pxui::theme::Shadow::NONE.color(Rgba::BLACK.alpha(102)).offset(0.0, 30.0).blur(40.0).spread(-20.0)),
+        );
+        ui.style(&modal.handle, &LOOK, State::default());
+        overlay_border(ui, &modal.handle);
+    } else if intent.is_none() {
         *intent = Some(Intent::CloseCommands);
     }
 }
@@ -276,34 +294,42 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
     let half = ((card - 48.0 - 16.0) * 0.5).max(1.0);
     const KEY_LABEL: Label = Label::BODY.line_height(19.6).wrap_spaces();
     let mut heights = [19.6_f32; ROWS.len()];
-    for (height, (label, _)) in heights.iter_mut().zip(ROWS) {
+    let mut labels = ROWS.map(|(label, _)| label);
+    for (index, (height, (label, _))) in heights.iter_mut().zip(ROWS).enumerate() {
         *height = ui
             .text_service()
             .measure(label, KEY_LABEL, Some(half))
             .map_or(19.6, |m| m.height.max(19.6));
+        if label == "Small player / full panel" && *height > 19.6 {
+            labels[index] = "Small player /\nfull panel";
+            *height = ui.text_service().measure(labels[index], KEY_LABEL, Some(half))
+                .map_or(*height, |m| m.height.max(19.6));
+        }
     }
     let body_height: f32 = 44.0 + 25.2 + 12.0 + heights.iter().sum::<f32>() + 11.0 * 8.0;
     let content = ui.content_rect();
     let top = top(content, inset);
     let shortcuts = OVERLAY_TOP.at(pxui::Point::new(0.0, top)).w_px(card.min(content.w)).max_h_px((content.h - top - 16.0).max(0.0));
-    let open = ui.modal("shortcuts", &shortcuts.name("Keyboard shortcuts"), |ui| {
+    let modal = ui.modal("shortcuts", &shortcuts.name("Keyboard shortcuts"), |ui| {
         ui.column(Node::column().w(Size::Grow).h_px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))), |ui| {
-            ui.scroll_view("shortcuts", Node::DEFAULT.h(Size::Grow), |ui| {
+            let scroll = ui.scroll_view("shortcuts", Node::DEFAULT.h(Size::Grow), |ui| {
                 let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
                 ui.within(&body, &mut |ui| {
-                    ui.label("Keyboard", TEXT_18.grow().color(INK));
+                    ui.label("Keyboard", TEXT_18.grow().weight(500).color(INK));
                     ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
                         for (index, (label, key)) in ROWS.iter().enumerate() {
                             let row = ui.node(
                                 Key::Id(index as i64),
-                                Node::row().w(Size::Grow).h_px(heights[index]).gap(16.0),
+                                Node::row().w(Size::Grow).h_px(heights[index]).gap(16.0)
+                                    .align(Align::Center),
                             );
                             ui.within(&row, &mut |ui| {
                                 let node = ui.node(
                                     "label",
                                     Node::column().w_px(half).h_px(heights[index]).role(Role::Label).look(INK_TEXT),
                                 );
-                                ui.text_line_box(&node, label, KEY_LABEL, &[]).unwrap();
+                                ui.text_line_box(&node, labels[index], KEY_LABEL, &[]).unwrap();
+                                if labels[index] != *label { ui.a11y_name(&node, label); }
                                 ui.node("fill", Node::DEFAULT.w(Size::Grow));
                                 ui.label(key, MONO_DIM);
                             });
@@ -311,9 +337,15 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
                     });
                 });
             });
+            // The inner scroller has no frame in Swift. Its default one-point inset shifts every line down.
+            let layout = ui.node_layout(&scroll).padding(Edges::ZERO);
+            ui.set_node_layout(&scroll, &layout);
+            ui.style(&scroll, &BARE, State::default());
         });
-    }).open;
-    if !open && intent.is_none() {
+    });
+    if modal.open {
+        overlay_border(ui, &modal.handle);
+    } else if intent.is_none() {
         *intent = Some(Intent::CloseShortcuts);
     }
 }
@@ -437,16 +469,16 @@ mod tests {
             )
             .unwrap();
         }
-        let height = |name: &str| {
+        let bounds = |name: &str| {
             ui.a11y_nodes()
                 .iter()
                 .find(|node| ui.a11y_name_of(node) == name)
                 .unwrap_or_else(|| panic!("missing {name}"))
                 .rect
-                .h
         };
-        assert_eq!(height("Play / pause"), 19.6);
-        assert_eq!(height("Search and commands"), 39.2);
+        assert_eq!(bounds("Play / pause").h, 19.6);
+        assert_eq!(bounds("Search and commands").h, 39.2);
+        assert_eq!(bounds("Keyboard").y - bounds("Keyboard shortcuts").y, 22.0);
     }
 
     #[test]

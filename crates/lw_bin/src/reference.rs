@@ -7,6 +7,7 @@ use lw_bin::library::LibraryWorker;
 use std::path::Path;
 use lw_ui::{Intent, catalog::Route};
 use lw_bin::controller::Command;
+use lw_bin::json::{Json, parse};
 
 /// Screens with a Rust equivalent. Skipped: add (Swift's sheet; Rust uses the native picker) and
 /// track (the song menu popup never paints in a captured window, see docs/rust-port.md). Folder is Files
@@ -27,196 +28,17 @@ pub fn from_args(args: &[String]) -> Result<Option<String>, String> {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub enum Json {
-    Null,
-    Bool(bool),
-    Num(f64),
-    Str(String),
-    Arr(Vec<Json>),
-    Obj(Vec<(String, Json)>),
-}
-
-impl Json {
-    pub fn get(&self, key: &str) -> Option<&Json> {
-        match self {
-            Json::Obj(items) => items.iter().find(|(k, _)| k == key).map(|(_, v)| v),
-            _ => None,
-        }
-    }
-    pub fn str(&self, key: &str) -> &str {
-        match self.get(key) {
-            Some(Json::Str(s)) => s,
-            _ => "",
-        }
-    }
-    pub fn num(&self, key: &str) -> f64 {
-        match self.get(key) {
-            Some(Json::Num(n)) => *n,
-            _ => 0.0,
-        }
-    }
-    pub fn flag(&self, key: &str) -> bool {
-        matches!(self.get(key), Some(Json::Bool(true)))
-    }
-    pub fn items(&self, key: &str) -> &[Json] {
-        match self.get(key) {
-            Some(Json::Arr(items)) => items,
-            _ => &[],
-        }
-    }
-}
-
-pub fn parse(text: &str) -> Result<Json, String> {
-    let mut p = (text.as_bytes(), 0usize);
-    let value = value(&mut p)?;
-    ws(&mut p);
-    if p.1 != p.0.len() {
-        return Err("Trailing JSON data".into());
-    }
-    Ok(value)
-}
-
-type P<'a> = (&'a [u8], usize);
-fn ws(p: &mut P) {
-    while p.0.get(p.1).is_some_and(u8::is_ascii_whitespace) {
-        p.1 += 1;
-    }
-}
-fn eat(p: &mut P, byte: u8) -> Result<(), String> {
-    ws(p);
-    if p.0.get(p.1) == Some(&byte) {
-        p.1 += 1;
-        Ok(())
-    } else {
-        Err(format!("Expected '{}' at byte {}", byte as char, p.1))
-    }
-}
-fn value(p: &mut P) -> Result<Json, String> {
-    ws(p);
-    match p.0.get(p.1).copied() {
-        Some(b'{') => {
-            p.1 += 1;
-            let mut items = Vec::new();
-            ws(p);
-            if p.0.get(p.1) == Some(&b'}') {
-                p.1 += 1;
-                return Ok(Json::Obj(items));
-            }
-            loop {
-                ws(p);
-                let key = string(p)?;
-                eat(p, b':')?;
-                items.push((key, value(p)?));
-                ws(p);
-                match p.0.get(p.1) {
-                    Some(b',') => p.1 += 1,
-                    Some(b'}') => {
-                        p.1 += 1;
-                        return Ok(Json::Obj(items));
-                    }
-                    _ => return Err(format!("Bad object at byte {}", p.1)),
-                }
-            }
-        }
-        Some(b'[') => {
-            p.1 += 1;
-            let mut items = Vec::new();
-            ws(p);
-            if p.0.get(p.1) == Some(&b']') {
-                p.1 += 1;
-                return Ok(Json::Arr(items));
-            }
-            loop {
-                items.push(value(p)?);
-                ws(p);
-                match p.0.get(p.1) {
-                    Some(b',') => p.1 += 1,
-                    Some(b']') => {
-                        p.1 += 1;
-                        return Ok(Json::Arr(items));
-                    }
-                    _ => return Err(format!("Bad array at byte {}", p.1)),
-                }
-            }
-        }
-        Some(b'"') => Ok(Json::Str(string(p)?)),
-        Some(b't') if p.0[p.1..].starts_with(b"true") => {
-            p.1 += 4;
-            Ok(Json::Bool(true))
-        }
-        Some(b'f') if p.0[p.1..].starts_with(b"false") => {
-            p.1 += 5;
-            Ok(Json::Bool(false))
-        }
-        Some(b'n') if p.0[p.1..].starts_with(b"null") => {
-            p.1 += 4;
-            Ok(Json::Null)
-        }
-        Some(_) => {
-            let start = p.1;
-            while p.0.get(p.1).is_some_and(|b| b"+-.eE0123456789".contains(b)) {
-                p.1 += 1;
-            }
-            std::str::from_utf8(&p.0[start..p.1])
-                .ok()
-                .and_then(|s| s.parse().ok())
-                .map(Json::Num)
-                .ok_or_else(|| format!("Bad value at byte {start}"))
-        }
-        None => Err("Unexpected end of JSON".into()),
-    }
-}
-fn string(p: &mut P) -> Result<String, String> {
-    if p.0.get(p.1) != Some(&b'"') {
-        return Err(format!("Expected string at byte {}", p.1));
-    }
-    p.1 += 1;
-    let mut out: Vec<u8> = Vec::new();
-    let mut high: Option<u32> = None;
-    loop {
-        let byte = *p.0.get(p.1).ok_or("Unterminated string")?;
-        p.1 += 1;
-        match byte {
-            b'"' => return String::from_utf8(out).map_err(|e| e.to_string()),
-            b'\\' => {
-                let escape = *p.0.get(p.1).ok_or("Unterminated escape")?;
-                p.1 += 1;
-                let c = match escape {
-                    b'n' => '\n',
-                    b't' => '\t',
-                    b'r' => '\r',
-                    b'b' => '\u{8}',
-                    b'f' => '\u{c}',
-                    b'u' => {
-                        let hex = p.0.get(p.1..p.1 + 4).ok_or("Short \\u escape")?;
-                        let unit = u32::from_str_radix(std::str::from_utf8(hex).map_err(|e| e.to_string())?, 16)
-                            .map_err(|e| e.to_string())?;
-                        p.1 += 4;
-                        let code = match (high.take(), unit) {
-                            (Some(h), 0xDC00..=0xDFFF) => 0x10000 + ((h - 0xD800) << 10) + (unit - 0xDC00),
-                            (_, 0xD800..=0xDBFF) => {
-                                high = Some(unit);
-                                continue;
-                            }
-                            _ => unit,
-                        };
-                        char::from_u32(code).ok_or("Bad \\u escape")?
-                    }
-                    other => other as char,
-                };
-                out.extend_from_slice(c.encode_utf8(&mut [0; 4]).as_bytes());
-            }
-            _ => out.push(byte),
-        }
-    }
-}
-
 use lw_core::hash_string as hash;
 
 fn manifest() -> Result<Json, String> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../localwave/ReferenceFixture/reference.json");
     parse(&std::fs::read_to_string(path).map_err(|e| format!("{path}: {e}"))?)
+}
+
+/// Swift's fixture source labels: (root, scanned) per source, in source-id order.
+pub fn source_display() -> std::io::Result<Vec<(String, String)>> {
+    let data = manifest().map_err(std::io::Error::other)?;
+    Ok(data.items("sources").iter().map(|s| (s.str("root").to_owned(), s.str("scanned").to_owned())).collect())
 }
 
 /// Seeds the isolated library from the Swift reference manifest: songs, playlists, sources, queue,
@@ -246,7 +68,8 @@ pub fn library(base: &Path, screen: &str, table_styles: lw_ui::catalog::TableSty
         table_styles,
     )?;
     library.trust_stored_availability = true;
-    library.save_settings(&Settings { appearance: Appearance::Light, ..Default::default() })?;
+    // Swift's fixture keeps the System appearance; the app pins the system to light in reference mode
+    library.save_settings(&Settings { appearance: Appearance::System, ..Default::default() })?;
     if screen == "onboarding" {
         return Ok(library); // first run: no sources, no songs
     }
@@ -343,6 +166,11 @@ pub fn library(base: &Path, screen: &str, table_styles: lw_ui::catalog::TableSty
         let local = track.str("state") == "local";
         let rate = album.str("rate");
         let source_id = sources.get(&root_of(dir)).copied();
+        let slot = data.get("player").and_then(|p| p.items("queue").iter().position(|q| matches!(q, Json::Str(id) if id == track.str("id"))));
+        // Swift displays a paused snapshot with an empty Music cache. Give Settings playable
+        // fixture files outside that cache so restoring the paused queue leaves the same total.
+        let fixture_audio = (screen == "settings" && slot.is_some())
+            .then(|| format!("Reference Audio/{:016x}.wav", hash(track.str("id"))));
         let song = library
             .repository
             .upsert_song(
@@ -362,6 +190,7 @@ pub fn library(base: &Path, screen: &str, table_styles: lw_ui::catalog::TableSty
                     is_favorite: i64::from(track.flag("fav")),
                     source_id,
                     relative_path: Some(relative.clone()),
+                    local_file_path: fixture_audio.clone(),
                     duration: Some(track.num("dur")),
                     file_size: Some((track.num("size") * 1_048_576.0) as i64),
                     file_extension: Some(track.str("ext").into()),
@@ -388,12 +217,16 @@ pub fn library(base: &Path, screen: &str, table_styles: lw_ui::catalog::TableSty
         songs.insert(track.str("id").to_string(), song.id.unwrap_or_default());
         // Queue songs get real playable files: the current one at full length (the native player
         // reports its duration), the rest one second so next-item preparation succeeds.
-        let slot = data.get("player").and_then(|p| p.items("queue").iter().position(|q| *q == Json::Str(track.str("id").into())));
         if let Some(slot) = slot {
-            let file = base.join("Sources").join(source_name(&data, &root_of(dir))).join(&song.relative_path.clone().unwrap_or_default());
+            let file = fixture_audio.as_ref().map_or_else(
+                || base.join("Sources").join(source_name(&data, &root_of(dir))).join(song.relative_path.as_deref().unwrap_or_default()),
+                |path| base.join("Documents").join(path),
+            );
             std::fs::create_dir_all(file.parent().ok_or_else(|| other("No parent".into()))?)?;
             std::fs::write(&file, silent_wav(if slot == current { track.num("dur") as u32 } else { 1 }))?;
-            if slot == current {
+            if slot == current && fixture_audio.is_some() {
+                audio.insert(track.str("id").to_string(), file.canonicalize()?);
+            } else if slot == current {
                 // Playing copies a Copied song into Music/<sha256>.<ext>, and the waveform signature is
                 // derived from that name: pre-place the identical copy to compute the same signature.
                 let sha = lw_core::import::hex_digest(&lw_apple_sys::audio::read(&file, false, &std::sync::atomic::AtomicBool::new(false))?.sha256);
@@ -451,7 +284,9 @@ fn seed_history(
         if track.flag("pin") {
             preferences.set_pinned(id, true);
         }
-        let Some(Json::Arr(peaks)) = data.get("waveforms").and_then(|w| w.get(track.str("id"))).and_then(|w| w.get("desktop")) else { continue };
+        // Swift draws the manifest's phone peaks in its phone player (`LWReferenceFixture.peaks`: 200 bars take the desktop set)
+        let set = if std::env::var_os("LOCALWAVE_REFERENCE_MOBILE").is_some() { "mobile" } else { "desktop" };
+        let Some(Json::Arr(peaks)) = data.get("waveforms").and_then(|w| w.get(track.str("id"))).and_then(|w| w.get(set)) else { continue };
         // A real file makes the worker re-derive the signature; match it so the seeded peaks stay.
         let signature = match audio.get(track.str("id")) {
             Some(file) => lw_core::import::hex_digest(&lw_apple_sys::waveform::version(file, music, false)?.digest),
@@ -464,12 +299,16 @@ fn seed_history(
     Ok(())
 }
 
-/// The manifest carries 200 desktop bars; the cache holds 512 peaks.
+/// Fill each render bucket with the matching peak from the 96- or 200-bar reference.
 fn resample(peaks: &[Json]) -> lw_core::waveform::Peaks {
-    std::array::from_fn(|i| match peaks.get(i * peaks.len() / lw_core::waveform::PEAK_COUNT) {
-        Some(Json::Num(n)) => n.clamp(0.0, 1.0) as f32,
-        _ => 0.0,
-    })
+    let mut samples = [0.0; lw_core::waveform::PEAK_COUNT];
+    let count = samples.len();
+    for (bar, peak) in peaks.iter().enumerate() {
+        let Json::Num(peak) = peak else { continue };
+        samples[bar * count / peaks.len()..(bar + 1) * count / peaks.len()]
+            .fill(peak.clamp(0.0, 1.0) as f32);
+    }
+    samples
 }
 
 /// Silent 8 kHz mono 8-bit WAV of the exact duration; AVFoundation sniffs content, not the extension.
@@ -482,6 +321,62 @@ fn silent_wav(seconds: u32) -> Vec<u8> {
     }
     bytes.resize(44 + data as usize, 0x80);
     bytes
+}
+
+/// Encodes the content of a 1× RGBA drawable as a PNG, cropping the first `inset` titlebar rows.
+pub fn capture_png((width, height, rgba): (u32, u32, &[u8]), inset: u32) -> Result<Vec<u8>, String> {
+    let invalid = || format!("Capture {width}x{height} has invalid RGBA data or titlebar inset {inset}");
+    let stride = (width as usize).checked_mul(4).filter(|&bytes| bytes > 0).ok_or_else(invalid)?;
+    if stride.checked_mul(height as usize) != Some(rgba.len()) || inset >= height {
+        return Err(invalid());
+    }
+    let h = height - inset;
+    let content = &rgba[inset as usize * stride..];
+    let mut raw = Vec::with_capacity(content.len().checked_add(h as usize).ok_or_else(invalid)?);
+    for row in content.chunks_exact(stride) {
+        raw.push(0); // no row filter
+        raw.extend_from_slice(row);
+    }
+    // zlib stream of stored (uncompressed) deflate blocks: the fixture needs no compressor
+    let mut zlib = vec![0x78, 0x01];
+    let last = raw.len().div_ceil(65535) - 1;
+    for (index, block) in raw.chunks(65535).enumerate() {
+        let len = block.len() as u16;
+        zlib.push(u8::from(index == last));
+        zlib.extend_from_slice(&len.to_le_bytes());
+        zlib.extend_from_slice(&(!len).to_le_bytes());
+        zlib.extend_from_slice(block);
+    }
+    let (mut a, mut b) = (1u32, 0u32);
+    for &byte in &raw {
+        a = (a + byte as u32) % 65521;
+        b = (b + a) % 65521;
+    }
+    zlib.extend_from_slice(&((b << 16) | a).to_be_bytes());
+    let mut header = [0u8; 13];
+    header[..4].copy_from_slice(&width.to_be_bytes());
+    header[4..8].copy_from_slice(&h.to_be_bytes());
+    header[8..].copy_from_slice(&[8, 6, 0, 0, 0]);
+    let mut png = b"\x89PNG\r\n\x1a\n".to_vec();
+    for (kind, body) in [(b"IHDR", &header[..]), (b"IDAT", &zlib[..]), (b"IEND", &[][..])] {
+        png.extend_from_slice(&(body.len() as u32).to_be_bytes());
+        let start = png.len();
+        png.extend_from_slice(kind);
+        png.extend_from_slice(body);
+        png.extend_from_slice(&crc32(&png[start..]).to_be_bytes());
+    }
+    Ok(png)
+}
+
+fn crc32(bytes: &[u8]) -> u32 {
+    let mut crc = !0u32;
+    for &byte in bytes {
+        crc ^= byte as u32;
+        for _ in 0..8 {
+            crc = (crc >> 1) ^ (0xEDB8_8320 & (crc & 1).wrapping_neg());
+        }
+    }
+    !crc
 }
 
 fn source_name<'a>(data: &'a Json, id: &str) -> &'a str {
@@ -524,10 +419,12 @@ pub fn route(app: &mut App, screen: &str, late: bool) -> Result<(), String> {
         "now" => vec![albums, Intent::TogglePlayer],
         "onboarding" => vec![],
         "folder" => vec![Intent::Navigate(Route::Files)],
+        // Swift opens Now first (`showNow`): on a phone the queue sheet covers the full-screen player
+        "queue" if std::env::var_os("LOCALWAVE_REFERENCE_MOBILE").is_some() => vec![albums, Intent::TogglePlayer, Intent::ShowQueue],
         "queue" => vec![albums, Intent::ShowQueue],
         _ => vec![Intent::Navigate(Route::Songs)],
     };
-    let split = if is_overlay(screen) { 1 } else { intents.len() };
+    let split = if is_overlay(screen) { intents.len().saturating_sub(1) } else { intents.len() };
     for intent in if late { &intents[split..] } else { &intents[..split] } {
         shell_state.apply(intent.clone());
     }
@@ -547,6 +444,10 @@ pub fn route(app: &mut App, screen: &str, late: bool) -> Result<(), String> {
     if !late && matches!(screen, "folders" | "folder") {
         files.request(lw_ui::files::Request::Roots).map_err(|e| e.to_string())?;
     }
+    // actions.rs reads offline space when Settings opens
+    if late && screen == "settings" {
+        player.command(Command::ReadStorage).map_err(|e| e.to_string())?;
+    }
     if (late || !is_overlay(screen)) && matches!(screen, "find-results" | "commands") {
         let request = shell_state.request(player.catalog()).ok_or("Browse request unavailable")?;
         player.browse(request).map_err(|e| e.to_string())?;
@@ -559,19 +460,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn parses_escapes_and_nesting() {
-        let json = parse(r#"{"a":[1,-2.5,true,null],"s":"x·😀\n","o":{}}"#).unwrap();
-        assert_eq!(json.items("a").len(), 4);
-        assert_eq!(json.str("s"), "x\u{b7}\u{1f600}\n");
-        assert!(parse("{\"a\":1} x").is_err());
-    }
-
-    #[test]
     fn resamples_desktop_peaks_to_the_cache_width() {
         let peaks: Vec<Json> = (0..200).map(|i| Json::Num(i as f64 / 199.0)).collect();
         let out = resample(&peaks);
         assert_eq!((out[0], out[511]), (0.0, 1.0));
         assert!(out.windows(2).all(|w| w[0] <= w[1]));
+    }
+
+    #[test]
+    fn reference_waveform_preserves_every_displayed_peak() {
+        for count in [96, 200] {
+            let peaks: Vec<_> = (0..count).map(|i| Json::Num(if i % 2 == 0 { 0.75 } else { 0.25 })).collect();
+            let samples = resample(&peaks);
+            for bar in 0..count {
+                let bucket = &samples[bar * samples.len() / count..(bar + 1) * samples.len() / count];
+                let actual = bucket.iter().copied().fold(0.0_f32, f32::max);
+                assert_eq!(actual, if bar % 2 == 0 { 0.75 } else { 0.25 }, "bar {bar} of {count}");
+            }
+        }
     }
 
     #[test]
@@ -582,5 +488,46 @@ mod tests {
         assert_eq!(from_args(&args(&["x"])), Ok(None));
         assert_eq!(from_args(&args(&["x", "--reference-screen", "queue"])), Ok(Some("queue".into())));
         assert!(from_args(&args(&["x", "--reference-screen", "nope"])).is_err());
+    }
+
+    #[test]
+    fn settings_fixture_restores_playable_audio_and_waveform_without_filling_the_music_cache() {
+        let base = std::env::temp_dir().join(format!("lw-reference-settings-{}", std::process::id()));
+        let mut worker = library(&base, "settings", lw_bin::library::headless_table_styles()).unwrap();
+        let player = worker.load_player_state().unwrap();
+        let song = player.song_ids[player.current_index as usize];
+        let cancelled = std::sync::atomic::AtomicBool::new(false);
+        let audio = worker.prepare_playback(song, 1, 1, 1.0, &cancelled).unwrap();
+        assert!(audio.path.starts_with(base.canonicalize().unwrap().join("Documents/Reference Audio")));
+        assert_eq!(worker.cache_usage().unwrap().0, 0);
+        let peaks = worker.waveform_peaks(song, 1.0, &cancelled).unwrap().unwrap();
+        assert!(peaks.iter().any(|peak| *peak > 0.1), "restore the seeded waveform");
+        drop(audio);
+        drop(worker);
+        std::fs::remove_dir_all(&base).unwrap();
+    }
+
+    #[test]
+    fn capture_png_crops_the_inset_and_preserves_native_pixels() {
+        assert_eq!(crc32(b"IEND"), 0xAE42_6082);
+        let rgba = [
+            0, 0, 0, 255, 0, 0, 0, 255,
+            10, 20, 30, 255, 40, 50, 60, 200,
+            70, 80, 90, 150, 100, 110, 120, 100,
+        ];
+        let png = capture_png((2, 3, &rgba), 1).unwrap();
+        assert_eq!(&png[..8], b"\x89PNG\r\n\x1a\n");
+        assert_eq!(&png[16..24], &[0, 0, 0, 2, 0, 0, 0, 2]);
+        // IDAT starts with a zlib header and one final stored block containing two RGBA scanlines.
+        let idat = 8 + 25 + 8;
+        assert_eq!(&png[idat..idat + 7], &[0x78, 0x01, 1, 18, 0, 0xED, 0xFF]);
+        assert_eq!(&png[idat + 7..idat + 25], &[
+            0, 10, 20, 30, 255, 40, 50, 60, 200,
+            0, 70, 80, 90, 150, 100, 110, 120, 100,
+        ]);
+        assert!(capture_png((2, 3, &rgba), 3).is_err());
+        assert!(capture_png((2, 3, &rgba[..23]), 1).is_err());
+        assert!(capture_png((0, 3, &[]), 1).is_err());
+        assert!(capture_png((u32::MAX, u32::MAX, &[]), 1).is_err());
     }
 }

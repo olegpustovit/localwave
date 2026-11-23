@@ -12,6 +12,8 @@ mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources" "$frameworks"
 cp "$products/localwave" "$app/Contents/MacOS/localwave"
 cp -L "$products/libpxui.2.dylib" "$frameworks/libpxui.2.dylib"
 cp packaging/Info.plist "$app/Contents/Info.plist"
+# Swift's bundled demo library (onboarding's "Try the demo library")
+cp -R localwave/DemoLibrary "$app/Contents/Resources/DemoLibrary"
 if [ -n "${PROVISIONING_PROFILE:-}" ]; then
     cp "$PROVISIONING_PROFILE" "$app/Contents/embedded.provisionprofile"
 fi

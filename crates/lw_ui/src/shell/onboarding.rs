@@ -1,8 +1,7 @@
 //! Port of WaveOnboardingView for a library with no sources, plus the empty-library page and the
 //! Find hint. All strings are static; the screen is one retained view keyed by its width and the
-//! Google Drive disclosure. Deferred against Swift: the demo-library installer (92 bundled tracks;
-//! the second link stays "Explore the library"), the folder glyph on the primary button and the
-//! live song count (onboarding only shows for an empty library, so it is always "00").
+//! Google Drive disclosure. Deferred against Swift: the live song count (onboarding only shows for an
+//! empty library, so it is always "00").
 use super::*;
 
 /// Swift's `didStart` gate (persisted as `lwDidStart`): shown until a source is added or it is
@@ -20,7 +19,7 @@ pub(super) const LIBRARY_EMPTY: &str =
     "Your music starts with a folder. Add music in Folders to build your library.";
 pub(super) const FIND_HINT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
 
-pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> Handle {
+pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<Intent>) -> Handle {
     let pxui::ViewSize { width, .. } = ui.view_size();
     let column = (width - 32.0).max(1.0);
     let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
@@ -31,11 +30,11 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
     ui.within(&root, &mut |ui| {
         ui.view_of(
             "onboarding-page",
-            &(column.to_bits(), top_inset.to_bits(), drive),
+            &(column.to_bits(), top_inset.to_bits(), drive, demo),
             |ui| {
                 ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0 + top_inset, 16.0, 34.0)),
                     |ui| {
-                        if page(ui, drive, intent) {
+                        if page(ui, width < compact::BREAKPOINT, drive, demo, intent) {
                             ui.set_state(&root, i64::from(!drive));
                         }
                     },
@@ -47,15 +46,19 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, intent: &mut Option<Intent>) -> 
 }
 
 /// An underlined text link (`localwave-button` / `LINK`): as wide as its text, 44 points high, no look of its own.
-const UNDERLINED: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO).label(LEAD_INK);
+/// Swift's `underlined`: the 15-point ink text over a hairline-coloured rule.
+const UNDERLINED: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO).label(LEAD_INK).look(&LINE_RULE);
 /// The primary key (`localwave-button` / `PRIMARY`): paper 15-point text centred on ink across the page, 52 points high.
-const CHOOSE: pxui::Button = pxui::Button::DEFAULT.variant(variant::PRIMARY).size(Size::Grow, Size::Px(52.0)).label(TEXT_15.color(PAPER)).look(&INK_LOOKS);
+/// Swift's headline: 32 points medium, tracked -1.12 (-0.035 em), in 36.8-point lines.
+const HEADLINE: Label = TEXT_32.weight(500).tracking(-0.035).grow().h_px(36.8).color(INK);
+/// Swift's Choose a folder: the 20-point folder and the 15-point medium label 8 apart, centred on ink.
+const CHOOSE: pxui::Button = pxui::Button::DEFAULT.variant(variant::PRIMARY).size(Size::Grow, Size::Px(52.0)).icon(icon_sized(Icon::Folder, 20.0)).icon_size(20.0).gap(8.0).label(TEXT_15.color(PAPER).weight(500)).look(&INK_LOOKS);
 /// The Google Drive disclosure (`localwave-disclosure`): the 1-pixel sliced triangle and the 13-point title.
 const DRIVE: pxui::Disclosure = pxui::Disclosure::DEFAULT;
 const DRIVE_HELP: &str = "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.";
 
 /// Returns true when the Google Drive disclosure was toggled.
-fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
+fn page(ui: &mut Ui, compact: bool, drive: bool, demo: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
     ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
         let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
@@ -71,8 +74,9 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
         spacer(ui, "count-label-gap", 8.0);
         ui.label("songs so far", LEAD_DIM.grow());
         spacer(ui, "heading-gap", 28.0);
-        ui.label("Point it at a folder.", TEXT_32.grow().h_px(36.8).color(INK));
-        ui.label("It stays in sync.", TEXT_32.grow().h_px(36.8).color(INK));
+        let headline = if compact { HEADLINE.line_height(36.8) } else { HEADLINE };
+        ui.label("Point it at a folder.", headline);
+        ui.label("It stays in sync.", headline);
         spacer(ui, "promise-gap", 8.0);
         ui.label("Your files stay where they are. Nothing is uploaded.", PARAGRAPH_15.color(SECONDARY));
         spacer(ui, "steps-gap", 28.0);
@@ -82,11 +86,20 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
             ("step-2", "2", "LocalWave indexes it in the background"),
             ("step-3", "3", "Play at once; cloud songs fetch on play"),
         ] {
-            let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), &PAPER_FILL);
-            ui.within(&row, &mut |ui| {
-                ui.label(number, TEXT_13.w_px(26.0).h_px(46.0).color(SECONDARY));
-                ui.label(line, TEXT_15.grow().h_px(46.0).color(INK));
-            });
+            if compact {
+                ui.id(key, |ui| {
+                    ui.row(Node::row().w(Size::Grow).h(Size::Fit).min_h(45.0).pad_y(12.0).gap(14.0), |ui| {
+                        ui.label(number, TEXT_13.w_px(12.0).color(SECONDARY));
+                        ui.label(line, PARAGRAPH_15.color(INK));
+                    });
+                });
+            } else {
+                let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), &PAPER_FILL);
+                ui.within(&row, &mut |ui| {
+                    ui.label(number, TEXT_13.w_px(26.0).h_px(46.0).color(SECONDARY));
+                    ui.label(line, TEXT_15.grow().h_px(46.0).color(INK));
+                });
+            }
             rule(ui, "step-rule", false);
         }
         ui.node("onboarding-flex", Node::DEFAULT.h(Size::Grow));
@@ -102,8 +115,10 @@ fn page(ui: &mut Ui, drive: bool, intent: &mut Option<Intent>) -> bool {
                 *intent = Some(Intent::ChooseAudio);
             }
             ui.node("links-flex", Node::DEFAULT.w(Size::Grow));
-            if ui.button("explore", "Explore the library", &UNDERLINED).clicked {
-                *intent = Some(Intent::Navigate(Route::Albums));
+            // Swift offers its bundled demo while the library is empty (onboarding shows only then)
+            let label = if demo { "Try the demo library" } else { "Explore the library" };
+            if ui.button("explore", label, &UNDERLINED).clicked {
+                *intent = Some(if demo { Intent::TryDemo } else { Intent::Navigate(Route::Albums) });
             }
         });
         spacer(ui, "drive-gap", 4.0);

@@ -713,9 +713,10 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     )
     .unwrap();
 
+    // each 8x4 cover carries its 4x2, 2x1 and 1x1 mip levels
     assert_eq!(
         graphics.resident_image_bytes(),
-        8 * 4 * 4 * lw_ui::artwork::REQUEST_CAPACITY
+        (8 * 4 + 4 * 2 + 2 + 1) * 4 * lw_ui::artwork::REQUEST_CAPACITY
     );
     for frame in 0..24 {
         mem_sys::local_reset();

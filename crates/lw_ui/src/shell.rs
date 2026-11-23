@@ -57,6 +57,8 @@ pub struct ShellState {
     song_table: std::cell::RefCell<pxui::TableState>,
     /// The desktop folder table's widths and rows (their flags written per files snapshot, cleared by a files request).
     folder_table: std::cell::RefCell<pxui::TableState>,
+    /// The folder table's column widths (Swift's `updateColumnMetrics`) and the files revision they were measured for.
+    folder_columns: std::cell::Cell<(u64, [f32; 6])>,
     /// The phone folder list's (saved songs, marked saved songs), prepared with its row flags (`files::compact_folder`).
     folder_counts: std::cell::Cell<(usize, usize)>,
     /// The songs list's scroll box key, as it reported last frame (its heading reads the scroll from it).
@@ -92,6 +94,8 @@ pub struct ShellState {
     playlist_name_too_long: bool,
     top_inset: f32,
     query_too_long: bool,
+    /// The phone's Find lists every song it found; a new query lists the first eight again.
+    pub(crate) find_all: bool,
     find_results: bool,
     query_revision: u64,
     revision: u64,
@@ -127,6 +131,7 @@ impl Default for ShellState {
             song_live: std::cell::RefCell::new((Vec::new(), Vec::new())),
             song_table: std::cell::RefCell::new(pxui::TableState::new()),
             folder_table: std::cell::RefCell::new(pxui::TableState::new()),
+            folder_columns: std::cell::Cell::new((u64::MAX, [0.0; 6])),
             folder_counts: std::cell::Cell::new((0, 0)),
             song_list: std::cell::Cell::new(0),
             song_marks: (0, None),
@@ -156,6 +161,7 @@ impl Default for ShellState {
             playlist_name_too_long: false,
             top_inset: 0.0,
             query_too_long: false,
+            find_all: false,
             find_results: false,
             query_revision: 0,
             revision: 0,
@@ -565,8 +571,13 @@ impl ShellState {
                     *field = value;
                 }
                 self.metadata_too_long = false;
+                // typing reaches only its dialog (built every frame, in no view): the page behind it stays kept
+                return true;
             }
-            Intent::MetadataTooLong => self.metadata_too_long = true,
+            Intent::MetadataTooLong => {
+                self.metadata_too_long = true;
+                return true;
+            }
             Intent::CloseMetadata => self.metadata = None,
             Intent::ConfirmDeleteSong(song) => {
                 self.delete_song = Some(song);
@@ -577,13 +588,19 @@ impl ShellState {
             Intent::EditPlaylistName(name) => {
                 self.playlist_name = name;
                 self.playlist_name_too_long = false;
+                return true;
             }
-            Intent::PlaylistNameTooLong => self.playlist_name_too_long = true,
+            Intent::PlaylistNameTooLong => {
+                self.playlist_name_too_long = true;
+                return true;
+            }
             Intent::CancelPlaylistName => {
                 self.playlist_editing = false;
                 self.list_dialog = None;
             }
+            Intent::FindShowAll => self.find_all = true,
             Intent::Search(query) => {
+                self.find_all = false;
                 self.query = query;
                 self.clear_selection();
                 self.selection_revision = self.selection_revision.wrapping_add(1);
@@ -861,7 +878,10 @@ pub fn shell(
     } else if state.shortcuts_visible {
         commands::shortcuts(ui, state.top_inset, intent);
     }
-    if state.queue_visible {
+    // a later modal is the one on top: over the phone's full-screen player (a modal of the page) its queue sheet and track menu
+    // come after the page
+    let over_player = state.player_expanded && ui.view_size().width < compact::BREAKPOINT;
+    if state.queue_visible && !over_player {
         queue_sheet(ui, player, catalog, state, intent);
     }
     if let Some((menu, at)) = state.settings_menu {
@@ -870,16 +890,8 @@ pub fn shell(
     if let Some((target, at)) = state.source_menu {
         files::popup(ui, player, target, at, intent);
     }
-    if let Some((index, id, key, at)) = state.song_menu {
-        songs::popup(
-            ui,
-            catalog,
-            state,
-            (index, id, key),
-            at,
-            player.sharing,
-            intent,
-        );
+    if let Some((index, id, key, at)) = state.song_menu.filter(|_| !over_player) {
+        songs::popup(ui, catalog, state, (index, id, key), at, player.sharing, intent);
     }
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, intent);
@@ -912,13 +924,19 @@ pub fn shell(
         *intent = Some(Intent::Setting(lw_core::preferences::Change::DidStart));
     }
     let root = if onboarding::wanted(catalog, state, player.settings.did_start) {
-        onboarding::view(ui, state.top_inset, intent)
+        onboarding::view(ui, state.top_inset, player.demo, intent)
     } else if ui.view_size().width < compact::BREAKPOINT {
         state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, intent)
     } else {
         desktop(ui, player, position, catalog, state, intent)
     };
+    if state.queue_visible && over_player {
+        queue_sheet(ui, player, catalog, state, intent);
+    }
+    if let Some((index, id, key, at)) = state.song_menu.filter(|_| over_player) {
+        songs::popup(ui, catalog, state, (index, id, key), at, player.sharing, intent);
+    }
     // Swift's long-press menu blurs the page behind it on a phone.
     if state.song_menu.is_some() && ui.view_size().width < compact::BREAKPOINT {
         let scrim = ui.view_of("song-menu-backdrop", &0, |ui| {

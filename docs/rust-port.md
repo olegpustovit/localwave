@@ -717,6 +717,45 @@ device/provider behavior remain open.
   card buttons, Settings rescan row): folders 23.2 -> 8.9, artist 15.6 -> 7.0, folder 15.5 -> 9.9, settings 14.7 -> 8.1, album 9.9 -> 7.9
   (commands 11.5 and find-results 10.8 unchanged: the palette card sits 32 pt high only because the capture window includes the titlebar inset,
   find-results is Swift's separate results page). Remaining: Files fixture paths/"Music" DEBUG names, demo library; the rest is spacing and per-glyph antialiasing (CoreText-matching raster, see D).
+  V1 visual parity pass (2026-11-22; captures come from pxui_host `Graphics::screenshot`, no Screen Recording rights; `DARK=1` adds
+  the dark appearance): sidebar, Now panel, transport, list/Lists/Folders/Settings/folder pages (Swift's measured folder columns),
+  insertion-order library, blocked sources (glyph; phone rows faded with "<source> needs reconnecting"), mipmapped artwork, overlay
+  scrollers (`Environment::scrollers`), Swift's `key2` plate, "Zero KB" cache sizes, phone chrome (transport with progress line, tab
+  deck), phone leads, artist rows, row hairlines, index rail, full-screen player (track menu, 96-bar waveform), Find's first eight songs
+  over "Show all N songs", Settings' flexible Offline space row, select mode on phone Songs and Find only for assistive technologies
+  (Swift's accessibility action), the fixture's Swift source labels and phone peaks. Mean abs diff: desktop light 1.5-3.3, dark
+  1.1-3.4, phone 1.9-5.0. Desktop folder stays 6.2 / 5.8: Swift's capture draws that page 88 points lower (no element, toolbar or safe
+  area in its source explains it); with the offset removed its column differs by 2.6, as the other pages. The bundled demo library
+  (`lw_bin::demo`, the FilesWorker's Demo job: Swift's staged copy into Application Support beside the container's Documents, then an
+  ordinary folder source; both bundles carry `DemoLibrary/`) and the iOS audio route key (`window::route_picker`, a transient
+  AVRoutePickerView; macOS keeps Swift's empty slot) are in. Remaining: Rust preparing the next queued item while paused (the
+  fixture's download-ahead copies), the route glyph the iOS goldens show where the macOS process has none, per-glyph antialiasing.
+  Fixed on the way: worker-prepared text without the Apple raster flag (hinted glyph keys; the debug phone Songs `verify_views` panic);
+  stacked modals (a sheet over the phone's full-screen player drew under it and lost its clicks: `routed_modal`); `verify_views`
+  reporting a kept page whose nested list row was fading its hover wash; the reference capture racing its overlay; metadata and list-name
+  typing invalidating the page behind their dialogs (text-typing build CPU p99 1.7 -> 0.8 ms, metadata-editor 1.8 -> 0.8 ms); the Lists
+  page rebuilding its rows while scrolling (70 -> 18 nodes a frame); the Now panel and transport keyed on the exact position (they now
+  key on what they show: whole seconds and a 1/2048 playhead step), and both are sibling views now (keys, clocks+scrubber and modes;
+  panel top, clock and bottom), so a tick rebuilds only the clocks and the scrubber (124 -> 84 nodes a frame in the gated workloads).
+  pxui engine: empty-string donors are per-capacity bucket lists kept current across frames (no per-frame scan, sort or Vec shifting),
+  the slot table keeps key and slot side by side and rehashes past half full: an in-process 10,000-song rebuild bench 332 -> 200 us a
+  frame. Found and fixed (pxui): a view rebuilt in place took the room a compaction had left ahead of it into its run (fresh pieces
+  were packed at the write cursor, and a rebuilt view's run started at its first, possibly empty, piece), so every compaction and
+  rebuild grew the run and the layer until the renderer reallocated in a warm frame: the "18-21 allocations after warm-up" of the
+  earlier panel split (`window_pxui_rebuilt_view_keeps_compaction_room_outside_its_run`; the renderer keeps 2x retained headroom since
+  row-view layers settle well past their first length). Then (2026-11-22/23, pxui ABI 2.1-2.3): LocalWave switches themes
+  instantly as Swift does (`ThemeHandle::animate_swap`), positioned song/artist labels declare text and geometry in one call
+  (`Ui::label_at`), song-copy views, availability shapes and clock art keep their colour tokens so an instant palette swap
+  re-resolves them without a rebuild, fixed-size views survive a resize, dialogs reuse the song rows behind them, drags no
+  longer rebuild Now Playing and Up Next, and the desktop workspace and sidebar list declare their heights up front.
+  `make performance` passes (exit 0, two consecutive runs): every gated workload 0 warm Rust allocations; measured first-use
+  counts 1187 (navigation) and 150 (menu, was 124). Desktop route key: AVKit's route picker on macOS too (Swift's shipping Mac
+  app is its iOS build); the folder page carries that build's empty 88-point navigation bar. Mean abs diff after this pass:
+  desktop light 0.84-2.50, dark 0.71-2.62, phone 1.59-3.80 after the later layout, placement and raster rounds (2026-11-23):
+  text runs sit within half a pixel of Swift's; Apple glyph masks come from CoreText (`font_sys`, atlas misses only). The rest
+  is the reference itself: Swift's goldens render in the iOS Simulator (UIKit, scale 1), whose text antialiasing differs from
+  macOS CoreText. Measured first-use counts now 1173 (navigation) and 138 (menu); first navigation build CPU p99 ~5.3 ms (cold
+  CoreText rasterization). Recorded: upward-scrolling lists still compact their layer on most frames.
 - I2 mobile goldens: `MOBILE=1 tools/reference-goldens.sh && tools/compare-goldens.py /tmp/localwave-goldens-mobile` (Swift canvas 390×778 without
   LOCALWAVE_REFERENCE_DESKTOP; Rust: macOS window at 390×778 via LOCALWAVE_REFERENCE_MOBILE=1, which renders the compact layout; same
   titlebar crop; 17 screens, add/track skipped). Latest: mean abs diff 7.6-41.2 (onboarding 7.6, find 11.5, queue 16.6, find-results 18.5,

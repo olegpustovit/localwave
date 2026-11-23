@@ -6,8 +6,7 @@
 use super::*;
 
 fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label) {
-    let node = ui.node(key, Node::column().at(rect.x, rect.y).w_px(rect.w.max(0.0)).h_px(rect.h).role(Role::Label).look(text_look(style)));
-    ui.text_line_box(&node, value, style, &[]).unwrap();
+    ui.label_at(key.into(), Rect { w: rect.w.max(0.0), ..rect }, value, style).unwrap();
 }
 
 /// An artist row's name and figures: one ellipsized line; counts and minutes in the mono face, wrapping.
@@ -26,9 +25,11 @@ fn row_layout(
         (0.0, 0.0),
         (0.0, 0.0),
     ];
+    let density = ui.density();
     for (index, value) in [count, summary.minutes.as_str()].into_iter().enumerate() {
         sizes[index + 2] = table_text_size(
             ui,
+            density,
             value,
             (columns[index + 2] - if index == 0 { 16.0 } else { 28.0 }).max(0.0),
             summary.widths[index],

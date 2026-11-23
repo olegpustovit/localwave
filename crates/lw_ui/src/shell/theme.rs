@@ -21,7 +21,8 @@ pub(super) const MONO_13: Label = line_style(13.0).font(1);
 pub(super) const PARAGRAPH_13: Label = paragraph_style(13.0);
 pub(super) const PARAGRAPH_14: Label = paragraph_style(14.0);
 pub(super) const PARAGRAPH_15: Label = paragraph_style(15.0);
-pub(super) const PARAGRAPH_24: Label = paragraph_style(24.0);
+/// The phone album title (Swift's `phoneAlbumMetadata`): 24 points medium, tracked -0.72, wrapping in 27.6-point lines.
+pub(super) const PHONE_ALBUM_TITLE: Label = Label::BODY.size(24.0).line_height(27.6).weight(500).tracking(TIGHT_3).wrap().grow().role(Role::Paragraph).color(INK);
 pub(super) const TEXT_11: Label = line_style(11.0);
 pub(super) const TEXT_12: Label = line_style(12.0);
 pub(super) const TEXT_13: Label = line_style(13.0);
@@ -34,7 +35,6 @@ pub(super) const TEXT_20: Label = line_style(20.0);
 pub(super) const TEXT_24: Label = line_style(24.0);
 pub(super) const TEXT_28: Label = line_style(28.0);
 pub(super) const TEXT_32: Label = line_style(32.0);
-pub(super) const TEXT_34: Label = line_style(34.0);
 /// Secondary 13-point text: counts, captions, helper copy.
 pub(super) const CAPTION: Label = TEXT_13.color(SECONDARY);
 /// Secondary 12-point text.
@@ -55,6 +55,8 @@ const fn line_box(points: f32, line_height: f32, weight: u16, tracking: f32) -> 
 }
 /// A page title (Library, Settings, a list or folder name): 32 points, ink.
 pub(super) const PAGE_TITLE: Label = line_box(32.0, 33.6, 500, -0.035).color(INK);
+/// A desktop page title (a folder): 34 points medium, tracked -0.85, in its 34-point line.
+pub(super) const DESKTOP_TITLE: Label = line_box(34.0, 34.0, 500, -0.025).color(INK);
 /// An album page title: 40 points, ink.
 pub(super) const ALBUM_TITLE: Label = line_box(40.0, 40.8, 500, TIGHT_3).color(INK);
 /// An artist page title: 48 points, ink.
@@ -77,14 +79,10 @@ const fn phone_line(points: f32) -> Label {
 }
 /// A phone page title: 28 points, ink.
 pub(super) const PHONE_TITLE: Label = phone_line(28.0).color(INK);
-/// A phone album or artist row title: 16 points, ink.
-pub(super) const GROUP_TITLE: Label = phone_line(16.0).color(INK);
 /// A phone song row title: 15 points, ink.
 pub(super) const ROW_TITLE: Label = phone_line(15.0).color(INK);
 /// The playing phone song row's title: 15 points, the accent.
 pub(super) const ROW_TITLE_NOW: Label = phone_line(15.0).color(ColorToken::ACCENT);
-/// The mini player's title: 14 points, ink.
-pub(super) const MINI_TITLE: Label = phone_line(14.0).color(INK);
 /// An empty phone page's note: 14 points, secondary.
 pub(super) const EMPTY_NOTE: Label = phone_line(14.0).color(SECONDARY);
 /// A phone song row's artist or file note: 13 points, secondary.
@@ -121,6 +119,12 @@ pub(super) const SELECTED_FILL: Look = Look::NONE.fill(Rgba::token(SELECTED));
 pub(super) const INK_FILL: Look = Look::NONE.fill(Rgba::token(INK));
 /// The key fill.
 pub(super) const KEY_FILL: Look = Look::NONE.fill(Rgba::token(KEY));
+/// A `LINK` button's rule: ink by default, secondary under secondary text (Swift's `.underline()`), the hairline colour (onboarding).
+const INK_RULE: States = States::of(INK_FILL);
+pub(super) const SECONDARY_RULE: States = States::of(SECONDARY_FILL);
+pub(super) const LINE_RULE: States = States::of(LINE_FILL);
+/// A secondary mark (the index rail's ticks).
+pub(super) const SECONDARY_FILL: Look = Look::NONE.fill(Rgba::token(SECONDARY));
 /// The hairline fill.
 pub(super) const LINE_FILL: Look = Look::NONE.fill(Rgba::token(super::kit::LINE));
 /// A 60 percent panel wash (an artist row while hovered or held).
@@ -155,8 +159,8 @@ pub(super) const PANEL_LOOKS: States = States::of(PANEL_FILL);
 pub(super) const INK_LOOKS: States = States::of(INK_FILL);
 /// A key with no plate in secondary ink (the phone back key).
 pub(super) const DIM_LOOKS: States = States::of(SECONDARY_TEXT);
-/// A phone play key: ink on the panel fill (a kept Keep offline key looks the same).
-pub(super) const PLAY_KEY_LOOKS: States = States::of(PANEL_FILL.text(Rgba::token(INK)));
+/// A play, shuffle or option key: ink on Swift's `key2` plate (a kept Keep offline key looks the same).
+pub(super) const PLAY_KEY_LOOKS: States = States::of(Look::NONE.fill(Rgba::token(KEY2)).text(Rgba::token(INK)));
 /// The phone Play key: paper on ink.
 pub(super) const PLAY_PRIMARY_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
 /// A selection deck key: ink on the key plate, tertiary while disabled.
@@ -185,8 +189,8 @@ pub(super) const SCRIM: Look = Look::NONE.fill(SCRIM_INK.alpha(64));
 pub(super) const SCRIM_INK: Rgba = Rgba::rgb(10, 10, 10);
 /// The waveform's bars: ink at 42 percent (Swift's opacity 0.42 of an opaque ink).
 pub(super) const BAR_INK: Rgba = Rgba::token(INK).alpha(107);
-/// The phone Find field's text: 26 points medium, tracking -0.52 (the value the field has always had).
-pub(super) const FIND_FONT: Font = Font::BODY.size(26.0).weight(500).tracking(-0.52);
+/// The phone Find field's text: 26 points medium with -0.52 points of tracking.
+pub(super) const FIND_FONT: Font = Font::BODY.size(26.0).weight(500).tracking(-0.02);
 /// The command palette field's text: 20 points.
 pub(super) const PALETTE_FONT: Font = Font::BODY.size(20.0);
 /// The phone Find field's empty prompt: tertiary.
@@ -210,8 +214,7 @@ pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { dur
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton<'static> {
     pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)
 }
-/// The icon key sizes LocalWave repeats: 28, 36 and 44 points square, and 44 by 40.
-pub(super) const ICON_28: pxui::IconButton = icon_key(28.0, 28.0);
+/// The icon key sizes LocalWave repeats: 36 and 44 points square, and 44 by 40.
 pub(super) const ICON_36: pxui::IconButton = icon_key(36.0, 36.0);
 pub(super) const ICON_44: pxui::IconButton = icon_key(44.0, 44.0);
 pub(super) const ICON_44X40: pxui::IconButton = icon_key(44.0, 40.0);
@@ -251,6 +254,9 @@ pub(super) mod variant {
     pub(in crate::shell) const LINK: u16 = 14;
     /// `localwave-button`: the primary key, its label centred (on the caller's ink look).
     pub(in crate::shell) const PRIMARY: u16 = 15;
+    /// `localwave-button`: a key for assistive technologies only (Swift's accessibility actions): 1 point, out of its row's flow,
+    /// drawing nothing.
+    pub(in crate::shell) const ASSISTIVE: u16 = 27;
     /// `localwave-sheet` (`Dialog::variant`): a form (Edit Metadata), its labels and fields 4 apart; its buttons the sheet's keys.
     pub(in crate::shell) const FORM: u16 = 16;
     /// `localwave-tabs`: the phone library modes and a phone folder's filters, each its label and count over a 2-point underline,
@@ -334,6 +340,10 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         super::settings::row_body(ui, c);
         return;
     }
+    if c.variant == variant::ASSISTIVE {
+        ui.set_node_layout(&c.line, &Node::row().w_px(1.0).h_px(1.0).at(0.0, 0.0));
+        return;
+    }
     if [variant::SHEET, variant::FORM, variant::CHOICES].contains(&c.variant) {
         super::files::sheet_key(ui, c);
         return;
@@ -352,11 +362,12 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let row = if c.centered() || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
     ui.set_node_layout(&c.row, &row);
     if c.variant == variant::LINK {
-        // the text over a 1-point rule as wide as it, in the text's colour (ruling 3)
-        // shortcut: every LINK caller inks its text, so the rule is ink; a link in another colour needs its own rule look
+        // the text over a 1-point rule as wide as it, filled by the button's look (ink without one: `SECONDARY_RULE`, `LINE_RULE`)
         ui.column(Node::column().w(Size::Fit).h(Size::Fit), |ui| {
             ui.label(c.text_of(&c.label), c.label().unwrap_or(TEXT_14.color(SECONDARY)));
-            container(ui, "underline", Axis::Column, Size::Grow, Size::Px(1.0), &INK_FILL);
+            // a plain button's looks fill nothing: its rule is ink
+            let rule = c.states_of(&c.states).map(|s| s.pick(State::default())).filter(|l| l.fill != BARE.pick(State::default()).fill).unwrap_or(INK_RULE.pick(State::default()));
+            ui.node("underline", Node::column().w(Size::Grow).h_px(1.0).look(*rule));
         });
         return;
     }
@@ -368,7 +379,9 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     // a destructive key (`Button::danger`) inks in the danger colour unless disabled
     let ink = if c.danger() && !state.disabled { Some(Rgba::token(DANGER)) } else { states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token)) };
     let mut _icon = None;
-    if tool && let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), ink) {
+    // a ROW's icon (the sidebar's lens and plus) inks in its label's colour; its look only fills
+    let icon_ink = if tool { ink } else { c.label().and_then(|l| l.fields().color).map(Rgba::token) };
+    if let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), icon_ink) {
         let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };
         let icon = ui.node("icon", Node::column().w_px(side).h_px(side));
         ui.canvas(&icon, move |paint, rect| draw(paint, rect, ink, word));
@@ -419,23 +432,33 @@ fn modal_body(ui: &mut Ui, c: &pxui::bodies::ModalConfig) {
 }
 
 /// LocalWave's segmented (registered as `localwave-segmented`). `CHIPS`: Swift's settings chips, the strip `padding` in on the panel
-/// fill, each chip sharing it (28 high, at least 40 wide, 8 in, 13-point text), the stored choice ink with paper text. Any other
+/// fill, each chip fit to its 13-point text 10 in at each side (28.2 high), the stored choice ink with paper text. Any other
 /// variant, the `SORT` look: the
 /// strip fit to its keys 8 apart; each key fit to its 13-point text 10 in at each side, secondary on paper, the chosen one ink on the
 /// selected fill inside a 1.5-point ink border.
 fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     use pxui::bodies::BodyConfig;
     if c.variant == variant::CHIPS {
-        // the strip keeps the width its caller gave (`Segmented::w_px`)
-        let w = ui.node_layout(&c.strip).w;
-        ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h(Size::Fit));
-        ui.set_node_layout(&c.strip, &Node::row().w(w).h_px(32.0).pad(c.padding));
+        // Swift's chips: the strip fit to its chips, each fit to its text 10 points in at each side. Growing (`Segmented::grow`, a
+        // phone's flexible settings row), they share the strip their caller sized and wrap their text, centred, 5 points above and below
+        let grow = c.grow != 0;
+        let size = if grow { Size::Grow } else { Size::Fit };
+        ui.set_node_layout(&c.line, &Node::row().w(size).h(Size::Fit));
+        ui.set_node_layout(&c.strip, &if grow { Node::row().w(Size::Grow).h(Size::Fit) } else { Node::row().w(Size::Fit).h_px(28.2 + 2.0 * c.padding) }.pad(c.padding));
         ui.style(&c.strip, &PANEL_LOOKS, State::default());
         // the stored choice: the controller applies a press a frame later
         let chosen = c.stored().or(c.selected()) == Some(c.index);
-        ui.set_node_layout(&c.node, &Node::column().w(Size::Grow).h_px(28.0).pad_x(8.0).min_w(40.0));
+        let text = c.text_of(&c.text);
+        let node = if grow {
+            let natural = ui.text_service().width(text, TEXT_13, None).unwrap_or(0.0);
+            Node::row().w(Size::Grow).grow(natural + 20.0).h(Size::Fit).padding(Edges::new(10.0, 5.0, 10.0, 5.0))
+        } else {
+            Node::row().w(Size::Fit).h_px(28.2).pad_x(10.0)
+        };
+        ui.set_node_layout(&c.node, &node.align(Align::Center).justify(Justify::Center));
         ui.style(&c.node, if chosen { &CHOICE_ON_LOOKS } else { &CHOICE_LOOKS }, State::default());
-        ui.text(&c.node, c.text_of(&c.text));
+        let label = TEXT_13.color(if chosen { PAPER } else { SECONDARY }).role(Role::Unknown);
+        ui.label(text, if grow { CHIP_WRAP.color(if chosen { PAPER } else { SECONDARY }) } else { label });
         return;
     }
     ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h_px(30.0));
@@ -445,16 +468,21 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
     ui.style(&c.node, if chosen { &SORT_CHOSEN } else { &PAPER_LOOKS }, State::default());
     ui.label(c.text_of(&c.text), TEXT_13.color(if chosen { INK } else { SECONDARY }).role(Role::Unknown));
 }
-/// A phone tab bar tab: paper, on the selected fill while in use (checked).
-const TABBAR_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL);
+/// A growing chip's text: 13 points in 18.2-point lines, wrapped and centred (Swift's `multilineTextAlignment(.center)`).
+const CHIP_WRAP: Label = Label::BODY.size(13.0).line_height(18.2).wrap().align(pxui::TextAlign::Center).grow().role(Role::Unknown);
+/// The phone deck behind its tabs: the selected fill (Swift's panel2).
+const TABBAR_DECK: States = States::of(SELECTED_FILL);
+/// A phone deck tab (Swift's `navigationDeck`): the key plate, the panel while in use (checked).
+const TABBAR_LOOKS: States = States::of(KEY_FILL).checked(PANEL_FILL);
 /// A library mode's label: secondary, ink while in use.
 const MODE_LOOKS: States = States::of(SECONDARY_TEXT).checked(INK_TEXT);
 /// A library mode's underline: paper, ink while in use.
 const UNDERLINE_LOOKS: States = States::of(PAPER_FILL).checked(INK_FILL);
 /// LocalWave's tabs (registered as `localwave-tabs`). `MODE`: Swift's phone library modes: the bar fit to its tabs 20 apart, 44
 /// high; each tab its 15-point label and the caption count 6 apart in a 42-point line over a 2-point underline, the label and underline
-/// ink on the tab in use. Any other variant, the `TABBAR` look: the bar filling its parent, its tabs sharing it 44 high from its top, each its
-/// 14-point ink title centred on paper, the tab in use on the selected fill.
+/// ink on the tab in use. Any other variant, Swift's phone `navigationDeck`: the bar filling its parent on the selected fill, its tabs
+/// sharing it 2 apart inside a 2-point top and side margin, each its secondary 15-point title centred on the key plate; the tab in use
+/// on the panel, its title medium ink after a 6-point ink square.
 fn tabs_body(ui: &mut Ui, c: &pxui::bodies::TabsConfig) {
     use pxui::bodies::BodyConfig;
     let state = State::from(c.state);
@@ -465,17 +493,24 @@ fn tabs_body(ui: &mut Ui, c: &pxui::bodies::TabsConfig) {
         ui.set_node_layout(&c.node, &Node::column().w(Size::Fit).h(Size::Grow));
         ui.row(Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
             let ink = MODE_LOOKS.pick(state).text.as_token().unwrap_or(SECONDARY);
-            ui.label(c.text_of(&c.text), TEXT_15.color(ink).role(Role::Unknown));
-            ui.label(c.text_of(&c.detail), CAPTION);
+            ui.label(c.text_of(&c.text), Label::BODY.size(15.0).line_height(21.0).h_px(21.0).lines(1).ellipsis().color(ink).role(Role::Unknown));
+            ui.label(c.text_of(&c.detail), Label::BODY.size(13.0).line_height(18.2).h_px(18.2).lines(1).ellipsis().color(SECONDARY));
         });
-        let underline = ui.node("underline", Node::row().w(Size::Grow).h_px(2.0));
+        // Swift offsets it 1 point down from its 42-point line's foot
+        let underline = ui.node("underline", Node::row().w(Size::Grow).h_px(2.0).margin(Edges::ZERO.t(-1.0)));
         ui.style(&underline, &UNDERLINE_LOOKS, state);
         return;
     }
-    ui.set_node_layout(&c.bar, &Node::row().w(Size::Grow).h(Size::Grow));
-    ui.set_node_layout(&c.node, &Node::row().w(Size::Grow).h_px(44.0).align(Align::Center).justify(Justify::Center));
+    ui.set_node_layout(&c.bar, &Node::row().w(Size::Grow).h(Size::Grow).gap(2.0).padding(Edges::ZERO.l(2.0).t(2.0).r(2.0)));
+    ui.style(&c.bar, &TABBAR_DECK, State::default());
+    // The regular captions sit one point above the center used by the selected caption and mark.
+    let caption_inset = Edges::ZERO.b(if state.checked { 0.0 } else { 2.0 });
+    ui.set_node_layout(&c.node, &Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).padding(caption_inset).align(Align::Center).justify(Justify::Center));
     ui.style(&c.node, &TABBAR_LOOKS, state);
-    ui.label(c.text_of(&c.text), BODY_INK.role(Role::Unknown));
+    if state.checked {
+        ui.node("mark", Node::row().w_px(6.0).h_px(6.0).look(INK_FILL));
+    }
+    ui.label(c.text_of(&c.text), if state.checked { TEXT_15.color(INK).weight(500) } else { TEXT_15.color(SECONDARY) }.role(Role::Unknown));
 }
 
 /// The chosen sort key: the selected fill inside a 1.5-point ink border.
@@ -483,6 +518,8 @@ const SORT_CHOSEN: States = States::of(SELECTED_FILL.border(Rgba::token(INK), 1.
 
 /// The desktop Find field's text: 15 points, ink.
 const SEARCH_TEXT: Look = INK_TEXT.font(Font::BODY.size(15.0));
+/// The editor's plate is offset to align its text with the caption and shorten the Swift line's top inset.
+const FIND_EDITOR_MARGIN: Edges = Edges::ZERO.l(-2.0).t(-6.0);
 /// The phone Find field's text: 26 points medium, ink.
 const FIND_TEXT: Look = INK_TEXT.font(FIND_FONT);
 /// LocalWave's search field (registered as `localwave-search`). `COMPACT`: Swift's phone Find field: a 56-point line of the 26-point
@@ -497,7 +534,7 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
     ui.style(&c.well, if compact { &BARE } else { &PAPER_LOOKS }, State::default());
     let line = ui.node("line", Node::row().w(Size::Grow).h_px(height).align(Align::Center));
     ui.within(&line, &mut |ui| {
-        let editor = ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h(Size::Grow).inset(Edges::ZERO.l(if compact { 0.0 } else { 2.0 })).look(if compact { FIND_TEXT } else { SEARCH_TEXT }));
+        let editor = ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h(Size::Grow).margin(if compact { FIND_EDITOR_MARGIN } else { Edges::ZERO }).inset(Edges::ZERO.l(2.0)).look(if compact { FIND_TEXT } else { SEARCH_TEXT }));
         if !ui.slot(c.editor) && compact {
             ui.style(&editor, &States::of(FIND_PROMPT), State::default());
         }
@@ -508,11 +545,18 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
         let ink = keys.pick(state).text;
         ui.within(&clear, &mut |ui| {
             let glyph = ui.node("glyph", Node::column().w_px(20.0).h_px(20.0));
-            ui.canvas(&glyph, move |paint, rect| paint_icon(paint, Icon::Clear, rect.x, rect.y, ink));
+            ui.canvas(&glyph, move |paint, rect| {
+                if compact {
+                    crate::icons::close(paint, Rect::new(rect.x + 1.0, rect.y + 1.0, 18.0, 18.0), ink);
+                } else {
+                    paint_icon(paint, Icon::Clear, rect.x, rect.y, ink);
+                }
+            });
         });
     });
     if compact {
-        ui.node("rule", Node::column().w(Size::Grow).h_px(1.5).look(INK_FILL));
+        // Swift's rule overlays the line's foot
+        ui.node("rule", Node::column().w(Size::Grow).h_px(1.5).margin(Edges::ZERO.t(-1.5)).look(INK_FILL));
     }
 }
 
@@ -550,7 +594,8 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     // one look table a variant; the kit picks its look for the state (disabled > checked > pressed > hovered > focused, U2b.4.20)
     let state = State::from(c.state);
     if c.variant == variant::SIDE_ROW {
-        ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(32.0).pad_x(8.0).align(Align::Center));
+        // as tall as its content (the sidebar's fitted row), under the menu's 2-point spacing the list's row height carries
+        ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.t(2.0)).pad_x(8.0).align(Align::Center));
         ui.style(&c.row, &SIDE_ROW_LOOKS, state);
     } else if c.variant == variant::SONG_ROW {
         ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
@@ -574,28 +619,31 @@ fn table_row_body(ui: &mut Ui, c: &pxui::bodies::TableRowConfig) {
 /// A section index letter: secondary 11 points in a 17-point step.
 const INDEX_LETTER: Label = TEXT_11.h_px(17.0).color(SECONDARY).role(Role::Unknown);
 /// LocalWave's section index (registered as `localwave-index`): Swift's phone A-Z rail, 28 points wide and 17 a letter (the kit
-/// reads the letter under the pointer from that share), each letter 6 points in from the end.
+/// reads the letter under the pointer from that share), each letter and its 8 by 1.5-point tick 3 apart, 8 points in from the end
+/// (Swift's 6-point pad and -2 offset).
 fn index_body(ui: &mut Ui, c: &pxui::bodies::SectionIndexConfig) {
     use pxui::bodies::BodyConfig;
     let count = c.letters.len;
-    ui.set_node_layout(&c.node, &Node::column().w_px(28.0).h_px(count as f32 * 17.0));
+    ui.set_node_layout(&c.node, &Node::column().w_px(28.0).h_px(count as f32 * 17.0).margin(Edges::ZERO.r(8.0)));
     for i in 0..count {
-        ui.row(Node::row().w(Size::Grow).h_px(17.0).align(Align::Center).justify(Justify::End).padding(Edges::ZERO.r(6.0)), |ui| {
+        ui.row(Node::row().w(Size::Grow).h_px(17.0).gap(3.0).align(Align::Center).justify(Justify::End), |ui| {
             ui.label(c.text_at(&c.letters, i), INDEX_LETTER);
+            ui.node("tick", Node::row().w_px(8.0).h_px(1.5).look(SECONDARY_FILL));
         });
     }
 }
 
-/// A badge's text: paper 11 points in a 16-point line.
-const BADGE_TEXT: Label = TEXT_11.h_px(16.0).color(PAPER);
+/// A badge's text: paper 11 points in its 15.4-point line.
+const BADGE_TEXT: Label = TEXT_11.color(PAPER);
 /// A badge's plate: paper 11-point text on ink.
 const BADGE_PLATE: States = States::of(text(PAPER, 11.0).fill(Rgba::token(INK)));
-/// LocalWave's badge (registered as `localwave-badge`): its text in paper 11 points on an ink plate, the plate the text's own box.
+/// LocalWave's badge (registered as `localwave-badge`): its text in paper 11 points on an ink plate 6 points wider each side and
+/// 1 taller (Swift's `.padding(.horizontal, 6).padding(.vertical, 1)`).
 fn badge_body(ui: &mut Ui, c: &pxui::bodies::BadgeConfig) {
     use pxui::bodies::BodyConfig;
-    ui.set_node_layout(&c.node, &Node::row());
-    let plate = ui.label(c.text_of(&c.text), BADGE_TEXT);
-    ui.style(&plate, &BADGE_PLATE, State::default());
+    ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h(Size::Fit).padding(Edges::new(6.0, 1.0, 6.0, 1.0)));
+    ui.style(&c.node, &BADGE_PLATE, State::default());
+    ui.label(c.text_of(&c.text), BADGE_TEXT);
 }
 
 /// LocalWave's progress (registered as `localwave-progress`), the `METER` look: a 4-point line track 10 points under the row
@@ -773,20 +821,22 @@ mod body_tests {
         assert_eq!(draw(&app), draw(&kit), "variant 0 is the kit's button");
     }
 
-    /// `selection_list.body = localwave-row`: a `SIDE_ROW` row is 32 points on the selected fill when selected (the kit's
-    /// list row has its own look).
+    /// `selection_list.body = localwave-row`: a `SIDE_ROW` row is as tall as its content (the sidebar's fitted 32 points here) under
+    /// the 2-point spacing its list row carries, on the selected fill when selected (the kit's list row has its own look).
     #[test]
     fn localwave_side_row_draws_the_sidebar_row() {
-        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(32.0).variant(variant::SIDE_ROW).bare().fit();
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(34.0).variant(variant::SIDE_ROW).bare().fit();
         let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
         let mut build = |ui: &mut Ui| {
-            ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(i) = part { ui.label(["One", "Two"][i], SIDE_TEXT); });
+            ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(i) = part {
+                ui.row(Node::row().w(Size::Grow).h_px(32.0), |ui| { ui.label(["One", "Two"][i], SIDE_TEXT); });
+            });
         };
         const SIDE_TEXT: Label = TEXT_14.grow().h_px(20.0).color(SECONDARY);
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 0.0, 200.0, 32.0]], "the selected row on the selected fill");
+        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 2.0, 200.0, 34.0]], "the selected row on the selected fill");
         assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
     }
 
@@ -902,10 +952,11 @@ mod body_tests {
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
         let plates = colored(&app, INK_RGBA);
-        assert!(plates.iter().any(|r| r[1] == 0.0 && r[3] - r[1] == 16.0), "an ink plate 16 high: {plates:?}");
+        // Swift's 11-point line padded 1 above and below and 6 each side
+        assert!(plates.iter().any(|r| r[1] == 0.0 && (r[3] - r[1] - 17.4).abs() < 0.5 && r[2] - r[0] > 12.0 && r[2] - r[0] < 120.0), "an ink plate 17.4 high, as wide as its text and 12: {plates:?}");
         let track = node(&app, "Offline space");
         assert_eq!((track.x, track.w, track.h), (8.0, 184.0, 4.0), "the track 8 in from each side, 4 high");
-        assert!(plates.iter().any(|r| r[0] == 8.0 && r[2] == 8.0 + 46.0 && r[1] == track.y), "the fill inked to a quarter: {plates:?}");
+        assert!(plates.iter().any(|r| r[0] == 8.0 && r[2] == 8.0 + 46.0 && (r[1] - track.y).abs() < 0.5), "the fill inked to a quarter: {plates:?} on {track:?}");
         let kit_track = node(&kit, "Offline space");
         assert_ne!((kit_track.x, kit_track.w), (8.0, 184.0), "the kit's progress: the theme line selects the body");
     }

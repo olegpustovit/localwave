@@ -353,7 +353,8 @@ mod tests {
                     .upsert_song(
                         &lw_core::Song {
                             song_key: index + 1,
-                            title: if index == 0 {
+                            // the strongest match is the last Blue song added: the palette's rank leads with it, Find's library order ends with it
+                            title: if index == 8 {
                                 "Blue blue blue".into()
                             } else if index < 9 {
                                 format!("Blue track {index}")
@@ -503,9 +504,10 @@ mod tests {
         let most = empty.collection(route).unwrap();
         assert_eq!(most.ids.len(), 24);
         assert_eq!(most.ids[0], ids[2]);
+        // ties keep Swift's insertion order (`insertionSongs`)
         assert_eq!(
             &most.ids[1..],
-            &ids[17..].iter().rev().copied().collect::<Vec<_>>()
+            &ids[..2].iter().chain(&ids[3..24]).copied().collect::<Vec<_>>()
         );
         for (query, command) in [
             ("settings", Command::Settings),

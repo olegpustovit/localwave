@@ -24,7 +24,10 @@ pub(super) fn popup(
         files.account == Some(target.user)
             && files.sources.iter().any(|folder| folder.id == target.source && folder.root == target.root)
     });
+    // over a shown folder of this source the menu leads with Swift's administration action, Import folder
+    let shown = player.files.and_then(|files| files.directory.as_ref()).map(|directory| directory.location).filter(|location| location.source == target.source && location.user == target.user);
     let rows = [
+        MenuItem::new("Import folder").id(IMPORT).disabled(busy || shown.is_none()),
         MenuItem::new("Open folder").id(OPEN).disabled(!present),
         MenuItem::new("Rescan now").id(RESCAN).disabled(!(present && !busy)),
         MenuItem::new("Reconnect folder…").id(RECONNECT).disabled(!(present && !busy)),
@@ -36,6 +39,7 @@ pub(super) fn popup(
         Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(location))),
         Some(RESCAN) => *intent = Some(Intent::Files(Request::Rescan(location))),
         Some(RECONNECT) => *intent = Some(Intent::ReconnectSource(target)),
+        Some(IMPORT) => *intent = shown.map(|location| Intent::Files(Request::Import(location))),
         Some(_) => *intent = Some(Intent::ConfirmRemoveSource(target)),
         None => {}
     }
@@ -53,6 +57,7 @@ const RECONNECT: i64 = 2;
 const REMOVE: i64 = 3;
 const PLAY: i64 = 4;
 const SHUFFLE: i64 = 5;
+const IMPORT: i64 = 6;
 
 pub(super) fn confirm_remove(
     ui: &mut Ui,
@@ -94,6 +99,8 @@ pub(super) fn up(directory: &crate::files::Directory) -> Intent {
 
 /// A plate key (`localwave-button` / `KEY`, its 13-point label centred): ink on the panel fill, secondary while disabled; the
 /// caller sizes it (`plate_h`: 44 points on a phone, 36 on the desktop).
+/// A source card's keys' text (Reconnect folder, Options): 14 points medium.
+const CARD_KEY: Label = TEXT_14.weight(500);
 const PLATE: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).centered().label(TEXT_13).look(&PLATE_LOOKS);
 const PLATE_LOOKS: States = PLAY_KEY_LOOKS.disabled(PANEL_FILL.text(Rgba::token(SECONDARY)));
 /// `PLATE` in paper on ink (Reconnect).
@@ -149,8 +156,10 @@ fn sheet_width(ui: &Ui) -> f32 {
     (ui.view_size().width - 32.0).clamp(240.0, 420.0)
 }
 
-/// The desktop folder page's Back (`localwave-button` / `ROW`): Swift's plain secondary "‹ Back", 64 by 40, named "Back".
-const FILES_BACK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Px(64.0), Size::Px(40.0)).align(Justify::Start).label(TEXT_14.color(SECONDARY).role(Role::Unknown)).name("Back");
+/// The desktop folder page's Back (`localwave-button` / `ROW`): Swift's 16-point LW-back chevron 4 points before a secondary "Back",
+/// 40 high, its icon frame 6 points left of the page's inset (where Swift's 26-point leading padding puts it).
+const FILES_BACK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(40.0)).align(Justify::Start)
+    .icon(icon_drawing(Icon::Back)).icon_size(16.0).gap(4.0).label(TEXT_14.color(SECONDARY).role(Role::Unknown)).name("Back");
 /// The Folders page's "+" (Add music): the 24-point plus in ink.
 const ADD_MUSIC_KEY: pxui::IconButton = ICON_44.look(&ICON_LOOKS);
 /// A phone folder's 52-point keys (Shuffle, Keep offline): ink on the panel fill, paper on ink while checked (kept).
@@ -182,50 +191,102 @@ const ADD_STEPS: [&str; 3] = [
 ];
 
 /// The desktop folder table's columns: "#" and Time point-wide, the others sharing the rest by weight.
-const FOLDER_COLUMNS: [pxui::Column; 6] = [
-    pxui::Column::new("#").w_px(56.0).grip(false),
-    pxui::Column::new("Name").share(2.2),
-    pxui::Column::new("Kind").share(1.5),
-    pxui::Column::new("Size").share(1.0),
-    pxui::Column::new("On device").share(1.2),
-    pxui::Column::new("Time").w_px(84.0).grip(false),
-];
-/// The Time column's index: its heading and cells end 20 points before the column's end.
-const TIME: usize = 5;
-/// The desktop folder table: no frame, nothing selected, a press or Return opens a row (the arrows only move the keyboard's row);
-/// 38-point rows (`localwave-row` / `FOLDER_ROW`) under 38-point headings (`localwave-heading` / `FOLDER_HEADING`).
-const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).bare().row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(38.0).variant(variant::FOLDER_HEADING)).variant(variant::FOLDER_ROW);
-/// A folder table heading (`localwave-heading` / `FOLDER_HEADING`): Swift's 12-point secondary title; Time's ends 20 points in.
-pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
-    if c.index == TIME {
-        let layout = ui.node_layout(&c.node).justify(Justify::End).padding(Edges::ZERO.l(8.0).r(20.0));
-        ui.set_node_layout(&c.node, &layout);
+/// The folder table's headings.
+const FOLDER_TITLES: [&str; 6] = ["#", "Name", "Kind", "Size", "On device", "Time"];
+
+/// Swift's `updateColumnMetrics` and `desktopColumnWidths`: "#" fits its content (44 points, 54 for a plain file, 56 for a folder,
+/// else the widest number and 40), the others their widest heading or content with Swift's paddings; the table shares the room
+/// after "#" by those widths. Measured once a snapshot.
+/// shortcut: measures the few longest strings of a column (by characters) rather than all of them, so a 10,000-entry folder stays
+/// cheap; a proportional face can make a shorter string wider, upgrade if a column visibly clips.
+fn folder_widths(ui: &mut Ui, entries: &[crate::files::Entry]) -> [f32; 6] {
+    const LONGEST: usize = 4;
+    let mut widths = [44.0f32, 0.0, 0.0, 0.0, 10.0 + 16.0, 0.0];
+    for entry in entries {
+        widths[0] = widths[0].max(if entry.directory { 56.0 } else if !entry.audio { 54.0 } else { 0.0 });
     }
-    ui.label(c.text_of(&c.title), FOOTNOTE.role(Role::Unknown));
+    let mut text = ui.text_service();
+    let width = |text: &mut pxui::UiText<'_>, value: &str, style: Label| text.measure(value, style, None).map_or(0.0, |m| m.width);
+    for (index, (heading, padding)) in FOLDER_TITLES.iter().zip([40.0, 16.0, 16.0, 16.0, 16.0, 28.0]).enumerate() {
+        widths[index] = widths[index].max(width(&mut text, heading, TABLE_HEADING) + padding);
+    }
+    let columns: [(fn(&crate::files::Entry) -> &str, Label, f32, usize); 5] = [
+        (|e| &e.number, TEXT_13, 40.0, 0),
+        (|e| &e.name, TEXT_14, 16.0, 1),
+        (|e| &e.kind, TEXT_14, 16.0, 2),
+        (|e| &e.size, MONO_12, 16.0, 3),
+        (|e| &e.time, MONO_12, 28.0, 5),
+    ];
+    for (value, style, padding, index) in columns {
+        let mut longest: [Option<&str>; LONGEST] = [None; LONGEST];
+        for entry in entries {
+            let candidate = value(entry);
+            if candidate.is_empty() {
+                continue;
+            }
+            let count = candidate.chars().count();
+            if let Some(slot) = (0..LONGEST).find(|&i| longest[i].is_none_or(|kept| kept.chars().count() < count)) {
+                longest.copy_within(slot..LONGEST - 1, slot + 1);
+                longest[slot] = Some(candidate);
+            }
+        }
+        for candidate in longest.into_iter().flatten() {
+            widths[index] = widths[index].max(width(&mut text, candidate, style) + padding);
+        }
+    }
+    widths
+}
+/// The Time column's index: its heading and cells end 20 points before the table's end.
+const TIME: usize = 5;
+// The table already reserves a one-point separator beyond the last column.
+const TIME_END: f32 = 19.0;
+/// The desktop folder table: no frame, nothing selected, a press or Return opens a row (the arrows only move the keyboard's row);
+/// 38-point rows (`localwave-row` / `FOLDER_ROW`) under the heading's 16.8-point line, 20 points of padding and separator.
+const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).bare().row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(37.8).variant(variant::FOLDER_HEADING)).variant(variant::FOLDER_ROW);
+/// A folder table heading (`localwave-heading` / `FOLDER_HEADING`): Swift's 12-point medium secondary title.
+pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
+    let mut layout = ui.node_layout(&c.node);
+    layout.padding.b = 1.0;
+    if c.index == 0 {
+        // Swift's table spans the page: its "#" sits at the page's 32-point inset
+        layout.padding.l = 32.0;
+    }
+    if c.index == TIME {
+        layout.justify = Justify::End;
+        layout.padding.r = TIME_END;
+    }
+    ui.set_node_layout(&c.node, &layout);
+    ui.label(c.text_of(&c.title), TABLE_HEADING.role(Role::Unknown));
 }
 
 pub(super) fn view(
     ui: &mut Ui,
     player: &PlayerView<'_>,
     state: &ShellState,
-    width: f32,
     intent: &mut Option<Intent>,
 ) {
     let compact = ui.view_size().width < compact::BREAKPOINT;
     let directory = player.files.and_then(|files| files.directory.as_ref());
     // Swift's source list pads 16 points; its folder page 32.
     let inset = if compact || directory.is_none() { 16.0 } else { 32.0 };
-    ui.column(Node::column().w(Size::Grow).h(Size::Grow).flags(if directory.is_none() { Flags::SCROLL | Flags::CLIP } else { Flags::NONE }).padding(Edges::new(inset, if directory.is_none() { if compact { 6.0 } else { 10.0 } } else { 0.0 }, inset, 12.0)),
+    // the source list scrolls: its top and bottom room is content (Swift's ScrollView padding), so cards run to the edges as it scrolls
+    let list = directory.is_none();
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).flags(if list { Flags::SCROLL | Flags::CLIP } else { Flags::NONE }).padding(Edges::new(inset, 0.0, inset, if list || compact { 0.0 } else { 12.0 })),
         |ui| {
+            if list {
+                spacer(ui, "top-room", if compact { 10.2 } else { 10.0 });
+            }
             let Some(files) = player.files else {
                 ui.label("Loading folders…", TEXT_18.grow().h_px(40.0).color(SECONDARY));
                 return;
             };
-            let content = (width - inset * 2.0).max(1.0);
             match &files.directory {
                 // the two pages share this column: each keeps its own identity
                 Some(directory) if files.account.is_some() => ui.id("folder-page", |ui| folder_page(ui, files, directory, (state, player.settings.show_non_audio), compact, intent)),
-                _ => ui.id("source-page", |ui| source_page(ui, files, content, compact, intent)),
+                _ => ui.id("source-page", |ui| source_page(ui, files, compact, intent)),
+            }
+            if list {
+                spacer(ui, "bottom-room", 12.0);
             }
         },
     );
@@ -247,16 +308,16 @@ fn status(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, intent: &m
     }
 }
 
-fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact: bool, intent: &mut Option<Intent>) {
+fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, intent: &mut Option<Intent>) {
     let enabled = files.account.is_some() && !files.busy;
-    ui.row(Node::row().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.b(16.0)),
+    ui.row(Node::row().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.b(16.0).r(if compact { -10.0 } else { 0.0 })),
         |ui| {
             ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
-                ui.label("Folders", TEXT_32.grow().h_px(if compact { 44.0 } else { 33.6 }).color(INK));
+                ui.label("Folders", PAGE_TITLE);
                 ui.label(&files.source_count, CAPTION.grow());
             });
             // Swift's "+" opens an Add music sheet; its two choices are the picker intents.
-            if ui.icon_button("add-music", icon_drawing(Icon::Plus), "Add music", &ADD_MUSIC_KEY.disabled(!enabled)).clicked {
+            if ui.icon_button("add-music", icon_sized(Icon::Plus, 24.0), "Add music", &ADD_MUSIC_KEY.disabled(!enabled)).clicked {
                 *intent = Some(Intent::ShowAddMusic);
             }
         },
@@ -281,7 +342,7 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, width: f32, compact:
         }
     }
     for folder in files.sources.iter() {
-        source_card(ui, user, folder, width, intent);
+        source_card(ui, user, folder, intent);
     }
     ui.column(Node::column().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.t(16.0)), |ui| {
         rule(ui, "offline-rule", false);
@@ -303,7 +364,7 @@ const SOURCE_CARD: Node = Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).ma
 const FOLDER_CARD_LOOKS: States = States::of(FOLDER_CARD);
 const FOLDER_CARD_ERROR_LOOKS: States = States::of(FOLDER_CARD_ERROR);
 
-fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut Option<Intent>) {
+fn source_card(ui: &mut Ui, user: i64, folder: &Folder, intent: &mut Option<Intent>) {
     let target = Target { user, source: folder.id, root: folder.root };
     let error = folder.error.is_some();
     let looks = if error { &FOLDER_CARD_ERROR_LOOKS } else { &FOLDER_CARD_LOOKS };
@@ -311,25 +372,27 @@ fn source_card(ui: &mut Ui, user: i64, folder: &Folder, width: f32, intent: &mut
         let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), &PAPER_FILL);
         ui.within(&top, &mut |ui| {
             ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
-                ui.label(&folder.name, TEXT_17.grow().color(INK));
+                ui.label(&folder.name, TEXT_17.grow().weight(500).color(INK));
                 ui.label(&folder.path, CAPTION.grow());
             });
             ui.label(&folder.count, CAPTION);
         });
         if let Some(message) = &folder.error {
             spacer(ui, "error-gap", 12.0);
-            let row = ui.node("source-error", Node::row().w(Size::Grow).h_px(20.0).gap(8.0).align(Align::Center));
+            // Swift wraps the message, its glyph on the first line's baseline
+            let row = ui.node("source-error", Node::row().w(Size::Grow).h(Size::Fit).gap(8.0));
             ui.within(&row, &mut |ui| {
-                super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
-                ui.label(message, TEXT_13.grow().h_px(18.9).color(INK));
+                ui.column(Node::column().w(Size::Fit).h_px(18.85).justify(Justify::Center), |ui| {
+                    super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
+                });
+                ui.label(message, PARAGRAPH_13.line_height(18.85).color(INK));
             });
             spacer(ui, "buttons-gap", 12.0);
             ui.id("source-buttons", |ui| { ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(2.0), |ui| {
-                let half = ((width - 34.0 - 2.0) / 2.0).floor().max(1.0);
-                if ui.button("reconnect", "Reconnect folder", &PLATE_INK.size(Size::Px(half), Size::Px(44.0))).clicked {
+                if ui.button("reconnect", "Reconnect folder", &PLATE_INK.size(Size::Grow, Size::Px(44.0)).label(CARD_KEY.color(PAPER))).clicked {
                     *intent = Some(Intent::ReconnectSource(target));
                 }
-                let options = ui.button("source-options", "Options", &PLATE.size(Size::Px(half), Size::Px(44.0)));
+                let options = ui.button("source-options", "Options", &PLATE.size(Size::Grow, Size::Px(44.0)).label(CARD_KEY.color(INK)));
                 if options.clicked {
                     let at = ui.rect(&options.handle);
                     *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
@@ -360,18 +423,12 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     }
     let location = directory.location;
     let target = Target { user: location.user, source: location.source, root: directory.source_root };
-    ui.row(if compact { BACK_BAR.wrap() } else { BACK_BAR }, |ui| {
-        if ui.button("back", "‹ Back", &FILES_BACK).clicked {
+    // Swift's shipping Mac app (its iOS build) pushes the folder page under an empty 88-point navigation bar: the same room here
+    spacer(ui, "navigation-room", 88.0);
+    // Swift's desktop page has no keys here: Import and the folder's options are its right-click menu (`page` below)
+    ui.row(BACK_BAR.margin(Edges::ZERO.l(-6.0)), |ui| {
+        if ui.button("back", "Back", &FILES_BACK).clicked {
             *intent = Some(up(directory));
-        }
-        ui.node("top-space", Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
-        if ui.button("import", "Import folder", &PLATE.size(Size::Px(108.0), Size::Px(36.0)).disabled(files.busy)).clicked {
-            *intent = Some(Intent::Files(Request::Import(location)));
-        }
-        let options = ui.button("source-options", "Folder options", &PLATE.size(Size::Px(118.0), Size::Px(36.0)));
-        if options.clicked {
-            let at = ui.rect(&options.handle);
-            *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
         }
     });
     if let Some(message) = &directory.error {
@@ -389,7 +446,7 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
             ui.label(&directory.breadcrumb, BODY_DIM.grow());
             spacer(ui, "breadcrumb-gap", 8.0);
         }
-        ui.label(&directory.title, TEXT_34.grow().h_px(36.0).color(INK));
+        ui.label(&directory.title, DESKTOP_TITLE);
         spacer(ui, "summary-gap", 6.0);
         ui.label(&directory.summary, BODY_DIM.grow());
     });
@@ -418,7 +475,8 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     }
     // The parent participates in the identity, giving each destination its own scroll state.
     let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
-    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
+    // Swift's desktop folder table spans the page, past its 32-point insets
+    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow).margin(Edges::ZERO.l(-32.0).r(-32.0)));
     let entries = &directory.entries;
     let mut table = state.folder_table.borrow_mut();
     // the rows keep their builds while the snapshot holds; its flags (plain files disabled) are written once a snapshot
@@ -433,13 +491,24 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
     // Desktop lists every file, the plain ones greyed (Swift).
     let mut r = None;
     ui.within(&list, &mut |ui| {
-        r = Some(ui.table("directory-entries", &FOLDER_COLUMNS, entries.len(), &|i| entries[i].id, &mut table, &FOLDER_TABLE, &mut |ui, index, column, cell| {
+        let widths = match state.folder_columns.get() {
+            (revision, widths) if revision == files.revision => widths,
+            _ => {
+                let widths = folder_widths(ui, entries);
+                state.folder_columns.set((files.revision, widths));
+                widths
+            }
+        };
+        let columns: [pxui::Column; 6] = std::array::from_fn(|i| {
+            let column = pxui::Column::new(FOLDER_TITLES[i]);
+            if i == 0 { column.w_px(widths[0]).grip(false) } else { column.share(widths[i]) }
+        });
+        r = Some(ui.table("directory-entries", &columns, entries.len(), &|i| entries[i].id, &mut table, &FOLDER_TABLE, &mut |ui, index, column, cell| {
             let entry = &entries[index];
             let other = !entry.directory && !entry.audio;
             let tone = if other { TERTIARY } else { SECONDARY };
             match column {
-                0 if entry.audio => { ui.label(&entry.number, TEXT_13.color(tone)); }
-                0 => mark(ui, entry.directory, Rgba::token(tone)),
+                0 => { ui.row(NUMBER_CELL, |ui| if entry.audio { ui.label(&entry.number, TEXT_13.color(tone)); } else { mark(ui, entry.directory, Rgba::token(tone)) }); }
                 1 => {
                     ui.a11y_name(&cell.handle, &entry.name);
                     ui.label(&entry.name, TEXT_14.grow().color(if other { TERTIARY } else { INK }));
@@ -461,14 +530,23 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         }));
     });
     drop(table);
+    // Swift's `lwContextMenu { administrationMenu() }`: a secondary click on the rows opens the folder menu (Import folder first)
+    if let Some(r) = &r
+        && r.rows.secondary.is_some()
+        && intent.is_none()
+    {
+        *intent = Some(Intent::SourceMenu(target, ui.signal(&r.rows.handle).pointer));
+    }
     // a folder opens on a press or Return (`activated`), never on an arrow key
     let open = r.and_then(|r| r.rows.activated).filter(|&i| entries.get(i).is_some_and(|entry| entry.directory));
     if let Some(i) = open && intent.is_none() {
         *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entries[i].id), ..location })));
     }
 }
-/// A folder table's Time cell: its text ends 12 points before the kit's 8-point inset (20 in all, as its heading).
-const TIME_CELL: Node = Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End).padding(Edges::ZERO.r(12.0));
+/// A folder table's Time cell leaves the same inset as its heading, including the kit's eight-point cell padding.
+/// A folder table's "#" cell: its number or mark at the page's 32-point inset (the cell is 8 in).
+const NUMBER_CELL: Node = Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).padding(Edges::ZERO.l(24.0));
+const TIME_CELL: Node = Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End).padding(Edges::ZERO.r(TIME_END - 8.0));
 
 /// The phone folder list (`localwave-row` / `PHONE_ROW`): 56-point rows, the overlay scrollbar, no frame.
 const PHONE_FOLDER: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(56.0).overlay_scrollbar().variant(variant::PHONE_ROW).bare();
@@ -516,7 +594,8 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         });
     } else {
     ui.within(&top, &mut |ui| {
-        if ui.button("back", if directory.up.is_some() { "Back" } else { "Folders" }, &BACK_KEY.size(Size::Fit, Size::Px(44.0))).clicked {
+        // Swift's phone folder page names its way back "Folders" at any depth (`backTitle`)
+        if ui.button("back", "Folders", &BACK_KEY.pad(Edges::ZERO.r(12.0))).clicked {
             *intent = Some(up(directory));
         }
         ui.node("top-space", Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
@@ -524,23 +603,39 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         if directory.songs.is_empty() {
             return;
         }
-        if ui.button("select", "Select", &WORD.pad(Edges::ZERO.l(12.0))).clicked {
+        if ui.button("select", "Select", &WORD.pad(Edges::ZERO.l(8.0)).label(TEXT_15.color(INK))).clicked {
             *intent = Some(Intent::SelectMode(true));
         }
     });
     }
+    // Swift's `mobileFolder`: under the back row, title, path, keys, filters and rows 16 points apart
+    spacer(ui, "title-gap", 16.0);
     if !selecting {
-    ui.id("folder-titles", |ui| { ui.row(Node::row().w(Size::Grow).h_px(48.0).align(Align::Center), |ui| {
+    ui.id("folder-titles", |ui| { ui.row(Node::row().w(Size::Grow).h_px(44.0).align(Align::Start), |ui| {
         ui.id("name", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| { ui.label(&directory.title, PAGE_TITLE); }); });
-        let more = ui.icon_button("source-options", icon_drawing(Icon::More), "Folder options", &ICON_44.look(&ICON_LOOKS));
-        if more.clicked {
-            let at = ui.rect(&more.handle);
-            *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
-        }
+        // Swift's key sits 10 points into the page's margin
+        ui.row(Node::row().w_px(44.0).h_px(44.0).margin(Edges::ZERO.r(-10.0)), |ui| {
+            let more = ui.icon_button("source-options", icon_sized(Icon::More, 22.0), "Folder options", &ICON_44.look(&ICON_LOOKS));
+            if more.clicked {
+                let at = ui.rect(&more.handle);
+                *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
+            }
+        });
     }); });
     }
     if !directory.breadcrumb.is_empty() {
-        ui.label(&directory.breadcrumb, TEXT_13.grow().h_px(24.0).color(SECONDARY));
+        spacer(ui, "path-gap", 16.0);
+        // Swift's path: its names and slashes 6 points apart in a 13-point line (the worker joins them with " / ")
+        ui.id("path", |ui| { ui.row(Node::row().w(Size::Grow).h_px(17.0).gap(6.0).padding(Edges::ZERO.t(4.0)).align(Align::Center).flags(Flags::CLIP), |ui| {
+            for (index, name) in directory.breadcrumb.split(" / ").enumerate() {
+                ui.id(Key::Id(index as i64), |ui| {
+                    if index > 0 {
+                        ui.label("/", TEXT_13.color(SECONDARY));
+                    }
+                    ui.label(name, TEXT_13.color(SECONDARY));
+                });
+            }
+        }); });
     }
     if let Some(message) = &directory.error {
         let row = ui.node("folder-error", Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center).margin(Edges::ZERO.t(8.0)).look(INK_OUTLINE));
@@ -553,8 +648,9 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         });
     }
     let ready = !directory.songs.is_empty() && !files.busy;
-    ui.row(Node::row().w(Size::Grow).h_px(52.0).gap(8.0).margin(Edges::ZERO.t(12.0).b(8.0)), |ui| {
-        if ui.button("play-folder", "Play folder", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).disabled(!ready)).clicked {
+    spacer(ui, "keys-gap", 16.0);
+    ui.row(Node::row().w(Size::Grow).h_px(52.0).gap(8.0), |ui| {
+        if ui.button("play-folder", "Play folder", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).icon_size(18.0).disabled(!ready)).clicked {
             *intent = Some(Intent::PlayFolder);
         }
         if ui.icon_button("shuffle", icon_drawing(Icon::Shuffle), "Shuffle folder", &KEY_52.disabled(!ready)).clicked {
@@ -578,12 +674,15 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         pxui::Segment::new("In cloud").id(2).detail(&directory.filter_counts[2]),
     ];
     let chosen = FILTERS.iter().position(|f| *f == files_filter);
+    spacer(ui, "filters-gap", 16.0);
     let tabs = ui.tabs("filter-tabs", &filters, chosen, &FILTER);
     if tabs.response.clicked && let Some(i) = tabs.chosen {
         *intent = Some(Intent::FilesFilter(FILTERS[i]));
     }
+    spacer(ui, "rows-gap", 16.0);
     let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
-    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow));
+    // Swift's rows run past the page's 16-point margin to the screen's edge
+    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow).margin(Edges::ZERO.r(-16.0)));
     // Swift's "N non-audio files hidden · show" closes the list (its trailer) while the setting is off.
     let footer = !show_non_audio && directory.non_audio > 0;
     // Select mode marks a saved song a tap (the list toggles its row; the marks are the songs list's flags); outside it a tap opens,
@@ -612,7 +711,7 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
             ui.a11y_name(&cell.handle, &entry.name);
             let row = ui.node("content", ROW_56);
             ui.within(&row, &mut |ui| {
-                ui.column(Node::column().w_px(16.0).h_px(16.0), |ui| match entry.glyph {
+                ui.column(Node::column().w_px(16.0).h_px(16.0).center(), |ui| match entry.glyph {
                     Some(glyph) if entry.audio => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
                     _ => mark(ui, entry.directory, Rgba::token(SECONDARY)),
                 });
@@ -627,14 +726,14 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
                     }
                 } else if entry.directory {
                     // Folder rows: Open folder / Play folder / Shuffle folder.
-                    let more = ui.icon_button("actions", icon_drawing(Icon::More), "Actions for folder", &MORE);
+                    let more = ui.icon_button("actions", icon_sized(Icon::More, 18.0), "Actions for folder", &MORE);
                     if more.clicked {
                         let at = ui.rect(&more.handle);
                         *intent = Some(Intent::FolderMenu(entry.id, (at.x + at.w - 44.0, at.y)));
                     }
                 // Swift's per-file "…"; only saved songs have actions here.
                 } else if let Some(song) = entry.song {
-                    let more = ui.icon_button("actions", icon_drawing(Icon::More), "Actions for file", &MORE);
+                    let more = ui.icon_button("actions", icon_sized(Icon::More, 18.0), "Actions for file", &MORE);
                     if more.clicked {
                         let at = ui.rect(&more.handle);
                         *intent = Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
@@ -951,10 +1050,11 @@ mod tests {
             "8 songs · 310.9 MB · 7 offline", "Play folder", "Shuffle", "Keep offline",
             "kept offline", "on this Mac", "in cloud", "#", "Name", "Kind", "Size", "On device",
             "Time", "01 Blue Hour.flac", "flac audio", "Not audio", "cover.jpg", "20.3 MB", "2:29",
-            "Import folder", "Folder options",
         ] {
             assert!(seen.iter().any(|name| name == expected), "missing {expected}: {seen:?}");
         }
+        // Swift's desktop folder page has no Import or options keys: they are its right-click menu
+        assert!(!seen.iter().any(|name| name == "Import folder" || name == "Folder options"), "no keys over the page: {seen:?}");
         assert!(seen.iter().any(|name| name == "Kept offline"), "the pinned on-device row's glyph says so");
         for (label, intent) in [
             ("Play folder", Intent::PlayFolder),
@@ -1228,6 +1328,11 @@ mod tests {
             ui.a11y_nodes().len() < 1000,
             "all 10000 paths must not become UI nodes"
         );
+        // the folder menu (a right-click on the rows) leads with Import folder for the shown folder
+        state.apply(Intent::SourceMenu(Target { user: 42, source: location.source, root: 11 }, (400.0, 300.0)));
+        for _ in 0..2 {
+            frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
         assert_eq!(
             click(
                 &mut ui,
@@ -1242,6 +1347,7 @@ mod tests {
                 ..location
             })))
         );
+        state.apply(Intent::CloseSourceMenu);
         for round in 0..6 {
             mem_sys::local_reset();
             for step in 0..20 {
@@ -1275,11 +1381,19 @@ mod tests {
             click(&mut ui, &files, &catalog, &state, &mut time, "Cancel"),
             Some(Intent::Files(Request::Cancel))
         );
+        state.apply(Intent::SourceMenu(Target { user: 42, source: location.source, root: 11 }, (400.0, 300.0)));
+        for _ in 0..2 {
+            frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
         assert_eq!(
             click(&mut ui, &files, &catalog, &state, &mut time, "Import folder"),
             None,
             "a running job disables Import"
         );
+        state.apply(Intent::CloseSourceMenu);
+        for _ in 0..2 {
+            frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+        }
         assert_eq!(
             click(&mut ui, &files, &catalog, &state, &mut time, "Back"),
             Some(Intent::Files(Request::Roots))
@@ -1327,7 +1441,7 @@ mod tests {
             .unwrap();
         }
         let mut right = 0.0;
-        for name in ["Back", "Import folder", "Folder options"] {
+        for name in ["Back"] {
             let rect = ui
                 .a11y_nodes()
                 .iter()

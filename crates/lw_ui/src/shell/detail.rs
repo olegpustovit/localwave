@@ -65,10 +65,10 @@ pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f
     BACK + body_height(width, route, folder)
         + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
 }
-/// The desktop back key (`localwave-button` / `KEY`): 96 by 40, the chevron and "Back" 26 points in, centred in the row, secondary
-/// with no plate.
-const BACK_KEY: pxui::Button = pxui::Button::DEFAULT.variant(super::theme::variant::KEY).size(Size::Px(96.0), Size::Px(BACK)).pad(Edges::ZERO.l(26.0)).gap(4.0)
-    .icon(icon_drawing(Icon::Back)).label(BODY_DIM).look(&DIM_LOOKS);
+/// The desktop back key (`localwave-button` / `KEY`): 96 by 40, Swift's 16-point chevron 4 points before "Back", 26 points in, at the
+/// row's foot (its 19.6-point line ends the 40-point row), secondary with no plate.
+const BACK_KEY: pxui::Button = pxui::Button::DEFAULT.variant(super::theme::variant::KEY).size(Size::Px(96.0), Size::Px(BACK)).pad(Edges::ZERO.l(26.0).t(BACK - 19.6)).gap(4.0)
+    .icon(icon_drawing(Icon::Back)).icon_size(16.0).label(BODY_DIM).look(&DIM_LOOKS);
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     let row = ui.node("back-row", Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {

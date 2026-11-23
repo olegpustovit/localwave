@@ -48,6 +48,9 @@ pub struct LibraryWorker {
     playback_file_changes: bool,
     /// Reference fixtures only (Swift's DEBUG `LOCALWAVE_REFERENCE_FIXTURE` shortcut): seeded rows have no files.
     pub trust_stored_availability: bool,
+    /// Reference fixtures only (Swift's `LWReferenceFixture.sourceDisplay`): root and scan-age labels
+    /// for source id 1, 2, … in place of the real path and age.
+    pub reference_sources: Vec<(String, String)>,
     /// The table text styles, resolved on the UI thread before the worker opened (`TableStyles::resolve`).
     table_styles: lw_ui::catalog::TableStyles,
 }
@@ -131,6 +134,7 @@ impl LibraryWorker {
             active_playback: None,
             playback_file_changes: false,
             trust_stored_availability: false,
+            reference_sources: Vec::new(),
             table_styles,
         })
     }

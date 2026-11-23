@@ -5,10 +5,11 @@ use pxui_sdl::PreferencesSnapshot as Snapshot;
 
 fn prepare_theme(source: &str, accent: &str, dark: bool) -> Result<ThemeHandle, pxui::Error> {
     let mut text = String::with_capacity(source.len() + 80);
-    // Deriving looks from the selected accent keeps the source's tokens and body names.
+    // The source with the selected accent: its tokens, body names and part looks (the heading and popup hairlines); the kit
+    // derives the other looks from the tokens
     for line in source.lines() {
         let Some((key, _)) = line.split_once('=') else { continue };
-        if key.trim().starts_with("tokens.") || key.trim().ends_with(".body") {
+        if key.trim() != "tokens.accent" {
             text.push_str(line);
             text.push('\n');
         }
@@ -17,6 +18,7 @@ fn prepare_theme(source: &str, accent: &str, dark: bool) -> Result<ThemeHandle, 
     text.push_str(accent);
     let mut root = ThemeHandle::parse(&text)?;
     lw_ui::apply_palette(&mut root, dark);
+    root.animate_swap(false);
     Ok(root)
 }
 
@@ -89,7 +91,7 @@ mod tests {
                         &settings,
                         Snapshot {
                             appearance: system,
-                            reduced_motion: 0,
+                            ..Snapshot::default()
                         },
                     );
                     lw_ui::testing::frame(
@@ -112,7 +114,9 @@ mod tests {
                         Signal::Mono if dark => [0xed; 3],
                         Signal::Mono => [0x11; 3],
                     };
-                    assert_eq!(ui.theme().popup.idle.border, ui.tokens().edge());
+                    // the theme files' part looks reach the app: the popup and table heading hairlines
+                    let line = if dark { pxui::geom::Rgba::rgb(0x26, 0x26, 0x26) } else { pxui::geom::Rgba::rgb(0xda, 0xda, 0xda) };
+                    assert_eq!((ui.theme().popup.idle.border, ui.theme().table_head.idle.border, ui.theme().table_head.hover.border), (line, line, line));
                     let accent = ui.tokens().accent;
                     assert_eq!([accent.r, accent.g, accent.b], expected);
                 }

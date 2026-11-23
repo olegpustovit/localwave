@@ -585,7 +585,7 @@ mod tests {
         };
         assert_eq!(
             find("cafe"),
-            [id(1), id(0)],
+            [id(0), id(1)],
             "album-artist text is included, with localized accents"
         );
         assert_eq!(find("cafe live favorites FLAC YEAR:+2019"), [id(0)]);
@@ -597,10 +597,10 @@ mod tests {
             [id(1)],
             "relative extension precedes local cache extension"
         );
-        assert_eq!(find("flac offline"), [id(8), id(3), id(0)]);
+        assert_eq!(find("flac offline"), [id(0), id(3), id(8)]);
         assert_eq!(
             find("offline"),
-            [id(8), id(5), id(4), id(3), id(2), id(1), id(0)],
+            [id(0), id(1), id(2), id(3), id(4), id(5), id(8)],
             "saved availability and Copied state are not file proof"
         );
         assert!(find("cloud").is_empty());
@@ -649,7 +649,7 @@ mod tests {
         assert_eq!(stored("cloud"), [id(0)]);
         assert_eq!(
             stored("offline"),
-            [id(8), id(7), id(5), id(4), id(3), id(2), id(1)],
+            [id(1), id(2), id(3), id(4), id(5), id(7), id(8)],
             "stored OnDevice joins; stored InCloud leaves"
         );
         assert!(stored("cloud offline").is_empty());

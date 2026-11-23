@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Compare reference/<screen>.png (Swift) with rust/<screen>.png; write diff/, index.html, summary.txt.
 
-Usage: compare-goldens.py [OUTDIR]   (default /tmp/localwave-goldens); compare-goldens.py --crop FILE TOP [HEIGHT]. Stdlib only.
+Usage: compare-goldens.py [OUTDIR]   (default /tmp/localwave-goldens). Stdlib only.
 Metrics: mean absolute RGB difference (0-255) and percent of pixels whose max channel differs by > THRESH.
 Pixel-exact equality is not expected (CoreText antialiasing is deferred decision D); review the HTML.
 """
@@ -76,17 +76,7 @@ def compare(ref, rust, diff_path):
     return (total / (w * h * 3), 100.0 * over / (w * h)), None
 
 
-def crop(path, top, height=872):
-    """Drop `top` rows (titlebar inset) in place so the capture is the content area (sips mishandles an offset of exactly the remainder)."""
-    w, h, bpp, data = read_png(path)
-    assert h >= top + height, f"{path}: {h} rows cannot hold {height} below {top}"
-    rgb = b"".join(data[y * w * bpp + x * bpp:y * w * bpp + x * bpp + 3] for y in range(top, top + height) for x in range(w))
-    write_png(path, w, height, rgb)
-
-
 def main():
-    if len(sys.argv) in (4, 5) and sys.argv[1] == "--crop":
-        return crop(sys.argv[2], int(sys.argv[3]), *map(int, sys.argv[4:]))
     out = sys.argv[1] if len(sys.argv) > 1 else "/tmp/localwave-goldens"
     os.makedirs(f"{out}/diff", exist_ok=True)
     names = sorted(n[:-4] for n in os.listdir(f"{out}/rust") if n.endswith(".png") and os.path.exists(f"{out}/reference/{n}"))

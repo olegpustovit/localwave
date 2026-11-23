@@ -175,6 +175,8 @@ pub enum Intent {
     Volume(f32),
     RefreshLibrary,
     Search(browse::Query),
+    /// The phone's Find shows every song it found, past the first eight (Swift's "Show all N songs").
+    FindShowAll,
     /// Desktop Find as Swift's separate results page (palette "Find"); ⌘F edits the query again.
     SearchResults(browse::Query),
     SearchTooLong,
@@ -242,6 +244,10 @@ pub enum Intent {
     KeepFolder,
     ChooseFolder,
     ChooseAudio,
+    /// Show the system audio route picker from the key at this window point.
+    AudioRoute((f32, f32)),
+    /// Install and index the bundled demo library, then explore it (Swift's `LWDemoLibrary.installIfEmpty`).
+    TryDemo,
     SourceMenu(files::Target, (f32, f32)),
     CloseSourceMenu,
     ReconnectSource(files::Target),
@@ -335,6 +341,10 @@ pub struct PlayerView<'a> {
     pub volume: f32,
     pub shuffled: bool,
     pub repeat: lw_core::queue::RepeatMode,
+    /// The app carries the bundled demo library (onboarding offers "Try the demo library").
+    pub demo: bool,
+    /// The platform has the audio route key (iOS's AirPlay picker; Swift's macOS build shows none).
+    pub route: bool,
 }
 
 #[cfg(test)]

@@ -17,6 +17,10 @@ fn run() -> Result<(), String> {
     known_options(&args)?;
     let workload = perf::Workload::from_args(&args)?;
     let reference = reference::from_args(&args)?;
+    let mut reference_capture = reference
+        .as_ref()
+        .and_then(|_| std::env::var_os("LOCALWAVE_REFERENCE_CAPTURE"))
+        .map(std::path::PathBuf::from);
     let smoke = args.iter().any(|arg| arg == "--smoke-test");
     let trace_frames = args.iter().any(|arg| arg == "--trace-frames");
     let mut app: Option<Box<App>> = None;
@@ -25,13 +29,16 @@ fn run() -> Result<(), String> {
     } else {
         (1440, 872)
     };
-    pxui_sdl::app::run(
+    pxui_sdl::app::run_with_density(
         "LocalWave",
         width,
         height,
+        reference_capture.is_none(),
         Box::new(move |window, signal| {
             if signal == Signal::Initialize {
-                app = Some(app::open(window, workload, smoke, trace_frames, reference.clone())?);
+                app = Some(app::open(
+                    window, workload, smoke, trace_frames, reference.clone(), reference_capture.take(),
+                )?);
                 return Ok(Schedule::NextFrame);
             }
             if signal == Signal::Finish {

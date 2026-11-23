@@ -23,6 +23,9 @@ const CLEAR_UP_NEXT: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).
 /// The queue sheet: a bottom modal of the content area's width, dismissed by a downward drag with UIKit's thresholds.
 const QUEUE_SHEET: Overlay = Overlay::DEFAULT.present(pxui::Presentation::Bottom).dismiss(pxui::DismissOpts::DEFAULT).name("Playback queue");
 
+/// The Now panel's Up next heading: a bare row 20 points in, 10 above and 4 below its 18.2-point line.
+const QUEUE_HEADING: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(10.0 + 18.2 + 4.0)).align(Justify::Start)
+    .pad(Edges::new(20.0, 10.0, 20.0, 4.0)).look(&BARE).name("Show full queue");
 /// Row metrics: the Now panel's Up next (Swift `desktop`) and the bottom sheet's.
 struct Metrics {
     row: f32,
@@ -42,17 +45,17 @@ struct Metrics {
 
 const PANEL: Metrics = Metrics {
     row: 44.0,
-    grip: 24.0,
+    grip: 28.0,
     art: 30.0,
     title: 13,
-    title_line: 19.0,
+    title_line: 18.2,
     artist: 12,
-    artist_line: 17.0,
-    gap: 0.0,
-    lead: 0.0,
-    trail: 0.0,
-    remove: 28.0,
-    glyph: 4.0,
+    artist_line: 16.8,
+    gap: 10.0,
+    lead: 4.0,
+    trail: 6.0,
+    remove: 44.0,
+    glyph: 0.0,
 };
 const SHEET: Metrics = Metrics {
     row: 56.0,
@@ -87,7 +90,8 @@ pub(super) fn queue_sheet(
         .and_then(|entry| catalog.row_index(entry.song_id))
         .map(|index| catalog.row(index));
     let notice = !player.message.is_empty();
-    let wanted = 21.0
+    // Swift's sheet: its 13-point handle (a 5-point bar 8 down), the content and 20 points under it
+    let wanted = 13.0
         + 66.2
         + if state.playlist_editing { 100.0 } else { 0.0 }
         + if notice { 28.0 } else { 0.0 }
@@ -99,8 +103,9 @@ pub(super) fn queue_sheet(
             96.0
         }
         + 20.0;
-    let cap = (content.h * 0.86 - 33.0).max(0.0);
-    let height = wanted.min(cap);
+    // The content cap leaves room for the handle and bottom padding outside the scroll region.
+    let cap = (content.h * 0.86 - 33.0).max(0.0) + 33.0;
+    let height = wanted.ceil().min(cap);
     let width = content.w;
     let open = ui.modal("queue-sheet", &QUEUE_SHEET.max_h_px(cap), |ui| {
         ui.column(Node::column().w(Size::Grow).h_px(height), |ui| {
@@ -109,7 +114,7 @@ pub(super) fn queue_sheet(
                     "queue-handle",
                     Axis::Stack,
                     Size::Grow,
-                    Size::Px(21.0),
+                    Size::Px(13.0),
                     &PAPER_FILL,
                 );
                 ui.canvas(&handle, move |paint, rect| {
@@ -123,7 +128,7 @@ pub(super) fn queue_sheet(
                         if titles.clicked || titles.secondary {
                             *intent = Some(Intent::NamePlaylist);
                         }
-                        if ui.icon_button("close-queue", icon_drawing(Icon::Clear), "Close queue", &ICON_44.look(&ICON_PLATE_LOOKS)).clicked {
+                        if ui.icon_button("close-queue", icon_sized(Icon::Clear, 22.0), "Close queue", &ICON_44.look(&ICON_LOOKS)).clicked {
                             *intent = Some(Intent::CloseQueue);
                         }
                     },
@@ -245,7 +250,8 @@ fn now_row(
         );
         paint_artwork(ui, &art, Some(song), 36.0, player.artwork);
         ui.column(Node::column().w_px((width - 134.0).max(0.0)).h(Size::Fit), |ui| {
-            ui.label(song.title, LEAD_INK.grow());
+            let title = if width < super::compact::BREAKPOINT { LEAD_INK.weight(600) } else { LEAD_INK };
+            ui.label(song.title, title.grow());
             let line = container(ui, "line", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
             ui.within(&line, &mut |ui| {
                 ui.label("Now · ", CAPTION);
@@ -275,38 +281,31 @@ pub(super) fn queue_rows(
     // Swift's sheet rows (desktop: false) are larger than the panel's.
     let m = if sheet { SHEET } else { PANEL };
     if !sheet {
-        let header = container(
-            ui,
-            "queue-heading",
-            Axis::Row,
-            Size::Grow,
-            Size::Px(34.0),
-            &PAPER_FILL,
-        );
-        ui.within(&header, &mut |ui| {
-            ui.label(&queue.heading, TEXT_13.grow().h_px(28.0).color(SECONDARY));
-            ui.label(&queue.count, MONO_12.w_px(56.0).h_px(28.0).color(SECONDARY));
-            if ui.icon_button("show-queue", icon_drawing(Icon::Queue), "Show full queue", &ICON_28.look(&ICON_PLATE_LOOKS)).clicked {
-                *intent = Some(Intent::ShowQueue);
-            }
-            if !queue.upcoming().is_empty() && ui.button("clear", "Clear", &queue_action(44.0, "Clear up next")).clicked {
-                *intent = Some(Intent::ClearQueue);
-            }
-            if queue.can_undo && ui.button("undo", "Undo", &queue_action(44.0, "Undo clear up next")).clicked {
-                *intent = Some(Intent::UndoQueue);
-            }
+        // Swift's heading: "Up next · context" and the count at its end, 20 points in, 10 above and 4 below; the full queue opens
+        // from it (Swift's artwork menu "Show queue"; Clear and Undo are the sheet's)
+        let heading = ui.button_content("queue-heading", &QUEUE_HEADING, |ui, _| {
+            ui.label(&queue.heading, TEXT_13.grow().color(SECONDARY));
+            ui.label(&queue.count, MONO_12.color(SECONDARY));
         });
+        if heading.clicked {
+            *intent = Some(Intent::ShowQueue);
+        }
     }
     if entries.is_empty() {
         if sheet {
             return;
         }
-        ui.label(if queue.can_undo { "Up next cleared." } else { "Queue is empty." }, TEXT_14.grow().h_px(44.0).color(SECONDARY));
+        ui.row(Node::row().w(Size::Grow).h_px(19.6 + 32.0).padding(Edges::new(20.0, 16.0, 20.0, 16.0)), |ui| {
+            ui.label(if queue.can_undo { "Up next cleared." } else { "Queue is empty." }, TEXT_14.grow().color(SECONDARY));
+        });
         return;
     }
     // a row is keyed by its occurrence, so it keeps its identity when the queue reorders
-    let rows = SectionList::new(entries.len()).row_h(m.row).reorder(true);
-    let list = ui.section_list("queue-entries", &rows, &|index| entries[index].id as i64, &mut |ui, part, cell| {
+    let rows = SectionList::new(entries.len()).row_h(m.row).reorder(true).overlay_scrollbar();
+    // the panel's rows sit 10 points in from its edges with 10 below (the sheet's rows place themselves)
+    let inset = if sheet { Edges::ZERO } else { Edges::new(10.0, 0.0, 10.0, 10.0) };
+    let mut list = None;
+    ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(inset), |ui| { list = Some(ui.section_list("queue-entries", &rows, &|index| entries[index].id as i64, &mut |ui, part, cell| {
         let SectionPart::Row(index) = part else { return };
         let entry = entries[index];
         let row = catalog
@@ -325,12 +324,10 @@ pub(super) fn queue_rows(
             // the list's handle: a press lifts the row at once (touch too) and the list reports the move
             let grip = ui.part(pxui::Part::HANDLE, Node::column().w_px(m.grip).h_px(m.row));
             ui.a11y_name(&grip, "Reorder queued track");
+            // Swift's 18-point LW-drag dots in tertiary ink, centred in the handle
             ui.canvas(&grip, move |paint, rect| {
-                for x in [m.grip / 2.0 - 4.0, m.grip / 2.0] {
-                    for y in [m.row / 2.0 - 5.0, m.row / 2.0 - 1.0, m.row / 2.0 + 3.0] {
-                        paint.fill(Rect::new(rect.x + x, rect.y + y, 2.0, 2.0), Fill::new(Rgba::token(SECONDARY)));
-                    }
-                }
+                let at = Rect::new(rect.x + (rect.w - 18.0) / 2.0, rect.y + (rect.h - 18.0) / 2.0, 18.0, 18.0);
+                crate::icons::drag(paint, at, Rgba::token(TERTIARY));
             });
             let art = container(
                 ui,
@@ -362,14 +359,15 @@ pub(super) fn queue_rows(
             }
             if ui.icon_button(
                 "remove-queued",
-                icon_drawing(Icon::Clear),
+                icon_sized(Icon::Clear, 16.0),
                 "Remove from queue",
-                &icon_key(m.remove, m.row).look(&ICON_PLATE_LOOKS),
+                &icon_key(m.remove, m.row).look(&DIM_LOOKS),
             ).clicked {
                 *intent = Some(Intent::RemoveQueue(entry.id));
             }
         });
-    });
+    })); });
+    let list = list.expect("the queue list is built");
     // `to` is the moved row's final index in `entries`' pre-move order: the occurrence after it is old `to + 1` moving down, `to` moving up
     if let Some((from, to)) = list.moved {
         *intent = Some(Intent::MoveQueue { occurrence: entries[from].id, before: entries.get(to + usize::from(to > from)).map(|entry| entry.id) });

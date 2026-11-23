@@ -11,7 +11,11 @@ use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
 
 /// A settings link (‹ Library, Support…; `localwave-button` / `ROW`): secondary 15-point text across the page from its start, 44 points high.
-const SETTINGS_LINK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(44.0)).align(Justify::Start).pad(Edges::new(0.0, 4.0, 0.0, 0.0)).label(TEXT_15.color(SECONDARY).role(Role::Unknown));
+/// The settings page's Back: Swift's 18-point LW-back 4 points before its secondary 15-point label, 44 high, 10 in.
+const SETTINGS_BACK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(44.0)).align(Justify::Start).pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+    .icon(icon_drawing(Icon::Back)).icon_size(18.0).gap(4.0).label(TEXT_15.color(SECONDARY).role(Role::Unknown)).name("Back");
+/// Swift's "About & Privacy": its underlined 14-point secondary text in a 44-point line.
+const SETTINGS_LINK: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).pad(Edges::ZERO).label(TEXT_14.color(SECONDARY).role(Role::Unknown)).look(&SECONDARY_RULE);
 /// A secondary press on a settings row or its chips (`secondary`) opens the row's context menu where the pointer is.
 fn context(ui: &Ui, secondary: bool, node: &Handle, menu: SettingsMenu, intent: &mut Option<Intent>) {
     if secondary {
@@ -39,14 +43,20 @@ const NOTICE: Label = TEXT_14.grow().h_px(42.0).color(ColorToken::ACCENT);
 const ROW: Node =
     Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center).axis(Axis::Row).min_h(60.0);
 const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap().w(Size::Grow).role(Role::Label).color(SECONDARY);
-fn labels(ui: &mut Ui, title: &str, detail: &str) {
-    ui.column(Node::column().w(Size::Grow).h(Size::Fit).justify(Justify::Center), |ui| {
-        ui.label(title, TEXT_15.grow().h_px(21.0).color(INK));
+fn labels(ui: &mut Ui, title: &str, detail: &str, w: Size, top: f32) {
+    // a fitted column (Swift's flexible row) takes its lines' own widths; a growing one wraps its detail to the row
+    let fit = matches!(w, Size::Fit);
+    ui.column(Node::column().w(w).h(Size::Fit).justify(Justify::Center).padding(Edges::ZERO.t(top)), |ui| {
+        ui.label(title, if fit { TEXT_15.h_px(21.0).color(INK) } else { TEXT_15.grow().h_px(21.0).color(INK) });
         if !detail.is_empty() {
-            ui.label(detail, DETAIL);
+            ui.label(detail, if fit { TEXT_13.color(SECONDARY).role(Role::Label) } else { DETAIL });
         }
     });
 }
+fn row_gap(ui: &Ui) -> f32 {
+    if ui.view_size().width < compact::BREAKPOINT { 16.0 } else { ROW.gap }
+}
+
 /// The row's hairline, from its title's start to its end.
 fn hairline(ui: &mut Ui, node: &Handle) {
     ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(Rgba::token(LINE))));
@@ -56,10 +66,12 @@ fn hairline(ui: &mut Ui, node: &Handle) {
 pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     // The switch shows the stored value until the controller applies the flip.
     let (on, title) = (c.stored != 0, c.text_of(&c.label));
-    ui.set_node_layout(&c.row, &ROW.min_h(c.row_h));
+    ui.set_node_layout(&c.row, &ROW.min_h(c.row_h).gap(row_gap(ui)));
     ui.a11y_name(&c.row, title);
     ui.set_role(&c.row, Role::Toggle, pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE }));
-    labels(ui, title, c.text_of(&c.detail));
+    // Align the phone labels one point lower while keeping the switch centered.
+    let top = if ui.view_size().width < compact::BREAKPOINT { 2.0 } else { 0.0 };
+    labels(ui, title, c.text_of(&c.detail), Size::Grow, top);
     let track = if on { TRACK_ON } else { TRACK };
     ui.column(Node::column().w_px(48.0).h_px(28.0).look(track), |ui| {
         ui.node("knob", Node::column().w_px(22.0).h_px(22.0).at(if on { 23.0 } else { 3.0 }, 3.0).look(KNOB));
@@ -84,8 +96,12 @@ const APPEARANCE_SEGMENTS: [Segment; 3] = [
 ];
 /// The settings chips `items` (`selected` the stored choice): a primary press on a chip is its `change`, a secondary press opens `menu`.
 #[allow(clippy::too_many_arguments)]
-fn chips(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usize>, w: f32, change: impl Fn(i64) -> Change, menu: SettingsMenu, intent: &mut Option<Intent>) {
-    let r = ui.segmented(key, items, selected, &CHIPS.w_px(w));
+fn chips(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usize>, change: impl Fn(i64) -> Change, menu: SettingsMenu, intent: &mut Option<Intent>) {
+    chips_styled(ui, key, items, selected, change, menu, &CHIPS, intent);
+}
+#[allow(clippy::too_many_arguments)]
+fn chips_styled(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usize>, change: impl Fn(i64) -> Change, menu: SettingsMenu, style: &pxui::Segmented, intent: &mut Option<Intent>) {
+    let r = ui.segmented(key, items, selected, style);
     if (r.response.changed || r.response.clicked) && let Some(id) = r.chosen_id {
         *intent = Some(Intent::Setting(change(id)));
     }
@@ -94,20 +110,14 @@ fn chips(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usi
 /// The rescan row (`localwave-button` / `SETTING`): a press focuses it, as Swift's rows take the focus.
 const RESCAN: pxui::Button = pxui::Button::DEFAULT.variant(variant::SETTING).detail("Usually not needed — folders are watched").focus_on_click(true);
 /// LocalWave's settings row button (`localwave-button` / `SETTING`): the settings row with the title and detail, the dotted chevron at
-/// its end and the hairline under it.
+/// its end (Swift's 18-point LW-chev) and the hairline under it.
 pub(super) fn row_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     ui.set_node_layout(&c.line, &Node::row().w(Size::Grow).h(Size::Fit));
-    ui.set_node_layout(&c.row, &ROW);
-    labels(ui, c.text_of(&c.label), c.text_of(&c.detail));
+    ui.set_node_layout(&c.row, &ROW.gap(row_gap(ui)));
+    labels(ui, c.text_of(&c.label), c.text_of(&c.detail), Size::Grow, 0.0);
     let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
     let color = Rgba::token(INK);
-    ui.canvas(&glyph, move |paint, rect| {
-        for step in 0..6 {
-            let step = step as f32 * 1.5;
-            paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 3.0 + step, 1.5, 1.5), Fill::new(color));
-            paint.fill(Rect::new(rect.x + 5.0 + step, rect.y + 14.0 - step, 1.5, 1.5), Fill::new(color));
-        }
-    });
+    ui.canvas(&glyph, move |paint, rect| crate::icons::chevron(paint, rect, color));
     hairline(ui, &c.row);
 }
 /// A settings row: a press focuses it, as Swift's rows take the focus.
@@ -121,7 +131,7 @@ pub(super) fn view(
 ) {
     let page = ui.node(
         "settings-page",
-        Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP).padding(Edges::ZERO.t(10.0).b(24.0)),
+        Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP).padding(Edges::ZERO.t(10.0)),
     );
     ui.set_role(&page, Role::Group, pxui::A11yStates::NONE);
     ui.a11y_name(
@@ -133,7 +143,7 @@ pub(super) fn view(
         },
     );
     ui.within(&page, &mut |ui| {
-        if ui.button("back", if state.privacy_visible { "‹ Settings" } else { "‹ Library" }, &SETTINGS_LINK).clicked {
+        if ui.button("back", if state.privacy_visible { "Settings" } else { "Library" }, &SETTINGS_BACK).clicked {
             *intent = Some(if state.privacy_visible { Intent::ClosePrivacy } else { Intent::CloseSettings });
         }
         let heading = if state.privacy_visible { "About & Privacy" } else { "Settings" };
@@ -155,6 +165,7 @@ pub(super) fn view(
             if ui.button("full-privacy-policy", "Full privacy policy", &SETTINGS_LINK).clicked { *intent = Some(Intent::PrivacyPolicy); }
             if ui.button("support", "Support", &SETTINGS_LINK).clicked { *intent = Some(Intent::Support); }
             if !player.message.is_empty() { ui.label(player.message, NOTICE); }
+            spacer(ui, "settings-bottom", 24.0);
             return;
         }
         let settings = player.settings;
@@ -174,29 +185,53 @@ pub(super) fn view(
         if ui.toggle("no-network", "Simulate no network", settings.simulate_no_network, &offline).changed {
             *intent = Some(Intent::Setting(Change::ToggleNoNetwork));
         }
-        let cache_detail = match settings.cache_gb { 2 => "2 GB limit · Oldest unpinned downloads go first", 32 => "32 GB limit · Oldest unpinned downloads go first", _ => "Oldest unpinned downloads go first" };
-        let cache = ui.pressable("cache", ROW.role(Role::Group), &SETTING, |ui, _| {
-            labels(ui, "Offline space", cache_detail);
+        let cache_detail = match (settings.cache_gb, compact) {
+            (2, _) => "2 GB limit · Oldest unpinned downloads go first",
+            (32, _) => "32 GB limit · Oldest unpinned downloads go first",
+            (_, true) => "Oldest unpinned downloads go first",
+            _ => "Oldest unpinned downloads go first",
+        };
+        // Swift's flexible row: the chips follow the label 16 points on, not at the row's end; a phone's narrower row shrinks the
+        // label to wrap instead (Swift scales both down)
+        // a phone scales label and chips down together (Swift's `WaveSettingsFlexLayout`): each its natural width times the room's share
+        let flex = compact.then(|| {
+            let mut text = ui.text_service();
+            let mut w = |value: &str, style: Label| text.measure(value, style, None).map_or(0.0, |m| m.width);
+            let label = w("Offline space", TEXT_15).max(w(cache_detail, TEXT_13));
+            let chips = CACHE_SEGMENTS.iter().map(|s| w(s.text, TEXT_13) + 20.0).sum::<f32>() + 4.0;
+            let ratio = ((width - 32.0 - 16.0) / (label + chips)).min(1.0);
+            (label * ratio, chips * ratio)
+        });
+        let cache = ui.pressable("cache", ROW.role(Role::Group).gap(16.0), &SETTING, |ui, _| {
+            labels(ui, "Offline space", cache_detail, flex.map_or(Size::Fit, |(label, _)| Size::Px(label)), 0.0);
             let current = CACHE_SEGMENTS.iter().position(|s| s.id == Some(settings.cache_gb));
-            chips(ui, "cache-size", &CACHE_SEGMENTS, current, 174.0, Change::CacheGB, SettingsMenu::Cache, intent);
+            match flex {
+                Some((_, strip)) => {
+                    ui.row(Node::row().w_px(strip).h(Size::Fit), |ui| {
+                        chips_styled(ui, "cache-size", &CACHE_SEGMENTS, current, Change::CacheGB, SettingsMenu::Cache, &CHIPS.grow(), intent);
+                    });
+                }
+                None => chips(ui, "cache-size", &CACHE_SEGMENTS, current, Change::CacheGB, SettingsMenu::Cache, intent),
+            }
         });
         setting_row(ui, &cache, "Offline space", SettingsMenu::Cache, intent);
         let appearance = ui.pressable("appearance", ROW.role(Role::Group), &SETTING, |ui, _| {
-            labels(ui, "Appearance", "");
+            labels(ui, "Appearance", "", Size::Grow, 0.0);
             let current = APPEARANCES.iter().position(|a| *a == settings.appearance);
-            chips(ui, "appearance-chips", &APPEARANCE_SEGMENTS, current, 204.0, |id| Change::Appearance(APPEARANCES[id as usize]), SettingsMenu::Appearance, intent);
+            chips(ui, "appearance-chips", &APPEARANCE_SEGMENTS, current, |id| Change::Appearance(APPEARANCES[id as usize]), SettingsMenu::Appearance, intent);
         });
         setting_row(ui, &appearance, "Appearance", SettingsMenu::Appearance, intent);
         if ui.button("rescan", "Rescan all sources", &RESCAN).clicked {
             *intent = Some(Intent::Files(crate::files::Request::Roots));
         }
-        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0), |ui| {
+        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).padding(Edges::new(16.0, 24.0, 16.0, 16.0)), |ui| {
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
             if ui.button("about-privacy", "About & Privacy", &SETTINGS_LINK).clicked { *intent = Some(Intent::ShowPrivacy); }
             ui.label(if player.storage_busy || player.cache_usage.is_empty() { "Reading offline space…" } else { player.cache_usage }, PARAGRAPH_14.color(SECONDARY));
             if !player.settings_message.is_empty() { ui.label(player.settings_message, NOTICE); }
             if !player.message.is_empty() { ui.label(player.message, NOTICE); }
         });
+        spacer(ui, "settings-bottom", 24.0);
     });
 }
 pub(super) fn popup(

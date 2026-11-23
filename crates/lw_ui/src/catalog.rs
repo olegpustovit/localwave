@@ -92,6 +92,8 @@ pub struct Row<'a> {
     pub cover_art_id: usize,
     pub favorite: bool,
     pub state: FileState,
+    /// Its source needs reconnecting (Swift's "blocked" state: a reachable copy is not on this device).
+    pub blocked: bool,
 }
 
 #[derive(Clone)]
@@ -104,6 +106,7 @@ struct StoredRow {
     availability: Option<FileAvailability>,
     pinned: bool,
     state: FileState,
+    blocked: bool,
     seconds: Option<f64>,
     release_year: Option<i64>,
     has_format: bool,
@@ -159,6 +162,29 @@ const LETTERS: [&str; 27] = [
     "T", "U", "V", "W", "X", "Y", "Z", "#",
 ];
 
+fn section_index<'a>(titles: impl IntoIterator<Item = &'a str>) -> (Vec<&'static str>, Vec<usize>) {
+    let (mut letters, mut starts) = (Vec::new(), Vec::new());
+    let mut seen = 0u32;
+    for (position, title) in titles.into_iter().enumerate() {
+        let letter = match title.chars().next().map(|c| c.to_ascii_uppercase()) {
+            Some(c @ 'A'..='Z') => (c as u8 - b'A') as usize,
+            _ => 26,
+        };
+        if seen & (1 << letter) == 0 {
+            seen |= 1 << letter;
+            letters.push(LETTERS[letter]);
+            starts.push(position);
+        }
+    }
+    (letters, starts)
+}
+
+fn artist_sort_name(name: &str) -> &str {
+    name.strip_prefix("The ")
+        .or_else(|| name.strip_prefix("the "))
+        .unwrap_or(name)
+}
+
 pub struct ArtistRow {
     pub albums: String,
     pub minutes: String,
@@ -185,6 +211,7 @@ pub struct Library {
     /// Known only once the worker has read the sources; onboarding needs a real zero.
     pub sources: Option<usize>,
     pub artists: Vec<Collection>,
+    pub(crate) artist_index: (Vec<&'static str>, Vec<usize>),
     pub collections: Vec<Collection>,
     /// Swift's sidebar Sources group, prepared by the catalog worker.
     pub source_rows: Vec<SourceRow>,
@@ -205,6 +232,11 @@ pub struct Library {
 
 impl Library {
     pub fn new(songs: Vec<Song>) -> Self {
+        Self::with_blocked(songs, &[])
+    }
+    /// The library of `songs`; those of the `blocked` sources (id and name: a source that needs reconnecting) not on this device
+    /// marked so, their compact line "<name> needs reconnecting" (Swift's `waveBlockedSourceName`).
+    pub fn with_blocked(songs: Vec<Song>, blocked: &[(i64, String)]) -> Self {
         let mut albums = BTreeMap::<(String, String), Vec<usize>>::new();
         let mut artists = BTreeMap::<String, Vec<usize>>::new();
         let megabytes = songs
@@ -275,7 +307,13 @@ impl Library {
                 || "—".into(),
                 |seconds| format!("{}:{:02}", seconds / 60, seconds % 60),
             );
-            let subtitle = format!("{} · {}", song.artist, song.album);
+            let blocked_by = song.source_id
+                .and_then(|source| blocked.iter().find(|(id, _)| *id == source))
+                .filter(|_| song.source_availability != Some(FileAvailability::OnDevice));
+            let subtitle = match blocked_by {
+                Some((_, name)) => format!("{name} needs reconnecting"),
+                None => format!("{} · {}", song.artist, song.album),
+            };
             let file_note = song.file_size.map_or_else(
                 || "Size unknown".to_owned(),
                 |bytes| format!("{:.1} MB", bytes as f64 / 1_048_576.0),
@@ -325,6 +363,7 @@ impl Library {
                 availability: song.source_availability,
                 pinned: false,
                 state: song.file_state,
+                blocked: blocked_by.is_some(),
                 seconds: seconds_value,
                 release_year: song.release_year,
                 has_format,
@@ -402,15 +441,12 @@ impl Library {
             ));
         }
         out.artists.sort_by_cached_key(|artist| {
-            artist
-                .title
-                .strip_prefix("The ")
-                .or_else(|| artist.title.strip_prefix("the "))
-                .unwrap_or(&artist.title)
+            artist_sort_name(&artist.title)
                 .chars()
                 .flat_map(char::to_lowercase)
                 .collect::<String>()
         });
+        out.artist_index = section_index(out.artists.iter().map(|artist| artist_sort_name(&artist.title)));
         out.byline_routes = vec![[Route::Artists, Route::Albums]; out.rows.len()];
         for (index, group) in out.artists.iter().enumerate() {
             for row in &group.rows {
@@ -462,11 +498,11 @@ impl Library {
             favorites,
             PlaybackContext::Automatic("Favorites".into()),
         );
-        out.add_collection(
-            "Recently added",
-            (0..out.rows.len().min(24)).collect(),
-            PlaybackContext::Automatic("Recently Added".into()),
-        );
+        // Swift's `waveRecentlyAddedSongs`: the 24 latest by date added (rows are in insertion order)
+        let mut recent: Vec<usize> = (0..out.rows.len()).collect();
+        recent.sort_by(|a, b| added[*b].total_cmp(&added[*a]));
+        recent.truncate(24);
+        out.add_collection("Recently added", recent, PlaybackContext::Automatic("Recently Added".into()));
         // Swift's list order; membership comes from preferences and availability in `prepare_smart_lists`.
         for (title, name) in [
             ("Most played", "Most Played"),
@@ -550,6 +586,7 @@ impl Library {
             duration,
             favorite: row.favorite,
             state: row.state,
+            blocked: row.blocked,
             seconds: row.seconds,
             release_year: row.release_year,
             has_format: row.has_format,
@@ -645,25 +682,13 @@ impl Library {
             _ => String::new(),
         };
         let lead = if format.is_empty() { String::new() } else { format!("{summary} · ") };
-        let (mut letters, mut starts) = (Vec::new(), Vec::new());
-        let mut seen = 0u32;
-        for (position, index) in rows.iter().enumerate() {
-            let letter = match self
-                .row(*index)
-                .title
-                .chars()
-                .next()
-                .map(|c| c.to_ascii_uppercase())
-            {
-                Some(c @ 'A'..='Z') => (c as u8 - b'A') as usize,
-                _ => 26,
-            };
-            if seen & (1 << letter) == 0 {
-                seen |= 1 << letter;
-                letters.push(LETTERS[letter]);
-                starts.push(position);
-            }
-        }
+        // Swift's desktop list heading line (`waveMinutesLabel`): its minutes, "· updates itself" on an automatic list
+        let subtitle = match &context {
+            PlaybackContext::Automatic(_) => format!("{} min · updates itself", (seconds() / 60.0).round()),
+            PlaybackContext::Playlist { .. } => format!("{} min", (seconds() / 60.0).round()),
+            _ => subtitle.to_owned(),
+        };
+        let (letters, starts) = section_index(rows.iter().map(|&index| self.row(index).title));
         Collection {
             key,
             summary,
@@ -674,7 +699,7 @@ impl Library {
             starts,
             row_keys,
             title: crate::clip(title).into(),
-            subtitle: crate::clip(subtitle).into(),
+            subtitle: crate::clip(&subtitle).into(),
             count: rows.len().to_string(),
             ids: rows.iter().map(|index| self.rows[*index].id).collect(),
             artwork_row: rows
@@ -759,8 +784,12 @@ impl Deref for Catalog {
 }
 impl Catalog {
     pub fn new(songs: Vec<Song>) -> Self {
+        Self::with_blocked(songs, &[])
+    }
+    /// `Catalog::new`, the `blocked` sources' songs marked (`Library::with_blocked`).
+    pub fn with_blocked(songs: Vec<Song>, blocked: &[(i64, String)]) -> Self {
         Self {
-            library: Arc::new(Library::new(songs)),
+            library: Arc::new(Library::with_blocked(songs, blocked)),
             view: None,
             commands: None,
             source_version: None,
@@ -1128,6 +1157,10 @@ mod tests {
             library.library_subtitle,
             "4 songs across 3 sources · 1.0 GB"
         );
+        let titles = |rows: &[usize]| rows.iter().map(|index| library.rows[*index].id).collect::<Vec<_>>();
+        assert_eq!(titles(&library.all.as_ref().unwrap().rows), [1, 2, 3, 4], "the library keeps insertion order (Swift)");
+        let recent = library.collections.iter().find(|group| group.title == "Recently added").unwrap();
+        assert_eq!(titles(&recent.rows), [4, 3, 2, 1], "Recently added is newest first");
         let empty = super::Library::new(Vec::new());
         assert_eq!(empty.library_subtitle, "0 songs across 0 sources · 0.0 MB");
         assert!(empty.album_orders.iter().all(Vec::is_empty));
