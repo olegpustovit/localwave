@@ -10,7 +10,10 @@ pub(super) struct Viewport {
 }
 
 /// The equalizer bars' loop: forward and back, each bar started a phase later.
-const EQUALIZER_LOOP: pxui::Keyframes = pxui::Keyframes::DEFAULT.repeat(pxui::Repeat::Forever).autoreverse();
+const EQUALIZER_LOOP: pxui::Keyframes = pxui::Keyframes::DEFAULT
+    .repeat(pxui::Repeat::Forever)
+    .autoreverse()
+    .rate(crate::motion::PLAYBACK_RATE);
 /// The playing glyph's blink loop, each half started a phase later.
 const BLINK_LOOP: pxui::Keyframes = pxui::Keyframes::DEFAULT.repeat(pxui::Repeat::Forever);
 

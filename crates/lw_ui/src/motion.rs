@@ -9,6 +9,9 @@
 //! Reference motion tokens. Curves and samples stay inline on animation paths.
 use pxui::theme::Curve;
 
+/// Playback visuals share the same idle tick.
+pub(crate) const PLAYBACK_RATE: pxui::Rate = pxui::Rate::Ambient(20);
+
 pub const INSTANT: f32 = 0.08;
 pub const QUICK: f32 = 0.14;
 pub const BASE: f32 = 0.24;
