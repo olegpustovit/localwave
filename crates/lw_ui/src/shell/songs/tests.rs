@@ -363,12 +363,18 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             .layers()
             .flat_map(|layer| layer.instances.iter().copied())
             .collect();
+        let mut sample = 0.0;
         for tick in 1..61 {
             frame.wire.time = tick as f64 / 60.0;
+            // The 30 Hz pending-copy loop and the equalizer share the faster visible tick.
+            if frame.wire.time >= sample + 1.0 / 30.0 {
+                sample = frame.wire.time;
+            }
             mem_sys::local_reset();
             crate::testing::frame(&mut ui, &frame, &mut build).unwrap();
+            assert_eq!(ui.repaint_at(), Some(sample + 1.0 / 30.0));
             for (index, bar) in bars.iter().enumerate() {
-                let phase = (frame.wire.time / 0.9 + index as f64 / 3.0).fract() as f32;
+                let phase = (sample / 0.9 + index as f64 / 3.0).fract() as f32;
                 let progress = if phase < 0.5 {
                     phase * 2.0
                 } else {
