@@ -140,7 +140,7 @@ Apple account setup, keychain unlocks and device trust still require the device/
 
 If several devices or teams are available, set `IOS_DEVICE=<UDID>` or `IOS_TEAM_ID=<team ID>`.
 `IOS_BUNDLE_ID` can select another development identifier; the shipping Swift identifier is
-refused. iOS targets default to the optimized debug profile; `make ios-build PROFILE=release` selects release.
+refused. iOS targets build release (debug builds rebuild every retained view each frame); `make ios-build PROFILE=debug` selects debug.
 Rust/SDL caches stay in `target/`; Xcode packaging uses `target/ios`. Device builds without
 signing go into `target/ios/Build/Products/Debug-iphoneos-unsigned/LocalWave.app`.
 

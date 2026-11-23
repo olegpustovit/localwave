@@ -2066,6 +2066,7 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
     ui.set_a11y(true);
     let mut time = 0.0;
     let width = std::cell::Cell::new(1440.0_f32);
+    let position = std::cell::Cell::new(10.0);
     let mut run = |ui: &mut Ui, state: &ShellState, events: &[pxui::Event]| {
         time += 0.02;
         let frame = {
@@ -2075,7 +2076,7 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
         };
         let mut intent = None;
         crate::testing::frame(ui, &frame, &mut |ui| {
-            shell(ui, &player, 10.0, &catalog, state, &mut intent)
+            shell(ui, &player, position.get(), &catalog, state, &mut intent)
         })
         .unwrap();
         intent
@@ -2106,6 +2107,15 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
     ] {
         assert_eq!(tap(&mut ui, &state, &mut run, code), Some(expected));
     }
+    // A mouse scrub leaves Space as play/pause (the scrubber takes no key focus); the player follows the seek.
+    let rect = ui.a11y_nodes().iter().find(|node| node.is_role(pxui::ui::Role::Slider)).unwrap().rect;
+    let at = |kind| pxui::Event { kind, x: f64::from(rect.x + rect.w * 0.5), y: f64::from(rect.y + rect.h * 0.5), ..Default::default() };
+    run(&mut ui, &state, &[at(input::wire::POINTER_MOVED), at(input::wire::POINTER_PRESSED)]);
+    let Some(Intent::SeekFraction(f)) = run(&mut ui, &state, &[at(input::wire::POINTER_RELEASED)]) else { panic!("scrub seeks") };
+    position.set(f * 100.0);
+    run(&mut ui, &state, &[]);
+    assert_eq!(tap(&mut ui, &state, &mut run, input::Key::Space.code()), Some(Intent::Play));
+    position.set(10.0);
     for c in [
         commands::Command::Shuffle,
         commands::Command::Network,

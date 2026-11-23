@@ -194,7 +194,7 @@ def main():
         before, application_args, separator = before[:split], before[split + 1:], True
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("action", choices=("build", "run"))
-    parser.add_argument("--profile", choices=("debug", "release"), default="debug")
+    parser.add_argument("--profile", choices=("debug", "release"), default="release")
     parser.add_argument("--sdk", choices=TARGETS, help="SDK for build; run chooses the destination SDK", default=os.environ.get("IOS_SDK", "iphoneos"))
     parser.add_argument("--device", default=os.environ.get("IOS_DEVICE"))
     parser.add_argument("--team", help="Development team for a physical device run", default=os.environ.get("IOS_TEAM_ID"))

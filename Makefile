@@ -79,8 +79,7 @@ performance: bundle
 	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-clock-120 || performance_result=1; \
 	  exit "$$performance_result"
 
-# iOS development builds use the shared target/ and keep the shipping Swift app installed.
-ios-build ios-run: PROFILE = debug
+# iOS builds use the shared target/ and keep the shipping Swift app installed (release, like the Mac app).
 
 ios-build:
 	python3 packaging/ios.py build --profile '$(PROFILE)'

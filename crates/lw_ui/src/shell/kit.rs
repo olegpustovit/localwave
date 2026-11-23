@@ -423,7 +423,7 @@ pub(super) mod button_tests {
     }
 
     #[test]
-    fn waveform_bars_preview_drag_seek_on_release_and_keys_without_warm_allocations() {
+    fn waveform_bars_preview_drag_seek_on_release_without_warm_allocations() {
         use pxui::{Event, FrameIn, Platform};
         mem_sys::set_peer(pxui::library_counter);
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
@@ -513,8 +513,6 @@ pub(super) mod button_tests {
                 pointer(input::wire::POINTER_PRESSED, 0.25),
                 pointer(input::wire::POINTER_MOVED, 1.2),
                 pointer(input::wire::POINTER_RELEASED, 0.75),
-                Event::key(input::wire::KEY_PRESSED, input::Key::ArrowRight.code()),
-                Event::key(input::wire::KEY_RELEASED, input::Key::ArrowRight.code()),
             ];
             mem_sys::local_reset();
             for (step, event) in inputs.iter().enumerate() {
@@ -522,7 +520,7 @@ pub(super) mod button_tests {
                 frame(
                     &mut ui,
                     &player,
-                    20.0 + (round * 5 + step) as f64 * 0.01,
+                    20.0 + (round * 3 + step) as f64 * 0.01,
                     std::slice::from_ref(event),
                     &mut intent,
                 );
@@ -530,7 +528,6 @@ pub(super) mod button_tests {
                     intent,
                     match step {
                         2 => Some(Intent::SeekFraction(0.75)),
-                        3 => Some(Intent::SeekFraction(65.0 / 240.0)),
                         _ => None,
                     }
                 );

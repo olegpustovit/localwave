@@ -94,7 +94,10 @@ impl LibraryRepository {
     }
 
     pub fn open(path: &str) -> Result<Self> {
-        Self::new(Connection::open(path)?)
+        let db = Connection::open(path)?;
+        // the library and files workers read and write concurrently; WAL commits without a full fsync per song
+        db.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL")?;
+        Self::new(db)
     }
     pub fn new(mut db: Connection) -> Result<Self> {
         db.transaction(|db| {
