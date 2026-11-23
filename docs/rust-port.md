@@ -374,6 +374,10 @@ original thresholds and values.
 
 ## Render plan R4
 
+R4 timing and energy figures from the Mac mini are provisional, including those in the
+R4.1 and R4.2 commit messages. Authoritative measurements come from the quiet Wave 2
+integration run and the owner's M1 Air for energy.
+
 | ID | State | Evidence |
 | --- | --- | --- |
 | R4.1 | Dogfood | pxui `0887cba2` keeps four drawable histories, copies scissored damage from the canvas, and checks sampled drawable pixels after GPU completion. `PXUI_VERIFY_PRESENT=120` enables the dogfood path and `PXUI_FULL_PRESENT=1` forces full copies. ABI 2.7. Metal host tests cover rotation, pointer churn, resize, reveal, capture and automatic fallback on a mismatch. Both locked signed performance modes pass all 30 workloads with zero warm Rust allocations in the 28 gated workloads. Worst build CPU, frame CPU and frame work wall p99 are 1.274/2.019/2.886 ms with full copies and 1.217/1.931/2.577 ms with partial copies on the Mac mini. Locked playing-list dogfood at 1440×872 measured 0.280 ms/s for the copy encoder at 67 presents over five seconds, versus 1.119 ms/s at 68 presents with the full-copy switch. |
