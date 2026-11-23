@@ -752,10 +752,10 @@ device/provider behavior remain open.
   counts 1187 (navigation) and 150 (menu, was 124). Desktop route key: AVKit's route picker on macOS too (Swift's shipping Mac
   app is its iOS build); the folder page carries that build's empty 88-point navigation bar. Mean abs diff after this pass:
   desktop light 0.84-2.50, dark 0.71-2.62, phone 1.59-3.80 after the later layout, placement and raster rounds (2026-11-23):
-  text runs sit within half a pixel of Swift's; Apple glyph masks come from CoreText (`font_sys`, atlas misses only). The rest
-  is the reference itself: Swift's goldens render in the iOS Simulator (UIKit, scale 1), whose text antialiasing differs from
-  macOS CoreText. Measured first-use counts now 1173 (navigation) and 138 (menu); first navigation build CPU p99 ~5.3 ms (cold
-  CoreText rasterization). Recorded: upward-scrolling lists still compact their layer on most frames.
+  text runs sit within half a pixel of Swift's; glyphs are cosmic-text everywhere with Apple-style positioning (the round-10 CoreText
+  masks were removed: pxui is cross-platform). The rest is the reference itself: Swift's goldens render in the iOS Simulator (UIKit, scale 1), whose text antialiasing differs from
+  macOS CoreText. Measured first-use counts now 1173 (navigation) and 138 (menu); first navigation build CPU p99 ~5.3 ms with CoreText
+  (measured before its removal). Recorded: upward-scrolling lists still compact their layer on most frames.
 - I2 mobile goldens: `MOBILE=1 tools/reference-goldens.sh && tools/compare-goldens.py /tmp/localwave-goldens-mobile` (Swift canvas 390×778 without
   LOCALWAVE_REFERENCE_DESKTOP; Rust: macOS window at 390×778 via LOCALWAVE_REFERENCE_MOBILE=1, which renders the compact layout; same
   titlebar crop; 17 screens, add/track skipped). Latest: mean abs diff 7.6-41.2 (onboarding 7.6, find 11.5, queue 16.6, find-results 18.5,
