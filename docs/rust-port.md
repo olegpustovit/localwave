@@ -330,7 +330,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U6.7 | Freeze (DX7.12) | candidate published, tag pending | pxui 8f7c5b2b / LocalWave 4564228. Production matches CP2 in both repos. ABI gates pass and release samples show zero warm Rust allocations. [Benchmark follow-ups](u-plan/deferred.md) retain the original limits. |
 | U6.8 | Close-out | pending freeze | Branch cleanup follows the 2.0 tag. |
 | PERF damage | Damage-limited frames, transition steps, shown-only progress | done; `make performance` pending (needs a 1440x872 window) | pxui a64120b4 / LocalWave HEAD. Playing with the indicator animating: CPU 112% -> 7-12%, GPU 46% -> 4.0%. A damage-limited frame equals a full redraw; a warm step allocates nothing. |
-| R1 | Scheduling and late drawable acquisition (ABI 2.7) | implemented | The independent Mac mini run reduced foreground playback from 38.4 to 17.8 presents/s at 20 Hz. The 15 Hz trial measured 17.4 presents/s against the 17/s target. |
+| R1 | Scheduling and late drawable acquisition (ABI 2.7) | implemented | Independent Mac mini playback measured 38.4 presents/s and 30.811 GPU ms/s before R1, 17.8 and 15.256 at 20 Hz, and 17.4 and 12.774 at 15 Hz. The approved cadence stays at 20 Hz. |
 | R2 | Fixed-capacity damage lists (ABI 2.6) | implemented | The independent Mac mini run measured a 4.66× reduction in canvas fragment time against the 5× target. R0 refreshes the gallery fixture. |
 
 
