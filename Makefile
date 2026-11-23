@@ -44,39 +44,40 @@ check: target/sdl/lib/libSDL3.a
 
 performance: PROFILE = release
 performance: COUNTING = 1
+performance: PERFORMANCE_CHECK = target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check -ApplePersistenceIgnoreState YES
 performance: bundle
 	tools/check-macos-bundle.sh
 	@performance_result=0; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-find || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-queue || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-queue-drag || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-queue-sheet || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artwork || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-waveform || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-settings || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-files || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-drop || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artists || performance_result=1; \
-	  PXUI_FRAME_REASONS=1 target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-indicators || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-long-scroll || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-album-detail || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-artist-detail || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-list-dialogs || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-metadata-editor || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-song-drag || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-fling || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-reverse-scroll || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-jump || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-non-song-lists || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-search-typing || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-first-navigation || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-text-typing || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-first-menu || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-resize || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-theme-switch || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-idle-600 || performance_result=1; \
-	  target/bundle/LocalWave.app/Contents/MacOS/localwave --performance-check --performance-clock-120 || performance_result=1; \
+	  $(PERFORMANCE_CHECK) || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-find || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-queue || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-queue-drag || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-queue-sheet || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-artwork || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-waveform || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-settings || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-files || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-drop || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-artists || performance_result=1; \
+	  PXUI_FRAME_REASONS=1 $(PERFORMANCE_CHECK) --performance-song-indicators || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-long-scroll || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-album-detail || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-artist-detail || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-list-dialogs || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-metadata-editor || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-song-drag || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-fling || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-reverse-scroll || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-jump || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-non-song-lists || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-search-typing || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-first-navigation || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-text-typing || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-first-menu || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-resize || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-theme-switch || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-idle-600 || performance_result=1; \
+	  $(PERFORMANCE_CHECK) --performance-clock-120 || performance_result=1; \
 	  exit "$$performance_result"
 
 # iOS builds use the shared target/ and keep the shipping Swift app installed (release, like the Mac app).

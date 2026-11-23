@@ -43,4 +43,4 @@ values = plistlib.loads(sys.stdin.buffer.read())
 for key in ("com.apple.security.app-sandbox", "com.apple.security.files.user-selected.read-only", "com.apple.security.files.bookmarks.app-scope"):
     assert values.get(key) is True, key
 '
-"$app/Contents/MacOS/localwave" --smoke-test
+"$app/Contents/MacOS/localwave" --smoke-test -ApplePersistenceIgnoreState YES
