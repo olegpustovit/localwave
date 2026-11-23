@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub(crate) const LIST_NAME: &str = "Qualification mix";
 
-pub(crate) fn library(base: &Path, workload: Option<Workload>, table_styles: lw_ui::catalog::TableStyles) -> std::io::Result<LibraryWorker> {
+pub(crate) fn library(base: &Path, workload: Option<Workload>, energy: bool, table_styles: lw_ui::catalog::TableStyles) -> std::io::Result<LibraryWorker> {
     let documents = base.join("Documents");
     std::fs::create_dir_all(&documents)?;
     let suite = format!(
@@ -28,14 +28,18 @@ pub(crate) fn library(base: &Path, workload: Option<Workload>, table_styles: lw_
         },
         table_styles,
     )?;
-    if workload.is_some() {
+    if workload.is_some() || energy {
         if matches!(workload, Some(Workload::Settings)) {
             library.save_settings(&lw_core::preferences::Settings {
                 appearance: lw_core::preferences::Appearance::Light,
                 ..Default::default()
             })?;
         }
-        seed_catalog(&base.join("library.sqlite"))?;
+        let database = base.join("library.sqlite");
+        seed_catalog(&database)?;
+        if energy {
+            super::energy::seed(&database, base)?;
+        }
         if matches!(workload, Some(Workload::Artists)) {
             seed_artists(&base.join("library.sqlite"))?;
         }
