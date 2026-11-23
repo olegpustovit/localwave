@@ -25,7 +25,7 @@ Five independent causes multiply. Each is fixable without touching what apps aut
 4. **The full-window canvas is copied to the drawable on every frame:** 0.39 ms, or 12 ms/s.
 5. **The app renders more often than intended.** A one-shot transition holds the display rate on about 16 of 28 frames, and any input pins endless loops to the display rate for a second.
 
-The plan fixes these in ten packages (R0 to R9). Measurement and gates come first, then the cheap scheduling fixes, damage lists, culling, damage-only present, shader cost and pacing. Compositor layers and the Linux host follow. Every package keeps the oracle **"a partial frame equals a full redraw, pixel for pixel"** green, so no change can show stale pixels without failing a test.
+The plan fixes these in ten packages (R0 to R9). Measurement and gates come first, then the cheap scheduling fixes, damage lists, culling, present measurements, shader cost and pacing. Compositor layers and the Linux host follow. Every package keeps the oracle **"a partial frame equals a full redraw, pixel for pixel"** green, so no change can show stale pixels without failing a test.
 
 Expected results for the same scenario (estimates from the measured breakdown, to be confirmed by R0 tooling):
 
@@ -33,7 +33,7 @@ Expected results for the same scenario (estimates from the measured breakdown, t
 |---|---|---|---|
 | today | 28 | 8.9 % | 9.9 % |
 | R1 (scheduling) | about 17 | about 5 % | about 6 % |
-| R2 to R4 (damage list, culling, damage-only present) | about 17 | **≤ 0.6 %** | about 3 % |
+| R2 to R4 (damage list, culling, present measurements) | about 17 | **≤ 0.6 %** | about 3 % |
 | R7 (CA-driven loops) | **5** (clock and playhead ticks only) | **≤ 0.2 %** | **≤ 1 %** |
 
 ---
@@ -112,19 +112,17 @@ Existing `make performance` limits stay as they are: build p99 < 1.5 ms, frame C
 1. **The partial = full oracle.** For any frame sequence, the pixels presented after partial rendering equal those of a full redraw of the same `Ui` state, byte for byte on Metal. On Vulkan/lavapipe the tolerance is ≤ 2 per channel. It runs as:
    - the existing host test
    - a new randomized differential test (R0)
-   - an opt-in runtime validator `PXUI_VERIFY_PRESENT=1` that reads back and compares every Nth frame in dogfood builds
 2. **Instance bytes don't change from render-only work.** Culling, damage lists and present strategy live after instance production, in the renderer and host. `bodies_default_identical`, `abi_bench_instances`, `span_equals_engine` and LocalWave fingerprints must stay byte-identical for R2 to R6. R7 changes them only on purpose, with refreshed baselines in the same commit.
 3. **Zero warm allocations on both sides of the ABI.** All new structures are fixed-capacity or reserved at layer growth:
    - damage list: an array of 8
    - cull output: reuses the per-layer range buffer
-   - per-drawable history: an array of 4
+   - Vulkan swapchain image history: one entry per image
 4. **Every optimisation has a kill switch and an automatic fallback.** Each is an env flag and a `Graphics` option:
    - `PXUI_FULL_DAMAGE=1` falls back to one full rect
    - `PXUI_NO_CULL=1`
-   - `PXUI_FULL_PRESENT=1`
    - `PXUI_NO_LAYERS=1`
 
-   Any unknown state falls back to a full redraw: a new drawable, resize, colour-space change, occlusion change, display change, GPU error or capture.
+   An invalid canvas or a surface resize or reveal forces a full canvas redraw. Metal copies the entire canvas on every present. Vulkan uses a full redraw when a swapchain image has unknown contents.
 5. **Behaviour changes are measured both ways.** Each package records before/after `make performance`, abi_bench and the energy scenarios (R0) in its commit message and replaces the status row. No CPU time silently replaces wall time.
 6. **One step per commit**, publish pxui before the LocalWave pointer, and follow the ABI rule: one minor bump per additive change, with header, snapshots, fuzz/safety lists, surface row and ledger.
 
@@ -148,7 +146,6 @@ Existing `make performance` limits stay as they are: build p99 < 1.5 ms, frame C
 **Unverified, to be settled by R0 spikes:**
 - Apple doesn't guarantee that CAMetalLayer drawables keep their contents between uses. Flutter relies on it.
 - IOSurface as `CALayer.contents` is undocumented but has shipped in Chromium for years.
-- Whether `framebufferOnly = NO` has a measurable cost on M1.
 
 ---
 
@@ -169,7 +166,7 @@ flowchart LR
   end
   subgraph host[pxui_host / platform]
     E --> CV[Canvas texture]
-    CV --> PD[Present: blit only buffer-damage rects<br/>per-drawable history]
+    CV --> PD[Present: full copy on Metal<br/>buffer damage on Vulkan]
     PR --> CA[Platform layers: CALayer + CAAnimation<br/>/ wl_subsurface / KMS plane]
     PD --> W[Window server]
     CA --> W
@@ -178,13 +175,10 @@ flowchart LR
 
 Damage flow per frame:
 1. Core produces **frame damage**: a list of rects in points, fixed capacity 8.
-2. The host converts it to pixels and keeps **per-buffer history**:
-   - Metal: keyed by `drawable.texture`
-   - Vulkan: keyed by swapchain image index
-   - Wayland: the buffer it attached
-3. **Render damage** is the frame damage, which redraws the canvas.
-4. **Buffer damage** is the union of frame damages since this buffer was last presented, and that is what gets blitted.
-5. Platforms that accept present hints are given the frame damage: `VkPresentRegionsKHR`, `wl_surface.damage_buffer`, `FB_DAMAGE_CLIPS`.
+2. The host converts it to pixels and redraws the canvas within that damage.
+3. Metal copies the full canvas into each acquired drawable. Drawables are framebuffer-only except during capture.
+4. Vulkan uses per-image history to accumulate **buffer damage**, the union of frame damage since the image was last presented.
+5. Linux passes frame damage as a hint where supported by `VkPresentRegionsKHR`, `wl_surface.damage_buffer` or `FB_DAMAGE_CLIPS`.
 
 ---
 
@@ -339,36 +333,12 @@ Instances are already retained per layer, and the core has exact per-instance bo
 
 ---
 
-### R4. Present only what changed (no more full-window copy)
+### R4. Measure damage-only presentation
 
-Three candidate strategies, decided by an R0-style spike measured on the M1:
-
-| Strategy | Mechanism | Pros | Cons |
-|---|---|---|---|
-| **A. Canvas + damage blit (recommended first)** | Keep the private canvas as the source of truth. `framebufferOnly = NO`; keep per-drawable history (`drawable.texture` pointer → damage since last use, array of 4). Blit only buffer-damage rects canvas → drawable with a scissored copy draw | Smallest change; canvas stays authoritative, so a garbage drawable can always be repaired with a full copy; works with capture | Relies on drawables keeping contents (Flutter relies on it too); `framebufferOnly = NO` may cost compression |
-| B. Draw directly into the drawable with `Load` | Drop the canvas; per-drawable history decides what to redraw; scissored render into the drawable | Saves 2880×1800×4 = 20 MB and the blit | On TBDR `Load` of a big drawable may cost more than the blit; nothing to repair from |
-| C. Own IOSurface pool + `CALayer.contents` | Chromium model: ≤ 4 IOSurfaces, skip in-use, contents swap per frame | Full control of buffer lifetime; groundwork for R7 layers | Undocumented contents type; more platform code |
-
-Plan: implement **A**, measure B in a spike, and keep C for R7 if the layer work needs it.
-
-Rules for A:
-- **Full copy** (and reset all history) when:
-  - the pointer is unknown
-  - drawable size, pixel format or colour space changed
-  - window occlusion became visible
-  - the display changed or the app reactivated
-  - capture is on
-  - a GPU error occurred
-  - `PXUI_FULL_PRESENT=1`
-- **Buffer damage:** if the union over the history is larger than 60 % of the window, do a full copy.
-- **No damage and no history debt:** present nothing (no `nextDrawable` at all), which is the norm after R1.
-- **Validator:** `PXUI_VERIFY_PRESENT=N` reads back every Nth drawable after present completion and compares it with the canvas. On a mismatch it logs once, disables partial present for the session and counts a telemetry event. Dogfood builds run with N = 120 for two weeks before the default flips.
-- **Tests:**
-  - host: three drawables rotate through partial frames, and each final drawable equals the canvas
-  - forced pointer churn falls back to a full copy
-  - resize, occlusion and capture each force a full copy
-
-**Exit:** copy GPU ms/s at `playing-list` ≤ 0.3 (from 11.2); oracle and validator green; iOS build smoke-tested (same code path).
+Metal measurements on the M1 Mac mini at 1440×872 found that the retained canvas and full
+copy use the least GPU time after R3 culling. That path remains in use. Revisit damage-only
+presentation for much larger drawables or for Linux. R8 keeps per-image damage history, where
+incremental present is a compositor hint. The quiet comparisons are in [the port status](rust-port.md#render-plan-r4).
 
 ---
 
@@ -452,7 +422,7 @@ This is the change that reaches Music-level energy. Scope is deliberately narrow
 1. **Vulkan presenter in `pxui_host`** (it is Apple-only today):
    - swapchain with per-image damage history (image index → `DamageList`)
    - `VK_KHR_incremental_present` with `VkPresentRegionsKHR` from the frame damage
-   - the canvas strategy mirrors R4 A
+   - a retained canvas copies accumulated damage into each swapchain image
 2. **Wayland:**
    - `wl_surface.damage_buffer` per rect
    - frame-callback-driven pacing
@@ -469,7 +439,7 @@ This is the change that reaches Music-level energy. Scope is deliberately narrow
 ### R9. Hardening and the 2.0 freeze
 
 - Fuzz the new ABI surfaces (damage list, frame reasons, promoted list).
-- Long-run soak: a 6-hour playback with `PXUI_VERIFY_PRESENT=60`, a 2-hour scroll storm, and resize/theme churn. Zero validator mismatches and zero warm allocations.
+- Long-run soak: 6 hours of playback, a 2-hour scroll storm, and resize/theme churn. Verify pixel parity in the oracle and zero warm allocations in the soak.
 - Freeze the formats into 2.0 (`abi-frozen` and `abi-compat` return to Tier B).
 - Write `docs/render.md`: the damage model, culling contract, present strategy, promotion rules and kill switches. Delete the superseded single-rect paths.
 
@@ -483,7 +453,7 @@ This is the change that reaches Music-level energy. Scope is deliberately narrow
 | R1 | 2 to 3 | low | presents 28 → about 17, CPU −35 % | R0 |
 | R2 | 3 to 4 | medium (ABI, blur rule) | fragment 43 → about 5 ms/s | R0 |
 | R3 | 4 to 5 | medium (bounds conservativeness) | vertex 15.5 → about 0.5 ms/s | R2 |
-| R4 | 3 to 4 | medium (drawable contents) | copy 11 → about 0.3 ms/s | R2 |
+| R4 | 3 to 4 | medium (drawable contents) | measured; Metal full copy retained | R2 |
 | R5 | 5 to 7 | medium | full redraw 10 to 17 → ≤ 2.5 ms | R0 |
 | R6 | 2 to 3 | low | ProMotion and hidden correctness | R1 |
 | R7 | 8 to 12 | high (platform layer sync) | presents 17 → 5, GPU → ≤ 0.2 % | R2, R4, R6 |
@@ -498,7 +468,7 @@ R1 and R2 can run in parallel (different files). R3 and R4 can run in parallel a
 
 | Risk | Mitigation |
 |---|---|
-| Drawable contents aren't preserved in some state (memory pressure, display sleep, GPU switch) | The canvas stays authoritative (R4 A); unknown pointers and all lifecycle events force a full copy; `PXUI_VERIFY_PRESENT` validator in dogfood; kill switch |
+| Drawable contents can be lost during memory pressure, display sleep or a GPU switch | Metal copies the complete authoritative canvas. Vulkan treats images with unknown contents as fully damaged. |
 | `bounds()` isn't conservative for some instance kind, so culling drops pixels | A per-kind conservativeness test, the oracle with random kinds, and a 1 px pad; any failing kind is marked "never cull" until fixed |
 | Damage-list merge heuristics create many small draws | Cap of 8, full-damage threshold, gap merge in culling; abi_bench `DRAW_CALLS_PARTIAL` bound |
 | Promoted layers drift from canvas timing (phase, rate) | One time base (`CACurrentMediaTime`) for both; parity test over 200 samples; demote on any mismatch |
@@ -514,16 +484,15 @@ R1 and R2 can run in parallel (different files). R3 and R4 can run in parallel a
 - Energy `playing-list`: ≤ 5 presents/s, app GPU ≤ 0.2 %, app CPU ≤ 1 %, 0 warm allocations, on the M1 Air. Energy impact in Activity Monitor within 3× of Music in the same scenario (it's a weighted score, so record it but don't gate on it).
 - Idle, hidden, pointer-motion scenarios: 0 presents.
 - `make performance` all green with limits unchanged or tighter; abi_bench green in both link modes; iOS build and smoke green.
-- `partial_equals_full` 5,000 seeds green on Metal and lavapipe; a 6 h soak with 0 validator mismatches.
+- `partial_equals_full` 5,000 seeds green on Metal and lavapipe, and a 6-hour soak with zero warm allocations.
 - Linux Wayland host presents damage-only, frame-callback-paced, with promoted views as subsurfaces.
 
 ## 11. Open questions for the owner
 
 1. Equalizer rate: match Swift's exact cadence (verify by recording), or adopt `Ambient(20)` as the pxui default for loops?
 2. Approve refreshing `bodies_default_identical` in R0 (stale since V1 raster)?
-3. Is `framebufferOnly = NO` acceptable if the R4 spike shows ≤ 2 % cost? (Required for strategy A.)
-4. R7 contents path: allow the undocumented IOSurface-as-`CALayer.contents` (Chromium-proven), or require a small `CAMetalLayer` per promoted view?
-5. Machine of record for gates: M1 Air only, or M1 Air plus Mac mini?
+3. R7 contents path: allow the undocumented IOSurface-as-`CALayer.contents` (Chromium-proven), or require a small `CAMetalLayer` per promoted view?
+4. Machine of record for gates: M1 Air only, or M1 Air plus Mac mini?
 
 ---
 
