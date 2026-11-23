@@ -24,6 +24,7 @@ use pxui_sdl::{
     app::{Schedule, Signal},
 };
 mod actions;
+mod frame_reasons;
 mod input;
 
 fn graphics_error(ui: &Ui, error: pxui::Error) -> String {
@@ -64,6 +65,7 @@ pub(crate) struct App {
     perf: Option<perf::Perf>,
     pub(super) smoke: bool,
     trace_frames: bool,
+    frame_reasons: Option<frame_reasons::Report>,
     extent: pxui_sdl::Extent,
     events: Vec<HostEvent>,
     encoded: pxui_host::Events,
@@ -277,6 +279,7 @@ pub(super) fn open(
         perf,
         smoke,
         trace_frames,
+        frame_reasons: frame_reasons::Report::from_env(window.time()),
         extent,
         events,
         encoded,
@@ -667,6 +670,15 @@ impl App {
             || preferences_changed
             || self.repaint.is_some_and(|time| now >= time)
         {
+            if let Some(report) = &mut self.frame_reasons {
+                report.build(
+                    self.first || resized || preferences_changed,
+                    !self.events.is_empty(),
+                    player_changed,
+                    files_changed || artwork_changed || artwork_updated,
+                    self.perf.is_some(),
+                );
+            }
             self.first = false;
             let (intent, duration) = self.draw(window, now, &mut frame)?;
             if let Some(intent) = intent
@@ -686,6 +698,9 @@ impl App {
             {
                 return Ok(schedule);
             }
+        }
+        if let Some(report) = &mut self.frame_reasons {
+            report.print(now, self.draws, &self.ui);
         }
         let observed_at = if self.smoke { window.time() } else { now };
         if self.smoke
