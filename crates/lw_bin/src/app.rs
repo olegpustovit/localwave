@@ -734,7 +734,7 @@ impl App {
         frame.artwork_updated = artwork_updated;
         frame.input(&self.ui, &mut self.events)?;
         frame.state_input(&mut self.shell_state);
-        let now = window.frame_time();
+        let now = window.time();
         let next_shown = self.player.status().shown();
         if player_changed
             && !catalog_changed
@@ -782,20 +782,11 @@ impl App {
             || artwork_changed
             || artwork_updated
             || preferences_changed;
+        let repaint_due = self.repaint.is_some_and(|time| now >= time);
         // Only a running animation is due: pxui steps it in place (no shell build) and the host redraws its damage.
-        if !changed && self.repaint.is_some_and(|time| now >= time) && self.ui.step(now) {
+        if !changed && repaint_due && self.ui.step(now) {
             self.step_draw(window, now)?;
-        } else if self.first
-            || self.perf.is_some()
-            || resized
-            || !self.events.is_empty()
-            || player_changed
-            || files_changed
-            || artwork_changed
-            || artwork_updated
-            || preferences_changed
-            || self.repaint.is_some_and(|time| now >= time)
-        {
+        } else if changed || repaint_due {
             if let Some(report) = &mut self.frame_reasons {
                 report.build(
                     self.first || resized || preferences_changed,
