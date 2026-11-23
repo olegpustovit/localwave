@@ -114,7 +114,8 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
                     .iter()
                     .find(|node| ui.a11y_name_of(node) == "Playback position")
                     .unwrap();
-                assert!((seek.value.now - position).abs() <= 240.0 / 2048.0 + 0.001, "{} at {position}", seek.value.now);
+                // one playhead step: four a second, like Swift's 0.25 s time observer
+                assert!((seek.value.now - position).abs() <= 0.25 + 0.001, "{} at {position}", seek.value.now);
                 let clock = ui
                     .a11y_nodes()
                     .iter()

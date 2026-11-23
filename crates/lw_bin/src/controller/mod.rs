@@ -257,7 +257,7 @@ impl Controller {
         &mut self,
         changed: &mut dyn FnMut(&lw_ui::catalog::Catalog, &lw_ui::catalog::Catalog),
     ) -> io::Result<bool> {
-        let revision = self.status.revision;
+        let shown = self.status.shown();
         #[cfg(target_os = "ios")]
         let blocked = self.deliver_audio_session()?;
         #[cfg(not(target_os = "ios"))]
@@ -268,7 +268,7 @@ impl Controller {
             self.media = Some(media);
             result?;
         }
-        Ok(updated || revision != self.status.revision)
+        Ok(updated || shown != self.status.shown())
     }
     #[cfg(target_os = "ios")]
     fn deliver_audio_session(&mut self) -> io::Result<bool> {
@@ -370,7 +370,8 @@ impl Controller {
         let catalog_changed = self
             .feedback
             .adopt(&mut self.catalog, poll.catalog, changed);
-        let status_changed = poll.status.is_some();
+        // a newer position within the same ticks is kept, not reported: nothing on screen changes
+        let status_changed = poll.status.as_ref().is_some_and(|status| status.shown() != self.status.shown());
         if let Some(status) = poll.status {
             self.status = status;
         }
@@ -435,11 +436,13 @@ impl Controller {
         }
         Ok(true)
     }
-    /// Playing progress is sampled; paused and empty players wake the host through native events.
+    /// Playing progress is sampled when its display next changes (`lw_ui::next_tick`, 4 to 6 times a second) plus
+    /// a little for the worker's round trip; paused and empty players wake the host through native events.
     pub fn poll_interval(&self) -> Option<Duration> {
-        self.status
-            .wants_playback
-            .then_some(Duration::from_millis(50))
+        self.status.wants_playback.then(|| {
+            let wait = lw_ui::next_tick(self.status.duration, self.status.position) + 0.005;
+            Duration::from_secs_f64(wait.clamp(0.02, 1.0))
+        })
     }
     pub fn run_loop(&mut self, wait: Duration) {
         self.native.run_loop(wait);

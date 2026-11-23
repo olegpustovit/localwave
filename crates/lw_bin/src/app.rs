@@ -482,6 +482,23 @@ impl App {
 }
 
 impl App {
+    /// Draws a frame `Ui::step` advanced: no build, so no intent, images, platform output or accessibility change.
+    fn step_draw(&mut self, window: &mut Window, now: f64) -> Result<(), String> {
+        self.frames += 1;
+        self.repaint = self.ui.repaint_at();
+        if self.ui.draw_revision() == self.revision {
+            return Ok(());
+        }
+        let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
+        if graphics.draw(window, &self.ui, None).map_err(|error| graphics_error(&self.ui, error))? {
+            self.draws += 1;
+            self.revision = self.ui.draw_revision();
+        } else {
+            self.repaint = Some(now + 1.0 / 60.0);
+        }
+        Ok(())
+    }
+
     pub(super) fn frame(
         &mut self,
         window: &mut Window,
@@ -627,7 +644,19 @@ impl App {
         }
         self.shell_state.set_window_inset(self.top_inset as f32);
         frame.require_extent(self.extent)?;
-        if self.first
+        let changed = self.first
+            || self.perf.is_some()
+            || resized
+            || !self.events.is_empty()
+            || player_changed
+            || files_changed
+            || artwork_changed
+            || artwork_updated
+            || preferences_changed;
+        // Only a running animation is due: pxui steps it in place (no shell build) and the host redraws its damage.
+        if !changed && self.repaint.is_some_and(|time| now >= time) && self.ui.step(now) {
+            self.step_draw(window, now)?;
+        } else if self.first
             || self.perf.is_some()
             || resized
             || !self.events.is_empty()

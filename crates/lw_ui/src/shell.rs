@@ -1056,6 +1056,7 @@ pub fn shell(
 }
 mod kit;
 pub use kit::apply_palette;
+pub use transport::{next_tick, progress_ticks};
 pub(crate) use theme::register_bodies;
 #[cfg(test)]
 pub(crate) use kit::TIGHT_3;

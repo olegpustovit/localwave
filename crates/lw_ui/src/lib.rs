@@ -42,7 +42,7 @@ pub fn clip_owned(mut text: String) -> String {
 /// pxui's deterministic fast hash of one value (a revision or identity key; not a DoS-resistant map hash).
 #[inline]
 pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 { pxui::hash_of(&value) }
-pub use shell::{ShellState, apply_palette, shell};
+pub use shell::{ShellState, apply_palette, next_tick, progress_ticks, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");
 pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf");

@@ -116,14 +116,40 @@ pub(super) fn route_key(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
     }
 }
 
-/// The playhead's steps across a song: what a playing song's views redraw for, under a point on any waveform.
-const PLAYHEAD_STEPS: f64 = 2048.0;
+/// The playhead's steps across a song: what a playing song's views redraw for. Four a second (Swift's 0.25 s time observer),
+/// at most 2048 (under a point on any waveform).
+fn playhead_steps(duration: f64) -> f64 {
+    (duration * 4.0).floor().clamp(1.0, 2048.0)
+}
 /// What a playing position shows: the elapsed and remaining whole seconds (the clocks) and the playhead's step. Views of the playing
 /// song key on these, not on the position, so they rebuild a few times a second instead of every frame.
 pub(super) fn ticks(player: &PlayerView<'_>, position: f64) -> (u64, u64, u32) {
+    progress_ticks(player.duration, position)
+}
+
+/// `ticks` of a song `duration` seconds long at `position`: a host compares them to know whether a new position shows.
+pub fn progress_ticks(duration: f64, position: f64) -> (u64, u64, u32) {
     let position = if position.is_finite() { position.max(0.0) } else { 0.0 };
-    let step = if player.duration > 0.0 { ((position / player.duration).clamp(0.0, 1.0) * PLAYHEAD_STEPS) as u32 } else { 0 };
-    (position as u64, (player.duration - position).max(0.0) as u64, step)
+    let step = if duration > 0.0 { ((position / duration).clamp(0.0, 1.0) * playhead_steps(duration)) as u32 } else { 0 };
+    (position as u64, (duration - position).max(0.0) as u64, step)
+}
+
+/// Seconds of playback until `ticks` next changes (a clock's second or the playhead's step): when a playing song next needs a
+/// frame. Nothing between ticks is visible, so the host waits this long instead of sampling the player every frame.
+pub fn next_tick(duration: f64, position: f64) -> f64 {
+    let position = if position.is_finite() { position.max(0.0) } else { 0.0 };
+    let mut next = position.floor() + 1.0 - position;
+    if duration.is_finite() && duration > position {
+        let remaining = duration - position;
+        let fraction = remaining - remaining.floor();
+        if fraction > 0.0 {
+            next = next.min(fraction);
+        }
+        let steps = playhead_steps(duration);
+        let step = (position / duration * steps).floor();
+        next = next.min((step + 1.0) * duration / steps - position);
+    }
+    next.max(0.0)
 }
 
 pub(super) fn desktop(
@@ -295,7 +321,7 @@ pub(super) fn seek(
     let fraction = if let Some(preview) = scrub.preview {
         preview / upper
     } else {
-        ticks(player, position).2 as f32 / PLAYHEAD_STEPS as f32
+        (f64::from(ticks(player, position).2) / playhead_steps(player.duration)) as f32
     };
     if let Some(seconds) = scrub.commit {
         let fraction = if seconds == upper {
@@ -330,4 +356,23 @@ pub(super) fn seek(
         paint.fill(Rect::new(rect.x, rect.y + baseline, rect.w * fraction, 3.0), Fill::new(ink).fractional());
         paint.fill(Rect::new(rect.x + rect.w * fraction - step / 4.0, rect.y, step / 2.0, rect.h), Fill::new(accent).fractional());
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::next_tick;
+
+    #[test]
+    fn next_tick_waits_for_the_next_visible_change() {
+        let close = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        // 180.5 s: 722 steps of 0.25 s; the step at 10.25 s comes before either clock changes
+        assert!(close(next_tick(180.5, 10.1), 0.15));
+        // the remaining clock (170.4 -> 170) changes at 10.5 s, before the step at 10.5 s and the elapsed second
+        assert!(close(next_tick(180.5, 10.4), 0.1));
+        // a 2-hour mix has 2048 steps of 3.515625 s: its clocks set the pace
+        assert!(close(next_tick(7200.0, 100.25), 0.75));
+        // no duration: the elapsed clock only; bad positions start from zero
+        assert!(close(next_tick(0.0, 2.5), 0.5));
+        assert!(close(next_tick(f64::NAN, f64::NAN), 1.0));
+    }
 }

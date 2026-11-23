@@ -266,12 +266,17 @@ impl Worker {
             info: self.info.clone(),
             message: self.message.clone(),
         };
+        let shown = self.status.shown();
         if self.status.update(status) {
             let mut inbox = self.shared.inbox.lock().unwrap();
             inbox.catalog_pending = self.catalog_dirty || self.browse_dirty;
             inbox.status = self.status.clone();
             drop(inbox);
-            (self.shared.wake)();
+            // A position that shows nothing new waits for the host's next progress poll: waking it would poll the
+            // native player, whose newer position comes back here, a loop at the host's frame rate.
+            if self.status.shown() != shown {
+                (self.shared.wake)();
+            }
         }
     }
 }
