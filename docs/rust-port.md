@@ -373,6 +373,12 @@ Release ABI benchmark runs on the archived pre-R0 head and on R0 failed the same
 missed Controls, Overlays, Layout and Lists. The gates and energy baseline retain their
 original thresholds and values.
 
+## Render plan R4
+
+| ID | State | Evidence |
+| --- | --- | --- |
+| R4.1 | Dogfood | pxui `0887cba2` keeps four drawable histories, copies scissored damage from the canvas, and checks sampled drawable pixels after GPU completion. `PXUI_VERIFY_PRESENT=120` enables the dogfood path and `PXUI_FULL_PRESENT=1` forces full copies. ABI 2.7. Metal host tests cover rotation, pointer churn, resize, reveal, capture and automatic fallback on a mismatch. Both locked signed performance modes pass all 30 workloads with zero warm Rust allocations in the 28 gated workloads. Worst build CPU, frame CPU and frame work wall p99 are 1.274/2.019/2.886 ms with full copies and 1.217/1.931/2.577 ms with partial copies on the Mac mini. Locked playing-list dogfood at 1440×872 measured 0.280 ms/s for the copy encoder at 67 presents over five seconds, versus 1.119 ms/s at 68 presents with the full-copy switch. |
+
 ## Latest performance
 
 CP2 ran the signed counting release on the Apple M1 Mac mini (LocalWave `513a927`, pxui `d4ba6ebc`). All 30 workloads completed. All 28 gated workloads recorded zero warm Rust allocations, reached the warm-up boundary and rendered their expected frames. The two measured first-use cases recorded 1,195 and 125 allocations, matching CP1. Six workloads exceeded their timing budgets. Start and end one-minute system load were 32.39 and 6.06, above the maximum of 4, so timings are diagnostic. The quiet replay and build-time comparison are in [the deferred list](u-plan/deferred.md).
