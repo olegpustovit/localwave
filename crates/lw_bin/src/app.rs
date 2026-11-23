@@ -35,6 +35,11 @@ fn graphics_error(ui: &Ui, error: pxui::Error) -> String {
     if detail.is_empty() { error.to_string() } else { format!("{error}: {detail}") }
 }
 
+// A playback-only update can share a nearby loop tick or another position update.
+fn progress_deadline(now: f64, repaint: Option<f64>, pending: Option<f64>) -> f64 {
+    pending.unwrap_or(now + 0.05).min(repaint.unwrap_or(f64::INFINITY))
+}
+
 struct Fixture(Option<std::path::PathBuf>);
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -73,6 +78,7 @@ pub(crate) struct App {
     platform: pxui_host::Platform,
     first: bool,
     repaint: Option<f64>,
+    progress_draw_at: Option<f64>,
     revision: u64,
     frames: usize,
     draws: usize,
@@ -296,6 +302,7 @@ pub(super) fn open(
         platform,
         first,
         repaint,
+        progress_draw_at: None,
         revision,
         frames,
         draws,
@@ -571,9 +578,12 @@ impl App {
             self.preferences.appearance = appearance;
         }
         let mut library_changed = false;
-        let player_changed = self
+        let mut catalog_changed = false;
+        let shown = self.player.status().shown();
+        let mut player_changed = self
             .player
             .poll_with_catalog(&mut |previous, next| {
+                catalog_changed = true;
                 library_changed |= !std::sync::Arc::ptr_eq(&previous.library, &next.library);
                 self.shell_state.refresh(previous, next)
             })
@@ -638,6 +648,14 @@ impl App {
         frame.input(&self.ui, &mut self.events)?;
         frame.state_input(&mut self.shell_state);
         let now = window.time();
+        let next_shown = self.player.status().shown();
+        if player_changed && !catalog_changed && shown.0 == next_shown.0 && shown.1 != next_shown.1
+            && self.player.status().wants_playback
+        {
+            self.progress_draw_at = Some(progress_deadline(now, self.repaint, self.progress_draw_at));
+            player_changed = false;
+        }
+        player_changed |= self.progress_draw_at.is_some_and(|at| now >= at);
         let current = window.extent();
         if current.drawable.0 <= 0 || current.drawable.1 <= 0 {
             return Ok(Schedule::WaitUntil(
@@ -693,6 +711,7 @@ impl App {
                 );
             }
             self.first = false;
+            self.progress_draw_at = None;
             let (intent, duration) = self.draw(window, now, &mut frame)?;
             if let Some(intent) = intent
                 && let Some(schedule) = self.intent(intent, window, now, duration)?
@@ -806,10 +825,7 @@ impl App {
             let deadline = self.smoke_check.deadline();
             Some(self.repaint.unwrap_or(deadline).min(deadline))
         } else {
-            match (self.repaint, settle) {
-                (Some(a), Some(b)) => Some(a.min(b)),
-                (a, b) => a.or(b),
-            }
+            [self.repaint, settle, self.progress_draw_at].into_iter().flatten().reduce(f64::min)
         };
         let progress = self
             .player
@@ -821,5 +837,18 @@ impl App {
                 .flatten()
                 .min_by(f64::total_cmp),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::progress_deadline;
+
+    #[test]
+    fn playback_updates_share_a_nearby_repaint_and_keep_the_earliest_cutoff() {
+        assert_eq!(progress_deadline(1.0, Some(1.03), None), 1.03);
+        assert_eq!(progress_deadline(1.02, Some(1.04), Some(1.03)), 1.03);
+        assert_eq!(progress_deadline(1.0, Some(1.2), None), 1.05);
+        assert_eq!(progress_deadline(1.0, Some(1.0), None), 1.0);
     }
 }
