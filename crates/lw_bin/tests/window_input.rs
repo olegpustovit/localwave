@@ -662,7 +662,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     let mut theme = pxui::ThemeHandle::default();
     lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
     ui.set_theme(&theme).unwrap();
-    let mut graphics = gpu::Graphics::open(&mut window, &ui).unwrap();
+    let mut graphics = gpu::Graphics::open(&mut window, &mut ui).unwrap();
     static DECODED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
     extern "C" fn wake() {
         DECODED.fetch_add(1, std::sync::atomic::Ordering::SeqCst);

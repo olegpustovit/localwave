@@ -192,7 +192,7 @@ pub(super) fn open(
     if trace_frames {
         ui.set_timing(true);
     }
-    let graphics = gpu::Graphics::open(window, &ui).map_err(|error| graphics_error(&ui, error))?;
+    let graphics = gpu::Graphics::open(window, &mut ui).map_err(|error| graphics_error(&ui, error))?;
     let temporary = if smoke || workload.is_some() || reference.is_some() || energy.is_some() {
         Some(
             lw_apple_sys::preferences::AppPaths::load()

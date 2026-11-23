@@ -465,6 +465,38 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
 }
 
 #[test]
+fn playing_song_bars_promote_at_both_densities_and_return_when_paused() {
+    let catalog = catalog(100);
+    let state = ShellState::default();
+    for density in [1.0, 2.0] {
+        let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+        ui.set_promotion(true);
+        let mut player = PlayerView {
+            current_id: Some(0),
+            playing: true,
+            ..Default::default()
+        };
+        let mut frame = FrameIn::new(1440.0, 872.0).scale(density);
+        for time in [0.0, 1.0, 2.0] {
+            frame.wire.time = time;
+            crate::testing::frame(&mut ui, &frame, &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
+            })
+            .unwrap();
+        }
+        assert_eq!(ui.promoted().len(), 3, "{density}x: {:?}", ui.promoted());
+        assert!(ui.promoted().iter().all(|bar| bar.hz == 20));
+        player.playing = false;
+        frame.wire.time += 0.1;
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
+            shell(ui, &player, 0.1, &catalog, &state, &mut None)
+        })
+        .unwrap();
+        assert!(ui.promoted().is_empty(), "the paused bars belong to the canvas");
+    }
+}
+
+#[test]
 fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocations() {
     mem_sys::set_peer(pxui::library_counter);
     let catalog = catalog(100);
