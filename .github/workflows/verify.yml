@@ -38,3 +38,55 @@ jobs:
         run: cargo t -p lw_bin
       - name: Check Rust lints
         run: cargo clippy --locked -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --all-targets --features lw_apple_sys/interop-test -- -D warnings
+
+  pxui:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            target
+          key: pxui-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('pxui/Cargo.lock', 'pxui/rust-toolchain.toml', 'packaging/build-sdl-macos.sh') }}
+      - name: Build static SDL
+        run: make target/sdl/lib/libSDL3.a
+      - name: Check pxui without Metal windows
+        working-directory: pxui
+        env:
+          CARGO_TARGET_DIR: ${{ github.workspace }}/target
+          PKG_CONFIG: ${{ github.workspace }}/tools/pkg-config-static.sh
+          PKG_CONFIG_PATH: ${{ github.workspace }}/target/sdl/lib/pkgconfig
+          PXUI_CONSUMER_DEFAULT_STACK: "1"
+        run: |
+          cargo t -p pxui_core --test pxui_all --test string_pool
+          cargo t -p pxui_render partial_equals_full_mock
+          cases=$(cargo t -p pxui_host --list | sed -n '/^pxui_host::window_/d; s/^pxui_host::\(.*\): test$/\1/p')
+          test -n "$cases"
+          for case_name in $cases; do
+            cargo t -p pxui_host "$case_name"
+          done
+          cargo t -p pxui
+          for gate in shape deps tiers abi-header abi-snapshot abi-exports; do
+            cargo run -q -p gate -- "$gate"
+          done
+
+  pxui-lavapipe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - name: Install Vulkan software driver and validation
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers libdbus-1-dev
+      - name: Check native renderer oracle on lavapipe
+        working-directory: pxui
+        env:
+          VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+        run: cargo t -p pxui_render gpu_partial_equals_full
