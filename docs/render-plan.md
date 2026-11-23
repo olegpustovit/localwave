@@ -545,7 +545,9 @@ The orchestrator (the owner's main Claude session) assigns packages to worker se
 | R2 | 2.6 | damage list |
 | R1 | 2.7 | if the rate hint needs an export |
 | R3 | 2.8 | run tables |
-| R7 | 2.9 | promotion |
+| R6 | 2.9 | repaint rate |
+| R5 | 2.10 | backdrop reuse flag |
+| R7 | 2.11 | promotion |
 
 **Workspace per package.** Never touch the shared main checkout's working tree.
 
