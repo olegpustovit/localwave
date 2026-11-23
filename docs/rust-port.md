@@ -332,6 +332,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | PERF damage | Damage-limited frames, transition steps, shown-only progress | done; `make performance` pending (needs a 1440x872 window) | pxui a64120b4 / LocalWave HEAD. Playing with the indicator animating: CPU 112% -> 7-12%, GPU 46% -> 4.0%. A damage-limited frame equals a full redraw; a warm step allocates nothing. |
 | R1 | Scheduling and late drawable acquisition (ABI 2.7) | implemented | Independent Mac mini playback measured 38.4 presents/s and 30.811 GPU ms/s before R1, 17.8 and 15.256 at 20 Hz, and 17.4 and 12.774 at 15 Hz. The approved cadence stays at 20 Hz. |
 | R2 | Fixed-capacity damage lists (ABI 2.6) | implemented | The independent Mac mini run measured a 4.66× reduction in canvas fragment time against the 5× target. R0 refreshes the gallery fixture. |
+| R5 | Full redraw shaders, blur filtering and atlas transfers | implemented, backdrop reuse pending | On the M1 Mac mini (1440×872), two locked repros measured 2.01 and 2.60 ms mean GPU work per Songs redraw, from 4.12 ms on the Wave 1 base. The M1 Air result is pending. Cross-frame backdrop reuse needs the host to report damage to caller-drawn content. The pxui ABI remains 2.7. |
 
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
