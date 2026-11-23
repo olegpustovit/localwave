@@ -63,7 +63,6 @@ jobs:
           PKG_CONFIG_PATH: ${{ github.workspace }}/target/sdl/lib/pkgconfig
           PXUI_CONSUMER_DEFAULT_STACK: "1"
         run: |
-          cargo t -p pxui_core --test pxui_all --test string_pool
           cargo t -p pxui_render partial_equals_full_mock
           cases=$(cargo t -p pxui_host --list | sed -n '/^pxui_host::window_/d; s/^pxui_host::\(.*\): test$/\1/p')
           test -n "$cases"
@@ -71,7 +70,7 @@ jobs:
             cargo t -p pxui_host "$case_name"
           done
           cargo t -p pxui
-          for gate in shape deps tiers abi-header abi-snapshot abi-exports; do
+          for gate in shape deps tiers records abi-header abi-snapshot abi-exports abi-frozen abi-compat; do
             cargo run -q -p gate -- "$gate"
           done
 
@@ -86,11 +85,12 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers libdbus-1-dev glslang-tools spirv-tools
-      - name: Check native renderer oracle on lavapipe
+      - name: Check headless core and the native renderer oracle
         working-directory: pxui
         run: |
           VK_DRIVER_FILES=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)
           test -f "$VK_DRIVER_FILES"
           export VK_DRIVER_FILES
+          cargo t -p pxui_core --test pxui_all --test string_pool
           cargo t -p pxui_render gpu_partial_equals_full
           RAYS_SLOW=1 cargo t --profile default -p pxui_render gpu_partial_equals_full
