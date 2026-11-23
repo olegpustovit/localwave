@@ -330,6 +330,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | U6.7 | Freeze (DX7.12) | candidate published, tag pending | pxui 8f7c5b2b / LocalWave 4564228. Production matches CP2 in both repos. ABI gates pass and release samples show zero warm Rust allocations. [Benchmark follow-ups](u-plan/deferred.md) retain the original limits. |
 | U6.8 | Close-out | pending freeze | Branch cleanup follows the 2.0 tag. |
 | PERF damage | Damage-limited frames, transition steps, shown-only progress | done; `make performance` pending (needs a 1440x872 window) | pxui a64120b4 / LocalWave HEAD. Playing with the indicator animating: CPU 112% -> 7-12%, GPU 46% -> 4.0%. A damage-limited frame equals a full redraw; a warm step allocates nothing. |
+| R2 | Fixed-capacity damage lists (ABI 2.6) | implemented; exit criteria pending | pxui d5a1a3a8. The M1 Mac mini trace measured a 4.66× reduction in canvas fragment time against the 5× target. Tier B still has the baseline gallery fixture mismatch. |
 
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
