@@ -99,7 +99,7 @@ def main(app, scenario, seconds):
     trace = run_dir / "scenario.trace"
     env = dict(os.environ, PXUI_FRAME_REASONS="1", LOCALWAVE_ENERGY_SECONDS=str(seconds))
     with log.open("w") as output, subprocess.Popen(
-        [app / "Contents/MacOS/localwave", f"--energy-{scenario}"],
+        [app / "Contents/MacOS/localwave", f"--energy-{scenario}", "-ApplePersistenceIgnoreState", "YES"],
         stdout=output, stderr=subprocess.STDOUT, env=env,
     ) as process:
         try:
