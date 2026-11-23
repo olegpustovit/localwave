@@ -32,55 +32,9 @@ jobs:
         run: cargo fmt -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --check
       - name: Check Rust core and warm shell allocation contract
         run: cargo t -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui
-      - name: Check Swift and Rust database exchange
-        run: tools/check-database-compatibility.sh
       - name: Build signed sandboxed Rust bundle
         run: make bundle
       - name: Check warmed host input allocation contract
         run: cargo t -p lw_bin
       - name: Check Rust lints
         run: cargo clippy --locked -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin --all-targets --features lw_apple_sys/interop-test -- -D warnings
-  shared:
-    runs-on: macos-26
-    steps:
-      - uses: actions/checkout@v4
-      - name: Test shared repositories and FLAC metadata
-        run: swift test --parallel
-  macos:
-    runs-on: macos-26
-    timeout-minutes: 15
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build native macOS app
-        run: xcodebuild -project localwave.xcodeproj -scheme musicapp -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO build
-  ios:
-    runs-on: macos-26
-    timeout-minutes: 25
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
-    steps:
-      - uses: actions/checkout@v4
-      - name: Choose an available iPhone simulator
-        run: |
-          xcodebuild -version
-          simulator_id=$(python3 scripts/select-ios-simulator.py)
-          echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
-      - name: Boot the selected simulator
-        timeout-minutes: 5
-        run: xcrun simctl bootstatus "$SIMULATOR_ID" -b
-      - name: Test iOS app (unit tests; UI flows only on manual runs)
-        timeout-minutes: 15
-        run: |
-          export TEST_RUNNER_LOCALWAVE_NO_AUDIO_DEVICE=1 # runner VMs have no audio hardware
-          scope=(-only-testing:musicappTests)
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then scope=(); fi
-          xcodebuild -project localwave.xcodeproj -scheme musicapp -destination "platform=iOS Simulator,id=$SIMULATOR_ID" "${scope[@]}" -parallel-testing-enabled NO -maximum-concurrent-test-simulator-destinations 1 -test-timeouts-enabled YES -maximum-test-execution-time-allowance 240 CODE_SIGNING_ALLOWED=NO test
-      - name: Build unsigned IPA
-        run: bash scripts/build-unsigned-ipa.sh "$RUNNER_TEMP/unsigned"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: LocalWave-unsigned
-          path: ${{ runner.temp }}/unsigned/*
-          if-no-files-found: error

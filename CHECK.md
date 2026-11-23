@@ -29,13 +29,13 @@ U0 → U1a → U1b → U1c → U2a → U2b → U3 → U4a → U4b (CP1) → U5a 
 
 Each package has the following lifecycle:
 
-1. Work on branch `u<N>` in both repos, from `rust-port`.
+1. Work on branch `u<N>` in both repos, from `dev`.
 2. Each step is one commit per repo, with a subject of the form `[U<N>.<k>] …`. LocalWave commits carry the pxui pointer.
 3. Run Tier A per commit and Tier B at the end.
 4. Self-review against §13.
 5. To land:
-   1. Fast-forward pxui `rust-port`, push, then run `tools/check-pxui-remote.sh`.
-   2. Fast-forward LocalWave `rust-port`, run `make check` online, then push.
+   1. Fast-forward pxui `dev`, push, then run `tools/check-pxui-remote.sh`.
+   2. Fast-forward LocalWave `dev`, run `make check` online, then push.
    3. Make one `[U<N>] Status` commit and delete the `u<N>` branches.
 6. Fixes after review are new `[U<N>.<k> fix]` commits, never amends.
 

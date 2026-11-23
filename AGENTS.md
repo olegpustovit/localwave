@@ -10,21 +10,15 @@ The runner enforces 5 seconds per case and 60 seconds per run; never raise deadl
 Reuse shared `target/`, static SDL under `target/sdl` and the same `pxui/tools/cc-stack.sh`
 linker in both workspaces. Keep the default executable stack and `PXUI_CONSUMER_DEFAULT_STACK=1`.
 
-Swift: Xcode 16.2+ (CI uses 26.6), shared `musicapp` scheme, `localwave.xctestplan`, Swift 5
-language mode, iOS 18 app floor and iOS 18.2+ test simulator. Tests retain `musicappTests` /
-`musicappUITests` names; target names do not imply broad UI coverage. Shared cases use Swift Testing.
+The project is Rust only; the former Swift app is archived on the `swift` branch.
 
 | Loop | Command | Warm wall budget |
 | --- | --- | --- |
 | Rust | `cargo t -p lw_sqlite -p lw_core -p lw_apple_sys -p lw_ui -p lw_bin` | 60 s/run, 5 s/case |
-| Swift shared | `swift test --parallel` | 30 s |
-| iOS logic changes | `xcodebuild … -only-testing:musicappTests test` | 90 s |
-| UI flows | Full simulator plan, manual Verify workflow | On demand |
 
 Unit tests use injected clocks or short-deadline polling, no sleeps/network, and shared fixtures.
 A case exceeding one second needs a reason comment or belongs in UI verification. Fix or move
-slow cases before merging. PR CI runs shared/unit checks; release tags run Swift shared checks.
-Use `scripts/build-unsigned-ipa.sh` for the shipping unsigned device IPA.
+slow cases before merging. PR CI runs the Rust checks.
 
 ## Source map
 
@@ -34,8 +28,8 @@ Use `scripts/build-unsigned-ipa.sh` for the shipping unsigned device IPA.
 - `lw_ui`: screens, app bodies, theme/motion tokens and navigation state through public pxui.
 - `lw_bin`: executable, controller and library/files/artwork workers; GPU policy adapter.
 - `pxui`: pinned framework submodule; read its AGENTS.md before editing it.
-- `localwave/Sources`: shipping Swift App, Core, Domain, Data and Features; shared modules live
-  in Package.swift and must not be re-added to the Xcode app target.
+- `localwave/`: app resources (assets, fonts, demo library, reference fixture, entitlements);
+  `Tests/LocalWaveDataTests/Fixtures`: shared media fixtures.
 
 ## Boundary
 
@@ -89,8 +83,7 @@ Foundation context conversion and native preferences belong on workers. Preserve
 context bytes until edited. Source access uses security-scoped grants and coordinated reads;
 never rebuild an iOS provider capability from a portable path. Never delete original audio during
 cache eviction, unpin or source removal. Validate complete external requests before side effects.
-Keep shipping Swift apps until replacement platform/distribution gates pass; once the Rust app is stable
-the Swift app is removed. Until then the visual target is the native Swift Mac app's layout (pxui text is
+The Swift app is archived on the `swift` branch. The visual target stays the native Swift Mac app's layout (pxui text is
 cross-platform cosmic-text with Apple-style positioning and macOS-style smoothing, never a platform rasteriser); the iOS Simulator goldens are a proxy, never a reason to diverge from native Mac.
 Rust development packages use isolated containers. Smoke/performance fixtures never touch normal data or media sessions.
 
@@ -111,8 +104,8 @@ frozen: exports and records change in place, superseded exports are deleted in t
 change detector only (next minor, regenerated manifests); the 1.x frozen fixtures and 1.57 old-consumer check are retired,
 and `abi-frozen`/`abi-compat` leave Tier B until they return at 2.0. Stop at a blocked step rather than jumping phases.
 
-One step per commit; subjects include its ID. For framework steps publish pxui on `rust-port`
-before staging its pointer in LocalWave, also on `rust-port` (U packages: at landing, sign-off 3); check remote
+One step per commit; subjects include its ID. For framework steps publish pxui on `dev`
+before staging its pointer in LocalWave, also on `dev` (U packages: at landing, sign-off 3); check remote
 fetchability. Before committing, require the bounded Rust suite and `make check` green (U packages: at the package
 end, sign-off 2). PERF steps also run
 `make performance` and replace the status performance table. Record evidence in commit messages;

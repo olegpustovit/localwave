@@ -18,64 +18,6 @@
                 "panel": "shared"
             },
             "problemMatcher": "$rustc"
-        },
-        {
-            "label": "swift-build-all",
-            "type": "shell",
-            "command": "swift",
-            "args": [
-                "build"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            },
-            "problemMatcher": {
-                "owner": "swift",
-                "fileLocation": [
-                    "relative",
-                    "${workspaceFolder}"
-                ],
-                "pattern": {
-                    "regexp": "^(.*):(\\d+):(\\d+):\\s+(warning|error):\\s+(.*)$",
-                    "file": 1,
-                    "line": 2,
-                    "column": 3,
-                    "severity": 4,
-                    "message": 5
-                }
-            }
-        },
-        {
-            "label": "swift-clean",
-            "type": "shell",
-            "command": "swift",
-            "args": [
-                "package",
-                "clean"
-            ],
-            "group": "build",
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            }
-        },
-        {
-            "label": "swift-test",
-            "type": "shell",
-            "command": "swift",
-            "args": [
-                "test"
-            ],
-            "group": {
-                "kind": "test",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always",
-                "panel": "shared"
-            }
         }
     ]
 }
