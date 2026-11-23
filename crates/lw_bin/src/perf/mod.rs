@@ -14,6 +14,7 @@
 //! Startup selection for the isolated signed performance matrix; no argument work runs in frames.
 
 mod drive;
+pub(crate) mod energy;
 mod measured;
 mod report;
 pub(crate) mod setup;

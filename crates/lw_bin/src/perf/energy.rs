@@ -1,0 +1,199 @@
+//! Real-time scenarios use the qualification catalog and normal playback/frame deadlines.
+use lw_bin::controller::{Command, Controller, Status};
+use lw_core::{playback::Phase, queue::RepeatMode};
+use pxui_sdl::{Window, app::Schedule};
+use std::path::Path;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Scenario {
+    PlayingList,
+    Idle,
+    Pointer,
+    Hidden,
+}
+
+impl Scenario {
+    pub(crate) fn from_args(args: &[String]) -> Result<Option<Self>, String> {
+        let mut energy = args.iter().filter(|arg| arg.starts_with("--energy-"));
+        let Some(option) = energy.next() else {
+            return Ok(None);
+        };
+        if energy.next().is_some() || cfg!(target_os = "ios") {
+            return Err("Select one macOS energy scenario".into());
+        }
+        Ok(Some(match option.as_str() {
+            "--energy-playing-list" => Self::PlayingList,
+            "--energy-idle" => Self::Idle,
+            "--energy-pointer" => Self::Pointer,
+            "--energy-hidden" => Self::Hidden,
+            _ => return Err(format!("Unknown option: {option}")),
+        }))
+    }
+
+    pub(crate) fn start(self, now: f64, player: &mut Controller) -> Result<Run, String> {
+        let seconds =
+            std::env::var("LOCALWAVE_ENERGY_SECONDS").map_err(|_| "Use tools/energy/run.sh")?;
+        let seconds = seconds
+            .parse::<u32>()
+            .map_err(|_| "Energy duration must be an integer")?;
+        if !(5..=120).contains(&seconds) || player.catalog().len() != 10_000 {
+            return Err("Energy runs require 5–120 seconds and a 10,000-song fixture".into());
+        }
+        if self != Self::Idle {
+            player
+                .command(Command::Repeat(RepeatMode::One))
+                .map_err(|e| e.to_string())?;
+            player.command(Command::Play).map_err(|e| e.to_string())?;
+        }
+        Ok(Run {
+            scenario: self,
+            seconds,
+            startup: now,
+            settle: None,
+            stop: None,
+            next_pointer: now,
+            pointer_tick: 0,
+        })
+    }
+}
+
+pub(crate) struct Run {
+    scenario: Scenario,
+    seconds: u32,
+    startup: f64,
+    settle: Option<f64>,
+    stop: Option<f64>,
+    next_pointer: f64,
+    pointer_tick: u64,
+}
+
+impl Run {
+    pub(crate) fn input(&mut self, now: f64, events: &mut Vec<input::Event>) {
+        events.retain(|event| {
+            matches!(
+                event,
+                input::Event::Resized(_)
+                    | input::Event::PixelSizeChanged(_)
+                    | input::Event::FocusLost
+                    | input::Event::FocusGained
+                    | input::Event::Closed
+            )
+        });
+        if self.pointer_tick == 0
+            || (self.scenario == Scenario::Pointer && now >= self.next_pointer)
+        {
+            let position = if self.scenario == Scenario::Pointer {
+                (550.0 + (self.pointer_tick % 8) as f64, 184.0)
+            } else {
+                (-100.0, -100.0)
+            };
+            events.push(input::Event::PointerMoved(position));
+            self.pointer_tick += 1;
+            self.next_pointer = now + 1.0 / 60.0;
+        }
+    }
+
+    fn wait_until(&self, deadline: f64) -> Schedule {
+        Schedule::WaitUntil(Some(if self.scenario == Scenario::Pointer {
+            deadline.min(self.next_pointer)
+        } else {
+            deadline
+        }))
+    }
+
+    pub(crate) fn advance(
+        &mut self,
+        window: &mut Window,
+        status: &Status,
+        draws: usize,
+        ui: &pxui::Ui,
+    ) -> Result<Schedule, String> {
+        let now = window.time();
+        if let Some(stop) = self.stop {
+            if status.fault.is_some() {
+                return Err(format!("Energy playback failed: {}", status.message));
+            }
+            if now >= stop {
+                let reasons = ui.frame_reasons();
+                println!(
+                    "LOCALWAVE_ENERGY_DONE draws={draws} transition={} finite_keys={} stepped={}",
+                    reasons.transition, reasons.finite_keys, reasons.stepped
+                );
+                return Ok(Schedule::Exit);
+            }
+            return Ok(self.wait_until(stop));
+        }
+        let playing = self.scenario == Scenario::Idle || status.phase == Phase::Playing;
+        if !playing || draws == 0 {
+            if now >= self.startup + 5.0 || status.fault.is_some() {
+                return Err(format!(
+                    "Energy fixture did not start: {:?} {}",
+                    status.phase, status.message
+                ));
+            }
+            return Ok(Schedule::WaitUntil(Some(self.startup + 5.0)));
+        }
+        if self.settle.is_none() {
+            if self.scenario == Scenario::Hidden {
+                window.hide()?;
+            }
+            self.settle = Some(now + 3.0);
+        }
+        let ready = self.settle.unwrap();
+        if now < ready {
+            return Ok(self.wait_until(ready));
+        }
+        let visible = window.visible()?;
+        if visible == (self.scenario == Scenario::Hidden) {
+            return Err("Energy window visibility differs from the requested scenario".into());
+        }
+        let (width, height) = window.extent().drawable;
+        let reasons = ui.frame_reasons();
+        println!(
+            "LOCALWAVE_ENERGY_READY width={width} height={height} draws={draws} transition={} finite_keys={} stepped={}",
+            reasons.transition, reasons.finite_keys, reasons.stepped
+        );
+        // Leave time for the trace to attach and flush before the native player shuts down.
+        let stop = now + f64::from(self.seconds) + 8.0;
+        self.stop = Some(stop);
+        Ok(self.wait_until(stop))
+    }
+}
+
+pub(super) fn seed(database: &Path, base: &Path) -> std::io::Result<()> {
+    let folder = base.join("Documents/Added Files");
+    std::fs::create_dir_all(&folder)?;
+    std::fs::write(
+        folder.join("silence.wav"),
+        include_bytes!("../../../../tools/energy/silence.wav"),
+    )?;
+    let db = lw_sqlite::Connection::open(
+        database
+            .to_str()
+            .ok_or_else(|| std::io::Error::other("Fixture path is not UTF-8"))?,
+    )
+    .map_err(std::io::Error::other)?;
+    db.execute_batch("UPDATE songs SET localFilePath='Added Files/silence.wav', duration=8, fileExtension='wav' WHERE songKey=1")
+        .map_err(std::io::Error::other)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Scenario;
+
+    #[test]
+    fn energy_scenarios_require_a_single_known_flag() {
+        let args = |flags: &[&str]| {
+            flags
+                .iter()
+                .map(|flag| flag.to_string())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            Scenario::from_args(&args(&["--energy-playing-list"])),
+            Ok(Some(Scenario::PlayingList))
+        );
+        assert!(Scenario::from_args(&args(&["--energy-idle", "--energy-hidden"])).is_err());
+        assert!(Scenario::from_args(&args(&["--energy-play"])).is_err());
+    }
+}

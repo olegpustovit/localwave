@@ -63,6 +63,7 @@ pub(crate) struct App {
     pub(super) files: lw_bin::files::FilesWorker,
     top_inset: f64,
     perf: Option<perf::Perf>,
+    energy: Option<perf::energy::Run>,
     pub(super) smoke: bool,
     trace_frames: bool,
     frame_reasons: Option<frame_reasons::Report>,
@@ -105,6 +106,7 @@ pub(crate) struct App {
 pub(super) fn open(
     window: &mut Window,
     workload: Option<perf::Workload>,
+    energy: Option<perf::energy::Scenario>,
     smoke: bool,
     trace_frames: bool,
     reference: Option<String>,
@@ -115,6 +117,9 @@ pub(super) fn open(
     }
     if workload.is_some() && !mem_sys::COUNTING {
         return Err("--performance-check needs the counting build (make performance)".into());
+    }
+    if energy.is_some() && (cfg!(debug_assertions) || mem_sys::COUNTING) {
+        return Err("Energy measurement needs the non-counting release bundle (make bundle)".into());
     }
     mem_sys::set_peer(pxui::library_counter);
     #[cfg(target_os = "macos")]
@@ -158,7 +163,7 @@ pub(super) fn open(
         ui.set_timing(true);
     }
     let graphics = gpu::Graphics::open(window, &ui).map_err(|error| graphics_error(&ui, error))?;
-    let temporary = if smoke || workload.is_some() || reference.is_some() {
+    let temporary = if smoke || workload.is_some() || reference.is_some() || energy.is_some() {
         Some(
             lw_apple_sys::preferences::AppPaths::load()
                 .map_err(|error| error.to_string())?
@@ -187,7 +192,7 @@ pub(super) fn open(
                 if seeded {
                     reference::library(&base, &screen, table_styles)
                 } else {
-                    perf::setup::library(&base, workload, table_styles)
+                    perf::setup::library(&base, workload, energy.is_some(), table_styles)
                 }
             },
             wake,
@@ -238,7 +243,11 @@ pub(super) fn open(
     let text = lw_ui::song_text::Prewarm::default();
     // Workers do not inherit the UI's interactive QoS.
     mem_sys::profile::ui_thread_priority().map_err(|error| error.to_string())?;
-    let indicator_song = perf::setup::wait_ready(window, &mut player, smoke || seeded, workload)?;
+    let indicator_song =
+        perf::setup::wait_ready(window, &mut player, smoke || seeded || energy.is_some(), workload)?;
+    let energy = energy
+        .map(|scenario| scenario.start(window.time(), &mut player))
+        .transpose()?;
     let extent = window.extent();
     let events: Vec<HostEvent> = Vec::with_capacity(256);
     let encoded = pxui_host::Events::default();
@@ -277,6 +286,7 @@ pub(super) fn open(
         files,
         top_inset,
         perf,
+        energy,
         smoke,
         trace_frames,
         frame_reasons: frame_reasons::Report::from_env(window.time()),
@@ -312,7 +322,7 @@ pub(super) fn open(
     });
     if let Some(workload) = workload {
         perf::setup::prepare(&mut app, workload, window)?;
-    } else {
+    } else if app.energy.is_none() {
         if let Some(screen) = &reference {
             reference::route(&mut app, screen, false)?;
         }
@@ -541,6 +551,9 @@ impl App {
                 return Err(error);
             }
             frame.external_input(&mut self.events);
+            if let Some(energy) = &mut self.energy {
+                energy.input(window.time(), &mut self.events);
+            }
             self.input(window)?;
         }
         let mut next_preferences = self.environment.snapshot();
@@ -702,6 +715,15 @@ impl App {
         if let Some(report) = &mut self.frame_reasons {
             report.print(now, self.draws, &self.ui);
         }
+        let energy_deadline = if let Some(energy) = &mut self.energy {
+            match energy.advance(window, self.player.status(), self.draws, &self.ui)? {
+                Schedule::Exit => return Ok(Schedule::Exit),
+                Schedule::WaitUntil(at) => at,
+                Schedule::NextFrame => Some(now),
+            }
+        } else {
+            None
+        };
         let observed_at = if self.smoke { window.time() } else { now };
         if self.smoke
             && !self.player.status().initialized
@@ -793,9 +815,11 @@ impl App {
             .player
             .poll_interval()
             .map(|wait| window.time() + wait.as_secs_f64());
-        Ok(Schedule::WaitUntil(match (deadline, progress) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, b) => a.or(b),
-        }))
+        Ok(Schedule::WaitUntil(
+            [deadline, progress, energy_deadline]
+                .into_iter()
+                .flatten()
+                .min_by(f64::total_cmp),
+        ))
     }
 }

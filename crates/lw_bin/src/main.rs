@@ -17,11 +17,15 @@ fn run() -> Result<(), String> {
     known_options(&args)?;
     let workload = perf::Workload::from_args(&args)?;
     let reference = reference::from_args(&args)?;
+    let energy = perf::energy::Scenario::from_args(&args)?;
+    let smoke = args.iter().any(|arg| arg == "--smoke-test");
+    if energy.is_some() && (workload.is_some() || reference.is_some() || smoke) {
+        return Err("Energy runs require their own fixture".into());
+    }
     let mut reference_capture = reference
         .as_ref()
         .and_then(|_| std::env::var_os("LOCALWAVE_REFERENCE_CAPTURE"))
         .map(std::path::PathBuf::from);
-    let smoke = args.iter().any(|arg| arg == "--smoke-test");
     let trace_frames = args.iter().any(|arg| arg == "--trace-frames");
     let mut app: Option<Box<App>> = None;
     let (width, height) = if cfg!(target_os = "ios") {
@@ -37,7 +41,7 @@ fn run() -> Result<(), String> {
         Box::new(move |window, signal| {
             if signal == Signal::Initialize {
                 app = Some(app::open(
-                    window, workload, smoke, trace_frames, reference.clone(), reference_capture.take(),
+                    window, workload, energy, smoke, trace_frames, reference.clone(), reference_capture.take(),
                 )?);
                 return Ok(Schedule::NextFrame);
             }
@@ -66,7 +70,7 @@ fn known_options(args: &[String]) -> Result<(), String> {
             "--performance-check" | "--smoke-test" | "--trace-frames" => {}
             "--reference-screen" => value = true,
             // Validated by Workload::from_args.
-            option if option.starts_with("--performance-") => {}
+            option if option.starts_with("--performance-") || option.starts_with("--energy-") => {}
             option if option.starts_with("--") => return Err(format!("Unknown option: {option}")),
             _ => {}
         }
