@@ -804,6 +804,9 @@ impl App {
                     (self.frames, self.draws),
                 )?
             {
+                if self.frame_reasons.is_some() {
+                    p.check_song_indicator_scheduler(self.player.catalog())?;
+                }
                 return Ok(schedule);
             }
         }
