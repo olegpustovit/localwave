@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: true
+          fetch-depth: 0
       - name: Install pinned Rust toolchain
         run: rustup show active-toolchain
       - uses: actions/cache@v4
@@ -84,9 +85,12 @@ jobs:
       - name: Install Vulkan software driver and validation
         run: |
           sudo apt-get update
-          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers libdbus-1-dev
+          sudo apt-get install -y libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers libdbus-1-dev glslang-tools spirv-tools
       - name: Check native renderer oracle on lavapipe
         working-directory: pxui
-        env:
-          VK_DRIVER_FILES: /usr/share/vulkan/icd.d/lvp_icd.x86_64.json
-        run: cargo t -p pxui_render gpu_partial_equals_full
+        run: |
+          VK_DRIVER_FILES=$(find /usr/share/vulkan/icd.d -name 'lvp_icd*.json' -print -quit)
+          test -f "$VK_DRIVER_FILES"
+          export VK_DRIVER_FILES
+          cargo t -p pxui_render gpu_partial_equals_full
+          RAYS_SLOW=1 cargo t --profile default -p pxui_render gpu_partial_equals_full
