@@ -98,19 +98,16 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
                     })
                     .unwrap();
                 assert!(
-                    (row.rect.y
-                        - if matches!(width, 400.0 | 520.0) {
-                            159.7
-                        } else {
-                            142.9
-                        })
+                    (row.rect.y - 142.9)
                     .abs()
                         < 0.001
                         && (row.rect.w - width).abs() < 0.001,
                     "full-width song row: {:?}",
                     row.rect
                 );
-                let wrapped = matches!(width, 400.0 | 520.0);
+                // Swift's Mac table keeps Format, On device and Time at their text's width when short of room (the simulator
+                // wrapped "4:00" at 400 and 520): no row wraps at any width
+                let wrapped = false;
                 for (name, y, h) in [
                     ("1", if wrapped { 2.2 } else { 10.2 }, 18.2),
                     ("Quiet lights", if wrapped { 1.2 } else { 9.2 }, 19.6),
@@ -137,13 +134,7 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
                     .iter()
                     .find(|node| node.is_role(Role::Label) && ui.a11y_name_of(node) == "4:00")
                     .unwrap();
-                let native_width = if width == 400.0 {
-                    if scale == 1.0 { 15.0 } else { 14.5 }
-                } else if matches!(width, 520.0 | 364.0 | 364.1) {
-                    22.0
-                } else {
-                    29.0
-                };
+                let native_width = 29.0;
                 assert!(
                     (time.rect.w - native_width).abs() < 0.001
                         && (time.rect.x + time.rect.w - (232.0 + width - 60.0)).abs() < 0.001,
@@ -233,13 +224,8 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
             .unwrap();
             let text = TIME_HEADING.with(|h| h.get()).unwrap();
             let rect = ui.rect(&text);
-            let native = if matches!(width, 400.0 | 520.0) {
-                if scale == 1.0 { 21.0 } else { 20.5 }
-            } else if scale == 1.0 {
-                28.0
-            } else {
-                27.5
-            };
+            // the Time column keeps its text's width at every width (Swift's Mac table), so "Time" never wraps
+            let native = if scale == 1.0 { 28.0 } else { 27.5 };
             let end = columns[..=Column::Time as usize].iter().sum::<f32>() - 8.0;
             assert!(
                 (rect.x - (end - native)).abs() < 0.001

@@ -321,8 +321,24 @@ impl SongTable {
         }
         let total = preferred[1..7].iter().sum::<f32>().max(1.0);
         let available = (width - preferred[0] - 52.0).max(0.0);
-        for value in &mut preferred[1..7] {
-            *value = *value * available / total;
+        // Swift's Mac table: short of room, Format, On device and Time keep their measured width (their text never wraps)
+        // and the truncating Title, Artist and Album give it up; with room to spare every column grows in proportion
+        // (whole points: a label's pixel-rounded width never outgrows its box)
+        let narrow = [Column::Format, Column::State, Column::Time];
+        let fixed: f32 = narrow.iter().map(|c| preferred[*c as usize].ceil()).sum();
+        let text: f32 = preferred[1..4].iter().sum();
+        if available < total && fixed < available && text > 0.0 {
+            for column in narrow {
+                preferred[column as usize] = preferred[column as usize].ceil();
+            }
+            let scale = (available - fixed) / text;
+            for value in &mut preferred[1..4] {
+                *value *= scale;
+            }
+        } else {
+            for value in &mut preferred[1..7] {
+                *value = *value * available / total;
+            }
         }
         preferred
     }
@@ -379,6 +395,24 @@ mod tests {
             assert_eq!(columns[Column::Format as usize] > 0.0, width >= 680.0);
             assert!((columns.iter().sum::<f32>() - width).abs() < 0.001);
         }
+        // short of room (long titles cap at 240): Format and Time keep their measured width, the text columns give it up
+        let long: Vec<Song> = (0..2).map(|i| Song {
+            id: Some(10 + i),
+            title: "A title long enough to reach the column cap, and then some more words".into(),
+            artist: "An artist name long enough to reach the column cap as well, really".into(),
+            album: "An album name long enough to reach the column cap too, and more".into(),
+            file_extension: Some(if i == 0 { "mp3" } else { "m4a" }.into()),
+            duration: Some(228.0),
+            ..Default::default()
+        }).collect();
+        let crowded = crate::tests::prepared(long);
+        let table = crowded.all.as_ref().unwrap().song_table.as_ref().unwrap();
+        let short = table.columns(&crowded, 900.0, None, Sort::Original, Route::Songs);
+        for column in [Column::Format, Column::Time] {
+            assert_eq!(short[column as usize], table.preferred[column as usize].ceil(), "{column:?} keeps its text's width");
+        }
+        assert!(short[Column::Title as usize] < 240.0 && (short.iter().sum::<f32>() - 900.0).abs() < 0.01);
+        let table = catalog.all.as_ref().unwrap().song_table.as_ref().unwrap();
         let number = table.columns(&catalog, 888.0, None, Sort::Original, Route::Album(0));
         assert!(
             (number[0] - 55.6).abs() < 0.01,

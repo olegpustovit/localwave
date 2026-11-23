@@ -89,8 +89,10 @@ Foundation context conversion and native preferences belong on workers. Preserve
 context bytes until edited. Source access uses security-scoped grants and coordinated reads;
 never rebuild an iOS provider capability from a portable path. Never delete original audio during
 cache eviction, unpin or source removal. Validate complete external requests before side effects.
-Keep shipping Swift apps until replacement platform/distribution gates pass; Rust development
-packages use isolated containers. Smoke/performance fixtures never touch normal data or media sessions.
+Keep shipping Swift apps until replacement platform/distribution gates pass; once the Rust app is stable
+the Swift app is removed. Until then the visual target is the native Swift Mac app (macOS font smoothing,
+its own table metrics); the iOS Simulator goldens are a proxy, never a reason to diverge from native Mac.
+Rust development packages use isolated containers. Smoke/performance fixtures never touch normal data or media sessions.
 
 ## Process
 
