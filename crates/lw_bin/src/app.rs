@@ -412,6 +412,7 @@ impl App {
             smoke,
             shell_state,
             perf,
+            energy,
             events,
             demo,
             ..
@@ -464,9 +465,10 @@ impl App {
             route: lw_apple_sys::window::ROUTE_PICKER,
             duration: status.duration,
         };
+        let replay = energy.as_ref().and_then(|run| run.replay_sample());
         let mut input = FrameIn::new(extent.logical.0 as f32, extent.logical.1 as f32)
             .scale(scale)
-            .time(now)
+            .time(replay.map_or(now, |(time, _)| time))
             .environment(
                 platform
                     .environment()
@@ -476,7 +478,7 @@ impl App {
             .reduced_motion(preferences.reduced_motion != 0 || status.settings.reduce_motion);
         input.wire.appearance = preferences.appearance;
         input = input.events(&wire[..]);
-        let mut position = status.position;
+        let mut position = replay.map_or(status.position, |(_, position)| position);
         frame.view(&mut view, &mut position, &mut input);
         // A window resize changes the table's wrap widths. The list prepares rows for the new layout.
         let previous = ui.view_size();
@@ -522,9 +524,11 @@ impl App {
         let output = ui.output();
         *repaint = output.repaint_at.is_finite().then_some(output.repaint_at);
         window.set_repaint_rate(output.repaint_hz);
-        if perf.is_some() || output.draw_revision != *revision || graphics.surface_changed(window) {
+        if perf.is_some() || replay.is_some()
+            || output.draw_revision != *revision || graphics.surface_changed(window)
+        {
             let draw_cpu = frame.cpu_time()?;
-            let drawn = if perf.is_some() {
+            let drawn = if perf.is_some() || replay.is_some() {
                 graphics.draw_forced(window, ui, frame.gpu_trace())
             } else {
                 graphics.draw(window, ui, frame.gpu_trace())
@@ -534,6 +538,9 @@ impl App {
             frame.audit(ui, artwork, player);
             if drawn {
                 (*draws) += 1;
+                if replay.is_some() && let Some(energy) = energy {
+                    energy.record_replay();
+                }
                 (*revision) = ui.draw_revision();
                 if smoke && (*draws) == 1 {
                     println!(
@@ -773,6 +780,7 @@ impl App {
             .graphics_slot
             .as_ref()
             .is_some_and(|graphics| graphics.surface_changed(window));
+        let replay = self.energy.as_ref().and_then(|e| e.replay_due(now));
         let changed = self.first
             || self.perf.is_some()
             || resized
@@ -784,9 +792,9 @@ impl App {
             || preferences_changed;
         let repaint_due = self.repaint.is_some_and(|time| now >= time);
         // Only a running animation is due: pxui steps it in place (no shell build) and the host redraws its damage.
-        if !changed && repaint_due && self.ui.step(now) {
+        if replay.is_none() && !changed && repaint_due && self.ui.step(now) {
             self.step_draw(window, now)?;
-        } else if changed || repaint_due {
+        } else if replay.unwrap_or(changed || repaint_due) {
             if let Some(report) = &mut self.frame_reasons {
                 report.build(
                     self.first || resized || preferences_changed,
@@ -832,6 +840,9 @@ impl App {
         } else {
             None
         };
+        if replay.is_some() {
+            return Ok(Schedule::WaitUntil(energy_deadline));
+        }
         let observed_at = if self.smoke { window.time() } else { now };
         if self.smoke
             && !self.player.status().initialized
