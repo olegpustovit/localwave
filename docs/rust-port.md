@@ -389,6 +389,11 @@ integration run and the owner's M1 Air for energy.
 
 The quiet Wave 2 R4 replay drove 160 presents per mode at 20 Hz inside each 14-second trace. Full → partial summed encoder GPU was 0.63522 → 0.78665 ms/present (7.2597 → 8.9903 ms/s) for playing-list and 0.74918 → 0.65573 ms/present (8.5621 → 7.4941 ms/s) for pointer. LocalWave keeps full copies by default because playing-list GPU cost rose.
 
+| Step | Status | Evidence |
+| --- | --- | --- |
+| R4b.1 | Opt-in | pxui `8c282140` adds direct Metal rendering. Each known drawable accumulates UI damage, and lifecycle invalidation forces a clear. Normal Strategy B frames use framebuffer-only drawables and allocate no retained canvas. A backdrop split lazily retains one shader-readable scratch target. The sampled validator clears and redraws an independent target, reads the actual drawable through its color attachment, and latches full redraw on a mismatch. ABI 2.10. |
+| R4b.2 | Quiet qualification pending | `LOCALWAVE_ENERGY_FIXED=1 LOCALWAVE_ENERGY_RECORD=1 tools/energy/run.sh playing-list 14` and the same command for `pointer` drive 160 presents at 20 Hz. The harness checks app and trace counts. Compare `PXUI_PRESENT_STRATEGY=A` and `B` with `PXUI_VERIFY_PRESENT=120`, direct full redraw with `PXUI_PRESENT_STRATEGY=B PXUI_FULL_PRESENT=1`, and stock with those flags unset. |
+
 ## Latest performance
 
 The quiet Wave 2 signed run passed all 30 workloads. The 28 gated workloads recorded zero warm Rust allocations. The worst gated build CPU, frame CPU and work wall p99 were 1.475, 2.233 and 4.666 ms. The two measured first-use workloads recorded 1,195 and 153 allocations.

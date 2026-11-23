@@ -148,6 +148,8 @@ def main(app, scenario, seconds):
         raise RuntimeError(f"Visible playback trace has no presents or GPU encoder times. See {run_dir}")
     if done["draws"] < ready["draws"] or done["stepped"] < ready["stepped"]:
         raise RuntimeError(f"Energy frame-reason counters went backwards. See {log}")
+    if env.get("LOCALWAVE_ENERGY_FIXED") == "1" and (presents != 160 or done["draws"] - ready["draws"] != 160):
+        raise RuntimeError(f"Fixed replay requires 160 app draws and traced presents. See {run_dir}")
     drawable = [ready.pop("width"), ready.pop("height")]
     result = {
         "machine": subprocess.check_output(["sysctl", "-n", "hw.model"], text=True).strip(),
