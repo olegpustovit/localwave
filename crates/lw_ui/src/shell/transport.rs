@@ -22,73 +22,187 @@ pub(super) fn transport(
     let width = ui.view_size().width.to_bits();
     let key_width = if narrow { 44.0 } else { 68.0 };
     let gap = if narrow { 4.0 } else { 16.0 };
-    ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(gap).align(Align::Center).padding(Edges::ZERO.r(if narrow { 8.0 } else { 20.0 })).look(PANEL_FILL),
+    ui.row(
+        Node::row()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .gap(gap)
+            .align(Align::Center)
+            .padding(Edges::ZERO.r(if narrow { 8.0 } else { 20.0 }))
+            .look(PANEL_FILL),
         |ui| {
-            ui.row(Node::row().w_px(if narrow { 138.0 } else { 210.0 }).h_px(71.0).gap(2.0), |ui| { ui.view_of("transport-keys", &(player.playing, narrow), |ui| {
-                ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
-                    if ui.icon_button("previous", icon_drawing(Icon::Previous), "Previous", &icon_key(key_width, 71.0).look(&ICON_PLATE_LOOKS)).clicked {
-                        *intent = Some(Intent::Previous);
-                    }
-                    if ui.icon_button(
-                        "toggle",
-                        icon_drawing(if player.playing { Icon::Pause } else { Icon::Play }),
-                        if player.playing { "Pause" } else { "Play" },
-                        &icon_key(key_width, 71.0).look(&ICON_INVERSE_LOOKS),
-                    ).clicked {
-                        *intent = Some(if player.playing {
-                            Intent::Pause
-                        } else {
-                            Intent::Play
+            ui.row(
+                Node::row()
+                    .w_px(if narrow { 138.0 } else { 210.0 })
+                    .h_px(71.0)
+                    .gap(2.0),
+                |ui| {
+                    ui.view_of("transport-keys", &(player.playing, narrow), |ui| {
+                        ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
+                            if ui
+                                .icon_button(
+                                    "previous",
+                                    icon_drawing(Icon::Previous),
+                                    "Previous",
+                                    &icon_key(key_width, 71.0).look(&ICON_PLATE_LOOKS),
+                                )
+                                .clicked
+                            {
+                                *intent = Some(Intent::Previous);
+                            }
+                            if ui
+                                .icon_button(
+                                    "toggle",
+                                    icon_drawing(if player.playing {
+                                        Icon::Pause
+                                    } else {
+                                        Icon::Play
+                                    }),
+                                    if player.playing { "Pause" } else { "Play" },
+                                    &icon_key(key_width, 71.0).look(&ICON_INVERSE_LOOKS),
+                                )
+                                .clicked
+                            {
+                                *intent = Some(if player.playing {
+                                    Intent::Pause
+                                } else {
+                                    Intent::Play
+                                });
+                            }
+                            if ui
+                                .icon_button(
+                                    "next",
+                                    icon_drawing(Icon::Next),
+                                    "Next",
+                                    &icon_key(key_width, 71.0).look(&ICON_PLATE_LOOKS),
+                                )
+                                .clicked
+                            {
+                                *intent = Some(Intent::Next);
+                            }
                         });
-                    }
-                    if ui.icon_button("next", icon_drawing(Icon::Next), "Next", &icon_key(key_width, 71.0).look(&ICON_PLATE_LOOKS)).clicked {
-                        *intent = Some(Intent::Next);
-                    }
-                });
-                ui.retain_view_on_resize();
-            }); });
-            ui.row(Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center), |ui| {
-                ui.view_of("transport-seek", &crate::hash((player.revision, ticks(player, position), player.duration.to_bits(), width)), |ui| {
-                    ui.row(Node::row().w(Size::Grow).h(Size::Grow).gap(gap).align(Align::Center), |ui| {
-                        let elapsed = position.max(0.0) as u64;
-                        let remaining = (player.duration - position).max(0.0) as u64;
-                        small_clock(ui, "elapsed", elapsed, false, 44.0, SECONDARY);
-                        seek(ui, player, position, intent);
-                        small_clock(ui, "remaining", remaining, true, 44.0, SECONDARY);
+                        ui.retain_view_on_resize();
                     });
-                });
-            });
+                },
+            );
+            ui.row(
+                Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center),
+                |ui| {
+                    ui.view_of(
+                        "transport-seek",
+                        &crate::hash((
+                            player.revision,
+                            ticks(player, position),
+                            player.duration.to_bits(),
+                            width,
+                        )),
+                        |ui| {
+                            ui.row(
+                                Node::row()
+                                    .w(Size::Grow)
+                                    .h(Size::Grow)
+                                    .gap(gap)
+                                    .align(Align::Center),
+                                |ui| {
+                                    let elapsed = position.max(0.0) as u64;
+                                    let remaining = (player.duration - position).max(0.0) as u64;
+                                    small_clock(ui, "elapsed", elapsed, false, 44.0, SECONDARY);
+                                    seek(ui, player, position, intent);
+                                    small_clock(ui, "remaining", remaining, true, 44.0, SECONDARY);
+                                },
+                            );
+                        },
+                    );
+                },
+            );
             // Swift's WaveModeKeys: shuffle, repeat and the panel toggle. Volume is ⌘↑/⌘↓ and the
             // queue sheet opens from the panel; the route key opens the system's audio outputs.
             // on Swift's `panel2` plate (the selected fill), 2 points round and between the keys
             let modes = (player.shuffled, player.repeat as u8, panel, player.route);
-            ui.row(Node::row().w(Size::Fit).h(Size::Grow).align(Align::Center), |ui| { ui.view_of("transport-modes", &(modes, narrow), |ui| {
-                ui.row(Node::row().w(Size::Fit).h(Size::Grow).gap(gap).align(Align::Center), |ui| {
-                    ui.row(Node::row().w_px(if panel { 140.0 } else { 186.0 }).h_px(44.0).gap(2.0).pad(2.0).look(SELECTED_FILL),
-                        |ui| {
-                            if ui.icon_button("shuffle", icon_sized(Icon::Shuffle, 18.0), "Shuffle", &MODE_ICON.selected(player.shuffled)).clicked {
-                                *intent = Some(Intent::Shuffle);
-                            }
-                            let repeat = if player.repeat == lw_core::queue::RepeatMode::One { icon_drawing(Icon::RepeatOne) } else { icon_sized(Icon::Repeat, 18.0) };
-                            if ui.icon_button("repeat", repeat, REPEAT_NAMES[player.repeat as usize], &MODE_ICON.selected(player.repeat != lw_core::queue::RepeatMode::None)).clicked {
-                                *intent = Some(Intent::Repeat);
-                            }
-                            if ui.icon_button("panel", icon_sized(Icon::Panel, 18.0), "Toggle now playing panel", &MODE_ICON.selected(panel)).clicked {
-                                *intent = Some(Intent::TogglePanel);
-                            }
-                            // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
-                            if !panel
-                                && ui.icon_button("queue", icon_drawing(Icon::Queue), "Show full queue", &MODE_ICON).clicked
-                            {
-                                *intent = Some(Intent::ShowQueue);
-                            }
-                        },
-                    );
-                    // Swift's audio route key after the keys (its shipping Mac app is the iOS build, which shows it too)
-                    route_key(ui, player, intent);
-                });
-                ui.retain_view_on_resize();
-            }); });
+            ui.row(
+                Node::row().w(Size::Fit).h(Size::Grow).align(Align::Center),
+                |ui| {
+                    ui.view_of("transport-modes", &(modes, narrow), |ui| {
+                        ui.row(
+                            Node::row()
+                                .w(Size::Fit)
+                                .h(Size::Grow)
+                                .gap(gap)
+                                .align(Align::Center),
+                            |ui| {
+                                ui.row(
+                                    Node::row()
+                                        .w_px(if panel { 140.0 } else { 186.0 })
+                                        .h_px(44.0)
+                                        .gap(2.0)
+                                        .pad(2.0)
+                                        .look(SELECTED_FILL),
+                                    |ui| {
+                                        if ui
+                                            .icon_button(
+                                                "shuffle",
+                                                icon_sized(Icon::Shuffle, 18.0),
+                                                "Shuffle",
+                                                &MODE_ICON.selected(player.shuffled),
+                                            )
+                                            .clicked
+                                        {
+                                            *intent = Some(Intent::Shuffle);
+                                        }
+                                        let repeat =
+                                            if player.repeat == lw_core::queue::RepeatMode::One {
+                                                icon_drawing(Icon::RepeatOne)
+                                            } else {
+                                                icon_sized(Icon::Repeat, 18.0)
+                                            };
+                                        if ui
+                                            .icon_button(
+                                                "repeat",
+                                                repeat,
+                                                REPEAT_NAMES[player.repeat as usize],
+                                                &MODE_ICON.selected(
+                                                    player.repeat
+                                                        != lw_core::queue::RepeatMode::None,
+                                                ),
+                                            )
+                                            .clicked
+                                        {
+                                            *intent = Some(Intent::Repeat);
+                                        }
+                                        if ui
+                                            .icon_button(
+                                                "panel",
+                                                icon_sized(Icon::Panel, 18.0),
+                                                "Toggle now playing panel",
+                                                &MODE_ICON.selected(panel),
+                                            )
+                                            .clicked
+                                        {
+                                            *intent = Some(Intent::TogglePanel);
+                                        }
+                                        // The queue sheet is otherwise opened from the panel, which may be hidden or collapsed.
+                                        if !panel
+                                            && ui
+                                                .icon_button(
+                                                    "queue",
+                                                    icon_drawing(Icon::Queue),
+                                                    "Show full queue",
+                                                    &MODE_ICON,
+                                                )
+                                                .clicked
+                                        {
+                                            *intent = Some(Intent::ShowQueue);
+                                        }
+                                    },
+                                );
+                                // Swift's audio route key after the keys (its shipping Mac app is the iOS build, which shows it too)
+                                route_key(ui, player, intent);
+                            },
+                        );
+                        ui.retain_view_on_resize();
+                    });
+                },
+            );
         },
     );
 }
@@ -109,7 +223,12 @@ pub(super) fn route_key(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
         ui.node("route-slot", Node::column().w_px(44.0).h_px(44.0));
         return;
     }
-    let key = ui.icon_button("route", icon_sized(Icon::Route, 22.0), "Audio output", &ICON_44.look(&ICON_LOOKS));
+    let key = ui.icon_button(
+        "route",
+        icon_sized(Icon::Route, 22.0),
+        "Audio output",
+        &ICON_44.look(&ICON_LOOKS),
+    );
     if key.clicked {
         let at = ui.rect(&key.handle);
         *intent = Some(Intent::AudioRoute((at.x, at.y)));
@@ -129,15 +248,27 @@ pub(super) fn ticks(player: &PlayerView<'_>, position: f64) -> (u64, u64, u32) {
 
 /// `ticks` of a song `duration` seconds long at `position`: a host compares them to know whether a new position shows.
 pub fn progress_ticks(duration: f64, position: f64) -> (u64, u64, u32) {
-    let position = if position.is_finite() { position.max(0.0) } else { 0.0 };
-    let step = if duration > 0.0 { ((position / duration).clamp(0.0, 1.0) * playhead_steps(duration)) as u32 } else { 0 };
+    let position = if position.is_finite() {
+        position.max(0.0)
+    } else {
+        0.0
+    };
+    let step = if duration > 0.0 {
+        ((position / duration).clamp(0.0, 1.0) * playhead_steps(duration)) as u32
+    } else {
+        0
+    };
     (position as u64, (duration - position).max(0.0) as u64, step)
 }
 
 /// Seconds of playback until `ticks` next changes (a clock's second or the playhead's step): when a playing song next needs a
 /// frame. Nothing between ticks is visible, so the host waits this long instead of sampling the player every frame.
 pub fn next_tick(duration: f64, position: f64) -> f64 {
-    let position = if position.is_finite() { position.max(0.0) } else { 0.0 };
+    let position = if position.is_finite() {
+        position.max(0.0)
+    } else {
+        0.0
+    };
     let mut next = position.floor() + 1.0 - position;
     if duration.is_finite() && duration > position {
         let remaining = duration - position;
@@ -166,14 +297,16 @@ pub(super) fn desktop(
     let height = (height - safe_bottom).max(1.0);
     let top = state.top_inset.max(safe_top);
     let workspace_height = (height - top - 72.0).max(0.0);
-    let panel = state.panel_visible
-        && width >= 900.0
-        && height - top >= 640.0;
+    let panel = state.panel_visible && width >= 900.0 && height - top >= 640.0;
     let sidebar_width = if width >= 900.0 { 231.0 } else { 180.0 };
     let content_width = (width - sidebar_width - 1.0 - if panel { 320.0 } else { 0.0 }).max(100.0);
     let root = ui.node(
         "shell",
-        Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::ZERO.l(safe_left).r(safe_right).b(safe_bottom)).look(PAPER_FILL),
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .padding(Edges::ZERO.l(safe_left).r(safe_right).b(safe_bottom))
+            .look(PAPER_FILL),
     );
     ui.set_role(&root, Role::Window, pxui::A11yStates::NONE);
     ui.a11y_name(
@@ -186,7 +319,14 @@ pub(super) fn desktop(
     );
     ui.within(&root, &mut |ui| {
         spacer(ui, "titlebar-clearance", top);
-        let work = container(ui, "workspace", Axis::Row, Size::Grow, Size::Px(workspace_height), &PAPER_FILL);
+        let work = container(
+            ui,
+            "workspace",
+            Axis::Row,
+            Size::Grow,
+            Size::Px(workspace_height),
+            &PAPER_FILL,
+        );
         ui.within(&work, &mut |ui| {
             // The sidebar's playlist targets track the pointer for every carry frame and clear after it.
             let carry = if ui.carrying().is_some() {
@@ -195,34 +335,51 @@ pub(super) fn desktop(
                 u64::from(state.carried.get()) * 2
             };
             // the fit, not the height, keys the view: a resize that keeps it (a tall window's 1) keeps the sidebar
-            let factor = super::sidebar::row_fit(workspace_height, super::sidebar::row_count(catalog));
-            let revision = crate::hash((state.revision, catalog.all.is_some(), carry, factor.to_bits()));
-            ui.column(Node::column().w_px(sidebar_width).h(Size::Grow), |ui| { ui.view_of("sidebar", &revision, |ui| sidebar(ui, catalog, state, workspace_height, factor, intent)); });
+            let factor =
+                super::sidebar::row_fit(workspace_height, super::sidebar::row_count(catalog));
+            let revision = crate::hash((
+                state.revision,
+                catalog.all.is_some(),
+                carry,
+                factor.to_bits(),
+            ));
+            ui.column(Node::column().w_px(sidebar_width).h(Size::Grow), |ui| {
+                ui.view_of("sidebar", &revision, |ui| {
+                    sidebar(ui, catalog, state, workspace_height, factor, intent)
+                });
+            });
             rule(ui, "sidebar-divider", true);
             let library_revision = library_revision(player, catalog, state);
             let page = ui.view_of("library", &library_revision, |ui| {
-                    let route_key = if let Some(group) = catalog
-                        .collection(state.route)
-                        .filter(|_| state.route != Route::Find)
-                    {
-                        crate::hash((true, group.key))
+                let route_key = if let Some(group) = catalog
+                    .collection(state.route)
+                    .filter(|_| state.route != Route::Find)
+                {
+                    crate::hash((true, group.key))
+                } else {
+                    crate::hash((false, state.route))
+                };
+                let route = ui.node(
+                    Key::Id(route_key as i64),
+                    Node::column().w(Size::Grow).h(Size::Grow),
+                );
+                ui.within(&route, &mut |ui| {
+                    if state.settings_visible {
+                        settings::view(ui, player, state, content_width, intent);
+                    } else if state.route == Route::Files {
+                        files::view(ui, player, state, intent);
                     } else {
-                        crate::hash((false, state.route))
-                    };
-                    let route = ui.node(
-                        Key::Id(route_key as i64),
-                        Node::column().w(Size::Grow).h(Size::Grow),
-                    );
-                    ui.within(&route, &mut |ui| {
-                        if state.settings_visible {
-                            settings::view(ui, player, state, content_width, intent);
-                        } else if state.route == Route::Files {
-                            files::view(ui, player, state, intent);
-                        } else {
-                            content(ui, catalog, state, player, (content_width, workspace_height), intent);
-                        }
-                    });
+                        content(
+                            ui,
+                            catalog,
+                            state,
+                            player,
+                            (content_width, workspace_height),
+                            intent,
+                        );
+                    }
                 });
+            });
             ui.set_view(
                 &page,
                 &pxui::ViewTransform::DEFAULT.clip(Some(Rect {
@@ -249,23 +406,63 @@ pub(super) fn desktop(
                     // three sibling views: a tick rebuilds only the clock (a view inside a kept one cannot rebuild alone)
                     let artwork = player.artwork.map_or(0, crate::artwork::Images::revision);
                     let library = std::sync::Arc::as_ptr(&catalog.library) as usize;
-                    let clip = pxui::ViewTransform::DEFAULT.clip(Some(Rect { x: safe_left + width - 319.0, y: top, w: 319.0, h: workspace_height }));
-                    ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(20.0, 8.0, 20.0, 0.0)), |ui| {
-                        let mut parts = [None; 2];
-                        ui.column(Node::column().w(Size::Grow), |ui| { parts[0] = Some(ui.view_of("now-top", &(player.revision, artwork, library), |ui| {
-                            ui.column(Node::column().w(Size::Grow), |ui| now_top(ui, player, catalog, intent));
-                            ui.retain_view_on_resize();
-                        })); });
-                        // shortcut: the clock keeps its own entrance (10 points up), not the panel's 32-point slide; give it both if the entrance shows the gap
-                        now_clock(ui, player, position);
-                        ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| { parts[1] = Some(ui.view_of("now-bottom", &(player.revision, artwork, catalog.queue.as_ref().map(|queue| queue.revision), library), |ui| {
-                            ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| now_bottom(ui, player, catalog, intent));
-                        })); });
-                        for part in parts.iter().flatten() {
-                            ui.set_view(part, &clip);
-                            crate::motion::enter(ui, part, 1, (32.0, 0.0), crate::motion::SLOW, 0.0);
-                        }
-                    });
+                    let clip = pxui::ViewTransform::DEFAULT.clip(Some(Rect {
+                        x: safe_left + width - 319.0,
+                        y: top,
+                        w: 319.0,
+                        h: workspace_height,
+                    }));
+                    ui.column(
+                        Node::column()
+                            .w(Size::Grow)
+                            .h(Size::Grow)
+                            .padding(Edges::new(20.0, 8.0, 20.0, 0.0)),
+                        |ui| {
+                            let mut parts = [None; 2];
+                            ui.column(Node::column().w(Size::Grow), |ui| {
+                                parts[0] = Some(ui.view_of(
+                                    "now-top",
+                                    &(player.revision, artwork, library),
+                                    |ui| {
+                                        ui.column(Node::column().w(Size::Grow), |ui| {
+                                            now_top(ui, player, catalog, intent)
+                                        });
+                                        ui.retain_view_on_resize();
+                                    },
+                                ));
+                            });
+                            // shortcut: the clock keeps its own entrance (10 points up), not the panel's 32-point slide; give it both if the entrance shows the gap
+                            now_clock(ui, player, position);
+                            ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
+                                parts[1] = Some(ui.view_of(
+                                    "now-bottom",
+                                    &(
+                                        player.revision,
+                                        artwork,
+                                        catalog.queue.as_ref().map(|queue| queue.revision),
+                                        library,
+                                    ),
+                                    |ui| {
+                                        ui.column(
+                                            Node::column().w(Size::Grow).h(Size::Grow),
+                                            |ui| now_bottom(ui, player, catalog, intent),
+                                        );
+                                    },
+                                ));
+                            });
+                            for part in parts.iter().flatten() {
+                                ui.set_view(part, &clip);
+                                crate::motion::enter(
+                                    ui,
+                                    part,
+                                    1,
+                                    (32.0, 0.0),
+                                    crate::motion::SLOW,
+                                    0.0,
+                                );
+                            }
+                        },
+                    );
                 });
                 match drop {
                     Some((true, song)) => *intent = Some(Intent::AppendSong(song)),
@@ -276,7 +473,9 @@ pub(super) fn desktop(
             }
         });
         rule(ui, "transport-divider", false);
-        ui.column(Node::column().h_px(71.0), |ui| transport(ui, player, position, panel, intent));
+        ui.column(Node::column().h_px(71.0), |ui| {
+            transport(ui, player, position, panel, intent)
+        });
     });
     // A carry a row starts mid-build shows from the next frame; one that ended shows its last view once.
     state.carried.set(ui.carrying().is_some());
@@ -334,7 +533,11 @@ pub(super) fn seek(
     let peaks = player.waveform.copied();
     let accent = Rgba::token(ColorToken::ACCENT);
     // Swift's WaveformView: 200 bars in the desktop transport, its default 96 in the phone player
-    let bars: usize = if ui.view_size().width < compact::BREAKPOINT { 96 } else { 200 };
+    let bars: usize = if ui.view_size().width < compact::BREAKPOINT {
+        96
+    } else {
+        200
+    };
     ui.canvas(&scrubber, move |paint, rect| {
         let baseline = (rect.h - 4.0).max(0.0);
         let step = rect.w / bars as f32;
@@ -349,12 +552,34 @@ pub(super) fn seek(
                     .fold(0.0, f32::max)
                     .clamp(0.0, 1.0);
                 let height = (peak * baseline).max(2.0);
-                paint.fill(Rect::new(rect.x + index as f32 * step, rect.y + baseline - height, step / 4.0, height), Fill::new(BAR_INK).fractional());
+                paint.fill(
+                    Rect::new(
+                        rect.x + index as f32 * step,
+                        rect.y + baseline - height,
+                        step / 4.0,
+                        height,
+                    ),
+                    Fill::new(BAR_INK).fractional(),
+                );
             }
         }
-        paint.fill(Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0), Fill::new(Rgba::token(LINE)));
-        paint.fill(Rect::new(rect.x, rect.y + baseline, rect.w * fraction, 3.0), Fill::new(ink).fractional());
-        paint.fill(Rect::new(rect.x + rect.w * fraction - step / 4.0, rect.y, step / 2.0, rect.h), Fill::new(accent).fractional());
+        paint.fill(
+            Rect::new(rect.x, rect.y + baseline + 1.0, rect.w, 1.0),
+            Fill::new(Rgba::token(LINE)),
+        );
+        paint.fill(
+            Rect::new(rect.x, rect.y + baseline, rect.w * fraction, 3.0),
+            Fill::new(ink).fractional(),
+        );
+        paint.fill(
+            Rect::new(
+                rect.x + rect.w * fraction - step / 4.0,
+                rect.y,
+                step / 2.0,
+                rect.h,
+            ),
+            Fill::new(accent).fractional(),
+        );
     });
 }
 

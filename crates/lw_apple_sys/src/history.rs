@@ -118,7 +118,10 @@ mod tests {
         let suite = format!(
             "com.olegpustovit.localwave.history-{}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
         );
         let preferences = Preferences::open(Some(&suite)).unwrap();
         let other = Preferences::open(Some(&suite)).unwrap();

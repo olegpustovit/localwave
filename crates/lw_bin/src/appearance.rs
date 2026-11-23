@@ -8,7 +8,9 @@ fn prepare_theme(source: &str, accent: &str, dark: bool) -> Result<ThemeHandle, 
     // The source with the selected accent: its tokens, body names and part looks (the heading and popup hairlines); the kit
     // derives the other looks from the tokens
     for line in source.lines() {
-        let Some((key, _)) = line.split_once('=') else { continue };
+        let Some((key, _)) = line.split_once('=') else {
+            continue;
+        };
         if key.trim() != "tokens.accent" {
             text.push_str(line);
             text.push('\n');
@@ -97,7 +99,9 @@ mod tests {
                     lw_ui::testing::frame(
                         &mut ui,
                         &{
-                            let mut frame = FrameIn::new(320.0, 240.0).time(round as f64).reduced_motion(true);
+                            let mut frame = FrameIn::new(320.0, 240.0)
+                                .time(round as f64)
+                                .reduced_motion(true);
                             frame.wire.appearance = system;
                             frame
                         },
@@ -115,8 +119,19 @@ mod tests {
                         Signal::Mono => [0x11; 3],
                     };
                     // the theme files' part looks reach the app: the popup and table heading hairlines
-                    let line = if dark { pxui::geom::Rgba::rgb(0x26, 0x26, 0x26) } else { pxui::geom::Rgba::rgb(0xda, 0xda, 0xda) };
-                    assert_eq!((ui.theme().popup.idle.border, ui.theme().table_head.idle.border, ui.theme().table_head.hover.border), (line, line, line));
+                    let line = if dark {
+                        pxui::geom::Rgba::rgb(0x26, 0x26, 0x26)
+                    } else {
+                        pxui::geom::Rgba::rgb(0xda, 0xda, 0xda)
+                    };
+                    assert_eq!(
+                        (
+                            ui.theme().popup.idle.border,
+                            ui.theme().table_head.idle.border,
+                            ui.theme().table_head.hover.border
+                        ),
+                        (line, line, line)
+                    );
                     let accent = ui.tokens().accent;
                     assert_eq!([accent.r, accent.g, accent.b], expected);
                 }

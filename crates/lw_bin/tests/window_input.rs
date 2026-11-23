@@ -526,7 +526,7 @@ fn media_commands_wait_for_controller_capacity_without_losing_accepted_events() 
 fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bounded() {
     use lw_bin::controller::Status;
     use lw_core::{Song, playback::Phase, queue::Entry};
-    use lw_ui::artwork::{Want, Request};
+    use lw_ui::artwork::{Request, Want};
     use std::sync::Arc;
     assert_eq!(
         lw_apple_sys::media::verify_callbacks(),
@@ -653,7 +653,12 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     let mut window =
         pxui_sdl::Window::open_with("LocalWave artwork check", 1440, 872, false, true, true)
             .unwrap();
-    let mut ui = pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui");
+    let mut ui = pxui::Ui::new(
+        &pxui::UiDesc::new(pxui::Platform::Apple)
+            .font_size(15.0)
+            .fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)]),
+    )
+    .expect("pxui Ui");
     let mut theme = pxui::ThemeHandle::default();
     lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
     ui.set_theme(&theme).unwrap();
@@ -878,7 +883,12 @@ fn real_numeric_input_and_ui_build_allocate_nothing_when_warm() {
     mem_sys::set_peer(pxui::library_counter);
     let mut window =
         pxui_sdl::Window::open_with("LocalWave input check", 1440, 872, false, true, true).unwrap();
-    let mut ui = pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui");
+    let mut ui = pxui::Ui::new(
+        &pxui::UiDesc::new(pxui::Platform::Apple)
+            .font_size(15.0)
+            .fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)]),
+    )
+    .expect("pxui Ui");
     let mut theme = pxui::ThemeHandle::default();
     lw_ui::apply_palette(&mut theme, pxui::theme::Tokens::DEFAULT.is_dark());
     ui.set_theme(&theme).unwrap();
@@ -1001,6 +1011,15 @@ fn main() {
 
 fn prepared_catalog(songs: Vec<lw_core::Song>) -> lw_ui::catalog::Catalog {
     let mut catalog = lw_ui::catalog::Catalog::new(songs);
-    catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui"))).unwrap();
+    catalog
+        .prepare_tables(&lw_ui::catalog::TableStyles::resolve(
+            &pxui::Ui::new(
+                &pxui::UiDesc::new(pxui::Platform::Apple)
+                    .font_size(15.0)
+                    .fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)]),
+            )
+            .expect("pxui Ui"),
+        ))
+        .unwrap();
     catalog
 }

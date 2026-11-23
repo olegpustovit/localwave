@@ -6,12 +6,25 @@
 use super::*;
 
 fn label(ui: &mut Ui, key: &'static str, value: &str, rect: Rect, style: Label) {
-    ui.label_at(key.into(), Rect { w: rect.w.max(0.0), ..rect }, value, style).unwrap();
+    ui.label_at(
+        key.into(),
+        Rect {
+            w: rect.w.max(0.0),
+            ..rect
+        },
+        value,
+        style,
+    )
+    .unwrap();
 }
 
 /// An artist row's name and figures: one ellipsized line; counts and minutes in the mono face, wrapping.
 const CELL: Label = Label::BODY.line_height(19.6).lines(1).ellipsis();
-const CELL_MONO: Label = Label::BODY.font(1).size(12.0).line_height(super::kit::TABLE_LINE).wrap_spaces();
+const CELL_MONO: Label = Label::BODY
+    .font(1)
+    .size(12.0)
+    .line_height(super::kit::TABLE_LINE)
+    .wrap_spaces();
 
 fn row_layout(
     ui: &mut Ui,
@@ -56,9 +69,17 @@ pub(super) fn table(
     }
     let Some(table) = &catalog.artist_table else {
         header_view(ui, catalog, state, width, intent);
-        ui.id("artists-loading-inset", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0), |ui| {
-            ui.label("Loading artists…", TEXT_14.grow().h_px(40.0).color(SECONDARY));
-        }); });
+        ui.id("artists-loading-inset", |ui| {
+            ui.column(
+                Node::column().w(Size::Grow).h(Size::Fit).pad_x(32.0),
+                |ui| {
+                    ui.label(
+                        "Loading artists…",
+                        TEXT_14.grow().h_px(40.0).color(SECONDARY),
+                    );
+                },
+            );
+        });
         return;
     };
     let images = player.artwork;
@@ -94,7 +115,12 @@ pub(super) fn table(
     ));
     ui.section_list(
         "artists",
-        &SectionList::new(catalog.artists.len()).row_h(38.0).lead(105.6).header(heading_height).overlay_scrollbar().measured(),
+        &SectionList::new(catalog.artists.len())
+            .row_h(38.0)
+            .lead(105.6)
+            .header(heading_height)
+            .overlay_scrollbar()
+            .measured(),
         &|i| i as i64,
         &mut |ui, part, _| match part {
             SectionPart::Leading => header_view(ui, catalog, state, width, intent),
@@ -102,7 +128,10 @@ pub(super) fn table(
             SectionPart::Header => {
                 let head = ui.node(
                     "artist-columns",
-                    Node::column().w(Size::Grow).h_px(heading_height).look(PAPER_FILL),
+                    Node::column()
+                        .w(Size::Grow)
+                        .h_px(heading_height)
+                        .look(PAPER_FILL),
                 );
                 ui.within(&head, &mut |ui| {
                     let mut x = 0.0;
@@ -112,18 +141,32 @@ pub(super) fn table(
                         let left = if index == 0 { 32.0 } else { 8.0 };
                         let right = if index == 3 { 20.0 } else { 8.0 };
                         let rect = Rect {
-                            x: x + if index == 3 { columns[index] - right - heading_sizes[index].0 } else { left },
+                            x: x + if index == 3 {
+                                columns[index] - right - heading_sizes[index].0
+                            } else {
+                                left
+                            },
                             y: 10.0 + (heading_height - 20.5 - heading_sizes[index].1) * 0.5,
                             w: heading_sizes[index].0,
                             h: heading_sizes[index].1,
                         };
-                        let style = if index == 3 { TABLE_HEADING.align(pxui::TextAlign::End) } else { TABLE_HEADING }.color(SECONDARY);
-                        ui.id(Key::Id(index as i64), |ui| label(ui, "heading", title, rect, style));
+                        let style = if index == 3 {
+                            TABLE_HEADING.align(pxui::TextAlign::End)
+                        } else {
+                            TABLE_HEADING
+                        }
+                        .color(SECONDARY);
+                        ui.id(Key::Id(index as i64), |ui| {
+                            label(ui, "heading", title, rect, style)
+                        });
                         x += columns[index];
                     }
                 });
                 ui.canvas_over(&head, move |paint, rect| {
-                    paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional())
+                    paint.fill(
+                        Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0),
+                        Fill::new(Rgba::token(LINE)).fractional(),
+                    )
                 });
             }
             SectionPart::Row(index) => {
@@ -135,15 +178,21 @@ pub(super) fn table(
                     group.title.as_str()
                 };
                 let (row_height, body_sizes, top) = row_layout(ui, columns, summary, &group.count);
-                let visual = ui.view_of(
-                    "artist-visual",
-                    &revision,
-                    |ui| {
-                        let node = Node::column().w(Size::Grow).h_px(row_height).role(Role::Button).transition(Some(FADE));
-                        let row = ui.pressable("artist", node, &PLAIN.look(&SONG_ROW_LOOKS), |ui, _| {
+                let visual = ui.view_of("artist-visual", &revision, |ui| {
+                    let node = Node::column()
+                        .w(Size::Grow)
+                        .h_px(row_height)
+                        .role(Role::Button)
+                        .transition(Some(FADE));
+                    let row =
+                        ui.pressable("artist", node, &PLAIN.look(&SONG_ROW_LOOKS), |ui, _| {
                             let art = ui.node(
                                 "artist-artwork",
-                                Node::column().w_px(28.0).h_px(28.0).at(32.0, top).look(PANEL_FILL),
+                                Node::column()
+                                    .w_px(28.0)
+                                    .h_px(28.0)
+                                    .at(32.0, top)
+                                    .look(PANEL_FILL),
                             );
                             paint_artwork(
                                 ui,
@@ -182,26 +231,35 @@ pub(super) fn table(
                                     },
                                     {
                                         let style = if mono { CELL_MONO } else { CELL };
-                                        let style = if column == 3 { style.align(pxui::TextAlign::End) } else { style };
+                                        let style = if column == 3 {
+                                            style.align(pxui::TextAlign::End)
+                                        } else {
+                                            style
+                                        };
                                         style.color(if column == 0 { INK } else { SECONDARY })
                                     },
                                 );
                                 x += columns[column];
                             }
                         });
-                        ui.a11y_name(&row.handle, name);
-                        let last = index + 1 == catalog.artists.len();
-                        ui.canvas_over(&row.handle, move |paint, rect| {
-                            paint.fill(Rect::new(rect.x, rect.y.floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
-                            if last {
-                                paint.fill(Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional());
-                            }
-                        });
-                        if row.clicked {
-                            *intent = Some(Intent::Navigate(Route::Artist(index)));
+                    ui.a11y_name(&row.handle, name);
+                    let last = index + 1 == catalog.artists.len();
+                    ui.canvas_over(&row.handle, move |paint, rect| {
+                        paint.fill(
+                            Rect::new(rect.x, rect.y.floor(), rect.w, 1.0),
+                            Fill::new(Rgba::token(LINE)).fractional(),
+                        );
+                        if last {
+                            paint.fill(
+                                Rect::new(rect.x, (rect.y + rect.h).floor(), rect.w, 1.0),
+                                Fill::new(Rgba::token(LINE)).fractional(),
+                            );
                         }
-                    },
-                );
+                    });
+                    if row.clicked {
+                        *intent = Some(Intent::Navigate(Route::Artist(index)));
+                    }
+                });
                 entry.row(ui, &visual, index);
             }
         },
@@ -385,7 +443,12 @@ mod tests {
         })
         .unwrap();
         let entered = frame.wire.time + 0.01;
-        let pointer = pxui::Event::pointer(input::wire::POINTER_MOVED, 0, (artist.x + 100.0) as f64, (artist.y + 20.0) as f64);
+        let pointer = pxui::Event::pointer(
+            input::wire::POINTER_MOVED,
+            0,
+            (artist.x + 100.0) as f64,
+            (artist.y + 20.0) as f64,
+        );
         crate::testing::frame(
             &mut ui,
             &{
@@ -397,11 +460,9 @@ mod tests {
         )
         .unwrap();
         assert!(ui.repaint_at().is_some());
-        crate::testing::frame(
-            &mut ui,
-            &frame.time(entered + 0.07),
-            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
-        )
+        crate::testing::frame(&mut ui, &frame.time(entered + 0.07), &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
+        })
         .unwrap();
         assert!(
             ui.repaint_at().is_some(),
@@ -457,7 +518,9 @@ mod tests {
                 for width in [888.0, 520.0, 400.0, 364.0] {
                     crate::testing::frame(
                         &mut ui,
-                        &FrameIn::new(width + 552.0, 872.0).scale(scale).reduced_motion(true),
+                        &FrameIn::new(width + 552.0, 872.0)
+                            .scale(scale)
+                            .reduced_motion(true),
                         &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
                     )
                     .unwrap();

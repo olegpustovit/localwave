@@ -243,7 +243,10 @@ impl Status {
     /// What the UI shows of this status: the stable data and the position's clock seconds and playhead step
     /// (`lw_ui::progress_ticks`). A position that moves within its ticks changes nothing on screen.
     pub fn shown(&self) -> (u64, (u64, u64, u32)) {
-        (self.stable_revision, lw_ui::progress_ticks(self.duration, self.position))
+        (
+            self.stable_revision,
+            lw_ui::progress_ticks(self.duration, self.position),
+        )
     }
     /// Position ticks publish to the controller without invalidating stable UI data.
     pub(super) fn update(&mut self, mut next: Self) -> bool {

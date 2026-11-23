@@ -324,7 +324,11 @@ impl LibraryRepository {
 
     /// Every saved song of one source (Files cards and folder pages), in id order.
     pub fn songs_in_source(&self, source_id: i64) -> Result<Vec<Song>> {
-        query_songs(&self.db, "WHERE s.sourceId=? ORDER BY s.id", &[Integer(source_id)])
+        query_songs(
+            &self.db,
+            "WHERE s.sourceId=? ORDER BY s.id",
+            &[Integer(source_id)],
+        )
     }
 
     pub fn song_with_path_hash(&self, path_hash: i64) -> Result<Option<Song>> {

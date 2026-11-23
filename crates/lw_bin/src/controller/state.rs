@@ -230,10 +230,16 @@ impl Worker {
         }
         let transport = self.session.transport();
         let shuffled = self.session.queue().shuffled();
-        let queue_from = if Arc::ptr_eq(&self.status.context, &self.context) && self.status.shuffled == shuffled {
+        let queue_from = if Arc::ptr_eq(&self.status.context, &self.context)
+            && self.status.shuffled == shuffled
+        {
             self.status.queue_from.clone()
         } else {
-            Arc::from(format!("From {}{}", self.context.title(), if shuffled { " · shuffled" } else { "" }))
+            Arc::from(format!(
+                "From {}{}",
+                self.context.title(),
+                if shuffled { " · shuffled" } else { "" }
+            ))
         };
         let status = Status {
             settings: self.settings,

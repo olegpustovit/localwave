@@ -307,7 +307,8 @@ impl Library {
                 || "—".into(),
                 |seconds| format!("{}:{:02}", seconds / 60, seconds % 60),
             );
-            let blocked_by = song.source_id
+            let blocked_by = song
+                .source_id
                 .and_then(|source| blocked.iter().find(|(id, _)| *id == source))
                 .filter(|_| song.source_availability != Some(FileAvailability::OnDevice));
             let subtitle = match blocked_by {
@@ -446,7 +447,11 @@ impl Library {
                 .flat_map(char::to_lowercase)
                 .collect::<String>()
         });
-        out.artist_index = section_index(out.artists.iter().map(|artist| artist_sort_name(&artist.title)));
+        out.artist_index = section_index(
+            out.artists
+                .iter()
+                .map(|artist| artist_sort_name(&artist.title)),
+        );
         out.byline_routes = vec![[Route::Artists, Route::Albums]; out.rows.len()];
         for (index, group) in out.artists.iter().enumerate() {
             for row in &group.rows {
@@ -502,7 +507,11 @@ impl Library {
         let mut recent: Vec<usize> = (0..out.rows.len()).collect();
         recent.sort_by(|a, b| added[*b].total_cmp(&added[*a]));
         recent.truncate(24);
-        out.add_collection("Recently added", recent, PlaybackContext::Automatic("Recently Added".into()));
+        out.add_collection(
+            "Recently added",
+            recent,
+            PlaybackContext::Automatic("Recently Added".into()),
+        );
         // Swift's list order; membership comes from preferences and availability in `prepare_smart_lists`.
         for (title, name) in [
             ("Most played", "Most Played"),
@@ -681,10 +690,16 @@ impl Library {
             }
             _ => String::new(),
         };
-        let lead = if format.is_empty() { String::new() } else { format!("{summary} · ") };
+        let lead = if format.is_empty() {
+            String::new()
+        } else {
+            format!("{summary} · ")
+        };
         // Swift's desktop list heading line (`waveMinutesLabel`): its minutes, "· updates itself" on an automatic list
         let subtitle = match &context {
-            PlaybackContext::Automatic(_) => format!("{} min · updates itself", (seconds() / 60.0).round()),
+            PlaybackContext::Automatic(_) => {
+                format!("{} min · updates itself", (seconds() / 60.0).round())
+            }
             PlaybackContext::Playlist { .. } => format!("{} min", (seconds() / 60.0).round()),
             _ => subtitle.to_owned(),
         };
@@ -1157,10 +1172,26 @@ mod tests {
             library.library_subtitle,
             "4 songs across 3 sources · 1.0 GB"
         );
-        let titles = |rows: &[usize]| rows.iter().map(|index| library.rows[*index].id).collect::<Vec<_>>();
-        assert_eq!(titles(&library.all.as_ref().unwrap().rows), [1, 2, 3, 4], "the library keeps insertion order (Swift)");
-        let recent = library.collections.iter().find(|group| group.title == "Recently added").unwrap();
-        assert_eq!(titles(&recent.rows), [4, 3, 2, 1], "Recently added is newest first");
+        let titles = |rows: &[usize]| {
+            rows.iter()
+                .map(|index| library.rows[*index].id)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            titles(&library.all.as_ref().unwrap().rows),
+            [1, 2, 3, 4],
+            "the library keeps insertion order (Swift)"
+        );
+        let recent = library
+            .collections
+            .iter()
+            .find(|group| group.title == "Recently added")
+            .unwrap();
+        assert_eq!(
+            titles(&recent.rows),
+            [4, 3, 2, 1],
+            "Recently added is newest first"
+        );
         let empty = super::Library::new(Vec::new());
         assert_eq!(empty.library_subtitle, "0 songs across 0 sources · 0.0 MB");
         assert!(empty.album_orders.iter().all(Vec::is_empty));
@@ -1188,16 +1219,30 @@ mod tests {
     }
     #[test]
     fn album_collection_prepares_swift_format_line_from_the_first_track() {
-        let library = super::Library::new(vec![Song {
-            id: Some(1),
-            artist: "A".into(),
-            album: "B".into(),
-            file_extension: Some("FLAC".into()),
-            sample_rate: Some(44100.0),
-            bit_depth: Some(16),
-            ..Default::default()
-        }, Song { id: Some(2), artist: "A".into(), album: "C".into(), ..Default::default() }]);
-        let by_title = |title: &str| library.albums.iter().find(|album| album.title == title).unwrap();
+        let library = super::Library::new(vec![
+            Song {
+                id: Some(1),
+                artist: "A".into(),
+                album: "B".into(),
+                file_extension: Some("FLAC".into()),
+                sample_rate: Some(44100.0),
+                bit_depth: Some(16),
+                ..Default::default()
+            },
+            Song {
+                id: Some(2),
+                artist: "A".into(),
+                album: "C".into(),
+                ..Default::default()
+            },
+        ]);
+        let by_title = |title: &str| {
+            library
+                .albums
+                .iter()
+                .find(|album| album.title == title)
+                .unwrap()
+        };
         assert_eq!(by_title("B").format, "flac · 44.1 kHz · 16 bit");
         assert_eq!(by_title("B").lead, "1 songs · 0 min · ");
         assert!(by_title("C").format.is_empty() && by_title("C").lead.is_empty());

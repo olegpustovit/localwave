@@ -32,12 +32,18 @@ fn graphics_error(ui: &Ui, error: pxui::Error) -> String {
         return error.to_string();
     }
     let detail = ui.last_error();
-    if detail.is_empty() { error.to_string() } else { format!("{error}: {detail}") }
+    if detail.is_empty() {
+        error.to_string()
+    } else {
+        format!("{error}: {detail}")
+    }
 }
 
 // A playback-only update can share a nearby loop tick or another position update.
 fn progress_deadline(now: f64, repaint: Option<f64>, pending: Option<f64>) -> f64 {
-    pending.unwrap_or(now + 0.05).min(repaint.unwrap_or(f64::INFINITY))
+    pending
+        .unwrap_or(now + 0.05)
+        .min(repaint.unwrap_or(f64::INFINITY))
 }
 
 struct Fixture(Option<std::path::PathBuf>);
@@ -125,7 +131,9 @@ pub(super) fn open(
         return Err("--performance-check needs the counting build (make performance)".into());
     }
     if energy.is_some() && (cfg!(debug_assertions) || mem_sys::COUNTING) {
-        return Err("Energy measurement needs the non-counting release bundle (make bundle)".into());
+        return Err(
+            "Energy measurement needs the non-counting release bundle (make bundle)".into(),
+        );
     }
     mem_sys::set_peer(pxui::library_counter);
     #[cfg(target_os = "macos")]
@@ -134,14 +142,28 @@ pub(super) fn open(
         let chrome = pxui_host::Chrome::open(window.token()?, (320.0, 480.0))
             .map_err(|error| error.to_string())?;
         // Goldens compare the 1440x872 content area; tools/reference-goldens.sh crops the titlebar inset.
-        let extra = if reference.is_some() { chrome.snapshot().map_err(|error| error.to_string())?.top_inset.ceil() as i64 } else { 0 };
+        let extra = if reference.is_some() {
+            chrome
+                .snapshot()
+                .map_err(|error| error.to_string())?
+                .top_inset
+                .ceil() as i64
+        } else {
+            0
+        };
         // LOCALWAVE_REFERENCE_MOBILE=1 (goldens only) opens the 390x778 compact canvas.
-        let (width, height) = if reference.is_some() && std::env::var_os("LOCALWAVE_REFERENCE_MOBILE").is_some() { (390, 778) } else { (1440, 872) };
+        let (width, height) =
+            if reference.is_some() && std::env::var_os("LOCALWAVE_REFERENCE_MOBILE").is_some() {
+                (390, 778)
+            } else {
+                (1440, 872)
+            };
         window.resize(width, height + extra)?;
         chrome
     };
     #[cfg(target_os = "macos")]
-    let accessibility = pxui_host::Accessibility::open(window).map_err(|error| error.to_string())?;
+    let accessibility =
+        pxui_host::Accessibility::open(window).map_err(|error| error.to_string())?;
     #[cfg(target_os = "macos")]
     let top_inset = chrome
         .snapshot()
@@ -156,7 +178,8 @@ pub(super) fn open(
         .fonts(&[FontData(lw_ui::FONT), FontData(lw_ui::MONO)]);
     let mut ui = Ui::new(&desc).map_err(|error| format!("UI creation failed ({error})"))?;
     perf::setup::configure_ui(&mut ui, workload);
-    ui.text_service().enable_system_fonts()
+    ui.text_service()
+        .enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
     let mut themes = lw_bin::appearance::Themes::new(&mut ui)
         .map_err(|error| format!("Theme setup failed ({error}): {}", ui.last_error()))?;
@@ -249,8 +272,12 @@ pub(super) fn open(
     let text = lw_ui::song_text::Prewarm::default();
     // Workers do not inherit the UI's interactive QoS.
     mem_sys::profile::ui_thread_priority().map_err(|error| error.to_string())?;
-    let indicator_song =
-        perf::setup::wait_ready(window, &mut player, smoke || seeded || energy.is_some(), workload)?;
+    let indicator_song = perf::setup::wait_ready(
+        window,
+        &mut player,
+        smoke || seeded || energy.is_some(),
+        workload,
+    )?;
     let energy = energy
         .map(|scenario| scenario.start(window.time(), &mut player))
         .transpose()?;
@@ -310,13 +337,26 @@ pub(super) fn open(
         smoke_finished,
         reference: reference_state,
         reference_capture,
-        reference_seek: reference.as_ref().map(|_| reference::position()).transpose()?,
-        reference_overlay: reference.clone().filter(|screen| reference::is_overlay(screen)),
+        reference_seek: reference
+            .as_ref()
+            .map(|_| reference::position())
+            .transpose()?,
+        reference_overlay: reference
+            .clone()
+            .filter(|screen| reference::is_overlay(screen)),
         reference_directory: false,
-        reference_appearance: if std::env::var_os("LOCALWAVE_REFERENCE_DARK").is_some() { 2 } else { 1 },
+        reference_appearance: if std::env::var_os("LOCALWAVE_REFERENCE_DARK").is_some() {
+            2
+        } else {
+            1
+        },
         demo: reference.is_some()
-            || (workload.is_none() && !smoke
-                && lw_apple_sys::preferences::AppPaths::resources().ok().and_then(|resources| lw_bin::demo::bundled(&resources)).is_some()),
+            || (workload.is_none()
+                && !smoke
+                && lw_apple_sys::preferences::AppPaths::resources()
+                    .ok()
+                    .and_then(|resources| lw_bin::demo::bundled(&resources))
+                    .is_some()),
         shell_state,
         command_error,
         error_revision,
@@ -426,7 +466,11 @@ impl App {
         let mut input = FrameIn::new(extent.logical.0 as f32, extent.logical.1 as f32)
             .scale(scale)
             .time(now)
-            .environment(platform.environment().overlay_scrollers(preferences.overlay_scrollers != 0))
+            .environment(
+                platform
+                    .environment()
+                    .overlay_scrollers(preferences.overlay_scrollers != 0),
+            )
             .keyboard(platform.keyboard())
             .reduced_motion(preferences.reduced_motion != 0 || status.settings.reduce_motion);
         input.wire.appearance = preferences.appearance;
@@ -435,10 +479,15 @@ impl App {
         frame.view(&mut view, &mut position, &mut input);
         // A window resize changes the table's wrap widths. The list prepares rows for the new layout.
         let previous = ui.view_size();
-        let same_extent = (previous.width, previous.height) == (input.wire.width, input.wire.height)
+        let same_extent = (previous.width, previous.height)
+            == (input.wire.width, input.wire.height)
             && ui.density() == scale.round().max(1.0);
         let catalog = player.catalog();
-        let lookahead = if same_extent { shell_state.song_text_window(catalog) } else { None };
+        let lookahead = if same_extent {
+            shell_state.song_text_window(catalog)
+        } else {
+            None
+        };
         text.request(ui, catalog, lookahead);
         let seek_duration = view.duration;
         // VoiceOver follows the real client; workloads keep their own a11y setting.
@@ -447,14 +496,7 @@ impl App {
             accessibility.frame(ui, input.wire.surface);
         }
         ui.frame(&input, &mut |ui| {
-            lw_ui::shell(
-                ui,
-                &view,
-                position,
-                catalog,
-                shell_state,
-                &mut intent,
-            )
+            lw_ui::shell(ui, &view, position, catalog, shell_state, &mut intent)
         })
         .map_err(|code| format!("Frame failed ({code})"))?;
         frame.check_intent(&intent, &status.settings)?;
@@ -470,7 +512,9 @@ impl App {
         frame.check_capture(ui, &intent)?;
         let before_output = frame.allocations();
         let output_cpu = frame.cpu_time()?;
-        platform.apply(window, ui).map_err(|error| error.to_string())?;
+        platform
+            .apply(window, ui)
+            .map_err(|error| error.to_string())?;
         frame.finish_output(output_cpu)?;
         frame.output_allocations = frame.allocations() - before_output;
         (*frames) += 1;
@@ -481,7 +525,8 @@ impl App {
                 graphics.draw_forced(window, ui, frame.gpu_trace())
             } else {
                 graphics.draw(window, ui, frame.gpu_trace())
-            }.map_err(|error| graphics_error(ui, error))?;
+            }
+            .map_err(|error| graphics_error(ui, error))?;
             frame.finish_frame(ui, draw_cpu, graphics.acquire_wall())?;
             frame.audit(ui, artwork, player);
             if drawn {
@@ -514,8 +559,14 @@ impl App {
         if self.ui.draw_revision() == self.revision {
             return Ok(());
         }
-        let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
-        if graphics.draw(window, &self.ui, None).map_err(|error| graphics_error(&self.ui, error))? {
+        let graphics = self
+            .graphics_slot
+            .as_mut()
+            .ok_or("App graphics have already closed")?;
+        if graphics
+            .draw(window, &self.ui, None)
+            .map_err(|error| graphics_error(&self.ui, error))?
+        {
             self.draws += 1;
             self.revision = self.ui.draw_revision();
         } else if graphics.needs_present() {
@@ -555,7 +606,11 @@ impl App {
         {
             frame.begin_frame()?;
             self.events.clear();
-            if !self.platform.pump(window, &mut self.events).map_err(|error| error.to_string())? {
+            if !self
+                .platform
+                .pump(window, &mut self.events)
+                .map_err(|error| error.to_string())?
+            {
                 if self.perf.is_some() || (self.smoke && !self.smoke_finished) {
                     return Err("Window closed before qualification finished".into());
                 }
@@ -581,7 +636,11 @@ impl App {
         }
         let preferences_changed = next_preferences != self.preferences;
         self.preferences = next_preferences;
-        if let Some(appearance) = self.perf.as_ref().and_then(|perf| perf.appearance(self.frames)) {
+        if let Some(appearance) = self
+            .perf
+            .as_ref()
+            .and_then(|perf| perf.appearance(self.frames))
+        {
             self.preferences.appearance = appearance;
         }
         let mut library_changed = false;
@@ -597,13 +656,19 @@ impl App {
             .map_err(|error| error.to_string())?;
         // Kept/availability labels come from the FilesWorker; re-read them when songs or pins change.
         // A Roots refresh would replace the reference capture's pending Browse in the worker inbox.
-        if library_changed && self.shell_state.files_visible() && self.files.snapshot().account.is_some()
+        if library_changed
+            && self.shell_state.files_visible()
+            && self.files.snapshot().account.is_some()
             && (!self.reference_directory || self.files.snapshot().directory.is_some())
         {
-            let request = self.files.snapshot().directory.as_ref().map_or(
-                lw_ui::files::Request::Roots,
-                |directory| lw_ui::files::Request::Browse(directory.location),
-            );
+            let request = self
+                .files
+                .snapshot()
+                .directory
+                .as_ref()
+                .map_or(lw_ui::files::Request::Roots, |directory| {
+                    lw_ui::files::Request::Browse(directory.location)
+                });
             let _ = self.files.request(request);
         }
         let files_changed = self.files.poll() && self.shell_state.files_visible();
@@ -656,10 +721,14 @@ impl App {
         frame.state_input(&mut self.shell_state);
         let now = window.time();
         let next_shown = self.player.status().shown();
-        if player_changed && !catalog_changed && shown.0 == next_shown.0 && shown.1 != next_shown.1
+        if player_changed
+            && !catalog_changed
+            && shown.0 == next_shown.0
+            && shown.1 != next_shown.1
             && self.player.status().wants_playback
         {
-            self.progress_draw_at = Some(progress_deadline(now, self.repaint, self.progress_draw_at));
+            self.progress_draw_at =
+                Some(progress_deadline(now, self.repaint, self.progress_draw_at));
             player_changed = false;
         }
         player_changed |= self.progress_draw_at.is_some_and(|at| now >= at);
@@ -787,11 +856,14 @@ impl App {
         }
         let mut settle = None;
         // a page that went idle in fewer frames (the phone's full-screen player) has drawn too
-        let page_idle = self.reference.as_ref().is_some_and(|(draws, changed, _)| *draws == self.draws && observed_at >= *changed + 1.0);
+        let page_idle = self.reference.as_ref().is_some_and(|(draws, changed, _)| {
+            *draws == self.draws && observed_at >= *changed + 1.0
+        });
         if self.reference_overlay.is_some()
             && (self.draws >= 10 || page_idle)
             && self.player.status().initialized
-            && (self.reference_overlay.as_deref() != Some("folder") || self.files.snapshot().account.is_some())
+            && (self.reference_overlay.as_deref() != Some("folder")
+                || self.files.snapshot().account.is_some())
         {
             let screen = self.reference_overlay.take().unwrap_or_default();
             self.reference_directory = screen == "folder";
@@ -800,31 +872,56 @@ impl App {
         }
         if self.reference_seek.is_some() && self.player.status().duration > 0.0 {
             let at = self.reference_seek.take().unwrap_or_default();
-            self.player.command(Command::Seek(at)).map_err(|error| error.to_string())?;
+            self.player
+                .command(Command::Seek(at))
+                .map_err(|error| error.to_string())?;
             self.repaint = Some(now);
         }
         if let Some((draws, changed, printed)) = &mut self.reference {
             if *draws != self.draws {
                 (*draws, *changed) = (self.draws, observed_at);
-            } else if !*printed && self.draws > 0 && observed_at >= *changed + 2.0 && self.reference_overlay.is_none()
+            } else if !*printed
+                && self.draws > 0
+                && observed_at >= *changed + 2.0
+                && self.reference_overlay.is_none()
                 && (!self.reference_directory || self.files.snapshot().directory.is_some())
             {
                 *printed = true;
                 if let Some(path) = &self.reference_capture {
                     let (w, h) = self.extent.logical;
                     if self.extent.drawable != (w, h) || self.ui.density() != 1.0 {
-                        return Err("Reference capture requires a 1× drawable and UI density".into());
+                        return Err(
+                            "Reference capture requires a 1× drawable and UI density".into()
+                        );
                     }
-                    let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
-                    let (width, height, pixels) = graphics.screenshot(window, &self.ui).map_err(|error| graphics_error(&self.ui, error))?;
+                    let graphics = self
+                        .graphics_slot
+                        .as_mut()
+                        .ok_or("App graphics have already closed")?;
+                    let (width, height, pixels) = graphics
+                        .screenshot(window, &self.ui)
+                        .map_err(|error| graphics_error(&self.ui, error))?;
                     if (i64::from(width), i64::from(height)) != (w, h) {
-                        return Err(format!("Reference drawable {width}x{height} does not match the {w}x{h} point canvas"));
+                        return Err(format!(
+                            "Reference drawable {width}x{height} does not match the {w}x{h} point canvas"
+                        ));
                     }
-                    let png = reference::capture_png((width, height, &pixels), self.top_inset.ceil() as u32)?;
-                    std::fs::write(path, png).map_err(|error| format!("Could not write {}: {error}", path.display()))?;
-                    println!("LOCALWAVE_REFERENCE_CAPTURED={width}x{height} ui_density=1 drawable_scale=1");
+                    let png = reference::capture_png(
+                        (width, height, &pixels),
+                        self.top_inset.ceil() as u32,
+                    )?;
+                    std::fs::write(path, png)
+                        .map_err(|error| format!("Could not write {}: {error}", path.display()))?;
+                    println!(
+                        "LOCALWAVE_REFERENCE_CAPTURED={width}x{height} ui_density=1 drawable_scale=1"
+                    );
                 }
-                println!("LOCALWAVE_REFERENCE_READY={}x{} inset={}", self.extent.logical.0, self.extent.logical.1, self.top_inset.ceil());
+                println!(
+                    "LOCALWAVE_REFERENCE_READY={}x{} inset={}",
+                    self.extent.logical.0,
+                    self.extent.logical.1,
+                    self.top_inset.ceil()
+                );
             }
             settle = (!*printed).then_some(*changed + 2.0);
         }
@@ -832,7 +929,10 @@ impl App {
             let deadline = self.smoke_check.deadline();
             Some(self.repaint.unwrap_or(deadline).min(deadline))
         } else {
-            [self.repaint, settle, self.progress_draw_at].into_iter().flatten().reduce(f64::min)
+            [self.repaint, settle, self.progress_draw_at]
+                .into_iter()
+                .flatten()
+                .reduce(f64::min)
         };
         let progress = self
             .player

@@ -112,7 +112,11 @@ impl Metrics {
             Some(false) => 2,
         }] - if column == Column::Number { 40.0 } else { 16.0 }
     }
-    pub fn prepare(library: &Library, styles: &super::TableStyles, width: &mut MeasureWidth<'_>) -> Result<Self, String> {
+    pub fn prepare(
+        library: &Library,
+        styles: &super::TableStyles,
+        width: &mut MeasureWidth<'_>,
+    ) -> Result<Self, String> {
         let mut headings = [[0.0; 3]; 8];
         for column in Column::ALL {
             let inset = if column == Column::Number { 40.0 } else { 16.0 };
@@ -134,10 +138,7 @@ impl Metrics {
             rows.push(RowWidths {
                 regular,
                 medium,
-                format: width(
-                    if row.has_format { row.format } else { "—" },
-                    &styles.mono,
-                )? + 16.0,
+                format: width(if row.has_format { row.format } else { "—" }, &styles.mono)? + 16.0,
                 time: width(row.duration, &styles.mono)? + 16.0,
                 track_body: row
                     .track_number
@@ -396,22 +397,32 @@ mod tests {
             assert!((columns.iter().sum::<f32>() - width).abs() < 0.001);
         }
         // short of room (long titles cap at 240): Format and Time keep their measured width, the text columns give it up
-        let long: Vec<Song> = (0..2).map(|i| Song {
-            id: Some(10 + i),
-            title: "A title long enough to reach the column cap, and then some more words".into(),
-            artist: "An artist name long enough to reach the column cap as well, really".into(),
-            album: "An album name long enough to reach the column cap too, and more".into(),
-            file_extension: Some(if i == 0 { "mp3" } else { "m4a" }.into()),
-            duration: Some(228.0),
-            ..Default::default()
-        }).collect();
+        let long: Vec<Song> = (0..2)
+            .map(|i| Song {
+                id: Some(10 + i),
+                title: "A title long enough to reach the column cap, and then some more words"
+                    .into(),
+                artist: "An artist name long enough to reach the column cap as well, really".into(),
+                album: "An album name long enough to reach the column cap too, and more".into(),
+                file_extension: Some(if i == 0 { "mp3" } else { "m4a" }.into()),
+                duration: Some(228.0),
+                ..Default::default()
+            })
+            .collect();
         let crowded = crate::tests::prepared(long);
         let table = crowded.all.as_ref().unwrap().song_table.as_ref().unwrap();
         let short = table.columns(&crowded, 900.0, None, Sort::Original, Route::Songs);
         for column in [Column::Format, Column::Time] {
-            assert_eq!(short[column as usize], table.preferred[column as usize].ceil(), "{column:?} keeps its text's width");
+            assert_eq!(
+                short[column as usize],
+                table.preferred[column as usize].ceil(),
+                "{column:?} keeps its text's width"
+            );
         }
-        assert!(short[Column::Title as usize] < 240.0 && (short.iter().sum::<f32>() - 900.0).abs() < 0.01);
+        assert!(
+            short[Column::Title as usize] < 240.0
+                && (short.iter().sum::<f32>() - 900.0).abs() < 0.01
+        );
         let table = catalog.all.as_ref().unwrap().song_table.as_ref().unwrap();
         let number = table.columns(&catalog, 888.0, None, Sort::Original, Route::Album(0));
         assert!(
@@ -460,7 +471,14 @@ mod tests {
         assert_eq!(catalog.row(0).format, "flac");
         assert_eq!(catalog.row(0).track_label, "9");
         catalog.project(request, vec![0; 11]);
-        let table = catalog.view.as_ref().unwrap().collection.song_table.as_ref().unwrap();
+        let table = catalog
+            .view
+            .as_ref()
+            .unwrap()
+            .collection
+            .song_table
+            .as_ref()
+            .unwrap();
         assert_eq!(table.number_label(0), "1");
         assert_eq!(table.number_label(8), "9");
         assert_eq!(table.number_label(9), "10");

@@ -13,7 +13,9 @@ use super::*;
 
 /// The Keep offline tool key, checked while `kept`.
 pub(super) fn keep_offline(kept: bool) -> pxui::Button<'static> {
-    TOOL.icon(icon_drawing(if kept { Icon::Kept } else { Icon::Offline })).icon_size(18.0).selected(kept)
+    TOOL.icon(icon_drawing(if kept { Icon::Kept } else { Icon::Offline }))
+        .icon_size(18.0)
+        .selected(kept)
 }
 
 pub(super) fn toolbar(
@@ -31,17 +33,38 @@ pub(super) fn toolbar(
         // keyed: the tests look the buttons' parts up by key under it
         let buttons = ui.node("buttons", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
         ui.within(&buttons, &mut |ui| {
-            if ui.button("play-all", "Play all", &TOOL.icon(icon_drawing(Icon::Play)).icon_size(16.0).disabled(!collection.is_some_and(|group| !group.ids.is_empty()))).clicked {
+            if ui
+                .button(
+                    "play-all",
+                    "Play all",
+                    &TOOL
+                        .icon(icon_drawing(Icon::Play))
+                        .icon_size(16.0)
+                        .disabled(!collection.is_some_and(|group| !group.ids.is_empty())),
+                )
+                .clicked
+            {
                 *intent = Some(Intent::PlayRow(0));
             }
             let kept = summary.is_some_and(|value| value.pinned);
-            if ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &keep_offline(kept).disabled(!summary.is_some_and(|value| !value.eligible.is_empty()))).clicked {
+            if ui
+                .button(
+                    "keep-offline",
+                    if kept { "Kept offline" } else { "Keep offline" },
+                    &keep_offline(kept)
+                        .disabled(!summary.is_some_and(|value| !value.eligible.is_empty())),
+                )
+                .clicked
+            {
                 *intent = Some(Intent::TogglePins);
             }
         });
     });
     ui.canvas_over(&tools, move |paint, rect| {
-        paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(Rgba::token(LINE)).fractional())
+        paint.fill(
+            Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0),
+            Fill::new(Rgba::token(LINE)).fractional(),
+        )
     });
 }
 
@@ -90,9 +113,7 @@ pub(in crate::shell) mod tests {
         intent: &mut Option<Intent>,
     ) -> Handle {
         let root = ui.node("root", Node::column().w_px(400.0).h_px(45.0).pad_x(32.0));
-        ui.within(&root, &mut |ui| {
-            toolbar(ui, catalog, state, intent)
-        });
+        ui.within(&root, &mut |ui| toolbar(ui, catalog, state, intent));
         root
     }
     thread_local! {
@@ -101,7 +122,12 @@ pub(in crate::shell) mod tests {
     }
     /// Records the icon and label `localwave-button` built for the tool named `text`.
     pub(in crate::shell) fn tool_built(text: &str, icon: Handle, copy: Handle) {
-        let Some(slot) = ["Play all", "Keep offline", "Kept offline"].iter().position(|k| *k == text) else { return };
+        let Some(slot) = ["Play all", "Keep offline", "Kept offline"]
+            .iter()
+            .position(|k| *k == text)
+        else {
+            return;
+        };
         PARTS.with(|parts| {
             let mut all = parts.get();
             all[slot.min(1)] = Some((icon, copy));
@@ -110,8 +136,13 @@ pub(in crate::shell) mod tests {
     }
     /// The icon and label of `action` (play-all or keep-offline) from the last frame.
     fn parts(action: &str) -> (Handle, Handle) {
-        let slot = ["play-all", "keep-offline"].iter().position(|k| *k == action).unwrap();
-        PARTS.with(|parts| parts.get()[slot]).expect("the tool was built")
+        let slot = ["play-all", "keep-offline"]
+            .iter()
+            .position(|k| *k == action)
+            .unwrap();
+        PARTS
+            .with(|parts| parts.get()[slot])
+            .expect("the tool was built")
     }
     #[test]
     fn find_tools_match_native_point_geometry_values_and_warm_action_routing() {
@@ -275,7 +306,10 @@ pub(in crate::shell) mod tests {
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(Route::Find));
         state.apply(Intent::Search(Query::new("a").unwrap()));
-        assert!(!state.find_results, "typing in the Find field keeps it editable");
+        assert!(
+            !state.find_results,
+            "typing in the Find field keeps it editable"
+        );
         state.apply(Intent::SearchResults(Query::new("cloud").unwrap()));
         assert!(state.find_results && state.query.as_str() == "cloud");
         state.apply(Intent::Navigate(Route::Find));

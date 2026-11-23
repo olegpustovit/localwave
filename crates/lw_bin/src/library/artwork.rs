@@ -8,7 +8,7 @@
 //!
 use super::LibraryWorker;
 use lw_apple_sys::artwork::{self, Thumbnail};
-use lw_ui::artwork::{Want, REQUEST_CAPACITY, Request};
+use lw_ui::artwork::{REQUEST_CAPACITY, Request, Want};
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::{Arc, Condvar, Mutex};
@@ -125,11 +125,9 @@ impl ArtworkWorker {
                                 break (None, retired, !inbox.results.is_empty());
                             }
                             if let Some(key) = pending.wants().get(next).copied() {
-                                if inbox
-                                    .results
-                                    .iter()
-                                    .any(|ready| ready.epoch == pending.epoch() && ready.artwork_id == key)
-                                {
+                                if inbox.results.iter().any(|ready| {
+                                    ready.epoch == pending.epoch() && ready.artwork_id == key
+                                }) {
                                     next += 1;
                                     continue;
                                 }
@@ -486,7 +484,9 @@ mod tests {
         worker.request(&missing).unwrap();
         loop {
             worker.poll();
-            if worker.ready().is_some_and(|ready| ready.artwork_id.id() == 100)
+            if worker
+                .ready()
+                .is_some_and(|ready| ready.artwork_id.id() == 100)
                 && old.iter().all(|ready| ready.strong_count() == 0)
             {
                 break;

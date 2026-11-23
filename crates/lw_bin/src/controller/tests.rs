@@ -29,17 +29,29 @@ fn position_ticks_publish_without_advancing_stable_revision_or_allocating() {
 
 #[test]
 fn a_position_shows_only_when_a_clock_second_or_playhead_step_changes() {
-    let mut status = Status { duration: 180.5, position: 10.3, ..Status::default() };
+    let mut status = Status {
+        duration: 180.5,
+        position: 10.3,
+        ..Status::default()
+    };
     let shown = status.shown();
     // 10.3 -> 10.45: same elapsed and remaining seconds, same 0.25 s playhead step
     let mut next = status.clone();
     next.position = 10.45;
     assert!(status.update(next));
-    assert_eq!(status.shown(), shown, "a position inside its ticks shows nothing new");
+    assert_eq!(
+        status.shown(),
+        shown,
+        "a position inside its ticks shows nothing new"
+    );
     let mut next = status.clone();
     next.position = 10.55;
     assert!(status.update(next));
-    assert_ne!(status.shown(), shown, "the remaining clock and the playhead step move at 10.5 s");
+    assert_ne!(
+        status.shown(),
+        shown,
+        "the remaining clock and the playhead step move at 10.5 s"
+    );
     let shown = status.shown();
     let mut next = status.clone();
     next.title = Arc::from("Retitled");
@@ -1000,7 +1012,17 @@ fn set_favorite_persists_on_the_library_worker_and_refreshes_the_catalog() {
     };
     // the first delivery carries its remap from the presented (empty) catalog: the host's refresh requires one
     wait(&|| shared.inbox.lock().unwrap().catalog.is_some());
-    assert!(shared.inbox.lock().unwrap().catalog.as_ref().unwrap().remap.is_some());
+    assert!(
+        shared
+            .inbox
+            .lock()
+            .unwrap()
+            .catalog
+            .as_ref()
+            .unwrap()
+            .remap
+            .is_some()
+    );
     for (revision, song, on) in [(0, 0, false), (1, 1, true), (2, 1, false), (3, 9000, true)] {
         let command = if revision == 0 {
             Command::RefreshCatalog

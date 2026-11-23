@@ -117,21 +117,23 @@ impl Frame {
             drop_events(self.index - 2, events);
         }
     }
-    pub(crate) fn input(
-        &mut self,
-        ui: &Ui,
-        events: &mut Vec<HostEvent>,
-    ) -> Result<(), String> {
+    pub(crate) fn input(&mut self, ui: &Ui, events: &mut Vec<HostEvent>) -> Result<(), String> {
         let workload = self.workload;
         let mut expected_settings_intent = None;
-        if workload.is_some() && self.index >= 2 && !matches!(workload, Some(Workload::Drop | Workload::Clock120)) {
+        if workload.is_some()
+            && self.index >= 2
+            && !matches!(workload, Some(Workload::Drop | Workload::Clock120))
+        {
             if let Some(measured) = workload.filter(|workload| workload.scripted()) {
                 super::measured::events(measured, self.index - 2, self.from, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::Settings)) {
                 expected_settings_intent = settings_events(self.index - 2, ui, &mut *events)?;
             } else if matches!(workload, Some(Workload::Waveform)) {
                 waveform_events(self.index - 2, &mut *events);
-            } else if matches!(workload, Some(Workload::AlbumDetail | Workload::ArtistDetail)) {
+            } else if matches!(
+                workload,
+                Some(Workload::AlbumDetail | Workload::ArtistDetail)
+            ) {
                 events.push(HostEvent::PointerMoved((650.0, 600.0)));
                 // Small steps keep the header in view while the table moves. The artist page puts its
                 // songs below the Back row, keys and album grid, so it also sweeps down to them and
@@ -434,7 +436,10 @@ impl Frame {
                 if expected != carrying.is_some()
                     || (expected
                         && (!ui.captured()
-                            || carrying.is_none_or(|p| !p.kind.starts_with("localwave.song:") || !p.value.starts_with("Track "))))
+                            || carrying.is_none_or(|p| {
+                                !p.kind.starts_with("localwave.song:")
+                                    || !p.value.starts_with("Track ")
+                            })))
                 {
                     return Err(format!(
                         "Carry did not survive hover/scroll or cancel correctly: frame={frames} phase={phase} expected={expected} captured={} kind={:?}",
@@ -447,8 +452,13 @@ impl Frame {
                 // after Escape, and the lifted row (Track 00002) stays built while the scroll moves its place out of the window.
                 let held = phase < 21;
                 // built (the frame a scroll lands it may sit a frame behind the pointer, outside the list's clip)
-                let lifted = ui.a11y_nodes().iter().any(|node| node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node) == "Track 00002");
-                if held != ui.captured() || carrying.is_some() || ((1..20).contains(&phase) && !lifted) {
+                let lifted = ui.a11y_nodes().iter().any(|node| {
+                    node.is_role(pxui::ui::Role::Button) && ui.a11y_name_of(node) == "Track 00002"
+                });
+                if held != ui.captured()
+                    || carrying.is_some()
+                    || ((1..20).contains(&phase) && !lifted)
+                {
                     return Err(format!(
                         "Queue drag did not survive hover/scroll or cancel correctly: frame={frames} phase={phase} held={held} captured={} lifted={lifted} carry={:?}",
                         ui.captured(),
@@ -504,7 +514,11 @@ fn center(
 
 /// Right-click a sidebar list for its menu, dismiss it, open New list and leave it with Esc;
 /// typing happens through `state_input`. Nothing is ever created, renamed or deleted.
-pub(super) fn list_dialog_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Result<(), String> {
+pub(super) fn list_dialog_events(
+    frame: usize,
+    ui: &Ui,
+    events: &mut Vec<input::Event>,
+) -> Result<(), String> {
     use input::{Event, Key, MouseButton};
     use pxui::ui::Role;
     let phase = frame % 40;
@@ -522,10 +536,18 @@ pub(super) fn list_dialog_events(frame: usize, ui: &Ui, events: &mut Vec<input::
                 events.push(Event::PointerPressed(MouseButton::RightButton, list));
             }
             1 => events.push(Event::PointerReleased(MouseButton::RightButton, list)),
-            _ => events.push(Event::PointerMoved((list.0 + 20.0, list.1 + 18.0 + (phase & 1) as f64))),
+            _ => events.push(Event::PointerMoved((
+                list.0 + 20.0,
+                list.1 + 18.0 + (phase & 1) as f64,
+            ))),
         }
     } else if matches!(phase, 11 | 12) {
-        let new_list = center(ui, Role::Button, |name| name == "New list", "New list button")?;
+        let new_list = center(
+            ui,
+            Role::Button,
+            |name| name == "New list",
+            "New list button",
+        )?;
         events.push(Event::PointerMoved(new_list));
         events.push(if phase == 11 {
             Event::PointerPressed(MouseButton::LeftButton, new_list)
@@ -549,7 +571,12 @@ fn song_drag_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Re
     let jitter = (phase % 3) as f64;
     match phase {
         0 | 1 => {
-            let row = center(ui, Role::ListItem, |name| name.starts_with("Track "), "song row")?;
+            let row = center(
+                ui,
+                Role::ListItem,
+                |name| name.starts_with("Track "),
+                "song row",
+            )?;
             if phase == 0 {
                 events.push(Event::PointerMoved(row));
                 events.push(Event::PointerPressed(MouseButton::LeftButton, row));
@@ -571,20 +598,35 @@ fn song_drag_events(frame: usize, ui: &Ui, events: &mut Vec<input::Event>) -> Re
             events.push(Event::PointerMoved((list.0 + jitter, list.1)));
         }
         12..=19 => {
-            let queue = center(ui, Role::List, |name| name == "Up next queue", "Up next list")?;
+            let queue = center(
+                ui,
+                Role::List,
+                |name| name == "Up next queue",
+                "Up next list",
+            )?;
             // Sweep down across the list as a user aims a drop, after resting on its upper rows
             // (the highest instance count of the cycle).
-            let y = if phase < 15 { queue.1 - 40.0 } else { queue.1 + (phase - 15) as f64 * 12.0 };
+            let y = if phase < 15 {
+                queue.1 - 40.0
+            } else {
+                queue.1 + (phase - 15) as f64 * 12.0
+            };
             events.push(Event::PointerMoved((queue.0 + jitter, y)));
         }
         20 => events.push(Event::KeyPressed(Key::Escape)),
         21 => {
             events.push(Event::KeyReleased(Key::Escape));
-            events.push(Event::PointerReleased(MouseButton::LeftButton, (1300.0, 400.0)));
+            events.push(Event::PointerReleased(
+                MouseButton::LeftButton,
+                (1300.0, 400.0),
+            ));
         }
         _ => {
             events.push(Event::PointerMoved((650.0, 400.0)));
-            events.push(Event::Scrolled((0.0, if (frame / 40) % 2 == 0 { -1.0 } else { 1.0 })));
+            events.push(Event::Scrolled((
+                0.0,
+                if (frame / 40) % 2 == 0 { -1.0 } else { 1.0 },
+            )));
         }
     }
     Ok(())
@@ -616,19 +658,84 @@ pub fn settings_events(
     let phase = frame % 40;
     let dark = (frame / 40).is_multiple_of(2);
     let (role, name, button, action): (_, &str, _, _) = match phase & !1 {
-        0 | 8 | 14 | 22 | 30 => (Role::Group, "Appearance", MouseButton::RightButton, Intent::SettingsMenu(SettingsMenu::Appearance, (0.0, 0.0))),
-        4 | 18 => (Role::Group, "Offline space", MouseButton::RightButton, Intent::SettingsMenu(SettingsMenu::Cache, (0.0, 0.0))),
-        2 => (Role::Toggle, "Use red signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Red))),
-        6 => (Role::Toggle, "Use 32 GB", MouseButton::LeftButton, Intent::Setting(Change::CacheGB(32))),
-        10 => (Role::Toggle, "Use green signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Green))),
-        12 if dark => (Role::Radio, "Use dark appearance", MouseButton::LeftButton, Intent::Setting(Change::Appearance(Appearance::Dark))),
-        12 => (Role::Radio, "Use light appearance", MouseButton::LeftButton, Intent::Setting(Change::Appearance(Appearance::Light))),
-        16 => (Role::Toggle, "Use monochrome signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Mono))),
-        20 => (Role::Toggle, "Use 2 GB", MouseButton::LeftButton, Intent::Setting(Change::CacheGB(2))),
-        24 => (Role::Toggle, "Use blue signal", MouseButton::LeftButton, Intent::Setting(Change::Signal(Signal::Blue))),
-        26 => (Role::Toggle, "Download ahead", MouseButton::LeftButton, Intent::Setting(Change::ToggleDownloadAhead)),
-        28 => (Role::Toggle, "Simulate no network", MouseButton::LeftButton, Intent::Setting(Change::ToggleNoNetwork)),
-        32 => (Role::Toggle, "Reduce motion", MouseButton::LeftButton, Intent::Setting(Change::ToggleReduceMotion)),
+        0 | 8 | 14 | 22 | 30 => (
+            Role::Group,
+            "Appearance",
+            MouseButton::RightButton,
+            Intent::SettingsMenu(SettingsMenu::Appearance, (0.0, 0.0)),
+        ),
+        4 | 18 => (
+            Role::Group,
+            "Offline space",
+            MouseButton::RightButton,
+            Intent::SettingsMenu(SettingsMenu::Cache, (0.0, 0.0)),
+        ),
+        2 => (
+            Role::Toggle,
+            "Use red signal",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::Signal(Signal::Red)),
+        ),
+        6 => (
+            Role::Toggle,
+            "Use 32 GB",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::CacheGB(32)),
+        ),
+        10 => (
+            Role::Toggle,
+            "Use green signal",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::Signal(Signal::Green)),
+        ),
+        12 if dark => (
+            Role::Radio,
+            "Use dark appearance",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::Appearance(Appearance::Dark)),
+        ),
+        12 => (
+            Role::Radio,
+            "Use light appearance",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::Appearance(Appearance::Light)),
+        ),
+        16 => (
+            Role::Toggle,
+            "Use monochrome signal",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::Signal(Signal::Mono)),
+        ),
+        20 => (
+            Role::Toggle,
+            "Use 2 GB",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::CacheGB(2)),
+        ),
+        24 => (
+            Role::Toggle,
+            "Use blue signal",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::Signal(Signal::Blue)),
+        ),
+        26 => (
+            Role::Toggle,
+            "Download ahead",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::ToggleDownloadAhead),
+        ),
+        28 => (
+            Role::Toggle,
+            "Simulate no network",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::ToggleNoNetwork),
+        ),
+        32 => (
+            Role::Toggle,
+            "Reduce motion",
+            MouseButton::LeftButton,
+            Intent::Setting(Change::ToggleReduceMotion),
+        ),
         _ => return Ok(None),
     };
     let at = center(ui, role, |n| n == name, name)?;
@@ -775,19 +882,19 @@ impl Perf {
         if trace_frames && workload.is_some() {
             let ids = frame.ids;
             if let Some(slot) = (*frame_trace).get_mut((*frames) - 1) {
-            *slot = (
-                if artwork_updated {
-                    artwork.ready().map_or(0, |ready| ready.artwork_id.id())
-                } else {
-                    0
-                },
-                ids,
-                allocations_before,
-                allocations_after - allocations_before,
-                mem_sys::local_alloc_count() - allocations_after,
-                gpu_trace,
-                output_allocations,
-            );
+                *slot = (
+                    if artwork_updated {
+                        artwork.ready().map_or(0, |ready| ready.artwork_id.id())
+                    } else {
+                        0
+                    },
+                    ids,
+                    allocations_before,
+                    allocations_after - allocations_before,
+                    mem_sys::local_alloc_count() - allocations_after,
+                    gpu_trace,
+                    output_allocations,
+                );
             }
         }
         if (*frames) > from {
@@ -833,9 +940,7 @@ impl Perf {
                 _ => {}
             }
         }
-        if matches!(workload, Some(Workload::Artwork | Workload::AlbumDetail))
-            && (*frames) > from
-        {
+        if matches!(workload, Some(Workload::Artwork | Workload::AlbumDetail)) && (*frames) > from {
             let image_quads = ui
                 .layers()
                 .map(|layer| {

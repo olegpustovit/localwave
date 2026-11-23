@@ -45,11 +45,27 @@ pub(in crate::shell) fn popup(
         Some(MenuItem::new("Add to list").id(LISTS)),
         routes.map(|_| MenuItem::new("Go to album").id(ALBUM)),
         routes.map(|_| MenuItem::new("Go to artist").id(ARTIST)),
-        cfg!(not(target_os = "ios")).then_some(MenuItem::new("Show in Finder").id(REVEAL).disabled(!sourced)),
+        cfg!(not(target_os = "ios")).then_some(
+            MenuItem::new("Show in Finder")
+                .id(REVEAL)
+                .disabled(!sourced),
+        ),
         Some(MenuItem::new(if favorite { "Unfavorite" } else { "Favorite" }).id(FAVORITE)),
-        Some(MenuItem::new(if row.is_some_and(|row| row.pinned) { "Stop keeping offline" } else { "Keep offline" }).id(OFFLINE)),
-        row.filter(|row| row.state == lw_core::FileState::Failed).map(|_| MenuItem::new("Retry download").id(RETRY)),
-        Some(MenuItem::new("Share…").id(SHARE).disabled(!(sourced && !sharing))),
+        Some(
+            MenuItem::new(if row.is_some_and(|row| row.pinned) {
+                "Stop keeping offline"
+            } else {
+                "Keep offline"
+            })
+            .id(OFFLINE),
+        ),
+        row.filter(|row| row.state == lw_core::FileState::Failed)
+            .map(|_| MenuItem::new("Retry download").id(RETRY)),
+        Some(
+            MenuItem::new("Share…")
+                .id(SHARE)
+                .disabled(!(sourced && !sharing)),
+        ),
         edit.map(|_| MenuItem::new("Edit info…").id(EDIT)),
         Some(MenuItem::new("Delete…").id(DELETE)),
         list.map(|_| MenuItem::new("Remove from list").id(REMOVE)),
@@ -60,7 +76,12 @@ pub(in crate::shell) fn popup(
         rows[count] = item.disabled(!(item.enabled && present));
         count += 1;
     }
-    let menu = ui.menu("song-menu", pxui::Point::new(at.0, at.1), &rows[..count], &MENU.name("Song actions"));
+    let menu = ui.menu(
+        "song-menu",
+        pxui::Point::new(at.0, at.1),
+        &rows[..count],
+        &MENU.name("Song actions"),
+    );
     let song = target.1;
     // "Add to list" closes this menu and opens the list panel.
     if let Some(id) = menu.chosen_id {
@@ -73,7 +94,10 @@ pub(in crate::shell) fn popup(
             ALBUM => routes.map(|routes| Intent::Navigate(routes[1])),
             ARTIST => routes.map(|routes| Intent::Navigate(routes[0])),
             REVEAL => Some(Intent::RevealSong(song)),
-            FAVORITE => Some(Intent::SetFavorite { song, on: !favorite }),
+            FAVORITE => Some(Intent::SetFavorite {
+                song,
+                on: !favorite,
+            }),
             OFFLINE => Some(Intent::KeepOffline(song)),
             RETRY => Some(Intent::RetryDownload(song)),
             SHARE => Some(Intent::ShareSong(song, click)),
@@ -127,7 +151,12 @@ fn lists(
     for row in &mut rows[..count] {
         *row = row.disabled(!(row.enabled && present));
     }
-    let menu = ui.menu("song-lists", pxui::Point::new(at.0, at.1), &rows[..count], &LISTS_MENU);
+    let menu = ui.menu(
+        "song-lists",
+        pxui::Point::new(at.0, at.1),
+        &rows[..count],
+        &LISTS_MENU,
+    );
     match menu.chosen_id {
         Some(NEW_LIST) => *intent = Some(Intent::NewList(Some(song))),
         Some(list) => *intent = Some(Intent::AddToList { song, list }),
@@ -140,11 +169,17 @@ fn lists(
 
 /// Fills `rows` with an "Add to list" panel: "New list…", then every list but `except` keyed by its id, or "No other lists" (disabled)
 /// when there is none. Returns the number of rows.
-pub(in crate::shell) fn list_rows<'a>(rows: &mut [MenuItem<'a>; LIST_ROWS], catalog: &'a Catalog, except: Option<i64>) -> usize {
+pub(in crate::shell) fn list_rows<'a>(
+    rows: &mut [MenuItem<'a>; LIST_ROWS],
+    catalog: &'a Catalog,
+    except: Option<i64>,
+) -> usize {
     rows[0] = MenuItem::new("New list…").id(NEW_LIST);
     let mut count = 1;
     for collection in &catalog.collections {
-        let lw_core::context::PlaybackContext::Playlist { id, .. } = &*collection.context else { continue };
+        let lw_core::context::PlaybackContext::Playlist { id, .. } = &*collection.context else {
+            continue;
+        };
         if Some(*id) != except && count < LIST_ROWS {
             rows[count] = MenuItem::new(&collection.title).id(*id);
             count += 1;

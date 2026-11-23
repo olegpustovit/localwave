@@ -28,7 +28,10 @@ impl NowInfo {
         match &song.file_extension {
             Some(extension) => {
                 fields.push(extension.to_lowercase());
-                if let Some(rate) = song.sample_rate.filter(|rate| rate.is_finite() && *rate > 0.0) {
+                if let Some(rate) = song
+                    .sample_rate
+                    .filter(|rate| rate.is_finite() && *rate > 0.0)
+                {
                     fields.push(format!("{} kHz", general(rate / 1000.0)));
                 }
                 if let Some(bits) = song.bit_depth.filter(|bits| *bits > 0) {
@@ -39,7 +42,11 @@ impl NowInfo {
         }
         let summary = match (&song.file_extension, song.sample_rate, song.bit_depth) {
             (Some(extension), Some(rate), Some(bits)) => {
-                format!("{} {}/{bits}", extension.to_lowercase(), general(rate / 1000.0))
+                format!(
+                    "{} {}/{bits}",
+                    extension.to_lowercase(),
+                    general(rate / 1000.0)
+                )
             }
             (Some(extension), ..) => extension.to_lowercase(),
             _ => "audio".into(),
@@ -54,7 +61,10 @@ impl NowInfo {
         };
         let mut folder = source.unwrap_or("Source folder").to_string();
         if let Some(relative) = &song.relative_path {
-            let mut parts: Vec<&str> = relative.split('/').filter(|part| !part.is_empty()).collect();
+            let mut parts: Vec<&str> = relative
+                .split('/')
+                .filter(|part| !part.is_empty())
+                .collect();
             parts.pop();
             for part in parts {
                 folder.push_str(" / ");
@@ -104,11 +114,24 @@ mod tests {
         assert_eq!(info.size, "103.1 MB · on device");
         assert_eq!(info.file, "Google Drive / Weather Systems");
         assert_eq!(info.plays, "16");
-        let bare = Song { file_extension: Some("mp3".into()), sample_rate: Some(44100.0), ..Song::default() };
+        let bare = Song {
+            file_extension: Some("mp3".into()),
+            sample_rate: Some(44100.0),
+            ..Song::default()
+        };
         let info = NowInfo::new(&bare, None, 0);
-        assert_eq!((info.format.as_str(), info.size.as_str()), ("mp3 · 44.1 kHz", "— · in cloud"));
+        assert_eq!(
+            (info.format.as_str(), info.size.as_str()),
+            ("mp3 · 44.1 kHz", "— · in cloud")
+        );
         assert_eq!(info.file, "Source folder");
-        let long = Song { relative_path: Some("Abcdefghijklmnopqrstuvwxyz/x.mp3".into()), ..Song::default() };
-        assert_eq!(NowInfo::new(&long, Some("Google Drive"), 0).file, "Google Drive /…lmnopqrstuvwxyz");
+        let long = Song {
+            relative_path: Some("Abcdefghijklmnopqrstuvwxyz/x.mp3".into()),
+            ..Song::default()
+        };
+        assert_eq!(
+            NowInfo::new(&long, Some("Google Drive"), 0).file,
+            "Google Drive /…lmnopqrstuvwxyz"
+        );
     }
 }

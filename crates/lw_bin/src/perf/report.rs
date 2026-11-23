@@ -43,7 +43,13 @@ impl FrameTiming {
             writeln!(
                 out,
                 "LocalWave frame outlier: frame={frame} wall_us={} cpu_us={} frame_wall_us={} work_wall_us={} frame_cpu_us={} phase_wall_us={:?} phase_cpu_us={:?}",
-                self.wall, self.cpu, self.frame_wall, self.work_wall, self.frame_cpu, self.phases, self.phase_cpu
+                self.wall,
+                self.cpu,
+                self.frame_wall,
+                self.work_wall,
+                self.frame_cpu,
+                self.phases,
+                self.phase_cpu
             )?;
         }
         Ok(())
@@ -210,7 +216,11 @@ impl Perf {
             println!(
                 "LocalWave artwork: texture_bytes={artwork_bytes} min_image_quads={min_artwork_quads} max_warm_requests={warm_artwork_requests}"
             );
-            let needed = if workload == Some(Workload::Artwork) { 10 } else { 1 };
+            let needed = if workload == Some(Workload::Artwork) {
+                10
+            } else {
+                1
+            };
             if artwork_bytes == 0 || (*min_artwork_quads) < needed || (*warm_artwork_requests) != 0
             {
                 return Err("Artwork workload did not retain its warmed image working set".into());
@@ -350,7 +360,9 @@ mod tests {
                 1 => sample.frame_cpu = value as u64,
                 _ => sample.work_wall = value,
             };
-            perf.timings.iter_mut().for_each(|sample| set(sample, limit - 1));
+            perf.timings
+                .iter_mut()
+                .for_each(|sample| set(sample, limit - 1));
             assert!(perf.report(false, counts, 0).is_ok());
             // p99 is the 99th of 100 sorted samples; one outlier above it is reported, not gated.
             set(&mut perf.timings[99], limit);
@@ -427,7 +439,10 @@ mod tests {
     /// LocalWave's fling ceiling is pxui's (kept private in its test): read it from the submodule so they cannot drift.
     #[test]
     fn fling_ceiling_equals_pxui_fling_ceiling() {
-        let path = concat!(env!("CARGO_MANIFEST_DIR"), "/../../pxui/crates/private/pxui_core/tests/cases/views.rs");
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../pxui/crates/private/pxui_core/tests/cases/views.rs"
+        );
         let source = std::fs::read_to_string(path).unwrap();
         let pxui: u64 = source
             .lines()

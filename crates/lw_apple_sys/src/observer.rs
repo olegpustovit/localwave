@@ -71,7 +71,10 @@ mod tests {
         drop(observer);
         // Freeing the closure waits for fseventsd on the native queue (seconds on a degraded
         // host); the on-demand delivery test checks it. Callers only rely on drop not blocking.
-        assert!(started.elapsed() < Duration::from_millis(50), "drop blocked");
+        assert!(
+            started.elapsed() < Duration::from_millis(50),
+            "drop blocked"
+        );
     }
 
     // Reason: real FSEvents delivery depends on fseventsd. On the M1 host (2026-11-15) fseventsd ran
@@ -107,7 +110,11 @@ mod tests {
         let after = hits.load(Ordering::SeqCst);
         std::fs::write(dir.join("later.flac"), [1]).unwrap();
         std::thread::sleep(Duration::from_millis(300));
-        assert_eq!(hits.load(Ordering::SeqCst), after, "no delivery after the closure is freed");
+        assert_eq!(
+            hits.load(Ordering::SeqCst),
+            after,
+            "no delivery after the closure is freed"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

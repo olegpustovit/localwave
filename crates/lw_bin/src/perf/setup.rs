@@ -10,7 +10,12 @@ use std::path::Path;
 
 pub(crate) const LIST_NAME: &str = "Qualification mix";
 
-pub(crate) fn library(base: &Path, workload: Option<Workload>, energy: bool, table_styles: lw_ui::catalog::TableStyles) -> std::io::Result<LibraryWorker> {
+pub(crate) fn library(
+    base: &Path,
+    workload: Option<Workload>,
+    energy: bool,
+    table_styles: lw_ui::catalog::TableStyles,
+) -> std::io::Result<LibraryWorker> {
     let documents = base.join("Documents");
     std::fs::create_dir_all(&documents)?;
     let suite = format!(
@@ -216,7 +221,10 @@ pub(crate) fn prepare(
     if matches!(workload, Some(Workload::SearchTyping)) {
         shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Find));
     }
-    if matches!(workload, Some(Workload::MetadataEditor | Workload::TextTyping)) {
+    if matches!(
+        workload,
+        Some(Workload::MetadataEditor | Workload::TextTyping)
+    ) {
         use lw_ui::browse::Query;
         let field = |text| Query::new(text).unwrap_or_default();
         shell_state.apply(lw_ui::Intent::OpenMetadata(lw_ui::MetadataEdit {

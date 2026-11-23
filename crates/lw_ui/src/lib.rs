@@ -41,15 +41,23 @@ pub fn clip_owned(mut text: String) -> String {
 
 /// pxui's deterministic fast hash of one value (a revision or identity key; not a DoS-resistant map hash).
 #[inline]
-pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 { pxui::hash_of(&value) }
+pub(crate) fn hash<T: std::hash::Hash>(value: T) -> u64 {
+    pxui::hash_of(&value)
+}
 pub use shell::{ShellState, apply_palette, next_tick, progress_ticks, shell};
 
 pub const FONT: &[u8] = include_bytes!("../../../localwave/Fonts/HostGrotesk.ttf");
 pub const MONO: &[u8] = include_bytes!("../../../localwave/Fonts/GeistMono.ttf");
 /// The light theme: its tokens, then LocalWave's registered bodies and the looks they rely on (`commands::register` first).
-pub const LIGHT: &str = concat!(include_str!("../themes/light.theme"), include_str!("../themes/app-light.theme"));
+pub const LIGHT: &str = concat!(
+    include_str!("../themes/light.theme"),
+    include_str!("../themes/app-light.theme")
+);
 /// The dark theme, as `LIGHT`.
-pub const DARK: &str = concat!(include_str!("../themes/dark.theme"), include_str!("../themes/app-dark.theme"));
+pub const DARK: &str = concat!(
+    include_str!("../themes/dark.theme"),
+    include_str!("../themes/app-dark.theme")
+);
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SettingsMenu {
@@ -361,7 +369,9 @@ pub(crate) fn test_table_styles() -> catalog::TableStyles {
 pub(crate) fn test_ui(platform: pxui::Platform, size: Option<i64>, fonts: &[&[u8]]) -> pxui::Ui {
     let fonts: Vec<_> = fonts.iter().map(|bytes| pxui::FontData(bytes)).collect();
     let mut desc = pxui::UiDesc::new(platform).fonts(&fonts);
-    if let Some(size) = size { desc = desc.font_size(size as f32); }
+    if let Some(size) = size {
+        desc = desc.font_size(size as f32);
+    }
     let mut ui = pxui::Ui::new(&desc).expect("test Ui");
     // The kit's default theme with LocalWave's bodies and their looks, as the app's themes carry them.
     commands::register(&mut ui).unwrap();

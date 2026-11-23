@@ -29,25 +29,80 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 const STYLE_TYPES: &[&str] = &[
-    "Label", "Button", "IconButton", "Toggle", "Segmented", "Menu", "MenuItem", "Dialog",
-    "DialogButton", "TextInputOptions",
+    "Label",
+    "Button",
+    "IconButton",
+    "Toggle",
+    "Segmented",
+    "Menu",
+    "MenuItem",
+    "Dialog",
+    "DialogButton",
+    "TextInputOptions",
 ];
 const KEYED_CALLS: &[&str] = &[
-    "button", "button_content", "pressable", "icon_button", "menu", "toggle",
-    "segmented", "dialog", "node", "view_of", "id",
+    "button",
+    "button_content",
+    "pressable",
+    "icon_button",
+    "menu",
+    "toggle",
+    "segmented",
+    "dialog",
+    "node",
+    "view_of",
+    "id",
 ];
 /// pxui value types whose literals belong in `const` items only (R1).
 const VALUE_TYPES: &[&str] = &["Node", "Edges", "Look", "Rgba", "Font", "State", "States"];
 /// pxui widget calls a one-call helper must not wrap (R8).
 const WIDGETS: &[&str] = &[
-    "badge", "button", "button_content", "checkbox", "dialog", "disclosure", "dropdown", "grid_list",
-    "icon_button", "label", "list", "menu", "menu_bar", "modal", "panel", "picker", "popup", "pressable", "progress",
-    "radio", "scrub", "search_field", "section_index", "section_list", "segmented",
-    "selection_list", "slider", "spinner", "table", "table_head", "tabs", "text_area", "text_field", "toasts", "toggle",
-    "tooltip", "tree",
+    "badge",
+    "button",
+    "button_content",
+    "checkbox",
+    "dialog",
+    "disclosure",
+    "dropdown",
+    "grid_list",
+    "icon_button",
+    "label",
+    "list",
+    "menu",
+    "menu_bar",
+    "modal",
+    "panel",
+    "picker",
+    "popup",
+    "pressable",
+    "progress",
+    "radio",
+    "scrub",
+    "search_field",
+    "section_index",
+    "section_list",
+    "segmented",
+    "selection_list",
+    "slider",
+    "spinner",
+    "table",
+    "table_head",
+    "tabs",
+    "text_area",
+    "text_field",
+    "toasts",
+    "toggle",
+    "tooltip",
+    "tree",
 ];
 const TEXT_NAMES: &[&str] = &["label", "title", "name", "text"];
-const ALLOC_TOKENS: &[&str] = &["format!(", "vec![", ".to_string()", "Vec::new()", ".collect::<Vec"];
+const ALLOC_TOKENS: &[&str] = &[
+    "format!(",
+    "vec![",
+    ".to_string()",
+    "Vec::new()",
+    ".collect::<Vec",
+];
 
 fn is_ident(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
@@ -67,7 +122,10 @@ fn blank_text(src: &str) -> Vec<u8> {
     };
     while i < b.len() {
         if b[i] == b'/' && b.get(i + 1) == Some(&b'/') {
-            let end = b[i..].iter().position(|&c| c == b'\n').map_or(b.len(), |p| i + p);
+            let end = b[i..]
+                .iter()
+                .position(|&c| c == b'\n')
+                .map_or(b.len(), |p| i + p);
             blank(&mut out, i, end);
             i = end;
         } else if b[i] == b'/' && b.get(i + 1) == Some(&b'*') {
@@ -85,7 +143,10 @@ fn blank_text(src: &str) -> Vec<u8> {
             }
             blank(&mut out, i, j);
             i = j;
-        } else if b[i] == b'r' && (i == 0 || !is_ident(b[i - 1])) && matches!(b.get(i + 1), Some(b'"' | b'#')) {
+        } else if b[i] == b'r'
+            && (i == 0 || !is_ident(b[i - 1]))
+            && matches!(b.get(i + 1), Some(b'"' | b'#'))
+        {
             let mut j = i + 1;
             let mut hashes = 0;
             while b.get(j) == Some(&b'#') {
@@ -117,7 +178,11 @@ fn blank_text(src: &str) -> Vec<u8> {
         } else if b[i] == b'\'' {
             // Char literal (not a lifetime): 'x' or '\n' or '\u{..}'.
             let close = if b.get(i + 1) == Some(&b'\\') {
-                b[i + 2..].iter().take(10).position(|&c| c == b'\'').map(|p| i + 2 + p)
+                b[i + 2..]
+                    .iter()
+                    .take(10)
+                    .position(|&c| c == b'\'')
+                    .map(|p| i + 2 + p)
             } else if b.get(i + 2) == Some(&b'\'') {
                 Some(i + 2)
             } else {
@@ -156,7 +221,9 @@ fn block_end(b: &[u8], open: usize) -> usize {
 
 fn find_all(b: &[u8], needle: &str) -> Vec<usize> {
     let n = needle.as_bytes();
-    (0..b.len().saturating_sub(n.len() - 1)).filter(|&i| &b[i..i + n.len()] == n).collect()
+    (0..b.len().saturating_sub(n.len() - 1))
+        .filter(|&i| &b[i..i + n.len()] == n)
+        .collect()
 }
 
 /// Blank every `#[cfg(test)]` item. Returns names of `#[cfg(test)] mod name;` declarations.
@@ -167,7 +234,10 @@ fn blank_cfg_test(b: &mut [u8]) -> Vec<String> {
             continue; // already inside a blanked region
         }
         let mut j = at + "#[cfg(test)]".len();
-        let semi_or_brace = b[j..].iter().position(|&c| c == b';' || c == b'{').map_or(b.len(), |p| j + p);
+        let semi_or_brace = b[j..]
+            .iter()
+            .position(|&c| c == b';' || c == b'{')
+            .map_or(b.len(), |p| j + p);
         let end = if semi_or_brace < b.len() && b[semi_or_brace] == b'{' {
             block_end(b, semi_or_brace)
         } else {
@@ -214,7 +284,9 @@ fn fn_spans(b: &[u8]) -> Vec<FnSpan> {
             j += 1;
         }
         let name = String::from_utf8_lossy(&b[name_start..j]).to_string();
-        let Some(open) = b[j..].iter().position(|&c| c == b'(').map(|p| j + p) else { continue };
+        let Some(open) = b[j..].iter().position(|&c| c == b'(').map(|p| j + p) else {
+            continue;
+        };
         let mut depth = 0;
         let mut close = open;
         for (k, &c) in b.iter().enumerate().skip(open) {
@@ -230,15 +302,25 @@ fn fn_spans(b: &[u8]) -> Vec<FnSpan> {
                 _ => {}
             }
         }
-        let params: String = String::from_utf8_lossy(&b[open..close]).split_whitespace().collect();
+        let params: String = String::from_utf8_lossy(&b[open..close])
+            .split_whitespace()
+            .collect();
         let takes_ui = params.contains("ui:&mutUi") || params.contains("ui:&mutpxui::Ui");
-        let Some(stop) = b[close..].iter().position(|&c| c == b'{' || c == b';').map(|p| close + p) else {
+        let Some(stop) = b[close..]
+            .iter()
+            .position(|&c| c == b'{' || c == b';')
+            .map(|p| close + p)
+        else {
             continue;
         };
         if b[stop] == b';' {
             continue;
         }
-        spans.push(FnSpan { name, takes_ui, body: (stop, block_end(b, stop)) });
+        spans.push(FnSpan {
+            name,
+            takes_ui,
+            body: (stop, block_end(b, stop)),
+        });
     }
     spans
 }
@@ -264,22 +346,30 @@ fn first_arg(b: &[u8], open: usize) -> String {
             _ => {}
         }
     }
-    String::from_utf8_lossy(&b[open + 1..end]).trim().to_string()
+    String::from_utf8_lossy(&b[open + 1..end])
+        .trim()
+        .to_string()
 }
 
 fn line_of(src: &str, at: usize) -> String {
     let start = src[..at].rfind('\n').map_or(0, |p| p + 1);
     let end = src[at..].find('\n').map_or(src.len(), |p| at + p);
-    src[start..end].split_whitespace().collect::<Vec<_>>().join(" ")
+    src[start..end]
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
     let mut code = blank_text(src);
     blank_cfg_test(&mut code);
     let fns = fn_spans(&code);
-    let mut hit = |rule: &'static str, at: usize| out.push((rel.to_string(), rule, line_of(src, at)));
+    let mut hit =
+        |rule: &'static str, at: usize| out.push((rel.to_string(), rule, line_of(src, at)));
     let innermost = |at: usize| {
-        fns.iter().filter(|f| f.body.0 <= at && at < f.body.1).min_by_key(|f| f.body.1 - f.body.0)
+        fns.iter()
+            .filter(|f| f.body.0 <= at && at < f.body.1)
+            .min_by_key(|f| f.body.1 - f.body.0)
     };
 
     // R1: `Type {` literals (not item headers, return types or impls); value types only outside consts.
@@ -299,14 +389,18 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
             }
             let before = String::from_utf8_lossy(&code[..at]).to_string();
             let before = before.trim_end().trim_end_matches("pxui::").trim_end();
-            if ["->", "impl", "for", "struct", "enum", "trait", "mod", "type", "as", "dyn"]
-                .iter()
-                .any(|kw| before.ends_with(kw))
+            if [
+                "->", "impl", "for", "struct", "enum", "trait", "mod", "type", "as", "dyn",
+            ]
+            .iter()
+            .any(|kw| before.ends_with(kw))
             {
                 continue;
             }
             // `Enum::Variant {` (an enum's variant named like a pxui type, `Column::State`) is no literal.
-            let seg = code[..at].strip_suffix(b"::").map(|p| &p[p.iter().rposition(|&c| !is_ident(c)).map_or(0, |k| k + 1)..]);
+            let seg = code[..at]
+                .strip_suffix(b"::")
+                .map(|p| &p[p.iter().rposition(|&c| !is_ident(c)).map_or(0, |k| k + 1)..]);
             if seg.is_some_and(|seg| seg.first().is_some_and(u8::is_ascii_uppercase)) {
                 continue;
             }
@@ -329,7 +423,10 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
         hit("R3", at);
     }
     for at in find_all(&code, "fn resolve(") {
-        let sig_end = code[at..].iter().position(|&c| c == b'{' || c == b';').map_or(code.len(), |p| at + p);
+        let sig_end = code[at..]
+            .iter()
+            .position(|&c| c == b'{' || c == b';')
+            .map_or(code.len(), |p| at + p);
         let sig = String::from_utf8_lossy(&code[at..sig_end]);
         if sig.contains("ColorToken") || sig.contains("Rgba") {
             hit("R3", at);
@@ -350,7 +447,11 @@ fn scan(rel: &str, src: &str, out: &mut Vec<(String, &'static str, String)>) {
             let compact: String = arg.split_whitespace().collect();
             let bare = compact.trim_start_matches('&');
             let text_var = TEXT_NAMES.contains(&bare);
-            if text_var || compact.contains("format!(") || compact.contains(".to_string()") || compact.contains(".as_str()") {
+            if text_var
+                || compact.contains("format!(")
+                || compact.contains(".to_string()")
+                || compact.contains(".as_str()")
+            {
                 hit("R4", at);
             }
         }
@@ -396,7 +497,13 @@ fn const_spans(b: &[u8]) -> Vec<(usize, usize)> {
             if (at > 0 && is_ident(b[at - 1])) || b[at + kw.len()..].starts_with(b"fn ") {
                 continue;
             }
-            let Some(eq) = b[at..].iter().position(|&c| c == b'=' || c == b';' || c == b'{').map(|p| at + p) else { continue };
+            let Some(eq) = b[at..]
+                .iter()
+                .position(|&c| c == b'=' || c == b';' || c == b'{')
+                .map(|p| at + p)
+            else {
+                continue;
+            };
             if b[eq] != b'=' {
                 continue;
             }
@@ -441,14 +548,18 @@ fn paren_end(b: &[u8], open: usize) -> usize {
 fn single_widget_call(body: &[u8]) -> bool {
     let text = String::from_utf8_lossy(body);
     let t = text.trim();
-    let Some(rest) = t.strip_prefix("ui.") else { return false };
+    let Some(rest) = t.strip_prefix("ui.") else {
+        return false;
+    };
     let name_len = rest.bytes().take_while(|&c| is_ident(c)).count();
     if !WIDGETS.contains(&&rest[..name_len]) || !rest[name_len..].starts_with('(') {
         return false;
     }
     let bytes = rest.as_bytes();
     let close = paren_end(bytes, name_len);
-    let tail: String = rest[(close + 1).min(rest.len())..].split_whitespace().collect();
+    let tail: String = rest[(close + 1).min(rest.len())..]
+        .split_whitespace()
+        .collect();
     let tail = tail.strip_suffix(';').unwrap_or(&tail);
     tail.split('.').skip(1).all(|part| {
         let part = part.strip_suffix("()").unwrap_or(part);
@@ -457,7 +568,10 @@ fn single_widget_call(body: &[u8]) -> bool {
 }
 
 fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
-    let mut entries: Vec<_> = fs::read_dir(dir).unwrap().map(|e| e.unwrap().path()).collect();
+    let mut entries: Vec<_> = fs::read_dir(dir)
+        .unwrap()
+        .map(|e| e.unwrap().path())
+        .collect();
     entries.sort();
     for path in entries {
         if path.is_dir() {
@@ -470,12 +584,24 @@ fn rust_files(dir: &Path, out: &mut Vec<PathBuf>) {
 
 fn is_test_file(path: &Path, test_mods: &BTreeMap<PathBuf, Vec<String>>) -> bool {
     let stem = path.file_stem().unwrap().to_string_lossy();
-    if stem == "tests" || stem.ends_with("_tests") || path.components().any(|c| c.as_os_str() == "tests") {
+    if stem == "tests"
+        || stem.ends_with("_tests")
+        || path.components().any(|c| c.as_os_str() == "tests")
+    {
         return true;
     }
-    let dir = if stem == "mod" { path.parent().unwrap().parent() } else { path.parent() };
+    let dir = if stem == "mod" {
+        path.parent().unwrap().parent()
+    } else {
+        path.parent()
+    };
     let name = if stem == "mod" {
-        path.parent().unwrap().file_name().unwrap().to_string_lossy().to_string()
+        path.parent()
+            .unwrap()
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .to_string()
     } else {
         stem.to_string()
     };
@@ -485,7 +611,11 @@ fn is_test_file(path: &Path, test_mods: &BTreeMap<PathBuf, Vec<String>>) -> bool
             && dir.is_some_and(|d| {
                 let decl_dir = decl.parent().unwrap();
                 let decl_stem = decl.file_stem().unwrap().to_string_lossy();
-                if ["lib", "main", "mod"].contains(&&*decl_stem) { d == decl_dir } else { d == decl_dir.join(&*decl_stem) }
+                if ["lib", "main", "mod"].contains(&&*decl_stem) {
+                    d == decl_dir
+                } else {
+                    d == decl_dir.join(&*decl_stem)
+                }
             })
     })
 }
@@ -494,7 +624,10 @@ fn is_test_file(path: &Path, test_mods: &BTreeMap<PathBuf, Vec<String>>) -> bool
 fn api_conformance_matches_allowlist() {
     let crates = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
     let mut files = Vec::new();
-    rust_files(&Path::new(env!("CARGO_MANIFEST_DIR")).join("src"), &mut files);
+    rust_files(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("src"),
+        &mut files,
+    );
     rust_files(&crates.join("lw_bin/src"), &mut files);
 
     let mut sources = BTreeMap::new();
@@ -511,23 +644,35 @@ fn api_conformance_matches_allowlist() {
         if is_test_file(path, &test_mods) {
             continue;
         }
-        let rel = path.strip_prefix(crates).unwrap().to_string_lossy().replace('\\', "/");
+        let rel = path
+            .strip_prefix(crates)
+            .unwrap()
+            .to_string_lossy()
+            .replace('\\', "/");
         scan(&rel, src, &mut found);
     }
     let mut actual: BTreeMap<String, usize> = BTreeMap::new();
     for (file, rule, snippet) in &found {
-        *actual.entry(format!("{file}\t{rule}\t{snippet}")).or_default() += 1;
+        *actual
+            .entry(format!("{file}\t{rule}\t{snippet}"))
+            .or_default() += 1;
     }
 
-    let list_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/api-conformance-allowlist.tsv");
+    let list_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/api-conformance-allowlist.tsv");
     if std::env::var_os("API_CONFORMANCE_BLESS").is_some() {
         // Kept lines keep their reasons, in order; new lines get none (R7 then fails until one is written).
         let old = fs::read_to_string(&list_path).unwrap_or_default();
         let mut reasons: BTreeMap<String, Vec<String>> = BTreeMap::new();
         for line in old.lines() {
             let mut cols = line.splitn(4, '\t');
-            let key = [cols.next(), cols.next(), cols.next()].map(|c| c.unwrap_or("")).join("\t");
-            reasons.entry(key).or_default().push(cols.next().unwrap_or("").to_string());
+            let key = [cols.next(), cols.next(), cols.next()]
+                .map(|c| c.unwrap_or(""))
+                .join("\t");
+            reasons
+                .entry(key)
+                .or_default()
+                .push(cols.next().unwrap_or("").to_string());
         }
         let mut text = String::new();
         for (line, n) in &actual {
@@ -549,15 +694,25 @@ fn api_conformance_matches_allowlist() {
     let mut problems = Vec::new();
     for line in list.lines().filter(|l| !l.trim().is_empty()) {
         let mut cols = line.splitn(4, '\t');
-        let (file, rule, snippet, reason) = (cols.next().unwrap_or(""), cols.next().unwrap_or(""), cols.next().unwrap_or(""), cols.next().unwrap_or(""));
+        let (file, rule, snippet, reason) = (
+            cols.next().unwrap_or(""),
+            cols.next().unwrap_or(""),
+            cols.next().unwrap_or(""),
+            cols.next().unwrap_or(""),
+        );
         if rule == "R7" && reason.trim().is_empty() {
             problems.push(format!("R7 allowlist line without a reason: {line}"));
         }
         // U4b.5 lock-in: the allowlist is at its final size, every line a composite pressable, a D7 deferral or a listed dynamic colour
-        if !["composite:", "D7:", "dynamic colour:"].iter().any(|p| reason.starts_with(p)) {
+        if !["composite:", "D7:", "dynamic colour:"]
+            .iter()
+            .any(|p| reason.starts_with(p))
+        {
             problems.push(format!("allowlist line that is not a composite, D7 or listed dynamic colour (U4b.5: no drift lines): {line}"));
         }
-        *allowed.entry(format!("{file}\t{rule}\t{snippet}")).or_default() += 1;
+        *allowed
+            .entry(format!("{file}\t{rule}\t{snippet}"))
+            .or_default() += 1;
     }
 
     for (line, n) in &actual {
@@ -581,9 +736,13 @@ fn api_conformance_matches_allowlist() {
 
 #[test]
 fn rule_helpers_recognise_their_shapes() {
-    assert!(single_widget_call(b" ui.button(\"k\", \"Go\", &B).clicked "));
+    assert!(single_widget_call(
+        b" ui.button(\"k\", \"Go\", &B).clicked "
+    ));
     assert!(single_widget_call(b"ui.toggle(key, text, on, &T);"));
-    assert!(!single_widget_call(b"let r = ui.button(k, t, &B); r.clicked"));
+    assert!(!single_widget_call(
+        b"let r = ui.button(k, t, &B); r.clicked"
+    ));
     assert!(!single_widget_call(b"ui.node(k, n)"));
     let src = b"const A: Node = Node { w: 1 }; fn f() { let x = Node { w: 2 }; }";
     let spans = const_spans(src);

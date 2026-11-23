@@ -99,7 +99,8 @@ impl Window {
         let Some(collection) = catalog.collection(self.route) else {
             return;
         };
-        let (Some(&index), Some(table)) = (collection.rows.get(position), &collection.song_table) else {
+        let (Some(&index), Some(table)) = (collection.rows.get(position), &collection.song_table)
+        else {
             return;
         };
         let row = catalog.row(index);
@@ -155,7 +156,9 @@ impl Prewarm {
         let done = self.done.start.max(rows.start)..self.done.end.min(rows.end);
         let built = window.built.0..window.built.1;
         // Union only when the requested rows still touch the built ones: no gap is marked done.
-        self.done = if self.layout.is_some_and(|layout| layout.same_layout(&window))
+        self.done = if self
+            .layout
+            .is_some_and(|layout| layout.same_layout(&window))
             && done.start < done.end
             && built.start <= done.end
             && done.start <= built.end
@@ -167,7 +170,11 @@ impl Prewarm {
         let stopped = self.layout == Some(window);
         self.layout = Some(window);
         // Counted as if every cell were requested: a row never pushes a stopped frame past the lane.
-        let mut budget = if stopped { LANE_REQUESTS } else { ROWS_PER_FRAME * ROW_CELLS };
+        let mut budget = if stopped {
+            LANE_REQUESTS
+        } else {
+            ROWS_PER_FRAME * ROW_CELLS
+        };
         while budget >= ROW_CELLS && (self.done.end < rows.end || self.done.start > rows.start) {
             if self.done.end < rows.end {
                 window.prewarm_row(ui, catalog, self.done.end);
@@ -186,9 +193,20 @@ impl Prewarm {
 const NUMBER_LINE: f32 = 18.2;
 const MONO_LINE: f32 = 16.8;
 const CELL_LINE: f32 = 19.6;
-const NUMBER: pxui::Label = pxui::Label::MONO.size(13.0).line_height(NUMBER_LINE).wrap_spaces();
-const MONO_CELL: pxui::Label = pxui::Label::BODY.font(1).size(12.0).line_height(MONO_LINE).wrap_spaces();
-const CELL: pxui::Label = pxui::Label::BODY.line_height(CELL_LINE).weight(400).lines(1).ellipsis();
+const NUMBER: pxui::Label = pxui::Label::MONO
+    .size(13.0)
+    .line_height(NUMBER_LINE)
+    .wrap_spaces();
+const MONO_CELL: pxui::Label = pxui::Label::BODY
+    .font(1)
+    .size(12.0)
+    .line_height(MONO_LINE)
+    .wrap_spaces();
+const CELL: pxui::Label = pxui::Label::BODY
+    .line_height(CELL_LINE)
+    .weight(400)
+    .lines(1)
+    .ellipsis();
 const CURRENT_CELL: pxui::Label = CELL.weight(500);
 
 /// The authoring style of a song cell: drawn by the table and requested ahead by `Prewarm`.
@@ -251,11 +269,22 @@ mod resolve_tests {
             (Label::BODY.size(26.0).tracking(-0.02), 26.0, -0.52),
         ] {
             let resolved = ui.resolve(&label);
-            assert_eq!((resolved.size(), resolved.tracking().to_bits()), (size, points.to_bits()), "{size} pt: {} not {points}", resolved.tracking());
+            assert_eq!(
+                (resolved.size(), resolved.tracking().to_bits()),
+                (size, points.to_bits()),
+                "{size} pt: {} not {points}",
+                resolved.tracking()
+            );
         }
         // -0.2 points at 20 has no em whose product is that f32: -0.01 em resolves one f32 step from it
-        let add_music = ui.resolve(&Label::BODY.size(20.0).tracking(-0.01)).tracking();
-        assert_eq!(add_music.to_bits().abs_diff((-0.2f32).to_bits()), 1, "{add_music}");
+        let add_music = ui
+            .resolve(&Label::BODY.size(20.0).tracking(-0.01))
+            .tracking();
+        assert_eq!(
+            add_music.to_bits().abs_diff((-0.2f32).to_bits()),
+            1,
+            "{add_music}"
+        );
     }
 }
 
@@ -268,7 +297,8 @@ mod prewarm_tests {
     /// while the list moves, the remainder up to one lane on a frame after it stopped; a jump past
     /// the requested rows or a new layout starts again from the rows its frame built.
     #[test]
-    fn prewarm_grows_from_built_rows_bursts_when_stopped_and_restarts_after_a_jump_or_layout_change() {
+    fn prewarm_grows_from_built_rows_bursts_when_stopped_and_restarts_after_a_jump_or_layout_change()
+     {
         mem_sys::set_peer(pxui::library_counter);
         let catalog = crate::tests::prepared(
             (0..300)
@@ -287,31 +317,79 @@ mod prewarm_tests {
         let worker = pxui::TextWorker::new().unwrap();
         ui.set_text_worker(Some(&worker)).unwrap();
         let window = |density: f32, first: usize| {
-            Window::new(&catalog, Route::Songs, [100.0; 8], density, None, first, first + 20)
+            Window::new(
+                &catalog,
+                Route::Songs,
+                [100.0; 8],
+                density,
+                None,
+                first,
+                first + 20,
+            )
         };
         let mut prewarm = Prewarm::default();
         let mut step = |prewarm: &mut Prewarm, window: Option<Window>| {
             mem_sys::local_reset();
             prewarm.request(&mut ui, &catalog, window);
-            assert_eq!(mem_sys::local_alloc_count(), 0, "prewarm requests are fixed-buffer copies");
+            assert_eq!(
+                mem_sys::local_alloc_count(),
+                0,
+                "prewarm requests are fixed-buffer copies"
+            );
             prewarm.done.clone()
         };
         assert_eq!(window(1.0, 100).unwrap().rows(), 80..180);
         let moving = super::ROWS_PER_FRAME;
         let stopped = super::LANE_REQUESTS / super::ROW_CELLS;
         assert_eq!(stopped, 21);
-        assert_eq!(step(&mut prewarm, window(1.0, 100)), 98..122, "a new window: {moving} rows");
-        assert_eq!(step(&mut prewarm, window(1.0, 101)), 96..124, "moving: {moving} rows");
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 100)),
+            98..122,
+            "a new window: {moving} rows"
+        );
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 101)),
+            96..124,
+            "moving: {moving} rows"
+        );
         // Stopped: the same window again requests the remainder, bounded by one lane (21 rows of six cells).
-        assert_eq!(step(&mut prewarm, window(1.0, 101)), 86..135, "stopped: {stopped} rows");
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 101)),
+            86..135,
+            "stopped: {stopped} rows"
+        );
         assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..151);
         assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..172);
-        assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..181, "the whole window, never past it");
-        assert_eq!(step(&mut prewarm, window(1.0, 101)), 81..181, "nothing left to request");
-        assert_eq!(step(&mut prewarm, window(1.0, 130)), 110..185, "a scroll inside the requested rows keeps them");
-        assert_eq!(step(&mut prewarm, window(1.0, 200)), 198..222, "a jump past the requested rows restarts");
-        assert_eq!(step(&mut prewarm, window(1.0, 202)), 196..224, "a small scroll keeps what it requested");
-        assert_eq!(step(&mut prewarm, window(2.0, 202)), 200..224, "a new layout restarts");
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 101)),
+            81..181,
+            "the whole window, never past it"
+        );
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 101)),
+            81..181,
+            "nothing left to request"
+        );
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 130)),
+            110..185,
+            "a scroll inside the requested rows keeps them"
+        );
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 200)),
+            198..222,
+            "a jump past the requested rows restarts"
+        );
+        assert_eq!(
+            step(&mut prewarm, window(1.0, 202)),
+            196..224,
+            "a small scroll keeps what it requested"
+        );
+        assert_eq!(
+            step(&mut prewarm, window(2.0, 202)),
+            200..224,
+            "a new layout restarts"
+        );
         step(&mut prewarm, None);
         assert!(prewarm.layout.is_none());
     }

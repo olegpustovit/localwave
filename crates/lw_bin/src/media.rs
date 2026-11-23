@@ -15,7 +15,7 @@ use crate::controller::{Command, Controller, Status};
 use crate::library::ArtworkReady;
 use lw_apple_sys::media::{Media as Native, Metadata};
 use lw_core::playback::Phase;
-use lw_ui::artwork::{Want, Request};
+use lw_ui::artwork::{Request, Want};
 use lw_ui::catalog::Catalog;
 use std::io;
 use std::sync::Arc;
@@ -168,7 +168,13 @@ impl Media {
                     .row_index(published.song)
                     .map(|index| catalog.library.row(index))
             })
-            .and_then(|row| Some((epoch, Want::new(row.cover_art_id, 256)?, row.cover_art_path?)));
+            .and_then(|row| {
+                Some((
+                    epoch,
+                    Want::new(row.cover_art_id, 256)?,
+                    row.cover_art_path?,
+                ))
+            });
         let changed = match (self.cover, cover) {
             (Some(now), Some((epoch, key, path))) => now != (epoch, key) || self.cover_path != path,
             (now, next) => now.is_some() != next.is_some(),
@@ -177,7 +183,8 @@ impl Media {
             self.native.artwork(None)?;
             self.cover = cover.map(|(epoch, key, _)| (epoch, key));
             self.cover_path.clear();
-            self.cover_path.push_str(cover.map_or("", |(_, _, path)| path));
+            self.cover_path
+                .push_str(cover.map_or("", |(_, _, path)| path));
             self.cover_ready = false;
             self.cover_revision = 0;
         }

@@ -14,9 +14,9 @@
 use crate::browse::{Query, Request, Scope, Sort};
 use crate::catalog::{Catalog, Route};
 use crate::{Intent, PlayerView, Selection};
-use pxui::{KeyCode, Label, Mods};
 use pxui::theme::ColorToken;
 use pxui::ui::*;
+use pxui::{KeyCode, Label, Mods};
 
 mod albums;
 mod artists;
@@ -255,7 +255,11 @@ impl ShellState {
     fn select(&mut self, selection: Selection) {
         use pxui::ListState as L;
         let list = self.song_rows.get_mut();
-        let fit = |rows: &mut Vec<u8>, len: usize| if rows.len() < len { rows.resize(len, 0) };
+        let fit = |rows: &mut Vec<u8>, len: usize| {
+            if rows.len() < len {
+                rows.resize(len, 0)
+            }
+        };
         match selection {
             Selection::Toggle(i) => {
                 fit(&mut list.rows, i + 1);
@@ -331,7 +335,10 @@ impl ShellState {
         let old = self.route;
         (self.route, self.selected) = remap.resolve(old, self.selected, self.query);
         // read what the map needs before borrowing the flags: `song_rows` and `remap_scratch` are then disjoint fields
-        let (query, len) = (self.query, self.collection(next).map_or(0, |c| c.rows.len()));
+        let (query, len) = (
+            self.query,
+            self.collection(next).map_or(0, |c| c.rows.len()),
+        );
         let map = |i: usize| remap.resolve(old, Some(i), query).1;
         let list = self.song_rows.get_mut();
         if self.route != Route::Files && (list.anchor.is_some() || self.song_marks.0 > 0) {
@@ -339,7 +346,9 @@ impl ShellState {
             moved.clear();
             moved.resize(len, 0);
             for (i, f) in list.rows.iter().enumerate() {
-                if f & pxui::ListState::SELECTED != 0 && let Some(j) = map(i).filter(|&j| j < moved.len()) {
+                if f & pxui::ListState::SELECTED != 0
+                    && let Some(j) = map(i).filter(|&j| j < moved.len())
+                {
                     moved[j] = pxui::ListState::SELECTED;
                 }
             }
@@ -382,7 +391,10 @@ impl ShellState {
             self.folder_table.get_mut().selection = pxui::ListState::new();
         }
         // Marks index the folder's rows, which another folder replaces.
-        if matches!(intent, Intent::Files(_) | Intent::FilesFilter(_)) && self.selecting && self.route == Route::Files {
+        if matches!(intent, Intent::Files(_) | Intent::FilesFilter(_))
+            && self.selecting
+            && self.route == Route::Files
+        {
             self.selecting = false;
             self.clear_selection();
             self.selection_revision = self.selection_revision.wrapping_add(1);
@@ -615,7 +627,9 @@ impl ShellState {
                 self.query_too_long = true;
                 self.query_revision = self.query_revision.wrapping_add(1);
             }
-            Intent::SortBy(by) => (self.sort, self.ascending) = by.unwrap_or((Sort::Original, true)),
+            Intent::SortBy(by) => {
+                (self.sort, self.ascending) = by.unwrap_or((Sort::Original, true))
+            }
             Intent::ShowSettings => {
                 self.player_expanded = false;
                 self.source_menu = None;
@@ -680,7 +694,7 @@ fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellSta
         ),
         (
             std::sync::Arc::as_ptr(&catalog.library) as usize,
-            catalog.all.is_some()
+            catalog.all.is_some(),
         ),
         player.revision,
         (player.current_id, player.playing),
@@ -688,12 +702,12 @@ fn library_revision(player: &PlayerView<'_>, catalog: &Catalog, state: &ShellSta
         player.settings,
         (
             player.cache_usage.as_ptr() as usize,
-            player.cache_usage.len()
+            player.cache_usage.len(),
         ),
         player.storage_busy,
         (
             player.settings_message.as_ptr() as usize,
-            player.settings_message.len()
+            player.settings_message.len(),
         ),
         (player.message.as_ptr() as usize, player.message.len()),
         if state.files_visible() {
@@ -715,17 +729,24 @@ fn global_shortcut(
     // Extra modifiers held at the end of the frame select a different shortcut.
     let pressed = |key: KeyCode, mods: Mods| {
         let exact = [
-            (KeyCode::Meta, Mods::META), (KeyCode::Alt, Mods::ALT),
-            (KeyCode::Shift, Mods::SHIFT), (KeyCode::Ctrl, Mods::CTRL),
-        ].into_iter().all(|(key, modifier)| modifier == mods || !ui.key_down(key));
-        exact && (ui.key_pressed(key, mods)
-            || mods != Mods::ANY && matches!(key, KeyCode::Char(c) if ui.key_pressed(KeyCode::Char(c.to_ascii_uppercase()), mods)))
+            (KeyCode::Meta, Mods::META),
+            (KeyCode::Alt, Mods::ALT),
+            (KeyCode::Shift, Mods::SHIFT),
+            (KeyCode::Ctrl, Mods::CTRL),
+        ]
+        .into_iter()
+        .all(|(key, modifier)| modifier == mods || !ui.key_down(key));
+        exact
+            && (ui.key_pressed(key, mods)
+                || mods != Mods::ANY
+                    && matches!(key, KeyCode::Char(c) if ui.key_pressed(KeyCode::Char(c.to_ascii_uppercase()), mods)))
     };
     // ⇧⌘O is Add Files. Shift uses the held state, and Command uses the press.
     if ui.key_down(KeyCode::Shift)
         && !ui.key_down(KeyCode::Alt)
         && !ui.key_down(KeyCode::Ctrl)
-        && (ui.key_pressed(KeyCode::Char('o'), Mods::META) || ui.key_pressed(KeyCode::Char('O'), Mods::META))
+        && (ui.key_pressed(KeyCode::Char('o'), Mods::META)
+            || ui.key_pressed(KeyCode::Char('O'), Mods::META))
     {
         return Some(Intent::ChooseAudio);
     }
@@ -807,7 +828,9 @@ fn global_shortcut(
 
 fn back_pressed(ui: &Ui) -> bool {
     ui.key_pressed(KeyCode::Char('['), Mods::META)
-        && ![KeyCode::Shift, KeyCode::Alt, KeyCode::Ctrl].into_iter().any(|key| ui.key_down(key))
+        && ![KeyCode::Shift, KeyCode::Alt, KeyCode::Ctrl]
+            .into_iter()
+            .any(|key| ui.key_down(key))
 }
 
 /// ⌘[ Back: detail to its index, folder to its parent (source root to the source list).
@@ -825,11 +848,7 @@ fn back_shortcut(ui: &Ui, player: &PlayerView<'_>, state: &ShellState) -> Option
 }
 
 /// ⇧⌘N and Delete over the song selection; the songs list itself owns its keys (arrows, Shift ranges, ⌘A, Esc).
-fn selection_shortcut(
-    ui: &Ui,
-    catalog: &Catalog,
-    state: &ShellState,
-) -> Option<Intent> {
+fn selection_shortcut(ui: &Ui, catalog: &Catalog, state: &ShellState) -> Option<Intent> {
     if state.marked_count() == 0 {
         return None;
     }
@@ -838,7 +857,8 @@ fn selection_shortcut(
     if down(KeyCode::Shift)
         && !down(KeyCode::Alt)
         && !down(KeyCode::Ctrl)
-        && (ui.key_pressed(KeyCode::Char('n'), Mods::META) || ui.key_pressed(KeyCode::Char('N'), Mods::META))
+        && (ui.key_pressed(KeyCode::Char('n'), Mods::META)
+            || ui.key_pressed(KeyCode::Char('N'), Mods::META))
     {
         return state
             .selected_song_ids(catalog)
@@ -891,7 +911,15 @@ pub fn shell(
         files::popup(ui, player, target, at, intent);
     }
     if let Some((index, id, key, at)) = state.song_menu.filter(|_| !over_player) {
-        songs::popup(ui, catalog, state, (index, id, key), at, player.sharing, intent);
+        songs::popup(
+            ui,
+            catalog,
+            state,
+            (index, id, key),
+            at,
+            player.sharing,
+            intent,
+        );
     }
     if let Some(target) = state.remove_source {
         files::confirm_remove(ui, player, target, intent);
@@ -935,7 +963,15 @@ pub fn shell(
         queue_sheet(ui, player, catalog, state, intent);
     }
     if let Some((index, id, key, at)) = state.song_menu.filter(|_| over_player) {
-        songs::popup(ui, catalog, state, (index, id, key), at, player.sharing, intent);
+        songs::popup(
+            ui,
+            catalog,
+            state,
+            (index, id, key),
+            at,
+            player.sharing,
+            intent,
+        );
     }
     // Swift's long-press menu blurs the page behind it on a phone.
     if state.song_menu.is_some() && ui.view_size().width < compact::BREAKPOINT {
@@ -970,18 +1006,33 @@ pub fn shell(
                 (rect.w - 24.0).max(0.0),
                 (rect.h - 24.0).max(0.0),
             );
-            paint.fill(Rect::new(x, y, w, h), Fill::new(Rgba::token(PAPER).alpha(240)));
+            paint.fill(
+                Rect::new(x, y, w, h),
+                Fill::new(Rgba::token(PAPER).alpha(240)),
+            );
             // Swift's drop border uses six-point dashes and gaps.
             for vertical in [false, true] {
                 let length = if vertical { h } else { w };
                 for offset in (0..length.ceil() as usize).step_by(12) {
                     let dash = 6.0f32.min(length - offset as f32);
                     if vertical {
-                        paint.fill(Rect::new(x, y + offset as f32, 2.0, dash), Fill::new(Rgba::token(INK)));
-                        paint.fill(Rect::new(x + w - 2.0, y + offset as f32, 2.0, dash), Fill::new(Rgba::token(INK)));
+                        paint.fill(
+                            Rect::new(x, y + offset as f32, 2.0, dash),
+                            Fill::new(Rgba::token(INK)),
+                        );
+                        paint.fill(
+                            Rect::new(x + w - 2.0, y + offset as f32, 2.0, dash),
+                            Fill::new(Rgba::token(INK)),
+                        );
                     } else {
-                        paint.fill(Rect::new(x + offset as f32, y, dash, 2.0), Fill::new(Rgba::token(INK)));
-                        paint.fill(Rect::new(x + offset as f32, y + h - 2.0, dash, 2.0), Fill::new(Rgba::token(INK)));
+                        paint.fill(
+                            Rect::new(x + offset as f32, y, dash, 2.0),
+                            Fill::new(Rgba::token(INK)),
+                        );
+                        paint.fill(
+                            Rect::new(x + offset as f32, y + h - 2.0, dash, 2.0),
+                            Fill::new(Rgba::token(INK)),
+                        );
                     }
                 }
             }
@@ -989,10 +1040,21 @@ pub fn shell(
             // `text` places the layout top, which the painter's own measure in the drawn style puts `baseline` above them
             for (text, baseline, style) in [
                 ("Drop to play", rect.y + rect.h * 0.5 + 7.0, TITLE),
-                ("Folders are indexed. Audio files join Added Files.", rect.y + rect.h * 0.5 + 36.3, NOTE),
+                (
+                    "Folders are indexed. Audio files join Added Files.",
+                    rect.y + rect.h * 0.5 + 36.3,
+                    NOTE,
+                ),
             ] {
-                let Ok(m) = paint.text_service().measure(text, style, None) else { continue };
-                paint.text(pxui::Point::new(rect.x + (rect.w - m.width) * 0.5, baseline - m.baseline), style, 0.0, text);
+                let Ok(m) = paint.text_service().measure(text, style, None) else {
+                    continue;
+                };
+                paint.text(
+                    pxui::Point::new(rect.x + (rect.w - m.width) * 0.5, baseline - m.baseline),
+                    style,
+                    0.0,
+                    text,
+                );
             }
         });
     }
@@ -1018,11 +1080,13 @@ pub fn shell(
     {
         *intent = if state.settings_visible {
             // Swift's settings page: ⌘[ goes back, to the settings list from privacy.
-            (state.settings_menu.is_none() && back_pressed(ui)).then_some(if state.privacy_visible {
-                Intent::ClosePrivacy
-            } else {
-                Intent::CloseSettings
-            })
+            (state.settings_menu.is_none() && back_pressed(ui)).then_some(
+                if state.privacy_visible {
+                    Intent::ClosePrivacy
+                } else {
+                    Intent::CloseSettings
+                },
+            )
         } else {
             global_shortcut(ui, player, catalog, position)
                 .or_else(|| selection_shortcut(ui, catalog, state))
@@ -1055,12 +1119,12 @@ pub fn shell(
     }
 }
 mod kit;
-pub use kit::apply_palette;
-pub use transport::{next_tick, progress_ticks};
-pub(crate) use theme::register_bodies;
 #[cfg(test)]
 pub(crate) use kit::TIGHT_3;
+pub use kit::apply_palette;
 use kit::*;
+pub(crate) use theme::register_bodies;
+pub use transport::{next_tick, progress_ticks};
 mod theme;
 use theme::*;
 mod sidebar;
@@ -1074,7 +1138,7 @@ use now::*;
 mod queue_sheet;
 use queue_sheet::*;
 mod clock;
-use clock::*;
 pub(crate) use clock::stack_fmt;
+use clock::*;
 mod transport;
 use transport::*;

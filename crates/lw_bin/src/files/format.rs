@@ -55,7 +55,11 @@ pub(super) fn age(now: f64, then: Option<f64>) -> String {
     } else {
         ((days / 365.25).floor(), "yr.")
     };
-    let unit = if unit == "day" && count != 1.0 { "days" } else { unit };
+    let unit = if unit == "day" && count != 1.0 {
+        "days"
+    } else {
+        unit
+    };
     if delta < 0.0 {
         format!("in {count} {unit}")
     } else {

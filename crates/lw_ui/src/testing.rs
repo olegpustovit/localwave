@@ -19,11 +19,23 @@ use pxui::{FrameIn, FrameOut, Ui};
 
 /// Runs one frame of `ui` (`Ui::frame`), appends its fingerprint when `LW_FINGERPRINT` is set and returns
 /// the frame's output (damage; its layer pointer is valid until the next frame).
-pub fn frame(ui: &mut Ui, input: &FrameIn, build: &mut dyn FnMut(&mut Ui)) -> Result<FrameOut, pxui::Error> {
+pub fn frame(
+    ui: &mut Ui,
+    input: &FrameIn,
+    build: &mut dyn FnMut(&mut Ui),
+) -> Result<FrameOut, pxui::Error> {
     let out = *ui.frame(input, build)?;
     static FILE: OnceLock<Option<Mutex<File>>> = OnceLock::new();
     let file = FILE.get_or_init(|| {
-        std::env::var_os("LW_FINGERPRINT").map(|path| Mutex::new(File::options().create(true).append(true).open(path).expect("LW_FINGERPRINT: cannot open")))
+        std::env::var_os("LW_FINGERPRINT").map(|path| {
+            Mutex::new(
+                File::options()
+                    .create(true)
+                    .append(true)
+                    .open(path)
+                    .expect("LW_FINGERPRINT: cannot open"),
+            )
+        })
     });
     if let Some(file) = file {
         // The mutex orders this process's threads; the file lock orders processes (cargo t runs cases apart).
@@ -47,15 +59,23 @@ fn dump(ui: &Ui, file: &mut File) {
         for i in layer.instances {
             count += 1;
             for h in [&mut geom, &mut full] {
-                for v in i.rect { h.add(&v.to_bits().to_le_bytes()); }
-                for v in i.clip { h.add(&v.to_le_bytes()); }
+                for v in i.rect {
+                    h.add(&v.to_bits().to_le_bytes());
+                }
+                for v in i.clip {
+                    h.add(&v.to_le_bytes());
+                }
                 h.add(&i.color);
                 h.add(&i.color2);
-                for v in i.radii { h.add(&v.to_le_bytes()); }
+                for v in i.radii {
+                    h.add(&v.to_le_bytes());
+                }
                 h.add(&i.width.to_le_bytes());
                 h.add(&[i.kind, i.flags]);
             }
-            for v in i.aux.into_iter().chain(i.extra) { full.add(&v.to_le_bytes()); }
+            for v in i.aux.into_iter().chain(i.extra) {
+                full.add(&v.to_le_bytes());
+            }
             full.add(&i.view.to_le_bytes());
             full.add(&i.clip_radius.to_le_bytes());
         }
@@ -63,12 +83,22 @@ fn dump(ui: &Ui, file: &mut File) {
     for node in ui.a11y_nodes() {
         a11y.add(&node.role.to_le_bytes());
         a11y.add(ui.a11y_name_of(node).as_bytes());
-        for v in [node.rect.x, node.rect.y, node.rect.w, node.rect.h] { a11y.add(&v.to_bits().to_le_bytes()); }
+        for v in [node.rect.x, node.rect.y, node.rect.w, node.rect.h] {
+            a11y.add(&v.to_bits().to_le_bytes());
+        }
         a11y.add(&node.states.to_le_bytes());
         a11y.add(&node.actions.to_le_bytes());
     }
-    let mut out = Out { buf: [0; 4096], len: 0, file };
-    let _ = writeln!(out, "F\t{test}\t{n}\t{count}\t{:016x}\t{:016x}\t{:016x}", geom.0, full.0, a11y.0);
+    let mut out = Out {
+        buf: [0; 4096],
+        len: 0,
+        file,
+    };
+    let _ = writeln!(
+        out,
+        "F\t{test}\t{n}\t{count}\t{:016x}\t{:016x}\t{:016x}",
+        geom.0, full.0, a11y.0
+    );
     for node in ui.a11y_nodes() {
         let name = ui.a11y_name_of(node);
         if name.is_empty() && node.actions == 0 {

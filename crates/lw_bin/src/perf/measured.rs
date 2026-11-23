@@ -14,7 +14,10 @@ const TYPED: &str = "Track 00001-remastered";
 
 fn wheel(frame: usize, events: &mut Vec<Event>) {
     events.push(Event::PointerMoved((650.0, 400.0)));
-    events.push(Event::Scrolled((0.0, if frame % 40 < 20 { -1.0 } else { 1.0 })));
+    events.push(Event::Scrolled((
+        0.0,
+        if frame % 40 < 20 { -1.0 } else { 1.0 },
+    )));
 }
 
 /// Trackpad touch, five drags, lift, then decaying momentum; direction flips each 40-frame cycle.
@@ -32,7 +35,11 @@ fn fling(frame: usize, events: &mut Vec<Event>) {
     if phase == 0 {
         events.push(Event::PointerMoved((650.0, 400.0)));
     }
-    events.push(Event::TrackpadScrolled { delta: (0.0, dir * delta), phase: phase_kind, time });
+    events.push(Event::TrackpadScrolled {
+        delta: (0.0, dir * delta),
+        phase: phase_kind,
+        time,
+    });
 }
 
 /// Fill `events` for a measured workload at `frame` (counted from the first driven frame).
@@ -48,12 +55,18 @@ pub(super) fn events(
         Workload::Fling => fling(frame, events),
         Workload::ReverseScroll => {
             events.push(Event::PointerMoved((650.0, 400.0)));
-            events.push(Event::Scrolled((0.0, if (frame / 5) % 2 == 0 { -3.0 } else { 3.0 })));
+            events.push(Event::Scrolled((
+                0.0,
+                if (frame / 5) % 2 == 0 { -3.0 } else { 3.0 },
+            )));
         }
         Workload::Jump => {
             events.push(Event::PointerMoved((650.0, 400.0)));
             if frame % 10 == 0 {
-                events.push(Event::Scrolled((0.0, if (frame / 10) % 2 == 0 { -500.0 } else { 500.0 })));
+                events.push(Event::Scrolled((
+                    0.0,
+                    if (frame / 10) % 2 == 0 { -500.0 } else { 500.0 },
+                )));
             }
         }
         Workload::SearchTyping | Workload::TextTyping | Workload::Resize => {
@@ -180,12 +193,18 @@ mod tests {
             buffer.clear();
             mem_sys::local_reset();
             // The menu target needs a real a11y tree; its events are covered by the drive tests.
-            if workload == Workload::FirstMenuOpen && (frame + 2).checked_sub(from).is_some_and(|step| step <= 10) {
+            if workload == Workload::FirstMenuOpen
+                && (frame + 2).checked_sub(from).is_some_and(|step| step <= 10)
+            {
                 out.push(Vec::new());
                 continue;
             }
             events(workload, frame, from, &ui, &mut buffer).unwrap();
-            assert_eq!(mem_sys::local_alloc_count(), 0, "{workload:?} frame {frame}");
+            assert_eq!(
+                mem_sys::local_alloc_count(),
+                0,
+                "{workload:?} frame {frame}"
+            );
             out.push(buffer.clone());
         }
         out
@@ -201,10 +220,26 @@ mod tests {
     #[test]
     fn fling_touches_drags_lifts_and_decays_in_both_directions() {
         let out = run(Workload::Fling);
-        assert!(matches!(out[0].last(), Some(Event::TrackpadScrolled { phase: ScrollPhase::Touched, .. })));
-        assert!(matches!(out[6].last(), Some(Event::TrackpadScrolled { phase: ScrollPhase::Lifted, .. })));
+        assert!(matches!(
+            out[0].last(),
+            Some(Event::TrackpadScrolled {
+                phase: ScrollPhase::Touched,
+                ..
+            })
+        ));
+        assert!(matches!(
+            out[6].last(),
+            Some(Event::TrackpadScrolled {
+                phase: ScrollPhase::Lifted,
+                ..
+            })
+        ));
         let momentum = |frame: usize| match out[frame].last() {
-            Some(Event::TrackpadScrolled { delta, phase: ScrollPhase::Momentum, .. }) => delta.1,
+            Some(Event::TrackpadScrolled {
+                delta,
+                phase: ScrollPhase::Momentum,
+                ..
+            }) => delta.1,
             other => panic!("{other:?}"),
         };
         assert!(momentum(7).abs() > momentum(20).abs() && momentum(7) < 0.0);
@@ -229,21 +264,34 @@ mod tests {
         assert_eq!(from, super::super::WARMUP_FRAMES + IDLE_FRAMES);
         let out = run(Workload::Idle600);
         assert!(!out[0].is_empty() && !out[super::super::WARMUP_FRAMES - 3].is_empty());
-        assert!(out[super::super::WARMUP_FRAMES - 2..from - 2].iter().all(Vec::is_empty));
+        assert!(
+            out[super::super::WARMUP_FRAMES - 2..from - 2]
+                .iter()
+                .all(Vec::is_empty)
+        );
         assert!(!out[from - 2].is_empty());
     }
 
     #[test]
     fn typing_navigation_and_clock_inputs_follow_their_schedules() {
         let mut state = lw_ui::ShellState::default();
-        for workload in [Workload::SearchTyping, Workload::TextTyping, Workload::NonSongLists, Workload::FirstNavigation] {
+        for workload in [
+            Workload::SearchTyping,
+            Workload::TextTyping,
+            Workload::NonSongLists,
+            Workload::FirstNavigation,
+        ] {
             if workload == Workload::TextTyping {
                 state.apply(lw_ui::Intent::NewList(None));
             }
             for frame in 0..super::super::WARMUP_FRAMES + super::super::MEASURED_FRAMES {
                 mem_sys::local_reset();
                 state_input(workload, frame, super::super::WARMUP_FRAMES, &mut state);
-                assert_eq!(mem_sys::local_alloc_count(), 0, "{workload:?} frame {frame}");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "{workload:?} frame {frame}"
+                );
             }
         }
         assert_eq!(resize_extent(0), (1440.0, 872.0));

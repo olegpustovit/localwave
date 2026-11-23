@@ -163,11 +163,16 @@ fn string(p: &mut P) -> Result<String, String> {
                     b'f' => '\u{c}',
                     b'u' => {
                         let hex = p.0.get(p.1..p.1 + 4).ok_or("Short \\u escape")?;
-                        let unit = u32::from_str_radix(std::str::from_utf8(hex).map_err(|e| e.to_string())?, 16)
-                            .map_err(|e| e.to_string())?;
+                        let unit = u32::from_str_radix(
+                            std::str::from_utf8(hex).map_err(|e| e.to_string())?,
+                            16,
+                        )
+                        .map_err(|e| e.to_string())?;
                         p.1 += 4;
                         let code = match (high.take(), unit) {
-                            (Some(h), 0xDC00..=0xDFFF) => 0x10000 + ((h - 0xD800) << 10) + (unit - 0xDC00),
+                            (Some(h), 0xDC00..=0xDFFF) => {
+                                0x10000 + ((h - 0xD800) << 10) + (unit - 0xDC00)
+                            }
                             (_, 0xD800..=0xDBFF) => {
                                 high = Some(unit);
                                 continue;

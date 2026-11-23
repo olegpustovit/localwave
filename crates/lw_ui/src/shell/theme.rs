@@ -8,11 +8,22 @@ use super::*;
 const LINE: f64 = 1.4;
 /// One line of `points` text in the UI face: a line box 1.4 times the size high, end ellipsis, a whole-pixel fitted width.
 pub(super) const fn line_style(points: f32) -> Label {
-    Label::BODY.size(points).line_height(points * 1.4).h_px((points as f64 * LINE) as f32).lines(1).ellipsis().whole_pixels()
+    Label::BODY
+        .size(points)
+        .line_height(points * 1.4)
+        .h_px((points as f64 * LINE) as f32)
+        .lines(1)
+        .ellipsis()
+        .whole_pixels()
 }
 /// Running text at `points` filling its parent's width: word wrapped, lines 1.4 times the size, read as a paragraph.
 const fn paragraph_style(points: f32) -> Label {
-    Label::BODY.size(points).line_height(points * 1.4).wrap().grow().role(Role::Paragraph)
+    Label::BODY
+        .size(points)
+        .line_height(points * 1.4)
+        .wrap()
+        .grow()
+        .role(Role::Paragraph)
 }
 pub(super) const MONO_9: Label = line_style(9.0).font(1);
 pub(super) const MONO_11: Label = line_style(11.0).font(1);
@@ -22,7 +33,15 @@ pub(super) const PARAGRAPH_13: Label = paragraph_style(13.0);
 pub(super) const PARAGRAPH_14: Label = paragraph_style(14.0);
 pub(super) const PARAGRAPH_15: Label = paragraph_style(15.0);
 /// The phone album title (Swift's `phoneAlbumMetadata`): 24 points medium, tracked -0.72, wrapping in 27.6-point lines.
-pub(super) const PHONE_ALBUM_TITLE: Label = Label::BODY.size(24.0).line_height(27.6).weight(500).tracking(TIGHT_3).wrap().grow().role(Role::Paragraph).color(INK);
+pub(super) const PHONE_ALBUM_TITLE: Label = Label::BODY
+    .size(24.0)
+    .line_height(27.6)
+    .weight(500)
+    .tracking(TIGHT_3)
+    .wrap()
+    .grow()
+    .role(Role::Paragraph)
+    .color(INK);
 pub(super) const TEXT_11: Label = line_style(11.0);
 pub(super) const TEXT_12: Label = line_style(12.0);
 pub(super) const TEXT_13: Label = line_style(13.0);
@@ -51,7 +70,15 @@ pub(super) const LEAD_DIM: Label = TEXT_15.color(SECONDARY);
 pub(super) const MONO_DIM: Label = MONO_12.color(SECONDARY);
 /// One line in the UI face filling its row: a `line_height`-point line box, end ellipsis (Swift's fixed-frame title `Text`).
 const fn line_box(points: f32, line_height: f32, weight: u16, tracking: f32) -> Label {
-    Label::BODY.size(points).line_height(line_height).weight(weight).tracking(tracking).lines(1).ellipsis().grow().h_px(line_height)
+    Label::BODY
+        .size(points)
+        .line_height(line_height)
+        .weight(weight)
+        .tracking(tracking)
+        .lines(1)
+        .ellipsis()
+        .grow()
+        .h_px(line_height)
 }
 /// A page title (Library, Settings, a list or folder name): 32 points, ink.
 pub(super) const PAGE_TITLE: Label = line_box(32.0, 33.6, 500, -0.035).color(INK);
@@ -75,7 +102,13 @@ pub(super) const ARTIST_SUMMARY: Label = line_box(14.0, 19.6, 400, 0.0).color(SE
 pub(super) const SECTION_CAPTION: Label = line_box(13.0, 18.2, 500, 0.0).color(SECONDARY);
 /// One phone line at `points` filling its row: lines 1.4 times the size, end ellipsis, the theme's weight.
 const fn phone_line(points: f32) -> Label {
-    Label::BODY.size(points).line_height(points * 1.4).lines(1).ellipsis().grow().h_px(points * 1.4)
+    Label::BODY
+        .size(points)
+        .line_height(points * 1.4)
+        .lines(1)
+        .ellipsis()
+        .grow()
+        .h_px(points * 1.4)
 }
 /// A phone page title: 28 points, ink.
 pub(super) const PHONE_TITLE: Label = phone_line(28.0).color(INK);
@@ -141,7 +174,9 @@ pub(super) const FOLDER_CARD: Look = PAPER_FILL.border(Rgba::token(super::kit::L
 pub(super) const FOLDER_CARD_ERROR: Look = PAPER_FILL.border(Rgba::token(INK), 1.0);
 /// `color` text at `size` points.
 const fn text(color: ColorToken, size: f32) -> Look {
-    Look::NONE.text(Rgba::token(color)).font(Font::BODY.size(size))
+    Look::NONE
+        .text(Rgba::token(color))
+        .font(Font::BODY.size(size))
 }
 /// Secondary 14-point text: a sidebar "+ label" row, a text link.
 pub(super) const LINK_TEXT: Look = text(SECONDARY, 14.0);
@@ -160,13 +195,16 @@ pub(super) const INK_LOOKS: States = States::of(INK_FILL);
 /// A key with no plate in secondary ink (the phone back key).
 pub(super) const DIM_LOOKS: States = States::of(SECONDARY_TEXT);
 /// A play, shuffle or option key: ink on Swift's `key2` plate (a kept Keep offline key looks the same).
-pub(super) const PLAY_KEY_LOOKS: States = States::of(Look::NONE.fill(Rgba::token(KEY2)).text(Rgba::token(INK)));
+pub(super) const PLAY_KEY_LOOKS: States =
+    States::of(Look::NONE.fill(Rgba::token(KEY2)).text(Rgba::token(INK)));
 /// The phone Play key: paper on ink.
 pub(super) const PLAY_PRIMARY_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
 /// A selection deck key: ink on the key plate, tertiary while disabled.
-pub(super) const DECK_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).disabled(KEY_FILL.text(Rgba::token(TERTIARY)));
+pub(super) const DECK_LOOKS: States =
+    States::of(KEY_FILL.text(Rgba::token(INK))).disabled(KEY_FILL.text(Rgba::token(TERTIARY)));
 /// A phone mode key: ink on the key fill, paper on ink while on (checked).
-pub(super) const MODE_KEY_LOOKS: States = States::of(KEY_FILL.text(Rgba::token(INK))).checked(INK_FILL.text(Rgba::token(PAPER)));
+pub(super) const MODE_KEY_LOOKS: States =
+    States::of(KEY_FILL.text(Rgba::token(INK))).checked(INK_FILL.text(Rgba::token(PAPER)));
 /// `rest` while idle, `lit` while hovered or held.
 const fn lit(rest: Look, lit: Look) -> States {
     States::of(rest).hover(lit).pressed(lit)
@@ -174,9 +212,13 @@ const fn lit(rest: Look, lit: Look) -> States {
 /// An icon key with no resting plate: the panel fill while hovered or held, ink icon.
 pub(super) const ICON_LOOKS: States = lit(INK_TEXT, INK_TEXT.fill(Rgba::token(PANEL)));
 /// A secondary icon key with no resting plate (the phone rows' "…"): the panel fill while hovered or held.
-pub(super) const ICON_DIM_LOOKS: States = lit(SECONDARY_TEXT, SECONDARY_TEXT.fill(Rgba::token(PANEL)));
+pub(super) const ICON_DIM_LOOKS: States =
+    lit(SECONDARY_TEXT, SECONDARY_TEXT.fill(Rgba::token(PANEL)));
 /// An icon key on the key plate.
-pub(super) const ICON_PLATE_LOOKS: States = lit(INK_TEXT.fill(Rgba::token(KEY)), INK_TEXT.fill(Rgba::token(PANEL)));
+pub(super) const ICON_PLATE_LOOKS: States = lit(
+    INK_TEXT.fill(Rgba::token(KEY)),
+    INK_TEXT.fill(Rgba::token(PANEL)),
+);
 /// An icon key in inverse (Play, an active mode): paper icon on ink.
 pub(super) const ICON_INVERSE_LOOKS: States = States::of(INK_FILL.text(Rgba::token(PAPER)));
 /// A sidebar route row: paper, the panel fill while hovered or held, the selected fill while selected (checked).
@@ -200,25 +242,41 @@ pub(super) const PALETTE_PROMPT: Look = Look::NONE.text(Rgba::token(SECONDARY)).
 /// A song or artist table row: paper, a 60 percent panel wash while hovered or held, the selected fill while selected (checked).
 pub(super) const SONG_ROW_LOOKS: States = lit(PAPER_FILL, PANEL_WASH).checked(SELECTED_FILL);
 /// The keyboard's row (focused): the kit's row focus treatment, a 1-point accent rule along its leading edge.
-const FOCUS_RULE: Look = PAPER_FILL.border(Rgba::token(ColorToken::ACCENT), 1.0).sides(pxui::draw::flags::rect::LEFT);
+const FOCUS_RULE: Look = PAPER_FILL
+    .border(Rgba::token(ColorToken::ACCENT), 1.0)
+    .sides(pxui::draw::flags::rect::LEFT);
 /// A phone song row: paper (a touch highlights through the row's gesture), the selected fill while marked, the accent rule on the
 /// keyboard's row.
-pub(super) const PHONE_ROW_LOOKS: States = States::of(PAPER_FILL).checked(SELECTED_FILL).focus(FOCUS_RULE);
+pub(super) const PHONE_ROW_LOOKS: States = States::of(PAPER_FILL)
+    .checked(SELECTED_FILL)
+    .focus(FOCUS_RULE);
 /// A desktop folder table row: paper over a 1-point line rule (Swift's rows take no hover or selection look); the keyboard's row
 /// takes the accent along its leading edge and its rule.
-const FOLDER_ROW_LOOKS: States = States::of(PAPER_FILL.border(Rgba::token(super::kit::LINE), 1.0).sides(pxui::draw::flags::rect::BOTTOM))
-    .focus(FOCUS_RULE.sides(pxui::draw::flags::rect::LEFT | pxui::draw::flags::rect::BOTTOM));
+const FOLDER_ROW_LOOKS: States = States::of(
+    PAPER_FILL
+        .border(Rgba::token(super::kit::LINE), 1.0)
+        .sides(pxui::draw::flags::rect::BOTTOM),
+)
+.focus(FOCUS_RULE.sides(pxui::draw::flags::rect::LEFT | pxui::draw::flags::rect::BOTTOM));
 /// Swift's quick hover and release fade (`motion::out(QUICK)`, 140 ms) as a node's own transition.
-pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier { duration: crate::motion::QUICK, points: crate::motion::OUT };
+pub(super) const FADE: pxui::ui::Transition = pxui::ui::Transition::Bezier {
+    duration: crate::motion::QUICK,
+    points: crate::motion::OUT,
+};
 /// LocalWave's icon key `w` by `h` points: it dips to 0.96 while held, springing in at the instant pace and back at the base pace.
 pub(super) const fn icon_key(w: f32, h: f32) -> pxui::IconButton<'static> {
-    pxui::IconButton::sized(w, h).press_scale(0.96).press_curves(&PRESS)
+    pxui::IconButton::sized(w, h)
+        .press_scale(0.96)
+        .press_curves(&PRESS)
 }
 /// The icon key sizes LocalWave repeats: 36 and 44 points square, and 44 by 40.
 pub(super) const ICON_36: pxui::IconButton = icon_key(36.0, 36.0);
 pub(super) const ICON_44: pxui::IconButton = icon_key(44.0, 44.0);
 pub(super) const ICON_44X40: pxui::IconButton = icon_key(44.0, 40.0);
-const PRESS: [pxui::theme::Curve; 2] = [crate::motion::spring(crate::motion::INSTANT), crate::motion::spring(crate::motion::BASE)];
+const PRESS: [pxui::theme::Curve; 2] = [
+    crate::motion::spring(crate::motion::INSTANT),
+    crate::motion::spring(crate::motion::BASE),
+];
 
 /// The localwave-* body variants (`Button::variant`, `SelectionList::variant`, `Badge::variant`, `Progress::variant`): one number
 /// each, so a body never mistakes another kind's variant for its own.
@@ -288,14 +346,26 @@ pub(super) mod variant {
 const TOOL_LABEL: Label = TEXT_13;
 /// A tool key: paper, the panel fill while hovered or held, the selected fill while checked (the hover wash then stays off); its
 /// icon and label secondary, ink while checked.
-pub(super) const TOOL_LOOKS: States = lit(PAPER_FILL.text(Rgba::token(SECONDARY)), PANEL_FILL.text(Rgba::token(SECONDARY))).checked(SELECTED_FILL.text(Rgba::token(INK)));
+pub(super) const TOOL_LOOKS: States = lit(
+    PAPER_FILL.text(Rgba::token(SECONDARY)),
+    PANEL_FILL.text(Rgba::token(SECONDARY)),
+)
+.checked(SELECTED_FILL.text(Rgba::token(INK)));
 /// A tool key (`localwave-button` / `TOOL`): fit to its icon and label, 30 points high, 10 in at each side, 6 between.
-pub(super) const TOOL: pxui::Button = pxui::Button::DEFAULT.variant(variant::TOOL).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0).label(TOOL_LABEL).look(&TOOL_LOOKS);
+pub(super) const TOOL: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::TOOL)
+    .size(Size::Fit, Size::Px(30.0))
+    .pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+    .gap(6.0)
+    .label(TOOL_LABEL)
+    .look(&TOOL_LOOKS);
 /// A Find filter chip (`localwave-chip` / `CHIP`).
 pub(super) const CHIP: pxui::Checkbox = pxui::Checkbox::DEFAULT.variant(variant::CHIP);
 /// The albums' sort keys (`localwave-segmented` / `SORT`): 30 points high, named for the strip.
-pub(super) const SORT: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(30.0).name("Sort albums").variant(variant::SORT);
-
+pub(super) const SORT: pxui::Segmented = pxui::Segmented::DEFAULT
+    .h_px(30.0)
+    .name("Sort albums")
+    .variant(variant::SORT);
 
 /// Registers LocalWave's bodies once, outside frames and before its themes are parsed; the app themes' `KIND.body` lines select
 /// them and a style's `variant` picks the structure inside one.
@@ -348,26 +418,73 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         super::files::sheet_key(ui, c);
         return;
     }
-    if ![variant::ROW, variant::TOOL, variant::KEY, variant::LINK, variant::PRIMARY].contains(&c.variant) {
+    if ![
+        variant::ROW,
+        variant::TOOL,
+        variant::KEY,
+        variant::LINK,
+        variant::PRIMARY,
+    ]
+    .contains(&c.variant)
+    {
         ui.slot(c.built_in);
         return;
     }
     let tool = ![variant::ROW, variant::PRIMARY].contains(&c.variant);
     let [l, t, r, b] = c.padding;
-    ui.set_node_layout(&c.line, &Node::row().w(c.width().unwrap_or(Size::Fit)).h(c.height().unwrap_or(Size::Fit)));
+    ui.set_node_layout(
+        &c.line,
+        &Node::row()
+            .w(c.width().unwrap_or(Size::Fit))
+            .h(c.height().unwrap_or(Size::Fit)),
+    );
     // a column (`Button::axis`): a ROW stacks its title over its detail from the top; a centred KEY (the deck) its icon over its label
-    let row = if c.content_axis() == Some(Axis::Column) { Node::column().align(if c.centered() { Align::Center } else { Align::Start }) } else { Node::row().align(Align::Center) };
-    let row = row.w(if c.width().is_none() { Size::Fit } else { Size::Grow }).h(Size::Grow).padding(Edges::new(l, t, r, b)).gap(c.gap);
-    let row = if c.variant == variant::TOOL { row.transition(Some(FADE)) } else { row };
-    let row = if c.centered() || c.variant == variant::PRIMARY { row.justify(Justify::Center) } else { row };
+    let row = if c.content_axis() == Some(Axis::Column) {
+        Node::column().align(if c.centered() {
+            Align::Center
+        } else {
+            Align::Start
+        })
+    } else {
+        Node::row().align(Align::Center)
+    };
+    let row = row
+        .w(if c.width().is_none() {
+            Size::Fit
+        } else {
+            Size::Grow
+        })
+        .h(Size::Grow)
+        .padding(Edges::new(l, t, r, b))
+        .gap(c.gap);
+    let row = if c.variant == variant::TOOL {
+        row.transition(Some(FADE))
+    } else {
+        row
+    };
+    let row = if c.centered() || c.variant == variant::PRIMARY {
+        row.justify(Justify::Center)
+    } else {
+        row
+    };
     ui.set_node_layout(&c.row, &row);
     if c.variant == variant::LINK {
         // the text over a 1-point rule as wide as it, filled by the button's look (ink without one: `SECONDARY_RULE`, `LINE_RULE`)
         ui.column(Node::column().w(Size::Fit).h(Size::Fit), |ui| {
-            ui.label(c.text_of(&c.label), c.label().unwrap_or(TEXT_14.color(SECONDARY)));
+            ui.label(
+                c.text_of(&c.label),
+                c.label().unwrap_or(TEXT_14.color(SECONDARY)),
+            );
             // a plain button's looks fill nothing: its rule is ink
-            let rule = c.states_of(&c.states).map(|s| s.pick(State::default())).filter(|l| l.fill != BARE.pick(State::default()).fill).unwrap_or(INK_RULE.pick(State::default()));
-            ui.node("underline", Node::column().w(Size::Grow).h_px(1.0).look(*rule));
+            let rule = c
+                .states_of(&c.states)
+                .map(|s| s.pick(State::default()))
+                .filter(|l| l.fill != BARE.pick(State::default()).fill)
+                .unwrap_or(INK_RULE.pick(State::default()));
+            ui.node(
+                "underline",
+                Node::column().w(Size::Grow).h_px(1.0).look(*rule),
+            );
         });
         return;
     }
@@ -377,17 +494,31 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         ui.style(&c.row, states, state);
     }
     // a destructive key (`Button::danger`) inks in the danger colour unless disabled
-    let ink = if c.danger() && !state.disabled { Some(Rgba::token(DANGER)) } else { states.map(|s| s.pick(state).text).or(c.label().and_then(|l| l.fields().color).map(Rgba::token)) };
+    let ink = if c.danger() && !state.disabled {
+        Some(Rgba::token(DANGER))
+    } else {
+        states
+            .map(|s| s.pick(state).text)
+            .or(c.label().and_then(|l| l.fields().color).map(Rgba::token))
+    };
     let mut _icon = None;
     // a ROW's icon (the sidebar's lens and plus) inks in its label's colour; its look only fills
-    let icon_ink = if tool { ink } else { c.label().and_then(|l| l.fields().color).map(Rgba::token) };
+    let icon_ink = if tool {
+        ink
+    } else {
+        c.label().and_then(|l| l.fields().color).map(Rgba::token)
+    };
     if let (Some(pxui::Icon::Draw(draw, word)), Some(ink)) = (c.icon(), icon_ink) {
         let side = if c.icon_size > 0.0 { c.icon_size } else { 20.0 };
         let icon = ui.node("icon", Node::column().w_px(side).h_px(side));
         ui.canvas(&icon, move |paint, rect| draw(paint, rect, ink, word));
         _icon = Some(icon);
     }
-    let (glyph, text, accessory) = (c.text_of(&c.lead), c.text_of(&c.label), c.text_of(&c.accessory));
+    let (glyph, text, accessory) = (
+        c.text_of(&c.lead),
+        c.text_of(&c.label),
+        c.text_of(&c.accessory),
+    );
     if !glyph.is_empty() && !tool {
         ui.label(glyph, ROW_GLYPH);
     }
@@ -401,13 +532,25 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         (true, _) => {}
         // the tool's label is the button's name: no second accessible node
         (false, Some(style)) if tool => {
-            let _copy = ui.label(text, style.color(ink.and_then(Rgba::as_token).unwrap_or(SECONDARY)).role(Role::Unknown));
+            let _copy = ui.label(
+                text,
+                style
+                    .color(ink.and_then(Rgba::as_token).unwrap_or(SECONDARY))
+                    .role(Role::Unknown),
+            );
             #[cfg(test)]
-            if let Some(icon) = _icon { super::find::tests::tool_built(text, icon, _copy) }
+            if let Some(icon) = _icon {
+                super::find::tests::tool_built(text, icon, _copy)
+            }
         }
-        (false, Some(style)) => { ui.label(text, style); }
+        (false, Some(style)) => {
+            ui.label(text, style);
+        }
         (false, None) => {
-            let title = ui.node("title", Node::column().w(Size::Grow).h(Size::Grow).look(ROW_TEXT));
+            let title = ui.node(
+                "title",
+                Node::column().w(Size::Grow).h(Size::Grow).look(ROW_TEXT),
+            );
             ui.text(&title, text);
         }
     }
@@ -415,7 +558,10 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
         ui.label(detail, c.detail_label().unwrap_or(CAPTION));
     }
     if !accessory.is_empty() {
-        ui.label(accessory, c.accessory_label().unwrap_or(MONO_11.color(SECONDARY)));
+        ui.label(
+            accessory,
+            c.accessory_label().unwrap_or(MONO_11.color(SECONDARY)),
+        );
     }
 }
 
@@ -423,7 +569,10 @@ fn button_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
 /// card) and a full one (the phone's expanded player) are paper edge to edge, without the kit sheet's 1-point edge; a centred sheet
 /// is the kit's as it is.
 fn modal_body(ui: &mut Ui, c: &pxui::bodies::ModalConfig) {
-    if matches!(c.presentation(), pxui::Presentation::Bottom | pxui::Presentation::Top | pxui::Presentation::Full) {
+    if matches!(
+        c.presentation(),
+        pxui::Presentation::Bottom | pxui::Presentation::Top | pxui::Presentation::Full
+    ) {
         let layout = ui.node_layout(&c.node).padding(Edges::ZERO);
         ui.set_node_layout(&c.node, &layout);
         ui.style(&c.node, &PAPER_LOOKS, State::default());
@@ -444,32 +593,83 @@ fn segment_body(ui: &mut Ui, c: &pxui::bodies::SegmentedConfig) {
         let grow = c.grow != 0;
         let size = if grow { Size::Grow } else { Size::Fit };
         ui.set_node_layout(&c.line, &Node::row().w(size).h(Size::Fit));
-        ui.set_node_layout(&c.strip, &if grow { Node::row().w(Size::Grow).h(Size::Fit) } else { Node::row().w(Size::Fit).h_px(28.2 + 2.0 * c.padding) }.pad(c.padding));
+        ui.set_node_layout(
+            &c.strip,
+            &if grow {
+                Node::row().w(Size::Grow).h(Size::Fit)
+            } else {
+                Node::row().w(Size::Fit).h_px(28.2 + 2.0 * c.padding)
+            }
+            .pad(c.padding),
+        );
         ui.style(&c.strip, &PANEL_LOOKS, State::default());
         // the stored choice: the controller applies a press a frame later
         let chosen = c.stored().or(c.selected()) == Some(c.index);
         let text = c.text_of(&c.text);
         let node = if grow {
             let natural = ui.text_service().width(text, TEXT_13, None).unwrap_or(0.0);
-            Node::row().w(Size::Grow).grow(natural + 20.0).h(Size::Fit).padding(Edges::new(10.0, 5.0, 10.0, 5.0))
+            Node::row()
+                .w(Size::Grow)
+                .grow(natural + 20.0)
+                .h(Size::Fit)
+                .padding(Edges::new(10.0, 5.0, 10.0, 5.0))
         } else {
             Node::row().w(Size::Fit).h_px(28.2).pad_x(10.0)
         };
         ui.set_node_layout(&c.node, &node.align(Align::Center).justify(Justify::Center));
-        ui.style(&c.node, if chosen { &CHOICE_ON_LOOKS } else { &CHOICE_LOOKS }, State::default());
-        let label = TEXT_13.color(if chosen { PAPER } else { SECONDARY }).role(Role::Unknown);
-        ui.label(text, if grow { CHIP_WRAP.color(if chosen { PAPER } else { SECONDARY }) } else { label });
+        ui.style(
+            &c.node,
+            if chosen {
+                &CHOICE_ON_LOOKS
+            } else {
+                &CHOICE_LOOKS
+            },
+            State::default(),
+        );
+        let label = TEXT_13
+            .color(if chosen { PAPER } else { SECONDARY })
+            .role(Role::Unknown);
+        ui.label(
+            text,
+            if grow {
+                CHIP_WRAP.color(if chosen { PAPER } else { SECONDARY })
+            } else {
+                label
+            },
+        );
         return;
     }
     ui.set_node_layout(&c.line, &Node::row().w(Size::Fit).h_px(30.0));
     ui.set_node_layout(&c.strip, &Node::row().w(Size::Fit).h(Size::Grow).gap(8.0));
-    ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h_px(30.0).pad_x(10.0).align(Align::Center));
+    ui.set_node_layout(
+        &c.node,
+        &Node::row()
+            .w(Size::Fit)
+            .h_px(30.0)
+            .pad_x(10.0)
+            .align(Align::Center),
+    );
     let chosen = c.selected() == Some(c.index);
-    ui.style(&c.node, if chosen { &SORT_CHOSEN } else { &PAPER_LOOKS }, State::default());
-    ui.label(c.text_of(&c.text), TEXT_13.color(if chosen { INK } else { SECONDARY }).role(Role::Unknown));
+    ui.style(
+        &c.node,
+        if chosen { &SORT_CHOSEN } else { &PAPER_LOOKS },
+        State::default(),
+    );
+    ui.label(
+        c.text_of(&c.text),
+        TEXT_13
+            .color(if chosen { INK } else { SECONDARY })
+            .role(Role::Unknown),
+    );
 }
 /// A growing chip's text: 13 points in 18.2-point lines, wrapped and centred (Swift's `multilineTextAlignment(.center)`).
-const CHIP_WRAP: Label = Label::BODY.size(13.0).line_height(18.2).wrap().align(pxui::TextAlign::Center).grow().role(Role::Unknown);
+const CHIP_WRAP: Label = Label::BODY
+    .size(13.0)
+    .line_height(18.2)
+    .wrap()
+    .align(pxui::TextAlign::Center)
+    .grow()
+    .role(Role::Unknown);
 /// The phone deck behind its tabs: the selected fill (Swift's panel2).
 const TABBAR_DECK: States = States::of(SELECTED_FILL);
 /// A phone deck tab (Swift's `navigationDeck`): the key plate, the panel while in use (checked).
@@ -491,26 +691,82 @@ fn tabs_body(ui: &mut Ui, c: &pxui::bodies::TabsConfig) {
     if c.variant == variant::MODE {
         ui.set_node_layout(&c.bar, &Node::row().w(Size::Fit).h_px(44.0).gap(20.0));
         ui.set_node_layout(&c.node, &Node::column().w(Size::Fit).h(Size::Grow));
-        ui.row(Node::row().w(Size::Fit).h_px(42.0).gap(6.0).align(Align::Center), |ui| {
-            let ink = MODE_LOOKS.pick(state).text.as_token().unwrap_or(SECONDARY);
-            ui.label(c.text_of(&c.text), Label::BODY.size(15.0).line_height(21.0).h_px(21.0).lines(1).ellipsis().color(ink).role(Role::Unknown));
-            ui.label(c.text_of(&c.detail), Label::BODY.size(13.0).line_height(18.2).h_px(18.2).lines(1).ellipsis().color(SECONDARY));
-        });
+        ui.row(
+            Node::row()
+                .w(Size::Fit)
+                .h_px(42.0)
+                .gap(6.0)
+                .align(Align::Center),
+            |ui| {
+                let ink = MODE_LOOKS.pick(state).text.as_token().unwrap_or(SECONDARY);
+                ui.label(
+                    c.text_of(&c.text),
+                    Label::BODY
+                        .size(15.0)
+                        .line_height(21.0)
+                        .h_px(21.0)
+                        .lines(1)
+                        .ellipsis()
+                        .color(ink)
+                        .role(Role::Unknown),
+                );
+                ui.label(
+                    c.text_of(&c.detail),
+                    Label::BODY
+                        .size(13.0)
+                        .line_height(18.2)
+                        .h_px(18.2)
+                        .lines(1)
+                        .ellipsis()
+                        .color(SECONDARY),
+                );
+            },
+        );
         // Swift offsets it 1 point down from its 42-point line's foot
-        let underline = ui.node("underline", Node::row().w(Size::Grow).h_px(2.0).margin(Edges::ZERO.t(-1.0)));
+        let underline = ui.node(
+            "underline",
+            Node::row()
+                .w(Size::Grow)
+                .h_px(2.0)
+                .margin(Edges::ZERO.t(-1.0)),
+        );
         ui.style(&underline, &UNDERLINE_LOOKS, state);
         return;
     }
-    ui.set_node_layout(&c.bar, &Node::row().w(Size::Grow).h(Size::Grow).gap(2.0).padding(Edges::ZERO.l(2.0).t(2.0).r(2.0)));
+    ui.set_node_layout(
+        &c.bar,
+        &Node::row()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .gap(2.0)
+            .padding(Edges::ZERO.l(2.0).t(2.0).r(2.0)),
+    );
     ui.style(&c.bar, &TABBAR_DECK, State::default());
     // The regular captions sit one point above the center used by the selected caption and mark.
     let caption_inset = Edges::ZERO.b(if state.checked { 0.0 } else { 2.0 });
-    ui.set_node_layout(&c.node, &Node::row().w(Size::Grow).h(Size::Grow).gap(6.0).padding(caption_inset).align(Align::Center).justify(Justify::Center));
+    ui.set_node_layout(
+        &c.node,
+        &Node::row()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .gap(6.0)
+            .padding(caption_inset)
+            .align(Align::Center)
+            .justify(Justify::Center),
+    );
     ui.style(&c.node, &TABBAR_LOOKS, state);
     if state.checked {
         ui.node("mark", Node::row().w_px(6.0).h_px(6.0).look(INK_FILL));
     }
-    ui.label(c.text_of(&c.text), if state.checked { TEXT_15.color(INK).weight(500) } else { TEXT_15.color(SECONDARY) }.role(Role::Unknown));
+    ui.label(
+        c.text_of(&c.text),
+        if state.checked {
+            TEXT_15.color(INK).weight(500)
+        } else {
+            TEXT_15.color(SECONDARY)
+        }
+        .role(Role::Unknown),
+    );
 }
 
 /// The chosen sort key: the selected fill inside a 1.5-point ink border.
@@ -528,17 +784,48 @@ const FIND_TEXT: Look = INK_TEXT.font(FIND_FONT);
 /// plate. The clear key shows on an empty query too, as Swift's does.
 fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
     let compact = c.variant == variant::COMPACT;
-    let (height, side, keys) = if compact { (56.0, 44.0, &ICON_LOOKS) } else { (44.0, 36.0, &ICON_PLATE_LOOKS) };
+    let (height, side, keys) = if compact {
+        (56.0, 44.0, &ICON_LOOKS)
+    } else {
+        (44.0, 36.0, &ICON_PLATE_LOOKS)
+    };
     ui.set_node_layout(&c.line, &Node::row().w(Size::Grow));
     ui.set_node_layout(&c.well, &Node::column().w(Size::Grow));
-    ui.style(&c.well, if compact { &BARE } else { &PAPER_LOOKS }, State::default());
-    let line = ui.node("line", Node::row().w(Size::Grow).h_px(height).align(Align::Center));
+    ui.style(
+        &c.well,
+        if compact { &BARE } else { &PAPER_LOOKS },
+        State::default(),
+    );
+    let line = ui.node(
+        "line",
+        Node::row().w(Size::Grow).h_px(height).align(Align::Center),
+    );
     ui.within(&line, &mut |ui| {
-        let editor = ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h(Size::Grow).margin(if compact { FIND_EDITOR_MARGIN } else { Edges::ZERO }).inset(Edges::ZERO.l(2.0)).look(if compact { FIND_TEXT } else { SEARCH_TEXT }));
+        let editor = ui.part(
+            pxui::Part::EDITOR,
+            Node::column()
+                .w(Size::Grow)
+                .h(Size::Grow)
+                .margin(if compact {
+                    FIND_EDITOR_MARGIN
+                } else {
+                    Edges::ZERO
+                })
+                .inset(Edges::ZERO.l(2.0))
+                .look(if compact { FIND_TEXT } else { SEARCH_TEXT }),
+        );
         if !ui.slot(c.editor) && compact {
             ui.style(&editor, &States::of(FIND_PROMPT), State::default());
         }
-        let clear = ui.part(pxui::Part::CLEAR, Node::column().w_px(side).h_px(side).align(Align::Center).justify(Justify::Center).margin(Edges::ZERO.r(if compact { -10.0 } else { 0.0 })));
+        let clear = ui.part(
+            pxui::Part::CLEAR,
+            Node::column()
+                .w_px(side)
+                .h_px(side)
+                .align(Align::Center)
+                .justify(Justify::Center)
+                .margin(Edges::ZERO.r(if compact { -10.0 } else { 0.0 })),
+        );
         // the kit owns the key's state (U2b.4.23); its look's ink draws the X
         let state = State::from(c.clear);
         ui.style(&clear, keys, state);
@@ -547,7 +834,11 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
             let glyph = ui.node("glyph", Node::column().w_px(20.0).h_px(20.0));
             ui.canvas(&glyph, move |paint, rect| {
                 if compact {
-                    crate::icons::close(paint, Rect::new(rect.x + 1.0, rect.y + 1.0, 18.0, 18.0), ink);
+                    crate::icons::close(
+                        paint,
+                        Rect::new(rect.x + 1.0, rect.y + 1.0, 18.0, 18.0),
+                        ink,
+                    );
                 } else {
                     paint_icon(paint, Icon::Clear, rect.x, rect.y, ink);
                 }
@@ -556,7 +847,14 @@ fn search_body(ui: &mut Ui, c: &pxui::bodies::SearchFieldConfig) {
     });
     if compact {
         // Swift's rule overlays the line's foot
-        ui.node("rule", Node::column().w(Size::Grow).h_px(1.5).margin(Edges::ZERO.t(-1.5)).look(INK_FILL));
+        ui.node(
+            "rule",
+            Node::column()
+                .w(Size::Grow)
+                .h_px(1.5)
+                .margin(Edges::ZERO.t(-1.5))
+                .look(INK_FILL),
+        );
     }
 }
 
@@ -573,16 +871,46 @@ fn chip_body(ui: &mut Ui, c: &pxui::bodies::CheckboxConfig) {
         ui.canvas(&c.row, move |paint, rect| {
             if on {
                 paint.fill(Rect::new(rect.x, rect.y, 20.0, 20.0), Fill::new(ink));
-                crate::icons::offline(paint, pxui::geom::Rect { x: rect.x + 3.0, y: rect.y + 3.0, w: 14.0, h: 14.0 }, true, paper);
+                crate::icons::offline(
+                    paint,
+                    pxui::geom::Rect {
+                        x: rect.x + 3.0,
+                        y: rect.y + 3.0,
+                        w: 14.0,
+                        h: 14.0,
+                    },
+                    true,
+                    paper,
+                );
             } else {
-                paint.stroke(Rect::new(rect.x, rect.y, 20.0, 20.0), Stroke::new(outline).width(1.5));
+                paint.stroke(
+                    Rect::new(rect.x, rect.y, 20.0, 20.0),
+                    Stroke::new(outline).width(1.5),
+                );
             }
         });
         return;
     }
-    ui.set_node_layout(&c.row, &Node::row().w(Size::Fit).h_px(32.0).pad_x(12.0).align(Align::Center).flags(Flags::CLIP));
-    ui.style(&c.row, if on { &INK_LOOKS } else { &PANEL_LOOKS }, State::default());
-    ui.label(c.text_of(&c.label), CHIP_LABEL.color(if on { PAPER } else { SECONDARY }).role(Role::Unknown));
+    ui.set_node_layout(
+        &c.row,
+        &Node::row()
+            .w(Size::Fit)
+            .h_px(32.0)
+            .pad_x(12.0)
+            .align(Align::Center)
+            .flags(Flags::CLIP),
+    );
+    ui.style(
+        &c.row,
+        if on { &INK_LOOKS } else { &PANEL_LOOKS },
+        State::default(),
+    );
+    ui.label(
+        c.text_of(&c.label),
+        CHIP_LABEL
+            .color(if on { PAPER } else { SECONDARY })
+            .role(Role::Unknown),
+    );
 }
 
 /// LocalWave's selectable row (registered as `localwave-row`). `SIDE_ROW`: a 32-point sidebar row 8 points in, paper with the
@@ -595,7 +923,15 @@ fn row_body(ui: &mut Ui, c: &pxui::bodies::SelectionListConfig) {
     let state = State::from(c.state);
     if c.variant == variant::SIDE_ROW {
         // as tall as its content (the sidebar's fitted row), under the menu's 2-point spacing the list's row height carries
-        ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.t(2.0)).pad_x(8.0).align(Align::Center));
+        ui.set_node_layout(
+            &c.row,
+            &Node::row()
+                .w(Size::Grow)
+                .h(Size::Fit)
+                .margin(Edges::ZERO.t(2.0))
+                .pad_x(8.0)
+                .align(Align::Center),
+        );
         ui.style(&c.row, &SIDE_ROW_LOOKS, state);
     } else if c.variant == variant::SONG_ROW {
         ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h(Size::Fit));
@@ -624,12 +960,26 @@ const INDEX_LETTER: Label = TEXT_11.h_px(17.0).color(SECONDARY).role(Role::Unkno
 fn index_body(ui: &mut Ui, c: &pxui::bodies::SectionIndexConfig) {
     use pxui::bodies::BodyConfig;
     let count = c.letters.len;
-    ui.set_node_layout(&c.node, &Node::column().w_px(28.0).h_px(count as f32 * 17.0).margin(Edges::ZERO.r(8.0)));
+    ui.set_node_layout(
+        &c.node,
+        &Node::column()
+            .w_px(28.0)
+            .h_px(count as f32 * 17.0)
+            .margin(Edges::ZERO.r(8.0)),
+    );
     for i in 0..count {
-        ui.row(Node::row().w(Size::Grow).h_px(17.0).gap(3.0).align(Align::Center).justify(Justify::End), |ui| {
-            ui.label(c.text_at(&c.letters, i), INDEX_LETTER);
-            ui.node("tick", Node::row().w_px(8.0).h_px(1.5).look(SECONDARY_FILL));
-        });
+        ui.row(
+            Node::row()
+                .w(Size::Grow)
+                .h_px(17.0)
+                .gap(3.0)
+                .align(Align::Center)
+                .justify(Justify::End),
+            |ui| {
+                ui.label(c.text_at(&c.letters, i), INDEX_LETTER);
+                ui.node("tick", Node::row().w_px(8.0).h_px(1.5).look(SECONDARY_FILL));
+            },
+        );
     }
 }
 
@@ -641,7 +991,13 @@ const BADGE_PLATE: States = States::of(text(PAPER, 11.0).fill(Rgba::token(INK)))
 /// 1 taller (Swift's `.padding(.horizontal, 6).padding(.vertical, 1)`).
 fn badge_body(ui: &mut Ui, c: &pxui::bodies::BadgeConfig) {
     use pxui::bodies::BodyConfig;
-    ui.set_node_layout(&c.node, &Node::row().w(Size::Fit).h(Size::Fit).padding(Edges::new(6.0, 1.0, 6.0, 1.0)));
+    ui.set_node_layout(
+        &c.node,
+        &Node::row()
+            .w(Size::Fit)
+            .h(Size::Fit)
+            .padding(Edges::new(6.0, 1.0, 6.0, 1.0)),
+    );
     ui.style(&c.node, &BADGE_PLATE, State::default());
     ui.label(c.text_of(&c.text), BADGE_TEXT);
 }
@@ -651,10 +1007,28 @@ fn badge_body(ui: &mut Ui, c: &pxui::bodies::BadgeConfig) {
 /// its row (the caller places it).
 fn progress_body(ui: &mut Ui, c: &pxui::bodies::ProgressConfig) {
     let bar = Node::row().w(Size::Grow).h_px(4.0);
-    ui.set_node_layout(&c.row, &if c.variant == variant::BAR { bar } else { bar.margin(Edges::ZERO.t(10.0).l(8.0).r(8.0)) });
-    let track = ui.part(pxui::Part::TRACK, Node::row().w(Size::Grow).h(Size::Grow).look(LINE_FILL));
+    ui.set_node_layout(
+        &c.row,
+        &if c.variant == variant::BAR {
+            bar
+        } else {
+            bar.margin(Edges::ZERO.t(10.0).l(8.0).r(8.0))
+        },
+    );
+    let track = ui.part(
+        pxui::Part::TRACK,
+        Node::row().w(Size::Grow).h(Size::Grow).look(LINE_FILL),
+    );
     let fraction = c.value().map_or(0.0, |v| v.clamp(0.0, 1.0));
-    ui.within(&track, &mut |ui| { ui.node("fill", Node::column().w(Size::Pct(fraction)).h(Size::Grow).look(INK_FILL)); });
+    ui.within(&track, &mut |ui| {
+        ui.node(
+            "fill",
+            Node::column()
+                .w(Size::Pct(fraction))
+                .h(Size::Grow)
+                .look(INK_FILL),
+        );
+    });
 }
 
 #[cfg(test)]
@@ -668,17 +1042,51 @@ mod body_tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let source = include_str!("../../themes/app-light.theme");
-        let kit: String = source.lines().filter(|l| !["button.body", "selection_list.body", "table_row.body", "badge.body", "progress.body", "checkbox.body", "segmented.body", "search_field.body", "modal.body", "table_head.body", "inspector_section.body"].iter().any(|k| l.starts_with(k))).map(|l| format!("{l}\n")).collect();
+        let kit: String = source
+            .lines()
+            .filter(|l| {
+                ![
+                    "button.body",
+                    "selection_list.body",
+                    "table_row.body",
+                    "badge.body",
+                    "progress.body",
+                    "checkbox.body",
+                    "segmented.body",
+                    "search_field.body",
+                    "modal.body",
+                    "table_head.body",
+                    "inspector_section.body",
+                ]
+                .iter()
+                .any(|k| l.starts_with(k))
+            })
+            .map(|l| format!("{l}\n"))
+            .collect();
         let mut theme = ThemeHandle::parse(if app { source } else { &kit }).unwrap();
         crate::apply_palette(&mut theme, false);
         ui.set_theme(&theme).unwrap();
         ui
     }
     fn frames(ui: &mut Ui, build: &mut dyn FnMut(&mut Ui)) {
-        for _ in 0..2 { crate::testing::frame(ui, &FrameIn::new(200.0, 300.0), build).unwrap(); }
+        for _ in 0..2 {
+            crate::testing::frame(ui, &FrameIn::new(200.0, 300.0), build).unwrap();
+        }
     }
-    fn node(ui: &Ui, name: &str) -> pxui::Rect { ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == name).unwrap_or_else(|| panic!("no {name}")).rect }
-    fn colored(ui: &Ui, color: [u8; 4]) -> Vec<[f32; 4]> { ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.color == color).map(|i| i.rect).collect() }
+    fn node(ui: &Ui, name: &str) -> pxui::Rect {
+        ui.a11y_nodes()
+            .iter()
+            .find(|n| ui.a11y_name_of(n) == name)
+            .unwrap_or_else(|| panic!("no {name}"))
+            .rect
+    }
+    fn colored(ui: &Ui, color: [u8; 4]) -> Vec<[f32; 4]> {
+        ui.layers()
+            .flat_map(|l| l.instances.iter())
+            .filter(|i| i.color == color)
+            .map(|i| i.rect)
+            .collect()
+    }
     const INK_RGBA: [u8; 4] = [0x11, 0x11, 0x11, 255];
     const SELECTED_RGBA: [u8; 4] = [0xD3, 0xD3, 0xD3, 255];
 
@@ -687,66 +1095,160 @@ mod body_tests {
     /// 19.5-point header, its content under it while open. The kit's bodies draw none of these.
     #[test]
     fn settings_and_onboarding_bodies_draw_their_structures() {
-        const ITEMS: [pxui::Segment; 2] = [pxui::Segment::new("4 GB").id(4), pxui::Segment::new("8 GB").id(8)];
-        const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(32.0).padding(2.0).variant(variant::CHIPS).w_px(120.0);
-        const SETTING: pxui::Button = pxui::Button::DEFAULT.variant(variant::SETTING).detail("Detail");
-        const LINK: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO).label(LEAD_INK);
-        const PRIMARY: pxui::Button = pxui::Button::DEFAULT.variant(variant::PRIMARY).size(Size::Px(200.0), Size::Px(52.0)).label(TEXT_15.color(PAPER)).look(&INK_LOOKS);
-        let mut build = |ui: &mut Ui| { ui.column(Node::column().w(Size::Grow), |ui| {
-            ui.segmented("chips", &ITEMS, Some(1), &CHIPS);
-            ui.button("rescan", "Rescan", &SETTING);
-            ui.button("link", "Link", &LINK);
-            ui.button("primary", "Go", &PRIMARY);
-            ui.disclosure("more", "More", true, &pxui::Disclosure::DEFAULT, &mut |ui| { ui.label("Inside", TEXT_13); });
-        }); };
+        const ITEMS: [pxui::Segment; 2] = [
+            pxui::Segment::new("4 GB").id(4),
+            pxui::Segment::new("8 GB").id(8),
+        ];
+        const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT
+            .h_px(32.0)
+            .padding(2.0)
+            .variant(variant::CHIPS)
+            .w_px(120.0);
+        const SETTING: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::SETTING)
+            .detail("Detail");
+        const LINK: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::LINK)
+            .size(Size::Fit, Size::Px(44.0))
+            .centered()
+            .pad(Edges::ZERO)
+            .label(LEAD_INK);
+        const PRIMARY: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::PRIMARY)
+            .size(Size::Px(200.0), Size::Px(52.0))
+            .label(TEXT_15.color(PAPER))
+            .look(&INK_LOOKS);
+        let mut build = |ui: &mut Ui| {
+            ui.column(Node::column().w(Size::Grow), |ui| {
+                ui.segmented("chips", &ITEMS, Some(1), &CHIPS);
+                ui.button("rescan", "Rescan", &SETTING);
+                ui.button("link", "Link", &LINK);
+                ui.button("primary", "Go", &PRIMARY);
+                ui.disclosure(
+                    "more",
+                    "More",
+                    true,
+                    &pxui::Disclosure::DEFAULT,
+                    &mut |ui| {
+                        ui.label("Inside", TEXT_13);
+                    },
+                );
+            });
+        };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        let ink_chips = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[3] - r[1] == 28.0).count();
-        assert_eq!((ink_chips(&app), ink_chips(&kit)), (1, 0), "the stored chip is a 28-point ink chip");
-        assert_eq!((node(&app, "Rescan").h >= 60.0, node(&kit, "Rescan").h >= 60.0), (true, false), "a settings row is at least 60 high");
+        let ink_chips = |ui: &Ui| {
+            colored(ui, INK_RGBA)
+                .into_iter()
+                .filter(|r| r[3] - r[1] == 28.0)
+                .count()
+        };
+        assert_eq!(
+            (ink_chips(&app), ink_chips(&kit)),
+            (1, 0),
+            "the stored chip is a 28-point ink chip"
+        );
+        assert_eq!(
+            (
+                node(&app, "Rescan").h >= 60.0,
+                node(&kit, "Rescan").h >= 60.0
+            ),
+            (true, false),
+            "a settings row is at least 60 high"
+        );
         let link = node(&app, "Link");
-        let rules = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[3] - r[1] == 1.0 && r[1] >= link.y && r[1] < link.y + link.h).count();
-        assert!(rules(&app) >= 1 && rules(&kit) == 0, "the link is underlined in its text's ink");
-        let plates = |ui: &Ui| colored(ui, INK_RGBA).into_iter().filter(|r| r[2] - r[0] == 200.0 && r[3] - r[1] == 52.0).count();
+        let rules = |ui: &Ui| {
+            colored(ui, INK_RGBA)
+                .into_iter()
+                .filter(|r| r[3] - r[1] == 1.0 && r[1] >= link.y && r[1] < link.y + link.h)
+                .count()
+        };
+        assert!(
+            rules(&app) >= 1 && rules(&kit) == 0,
+            "the link is underlined in its text's ink"
+        );
+        let plates = |ui: &Ui| {
+            colored(ui, INK_RGBA)
+                .into_iter()
+                .filter(|r| r[2] - r[0] == 200.0 && r[3] - r[1] == 52.0)
+                .count()
+        };
         let go = node(&app, "Go");
-        let label = colored(&app, [0xF3, 0xF3, 0xF3, 255]).into_iter().filter(|r| r[1] >= go.y && r[3] <= go.y + go.h).fold((f32::MAX, 0.0f32), |(a, b), r| (a.min(r[0]), b.max(r[2])));
+        let label = colored(&app, [0xF3, 0xF3, 0xF3, 255])
+            .into_iter()
+            .filter(|r| r[1] >= go.y && r[3] <= go.y + go.h)
+            .fold((f32::MAX, 0.0f32), |(a, b), r| (a.min(r[0]), b.max(r[2])));
         assert_eq!(plates(&app), 1, "the primary key is an ink plate");
-        assert!(((label.0 - go.x) - (go.x + go.w - label.1)).abs() <= 1.0, "the primary key centres its label: {label:?} in {go:?}");
+        assert!(
+            ((label.0 - go.x) - (go.x + go.w - label.1)).abs() <= 1.0,
+            "the primary key centres its label: {label:?} in {go:?}"
+        );
         let (head, inside) = (node(&app, "More"), node(&app, "Inside"));
         assert_eq!(head.h, 19.5, "the disclosure header is 19.5 high");
-        assert!(inside.y >= head.y + head.h, "the content is under the header");
-        assert_ne!(node(&kit, "More").h, 19.5, "the theme line selects the disclosure body");
+        assert!(
+            inside.y >= head.y + head.h,
+            "the content is under the header"
+        );
+        assert_ne!(
+            node(&kit, "More").h,
+            19.5,
+            "the theme line selects the disclosure body"
+        );
     }
 
     /// `localwave-button` / `ROW` with `Button::axis(Axis::Column)`: the detail sits under the title, both from the box's start.
     #[test]
     fn a_row_column_stacks_its_detail_under_its_title() {
-        const TITLES: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(60.0)).align(Justify::Start)
-            .axis(Axis::Column).label(TEXT_20.grow()).detail_label(CAPTION.grow().h_px(18.2)).detail("From Library");
+        const TITLES: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::ROW)
+            .size(Size::Grow, Size::Px(60.0))
+            .align(Justify::Start)
+            .axis(Axis::Column)
+            .label(TEXT_20.grow())
+            .detail_label(CAPTION.grow().h_px(18.2))
+            .detail("From Library");
         let mut ui = ui(true);
-        frames(&mut ui, &mut |ui| { ui.column(Node::column().w(Size::Grow), |ui| { ui.button("t", "Queue", &TITLES); }); });
+        frames(&mut ui, &mut |ui| {
+            ui.column(Node::column().w(Size::Grow), |ui| {
+                ui.button("t", "Queue", &TITLES);
+            });
+        });
         // the button is named by its title; the detail starts under the title's 28-point line
         let (button, detail) = (node(&ui, "Queue"), node(&ui, "From Library"));
-        assert_eq!((detail.x, detail.y), (button.x, button.y + 28.0), "{button:?} {detail:?}");
+        assert_eq!(
+            (detail.x, detail.y),
+            (button.x, button.y + 28.0),
+            "{button:?} {detail:?}"
+        );
     }
 
     /// `modal.body = localwave-modal`: a bottom, top or full sheet's content starts at the sheet's own edge (no kit edge or inset); a
     /// centred modal is the kit's sheet, its content one point in.
     #[test]
     fn localwave_modal_dresses_bottom_sheets_and_leaves_centred_ones_to_the_kit() {
-        for (present, inset) in [(pxui::Presentation::Bottom, 0.0), (pxui::Presentation::Top, 0.0), (pxui::Presentation::Full, 0.0), (pxui::Presentation::Centered, 1.0)] {
+        for (present, inset) in [
+            (pxui::Presentation::Bottom, 0.0),
+            (pxui::Presentation::Top, 0.0),
+            (pxui::Presentation::Full, 0.0),
+            (pxui::Presentation::Centered, 1.0),
+        ] {
             for (app, inset) in [(true, inset), (false, 1.0)] {
                 let mut ui = ui(app);
                 let sheet = Overlay::DEFAULT.present(present).name("Sheet");
                 frames(&mut ui, &mut |ui| {
                     ui.modal("m", &sheet, |ui| {
-                        let c = ui.node("c", Node::column().w_px(100.0).h_px(50.0).role(Role::Label));
+                        let c =
+                            ui.node("c", Node::column().w_px(100.0).h_px(50.0).role(Role::Label));
                         ui.a11y_name(&c, "Content");
                     });
                 });
                 let (s, c) = (node(&ui, "Sheet"), node(&ui, "Content"));
-                assert_eq!((c.x - s.x, c.y - s.y), (inset, inset), "{present:?} app {app}: {s:?} {c:?}");
+                assert_eq!(
+                    (c.x - s.x, c.y - s.y),
+                    (inset, inset),
+                    "{present:?} app {app}: {s:?} {c:?}"
+                );
             }
         }
     }
@@ -754,16 +1256,30 @@ mod body_tests {
     /// `dialog.body = localwave-sheet`: `FORM` stacks its content 4 apart (Edit Metadata), any other variant 12.
     #[test]
     fn localwave_sheet_stacks_a_form_four_apart() {
-        for (dialog, gap) in [(Dialog::DEFAULT.variant(variant::FORM), 4.0), (Dialog::DEFAULT, 12.0)] {
+        for (dialog, gap) in [
+            (Dialog::DEFAULT.variant(variant::FORM), 4.0),
+            (Dialog::DEFAULT, 12.0),
+        ] {
             let mut ui = ui(true);
             frames(&mut ui, &mut |ui| {
-                ui.dialog("d", "Title", &[DialogButton::new("OK")], &dialog, &mut |ui| {
-                    ui.label("Above", TEXT_12.grow().h_px(16.0));
-                    ui.label("Below", TEXT_12.grow().h_px(16.0));
-                });
+                ui.dialog(
+                    "d",
+                    "Title",
+                    &[DialogButton::new("OK")],
+                    &dialog,
+                    &mut |ui| {
+                        ui.label("Above", TEXT_12.grow().h_px(16.0));
+                        ui.label("Below", TEXT_12.grow().h_px(16.0));
+                    },
+                );
             });
             let (a, b) = (node(&ui, "Above"), node(&ui, "Below"));
-            assert_eq!(b.y - (a.y + a.h), gap, "variant {}: {a:?} {b:?}", dialog.variant);
+            assert_eq!(
+                b.y - (a.y + a.h),
+                gap,
+                "variant {}: {a:?} {b:?}",
+                dialog.variant
+            );
         }
     }
 
@@ -773,51 +1289,146 @@ mod body_tests {
     #[test]
     fn localwave_sheet_keys_are_the_kits_buttons_in_the_sheets_look() {
         let ui_of = ui;
-        let button = |ui: &Ui, name: &str| ui.a11y_nodes().iter().find(|n| n.is_role(Role::Button) && ui.a11y_name_of(n) == name).map(|n| (n.rect, n.states & pxui::A11yStates::ENABLED.bits() != 0)).unwrap_or_else(|| panic!("no button {name}"));
+        let button = |ui: &Ui, name: &str| {
+            ui.a11y_nodes()
+                .iter()
+                .find(|n| n.is_role(Role::Button) && ui.a11y_name_of(n) == name)
+                .map(|n| (n.rect, n.states & pxui::A11yStates::ENABLED.bits() != 0))
+                .unwrap_or_else(|| panic!("no button {name}"))
+        };
         let mut ui = ui(true);
         let chosen = std::cell::Cell::new(None);
         let mut build = |ui: &mut Ui| {
-            let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().disabled(true)];
-            if let Some(i) = ui.dialog("d", "Remove folder?", &buttons, &super::super::files::SHEET_DIALOG.w_px(180.0), &mut |_| {}).chosen { chosen.set(Some(i)); }
+            let buttons = [
+                DialogButton::new("Cancel").cancel(),
+                DialogButton::new("Remove").danger().disabled(true),
+            ];
+            if let Some(i) = ui
+                .dialog(
+                    "d",
+                    "Remove folder?",
+                    &buttons,
+                    &super::super::files::SHEET_DIALOG.w_px(180.0),
+                    &mut |_| {},
+                )
+                .chosen
+            {
+                chosen.set(Some(i));
+            }
         };
         frames(&mut ui, &mut build);
         let ((cancel, on), (remove, remove_on)) = (button(&ui, "Cancel"), button(&ui, "Remove"));
-        assert_eq!((cancel.w, cancel.h, remove.w, on, remove_on), (100.0, 44.0, 100.0, true, false), "{cancel:?} {remove:?}");
-        assert_eq!(remove.x - cancel.x, 100.0, "the keys sit side by side from the start");
-        let id = ui.a11y_nodes().iter().find(|n| n.is_role(Role::Button) && ui.a11y_name_of(n) == "Cancel").unwrap().id;
-        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..Default::default() }]);
+        assert_eq!(
+            (cancel.w, cancel.h, remove.w, on, remove_on),
+            (100.0, 44.0, 100.0, true, false),
+            "{cancel:?} {remove:?}"
+        );
+        assert_eq!(
+            remove.x - cancel.x,
+            100.0,
+            "the keys sit side by side from the start"
+        );
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| n.is_role(Role::Button) && ui.a11y_name_of(n) == "Cancel")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
         crate::testing::frame(&mut ui, &FrameIn::new(200.0, 300.0), &mut build).unwrap();
         assert_eq!(chosen.get(), Some(0), "the kit takes the key's press");
         let mut ui = ui_of(true);
         frames(&mut ui, &mut |ui| {
-            let buttons = [DialogButton::new("A folder").detail("Watched for changes."), DialogButton::new("Close").cancel()];
-            ui.dialog("m", "Add music", &buttons, &Dialog::DEFAULT.variant(variant::CHOICES).w_px(180.0), &mut |_| {});
+            let buttons = [
+                DialogButton::new("A folder").detail("Watched for changes."),
+                DialogButton::new("Close").cancel(),
+            ];
+            ui.dialog(
+                "m",
+                "Add music",
+                &buttons,
+                &Dialog::DEFAULT.variant(variant::CHOICES).w_px(180.0),
+                &mut |_| {},
+            );
         });
         let ((choice, _), (close, _)) = (button(&ui, "A folder"), button(&ui, "Close"));
-        assert_eq!((choice.w, close.w, close.x), (180.0 - 32.0 - 2.0, 100.0, choice.x), "a full-width choice (the sheet's content inside its 1-point border), Close a key under it: {choice:?} {close:?}");
-        assert!(close.y >= choice.y + choice.h + 8.0, "8 apart: {choice:?} {close:?}");
+        assert_eq!(
+            (choice.w, close.w, close.x),
+            (180.0 - 32.0 - 2.0, 100.0, choice.x),
+            "a full-width choice (the sheet's content inside its 1-point border), Close a key under it: {choice:?} {close:?}"
+        );
+        assert!(
+            close.y >= choice.y + choice.h + 8.0,
+            "8 apart: {choice:?} {close:?}"
+        );
     }
 
     /// `button.body = localwave-button`: a `ROW` button is exactly its size (the kit's line adds a margin round its box), its accessory
     /// a label at its end; a variant-0 button draws exactly what the kit's body draws (`built_in`).
     #[test]
     fn localwave_button_lays_out_rows_and_leaves_variant_zero_to_the_kit() {
-        const ROW: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(34.0)).align(Justify::Start).pad(Edges::new(10.0, 0.0, 10.0, 0.0))
-            .label(TEXT_14.grow().h_px(20.0).color(SECONDARY)).accessory("⌘K");
-        let mut rows = |ui: &mut Ui| { ui.column(Node::column().w(Size::Grow), |ui| { ui.button("a", "Alpha", &ROW); ui.button("b", "Beta", &ROW); }); };
+        const ROW: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::ROW)
+            .size(Size::Grow, Size::Px(34.0))
+            .align(Justify::Start)
+            .pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+            .label(TEXT_14.grow().h_px(20.0).color(SECONDARY))
+            .accessory("⌘K");
+        let mut rows = |ui: &mut Ui| {
+            ui.column(Node::column().w(Size::Grow), |ui| {
+                ui.button("a", "Alpha", &ROW);
+                ui.button("b", "Beta", &ROW);
+            });
+        };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut rows);
         frames(&mut kit, &mut rows);
         let (a, b) = (node(&app, "Alpha"), node(&app, "Beta"));
-        assert_eq!((a.h, b.y - a.y), (34.0, 34.0), "the ROW box is its size, stacked without a margin");
-        assert_ne!(node(&kit, "Beta").y - node(&kit, "Alpha").y, 34.0, "the kit's line adds a margin: the theme line selects the body");
-        let accessory = app.a11y_nodes().iter().filter(|n| app.a11y_name_of(n) == "⌘K").map(|n| n.rect).next().unwrap();
-        assert!((accessory.x + accessory.w - (a.x + a.w - 10.0)).abs() < 1.0, "the accessory ends 10 in: {accessory:?} in {a:?}");
-        let mut plain = |ui: &mut Ui| { ui.button_content("k", &pxui::Button::sized(60.0, 24.0).name("Key").look(&PANEL_LOOKS), |ui, _| { ui.label("Key", TEXT_12); }); };
+        assert_eq!(
+            (a.h, b.y - a.y),
+            (34.0, 34.0),
+            "the ROW box is its size, stacked without a margin"
+        );
+        assert_ne!(
+            node(&kit, "Beta").y - node(&kit, "Alpha").y,
+            34.0,
+            "the kit's line adds a margin: the theme line selects the body"
+        );
+        let accessory = app
+            .a11y_nodes()
+            .iter()
+            .filter(|n| app.a11y_name_of(n) == "⌘K")
+            .map(|n| n.rect)
+            .next()
+            .unwrap();
+        assert!(
+            (accessory.x + accessory.w - (a.x + a.w - 10.0)).abs() < 1.0,
+            "the accessory ends 10 in: {accessory:?} in {a:?}"
+        );
+        let mut plain = |ui: &mut Ui| {
+            ui.button_content(
+                "k",
+                &pxui::Button::sized(60.0, 24.0)
+                    .name("Key")
+                    .look(&PANEL_LOOKS),
+                |ui, _| {
+                    ui.label("Key", TEXT_12);
+                },
+            );
+        };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut plain);
         frames(&mut kit, &mut plain);
-        let draw = |ui: &Ui| ui.layers().flat_map(|l| l.instances.iter()).map(|i| (i.rect, i.color)).collect::<Vec<_>>();
+        let draw = |ui: &Ui| {
+            ui.layers()
+                .flat_map(|l| l.instances.iter())
+                .map(|i| (i.rect, i.color))
+                .collect::<Vec<_>>()
+        };
         assert_eq!(draw(&app), draw(&kit), "variant 0 is the kit's button");
     }
 
@@ -825,34 +1436,85 @@ mod body_tests {
     /// the 2-point spacing its list row carries, on the selected fill when selected (the kit's list row has its own look).
     #[test]
     fn localwave_side_row_draws_the_sidebar_row() {
-        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(34.0).variant(variant::SIDE_ROW).bare().fit();
-        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT
+            .row_h(34.0)
+            .variant(variant::SIDE_ROW)
+            .bare()
+            .fit();
+        let state = std::cell::RefCell::new(pxui::ListState {
+            rows: vec![pxui::ListState::SELECTED, 0],
+            ..pxui::ListState::new()
+        });
         let mut build = |ui: &mut Ui| {
-            ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(i) = part {
-                ui.row(Node::row().w(Size::Grow).h_px(32.0), |ui| { ui.label(["One", "Two"][i], SIDE_TEXT); });
-            });
+            ui.selection_list(
+                "rows",
+                2,
+                &|i| i as i64,
+                &mut state.borrow_mut(),
+                &LIST,
+                &mut |ui, part, _| {
+                    if let SectionPart::Row(i) = part {
+                        ui.row(Node::row().w(Size::Grow).h_px(32.0), |ui| {
+                            ui.label(["One", "Two"][i], SIDE_TEXT);
+                        });
+                    }
+                },
+            );
         };
         const SIDE_TEXT: Label = TEXT_14.grow().h_px(20.0).color(SECONDARY);
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 2.0, 200.0, 34.0]], "the selected row on the selected fill");
-        assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+        assert_eq!(
+            colored(&app, SELECTED_RGBA),
+            vec![[0.0, 2.0, 200.0, 34.0]],
+            "the selected row on the selected fill"
+        );
+        assert!(
+            colored(&kit, SELECTED_RGBA).is_empty(),
+            "the kit's row has its own look: the theme line selects the body"
+        );
     }
 
     /// `selection_list.body = localwave-row` / `PHONE_ROW`: a phone row is 56 points, on the selected fill while marked (the kit's list row has its own look).
     #[test]
     fn localwave_phone_row_draws_the_phone_row() {
-        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::Toggle).row_h(56.0).variant(variant::PHONE_ROW).bare().fit();
-        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![0, pxui::ListState::SELECTED], ..pxui::ListState::new() });
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT
+            .mode(pxui::SelectMode::Toggle)
+            .row_h(56.0)
+            .variant(variant::PHONE_ROW)
+            .bare()
+            .fit();
+        let state = std::cell::RefCell::new(pxui::ListState {
+            rows: vec![0, pxui::ListState::SELECTED],
+            ..pxui::ListState::new()
+        });
         let mut build = |ui: &mut Ui| {
-            ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("content", Node::row().w(Size::Grow).h_px(20.0)); });
+            ui.selection_list(
+                "rows",
+                2,
+                &|i| i as i64,
+                &mut state.borrow_mut(),
+                &LIST,
+                &mut |ui, part, _| {
+                    if let SectionPart::Row(_) = part {
+                        ui.node("content", Node::row().w(Size::Grow).h_px(20.0));
+                    }
+                },
+            );
         };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 56.0, 200.0, 112.0]], "the marked row, 56 points, on the selected fill");
-        assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+        assert_eq!(
+            colored(&app, SELECTED_RGBA),
+            vec![[0.0, 56.0, 200.0, 112.0]],
+            "the marked row, 56 points, on the selected fill"
+        );
+        assert!(
+            colored(&kit, SELECTED_RGBA).is_empty(),
+            "the kit's row has its own look: the theme line selects the body"
+        );
     }
 
     /// Review 2: a list or table that selects nothing (`SelectMode::None`) still shows the keyboard's row. After an arrow key reaches
@@ -860,34 +1522,92 @@ mod body_tests {
     /// accent rule along their leading edge; the other rows do not.
     #[test]
     fn the_keyboard_row_of_a_list_that_selects_nothing_is_styled_focused() {
-        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).row_h(56.0).variant(variant::PHONE_ROW).bare();
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT
+            .mode(pxui::SelectMode::None)
+            .open_on_click(true)
+            .row_h(56.0)
+            .variant(variant::PHONE_ROW)
+            .bare();
         const COLUMNS: [pxui::Column; 1] = [pxui::Column::new("Name").share(1.0)];
-        const TABLE: pxui::Table = pxui::Table::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).bare().row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(38.0)).variant(variant::FOLDER_ROW);
-        let list = std::cell::RefCell::new(pxui::ListState { rows: vec![0; 3], ..pxui::ListState::new() });
+        const TABLE: pxui::Table = pxui::Table::DEFAULT
+            .mode(pxui::SelectMode::None)
+            .open_on_click(true)
+            .bare()
+            .row_h(38.0)
+            .head(pxui::TableHead::DEFAULT.h_px(38.0))
+            .variant(variant::FOLDER_ROW);
+        let list = std::cell::RefCell::new(pxui::ListState {
+            rows: vec![0; 3],
+            ..pxui::ListState::new()
+        });
         let table = std::cell::RefCell::new(pxui::TableState::new());
         let mut phone = |ui: &mut Ui| {
-            let r = ui.selection_list("rows", 3, &|i| i as i64, &mut list.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("content", Node::row().w(Size::Grow).h_px(20.0)); });
+            let r = ui.selection_list(
+                "rows",
+                3,
+                &|i| i as i64,
+                &mut list.borrow_mut(),
+                &LIST,
+                &mut |ui, part, _| {
+                    if let SectionPart::Row(_) = part {
+                        ui.node("content", Node::row().w(Size::Grow).h_px(20.0));
+                    }
+                },
+            );
             ui.focus_default(&r.handle);
         };
         let mut folder = |ui: &mut Ui| {
-            let r = ui.table("entries", &COLUMNS, 3, &|i| i as i64, &mut table.borrow_mut(), &TABLE, &mut |ui, _, _, _| { ui.node("cell", Node::row().w(Size::Grow).h_px(20.0)); });
+            let r = ui.table(
+                "entries",
+                &COLUMNS,
+                3,
+                &|i| i as i64,
+                &mut table.borrow_mut(),
+                &TABLE,
+                &mut |ui, _, _, _| {
+                    ui.node("cell", Node::row().w(Size::Grow).h_px(20.0));
+                },
+            );
             ui.focus_default(&r.rows.handle);
         };
-        for (build, row_h, top) in [(&mut phone as &mut dyn FnMut(&mut Ui), 56.0, 0.0), (&mut folder, 38.0, 38.0)] {
+        for (build, row_h, top) in [
+            (&mut phone as &mut dyn FnMut(&mut Ui), 56.0, 0.0),
+            (&mut folder, 38.0, 38.0),
+        ] {
             let mut ui = ui(true);
-            let accent = { let a = ui.theme().tokens.accent; [a.r, a.g, a.b, a.a] };
+            let accent = {
+                let a = ui.theme().tokens.accent;
+                [a.r, a.g, a.b, a.a]
+            };
             frames(&mut ui, build);
             // the accent's 1-point leading rules, by the row they start in
-            let rules = |ui: &Ui| colored(ui, accent).into_iter().filter(|r| r[2] - r[0] == 1.0).map(|r| ((r[1] - top) / row_h) as usize).collect::<Vec<_>>();
-            assert!(rules(&ui).is_empty(), "no keyboard row before a key: {:?}", rules(&ui));
+            let rules = |ui: &Ui| {
+                colored(ui, accent)
+                    .into_iter()
+                    .filter(|r| r[2] - r[0] == 1.0)
+                    .map(|r| ((r[1] - top) / row_h) as usize)
+                    .collect::<Vec<_>>()
+            };
+            assert!(
+                rules(&ui).is_empty(),
+                "no keyboard row before a key: {:?}",
+                rules(&ui)
+            );
             for code in [input::Key::ArrowDown.code()] {
-                let events = [pxui::Event::key(pxui::Event::KEY_PRESSED, code), pxui::Event::key(pxui::Event::KEY_RELEASED, code)];
+                let events = [
+                    pxui::Event::key(pxui::Event::KEY_PRESSED, code),
+                    pxui::Event::key(pxui::Event::KEY_RELEASED, code),
+                ];
                 let mut frame = FrameIn::new(200.0, 300.0);
                 frame = frame.events(&events[..]);
                 crate::testing::frame(&mut ui, &frame, build).unwrap();
                 frames(&mut ui, build);
             }
-            assert_eq!(rules(&ui), vec![1], "row height {row_h}: the keyboard's row (the second, after one arrow) is styled focused");
+            assert_eq!(
+                rules(&ui),
+                vec![1],
+                "row height {row_h}: the keyboard's row (the second, after one arrow) is styled focused"
+            );
         }
     }
 
@@ -896,46 +1616,125 @@ mod body_tests {
     /// points into its column and Title's 8 (the kit's heading insets both alike).
     #[test]
     fn localwave_song_row_and_heading_draw_their_structures() {
-        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::Multi).row_h(38.0).measured().variant(variant::SONG_ROW).bare();
-        const COLUMNS: [pxui::Column; 2] = [pxui::Column::new("#").id(0).w_px(59.0).grip(false), pxui::Column::new("Title").id(1).w_px(139.0).grip(false)];
-        let state = std::cell::RefCell::new(pxui::ListState { rows: vec![pxui::ListState::SELECTED, 0], ..pxui::ListState::new() });
+        const LIST: pxui::SelectionList = pxui::SelectionList::DEFAULT
+            .mode(pxui::SelectMode::Multi)
+            .row_h(38.0)
+            .measured()
+            .variant(variant::SONG_ROW)
+            .bare();
+        const COLUMNS: [pxui::Column; 2] = [
+            pxui::Column::new("#").id(0).w_px(59.0).grip(false),
+            pxui::Column::new("Title").id(1).w_px(139.0).grip(false),
+        ];
+        let state = std::cell::RefCell::new(pxui::ListState {
+            rows: vec![pxui::ListState::SELECTED, 0],
+            ..pxui::ListState::new()
+        });
         let table = std::cell::RefCell::new(pxui::TableState::new());
         let mut build = |ui: &mut Ui| {
-            ui.column(Node::column().w(Size::Grow).h_px(40.0), |ui| { ui.table_head("head", &COLUMNS, &mut table.borrow_mut(), &pxui::TableHead::DEFAULT.h_px(40.0).variant(variant::SONG_HEADING)); });
+            ui.column(Node::column().w(Size::Grow).h_px(40.0), |ui| {
+                ui.table_head(
+                    "head",
+                    &COLUMNS,
+                    &mut table.borrow_mut(),
+                    &pxui::TableHead::DEFAULT
+                        .h_px(40.0)
+                        .variant(variant::SONG_HEADING),
+                );
+            });
             ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
-                ui.selection_list("rows", 2, &|i| i as i64, &mut state.borrow_mut(), &LIST, &mut |ui, part, _| if let SectionPart::Row(_) = part { ui.node("cells", Node::column().w(Size::Grow).h_px(44.0)); });
+                ui.selection_list(
+                    "rows",
+                    2,
+                    &|i| i as i64,
+                    &mut state.borrow_mut(),
+                    &LIST,
+                    &mut |ui, part, _| {
+                        if let SectionPart::Row(_) = part {
+                            ui.node("cells", Node::column().w(Size::Grow).h_px(44.0));
+                        }
+                    },
+                );
             });
         };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        assert_eq!(colored(&app, SELECTED_RGBA), vec![[0.0, 40.0, 200.0, 84.0]], "the selected row, as tall as its cells (44), on the selected fill");
-        assert!(colored(&kit, SELECTED_RGBA).is_empty(), "the kit's row has its own look: the theme line selects the body");
+        assert_eq!(
+            colored(&app, SELECTED_RGBA),
+            vec![[0.0, 40.0, 200.0, 84.0]],
+            "the selected row, as tall as its cells (44), on the selected fill"
+        );
+        assert!(
+            colored(&kit, SELECTED_RGBA).is_empty(),
+            "the kit's row has its own look: the theme line selects the body"
+        );
         // the headings' text: the glyphs in the heading band (instance rects are x0, y0, x1, y1), leftmost in each column
-        let first = |ui: &Ui, from: f32, to: f32| ui.layers().flat_map(|l| l.instances.iter()).map(|i| i.rect)
-            .filter(|r| r[3] <= 40.0 && r[2] - r[0] < 20.0 && r[0] >= from && r[0] < to).map(|r| r[0]).fold(f32::MAX, f32::min);
+        let first = |ui: &Ui, from: f32, to: f32| {
+            ui.layers()
+                .flat_map(|l| l.instances.iter())
+                .map(|i| i.rect)
+                .filter(|r| r[3] <= 40.0 && r[2] - r[0] < 20.0 && r[0] >= from && r[0] < to)
+                .map(|r| r[0])
+                .fold(f32::MAX, f32::min)
+        };
         let (number, title) = (first(&app, 0.0, 60.0), first(&app, 60.0, 200.0));
-        assert!((32.0..34.0).contains(&number) && (68.0..70.0).contains(&title), "headings 32 and 8 in: # at {number}, Title at {title}");
+        assert!(
+            (32.0..34.0).contains(&number) && (68.0..70.0).contains(&title),
+            "headings 32 and 8 in: # at {number}, Title at {title}"
+        );
         let (number, title) = (first(&kit, 0.0, 60.0), first(&kit, 60.0, 200.0));
-        assert!((title - 60.0 - number).abs() < 2.0, "the kit insets both alike: # at {number}, Title at {title}");
+        assert!(
+            (title - 60.0 - number).abs() < 2.0,
+            "the kit insets both alike: # at {number}, Title at {title}"
+        );
     }
 
     /// `table_head.body = localwave-heading` (U2b.4.36): a heading that is not a song column's (no `SONG_HEADING`) runs the kit's
     /// built-in heading, drawing exactly what the kit draws (instances and accessibility).
     #[test]
     fn localwave_heading_draws_the_kit_heading_for_other_tables() {
-        const COLUMNS: [pxui::Column; 2] = [pxui::Column::new("Name").share(1.0), pxui::Column::new("Time").w_px(84.0).grip(false)];
+        const COLUMNS: [pxui::Column; 2] = [
+            pxui::Column::new("Name").share(1.0),
+            pxui::Column::new("Time").w_px(84.0).grip(false),
+        ];
         let table = std::cell::RefCell::new(pxui::TableState::new());
         let mut build = |ui: &mut Ui| {
-            ui.column(Node::column().w(Size::Grow).h_px(38.0), |ui| { ui.table_head("head", &COLUMNS, &mut table.borrow_mut(), &pxui::TableHead::DEFAULT.h_px(38.0)); });
+            ui.column(Node::column().w(Size::Grow).h_px(38.0), |ui| {
+                ui.table_head(
+                    "head",
+                    &COLUMNS,
+                    &mut table.borrow_mut(),
+                    &pxui::TableHead::DEFAULT.h_px(38.0),
+                );
+            });
         };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        let drawn = |ui: &Ui| (format!("{:?}", ui.layers().flat_map(|l| l.instances.iter()).collect::<Vec<_>>()), ui.a11y_nodes().iter().map(|n| (n.role, n.states, ui.a11y_name_of(n).to_owned())).collect::<Vec<_>>());
+        let drawn = |ui: &Ui| {
+            (
+                format!(
+                    "{:?}",
+                    ui.layers()
+                        .flat_map(|l| l.instances.iter())
+                        .collect::<Vec<_>>()
+                ),
+                ui.a11y_nodes()
+                    .iter()
+                    .map(|n| (n.role, n.states, ui.a11y_name_of(n).to_owned()))
+                    .collect::<Vec<_>>(),
+            )
+        };
         let (app, kit) = (drawn(&app), drawn(&kit));
-        assert!(kit.1.iter().any(|n| n.2 == "Name"), "the kit names its headings");
-        assert_eq!(app, kit, "the app body hands another table's heading to the kit");
+        assert!(
+            kit.1.iter().any(|n| n.2 == "Name"),
+            "the kit names its headings"
+        );
+        assert_eq!(
+            app, kit,
+            "the app body hands another table's heading to the kit"
+        );
     }
 
     /// `badge.body = localwave-badge` and `progress.body = localwave-progress`: the badge is paper text on an ink plate 16 points high;
@@ -945,20 +1744,43 @@ mod body_tests {
         const BADGE_STYLE: pxui::Badge = pxui::Badge::DEFAULT.variant(variant::BADGE);
         const METER_STYLE: pxui::Progress = pxui::Progress::DEFAULT.variant(variant::METER);
         let mut build = |ui: &mut Ui| {
-            ui.row(Node::row(), |ui| { ui.badge("badge", "Reconnect", "Reconnect", &BADGE_STYLE); });
-            ui.column(Node::column().w_px(200.0), |ui| { ui.progress("meter", "Offline space", Some(0.25), &METER_STYLE); });
+            ui.row(Node::row(), |ui| {
+                ui.badge("badge", "Reconnect", "Reconnect", &BADGE_STYLE);
+            });
+            ui.column(Node::column().w_px(200.0), |ui| {
+                ui.progress("meter", "Offline space", Some(0.25), &METER_STYLE);
+            });
         };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
         let plates = colored(&app, INK_RGBA);
         // Swift's 11-point line padded 1 above and below and 6 each side
-        assert!(plates.iter().any(|r| r[1] == 0.0 && (r[3] - r[1] - 17.4).abs() < 0.5 && r[2] - r[0] > 12.0 && r[2] - r[0] < 120.0), "an ink plate 17.4 high, as wide as its text and 12: {plates:?}");
+        assert!(
+            plates.iter().any(|r| r[1] == 0.0
+                && (r[3] - r[1] - 17.4).abs() < 0.5
+                && r[2] - r[0] > 12.0
+                && r[2] - r[0] < 120.0),
+            "an ink plate 17.4 high, as wide as its text and 12: {plates:?}"
+        );
         let track = node(&app, "Offline space");
-        assert_eq!((track.x, track.w, track.h), (8.0, 184.0, 4.0), "the track 8 in from each side, 4 high");
-        assert!(plates.iter().any(|r| r[0] == 8.0 && r[2] == 8.0 + 46.0 && (r[1] - track.y).abs() < 0.5), "the fill inked to a quarter: {plates:?} on {track:?}");
+        assert_eq!(
+            (track.x, track.w, track.h),
+            (8.0, 184.0, 4.0),
+            "the track 8 in from each side, 4 high"
+        );
+        assert!(
+            plates
+                .iter()
+                .any(|r| r[0] == 8.0 && r[2] == 8.0 + 46.0 && (r[1] - track.y).abs() < 0.5),
+            "the fill inked to a quarter: {plates:?} on {track:?}"
+        );
         let kit_track = node(&kit, "Offline space");
-        assert_ne!((kit_track.x, kit_track.w), (8.0, 184.0), "the kit's progress: the theme line selects the body");
+        assert_ne!(
+            (kit_track.x, kit_track.w),
+            (8.0, 184.0),
+            "the kit's progress: the theme line selects the body"
+        );
     }
 
     /// `localwave-button` `TOOL`: the key fits its 10-point sides, icon, 6-point gap and whole-pixel label, 30 high, the selected fill
@@ -967,34 +1789,81 @@ mod body_tests {
     fn localwave_tool_and_chip_draw_their_structures() {
         let mut build = |ui: &mut Ui| {
             ui.row(Node::row(), |ui| {
-                ui.button("play", "Play all", &TOOL.icon(super::super::kit::icon_drawing(super::super::kit::Icon::Play)).icon_size(16.0).selected(true));
+                ui.button(
+                    "play",
+                    "Play all",
+                    &TOOL
+                        .icon(super::super::kit::icon_drawing(
+                            super::super::kit::Icon::Play,
+                        ))
+                        .icon_size(16.0)
+                        .selected(true),
+                );
                 ui.checkbox("flac", "flac", true, &CHIP);
             });
         };
         let (mut app, mut kit) = (ui(true), ui(false));
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
-        let width = app.text_service().width("Play all", TOOL_LABEL, None).unwrap().ceil();
+        let width = app
+            .text_service()
+            .width("Play all", TOOL_LABEL, None)
+            .unwrap()
+            .ceil();
         let tool = node(&app, "Play all");
-        assert_eq!((tool.w, tool.h), (10.0 + 16.0 + 6.0 + width + 10.0, 30.0), "the tool fits its parts");
-        assert!(colored(&app, SELECTED_RGBA).contains(&[tool.x, tool.y, tool.x + tool.w, tool.y + tool.h]), "checked: the selected fill");
-        assert_ne!(node(&kit, "Play all").w, tool.w, "the kit's button lays out its own way: the theme line selects the body");
+        assert_eq!(
+            (tool.w, tool.h),
+            (10.0 + 16.0 + 6.0 + width + 10.0, 30.0),
+            "the tool fits its parts"
+        );
+        assert!(
+            colored(&app, SELECTED_RGBA).contains(&[
+                tool.x,
+                tool.y,
+                tool.x + tool.w,
+                tool.y + tool.h
+            ]),
+            "checked: the selected fill"
+        );
+        assert_ne!(
+            node(&kit, "Play all").w,
+            tool.w,
+            "the kit's button lays out its own way: the theme line selects the body"
+        );
         let chip = node(&app, "flac");
         assert_eq!(chip.h, 32.0);
-        assert!(colored(&app, INK_RGBA).contains(&[chip.x, chip.y, chip.x + chip.w, chip.y + chip.h]), "on: the ink plate");
-        assert!(!colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 32.0), "the kit's checkbox: the theme line selects the body");
+        assert!(
+            colored(&app, INK_RGBA).contains(&[chip.x, chip.y, chip.x + chip.w, chip.y + chip.h]),
+            "on: the ink plate"
+        );
+        assert!(
+            !colored(&kit, INK_RGBA).iter().any(|r| r[3] - r[1] == 32.0),
+            "the kit's checkbox: the theme line selects the body"
+        );
     }
 
     /// `localwave-button` `KEY` inks its label in its look's colour for the state (U2b.4.30, the caller's table as given): the phone
     /// mode key's label is ink on the key fill, and paper (no ink glyph) on the ink fill while on.
     #[test]
     fn localwave_key_inks_its_label_in_its_looks_colour() {
-        const MODE: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Fit, Size::Px(44.0)).gap(6.0).label(TEXT_14).look(&MODE_KEY_LOOKS);
+        const MODE: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::KEY)
+            .size(Size::Fit, Size::Px(44.0))
+            .gap(6.0)
+            .label(TEXT_14)
+            .look(&MODE_KEY_LOOKS);
         for on in [false, true] {
             let mut ui = ui(true);
-            frames(&mut ui, &mut |ui| { ui.button("k", "Shuffle", &MODE.selected(on)); });
+            frames(&mut ui, &mut |ui| {
+                ui.button("k", "Shuffle", &MODE.selected(on));
+            });
             let key = node(&ui, "Shuffle");
-            let glyphs = colored(&ui, INK_RGBA).iter().filter(|r| r[0] > key.x && r[2] < key.x + key.w && r[1] >= key.y && r[3] <= key.y + key.h).count();
+            let glyphs = colored(&ui, INK_RGBA)
+                .iter()
+                .filter(|r| {
+                    r[0] > key.x && r[2] < key.x + key.w && r[1] >= key.y && r[3] <= key.y + key.h
+                })
+                .count();
             assert_eq!(glyphs > 0, !on, "on {on}: {glyphs} ink glyphs in {key:?}");
         }
     }
@@ -1003,9 +1872,18 @@ mod body_tests {
     /// line; `localwave-button` `KEY` fits its icon and label like `TOOL`, with no look of its own.
     #[test]
     fn localwave_sort_and_key_draw_their_structures() {
-        const ITEMS: [pxui::Segment; 2] = [pxui::Segment::new("Artist"), pxui::Segment::new("Year")];
-        const KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0)
-            .icon(super::super::kit::icon_drawing(super::super::kit::Icon::Shuffle)).icon_size(16.0).label(CAPTION);
+        const ITEMS: [pxui::Segment; 2] =
+            [pxui::Segment::new("Artist"), pxui::Segment::new("Year")];
+        const KEY: pxui::Button = pxui::Button::DEFAULT
+            .variant(variant::KEY)
+            .size(Size::Fit, Size::Px(30.0))
+            .pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+            .gap(6.0)
+            .icon(super::super::kit::icon_drawing(
+                super::super::kit::Icon::Shuffle,
+            ))
+            .icon_size(16.0)
+            .label(CAPTION);
         let mut build = |ui: &mut Ui| {
             ui.segmented("sort", &ITEMS, Some(1), &SORT);
             ui.button("shuffle", "Shuffle all", &KEY);
@@ -1014,13 +1892,47 @@ mod body_tests {
         frames(&mut app, &mut build);
         frames(&mut kit, &mut build);
         let (artist, year) = (node(&app, "Artist"), node(&app, "Year"));
-        assert_eq!((year.x - (artist.x + artist.w), artist.h), (8.0, 30.0), "keys 8 apart, 30 high");
+        assert_eq!(
+            (year.x - (artist.x + artist.w), artist.h),
+            (8.0, 30.0),
+            "keys 8 apart, 30 high"
+        );
         // the border's edges in ink along the chosen key (whole-pixel snapped), over its selected fill
-        let edged = |ui: &Ui, key: pxui::Rect| colored(ui, INK_RGBA).iter().filter(|r| r[0] == key.x && r[2] == key.x + key.w && (r[1] == key.y.max(0.0) || r[3] == key.y + key.h)).count();
-        assert_eq!(edged(&app, year), 2, "the chosen key's ink border, top and bottom");
-        assert!(colored(&app, SELECTED_RGBA).iter().any(|r| r[0] == year.x && r[2] == year.x + year.w), "on the selected fill");
-        assert_eq!(edged(&kit, node(&kit, "Year")), 0, "the kit's strip: the theme line selects the body");
-        let width = app.text_service().width("Shuffle all", CAPTION, None).unwrap().ceil();
-        assert_eq!(node(&app, "Shuffle all").w, 10.0 + 16.0 + 6.0 + width + 10.0, "the key fits its parts");
+        let edged = |ui: &Ui, key: pxui::Rect| {
+            colored(ui, INK_RGBA)
+                .iter()
+                .filter(|r| {
+                    r[0] == key.x
+                        && r[2] == key.x + key.w
+                        && (r[1] == key.y.max(0.0) || r[3] == key.y + key.h)
+                })
+                .count()
+        };
+        assert_eq!(
+            edged(&app, year),
+            2,
+            "the chosen key's ink border, top and bottom"
+        );
+        assert!(
+            colored(&app, SELECTED_RGBA)
+                .iter()
+                .any(|r| r[0] == year.x && r[2] == year.x + year.w),
+            "on the selected fill"
+        );
+        assert_eq!(
+            edged(&kit, node(&kit, "Year")),
+            0,
+            "the kit's strip: the theme line selects the body"
+        );
+        let width = app
+            .text_service()
+            .width("Shuffle all", CAPTION, None)
+            .unwrap()
+            .ceil();
+        assert_eq!(
+            node(&app, "Shuffle all").w,
+            10.0 + 16.0 + 6.0 + width + 10.0,
+            "the key fits its parts"
+        );
     }
 }

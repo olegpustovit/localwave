@@ -4,7 +4,7 @@
 //! (+ Keep offline on albums) keys; the artist page adds its album grid (180-point cards, 20/28-point
 //! gaps, prepared per artist) before the scoped song table. Albums add Swift's mono format line after the
 //! summary and, once the library worker resolved it, an underlined "Folder:" link that opens that Files folder.
-use super::compact::list::{offline_key, PLAY_KEY, PLAY_PRIMARY};
+use super::compact::list::{PLAY_KEY, PLAY_PRIMARY, offline_key};
 use super::*;
 use lw_core::context::PlaybackContext;
 
@@ -56,19 +56,32 @@ fn grid_height(width: f32, albums: usize) -> f32 {
 fn body_height(width: f32, route: Route, folder: bool) -> f32 {
     match route {
         Route::Album(_) if wide(width) => 8.0 + 240.0 + 24.0,
-        Route::Album(_) => 8.0 + art_size(width) + 24.0 + ALBUM_META + if folder { FOLDER } else { 0.0 } + 24.0,
+        Route::Album(_) => {
+            8.0 + art_size(width) + 24.0 + ALBUM_META + if folder { FOLDER } else { 0.0 } + 24.0
+        }
         _ => 28.0 + ARTIST_META + if stacked(width) { 20.0 + KEYS } else { 0.0 } + 18.0,
     }
 }
 /// Fixed leading height of the section list for a detail route (`albums`: the artist's album cards).
 pub(super) fn height(width: f32, route: Route, albums: usize, folder: bool) -> f32 {
     BACK + body_height(width, route, folder)
-        + if matches!(route, Route::Artist(_)) { grid_height(width, albums) } else { 0.0 }
+        + if matches!(route, Route::Artist(_)) {
+            grid_height(width, albums)
+        } else {
+            0.0
+        }
 }
 /// The desktop back key (`localwave-button` / `KEY`): 96 by 40, Swift's 16-point chevron 4 points before "Back", 26 points in, at the
 /// row's foot (its 19.6-point line ends the 40-point row), secondary with no plate.
-const BACK_KEY: pxui::Button = pxui::Button::DEFAULT.variant(super::theme::variant::KEY).size(Size::Px(96.0), Size::Px(BACK)).pad(Edges::ZERO.l(26.0).t(BACK - 19.6)).gap(4.0)
-    .icon(icon_drawing(Icon::Back)).icon_size(16.0).label(BODY_DIM).look(&DIM_LOOKS);
+const BACK_KEY: pxui::Button = pxui::Button::DEFAULT
+    .variant(super::theme::variant::KEY)
+    .size(Size::Px(96.0), Size::Px(BACK))
+    .pad(Edges::ZERO.l(26.0).t(BACK - 19.6))
+    .gap(4.0)
+    .icon(icon_drawing(Icon::Back))
+    .icon_size(16.0)
+    .label(BODY_DIM)
+    .look(&DIM_LOOKS);
 fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
     let row = ui.node("back-row", Node::column().w(Size::Grow).h_px(BACK));
     ui.within(&row, &mut |ui| {
@@ -80,12 +93,27 @@ fn back_row(ui: &mut Ui, parent: Route, intent: &mut Option<Intent>) {
 /// A one-line secondary text link (an album's artist; `localwave-button` / `ROW`): the row's width and `line_height` tall, its
 /// text `size` points in that line, ellipsised; no plate.
 pub(super) const fn link(size: f32, line_height: f32) -> pxui::Button<'static> {
-    pxui::Button::DEFAULT.variant(super::theme::variant::ROW).size(Size::Grow, Size::Px(line_height)).look(&BARE)
-        .label(Label::BODY.size(size).line_height(line_height).lines(1).ellipsis().color(SECONDARY).grow())
+    pxui::Button::DEFAULT
+        .variant(super::theme::variant::ROW)
+        .size(Size::Grow, Size::Px(line_height))
+        .look(&BARE)
+        .label(
+            Label::BODY
+                .size(size)
+                .line_height(line_height)
+                .lines(1)
+                .ellipsis()
+                .color(SECONDARY)
+                .grow(),
+        )
 }
 
 /// The album's "Folder:" link (`localwave-button` / `LINK`): its 13-point ink text over an ink rule, 18.2 points high.
-const FOLDER_LINK: pxui::Button = pxui::Button::DEFAULT.variant(super::theme::variant::LINK).size(Size::Fit, Size::Px(18.2)).pad(Edges::ZERO).label(TEXT_13.h_px(17.2).color(INK));
+const FOLDER_LINK: pxui::Button = pxui::Button::DEFAULT
+    .variant(super::theme::variant::LINK)
+    .size(Size::Fit, Size::Px(18.2))
+    .pad(Edges::ZERO)
+    .label(TEXT_13.h_px(17.2).color(INK));
 
 pub(super) fn header(
     ui: &mut Ui,
@@ -106,7 +134,8 @@ pub(super) fn header(
     };
     // Albums are small; the artist page has no kept state.
     let folder = group.folder.is_some();
-    let kept = album && !group.rows.is_empty() && group.rows.iter().all(|&row| catalog.row(row).pinned);
+    let kept =
+        album && !group.rows.is_empty() && group.rows.iter().all(|&row| catalog.row(row).pinned);
     let revision = crate::hash((
         state.revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
@@ -115,23 +144,55 @@ pub(super) fn header(
         folder,
         player.artwork.map_or(0, crate::artwork::Images::revision),
     ));
-    ui.column(Node::column().h_px(height(width, route, cards.len(), folder)), |ui| { ui.view_of("page-heading", &revision, |ui| {
-            let column = container(ui, "detail-page", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
-            ui.within(&column, &mut |ui| {
-                back_row(ui, if album { Route::Albums } else { Route::Artists }, intent);
-                let row = album && wide(width) || !album && !stacked(width);
-                let root = ui.node(
-                    "detail-header",
-                    Node::column().w(Size::Grow).h_px(body_height(width, route, folder)).gap(if album { if row { 32.0 } else { 24.0 } } else if row { 24.0 } else { 20.0 }).align(if row { Align::End } else { Align::Start }).axis(if row { Axis::Row } else { Axis::Column }).padding(if album { Edges::new(32.0, 8.0, 32.0, 24.0) } else { Edges::new(32.0, 28.0, 32.0, 18.0) }),
+    ui.column(
+        Node::column().h_px(height(width, route, cards.len(), folder)),
+        |ui| {
+            ui.view_of("page-heading", &revision, |ui| {
+                let column = container(
+                    ui,
+                    "detail-page",
+                    Axis::Column,
+                    Size::Grow,
+                    Size::Grow,
+                    &PAPER_FILL,
                 );
-                ui.within(&root, &mut |ui| {
-                    header_body(ui, catalog, player, group, album, kept, width, intent);
+                ui.within(&column, &mut |ui| {
+                    back_row(
+                        ui,
+                        if album { Route::Albums } else { Route::Artists },
+                        intent,
+                    );
+                    let row = album && wide(width) || !album && !stacked(width);
+                    let root = ui.node(
+                        "detail-header",
+                        Node::column()
+                            .w(Size::Grow)
+                            .h_px(body_height(width, route, folder))
+                            .gap(if album {
+                                if row { 32.0 } else { 24.0 }
+                            } else if row {
+                                24.0
+                            } else {
+                                20.0
+                            })
+                            .align(if row { Align::End } else { Align::Start })
+                            .axis(if row { Axis::Row } else { Axis::Column })
+                            .padding(if album {
+                                Edges::new(32.0, 8.0, 32.0, 24.0)
+                            } else {
+                                Edges::new(32.0, 28.0, 32.0, 18.0)
+                            }),
+                    );
+                    ui.within(&root, &mut |ui| {
+                        header_body(ui, catalog, player, group, album, kept, width, intent);
+                    });
+                    if !cards.is_empty() {
+                        album_grid(ui, catalog, player, cards, width, intent);
+                    }
                 });
-                if !cards.is_empty() {
-                    album_grid(ui, catalog, player, cards, width, intent);
-                }
             });
-        }); });
+        },
+    );
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -147,13 +208,29 @@ fn header_body(
 ) {
     if album {
         let size = art_size(width);
-        let art = container(ui, "artwork", Axis::Stack, Size::Px(size), Size::Px(size), &PANEL_FILL);
-        paint_artwork(ui, &art, group.artwork_row.map(|index| catalog.row(index)), size, player.artwork);
+        let art = container(
+            ui,
+            "artwork",
+            Axis::Stack,
+            Size::Px(size),
+            Size::Px(size),
+            &PANEL_FILL,
+        );
+        paint_artwork(
+            ui,
+            &art,
+            group.artwork_row.map(|index| catalog.row(index)),
+            size,
+            player.artwork,
+        );
         ui.a11y_name(&art, "Album artwork");
     }
-    ui.column(Node::column()
-            .w(Size::Grow)
-            .h_px(if album { ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 } } else { ARTIST_META }),
+    ui.column(
+        Node::column().w(Size::Grow).h_px(if album {
+            ALBUM_META + if group.folder.is_some() { FOLDER } else { 0.0 }
+        } else {
+            ARTIST_META
+        }),
         |ui| {
             if !album {
                 spacer(ui, "kind-gap", 6.0);
@@ -168,8 +245,14 @@ fn header_body(
                 && !artist.is_empty()
             {
                 spacer(ui, "artist-gap", 6.0);
-                if ui.button("artist", crate::clip(artist), &link(18.0, 25.2)).clicked
-                    && let Some(index) = catalog.library.artists.iter().position(|a| a.title == crate::clip(artist))
+                if ui
+                    .button("artist", crate::clip(artist), &link(18.0, 25.2))
+                    .clicked
+                    && let Some(index) = catalog
+                        .library
+                        .artists
+                        .iter()
+                        .position(|a| a.title == crate::clip(artist))
                 {
                     *intent = Some(Intent::Navigate(Route::Artist(index)));
                 }
@@ -177,7 +260,14 @@ fn header_body(
             spacer(ui, "summary-gap", if album { 12.0 } else { 6.0 });
             if album && !group.format.is_empty() {
                 // Swift: "2019 · 8 songs · 37 min · " in the text face, then the format in mono.
-                let row = container(ui, "summary", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
+                let row = container(
+                    ui,
+                    "summary",
+                    Axis::Row,
+                    Size::Grow,
+                    Size::Px(18.2),
+                    &PAPER_FILL,
+                );
                 ui.within(&row, &mut |ui| {
                     ui.label(&group.lead, CAPTION);
                     ui.label(&group.format, MONO_DIM.grow());
@@ -187,21 +277,43 @@ fn header_body(
             }
             if let Some(target) = &group.folder {
                 spacer(ui, "folder-gap", 4.0);
-                ui.id("folder", |ui| { ui.row(Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
-                    ui.label("Folder:", CAPTION);
-                    if ui.button("link", &target.label, &FOLDER_LINK).clicked {
-                        *intent = Some(Intent::Files(crate::files::Request::Browse(target.location)));
-                    }
-                }); });
+                ui.id("folder", |ui| {
+                    ui.row(Node::row().w(Size::Grow).h_px(18.2).gap(4.0), |ui| {
+                        ui.label("Folder:", CAPTION);
+                        if ui.button("link", &target.label, &FOLDER_LINK).clicked {
+                            *intent = Some(Intent::Files(crate::files::Request::Browse(
+                                target.location,
+                            )));
+                        }
+                    });
+                });
             }
             if album {
                 spacer(ui, "buttons-gap", 20.0);
-                keys(ui, group, true, kept, ALBUM_KEYS.min((width - 64.0).max(1.0)), intent);
+                keys(
+                    ui,
+                    group,
+                    true,
+                    kept,
+                    ALBUM_KEYS.min((width - 64.0).max(1.0)),
+                    intent,
+                );
             }
         },
     );
     if !album {
-        keys(ui, group, false, false, if stacked(width) { (width - 64.0).max(1.0) } else { ARTIST_KEYS }, intent);
+        keys(
+            ui,
+            group,
+            false,
+            false,
+            if stacked(width) {
+                (width - 64.0).max(1.0)
+            } else {
+                ARTIST_KEYS
+            },
+            intent,
+        );
     }
 }
 
@@ -216,13 +328,39 @@ fn keys(
 ) {
     ui.row(Node::row().w_px(width).h_px(KEYS).gap(8.0), |ui| {
         let enabled = !group.ids.is_empty();
-        if ui.button("play", "Play", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).disabled(!enabled)).clicked {
+        if ui
+            .button(
+                "play",
+                "Play",
+                &PLAY_PRIMARY
+                    .icon(icon_drawing(Icon::Play))
+                    .disabled(!enabled),
+            )
+            .clicked
+        {
             *intent = Some(Intent::PlayRow(0));
         }
-        if ui.button("shuffle", "Shuffle", &PLAY_KEY.icon(icon_drawing(Icon::Shuffle)).disabled(!enabled)).clicked {
+        if ui
+            .button(
+                "shuffle",
+                "Shuffle",
+                &PLAY_KEY
+                    .icon(icon_drawing(Icon::Shuffle))
+                    .disabled(!enabled),
+            )
+            .clicked
+        {
             *intent = Some(Intent::ShuffleCollection);
         }
-        if album && ui.button("keep-offline", if kept { "Kept offline" } else { "Keep offline" }, &offline_key(kept).disabled(!enabled)).clicked {
+        if album
+            && ui
+                .button(
+                    "keep-offline",
+                    if kept { "Kept offline" } else { "Keep offline" },
+                    &offline_key(kept).disabled(!enabled),
+                )
+                .clicked
+        {
             *intent = Some(Intent::Page(crate::PageAction::KeepOffline));
         }
     });
@@ -240,28 +378,59 @@ fn album_grid(
     let (columns, cell) = grid(width);
     let grid = ui.node(
         "album-grid",
-        Node::column().w(Size::Grow).h_px(grid_height(width, cards.len())).gap(ROW_GAP).padding(Edges::ZERO.l(32.0).r(32.0).b(40.0)),
+        Node::column()
+            .w(Size::Grow)
+            .h_px(grid_height(width, cards.len()))
+            .gap(ROW_GAP)
+            .padding(Edges::ZERO.l(32.0).r(32.0).b(40.0)),
     );
     ui.within(&grid, &mut |ui| {
         for (line_index, chunk) in cards.chunks(columns).enumerate() {
             let cards_row = ui.node(
                 Key::Id(line_index as i64),
-                Node::row().w(Size::Grow).h_px(card_height(cell)).gap(CARD_GAP),
+                Node::row()
+                    .w(Size::Grow)
+                    .h_px(card_height(cell))
+                    .gap(CARD_GAP),
             );
             ui.within(&cards_row, &mut |ui| {
                 for &index in chunk {
                     let group = &catalog.albums[index];
-                    let card = ui.pressable(Key::Id(index as i64), Node::column().w_px(cell).h(Size::Grow).role(Role::Button), &PLAIN, |ui, _| {
-                        let art = container(ui, "artwork", Axis::Stack, Size::Px(cell), Size::Px(cell), &PANEL_FILL);
-                        paint_artwork(ui, &art, group.artwork_row.map(|row| catalog.row(row)), cell, player.artwork);
-                        spacer(ui, "art-gap", 8.0);
-                        ui.label(&group.title, CARD_TITLE);
-                        let year = group.rows.first().and_then(|row| catalog.row(*row).release_year);
-                        let mut digits = [0u8; 24];
-                        let year = stack_fmt(&mut digits, format_args!("{}", year.unwrap_or(0).max(0)));
-                        let year = if year == "0" { "\u{2014}" } else { year };
-                        ui.label(year, SUMMARY);
-                    });
+                    let card = ui.pressable(
+                        Key::Id(index as i64),
+                        Node::column().w_px(cell).h(Size::Grow).role(Role::Button),
+                        &PLAIN,
+                        |ui, _| {
+                            let art = container(
+                                ui,
+                                "artwork",
+                                Axis::Stack,
+                                Size::Px(cell),
+                                Size::Px(cell),
+                                &PANEL_FILL,
+                            );
+                            paint_artwork(
+                                ui,
+                                &art,
+                                group.artwork_row.map(|row| catalog.row(row)),
+                                cell,
+                                player.artwork,
+                            );
+                            spacer(ui, "art-gap", 8.0);
+                            ui.label(&group.title, CARD_TITLE);
+                            let year = group
+                                .rows
+                                .first()
+                                .and_then(|row| catalog.row(*row).release_year);
+                            let mut digits = [0u8; 24];
+                            let year = stack_fmt(
+                                &mut digits,
+                                format_args!("{}", year.unwrap_or(0).max(0)),
+                            );
+                            let year = if year == "0" { "\u{2014}" } else { year };
+                            ui.label(year, SUMMARY);
+                        },
+                    );
                     ui.a11y_name(&card.handle, &group.title);
                     if card.clicked {
                         *intent = Some(Intent::Navigate(Route::Album(index)));
@@ -381,7 +550,11 @@ mod tests {
             frame.wire.time += 0.1;
             assert_eq!(
                 run(&mut ui, &state, &frame, Some("Back")),
-                Some(Intent::Navigate(if link { Route::Albums } else { Route::Artists }))
+                Some(Intent::Navigate(if link {
+                    Route::Albums
+                } else {
+                    Route::Artists
+                }))
             );
             frame.wire.time += 0.1;
             if link {
@@ -390,10 +563,13 @@ mod tests {
                     Some(Intent::Page(crate::PageAction::KeepOffline))
                 );
             } else {
-                assert!(matches!(
-                    run(&mut ui, &state, &frame, Some("B")),
-                    Some(Intent::Navigate(Route::Album(_)))
-                ), "album card opens its album");
+                assert!(
+                    matches!(
+                        run(&mut ui, &state, &frame, Some("B")),
+                        Some(Intent::Navigate(Route::Album(_)))
+                    ),
+                    "album card opens its album"
+                );
             }
             if link {
                 frame.wire.time += 0.1;

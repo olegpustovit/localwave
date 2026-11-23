@@ -2,9 +2,9 @@
 //! focus restoration and dismissal. Read scalar signals instead of owned key vectors. Raw key
 //! queries do not consume events; focus/modal ownership must be arbitrated by the caller.
 //!
-use pxui::bodies::BodyConfig;
 use super::*;
 use crate::commands::{Action, Command, Icon, Results};
+use pxui::bodies::BodyConfig;
 
 impl ShellState {
     /// Rows to show: the worker's for this query, or for an empty query the static command list,
@@ -12,7 +12,9 @@ impl ShellState {
     pub fn command_items<'a>(&self, catalog: &'a Catalog) -> &'a [crate::commands::Item] {
         match self.command_results(catalog) {
             Some(results) => &results.items,
-            None if self.command_query.as_str().trim().is_empty() => crate::commands::static_items(),
+            None if self.command_query.as_str().trim().is_empty() => {
+                crate::commands::static_items()
+            }
             None => &[],
         }
     }
@@ -31,7 +33,11 @@ impl ShellState {
         playing: bool,
         dark: bool,
     ) -> Option<Intent> {
-        let action = self.command_items(catalog).iter().find(|item| item.key == key)?.action;
+        let action = self
+            .command_items(catalog)
+            .iter()
+            .find(|item| item.key == key)?
+            .action;
         let query = self.command_query;
         let intent = match action {
             Action::Play(index) => {
@@ -84,22 +90,67 @@ impl ShellState {
 /// lays the results out: at most 420 points (and 176 short of the window), at least 60, 6 in.
 pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PickerFieldConfig) {
     let height = ui.content_rect().h;
-    ui.set_node_layout(&c.search, &Node::row().w(Size::Grow).h_px(59.0).padding(Edges::ZERO.l(FIELD_SIDE).r(FIELD_SIDE)).margin(Edges::ZERO.b(1.0)));
-    ui.style(&c.search, &pxui::theme::States::of(Look::NONE), State::default());
-    ui.part(pxui::Part::EDITOR, Node::column().w(Size::Grow).h_px(59.0).look(PALETTE_QUERY));
+    ui.set_node_layout(
+        &c.search,
+        &Node::row()
+            .w(Size::Grow)
+            .h_px(59.0)
+            .padding(Edges::ZERO.l(FIELD_SIDE).r(FIELD_SIDE))
+            .margin(Edges::ZERO.b(1.0)),
+    );
+    ui.style(
+        &c.search,
+        &pxui::theme::States::of(Look::NONE),
+        State::default(),
+    );
+    ui.part(
+        pxui::Part::EDITOR,
+        Node::column().w(Size::Grow).h_px(59.0).look(PALETTE_QUERY),
+    );
     // the hairline spans the field (the card) in its bottom margin
-    ui.node("rule", Node::DEFAULT.w(Size::Rel(card_width)).h_px(1.0).at(0.0, 59.0).look(LINE_FILL));
+    ui.node(
+        "rule",
+        Node::DEFAULT
+            .w(Size::Rel(card_width))
+            .h_px(1.0)
+            .at(0.0, 59.0)
+            .look(LINE_FILL),
+    );
     if c.empty != 0 {
         // the picker's placeholder (its accessible name too), ellipsized to the field
-        let placeholder = ui.node("prompt", Node::row().w(Size::Rel(prompt_width)).h_px(59.0).align(Align::Center).at(20.0, 0.0));
-        let style = Label::BODY.size(20.0).line_height(28.0).weight(PALETTE_FONT.weight).lines(1).ellipsis();
+        let placeholder = ui.node(
+            "prompt",
+            Node::row()
+                .w(Size::Rel(prompt_width))
+                .h_px(59.0)
+                .align(Align::Center)
+                .at(20.0, 0.0),
+        );
+        let style = Label::BODY
+            .size(20.0)
+            .line_height(28.0)
+            .weight(PALETTE_FONT.weight)
+            .lines(1)
+            .ellipsis();
         ui.within(&placeholder, &mut |ui| {
-            let line = ui.node("line", Node::column().w(Size::Grow).h_px(28.0).look(PALETTE_PROMPT));
-            ui.text_line_box(&line, c.text_of(&c.placeholder), style, &[]).unwrap();
+            let line = ui.node(
+                "line",
+                Node::column().w(Size::Grow).h_px(28.0).look(PALETTE_PROMPT),
+            );
+            ui.text_line_box(&line, c.text_of(&c.placeholder), style, &[])
+                .unwrap();
         });
     }
     let results = 420.0_f32.min((height - 176.0).max(60.0));
-    ui.set_node_layout(&c.list, &Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::new(6.0, 6.0, 6.0, 0.0)).min_h(60.0).max_h(results));
+    ui.set_node_layout(
+        &c.list,
+        &Node::column()
+            .w(Size::Grow)
+            .h(Size::Fit)
+            .padding(Edges::new(6.0, 6.0, 6.0, 0.0))
+            .min_h(60.0)
+            .max_h(results),
+    );
     // The bottom inset scrolls with the results and leaves the bottom of the viewport visible.
     ui.within(&c.list, &mut |ui| spacer(ui, "results-bottom", 6.0));
 }
@@ -107,9 +158,13 @@ pub(crate) fn field_body(ui: &mut Ui, c: &pxui::bodies::PickerFieldConfig) {
 /// The query field's sides: 18 points in from the card's edges.
 const FIELD_SIDE: f32 = 18.0;
 /// The card's width from the field's inner width (the field spans the card).
-extern "C" fn card_width(inner: f32) -> f32 { inner + 2.0 * FIELD_SIDE }
+extern "C" fn card_width(inner: f32) -> f32 {
+    inner + 2.0 * FIELD_SIDE
+}
 /// The prompt's width: the card less 20 points at each side.
-extern "C" fn prompt_width(inner: f32) -> f32 { (inner + 2.0 * FIELD_SIDE - 40.0).max(1.0) }
+extern "C" fn prompt_width(inner: f32) -> f32 {
+    (inner + 2.0 * FIELD_SIDE - 40.0).max(1.0)
+}
 
 /// A palette row (registered as `localwave-palette`, picker kind): 44 points, 12 in and 12 apart, the selected fill on the keyboard's
 /// row; its artwork (28 points on the panel fill, the image when it has one) or its icon (`PickArt::Draw` of the `Icon`), the label, the
@@ -119,13 +174,38 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
     if let Some(head) = c.head() {
         ui.style(&head, &PALETTE_HEADING, State::default());
         // a node's text sits centred in its box, 2 points under `FOOTNOTE`'s line box: the box starts 2 higher (10 above the text's line)
-        ui.set_node_layout(&head, &Node::column().w(Size::Grow).h_px(FOOTNOTE_LINE).margin(Edges::new(12.0, 8.0, 12.0, 6.0)));
+        ui.set_node_layout(
+            &head,
+            &Node::column()
+                .w(Size::Grow)
+                .h_px(FOOTNOTE_LINE)
+                .margin(Edges::new(12.0, 8.0, 12.0, 6.0)),
+        );
     }
-    ui.set_node_layout(&c.row, &Node::row().w(Size::Grow).h_px(44.0).gap(12.0).pad_x(12.0).align(Align::Center));
-    ui.style(&c.row, &PALETTE_ROW, State::default().checked(c.current != 0));
+    ui.set_node_layout(
+        &c.row,
+        &Node::row()
+            .w(Size::Grow)
+            .h_px(44.0)
+            .gap(12.0)
+            .pad_x(12.0)
+            .align(Align::Center),
+    );
+    ui.style(
+        &c.row,
+        &PALETTE_ROW,
+        State::default().checked(c.current != 0),
+    );
     let art = c.art();
     if let Some(pxui::PickArt::Image(_)) = art {
-        let art = container(ui, "artwork", Axis::Column, Size::Px(28.0), Size::Px(28.0), &PANEL_FILL);
+        let art = container(
+            ui,
+            "artwork",
+            Axis::Column,
+            Size::Px(28.0),
+            Size::Px(28.0),
+            &PANEL_FILL,
+        );
         ui.set_role(&art, Role::Image, pxui::A11yStates::NONE);
         if let Some(image) = c.image() {
             // a descriptor that went bad between frames draws nothing (`Paint::image` refuses it)
@@ -136,7 +216,14 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
     } else if let Some(pxui::PickArt::Draw(word)) = art
         && let Some(&kind) = ICONS.get(word as usize)
     {
-        let icon = container(ui, "icon", Axis::Column, Size::Px(16.0), Size::Px(28.0), &Look::NONE);
+        let icon = container(
+            ui,
+            "icon",
+            Axis::Column,
+            Size::Px(16.0),
+            Size::Px(28.0),
+            &Look::NONE,
+        );
         ui.canvas(&icon, move |paint, rect| {
             let rect = Rect {
                 y: rect.y + (rect.h - 16.0) * 0.5,
@@ -149,7 +236,11 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
                     crate::icons::chevron(paint, rect, Rgba::token(INK));
                     return;
                 }
-                Icon::Queue | Icon::Rows => &[((2.0, 4.0), (14.0, 4.0)), ((2.0, 8.0), (14.0, 8.0)), ((2.0, 12.0), (11.0, 12.0))],
+                Icon::Queue | Icon::Rows => &[
+                    ((2.0, 4.0), (14.0, 4.0)),
+                    ((2.0, 8.0), (14.0, 8.0)),
+                    ((2.0, 12.0), (11.0, 12.0)),
+                ],
                 Icon::Folder => &[
                     ((1.0, 4.0), (6.0, 4.0)),
                     ((6.0, 4.0), (8.0, 6.0)),
@@ -158,15 +249,29 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
                     ((15.0, 13.0), (1.0, 13.0)),
                     ((1.0, 13.0), (1.0, 4.0)),
                 ],
-                Icon::Person => &[((3.0, 14.0), (4.0, 10.0)), ((4.0, 10.0), (12.0, 10.0)), ((12.0, 10.0), (13.0, 14.0))],
+                Icon::Person => &[
+                    ((3.0, 14.0), (4.0, 10.0)),
+                    ((4.0, 10.0), (12.0, 10.0)),
+                    ((12.0, 10.0), (13.0, 14.0)),
+                ],
             };
             for &(a, b) in lines {
                 let a = (rect.x + a.0, rect.y + a.1);
                 let b = (rect.x + b.0, rect.y + b.1);
-                paint.curve(a, ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5), b, Stroke::new(Rgba::token(INK)).width(1.1));
+                paint.curve(
+                    a,
+                    ((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5),
+                    b,
+                    Stroke::new(Rgba::token(INK)).width(1.1),
+                );
             }
             if kind == Icon::Person {
-                paint.circle((rect.x + 8.0, rect.y + 4.0), 3.0, Some(Fill::new(Rgba::token(INK))), None);
+                paint.circle(
+                    (rect.x + 8.0, rect.y + 4.0),
+                    3.0,
+                    Some(Fill::new(Rgba::token(INK))),
+                    None,
+                );
             }
         });
     }
@@ -180,14 +285,21 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
 /// A palette row: the selected fill on the keyboard's row.
 const PALETTE_ROW: pxui::theme::States = pxui::theme::States::of(Look::NONE).checked(SELECTED_FILL);
 /// A palette group heading: secondary 12 points (`FOOTNOTE`).
-const PALETTE_HEADING: pxui::theme::States = pxui::theme::States::of(text_look(FOOTNOTE).font(Font::BODY.size(12.0)));
+const PALETTE_HEADING: pxui::theme::States =
+    pxui::theme::States::of(text_look(FOOTNOTE).font(Font::BODY.size(12.0)));
 /// The heading's line: `FOOTNOTE`'s.
 const FOOTNOTE_LINE: f32 = 16.8;
 /// The palette's query: ink, 20 points.
 const PALETTE_QUERY: Look = Look::NONE.text(Rgba::token(INK)).font(PALETTE_FONT);
 
 /// The palette's icons by their word (`PickArt::Draw(icon as u32)`), indexed by discriminant.
-const ICONS: [Icon; 5] = [Icon::Chevron, Icon::Queue, Icon::Person, Icon::Folder, Icon::Rows];
+const ICONS: [Icon; 5] = [
+    Icon::Chevron,
+    Icon::Queue,
+    Icon::Person,
+    Icon::Folder,
+    Icon::Rows,
+];
 // the table is indexed by discriminant: keep it in declaration order
 const _: () = {
     let mut i = 0;
@@ -214,7 +326,10 @@ fn top(content: Rect, inset: f32) -> f32 {
 fn overlay_border(ui: &mut Ui, card: &Handle) {
     // Swift centers its one-point stroke half a point outside the card.
     ui.canvas_over(card, |paint, rect| {
-        paint.stroke(Rect::new(rect.x - 0.5, rect.y - 0.5, rect.w + 1.0, rect.h + 1.0), Stroke::new(Rgba::token(LINE)));
+        paint.stroke(
+            Rect::new(rect.x - 0.5, rect.y - 0.5, rect.w + 1.0, rect.h + 1.0),
+            Stroke::new(Rgba::token(LINE)),
+        );
     });
 }
 
@@ -230,25 +345,56 @@ pub(super) fn palette_view(
     let results = state.command_results(catalog);
     let items = state.command_items(catalog);
     let top = top(content, state.top_inset);
-    let palette = OVERLAY_TOP.at(pxui::Point::new(0.0, top)).w_px((width - 32.0).clamp(0.0, 600.0).min(width)).max_h_px((height - top - 16.0).max(0.0));
-    let cover = |index: usize| items.get(index)?.artwork.filter(|row| *row < catalog.len()).map(|row| catalog.row(row));
+    let palette = OVERLAY_TOP
+        .at(pxui::Point::new(0.0, top))
+        .w_px((width - 32.0).clamp(0.0, 600.0).min(width))
+        .max_h_px((height - top - 16.0).max(0.0));
+    let cover = |index: usize| {
+        items
+            .get(index)?
+            .artwork
+            .filter(|row| *row < catalog.len())
+            .map(|row| catalog.row(row))
+    };
     let image = |index: usize| {
         let row = cover(index)?;
-        player.artwork?.get(row.cover_art_id, row.cover_art_path?, 28.0, None)
+        player
+            .artwork?
+            .get(row.cover_art_id, row.cover_art_path?, 28.0, None)
     };
     let modal = ui.modal("commands", &palette.name("Search and commands"), |ui| {
-        let r = ui.picker("palette", "Search songs, folders, or type a command", state.command_query.as_str(), &PALETTE.image(&image), &mut |_, rows| {
-            for (index, item) in items.iter().enumerate() {
-                let heading = if index == 0 || items[index - 1].group != item.group { item.group } else { "" };
-                let art = cover(index).map_or(PickArt::Draw(item.icon as u32), |row| PickArt::Image(row.cover_art_id));
-                rows.push(pxui::PickRow::new(&item.label).detail(&item.hint).heading(heading).art(art));
-            }
-        });
+        let r = ui.picker(
+            "palette",
+            "Search songs, folders, or type a command",
+            state.command_query.as_str(),
+            &PALETTE.image(&image),
+            &mut |_, rows| {
+                for (index, item) in items.iter().enumerate() {
+                    let heading = if index == 0 || items[index - 1].group != item.group {
+                        item.group
+                    } else {
+                        ""
+                    };
+                    let art = cover(index).map_or(PickArt::Draw(item.icon as u32), |row| {
+                        PickArt::Image(row.cover_art_id)
+                    });
+                    rows.push(
+                        pxui::PickRow::new(&item.label)
+                            .detail(&item.hint)
+                            .heading(heading)
+                            .art(art),
+                    );
+                }
+            },
+        );
         // a changed query hides the rows it was typed over: their pick never activates
         if r.query != state.command_query.as_str() {
-            *intent = Some(Query::new(r.query).map_or(Intent::CommandTooLong, Intent::CommandQuery));
+            *intent =
+                Some(Query::new(r.query).map_or(Intent::CommandTooLong, Intent::CommandQuery));
         } else if let Pick::Pick(index) = r.pick
-            && let Some(item) = usize::try_from(index).ok().and_then(|index| items.get(index))
+            && let Some(item) = usize::try_from(index)
+                .ok()
+                .and_then(|index| items.get(index))
         {
             *intent = Some(Intent::ActivateCommand(item.key));
         } else if r.pick == Pick::Cancel {
@@ -256,15 +402,37 @@ pub(super) fn palette_view(
         }
         if items.is_empty() {
             // over the empty results (60 high under the 59-point field and its hairline), where the first row would be
-            let status = ui.node("status", Node::column().w(Size::Grow).h_px(48.0).at(0.0, 66.0).pad_x(6.0));
+            let status = ui.node(
+                "status",
+                Node::column()
+                    .w(Size::Grow)
+                    .h_px(48.0)
+                    .at(0.0, 66.0)
+                    .pad_x(6.0),
+            );
             ui.within(&status, &mut |ui| {
-                ui.label(if state.command_too_long { "Search text is too long. Shorten it." } else if results.is_some() { "No matches." } else { "Searching…" }, PALETTE_STATUS);
+                ui.label(
+                    if state.command_too_long {
+                        "Search text is too long. Shorten it."
+                    } else if results.is_some() {
+                        "No matches."
+                    } else {
+                        "Searching…"
+                    },
+                    PALETTE_STATUS,
+                );
             });
         }
     });
     if modal.open {
         const LOOK: pxui::theme::States = pxui::theme::States::of(
-            PAPER_FILL.shadow(pxui::theme::Shadow::NONE.color(Rgba::BLACK.alpha(102)).offset(0.0, 30.0).blur(40.0).spread(-20.0)),
+            PAPER_FILL.shadow(
+                pxui::theme::Shadow::NONE
+                    .color(Rgba::BLACK.alpha(102))
+                    .offset(0.0, 30.0)
+                    .blur(40.0)
+                    .spread(-20.0),
+            ),
         );
         ui.style(&modal.handle, &LOOK, State::default());
         overlay_border(ui, &modal.handle);
@@ -302,46 +470,74 @@ pub(super) fn shortcuts(ui: &mut Ui, inset: f32, intent: &mut Option<Intent>) {
             .map_or(19.6, |m| m.height.max(19.6));
         if label == "Small player / full panel" && *height > 19.6 {
             labels[index] = "Small player /\nfull panel";
-            *height = ui.text_service().measure(labels[index], KEY_LABEL, Some(half))
+            *height = ui
+                .text_service()
+                .measure(labels[index], KEY_LABEL, Some(half))
                 .map_or(*height, |m| m.height.max(19.6));
         }
     }
     let body_height: f32 = 44.0 + 25.2 + 12.0 + heights.iter().sum::<f32>() + 11.0 * 8.0;
     let content = ui.content_rect();
     let top = top(content, inset);
-    let shortcuts = OVERLAY_TOP.at(pxui::Point::new(0.0, top)).w_px(card.min(content.w)).max_h_px((content.h - top - 16.0).max(0.0));
+    let shortcuts = OVERLAY_TOP
+        .at(pxui::Point::new(0.0, top))
+        .w_px(card.min(content.w))
+        .max_h_px((content.h - top - 16.0).max(0.0));
     let modal = ui.modal("shortcuts", &shortcuts.name("Keyboard shortcuts"), |ui| {
-        ui.column(Node::column().w(Size::Grow).h_px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))), |ui| {
-            let scroll = ui.scroll_view("shortcuts", Node::DEFAULT.h(Size::Grow), |ui| {
-                let body = ui.node("body", Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad_x(24.0).pad_y(22.0));
-                ui.within(&body, &mut |ui| {
-                    ui.label("Keyboard", TEXT_18.grow().weight(500).color(INK));
-                    ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
-                        for (index, (label, key)) in ROWS.iter().enumerate() {
-                            let row = ui.node(
-                                Key::Id(index as i64),
-                                Node::row().w(Size::Grow).h_px(heights[index]).gap(16.0)
-                                    .align(Align::Center),
-                            );
-                            ui.within(&row, &mut |ui| {
-                                let node = ui.node(
-                                    "label",
-                                    Node::column().w_px(half).h_px(heights[index]).role(Role::Label).look(INK_TEXT),
+        ui.column(
+            Node::column()
+                .w(Size::Grow)
+                .h_px(body_height.min((height - (height * 0.12).min(96.0) - 16.0).max(60.0))),
+            |ui| {
+                let scroll = ui.scroll_view("shortcuts", Node::DEFAULT.h(Size::Grow), |ui| {
+                    let body = ui.node(
+                        "body",
+                        Node::column()
+                            .w(Size::Grow)
+                            .h(Size::Fit)
+                            .gap(12.0)
+                            .pad_x(24.0)
+                            .pad_y(22.0),
+                    );
+                    ui.within(&body, &mut |ui| {
+                        ui.label("Keyboard", TEXT_18.grow().weight(500).color(INK));
+                        ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0), |ui| {
+                            for (index, (label, key)) in ROWS.iter().enumerate() {
+                                let row = ui.node(
+                                    Key::Id(index as i64),
+                                    Node::row()
+                                        .w(Size::Grow)
+                                        .h_px(heights[index])
+                                        .gap(16.0)
+                                        .align(Align::Center),
                                 );
-                                ui.text_line_box(&node, labels[index], KEY_LABEL, &[]).unwrap();
-                                if labels[index] != *label { ui.a11y_name(&node, label); }
-                                ui.node("fill", Node::DEFAULT.w(Size::Grow));
-                                ui.label(key, MONO_DIM);
-                            });
-                        }
+                                ui.within(&row, &mut |ui| {
+                                    let node = ui.node(
+                                        "label",
+                                        Node::column()
+                                            .w_px(half)
+                                            .h_px(heights[index])
+                                            .role(Role::Label)
+                                            .look(INK_TEXT),
+                                    );
+                                    ui.text_line_box(&node, labels[index], KEY_LABEL, &[])
+                                        .unwrap();
+                                    if labels[index] != *label {
+                                        ui.a11y_name(&node, label);
+                                    }
+                                    ui.node("fill", Node::DEFAULT.w(Size::Grow));
+                                    ui.label(key, MONO_DIM);
+                                });
+                            }
+                        });
                     });
                 });
-            });
-            // The inner scroller has no frame in Swift. Its default one-point inset shifts every line down.
-            let layout = ui.node_layout(&scroll).padding(Edges::ZERO);
-            ui.set_node_layout(&scroll, &layout);
-            ui.style(&scroll, &BARE, State::default());
-        });
+                // The inner scroller has no frame in Swift. Its default one-point inset shifts every line down.
+                let layout = ui.node_layout(&scroll).padding(Edges::ZERO);
+                ui.set_node_layout(&scroll, &layout);
+                ui.style(&scroll, &BARE, State::default());
+            },
+        );
     });
     if modal.open {
         overlay_border(ui, &modal.handle);
@@ -396,16 +592,7 @@ mod tests {
                 frame = frame.events(&events[..]);
                 frame
             },
-            &mut |ui| {
-                shell(
-                    ui,
-                    &PlayerView::default(),
-                    0.0,
-                    catalog,
-                    state,
-                    &mut intent,
-                )
-            },
+            &mut |ui| shell(ui, &PlayerView::default(), 0.0, catalog, state, &mut intent),
         )
         .unwrap();
         if let Some(intent) = intent {
@@ -428,32 +615,68 @@ mod tests {
             frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         }
         let at = |ui: &Ui, role: Role, name: &str| {
-            ui.a11y_nodes().iter().find(|n| n.role == role as u32 && ui.a11y_name_of(n) == name).map(|n| n.rect).unwrap_or_else(|| panic!("{name}"))
+            ui.a11y_nodes()
+                .iter()
+                .find(|n| n.role == role as u32 && ui.a11y_name_of(n) == name)
+                .map(|n| n.rect)
+                .unwrap_or_else(|| panic!("{name}"))
         };
-        let field = at(&ui, Role::TextField, "Search songs, folders, or type a command");
-        let list = ui.a11y_nodes().iter().find(|n| n.role == Role::List as u32 && n.rect.y > field.y).map(|n| n.rect).unwrap();
-        let (heading, first, last) = (at(&ui, Role::Heading, "Commands"), at(&ui, Role::ListItem, "Play / pause"), at(&ui, Role::ListItem, "Show keyboard shortcuts"));
-        assert_eq!((field.h, list.y), (59.0, field.y + 60.0), "the field and its hairline");
-        assert_eq!((heading.x, heading.y + 2.0), (list.x + 18.0, list.y + 6.0 + 10.0), "the heading's line, 12 in past the padding");
-        assert_eq!((first.y, first.h), (list.y + 6.0 + 30.8, 44.0), "rows under their heading");
-        assert!((list.y + list.h - (last.y + last.h) - 6.0).abs() < 0.01, "the results fit their rows, 6 in: {list:?} {last:?}");
+        let field = at(
+            &ui,
+            Role::TextField,
+            "Search songs, folders, or type a command",
+        );
+        let list = ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| n.role == Role::List as u32 && n.rect.y > field.y)
+            .map(|n| n.rect)
+            .unwrap();
+        let (heading, first, last) = (
+            at(&ui, Role::Heading, "Commands"),
+            at(&ui, Role::ListItem, "Play / pause"),
+            at(&ui, Role::ListItem, "Show keyboard shortcuts"),
+        );
+        assert_eq!(
+            (field.h, list.y),
+            (59.0, field.y + 60.0),
+            "the field and its hairline"
+        );
+        assert_eq!(
+            (heading.x, heading.y + 2.0),
+            (list.x + 18.0, list.y + 6.0 + 10.0),
+            "the heading's line, 12 in past the padding"
+        );
+        assert_eq!(
+            (first.y, first.h),
+            (list.y + 6.0 + 30.8, 44.0),
+            "rows under their heading"
+        );
+        assert!(
+            (list.y + list.h - (last.y + last.h) - 6.0).abs() < 0.01,
+            "the results fit their rows, 6 in: {list:?} {last:?}"
+        );
         state.apply(Intent::CommandQuery(Query::new("zz").unwrap()));
         for _ in 0..3 {
             frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         }
-        let list = ui.a11y_nodes().iter().find(|n| n.role == Role::List as u32 && n.rect.y > field.y).map(|n| n.rect).unwrap();
+        let list = ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| n.role == Role::List as u32 && n.rect.y > field.y)
+            .map(|n| n.rect)
+            .unwrap();
         let status = at(&ui, Role::Label, "Searching…");
         assert_eq!(list.h, 60.0, "the empty results keep their 60 points");
-        assert!(status.y >= list.y + 6.0 && status.y + status.h <= list.y + list.h, "the status sits over the empty results: {status:?} {list:?}");
+        assert!(
+            status.y >= list.y + 6.0 && status.y + status.h <= list.y + list.h,
+            "the status sits over the empty results: {status:?} {list:?}"
+        );
     }
 
     #[test]
     fn phone_shortcuts_wrap_labels_in_the_left_half() {
-        let mut ui = crate::test_ui(
-            pxui::Platform::Apple,
-            Some(18),
-            &[crate::FONT, crate::MONO],
-        );
+        let mut ui = crate::test_ui(pxui::Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let catalog = Catalog::new(Vec::new());
         let state = ShellState {
@@ -464,8 +687,19 @@ mod tests {
             let mut intent = None;
             crate::testing::frame(
                 &mut ui,
-                &FrameIn::new(390.0, 778.0).time(f64::from(tick)).reduced_motion(true),
-                &mut |ui| shell(ui, &PlayerView::default(), 0.0, &catalog, &state, &mut intent),
+                &FrameIn::new(390.0, 778.0)
+                    .time(f64::from(tick))
+                    .reduced_motion(true),
+                &mut |ui| {
+                    shell(
+                        ui,
+                        &PlayerView::default(),
+                        0.0,
+                        &catalog,
+                        &state,
+                        &mut intent,
+                    )
+                },
             )
             .unwrap();
         }
@@ -596,7 +830,9 @@ mod tests {
     /// The palette row the keyboard is on (pxui marks it selected).
     fn cursor_row(ui: &Ui) -> String {
         let node = ui.a11y_nodes().iter().find(|n| {
-            n.role == Role::ListItem as u32 && n.states & pxui::A11yStates::SELECTED.bits() != 0 && ui.a11y_name_of(n).starts_with("Result ")
+            n.role == Role::ListItem as u32
+                && n.states & pxui::A11yStates::SELECTED.bits() != 0
+                && ui.a11y_name_of(n).starts_with("Result ")
         });
         node.map_or_else(String::new, |n| ui.a11y_name_of(n).to_owned())
     }
@@ -642,25 +878,20 @@ mod tests {
             Some(Intent::ShowCommands)
         );
         for _ in 0..4 {
-            assert_eq!(
-                frame(&mut ui, &catalog, &mut state, &mut time, &[]),
-                None
-            );
+            assert_eq!(frame(&mut ui, &catalog, &mut state, &mut time, &[]), None);
         }
         assert!(ui.text_input_focused());
-        assert_eq!(
-            ui.text_traits(),
-            pxui::TextTraits::SEARCH
-        );
+        assert_eq!(ui.text_traits(), pxui::TextTraits::SEARCH);
         let field = ui
             .a11y_nodes()
             .iter()
             .find(|n| {
-                n.role == Role::TextField as u32 && ui.a11y_name_of(n) == "Search songs, folders, or type a command"
+                n.role == Role::TextField as u32
+                    && ui.a11y_name_of(n) == "Search songs, folders, or type a command"
             })
             .unwrap();
         assert_eq!(field.rect.h, 59.0);
-                let dialog = ui
+        let dialog = ui
             .a11y_nodes()
             .iter()
             .find(|n| n.role == Role::Dialog as u32 && ui.a11y_name_of(n) == "Search and commands")
@@ -694,7 +925,8 @@ mod tests {
             .a11y_nodes()
             .iter()
             .find(|n| {
-                n.states & pxui::A11yStates::SELECTED.bits() != 0 && ui.a11y_name_of(n) == "Result 23"
+                n.states & pxui::A11yStates::SELECTED.bits() != 0
+                    && ui.a11y_name_of(n) == "Result 23"
             })
             .unwrap();
         assert!(
@@ -748,13 +980,7 @@ mod tests {
             key(Event::KEY_PRESSED, input::Key::Enter),
         ];
         assert_eq!(
-            frame(
-                &mut ui,
-                &catalog,
-                &mut state,
-                &mut time,
-                &edit_and_submit
-            ),
+            frame(&mut ui, &catalog, &mut state, &mut time, &edit_and_submit),
             Some(Intent::CommandQuery(Query::new("café live").unwrap())),
             "editing and submitting in one batch cannot activate the previous query"
         );
@@ -771,7 +997,11 @@ mod tests {
         );
         catalog.commands = Some(results(state.command_query, &actions));
         frame(&mut ui, &catalog, &mut state, &mut time, &[]);
-        assert_eq!(cursor_row(&ui), "Result 00", "a new query's results start at the first row");
+        assert_eq!(
+            cursor_row(&ui),
+            "Result 00",
+            "a new query's results start at the first row"
+        );
         let expected = catalog.commands.as_ref().unwrap().items[0].key;
         assert_eq!(
             frame(

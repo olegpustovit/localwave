@@ -137,7 +137,11 @@ impl LibraryWorker {
                 Some(name.to_string_lossy().into_owned())
             });
         let plays = self.playback_history().get(song).plays;
-        Some(Arc::new(lw_ui::now_info::NowInfo::new(&row, source.as_deref(), plays)))
+        Some(Arc::new(lw_ui::now_info::NowInfo::new(
+            &row,
+            source.as_deref(),
+            plays,
+        )))
     }
     pub fn playback_history(&self) -> lw_apple_sys::history::History {
         self.preferences.history()

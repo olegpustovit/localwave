@@ -7,7 +7,10 @@
 use super::*;
 
 /// The expanded player: a sheet filling the content area that a drag down dismisses (UIKit's sheet thresholds).
-const PLAYER_SHEET: pxui::Overlay = pxui::Overlay::DEFAULT.present(pxui::Presentation::Full).dismiss(pxui::DismissOpts::DEFAULT).name("Now playing");
+const PLAYER_SHEET: pxui::Overlay = pxui::Overlay::DEFAULT
+    .present(pxui::Presentation::Full)
+    .dismiss(pxui::DismissOpts::DEFAULT)
+    .name("Now playing");
 
 pub(super) mod list;
 pub(super) mod page;
@@ -15,30 +18,41 @@ pub(super) mod page;
 pub(super) const BREAKPOINT: f32 = 620.0;
 
 /// The library modes (`localwave-tabs` / `MODE`): label and count, ink with a 2 pt underline on the one in use.
-const MODE: pxui::Tabs = pxui::Tabs::DEFAULT.name("Library view").variant(variant::MODE);
+const MODE: pxui::Tabs = pxui::Tabs::DEFAULT
+    .name("Library view")
+    .variant(variant::MODE);
 const MODE_ROUTES: [Route; 3] = [Route::Albums, Route::Artists, Route::Songs];
 /// The main navigation (`localwave-tabs` / `TABBAR`): four tabs sharing the bar, the one in use on the selected fill.
-const TABBAR: pxui::Tabs = pxui::Tabs::DEFAULT.name("Main navigation").variant(variant::TABBAR);
-const MAIN_TABS: [pxui::Segment; 4] = [pxui::Segment::new("Library"), pxui::Segment::new("Folders"), pxui::Segment::new("Lists"), pxui::Segment::new("Find")];
+const TABBAR: pxui::Tabs = pxui::Tabs::DEFAULT
+    .name("Main navigation")
+    .variant(variant::TABBAR);
+const MAIN_TABS: [pxui::Segment; 4] = [
+    pxui::Segment::new("Library"),
+    pxui::Segment::new("Folders"),
+    pxui::Segment::new("Lists"),
+    pxui::Segment::new("Find"),
+];
 const MAIN_ROUTES: [Route; 4] = [Route::Albums, Route::Files, Route::Lists, Route::Find];
 
 const LIBRARY_TITLE_HEIGHT: f32 = 50.0;
 const LIBRARY_TOTALS_HEIGHT: f32 = 60.0;
 const LIBRARY_TABS_HEIGHT: f32 = 44.0;
 const TAB_RULE_OVERLAP: f32 = 2.0;
-const LIBRARY_HEADER_HEIGHT: f32 = LIBRARY_TITLE_HEIGHT + LIBRARY_TOTALS_HEIGHT + LIBRARY_TABS_HEIGHT + 1.0 - TAB_RULE_OVERLAP;
+const LIBRARY_HEADER_HEIGHT: f32 =
+    LIBRARY_TITLE_HEIGHT + LIBRARY_TOTALS_HEIGHT + LIBRARY_TABS_HEIGHT + 1.0 - TAB_RULE_OVERLAP;
 
 /// Swift's `WaveModeKeys` (compact): a key filling its line, 44 points high, its icon and 14-point label centred, ink on the key
 /// fill, paper on ink while on (`localwave-button` / `KEY`); the queue's count leads its label in Geist Mono 11.
-const MODE_KEY: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Grow, Size::Px(44.0)).gap(6.0).centered().label(TEXT_14).detail_label(MONO_11.color(INK)).look(&MODE_KEY_LOOKS);
+const MODE_KEY: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::KEY)
+    .size(Size::Grow, Size::Px(44.0))
+    .gap(6.0)
+    .centered()
+    .label(TEXT_14)
+    .detail_label(MONO_11.color(INK))
+    .look(&MODE_KEY_LOOKS);
 
-fn artwork(
-    ui: &mut Ui,
-    catalog: &Catalog,
-    player: &PlayerView<'_>,
-    row: Option<usize>,
-    size: f32,
-) {
+fn artwork(ui: &mut Ui, catalog: &Catalog, player: &PlayerView<'_>, row: Option<usize>, size: f32) {
     let art = container(
         ui,
         "artwork",
@@ -75,7 +89,12 @@ pub(super) fn view(
     let width = (width - left - right).max(1.0);
     let root = ui.node(
         "compact-shell",
-        Node::column().w(Size::Grow).h(Size::Grow).role(Role::Window).padding(Edges::new(left, top.max(state.top_inset), right, bottom)).look(PAPER_FILL),
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .role(Role::Window)
+            .padding(Edges::new(left, top.max(state.top_inset), right, bottom))
+            .look(PAPER_FILL),
     );
     ui.a11y_name(&root, "LocalWave");
     ui.within(&root, &mut |ui| {
@@ -93,135 +112,216 @@ pub(super) fn view(
         }
         let revision = library_revision(player, catalog, state);
         ui.view_of("compact-library", &revision, |ui| {
-                if !state.settings_visible
-                    && state.route != Route::Files
-                    && state.route != Route::Find
-                    && !matches!(state.route, Route::Artist(_) | Route::Album(_) | Route::Collection(_))
-                {
-                    let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
-                    // Select mode swaps the Songs title for Swift's selection header.
-                    let picking = state.selecting && state.route == Route::Songs;
-                    // Swift's compact header: its 10-point pad (measured: the title's ink 14 points down); Lists (`listsHeader`) centres in 54
-                    // with nothing under it
-                    let lists = state.route == Route::Lists;
-                    let pad = Edges::new(16.0, if library { 10.0 } else { 0.0 }, if library { 6.0 } else { 16.0 }, if library || lists { 0.0 } else { 10.0 });
-                    ui.row(Node::row()
-                            .w(Size::Grow)
-                            .h_px(if picking || lists { 54.0 } else if library { LIBRARY_TITLE_HEIGHT } else { 64.0 })
-                            .align(if library { Align::Start } else { Align::Center })
-                            .padding(if picking { Edges::ZERO } else { pad }),
-                        |ui| {
-                            if picking {
-                                let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
-                                list::selection_header(ui, state.marked_count(), rows, rows, intent);
-                            } else if library {
-                                ui.label("Library", PAGE_TITLE);
-                                // Swift's header gear; Settings stays one tap away.
-                                if ui.icon_button("settings", icon_sized(Icon::Settings, 22.0), "Settings", &ICON_44.look(&ICON_LOOKS)).clicked {
-                                    *intent = Some(Intent::ShowSettings);
-                                }
-                            } else {
-                                if lists {
-                                    ui.label("Lists", PAGE_TITLE);
-                                } else {
-                                    ui.label("Library", PHONE_TITLE);
-                                }
+            if !state.settings_visible
+                && state.route != Route::Files
+                && state.route != Route::Find
+                && !matches!(
+                    state.route,
+                    Route::Artist(_) | Route::Album(_) | Route::Collection(_)
+                )
+            {
+                let library = matches!(state.route, Route::Albums | Route::Artists | Route::Songs);
+                // Select mode swaps the Songs title for Swift's selection header.
+                let picking = state.selecting && state.route == Route::Songs;
+                // Swift's compact header: its 10-point pad (measured: the title's ink 14 points down); Lists (`listsHeader`) centres in 54
+                // with nothing under it
+                let lists = state.route == Route::Lists;
+                let pad = Edges::new(
+                    16.0,
+                    if library { 10.0 } else { 0.0 },
+                    if library { 6.0 } else { 16.0 },
+                    if library || lists { 0.0 } else { 10.0 },
+                );
+                ui.row(
+                    Node::row()
+                        .w(Size::Grow)
+                        .h_px(if picking || lists {
+                            54.0
+                        } else if library {
+                            LIBRARY_TITLE_HEIGHT
+                        } else {
+                            64.0
+                        })
+                        .align(if library { Align::Start } else { Align::Center })
+                        .padding(if picking { Edges::ZERO } else { pad }),
+                    |ui| {
+                        if picking {
+                            let rows = state.collection(catalog).map_or(0, |c| c.rows.len());
+                            list::selection_header(ui, state.marked_count(), rows, rows, intent);
+                        } else if library {
+                            ui.label("Library", PAGE_TITLE);
+                            // Swift's header gear; Settings stays one tap away.
+                            if ui
+                                .icon_button(
+                                    "settings",
+                                    icon_sized(Icon::Settings, 22.0),
+                                    "Settings",
+                                    &ICON_44.look(&ICON_LOOKS),
+                                )
+                                .clicked
+                            {
+                                *intent = Some(Intent::ShowSettings);
                             }
-                        },
-                    );
-                    if library {
-                        ui.id("library-summary", |ui| { ui.row(Node::row().w(Size::Grow).h_px(LIBRARY_TOTALS_HEIGHT).gap(10.0).align(Align::End).padding(Edges::ZERO.l(16.0).r(16.0).b(16.0)),
+                        } else {
+                            if lists {
+                                ui.label("Lists", PAGE_TITLE);
+                            } else {
+                                ui.label("Library", PHONE_TITLE);
+                            }
+                        }
+                    },
+                );
+                if library {
+                    ui.id("library-summary", |ui| {
+                        ui.row(
+                            Node::row()
+                                .w(Size::Grow)
+                                .h_px(LIBRARY_TOTALS_HEIGHT)
+                                .gap(10.0)
+                                .align(Align::End)
+                                .padding(Edges::ZERO.l(16.0).r(16.0).b(16.0)),
                             |ui| {
                                 // Swift's MatrixText counter at 46 pt, then "songs" and the totals on the right.
-                                clock::matrix_digits(ui, "number", catalog.song_count.as_bytes(), 46.0, INK);
+                                clock::matrix_digits(
+                                    ui,
+                                    "number",
+                                    catalog.song_count.as_bytes(),
+                                    46.0,
+                                    INK,
+                                );
                                 ui.label("songs", LEAD_INK);
-                                container(ui, "fill", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
-                                ui.id("library-size", |ui| { ui.column(Node::column().w(Size::Fit).h(Size::Fit).align(Align::End), |ui| {
-                                    ui.label(&catalog.totals_label, TEXT_13.h_px(19.5).color(SECONDARY));
-                                    ui.label(&catalog.sources_label, TEXT_13.h_px(19.5).color(SECONDARY));
-                                }); });
+                                container(
+                                    ui,
+                                    "fill",
+                                    Axis::Row,
+                                    Size::Grow,
+                                    Size::Px(1.0),
+                                    &PAPER_FILL,
+                                );
+                                ui.id("library-size", |ui| {
+                                    ui.column(
+                                        Node::column().w(Size::Fit).h(Size::Fit).align(Align::End),
+                                        |ui| {
+                                            ui.label(
+                                                &catalog.totals_label,
+                                                TEXT_13.h_px(19.5).color(SECONDARY),
+                                            );
+                                            ui.label(
+                                                &catalog.sources_label,
+                                                TEXT_13.h_px(19.5).color(SECONDARY),
+                                            );
+                                        },
+                                    );
+                                });
                             },
-                        ); });
-                        let tabs = ui.node(
-                            "library-tabs",
-                            Node::row().w(Size::Grow).h_px(LIBRARY_TABS_HEIGHT).gap(20.0).pad_x(16.0).align(Align::Center),
                         );
-                        ui.within(&tabs, &mut |ui| {
-                            let modes = [
-                                pxui::Segment::new("Albums").detail(&catalog.album_count),
-                                pxui::Segment::new("Artists").detail(&catalog.artist_count),
-                                pxui::Segment::new("Songs").detail(&catalog.song_count),
-                            ];
-                            let r = ui.tabs("library-modes", &modes, MODE_ROUTES.iter().position(|&r| r == state.route), &MODE);
-                            if r.response.clicked && let Some(i) = r.chosen {
-                                *intent = Some(Intent::Navigate(MODE_ROUTES[i]));
-                            }
-                            if state.route == Route::Songs {
-                                container(ui, "sort-fill", Axis::Row, Size::Grow, Size::Px(1.0), &PAPER_FILL);
-                                ui.label("Title \u{2193}", BODY_INK);
-                                if !state.selecting
-                                    && state.collection(catalog).is_some_and(|c| !c.rows.is_empty())
-                                    && list::select_for_assistive(ui)
-                                {
-                                    *intent = Some(Intent::SelectMode(true));
-                                }
-                            }
-                        });
-                        // Swift's mode underline hangs over its header's rule: the rule sits 2 points up, under the underline's foot
-                        ui.node("tabs-divider", Node::column().w(Size::Grow).h_px(1.0).margin(Edges::ZERO.t(-TAB_RULE_OVERLAP)).look(LINE_FILL));
-                    }
-                }
-                let content = ui.view_of("compact-content", &revision, |ui| {
-                        let body = container(
-                            ui,
-                            "compact-content",
-                            Axis::Column,
-                            Size::Grow,
-                            Size::Grow,
-                            &PAPER_FILL,
-                        );
-                        let route_key = crate::hash((
-                            state.route,
-                            state.settings_visible,
-                            if state.route == Route::Find {
-                                state.query_revision
-                            } else {
-                                0
-                            },
-                        ));
-                        ui.within(&body, &mut |ui| {
-                            let page = ui.node(
-                                Key::Id(route_key as i64),
-                                Node::column().w(Size::Grow).h(Size::Grow),
-                            );
-                            ui.within(&page, &mut |ui| {
-                                if state.settings_visible {
-                                    settings::view(ui, player, state, width, intent);
-                                } else {
-                                    match state.route {
-                                        Route::Files => files::view(ui, player, state, intent),
-                                        Route::Albums => {
-                                            albums::gallery(ui, catalog, state, player, width, intent)
-                                        }
-                                        Route::Artists => {
-                                            groups(ui, catalog, player, width, intent)
-                                        }
-                                        Route::Lists => collections(ui, catalog, player, false, intent),
-                                        _ => list::songs(ui, catalog, state, player, width, intent),
-                                    }
-                                }
-                            });
-                        });
                     });
-                crate::motion::enter(
+                    let tabs = ui.node(
+                        "library-tabs",
+                        Node::row()
+                            .w(Size::Grow)
+                            .h_px(LIBRARY_TABS_HEIGHT)
+                            .gap(20.0)
+                            .pad_x(16.0)
+                            .align(Align::Center),
+                    );
+                    ui.within(&tabs, &mut |ui| {
+                        let modes = [
+                            pxui::Segment::new("Albums").detail(&catalog.album_count),
+                            pxui::Segment::new("Artists").detail(&catalog.artist_count),
+                            pxui::Segment::new("Songs").detail(&catalog.song_count),
+                        ];
+                        let r = ui.tabs(
+                            "library-modes",
+                            &modes,
+                            MODE_ROUTES.iter().position(|&r| r == state.route),
+                            &MODE,
+                        );
+                        if r.response.clicked
+                            && let Some(i) = r.chosen
+                        {
+                            *intent = Some(Intent::Navigate(MODE_ROUTES[i]));
+                        }
+                        if state.route == Route::Songs {
+                            container(
+                                ui,
+                                "sort-fill",
+                                Axis::Row,
+                                Size::Grow,
+                                Size::Px(1.0),
+                                &PAPER_FILL,
+                            );
+                            ui.label("Title \u{2193}", BODY_INK);
+                            if !state.selecting
+                                && state
+                                    .collection(catalog)
+                                    .is_some_and(|c| !c.rows.is_empty())
+                                && list::select_for_assistive(ui)
+                            {
+                                *intent = Some(Intent::SelectMode(true));
+                            }
+                        }
+                    });
+                    // Swift's mode underline hangs over its header's rule: the rule sits 2 points up, under the underline's foot
+                    ui.node(
+                        "tabs-divider",
+                        Node::column()
+                            .w(Size::Grow)
+                            .h_px(1.0)
+                            .margin(Edges::ZERO.t(-TAB_RULE_OVERLAP))
+                            .look(LINE_FILL),
+                    );
+                }
+            }
+            let content = ui.view_of("compact-content", &revision, |ui| {
+                let body = container(
                     ui,
-                    &content,
-                    state.entry_revision,
-                    (24.0, 0.0),
-                    crate::motion::BASE,
-                    0.0,
+                    "compact-content",
+                    Axis::Column,
+                    Size::Grow,
+                    Size::Grow,
+                    &PAPER_FILL,
                 );
+                let route_key = crate::hash((
+                    state.route,
+                    state.settings_visible,
+                    if state.route == Route::Find {
+                        state.query_revision
+                    } else {
+                        0
+                    },
+                ));
+                ui.within(&body, &mut |ui| {
+                    let page = ui.node(
+                        Key::Id(route_key as i64),
+                        Node::column().w(Size::Grow).h(Size::Grow),
+                    );
+                    ui.within(&page, &mut |ui| {
+                        if state.settings_visible {
+                            settings::view(ui, player, state, width, intent);
+                        } else {
+                            match state.route {
+                                Route::Files => files::view(ui, player, state, intent),
+                                Route::Albums => {
+                                    albums::gallery(ui, catalog, state, player, width, intent)
+                                }
+                                Route::Artists => groups(ui, catalog, player, width, intent),
+                                Route::Lists => collections(ui, catalog, player, false, intent),
+                                _ => list::songs(ui, catalog, state, player, width, intent),
+                            }
+                        }
+                    });
+                });
             });
+            crate::motion::enter(
+                ui,
+                &content,
+                state.entry_revision,
+                (24.0, 0.0),
+                crate::motion::BASE,
+                0.0,
+            );
+        });
         mini(ui, player, position, width, catalog, intent);
         rule(ui, "nav-divider", false);
         let nav = container(
@@ -242,7 +342,9 @@ pub(super) fn view(
             // Settings opens over its section (Swift's `showSettings`): the section's tab stays in use
             let r = ui.tabs("main-tabs", &MAIN_TABS, Some(selected), &TABBAR);
             // a tap on the tab in use pops its stack to the root (iOS): Library on an album page goes back to Albums
-            if r.response.clicked && let Some(i) = r.chosen {
+            if r.response.clicked
+                && let Some(i) = r.chosen
+            {
                 *intent = Some(Intent::Navigate(MAIN_ROUTES[i]));
             }
         });
@@ -260,11 +362,33 @@ fn mini(
 ) {
     // Swift's compact `WaveTransport`: 63 points on paper, the open area (40-point artwork, 15-point title over the 13-point
     // artist) and the 64-point ink play key, under the 2-point ink progress line 1 point over its top edge
-    ui.row(Node::row().w(Size::Grow).h_px(63.0).align(Align::Center).look(PAPER_FILL),
+    ui.row(
+        Node::row()
+            .w(Size::Grow)
+            .h_px(63.0)
+            .align(Align::Center)
+            .look(PAPER_FILL),
         |ui| {
-            let fraction = if player.duration > 0.0 { (position / player.duration).clamp(0.0, 1.0) } else { 0.0 };
-            ui.node("progress", Node::row().w_px((fraction as f32 * width).round()).h_px(2.0).at(0.0, -1.0).look(INK_FILL));
-            let node = Node::row().w(Size::Grow).h(Size::Grow).gap(12.0).padding(Edges::ZERO.l(16.0).r(12.0)).align(Align::Center).role(Role::Button);
+            let fraction = if player.duration > 0.0 {
+                (position / player.duration).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            ui.node(
+                "progress",
+                Node::row()
+                    .w_px((fraction as f32 * width).round())
+                    .h_px(2.0)
+                    .at(0.0, -1.0)
+                    .look(INK_FILL),
+            );
+            let node = Node::row()
+                .w(Size::Grow)
+                .h(Size::Grow)
+                .gap(12.0)
+                .padding(Edges::ZERO.l(16.0).r(12.0))
+                .align(Align::Center)
+                .role(Role::Button);
             let open = ui.pressable("open-player", node, &PLAIN, |ui, _| {
                 artwork(
                     ui,
@@ -273,9 +397,23 @@ fn mini(
                     player.current_id.and_then(|id| catalog.row_index(id)),
                     40.0,
                 );
-                let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
+                let labels = container(
+                    ui,
+                    "labels",
+                    Axis::Column,
+                    Size::Grow,
+                    Size::Fit,
+                    &PAPER_FILL,
+                );
                 ui.within(&labels, &mut |ui| {
-                    ui.label(if player.title.is_empty() { "Nothing playing" } else { player.title }, ROW_TITLE);
+                    ui.label(
+                        if player.title.is_empty() {
+                            "Nothing playing"
+                        } else {
+                            player.title
+                        },
+                        ROW_TITLE,
+                    );
                     ui.label(player.artist, ROW_NOTE);
                 });
             });
@@ -288,13 +426,26 @@ fn mini(
     );
 }
 
-fn play(ui: &mut Ui, player: &PlayerView<'_>, size: (f32, f32), points: f32, intent: &mut Option<Intent>) {
-    if ui.icon_button(
-        "play",
-        if player.playing { icon_drawing(Icon::Pause) } else { icon_sized(Icon::Play, points) },
-        if player.playing { "Pause" } else { "Play" },
-        &icon_key(size.0, size.1).look(&ICON_INVERSE_LOOKS),
-    ).clicked {
+fn play(
+    ui: &mut Ui,
+    player: &PlayerView<'_>,
+    size: (f32, f32),
+    points: f32,
+    intent: &mut Option<Intent>,
+) {
+    if ui
+        .icon_button(
+            "play",
+            if player.playing {
+                icon_drawing(Icon::Pause)
+            } else {
+                icon_sized(Icon::Play, points)
+            },
+            if player.playing { "Pause" } else { "Play" },
+            &icon_key(size.0, size.1).look(&ICON_INVERSE_LOOKS),
+        )
+        .clicked
+    {
         *intent = Some(if player.playing {
             Intent::Pause
         } else {
@@ -316,67 +467,122 @@ pub(super) fn collections(
 ) {
     use lw_core::context::PlaybackContext;
     // a plain scrolling column (the kit's scroll view draws a frame Swift's page has none of)
-    ui.column(Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP), |ui| {
-        // its rows keep their build while the column scrolls (a moving scroll rebuilds only the view that holds it)
-        let revision = (std::sync::Arc::as_ptr(&catalog.library) as usize, catalog.collections.as_ptr() as usize, player.artwork.map_or(0, crate::artwork::Images::revision), title);
-        ui.view_of("lists-content", &revision, |ui| {
-            if title {
-                ui.row(Node::row().w(Size::Grow).h_px(10.0 + 44.0).padding(Edges::ZERO.l(16.0).t(10.0).r(16.0)), |ui| {
-                    ui.label("Lists", PAGE_TITLE);
-                });
-            }
-            for (key, section, automatic) in [("automatic", "Automatic", true), ("yours", "Yours", false)] {
-                ui.id(key, |ui| {
-                    ui.row(Node::row().w(Size::Grow).h_px(20.0 + 18.2 + 8.0).padding(Edges::new(16.0, 20.0, 16.0, 8.0)), |ui| {
-                        ui.label(section, SECTION_LABEL);
-                    });
-                    let mut first = true;
-                    for (index, group) in catalog.collections.iter().enumerate() {
-                        if matches!(&*group.context, PlaybackContext::Automatic(_)) != automatic {
-                            continue;
+    ui.column(
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .flags(Flags::SCROLL | Flags::CLIP),
+        |ui| {
+            // its rows keep their build while the column scrolls (a moving scroll rebuilds only the view that holds it)
+            let revision = (
+                std::sync::Arc::as_ptr(&catalog.library) as usize,
+                catalog.collections.as_ptr() as usize,
+                player.artwork.map_or(0, crate::artwork::Images::revision),
+                title,
+            );
+            ui.view_of("lists-content", &revision, |ui| {
+                if title {
+                    ui.row(
+                        Node::row()
+                            .w(Size::Grow)
+                            .h_px(10.0 + 44.0)
+                            .padding(Edges::ZERO.l(16.0).t(10.0).r(16.0)),
+                        |ui| {
+                            ui.label("Lists", PAGE_TITLE);
+                        },
+                    );
+                }
+                for (key, section, automatic) in
+                    [("automatic", "Automatic", true), ("yours", "Yours", false)]
+                {
+                    ui.id(key, |ui| {
+                        ui.row(
+                            Node::row()
+                                .w(Size::Grow)
+                                .h_px(20.0 + 18.2 + 8.0)
+                                .padding(Edges::new(16.0, 20.0, 16.0, 8.0)),
+                            |ui| {
+                                ui.label(section, SECTION_LABEL);
+                            },
+                        );
+                        let mut first = true;
+                        for (index, group) in catalog.collections.iter().enumerate() {
+                            if matches!(&*group.context, PlaybackContext::Automatic(_)) != automatic
+                            {
+                                continue;
+                            }
+                            let divider = !std::mem::take(&mut first);
+                            ui.id(Key::Id(group.key as i64), |ui| {
+                                if group_row(
+                                    ui,
+                                    64.0,
+                                    14.0,
+                                    &group.title,
+                                    &mut |ui| {
+                                        artwork(ui, catalog, player, group.artwork_row, 44.0);
+                                        ui.column(
+                                            Node::column().w(Size::Grow).h(Size::Fit),
+                                            |ui| {
+                                                ui.label(&group.title, LIST_TITLE);
+                                                ui.label(
+                                                    if automatic {
+                                                        "updates itself"
+                                                    } else {
+                                                        &group.subtitle
+                                                    },
+                                                    LIST_NOTE,
+                                                );
+                                            },
+                                        );
+                                        ui.label(&group.count, LIST_NOTE);
+                                    },
+                                    divider,
+                                ) {
+                                    *intent = Some(Intent::Navigate(Route::Collection(index)));
+                                }
+                            });
                         }
-                        let divider = !std::mem::take(&mut first);
-                        ui.id(Key::Id(group.key as i64), |ui| {
-                            if group_row(ui, 64.0, 14.0, &group.title, &mut |ui| {
-                                artwork(ui, catalog, player, group.artwork_row, 44.0);
-                                ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
-                                    ui.label(&group.title, LIST_TITLE);
-                                    ui.label(if automatic { "updates itself" } else { &group.subtitle }, LIST_NOTE);
-                                });
-                                ui.label(&group.count, LIST_NOTE);
-                            }, divider) {
-                                *intent = Some(Intent::Navigate(Route::Collection(index)));
+                    });
+                }
+                ui.row(
+                    Node::row()
+                        .w(Size::Grow)
+                        .h_px(12.0 + 56.0)
+                        .padding(Edges::ZERO.l(16.0).t(12.0).r(16.0)),
+                    |ui| {
+                        let new = ui.button("new-list", "New list", &NEW_LIST);
+                        // Swift's dashed 1.5-point hairline round the key: 5 on, 4 off
+                        ui.canvas_over(&new.handle, |paint, rect| {
+                            let ink = Fill::new(Rgba::token(LINE)).fractional();
+                            let mut x = 0.0;
+                            while x < rect.w {
+                                let w = 5.0f32.min(rect.w - x);
+                                paint.fill(Rect::new(rect.x + x, rect.y, w, 1.5), ink);
+                                paint.fill(
+                                    Rect::new(rect.x + x, rect.y + rect.h - 1.5, w, 1.5),
+                                    ink,
+                                );
+                                x += 9.0;
+                            }
+                            let mut y = 0.0;
+                            while y < rect.h {
+                                let h = 5.0f32.min(rect.h - y);
+                                paint.fill(Rect::new(rect.x, rect.y + y, 1.5, h), ink);
+                                paint.fill(
+                                    Rect::new(rect.x + rect.w - 1.5, rect.y + y, 1.5, h),
+                                    ink,
+                                );
+                                y += 9.0;
                             }
                         });
-                    }
-                });
-            }
-            ui.row(Node::row().w(Size::Grow).h_px(12.0 + 56.0).padding(Edges::ZERO.l(16.0).t(12.0).r(16.0)), |ui| {
-                let new = ui.button("new-list", "New list", &NEW_LIST);
-                // Swift's dashed 1.5-point hairline round the key: 5 on, 4 off
-                ui.canvas_over(&new.handle, |paint, rect| {
-                    let ink = Fill::new(Rgba::token(LINE)).fractional();
-                    let mut x = 0.0;
-                    while x < rect.w {
-                        let w = 5.0f32.min(rect.w - x);
-                        paint.fill(Rect::new(rect.x + x, rect.y, w, 1.5), ink);
-                        paint.fill(Rect::new(rect.x + x, rect.y + rect.h - 1.5, w, 1.5), ink);
-                        x += 9.0;
-                    }
-                    let mut y = 0.0;
-                    while y < rect.h {
-                        let h = 5.0f32.min(rect.h - y);
-                        paint.fill(Rect::new(rect.x, rect.y + y, 1.5, h), ink);
-                        paint.fill(Rect::new(rect.x + rect.w - 1.5, rect.y + y, 1.5, h), ink);
-                        y += 9.0;
-                    }
-                });
-                if new.clicked {
-                    *intent = Some(Intent::NewList(None));
-                }
+                        if new.clicked {
+                            *intent = Some(Intent::NewList(None));
+                        }
+                    },
+                );
             });
-        });
-    });
+        },
+    );
 }
 
 /// A Lists section's label: 13 points medium, secondary.
@@ -385,16 +591,42 @@ const SECTION_LABEL: Label = TEXT_13.weight(500).grow().color(SECONDARY);
 const LIST_TITLE: Label = TEXT_15.weight(500).grow().color(INK);
 const LIST_NOTE: Label = TEXT_13.color(SECONDARY);
 /// The dashed "New list" key: Swift's 18-point plus 8 before its 15-point label, centred, 56 high.
-const NEW_LIST: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Grow, Size::Px(56.0)).align(Justify::Center).centered()
-    .look(&BARE).icon(icon_drawing(Icon::Plus)).icon_size(18.0).gap(8.0).label(TEXT_15.color(SECONDARY));
+const NEW_LIST: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::ROW)
+    .size(Size::Grow, Size::Px(56.0))
+    .align(Justify::Center)
+    .centered()
+    .look(&BARE)
+    .icon(icon_drawing(Icon::Plus))
+    .icon_size(18.0)
+    .gap(8.0)
+    .label(TEXT_15.color(SECONDARY));
 
 /// One tappable row of a group page, `h` high, its parts `gap` apart 16 points in, under a hairline 16 points in when `divider`;
 /// named `name`. Reports a click.
-fn group_row(ui: &mut Ui, h: f32, gap: f32, name: &str, content: &mut dyn FnMut(&mut Ui), divider: bool) -> bool {
-    let node = Node::row().w(Size::Grow).h_px(h).gap(gap).pad_x(16.0).align(Align::Center).role(Role::Button);
+fn group_row(
+    ui: &mut Ui,
+    h: f32,
+    gap: f32,
+    name: &str,
+    content: &mut dyn FnMut(&mut Ui),
+    divider: bool,
+) -> bool {
+    let node = Node::row()
+        .w(Size::Grow)
+        .h_px(h)
+        .gap(gap)
+        .pad_x(16.0)
+        .align(Align::Center)
+        .role(Role::Button);
     let card = ui.pressable("group", node, &PLAIN, |ui, _| content(ui));
     if divider {
-        ui.canvas_over(&card.handle, |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y, rect.w - 16.0, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
+        ui.canvas_over(&card.handle, |paint, rect| {
+            paint.fill(
+                Rect::new(rect.x + 16.0, rect.y, rect.w - 16.0, 1.0),
+                Fill::new(Rgba::token(LINE)).fractional(),
+            )
+        });
     }
     ui.a11y_name(&card.handle, name);
     card.clicked
@@ -421,22 +653,44 @@ fn groups(
             &mut |ui, index| {
                 let group = &groups[index];
                 // Swift's phone `artistRows`: 44-point artwork, the medium name over "N albums · M songs", the 18-point chevron
-                if group_row(ui, ROW, 14.0, &group.title, &mut |ui| {
-                    artwork(ui, catalog, player, group.artwork_row, 44.0);
-                    let labels = container(ui, "labels", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
-                    ui.within(&labels, &mut |ui| {
-                        ui.label(&group.title, LIST_TITLE);
-                        ui.label(&group.summary, ROW_NOTE);
-                    });
-                    let chevron = ui.node("chevron", Node::row().w_px(18.0).h_px(18.0));
-                    ui.canvas(&chevron, |paint, rect| crate::icons::chevron(paint, rect, Rgba::token(INK)));
-                }, index > 0) {
+                if group_row(
+                    ui,
+                    ROW,
+                    14.0,
+                    &group.title,
+                    &mut |ui| {
+                        artwork(ui, catalog, player, group.artwork_row, 44.0);
+                        let labels = container(
+                            ui,
+                            "labels",
+                            Axis::Column,
+                            Size::Grow,
+                            Size::Fit,
+                            &PAPER_FILL,
+                        );
+                        ui.within(&labels, &mut |ui| {
+                            ui.label(&group.title, LIST_TITLE);
+                            ui.label(&group.summary, ROW_NOTE);
+                        });
+                        let chevron = ui.node("chevron", Node::row().w_px(18.0).h_px(18.0));
+                        ui.canvas(&chevron, |paint, rect| {
+                            crate::icons::chevron(paint, rect, Rgba::token(INK))
+                        });
+                    },
+                    index > 0,
+                ) {
                     *intent = Some(Intent::Navigate(Route::Artist(index)));
                 }
             },
         );
         let (letters, starts) = &catalog.artist_index;
-        list::rail(ui, &list, (letters, starts), (ROW, groups.len()), LIBRARY_HEADER_HEIGHT);
+        list::rail(
+            ui,
+            &list,
+            (letters, starts),
+            (ROW, groups.len()),
+            LIBRARY_HEADER_HEIGHT,
+        );
     });
 }
 
@@ -451,155 +705,326 @@ fn expanded(
     intent: &mut Option<Intent>,
 ) {
     use lw_core::queue::RepeatMode;
-    let favorite = player
-        .current_id
-        .map(|id| (id, catalog.row_index(id).is_some_and(|i| catalog.row(i).favorite)));
+    let favorite = player.current_id.map(|id| {
+        (
+            id,
+            catalog
+                .row_index(id)
+                .is_some_and(|i| catalog.row(i).favorite),
+        )
+    });
     // Swift `artworkRegionHeight`: what the fixed rows leave, never below 124.
-    let region = (size.1 - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0)).max(124.0);
+    let region = (size.1
+        - (48.0 + 86.0 + 10.0 + 16.0 + 50.6 + 14.0 + 72.0 + 14.0 + 77.4 + 14.0 + 48.0))
+        .max(124.0);
     let art_size = (size.0 - 32.0).min(region - 4.0).clamp(1.0, 358.0);
     // the sheet fills the content area; a window inset above it (the desktop title bar) stays clear, as the shell's padding keeps it
     let inset = (ui.content_rect().h - size.1).max(0.0);
-    let open = ui.modal("expanded-player", &PLAYER_SHEET, |ui| {
-        let root = ui.node("player", Node::column().w(Size::Grow).h_px(size.1).margin(Edges::ZERO.t(inset)));
-        crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
-        // the queue sheet over it: Swift's 0.32 scrim (the page's own scrim lies under this modal)
-        if dimmed {
-            ui.canvas_over(&root, |paint, rect| paint.fill(rect, Fill::new(SCRIM_INK.alpha(82))));
-        }
-        ui.within(&root, &mut |ui| {
-            ui.row(Node::row().w(Size::Grow).h_px(48.0).pad_x(6.0).align(Align::Center), |ui| {
-                let left = container(ui, "close-holder", Axis::Row, Size::Px(88.0), Size::Px(44.0), &PAPER_FILL);
-                ui.within(&left, &mut |ui| {
-                    if ui.icon_button("close-player", icon_drawing(Icon::Down), "Close now playing", &ICON_44.look(&ICON_LOOKS)).clicked {
-                        *intent = Some(Intent::TogglePlayer);
-                    }
-                });
-                ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(4.0).center().role(Role::Label), |ui| {
-                    ui.label("Playing from", CAPTION);
-                    ui.label(player.context, TEXT_13.weight(500).color(INK));
-                });
-                // Swift's audio route (an iOS picker; LocalWave has no native one yet) and the track actions, 44 points each
-                super::transport::route_key(ui, player, intent);
-                if let Some(id) = player.current_id {
-                    let more = ui.icon_button("track-actions", icon_sized(Icon::More, 22.0), "Track actions", &ICON_44.look(&ICON_LOOKS));
-                    if more.clicked {
-                        let at = ui.rect(&more.handle);
-                        *intent = Some(Intent::SongMenu(0, id, super::songs::NOW_MENU, (at.x + at.w - 44.0, at.y + at.h)));
-                    }
-                } else {
-                    ui.node("actions-slot", Node::column().w_px(44.0).h_px(44.0));
-                }
-            });
-            ui.row(Node::row().w(Size::Grow).h_px(region).justify(Justify::Center).padding(Edges::ZERO.t(4.0)),
-                |ui| {
-                    artwork(
-                        ui,
-                        catalog,
-                        player,
-                        player.current_id.and_then(|id| catalog.row_index(id)),
-                        art_size,
-                    );
-                },
+    let open = ui
+        .modal("expanded-player", &PLAYER_SHEET, |ui| {
+            let root = ui.node(
+                "player",
+                Node::column()
+                    .w(Size::Grow)
+                    .h_px(size.1)
+                    .margin(Edges::ZERO.t(inset)),
             );
-            ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0, 16.0, 10.0)),
-                |ui| {
-                    let info = ui.node("title-row", Node::row().w(Size::Grow).h_px(50.6).gap(12.0).align(Align::Start));
-                    ui.within(&info, &mut |ui| {
-                        let names = container(ui, "names", Axis::Column, Size::Grow, Size::Fit, &PAPER_FILL);
-                        ui.within(&names, &mut |ui| {
-                            let title = ui.node(
-                                "title",
-                                Node::column().w(Size::Grow).h_px(27.6).role(Role::Label).look(INK_TEXT),
-                            );
-                            ui.text_line_box(
-                                &title,
-                                if player.title.is_empty() { "Nothing playing" } else { player.title },
-                                Label::BODY.size(24.0).weight(500).tracking(TIGHT_3).line_height(27.6).lines(1).ellipsis(),
-                                &[],
-                            )
-                            .unwrap();
-                            if player.current_id.is_some() {
-                                byline::draw(ui, player, catalog, (size.0 - 32.0 - 48.0).max(1.0), intent);
+            crate::motion::enter(ui, &root, generation, (0.0, 24.0), crate::motion::BASE, 0.0);
+            // the queue sheet over it: Swift's 0.32 scrim (the page's own scrim lies under this modal)
+            if dimmed {
+                ui.canvas_over(&root, |paint, rect| {
+                    paint.fill(rect, Fill::new(SCRIM_INK.alpha(82)))
+                });
+            }
+            ui.within(&root, &mut |ui| {
+                ui.row(
+                    Node::row()
+                        .w(Size::Grow)
+                        .h_px(48.0)
+                        .pad_x(6.0)
+                        .align(Align::Center),
+                    |ui| {
+                        let left = container(
+                            ui,
+                            "close-holder",
+                            Axis::Row,
+                            Size::Px(88.0),
+                            Size::Px(44.0),
+                            &PAPER_FILL,
+                        );
+                        ui.within(&left, &mut |ui| {
+                            if ui
+                                .icon_button(
+                                    "close-player",
+                                    icon_drawing(Icon::Down),
+                                    "Close now playing",
+                                    &ICON_44.look(&ICON_LOOKS),
+                                )
+                                .clicked
+                            {
+                                *intent = Some(Intent::TogglePlayer);
                             }
                         });
-                        if now::favorite_button(ui, favorite)
-                            && let Some((song, on)) = favorite
-                        {
-                            *intent = Some(Intent::SetFavorite { song, on: !on });
-                        }
-                    });
-                    spacer(ui, "clock-gap", 14.0);
-                    ui.row(Node::row().w(Size::Grow).h_px(72.0).align(Align::End), |ui| {
-                        matrix_clock(ui, position.max(0.0) as u64, 72.0, INK);
-                        ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                        ui.column(Node::column().w_px(80.0).h(Size::Fit).gap(2.0).align(Align::End).padding(Edges::ZERO.b(2.0)),
+                        ui.row(
+                            Node::row()
+                                .w(Size::Grow)
+                                .h_px(44.0)
+                                .gap(4.0)
+                                .center()
+                                .role(Role::Label),
                             |ui| {
-                                if let Some(info) = player.info {
-                                    ui.label(&info.summary, MONO_DIM);
+                                ui.label("Playing from", CAPTION);
+                                ui.label(player.context, TEXT_13.weight(500).color(INK));
+                            },
+                        );
+                        // Swift's audio route (an iOS picker; LocalWave has no native one yet) and the track actions, 44 points each
+                        super::transport::route_key(ui, player, intent);
+                        if let Some(id) = player.current_id {
+                            let more = ui.icon_button(
+                                "track-actions",
+                                icon_sized(Icon::More, 22.0),
+                                "Track actions",
+                                &ICON_44.look(&ICON_LOOKS),
+                            );
+                            if more.clicked {
+                                let at = ui.rect(&more.handle);
+                                *intent = Some(Intent::SongMenu(
+                                    0,
+                                    id,
+                                    super::songs::NOW_MENU,
+                                    (at.x + at.w - 44.0, at.y + at.h),
+                                ));
+                            }
+                        } else {
+                            ui.node("actions-slot", Node::column().w_px(44.0).h_px(44.0));
+                        }
+                    },
+                );
+                ui.row(
+                    Node::row()
+                        .w(Size::Grow)
+                        .h_px(region)
+                        .justify(Justify::Center)
+                        .padding(Edges::ZERO.t(4.0)),
+                    |ui| {
+                        artwork(
+                            ui,
+                            catalog,
+                            player,
+                            player.current_id.and_then(|id| catalog.row_index(id)),
+                            art_size,
+                        );
+                    },
+                );
+                ui.column(
+                    Node::column()
+                        .w(Size::Grow)
+                        .h(Size::Grow)
+                        .padding(Edges::new(16.0, 16.0, 16.0, 10.0)),
+                    |ui| {
+                        let info = ui.node(
+                            "title-row",
+                            Node::row()
+                                .w(Size::Grow)
+                                .h_px(50.6)
+                                .gap(12.0)
+                                .align(Align::Start),
+                        );
+                        ui.within(&info, &mut |ui| {
+                            let names = container(
+                                ui,
+                                "names",
+                                Axis::Column,
+                                Size::Grow,
+                                Size::Fit,
+                                &PAPER_FILL,
+                            );
+                            ui.within(&names, &mut |ui| {
+                                let title = ui.node(
+                                    "title",
+                                    Node::column()
+                                        .w(Size::Grow)
+                                        .h_px(27.6)
+                                        .role(Role::Label)
+                                        .look(INK_TEXT),
+                                );
+                                ui.text_line_box(
+                                    &title,
+                                    if player.title.is_empty() {
+                                        "Nothing playing"
+                                    } else {
+                                        player.title
+                                    },
+                                    Label::BODY
+                                        .size(24.0)
+                                        .weight(500)
+                                        .tracking(TIGHT_3)
+                                        .line_height(27.6)
+                                        .lines(1)
+                                        .ellipsis(),
+                                    &[],
+                                )
+                                .unwrap();
+                                if player.current_id.is_some() {
+                                    byline::draw(
+                                        ui,
+                                        player,
+                                        catalog,
+                                        (size.0 - 32.0 - 48.0).max(1.0),
+                                        intent,
+                                    );
                                 }
-                                small_clock(
-                                    ui,
-                                    "remaining",
-                                    (player.duration - position).max(0.0) as u64,
-                                    true,
-                                    50.0,
-                                    SECONDARY,
+                            });
+                            if now::favorite_button(ui, favorite)
+                                && let Some((song, on)) = favorite
+                            {
+                                *intent = Some(Intent::SetFavorite { song, on: !on });
+                            }
+                        });
+                        spacer(ui, "clock-gap", 14.0);
+                        ui.row(
+                            Node::row().w(Size::Grow).h_px(72.0).align(Align::End),
+                            |ui| {
+                                matrix_clock(ui, position.max(0.0) as u64, 72.0, INK);
+                                ui.node("flex", Node::DEFAULT.w(Size::Grow));
+                                ui.column(
+                                    Node::column()
+                                        .w_px(80.0)
+                                        .h(Size::Fit)
+                                        .gap(2.0)
+                                        .align(Align::End)
+                                        .padding(Edges::ZERO.b(2.0)),
+                                    |ui| {
+                                        if let Some(info) = player.info {
+                                            ui.label(&info.summary, MONO_DIM);
+                                        }
+                                        small_clock(
+                                            ui,
+                                            "remaining",
+                                            (player.duration - position).max(0.0) as u64,
+                                            true,
+                                            50.0,
+                                            SECONDARY,
+                                        );
+                                    },
                                 );
                             },
                         );
-                    });
-                    spacer(ui, "seek-gap", 14.0);
-                    seek(ui, player, position, intent);
-                    spacer(ui, "seek-times-gap", 6.0);
-                    ui.row(Node::row().w(Size::Grow).h_px(15.4), |ui| {
-                        let style = MONO_11.color(SECONDARY);
-                        let start = ui.label("0:00", style);
-                        ui.a11y_name(&start, "Start time");
-                        ui.a11y_number(&start, 0.0, 0.0, f64::MAX, 1.0).expect("valid start time");
-                        ui.node("flex", Node::DEFAULT.w(Size::Grow));
-                        let seconds = player.duration.max(0.0) as u64;
-                        let total = ui.label_fmt(format_args!("{}:{:02}", seconds / 60, seconds % 60), style);
-                        ui.a11y_name(&total, "Duration");
-                        ui.a11y_number(&total, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid duration");
-                    });
-                    spacer(ui, "modes-gap", 14.0);
-                    ui.row(Node::row().w(Size::Grow).h_px(48.0).gap(2.0).pad(2.0).look(SELECTED_FILL),
-                        |ui| {
-                            if ui.button("shuffle", "Shuffle", &MODE_KEY.icon(icon_sized(Icon::Shuffle, 16.0)).selected(player.shuffled)).clicked {
-                                *intent = Some(Intent::Shuffle);
-                            }
-                            let (label, icon) = if player.repeat == RepeatMode::One { ("One", Icon::RepeatOne) } else { ("Repeat", Icon::Repeat) };
-                            let repeat = MODE_KEY.icon(icon_sized(icon, 16.0)).selected(player.repeat != RepeatMode::None).name(transport::REPEAT_NAMES[player.repeat as usize]);
-                            if ui.button("repeat", label, &repeat).clicked {
-                                *intent = Some(Intent::Repeat);
-                            }
-                            let count = catalog.queue.as_ref().map_or("0", |queue| queue.count.as_str());
-                            if ui.button("queue", "up next", &MODE_KEY.icon(icon_sized(Icon::Queue, 16.0)).gap(4.0).detail(count).name("Show full queue")).clicked {
-                                *intent = Some(Intent::ShowQueue);
-                            }
-                        },
-                    );
-                    if !player.message.is_empty() {
-                        ui.label(player.message, SMALL_NOTE);
-                    }
-                },
-            );
-            // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
-            ui.row(Node::row().w(Size::Grow).h_px(86.0).gap(2.0).padding(Edges::new(2.0, 2.0, 2.0, 0.0)).look(SELECTED_FILL),
-                |ui| {
-                    let key = ((size.0 - 8.0) / 3.0).max(1.0);
-                    if ui.icon_button("previous", icon_sized(Icon::Previous, 28.0), "Previous", &icon_key(key, 84.0).look(&PLAY_KEY_LOOKS)).clicked {
-                        *intent = Some(Intent::Previous);
-                    }
-                    play(ui, player, (key, 84.0), 28.0, intent);
-                    if ui.icon_button("next", icon_sized(Icon::Next, 28.0), "Next", &icon_key(key, 84.0).look(&PLAY_KEY_LOOKS)).clicked {
-                        *intent = Some(Intent::Next);
-                    }
-                },
-            );
-        });
-    })
-    .open;
+                        spacer(ui, "seek-gap", 14.0);
+                        seek(ui, player, position, intent);
+                        spacer(ui, "seek-times-gap", 6.0);
+                        ui.row(Node::row().w(Size::Grow).h_px(15.4), |ui| {
+                            let style = MONO_11.color(SECONDARY);
+                            let start = ui.label("0:00", style);
+                            ui.a11y_name(&start, "Start time");
+                            ui.a11y_number(&start, 0.0, 0.0, f64::MAX, 1.0)
+                                .expect("valid start time");
+                            ui.node("flex", Node::DEFAULT.w(Size::Grow));
+                            let seconds = player.duration.max(0.0) as u64;
+                            let total = ui.label_fmt(
+                                format_args!("{}:{:02}", seconds / 60, seconds % 60),
+                                style,
+                            );
+                            ui.a11y_name(&total, "Duration");
+                            ui.a11y_number(&total, seconds as f64, 0.0, f64::MAX, 1.0)
+                                .expect("valid duration");
+                        });
+                        spacer(ui, "modes-gap", 14.0);
+                        ui.row(
+                            Node::row()
+                                .w(Size::Grow)
+                                .h_px(48.0)
+                                .gap(2.0)
+                                .pad(2.0)
+                                .look(SELECTED_FILL),
+                            |ui| {
+                                if ui
+                                    .button(
+                                        "shuffle",
+                                        "Shuffle",
+                                        &MODE_KEY
+                                            .icon(icon_sized(Icon::Shuffle, 16.0))
+                                            .selected(player.shuffled),
+                                    )
+                                    .clicked
+                                {
+                                    *intent = Some(Intent::Shuffle);
+                                }
+                                let (label, icon) = if player.repeat == RepeatMode::One {
+                                    ("One", Icon::RepeatOne)
+                                } else {
+                                    ("Repeat", Icon::Repeat)
+                                };
+                                let repeat = MODE_KEY
+                                    .icon(icon_sized(icon, 16.0))
+                                    .selected(player.repeat != RepeatMode::None)
+                                    .name(transport::REPEAT_NAMES[player.repeat as usize]);
+                                if ui.button("repeat", label, &repeat).clicked {
+                                    *intent = Some(Intent::Repeat);
+                                }
+                                let count = catalog
+                                    .queue
+                                    .as_ref()
+                                    .map_or("0", |queue| queue.count.as_str());
+                                if ui
+                                    .button(
+                                        "queue",
+                                        "up next",
+                                        &MODE_KEY
+                                            .icon(icon_sized(Icon::Queue, 16.0))
+                                            .gap(4.0)
+                                            .detail(count)
+                                            .name("Show full queue"),
+                                    )
+                                    .clicked
+                                {
+                                    *intent = Some(Intent::ShowQueue);
+                                }
+                            },
+                        );
+                        if !player.message.is_empty() {
+                            ui.label(player.message, SMALL_NOTE);
+                        }
+                    },
+                );
+                // Swift `WavePlaybackKeys`: prev / play / next fill an 86 pt bar.
+                ui.row(
+                    Node::row()
+                        .w(Size::Grow)
+                        .h_px(86.0)
+                        .gap(2.0)
+                        .padding(Edges::new(2.0, 2.0, 2.0, 0.0))
+                        .look(SELECTED_FILL),
+                    |ui| {
+                        let key = ((size.0 - 8.0) / 3.0).max(1.0);
+                        if ui
+                            .icon_button(
+                                "previous",
+                                icon_sized(Icon::Previous, 28.0),
+                                "Previous",
+                                &icon_key(key, 84.0).look(&PLAY_KEY_LOOKS),
+                            )
+                            .clicked
+                        {
+                            *intent = Some(Intent::Previous);
+                        }
+                        play(ui, player, (key, 84.0), 28.0, intent);
+                        if ui
+                            .icon_button(
+                                "next",
+                                icon_sized(Icon::Next, 28.0),
+                                "Next",
+                                &icon_key(key, 84.0).look(&PLAY_KEY_LOOKS),
+                            )
+                            .clicked
+                        {
+                            *intent = Some(Intent::Next);
+                        }
+                    },
+                );
+            });
+        })
+        .open;
     if !open && intent.is_none() {
         *intent = Some(Intent::TogglePlayer);
     }
@@ -623,7 +1048,12 @@ mod tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let state = songs_state();
-        let mut player = PlayerView { title: "Track 00000", initialized: true, duration: 240.0, ..Default::default() };
+        let mut player = PlayerView {
+            title: "Track 00000",
+            initialized: true,
+            duration: 240.0,
+            ..Default::default()
+        };
         // counts real builds: a debug build's verify pass rebuilds every kept view
         ui.verify_views(false);
         for tick in 0..4 {
@@ -637,7 +1067,10 @@ mod tests {
         player.current_id = Some(3);
         frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, 14.0);
         let shown = ROW_BUILDS.get() - built;
-        assert!((1..20).contains(&shown), "the playing song rebuilds the rows in view once: {shown}");
+        assert!(
+            (1..20).contains(&shown),
+            "the playing song rebuilds the rows in view once: {shown}"
+        );
         for tick in 15..20 {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64);
         }
@@ -645,14 +1078,31 @@ mod tests {
         // a scroll rebuilds the page's view every frame; the rows that stay in view are kept
         let built = ROW_BUILDS.get();
         for tick in 0..20 {
-            let events = [pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 195.0, 400.0), pxui::Event::pointer(pxui::Event::SCROLLED, 0, 0.0, if tick % 10 < 5 { -1.0 } else { 1.0 })];
-            let mut input = FrameIn::new(390.0, 844.0).time(20.0 + tick as f64 / 60.0).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
+            let events = [
+                pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 195.0, 400.0),
+                pxui::Event::pointer(
+                    pxui::Event::SCROLLED,
+                    0,
+                    0.0,
+                    if tick % 10 < 5 { -1.0 } else { 1.0 },
+                ),
+            ];
+            let mut input = FrameIn::new(390.0, 844.0)
+                .time(20.0 + tick as f64 / 60.0)
+                .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
             input = input.events(&events[..]);
-            crate::testing::frame(&mut ui, &input, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None)).unwrap();
+            crate::testing::frame(&mut ui, &input, &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
+            })
+            .unwrap();
         }
         // each frame scrolls one row: it builds the row coming into view and the rows the pointer's hover leaves and enters (at most
         // four), never the dozen rows that stay in view (the rows were rebuilt every frame without the revision: 15-18 a frame)
-        assert!(ROW_BUILDS.get() - built <= 20 * 4, "a scroll frame rebuilds the rows in view: {}", ROW_BUILDS.get() - built);
+        assert!(
+            ROW_BUILDS.get() - built <= 20 * 4,
+            "a scroll frame rebuilds the rows in view: {}",
+            ROW_BUILDS.get() - built
+        );
     }
 
     fn catalog(count: usize) -> Catalog {
@@ -681,7 +1131,9 @@ mod tests {
         let mut intent = None;
         crate::testing::frame(
             ui,
-            &FrameIn::new(width, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])),
+            &FrameIn::new(width, 844.0)
+                .time(time)
+                .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])),
             &mut |ui| shell(ui, player, position, catalog, state, &mut intent),
         )
         .unwrap();
@@ -698,7 +1150,10 @@ mod tests {
         let node = ui
             .a11y_nodes()
             .iter()
-            .find(|node| (node.is_role(Role::Button) || node.is_role(Role::Tab)) && ui.a11y_name_of(node) == name)
+            .find(|node| {
+                (node.is_role(Role::Button) || node.is_role(Role::Tab))
+                    && ui.a11y_name_of(node) == name
+            })
             .unwrap_or_else(|| panic!("missing button or tab {name}"));
         ui.inject_a11y(&[pxui::A11yAction {
             id: node.id,
@@ -800,10 +1255,20 @@ mod tests {
     }
 
     fn names(ui: &Ui) -> Vec<String> {
-        ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_string()).collect()
+        ui.a11y_nodes()
+            .iter()
+            .map(|node| ui.a11y_name_of(node).to_string())
+            .collect()
     }
     /// Activates `name` and returns the intent of the next frame, applying it like the controller.
-    fn press(ui: &mut Ui, catalog: &Catalog, state: &mut ShellState, player: &PlayerView<'_>, time: &mut f64, name: &str) -> Option<Intent> {
+    fn press(
+        ui: &mut Ui,
+        catalog: &Catalog,
+        state: &mut ShellState,
+        player: &PlayerView<'_>,
+        time: &mut f64,
+        name: &str,
+    ) -> Option<Intent> {
         click(ui, name);
         *time += 1.0;
         let intent = frame(ui, catalog, state, player, 0.0, 390.0, *time);
@@ -832,23 +1297,60 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
         let seen = names(&ui);
-        for want in ["Back", "Select", "Album actions", "Play", "Shuffle", "Keep offline"] {
-            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        for want in [
+            "Back",
+            "Select",
+            "Album actions",
+            "Play",
+            "Shuffle",
+            "Keep offline",
+        ] {
+            assert!(
+                seen.iter().any(|name| name == want),
+                "missing {want}: {seen:?}"
+            );
         }
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)));
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"),
+            Some(Intent::SelectMode(true))
+        );
         assert!(state.selecting());
         let seen = names(&ui);
-        for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue"] {
-            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        for want in [
+            "Select all",
+            "Done",
+            "Play next",
+            "Add to list",
+            "Offline",
+            "Queue",
+        ] {
+            assert!(
+                seen.iter().any(|name| name == want),
+                "missing {want}: {seen:?}"
+            );
         }
-        assert!(!seen.iter().any(|name| name == "Back"), "selection header replaces the back row");
+        assert!(
+            !seen.iter().any(|name| name == "Back"),
+            "selection header replaces the back row"
+        );
         // Row taps toggle marks instead of playing.
-        let mut titles: Vec<String> = names(&ui).into_iter().filter(|name| name.starts_with("Track ")).collect();
+        let mut titles: Vec<String> = names(&ui)
+            .into_iter()
+            .filter(|name| name.starts_with("Track "))
+            .collect();
         titles.dedup();
         assert!(titles.len() >= 2, "{titles:?}");
         for (title, count) in [(&titles[0], 1), (&titles[1], 2), (&titles[0], 1)] {
-            let node = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == title.as_str()).unwrap();
-            ui.inject_a11y(&[pxui::A11yAction { id: node.id, action_code: 1, ..Default::default() }]);
+            let node = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| ui.a11y_name_of(node) == title.as_str())
+                .unwrap();
+            ui.inject_a11y(&[pxui::A11yAction {
+                id: node.id,
+                action_code: 1,
+                ..Default::default()
+            }]);
             time += 1.0;
             let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
             // the list toggled the row's mark (`SelectMode::Toggle`) and reports it
@@ -860,16 +1362,58 @@ mod tests {
                 frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
             }
         }
-        assert!(names(&ui).iter().any(|name| name == "1 selected"), "{:?}", names(&ui));
+        assert!(
+            names(&ui).iter().any(|name| name == "1 selected"),
+            "{:?}",
+            names(&ui)
+        );
         let first = state.selected_song_ids(&catalog).next().unwrap();
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Play next"), Some(Intent::PlayNext(first)));
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Queue"), Some(Intent::AppendSong(first)));
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Offline"), Some(Intent::KeepOffline(first)));
-        let lists = press(&mut ui, &catalog, &mut state, &player, &mut time, "Add to list");
-        assert!(matches!(lists, Some(Intent::SelectionLists(_, id, _, _)) if id == first), "{lists:?}");
+        assert_eq!(
+            press(
+                &mut ui,
+                &catalog,
+                &mut state,
+                &player,
+                &mut time,
+                "Play next"
+            ),
+            Some(Intent::PlayNext(first))
+        );
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Queue"),
+            Some(Intent::AppendSong(first))
+        );
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Offline"),
+            Some(Intent::KeepOffline(first))
+        );
+        let lists = press(
+            &mut ui,
+            &catalog,
+            &mut state,
+            &player,
+            &mut time,
+            "Add to list",
+        );
+        assert!(
+            matches!(lists, Some(Intent::SelectionLists(_, id, _, _)) if id == first),
+            "{lists:?}"
+        );
         assert!(state.song_menu.is_some() && state.song_lists);
         state.apply(Intent::CloseSongMenu);
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select all"), Some(Intent::Select(Selection::All(state.collection(&catalog).unwrap().rows.len()))));
+        assert_eq!(
+            press(
+                &mut ui,
+                &catalog,
+                &mut state,
+                &player,
+                &mut time,
+                "Select all"
+            ),
+            Some(Intent::Select(Selection::All(
+                state.collection(&catalog).unwrap().rows.len()
+            )))
+        );
         assert!(names(&ui).iter().any(|name| name == "Deselect all"));
         // The controller ends the mode after a bar action.
         state.finish_selecting();
@@ -879,39 +1423,100 @@ mod tests {
         for tick in 0..120 {
             mem_sys::local_reset();
             time += 1.0;
-            assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), None);
+            assert_eq!(
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time),
+                None
+            );
             if tick >= 60 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "select-mode frame {tick} allocated");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "select-mode frame {tick} allocated"
+                );
             }
         }
         // hardware keys reach the list (the window's default key target): Command-A marks every row and Escape clears them, in
         // Select mode only (iOS has no select-all outside edit mode); Return plays the keyboard's row
         let rows = state.collection(&catalog).unwrap().rows.len();
-        let intent = keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Meta, input::Key::KeyChar('a')]);
+        let intent = keys(
+            &mut ui,
+            &catalog,
+            &state,
+            &player,
+            &mut time,
+            &[input::Key::Meta, input::Key::KeyChar('a')],
+        );
         assert!(matches!(intent, Some(Intent::Selected(_))), "{intent:?}");
         state.apply(intent.unwrap());
         assert_eq!(state.marked_count(), rows, "Command-A marks every row");
-        assert_eq!(keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Escape]), Some(Intent::Select(Selection::Clear)));
+        assert_eq!(
+            keys(
+                &mut ui,
+                &catalog,
+                &state,
+                &player,
+                &mut time,
+                &[input::Key::Escape]
+            ),
+            Some(Intent::Select(Selection::Clear))
+        );
         state.apply(Intent::Select(Selection::Clear));
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)));
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"),
+            Some(Intent::SelectMode(false))
+        );
         assert!(!state.selecting());
-        assert_eq!(keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Meta, input::Key::KeyChar('a')]), None, "no select-all outside Select mode");
+        assert_eq!(
+            keys(
+                &mut ui,
+                &catalog,
+                &state,
+                &player,
+                &mut time,
+                &[input::Key::Meta, input::Key::KeyChar('a')]
+            ),
+            None,
+            "no select-all outside Select mode"
+        );
         assert_eq!(state.marked_count(), 0);
-        let intent = keys(&mut ui, &catalog, &state, &player, &mut time, &[input::Key::Enter]);
-        assert!(matches!(intent, Some(Intent::PlayRow(_))), "Return plays the keyboard's row: {intent:?}");
+        let intent = keys(
+            &mut ui,
+            &catalog,
+            &state,
+            &player,
+            &mut time,
+            &[input::Key::Enter],
+        );
+        assert!(
+            matches!(intent, Some(Intent::PlayRow(_))),
+            "Return plays the keyboard's row: {intent:?}"
+        );
     }
     /// `pressed` pressed in order and released in reverse in one frame at 390 points; the intent of that frame (one more to settle).
-    fn keys(ui: &mut Ui, catalog: &Catalog, state: &ShellState, player: &PlayerView<'_>, time: &mut f64, pressed: &[input::Key]) -> Option<Intent> {
+    fn keys(
+        ui: &mut Ui,
+        catalog: &Catalog,
+        state: &ShellState,
+        player: &PlayerView<'_>,
+        time: &mut f64,
+        pressed: &[input::Key],
+    ) -> Option<Intent> {
         let mut events = [pxui::Event::default(); 4];
         for (i, key) in pressed.iter().enumerate() {
             events[i] = pxui::Event::key(pxui::Event::KEY_PRESSED, key.code());
-            events[2 * pressed.len() - 1 - i] = pxui::Event::key(pxui::Event::KEY_RELEASED, key.code());
+            events[2 * pressed.len() - 1 - i] =
+                pxui::Event::key(pxui::Event::KEY_RELEASED, key.code());
         }
         let mut intent = None;
         *time += 1.0;
-        let mut frame_in = FrameIn::new(390.0, 844.0).time(*time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
+        let mut frame_in = FrameIn::new(390.0, 844.0)
+            .time(*time)
+            .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
         frame_in = frame_in.events(&events[..2 * pressed.len()]);
-        crate::testing::frame(ui, &frame_in, &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent)).unwrap();
+        crate::testing::frame(ui, &frame_in, &mut |ui| {
+            shell(ui, player, 0.0, catalog, state, &mut intent)
+        })
+        .unwrap();
         *time += 1.0;
         frame(ui, catalog, state, player, 0.0, 390.0, *time);
         intent
@@ -924,7 +1529,10 @@ mod tests {
             catalog.add_collection(
                 "Mix",
                 vec![0, 1, 2],
-                lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() },
+                lw_core::context::PlaybackContext::Playlist {
+                    id: 7,
+                    name: "Mix".into(),
+                },
             );
             catalog
         };
@@ -939,15 +1547,29 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
         let seen = names(&ui);
-        assert!(seen.iter().any(|name| name == "Select") && !seen.iter().any(|name| name == "Keep offline"), "{seen:?}");
-        let index = catalog.collections.iter().position(|c| c.title == "Mix").unwrap();
+        assert!(
+            seen.iter().any(|name| name == "Select")
+                && !seen.iter().any(|name| name == "Keep offline"),
+            "{seen:?}"
+        );
+        let index = catalog
+            .collections
+            .iter()
+            .position(|c| c.title == "Mix")
+            .unwrap();
         state.apply(Intent::Navigate(Route::Collection(index)));
         for _ in 0..3 {
             time += 1.0;
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
-        assert!(!names(&ui).iter().any(|name| name == "Keep offline"), "Swift's list page has no offline key");
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Edit"), Some(Intent::SelectMode(true)));
+        assert!(
+            !names(&ui).iter().any(|name| name == "Keep offline"),
+            "Swift's list page has no offline key"
+        );
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Edit"),
+            Some(Intent::SelectMode(true))
+        );
         state.apply(Intent::Select(Selection::Toggle(1)));
         time += 1.0;
         frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
@@ -962,8 +1584,22 @@ mod tests {
     fn phone_page_menu_offers_swift_page_actions() {
         let catalog = {
             let mut catalog = catalog(10);
-            catalog.add_collection("Mix", vec![0, 1], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
-            catalog.add_collection("Other", vec![2], lw_core::context::PlaybackContext::Playlist { id: 8, name: "Other".into() });
+            catalog.add_collection(
+                "Mix",
+                vec![0, 1],
+                lw_core::context::PlaybackContext::Playlist {
+                    id: 7,
+                    name: "Mix".into(),
+                },
+            );
+            catalog.add_collection(
+                "Other",
+                vec![2],
+                lw_core::context::PlaybackContext::Playlist {
+                    id: 8,
+                    name: "Other".into(),
+                },
+            );
             catalog
         };
         let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
@@ -975,11 +1611,28 @@ mod tests {
             time += 1.0;
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
-        let opened = press(&mut ui, &catalog, &mut state, &player, &mut time, "Album actions");
+        let opened = press(
+            &mut ui,
+            &catalog,
+            &mut state,
+            &player,
+            &mut time,
+            "Album actions",
+        );
         assert!(matches!(opened, Some(Intent::PageMenu(_))), "{opened:?}");
         let seen = names(&ui);
-        for want in ["Play", "Shuffle", "Play next", "Add to queue", "Add to list", "Keep offline"] {
-            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        for want in [
+            "Play",
+            "Shuffle",
+            "Play next",
+            "Add to queue",
+            "Add to list",
+            "Keep offline",
+        ] {
+            assert!(
+                seen.iter().any(|name| name == want),
+                "missing {want}: {seen:?}"
+            );
         }
         for (label, action) in [
             ("Shuffle", crate::PageAction::Shuffle),
@@ -995,7 +1648,10 @@ mod tests {
             time += 1.0;
             let intent = frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
             assert_eq!(intent, Some(Intent::Page(action)), "{label}");
-            assert!(!state.apply(intent.unwrap()), "page actions go to the controller");
+            assert!(
+                !state.apply(intent.unwrap()),
+                "page actions go to the controller"
+            );
             assert!(state.page_menu.is_none(), "{label} closes the menu");
         }
         state.apply(Intent::PageMenu((380.0, 54.0)));
@@ -1006,9 +1662,16 @@ mod tests {
         }
         click_menu(&mut ui, "Other");
         time += 1.0;
-        assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), Some(Intent::Page(crate::PageAction::AddToList(8))));
+        assert_eq!(
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time),
+            Some(Intent::Page(crate::PageAction::AddToList(8)))
+        );
         // A playlist page also renames and deletes.
-        let index = catalog.collections.iter().position(|c| c.title == "Mix").unwrap();
+        let index = catalog
+            .collections
+            .iter()
+            .position(|c| c.title == "Mix")
+            .unwrap();
         state.apply(Intent::Navigate(Route::Collection(index)));
         state.apply(Intent::PageMenu((380.0, 54.0)));
         for _ in 0..3 {
@@ -1017,7 +1680,10 @@ mod tests {
         }
         click_menu(&mut ui, "Delete list");
         time += 1.0;
-        assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), Some(Intent::ConfirmDeleteList(7)));
+        assert_eq!(
+            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time),
+            Some(Intent::ConfirmDeleteList(7))
+        );
     }
     /// The selection bar comes and goes before the section index in one parent: both sit under their own ids, so the
     /// index keeps its node (state, drag) while select mode toggles, and select-mode frames with the rail stay warm.
@@ -1031,7 +1697,11 @@ mod tests {
         let player = PlayerView::default();
         let mut time = 0.0;
         let index = |ui: &Ui| {
-            let node = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Section index").expect("the section index");
+            let node = ui
+                .a11y_nodes()
+                .iter()
+                .find(|node| ui.a11y_name_of(node) == "Section index")
+                .expect("the section index");
             ui.box_of_a11y(node.id).expect("a live index").box_key
         };
         for _ in 0..3 {
@@ -1039,29 +1709,57 @@ mod tests {
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
         let before = index(&ui);
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)));
-        assert!(names(&ui).iter().any(|name| name == "Play next"), "the selection bar shows");
-        assert_eq!(index(&ui), before, "the selection bar does not move the index");
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"),
+            Some(Intent::SelectMode(true))
+        );
+        assert!(
+            names(&ui).iter().any(|name| name == "Play next"),
+            "the selection bar shows"
+        );
+        assert_eq!(
+            index(&ui),
+            before,
+            "the selection bar does not move the index"
+        );
         for tick in 0..90 {
             mem_sys::local_reset();
             time += 1.0;
-            assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), None);
+            assert_eq!(
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time),
+                None
+            );
             if tick >= 60 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "select-mode frame {tick} with the index allocated");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "select-mode frame {tick} with the index allocated"
+                );
             }
         }
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)));
+        assert_eq!(
+            press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"),
+            Some(Intent::SelectMode(false))
+        );
         assert_eq!(index(&ui), before, "leaving select mode keeps the index");
     }
 
     #[test]
     fn phone_artist_index_jumps_to_the_first_artist_in_a_section() {
-        let catalog = crate::tests::prepared((0..36).map(|id| lw_core::Song {
-            id: Some(id),
-            title: format!("Track {id}"),
-            artist: if id < 24 { format!("Artist {id:02}") } else { format!("The Zebra {id:02}") },
-            ..Default::default()
-        }).collect());
+        let catalog = crate::tests::prepared(
+            (0..36)
+                .map(|id| lw_core::Song {
+                    id: Some(id),
+                    title: format!("Track {id}"),
+                    artist: if id < 24 {
+                        format!("Artist {id:02}")
+                    } else {
+                        format!("The Zebra {id:02}")
+                    },
+                    ..Default::default()
+                })
+                .collect(),
+        );
         assert_eq!(catalog.artist_index, (vec!["A", "Z"], vec![0, 24]));
 
         let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
@@ -1074,10 +1772,22 @@ mod tests {
         }
         assert!(names(&ui).iter().any(|name| name == "Artist 00"));
         assert!(!names(&ui).iter().any(|name| name == "The Zebra 24"));
-        let index = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Section index").unwrap();
-        ui.inject_a11y(&[pxui::A11yAction { id: index.id, action_code: 4, payload: 1.0, ..Default::default() }]);
+        let index = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Section index")
+            .unwrap();
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: index.id,
+            action_code: 4,
+            payload: 1.0,
+            ..Default::default()
+        }]);
         for tick in 4..8 {
-            assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64), None);
+            assert_eq!(
+                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, tick as f64),
+                None
+            );
         }
         assert!(names(&ui).iter().any(|name| name == "The Zebra 24"));
         assert!(!names(&ui).iter().any(|name| name == "Artist 00"));
@@ -1102,16 +1812,31 @@ mod tests {
             time += 1.0;
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
-        assert!(ui.text_input_focused(), "the phone Find query is focused when Find opens");
+        assert!(
+            ui.text_input_focused(),
+            "the phone Find query is focused when Find opens"
+        );
         time += 1.0;
         let mut intent = None;
-        crate::testing::frame(&mut ui, &FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])),
-            &mut |ui| { shell(ui, &player, 0.0, &catalog, &state, &mut intent); ui.unfocus(); }).unwrap();
+        crate::testing::frame(
+            &mut ui,
+            &FrameIn::new(390.0, 844.0)
+                .time(time)
+                .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])),
+            &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, &state, &mut intent);
+                ui.unfocus();
+            },
+        )
+        .unwrap();
         for _ in 0..2 {
             time += 1.0;
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
-        assert!(!ui.text_input_focused(), "the query is focused once, when the field is first built");
+        assert!(
+            !ui.text_input_focused(),
+            "the query is focused once, when the field is first built"
+        );
     }
 
     /// Swift's phone Find lists its first eight songs over "Show all N songs"; the key lists them all, and a new query caps them again.
@@ -1130,9 +1855,24 @@ mod tests {
             time += 1.0;
             frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
         }
-        let rows = |ui: &Ui| names(ui).iter().filter(|name| name.starts_with("Actions for Track")).count();
+        let rows = |ui: &Ui| {
+            names(ui)
+                .iter()
+                .filter(|name| name.starts_with("Actions for Track"))
+                .count()
+        };
         assert!(rows(&ui) <= 8, "{} rows before Show all", rows(&ui));
-        assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Show all songs"), Some(Intent::FindShowAll));
+        assert_eq!(
+            press(
+                &mut ui,
+                &catalog,
+                &mut state,
+                &player,
+                &mut time,
+                "Show all songs"
+            ),
+            Some(Intent::FindShowAll)
+        );
         assert!(state.find_all && !names(&ui).iter().any(|name| name == "Show all songs"));
         state.apply(Intent::Search(Query::new("Track 1").unwrap()));
         assert!(!state.find_all);
@@ -1151,11 +1891,15 @@ mod tests {
             state
         };
         let find_state = find(&mut catalog);
-        for (page, state) in [("songs", songs_state()), ("artist", {
-            let mut state = songs_state();
-            state.apply(Intent::Navigate(Route::Artist(0)));
-            state
-        }), ("find", find_state)] {
+        for (page, state) in [
+            ("songs", songs_state()),
+            ("artist", {
+                let mut state = songs_state();
+                state.apply(Intent::Navigate(Route::Artist(0)));
+                state
+            }),
+            ("find", find_state),
+        ] {
             let mut state = state;
             let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
             ui.set_a11y(true);
@@ -1165,37 +1909,94 @@ mod tests {
                 frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
             }
             let seen = names(&ui);
-            assert!(!seen.iter().any(|name| name == "Album actions" || name == "List actions"), "{page}");
+            assert!(
+                !seen
+                    .iter()
+                    .any(|name| name == "Album actions" || name == "List actions"),
+                "{page}"
+            );
             if page == "artist" {
                 // Swift's phone artist page has Back alone; select mode is still the same deck
-                assert!(!seen.iter().any(|name| name == "Select"), "artist shows Select: {seen:?}");
+                assert!(
+                    !seen.iter().any(|name| name == "Select"),
+                    "artist shows Select: {seen:?}"
+                );
                 state.apply(Intent::SelectMode(true));
                 for _ in 0..2 {
                     time += 1.0;
                     frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time);
                 }
             } else {
-                assert!(seen.iter().any(|name| name == "Select"), "{page} lacks Select: {seen:?}");
-                assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"), Some(Intent::SelectMode(true)), "{page}");
+                assert!(
+                    seen.iter().any(|name| name == "Select"),
+                    "{page} lacks Select: {seen:?}"
+                );
+                assert_eq!(
+                    press(&mut ui, &catalog, &mut state, &player, &mut time, "Select"),
+                    Some(Intent::SelectMode(true)),
+                    "{page}"
+                );
             }
             let seen = names(&ui);
-            for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue"] {
-                assert!(seen.iter().any(|name| name == want), "{page} missing {want}: {seen:?}");
+            for want in [
+                "Select all",
+                "Done",
+                "Play next",
+                "Add to list",
+                "Offline",
+                "Queue",
+            ] {
+                assert!(
+                    seen.iter().any(|name| name == want),
+                    "{page} missing {want}: {seen:?}"
+                );
             }
             let rows = state.collection(&catalog).unwrap().rows.len();
-            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Select all"), Some(Intent::Select(Selection::All(rows))), "{page}");
-            assert!(names(&ui).iter().any(|name| *name == format!("{rows} selected")), "{page}: {:?}", names(&ui));
+            assert_eq!(
+                press(
+                    &mut ui,
+                    &catalog,
+                    &mut state,
+                    &player,
+                    &mut time,
+                    "Select all"
+                ),
+                Some(Intent::Select(Selection::All(rows))),
+                "{page}"
+            );
+            assert!(
+                names(&ui)
+                    .iter()
+                    .any(|name| *name == format!("{rows} selected")),
+                "{page}: {:?}",
+                names(&ui)
+            );
             let first = state.selected_song_ids(&catalog).next().unwrap();
-            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Queue"), Some(Intent::AppendSong(first)), "{page}");
+            assert_eq!(
+                press(&mut ui, &catalog, &mut state, &player, &mut time, "Queue"),
+                Some(Intent::AppendSong(first)),
+                "{page}"
+            );
             for tick in 0..90 {
                 mem_sys::local_reset();
                 time += 1.0;
-                assert_eq!(frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time), None);
+                assert_eq!(
+                    frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, time),
+                    None
+                );
                 if tick >= 60 {
-                    assert_eq!(mem_sys::local_alloc_count(), 0, "{page} select-mode frame {tick} allocated");
+                    assert_eq!(
+                        mem_sys::local_alloc_count(),
+                        0,
+                        "{page} select-mode frame {tick} allocated"
+                    );
                 }
             }
-            assert_eq!(press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"), Some(Intent::SelectMode(false)), "{page}");
+            assert_eq!(
+                press(&mut ui, &catalog, &mut state, &player, &mut time, "Done"),
+                Some(Intent::SelectMode(false)),
+                "{page}"
+            );
             assert!(!state.selecting() && (state.marked_count() == 0), "{page}");
         }
     }
@@ -1204,7 +2005,14 @@ mod tests {
     fn phone_page_menu_duplicates_lists_offers_new_list_and_shows_albums_in_their_folder() {
         let catalog = {
             let mut catalog = catalog(10);
-            catalog.add_collection("Mix", vec![0, 1], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
+            catalog.add_collection(
+                "Mix",
+                vec![0, 1],
+                lw_core::context::PlaybackContext::Playlist {
+                    id: 7,
+                    name: "Mix".into(),
+                },
+            );
             catalog
         };
         let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
@@ -1226,10 +2034,20 @@ mod tests {
             intent
         };
         state.apply(Intent::Navigate(Route::Album(0)));
-        assert_eq!(menu(&mut ui, &mut state, &mut time, "Show in folder"), Some(Intent::Page(crate::PageAction::ShowInFolder)));
-        let index = catalog.collections.iter().position(|c| c.title == "Mix").unwrap();
+        assert_eq!(
+            menu(&mut ui, &mut state, &mut time, "Show in folder"),
+            Some(Intent::Page(crate::PageAction::ShowInFolder))
+        );
+        let index = catalog
+            .collections
+            .iter()
+            .position(|c| c.title == "Mix")
+            .unwrap();
         state.apply(Intent::Navigate(Route::Collection(index)));
-        assert_eq!(menu(&mut ui, &mut state, &mut time, "Duplicate"), Some(Intent::Page(crate::PageAction::Duplicate)));
+        assert_eq!(
+            menu(&mut ui, &mut state, &mut time, "Duplicate"),
+            Some(Intent::Page(crate::PageAction::Duplicate))
+        );
         // The list choices lead with "New list…", which opens the name dialog for the page's songs.
         state.apply(Intent::Navigate(Route::Album(0)));
         state.apply(Intent::PageMenu((380.0, 54.0)));
@@ -1251,7 +2069,14 @@ mod tests {
     fn touch_dragging_a_playlist_handle_in_edit_mode_reorders_the_list() {
         mem_sys::set_peer(pxui::library_counter);
         let mut c = catalog(30);
-        c.add_collection("Mix", vec![0, 1, 2], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
+        c.add_collection(
+            "Mix",
+            vec![0, 1, 2],
+            lw_core::context::PlaybackContext::Playlist {
+                id: 7,
+                name: "Mix".into(),
+            },
+        );
         let mut state = songs_state();
         state.apply(Intent::Navigate(Route::Collection(c.collections.len() - 1)));
         state.apply(Intent::SelectMode(true));
@@ -1262,7 +2087,12 @@ mod tests {
             t += 0.5;
             idle(&mut ui, &c, &state, t);
         }
-        let grips: Vec<_> = ui.a11y_nodes().iter().filter(|node| ui.a11y_name_of(node) == "Reorder track").map(|node| node.rect).collect();
+        let grips: Vec<_> = ui
+            .a11y_nodes()
+            .iter()
+            .filter(|node| ui.a11y_name_of(node) == "Reorder track")
+            .map(|node| node.rect)
+            .collect();
         assert_eq!(grips.len(), 3, "one handle per row");
         let from = centre(grips[0]);
         let to = (from.0, centre(grips[2]).1 + 20.0);
@@ -1287,10 +2117,25 @@ mod tests {
             t += 0.5;
             idle(&mut ui, &c, &state, t);
         }
-        let row = *ui.a11y_nodes().iter().find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == "Track 00001").unwrap();
-        assert_eq!(row.actions & (128 | 256), 128 | 256, "the row offers its moves");
-        ui.inject_a11y(&[pxui::A11yAction { id: row.id, action_code: 256, ..Default::default() }]);
-        assert_eq!(idle(&mut ui, &c, &state, t + 0.5), Some(Intent::MoveListRow { from: 1, to: 2 }));
+        let row = *ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == "Track 00001")
+            .unwrap();
+        assert_eq!(
+            row.actions & (128 | 256),
+            128 | 256,
+            "the row offers its moves"
+        );
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: row.id,
+            action_code: 256,
+            ..Default::default()
+        }]);
+        assert_eq!(
+            idle(&mut ui, &c, &state, t + 0.5),
+            Some(Intent::MoveListRow { from: 1, to: 2 })
+        );
     }
 
     fn click_menu(ui: &mut Ui, name: &str) {
@@ -1299,7 +2144,11 @@ mod tests {
             .iter()
             .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == name)
             .unwrap_or_else(|| panic!("missing menu item {name}"));
-        ui.inject_a11y(&[pxui::A11yAction { id: node.id, action_code: 1, ..Default::default() }]);
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: node.id,
+            action_code: 1,
+            ..Default::default()
+        }]);
     }
 
     #[test]
@@ -1308,7 +2157,10 @@ mod tests {
         let mut ui = crate::test_ui(Platform::Apple, Some(18), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
         let mut state = songs_state();
-        let info = crate::now_info::NowInfo { summary: "flac 96/24".into(), ..Default::default() };
+        let info = crate::now_info::NowInfo {
+            summary: "flac 96/24".into(),
+            ..Default::default()
+        };
         let player = PlayerView {
             current_id: Some(0),
             title: "Track 00000",
@@ -1321,18 +2173,39 @@ mod tests {
         };
         frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, 1.0);
         click(&mut ui, "Open Now Playing");
-        assert_eq!(frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, 2.0), Some(Intent::TogglePlayer));
+        assert_eq!(
+            frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, 2.0),
+            Some(Intent::TogglePlayer)
+        );
         state.apply(Intent::TogglePlayer);
         for time in [3.0, 4.0, 5.0] {
             frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, time);
         }
-        let names: Vec<String> = ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_string()).collect();
+        let names: Vec<String> = ui
+            .a11y_nodes()
+            .iter()
+            .map(|node| ui.a11y_name_of(node).to_string())
+            .collect();
         for want in [
-            "Close now playing", "Weather Systems", "Favorite current song", "Elapsed time", "Remaining time",
-            "Playback position", "Start time", "Duration", "Shuffle", "Repeat off", "Show full queue",
-            "Previous", "Play", "Next",
+            "Close now playing",
+            "Weather Systems",
+            "Favorite current song",
+            "Elapsed time",
+            "Remaining time",
+            "Playback position",
+            "Start time",
+            "Duration",
+            "Shuffle",
+            "Repeat off",
+            "Show full queue",
+            "Previous",
+            "Play",
+            "Next",
         ] {
-            assert!(names.iter().any(|name| name == want), "missing {want}: {names:?}");
+            assert!(
+                names.iter().any(|name| name == want),
+                "missing {want}: {names:?}"
+            );
         }
         for (label, want, time) in [
             ("Shuffle", Intent::Shuffle, 6.0),
@@ -1340,10 +2213,18 @@ mod tests {
             ("Next", Intent::Next, 8.0),
             ("Previous", Intent::Previous, 9.0),
             ("Play", Intent::Play, 10.0),
-            ("Favorite current song", Intent::SetFavorite { song: 0, on: true }, 11.0),
+            (
+                "Favorite current song",
+                Intent::SetFavorite { song: 0, on: true },
+                11.0,
+            ),
         ] {
             click(&mut ui, label);
-            assert_eq!(frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, time), Some(want), "{label}");
+            assert_eq!(
+                frame(&mut ui, &catalog, &state, &player, 61.0, 390.0, time),
+                Some(want),
+                "{label}"
+            );
         }
     }
 
@@ -1382,7 +2263,8 @@ mod tests {
                     .a11y_nodes()
                     .iter()
                     .find(|node| {
-                        node.is_role(Role::Button) && ui.a11y_name_of(node) == "Toggle now playing panel"
+                        node.is_role(Role::Button)
+                            && ui.a11y_name_of(node) == "Toggle now playing panel"
                     })
                     .unwrap();
                 assert!(
@@ -1406,7 +2288,12 @@ mod tests {
         for tick in 0..182 {
             let events = [
                 pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 200.0, 400.0),
-                pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if tick % 40 < 20 { -1.0 } else { 1.0 }),
+                pxui::Event::pointer(
+                    input::wire::SCROLLED,
+                    0,
+                    0.0,
+                    if tick % 40 < 20 { -1.0 } else { 1.0 },
+                ),
             ];
             mem_sys::local_reset();
             crate::testing::frame(
@@ -1439,12 +2326,19 @@ mod tests {
             } else {
                 400.0
             };
-            let touch = pxui::Touch::new(u64::MAX, 7, [200.0, point], time, 1.0, match tick % 5 {
+            let touch = pxui::Touch::new(
+                u64::MAX,
+                7,
+                [200.0, point],
+                time,
+                1.0,
+                match tick % 5 {
                     0 | 3 => 0,
                     1 => 1,
                     2 => 2,
                     _ => 3,
-                });
+                },
+            );
             let event = pxui::Event {
                 kind: pxui::Event::TOUCH,
                 text: pxui::Str {
@@ -1598,7 +2492,13 @@ mod tests {
                 let mut intent = None;
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn::new(width, 844.0).time(tick as f64).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0])).keyboard(pxui::Keyboard::new(pxui::geom::Rect::new(0.0, bottom, width, 844.0 - bottom), pxui::Keyboard::VALID | pxui::Keyboard::ANIMATING)),
+                    &FrameIn::new(width, 844.0)
+                        .time(tick as f64)
+                        .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]))
+                        .keyboard(pxui::Keyboard::new(
+                            pxui::geom::Rect::new(0.0, bottom, width, 844.0 - bottom),
+                            pxui::Keyboard::VALID | pxui::Keyboard::ANIMATING,
+                        )),
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent),
                 )
                 .unwrap();
@@ -1638,7 +2538,15 @@ mod tests {
         ui.set_a11y(true);
         for tick in 0..6 {
             mem_sys::local_reset();
-            frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, f64::from(tick));
+            frame(
+                &mut ui,
+                &catalog,
+                &state,
+                &player,
+                0.0,
+                390.0,
+                f64::from(tick),
+            );
             if tick >= 3 {
                 assert_eq!(mem_sys::local_alloc_count(), 0, "frame {tick}");
             }
@@ -1686,7 +2594,15 @@ mod tests {
             ui.set_a11y(true);
             for tick in 0..6 {
                 mem_sys::local_reset();
-                frame(&mut ui, &catalog, &state, &player, 0.0, 390.0, f64::from(tick));
+                frame(
+                    &mut ui,
+                    &catalog,
+                    &state,
+                    &player,
+                    0.0,
+                    390.0,
+                    f64::from(tick),
+                );
                 if tick >= 3 {
                     assert_eq!(mem_sys::local_alloc_count(), 0, "frame {tick}");
                 }
@@ -1698,13 +2614,26 @@ mod tests {
                     .find(|node| node.is_role(Role::Button) && ui.a11y_name_of(node) == name)
                     .unwrap_or_else(|| panic!("missing {name}"))
                     .rect;
-                let press = pxui::Event::pointer(pxui::Event::POINTER_PRESSED, 0, f64::from(rect.x + rect.w * 0.5), f64::from(rect.y + rect.h * 0.5));
-                let events = [press, pxui::Event { kind: pxui::Event::POINTER_RELEASED, ..press }];
+                let press = pxui::Event::pointer(
+                    pxui::Event::POINTER_PRESSED,
+                    0,
+                    f64::from(rect.x + rect.w * 0.5),
+                    f64::from(rect.y + rect.h * 0.5),
+                );
+                let events = [
+                    press,
+                    pxui::Event {
+                        kind: pxui::Event::POINTER_RELEASED,
+                        ..press
+                    },
+                ];
                 let mut intent = None;
                 crate::testing::frame(
                     &mut ui,
                     &{
-                        let mut frame = FrameIn::new(390.0, 844.0).time(10.0).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
+                        let mut frame = FrameIn::new(390.0, 844.0)
+                            .time(10.0)
+                            .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                         frame = frame.events(&events[..2]);
                         frame
                     },
@@ -1741,13 +2670,19 @@ mod tests {
                 let step = tick % 3;
                 let mut events = [pxui::Event::default(); 2];
                 if step == 0 {
-                    events[0] = pxui::Event::pointer(pxui::Event::POINTER_PRESSED, 0, f64::from(rect.x + rect.w * 0.75), f64::from(rect.y + rect.h * 0.5));
+                    events[0] = pxui::Event::pointer(
+                        pxui::Event::POINTER_PRESSED,
+                        0,
+                        f64::from(rect.x + rect.w * 0.75),
+                        f64::from(rect.y + rect.h * 0.5),
+                    );
                     events[1] = pxui::Event {
                         kind: pxui::Event::POINTER_RELEASED,
                         ..events[0]
                     };
                 } else {
-                    events[0] = pxui::Event::key(pxui::Event::KEY_PRESSED, input::Key::Enter.code());
+                    events[0] =
+                        pxui::Event::key(pxui::Event::KEY_PRESSED, input::Key::Enter.code());
                     events[1] = pxui::Event {
                         kind: pxui::Event::KEY_RELEASED,
                         ..events[0]
@@ -1758,7 +2693,9 @@ mod tests {
                 crate::testing::frame(
                     &mut ui,
                     &{
-                        let mut frame = FrameIn::new(width, 844.0).time(2.0 + tick as f64).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
+                        let mut frame = FrameIn::new(width, 844.0)
+                            .time(2.0 + tick as f64)
+                            .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                         frame = frame.events(&events[..2]);
                         frame
                     },
@@ -1769,7 +2706,11 @@ mod tests {
                 // its selected row, the phone list (selecting nothing) the row the app's selection brought the keyboard to
                 assert_eq!(
                     intent,
-                    if step == 2 { Some(Intent::PlayRow(0)) } else { None },
+                    if step == 2 {
+                        Some(Intent::PlayRow(0))
+                    } else {
+                        None
+                    },
                     "width {width}, frame {tick}"
                 );
                 assert_eq!(
@@ -1808,7 +2749,14 @@ mod tests {
         at: (f32, f32),
         time: f64,
     ) -> Option<Intent> {
-        let touch = pxui::Touch::new(u64::MAX, 3, [f64::from(at.0), f64::from(at.1)], time, 1.0, phase);
+        let touch = pxui::Touch::new(
+            u64::MAX,
+            3,
+            [f64::from(at.0), f64::from(at.1)],
+            time,
+            1.0,
+            phase,
+        );
         let event = pxui::Event {
             kind: pxui::Event::TOUCH,
             text: pxui::Str {
@@ -1825,7 +2773,9 @@ mod tests {
         crate::testing::frame(
             ui,
             &{
-                let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
+                let mut frame = FrameIn::new(390.0, 844.0)
+                    .time(time)
+                    .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                 frame = frame.events(std::slice::from_ref(&event));
                 frame
             },
@@ -1863,12 +2813,19 @@ mod tests {
     ) -> (f64, Option<Intent>) {
         let (x, y) = {
             let r = rect_of(ui, Role::ListItem, name);
-            (if dx < 0.0 { r.x + 250.0 } else { r.x + 60.0 }, r.y + r.h / 2.0)
+            (
+                if dx < 0.0 { r.x + 250.0 } else { r.x + 60.0 },
+                r.y + r.h / 2.0,
+            )
         };
         assert_eq!(finger(ui, c, state, 0, (x, y), t), None);
         for (step, fraction) in [0.15, 0.5, 1.0].into_iter().enumerate() {
             t += 0.016;
-            assert_eq!(finger(ui, c, state, 1, (x + dx * fraction, y), t), None, "step {step}");
+            assert_eq!(
+                finger(ui, c, state, 1, (x + dx * fraction, y), t),
+                None,
+                "step {step}"
+            );
         }
         t += 0.4;
         let intent = finger(ui, c, state, 2, (x + dx, y), t);
@@ -1879,7 +2836,13 @@ mod tests {
         (t, intent)
     }
     /// Tap a revealed action button; returns the clock and the intent.
-    fn tap_action(ui: &mut Ui, c: &Catalog, state: &ShellState, name: &str, mut t: f64) -> (f64, Option<Intent>) {
+    fn tap_action(
+        ui: &mut Ui,
+        c: &Catalog,
+        state: &ShellState,
+        name: &str,
+        mut t: f64,
+    ) -> (f64, Option<Intent>) {
         let (x, y) = centre(rect_of(ui, Role::Button, name));
         t += 0.1;
         finger(ui, c, state, 0, (x, y), t);
@@ -1912,10 +2875,17 @@ mod tests {
             let (next, intent) = swipe_row(&mut ui, &c, &state, "Track 00000", -60.0, t + 1.0);
             assert_eq!(intent, None, "a swipe is not a tap");
             let shifted = rect_of(&ui, Role::Label, "Track 00000").x;
-            assert!(shifted <= resting - 60.0, "row shows its action: {resting} -> {shifted}");
+            assert!(
+                shifted <= resting - 60.0,
+                "row shows its action: {resting} -> {shifted}"
+            );
             let (next, intent) = tap_action(&mut ui, &c, &state, "Add to queue", next);
             assert_eq!(intent, Some(Intent::AppendSong(0)));
-            assert_eq!(rect_of(&ui, Role::Label, "Track 00000").x, resting, "closed after the action");
+            assert_eq!(
+                rect_of(&ui, Role::Label, "Track 00000").x,
+                resting,
+                "closed after the action"
+            );
             // A short drag right opens the leading strip: Play next.
             let (next, intent) = swipe_row(&mut ui, &c, &state, "Track 00000", 60.0, next + 0.5);
             assert_eq!(intent, None);
@@ -1932,12 +2902,19 @@ mod tests {
             // Swiping another row closes the open one.
             let (next, _) = swipe_row(&mut ui, &c, &state, "Track 00000", -60.0, next + 0.5);
             let (mut t2, _) = swipe_row(&mut ui, &c, &state, "Track 00001", -60.0, next + 0.5);
-            assert_eq!(rect_of(&ui, Role::Label, "Track 00000").x, resting, "first row closed");
+            assert_eq!(
+                rect_of(&ui, Role::Label, "Track 00000").x,
+                resting,
+                "first row closed"
+            );
             assert!(rect_of(&ui, Role::Label, "Track 00001").x < resting - 60.0);
             // Tapping an open row closes it instead of playing.
             let r = rect_of(&ui, Role::ListItem, "Track 00001");
             finger(&mut ui, &c, &state, 0, (100.0, r.y + 30.0), t2 + 0.1);
-            assert_eq!(finger(&mut ui, &c, &state, 2, (100.0, r.y + 30.0), t2 + 0.15), None);
+            assert_eq!(
+                finger(&mut ui, &c, &state, 2, (100.0, r.y + 30.0), t2 + 0.15),
+                None
+            );
             t2 += 0.15;
             for _ in 0..4 {
                 t2 += 0.5;
@@ -2022,7 +2999,11 @@ mod tests {
             .collect();
         let order: Vec<_> = nav.iter().map(|entry| entry.1).collect();
         nav.sort_by(|a, b| a.0.total_cmp(&b.0));
-        assert_eq!(nav.iter().map(|entry| entry.1).collect::<Vec<_>>(), order, "tab bar order");
+        assert_eq!(
+            nav.iter().map(|entry| entry.1).collect::<Vec<_>>(),
+            order,
+            "tab bar order"
+        );
         assert!(has(&ui, Role::Label, "52") || has(&ui, Role::Label, "songs"));
         // Rows carry the prepared "Artist · Album" line and a "…" menu.
         assert!(has(&ui, Role::Label, "Example artist · Album 00"));
@@ -2032,11 +3013,25 @@ mod tests {
         let index = rect_of(&ui, Role::Slider, "Section index");
         let letter = |k: usize| (index.x + index.w * 0.5, index.y + 17.0 * k as f32 + 8.5);
         assert!(!has(&ui, Role::ListItem, "Z50"));
-        let id = ui.a11y_nodes().iter().find(|node| node.is_role(Role::Slider) && ui.a11y_name_of(node) == "Section index").unwrap().id;
-        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 4, payload: 25.0, ..Default::default() }]);
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(Role::Slider) && ui.a11y_name_of(node) == "Section index")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 4,
+            payload: 25.0,
+            ..Default::default()
+        }]);
         idle(&mut ui, &c, &state, t);
         let index_node = *ui.a11y_nodes().iter().find(|node| node.id == id).unwrap();
-        assert_eq!(ui.a11y_value_of(&index_node), Some("Z"), "the index says its letter (U2b.4.34)");
+        assert_eq!(
+            ui.a11y_value_of(&index_node),
+            Some("Z"),
+            "the index says its letter (U2b.4.34)"
+        );
         for step in 1..4 {
             idle(&mut ui, &c, &state, t + f64::from(step));
         }
@@ -2055,7 +3050,9 @@ mod tests {
             crate::testing::frame(
                 ui,
                 &{
-                    let mut frame = FrameIn::new(390.0, 844.0).time(time).environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
+                    let mut frame = FrameIn::new(390.0, 844.0)
+                        .time(time)
+                        .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]));
                     frame = frame.events(std::slice::from_ref(&event));
                     frame
                 },
@@ -2106,7 +3103,10 @@ mod tests {
         assert!(has(&ui, Role::Label, "20 albums · 30 songs"));
         assert!(has(&ui, Role::Label, "Songs"));
         assert!(has(&ui, Role::Label, "Example artist"));
-        assert!(!has(&ui, Role::Button, "Settings"), "the artist page replaces the Library header");
+        assert!(
+            !has(&ui, Role::Button, "Settings"),
+            "the artist page replaces the Library header"
+        );
         for (name, want) in [
             ("Back", Intent::Navigate(Route::Artists)),
             ("Play", Intent::PlayRow(0)),
@@ -2130,8 +3130,22 @@ mod tests {
     fn album_and_list_pages_have_back_title_summary_and_play_shuffle_without_warm_allocations() {
         mem_sys::set_peer(pxui::library_counter);
         let mut c = catalog(30);
-        c.add_collection("Mix", vec![0, 1, 2], lw_core::context::PlaybackContext::Playlist { id: 7, name: "Mix".into() });
-        c.add_collection("Empty", vec![], lw_core::context::PlaybackContext::Playlist { id: 8, name: "Empty".into() });
+        c.add_collection(
+            "Mix",
+            vec![0, 1, 2],
+            lw_core::context::PlaybackContext::Playlist {
+                id: 7,
+                name: "Mix".into(),
+            },
+        );
+        c.add_collection(
+            "Empty",
+            vec![],
+            lw_core::context::PlaybackContext::Playlist {
+                id: 8,
+                name: "Empty".into(),
+            },
+        );
         let lists = c.collections.len();
         let routes = [
             (Route::Album(0), Route::Albums, "Example artist"),
@@ -2149,13 +3163,20 @@ mod tests {
                 idle(&mut ui, &c, &state, t);
                 t += 1.0;
             }
-            assert!(!has(&ui, Role::Button, "Settings"), "the detail lead replaces the Library header");
+            assert!(
+                !has(&ui, Role::Button, "Settings"),
+                "the detail lead replaces the Library header"
+            );
             if !link.is_empty() {
                 assert!(has(&ui, Role::Button, link), "album artist link");
             }
             // an empty list's keys are disabled (they play nothing), so a press on them is ignored
             let empty = route == Route::Collection(lists - 1);
-            for (name, want) in [("Back", Some(Intent::Navigate(parent))), ("Play", (!empty).then_some(Intent::PlayRow(0))), ("Shuffle", (!empty).then_some(Intent::ShuffleCollection))] {
+            for (name, want) in [
+                ("Back", Some(Intent::Navigate(parent))),
+                ("Play", (!empty).then_some(Intent::PlayRow(0))),
+                ("Shuffle", (!empty).then_some(Intent::ShuffleCollection)),
+            ] {
                 click(&mut ui, name);
                 assert_eq!(idle(&mut ui, &c, &state, t), want, "{name} on {route:?}");
                 t += 1.0;
@@ -2171,12 +3192,22 @@ mod tests {
     }
 
     /// Drag the finger straight down from `from` by `dy` in three moves and release.
-    fn drag_down(ui: &mut Ui, c: &Catalog, state: &ShellState, from: (f32, f32), dy: f32, mut t: f64) -> (f64, Option<Intent>) {
+    fn drag_down(
+        ui: &mut Ui,
+        c: &Catalog,
+        state: &ShellState,
+        from: (f32, f32),
+        dy: f32,
+        mut t: f64,
+    ) -> (f64, Option<Intent>) {
         assert_eq!(finger(ui, c, state, 0, from, t), None);
         // Slow enough that only the distance, never the release velocity, can commit.
         for fraction in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0] {
             t += 0.1;
-            assert_eq!(finger(ui, c, state, 1, (from.0, from.1 + dy * fraction), t), None);
+            assert_eq!(
+                finger(ui, c, state, 1, (from.0, from.1 + dy * fraction), t),
+                None
+            );
         }
         t += 0.5;
         let intent = finger(ui, c, state, 2, (from.0, from.1 + dy), t);
@@ -2195,13 +3226,22 @@ mod tests {
         let mut state = songs_state();
         state.apply(Intent::TogglePlayer);
         let mut t = 1.0;
-        for _ in 0..3 { idle(&mut ui, &c, &state, t); t += 1.0; }
+        for _ in 0..3 {
+            idle(&mut ui, &c, &state, t);
+            t += 1.0;
+        }
         state.apply(Intent::ShowQueue);
-        for _ in 0..3 { idle(&mut ui, &c, &state, t); t += 1.0; }
+        for _ in 0..3 {
+            idle(&mut ui, &c, &state, t);
+            t += 1.0;
+        }
         // the sheet opened from the player sits over it: a tap on its close key reaches the sheet
         let at = centre(rect_of(&ui, Role::Button, "Close queue"));
         assert_eq!(finger(&mut ui, &c, &state, 0, at, t), None);
-        assert_eq!(finger(&mut ui, &c, &state, 2, at, t + 0.05), Some(Intent::CloseQueue));
+        assert_eq!(
+            finger(&mut ui, &c, &state, 2, at, t + 0.05),
+            Some(Intent::CloseQueue)
+        );
     }
 
     /// Swift's audio route key shows where the platform has the picker (iOS) and asks for it; elsewhere its slot stays empty.
@@ -2213,12 +3253,24 @@ mod tests {
             ui.set_a11y(true);
             let mut state = songs_state();
             state.apply(Intent::TogglePlayer);
-            let player = PlayerView { initialized: true, current_id: Some(3), title: "Track 00003", route, ..Default::default() };
+            let player = PlayerView {
+                initialized: true,
+                current_id: Some(3),
+                title: "Track 00003",
+                route,
+                ..Default::default()
+            };
             let mut t = 1.0;
-            for _ in 0..3 { frame(&mut ui, &c, &state, &player, 0.0, 390.0, t); t += 1.0; }
+            for _ in 0..3 {
+                frame(&mut ui, &c, &state, &player, 0.0, 390.0, t);
+                t += 1.0;
+            }
             assert_eq!(names(&ui).iter().any(|name| name == "Audio output"), route);
             if route {
-                assert!(matches!(press(&mut ui, &c, &mut state, &player, &mut t, "Audio output"), Some(Intent::AudioRoute(_))));
+                assert!(matches!(
+                    press(&mut ui, &c, &mut state, &player, &mut t, "Audio output"),
+                    Some(Intent::AudioRoute(_))
+                ));
             }
         }
     }
@@ -2230,16 +3282,42 @@ mod tests {
         ui.set_a11y(true);
         let mut state = songs_state();
         state.apply(Intent::TogglePlayer);
-        let player = PlayerView { initialized: true, current_id: Some(3), title: "Track 00003", ..Default::default() };
+        let player = PlayerView {
+            initialized: true,
+            current_id: Some(3),
+            title: "Track 00003",
+            ..Default::default()
+        };
         let mut t = 1.0;
-        for _ in 0..3 { frame(&mut ui, &c, &state, &player, 0.0, 390.0, t); t += 1.0; }
+        for _ in 0..3 {
+            frame(&mut ui, &c, &state, &player, 0.0, 390.0, t);
+            t += 1.0;
+        }
         let opened = press(&mut ui, &c, &mut state, &player, &mut t, "Track actions");
-        assert!(matches!(opened, Some(Intent::SongMenu(_, 3, super::super::songs::NOW_MENU, _))), "{opened:?}");
+        assert!(
+            matches!(
+                opened,
+                Some(Intent::SongMenu(_, 3, super::super::songs::NOW_MENU, _))
+            ),
+            "{opened:?}"
+        );
         // the menu sits over the player and takes the press
-        let item = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Play next").map(|node| node.id).expect("the track menu shows");
-        ui.inject_a11y(&[pxui::A11yAction { id: item, action_code: 1, ..Default::default() }]);
+        let item = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "Play next")
+            .map(|node| node.id)
+            .expect("the track menu shows");
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: item,
+            action_code: 1,
+            ..Default::default()
+        }]);
         t += 1.0;
-        assert_eq!(frame(&mut ui, &c, &state, &player, 0.0, 390.0, t), Some(Intent::PlayNext(3)));
+        assert_eq!(
+            frame(&mut ui, &c, &state, &player, 0.0, 390.0, t),
+            Some(Intent::PlayNext(3))
+        );
     }
 
     #[test]
@@ -2260,9 +3338,17 @@ mod tests {
             mem_sys::local_reset();
             let (next, intent) = drag_down(&mut ui, &c, &state, (195.0, 250.0), 60.0, t + 1.0);
             assert_eq!(intent, None, "short drag, round {round}");
-            assert_eq!(rect_of(&ui, Role::Button, "Close now playing").y, rest, "springs back");
+            assert_eq!(
+                rect_of(&ui, Role::Button, "Close now playing").y,
+                rest,
+                "springs back"
+            );
             let (next, intent) = drag_down(&mut ui, &c, &state, (195.0, 250.0), 400.0, next + 1.0);
-            assert_eq!(intent, Some(Intent::TogglePlayer), "long drag, round {round}");
+            assert_eq!(
+                intent,
+                Some(Intent::TogglePlayer),
+                "long drag, round {round}"
+            );
             // The shell closes the player; opening it again starts from rest.
             state.apply(Intent::TogglePlayer);
             idle(&mut ui, &c, &state, next + 1.0);
@@ -2273,7 +3359,11 @@ mod tests {
                 t += 1.0;
             }
             if round >= 2 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm dismiss round {round}");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm dismiss round {round}"
+                );
             }
         }
     }
@@ -2297,7 +3387,11 @@ mod tests {
             mem_sys::local_reset();
             let (next, intent) = drag_down(&mut ui, &c, &state, from, 30.0, t + 1.0);
             assert_eq!(intent, None, "short drag, round {round}");
-            assert_eq!(rect_of(&ui, Role::Dialog, "Playback queue").y, sheet.y, "springs back");
+            assert_eq!(
+                rect_of(&ui, Role::Dialog, "Playback queue").y,
+                sheet.y,
+                "springs back"
+            );
             let (next, intent) = drag_down(&mut ui, &c, &state, from, 200.0, next + 1.0);
             assert_eq!(intent, Some(Intent::CloseQueue), "long drag, round {round}");
             state.apply(Intent::CloseQueue);
@@ -2309,7 +3403,11 @@ mod tests {
                 t += 1.0;
             }
             if round >= 2 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm dismiss round {round}");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm dismiss round {round}"
+                );
             }
         }
     }

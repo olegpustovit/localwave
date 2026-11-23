@@ -25,12 +25,26 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
     // Swift lists the library in insertion order (`insertionSongs`, and its id-order hydration of the page); dates order only Recently added
     songs.sort_by_key(|song| song.id);
     let user = repository.user(identity)?;
-    let sources = user.as_ref().map(|user| repository.sources(user.id)).transpose()?.unwrap_or_default();
+    let sources = user
+        .as_ref()
+        .map(|user| repository.sources(user.id))
+        .transpose()?
+        .unwrap_or_default();
     // a source that needs reconnecting blocks its songs (Swift's `stateKey` "blocked")
-    let blocked: Vec<(i64, String)> = sources.iter()
+    let blocked: Vec<(i64, String)> = sources
+        .iter()
         .filter(|source| source.sync_error.is_some())
         // the folder's own name, as its Folders card shows it
-        .filter_map(|source| Some((source.id?, lw_apple_sys::preferences::file_path(&source.dir_path).ok()?.file_name()?.to_string_lossy().into_owned())))
+        .filter_map(|source| {
+            Some((
+                source.id?,
+                lw_apple_sys::preferences::file_path(&source.dir_path)
+                    .ok()?
+                    .file_name()?
+                    .to_string_lossy()
+                    .into_owned(),
+            ))
+        })
         .collect();
     let mut catalog = Catalog::with_blocked(songs, &blocked);
     let source_count = user
@@ -46,13 +60,23 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
             let Some(id) = source.id else { continue };
             let name = lw_apple_sys::preferences::file_path(&source.dir_path)
                 .ok()
-                .and_then(|path| path.file_name().map(|name| name.to_string_lossy().into_owned()))
+                .and_then(|path| {
+                    path.file_name()
+                        .map(|name| name.to_string_lossy().into_owned())
+                })
                 .unwrap_or_else(|| "Music folder".into());
             source_roots.insert(id, (source.path_id, name.clone()));
             library.source_rows.push(SourceRow {
-                location: Location { user: user.id, source: id, parent: None },
+                location: Location {
+                    user: user.id,
+                    source: id,
+                    parent: None,
+                },
                 name: lw_ui::clip(&name).to_owned(),
-                count: source.total_paths.map(|count| count.to_string()).unwrap_or_default(),
+                count: source
+                    .total_paths
+                    .map(|count| count.to_string())
+                    .unwrap_or_default(),
                 reconnect: source.sync_error.is_some(),
             });
         }
@@ -70,17 +94,23 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
         let mut targets = Vec::with_capacity(library.albums.len());
         for album in &library.albums {
             let first = album.rows.first().map(|row| library.row(*row).id);
-            targets.push(first.and_then(|id| folders.get(&id)).and_then(|(source, parent, relative)| {
-                let (root, name) = source_roots.get(source)?;
-                let at_root = parent == root || relative.as_deref().is_none_or(str::is_empty);
-                Some(AlbumFolder {
-                    label: lw_ui::clip_owned(match relative.as_deref().filter(|_| !at_root) {
-                        Some(relative) => format!("{name} / {relative}"),
-                        None => name.clone(),
-                    }),
-                    location: Location { user: user.id, source: *source, parent: (!at_root).then_some(*parent) },
-                })
-            }));
+            targets.push(first.and_then(|id| folders.get(&id)).and_then(
+                |(source, parent, relative)| {
+                    let (root, name) = source_roots.get(source)?;
+                    let at_root = parent == root || relative.as_deref().is_none_or(str::is_empty);
+                    Some(AlbumFolder {
+                        label: lw_ui::clip_owned(match relative.as_deref().filter(|_| !at_root) {
+                            Some(relative) => format!("{name} / {relative}"),
+                            None => name.clone(),
+                        }),
+                        location: Location {
+                            user: user.id,
+                            source: *source,
+                            parent: (!at_root).then_some(*parent),
+                        },
+                    })
+                },
+            ));
         }
         for (album, target) in library.albums.iter_mut().zip(targets) {
             album.folder = target;
@@ -242,7 +272,9 @@ impl LibraryWorker {
         if catalog.artist_table.is_none() {
             let pins = self.preferences.import_snapshot();
             catalog.prepare_pins(&mut |id| pins.pinned(id));
-            catalog.prepare_tables(&self.table_styles).map_err(io::Error::other)?;
+            catalog
+                .prepare_tables(&self.table_styles)
+                .map_err(io::Error::other)?;
         }
         let summary = if let (Some(find), Some(candidates)) = (find, candidates) {
             let found = find.finish(self, &catalog, candidates);

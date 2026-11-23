@@ -35,7 +35,7 @@
 mod format;
 use crate::library::LibraryWorker;
 use lw_apple_sys::{
-    bookmarks::FileSelection, collation::Key, preferences::file_path, observer::FolderObserver,
+    bookmarks::FileSelection, collation::Key, observer::FolderObserver, preferences::file_path,
 };
 use lw_core::FileAvailability;
 use lw_ui::files::{Directory, Entry, Folder, Glyph, Location, Request, Snapshot, Target};
@@ -421,7 +421,11 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
         }
         if let Some(request) = browse {
             snapshot.message.clear();
-            let result = match refresh_sources(&mut library, &mut snapshot, matches!(request, Request::Roots)) {
+            let result = match refresh_sources(
+                &mut library,
+                &mut snapshot,
+                matches!(request, Request::Roots),
+            ) {
                 Err(error) => {
                     clear_account(&mut snapshot, error);
                     None
@@ -434,8 +438,11 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
                     Request::Browse(location) => {
                         browse_directory(&mut library, &mut snapshot, location)
                     }
-                    Request::Locate { user, song } => locate(&mut library, user, song)
-                        .and_then(|location| browse_directory(&mut library, &mut snapshot, location)),
+                    Request::Locate { user, song } => {
+                        locate(&mut library, user, song).and_then(|location| {
+                            browse_directory(&mut library, &mut snapshot, location)
+                        })
+                    }
                     _ => unreachable!(),
                 }),
             };
@@ -532,7 +539,10 @@ fn refresh_sources(
             // Swift shows stats only for sources that have saved songs.
             let (mut songs, mut local, mut cloud, mut pinned) = (0, 0, 0, 0);
             if stats {
-                let saved = library.repository.songs_in_source(id).map_err(io::Error::other)?;
+                let saved = library
+                    .repository
+                    .songs_in_source(id)
+                    .map_err(io::Error::other)?;
                 for (availability, kept) in library.song_states(&saved) {
                     songs += 1;
                     local += usize::from(availability == FileAvailability::OnDevice);
@@ -540,12 +550,16 @@ fn refresh_sources(
                     pinned += usize::from(kept);
                 }
             }
-            let display = usize::try_from(id - 1).ok().and_then(|index| library.reference_sources.get(index));
+            let display = usize::try_from(id - 1)
+                .ok()
+                .and_then(|index| library.reference_sources.get(index));
             Ok(Folder {
                 id,
                 root: source.path_id,
                 name: lw_ui::clip_owned(name),
-                path: lw_ui::clip_owned(display.map_or_else(|| path.to_string_lossy().into_owned(), |d| d.0.clone())),
+                path: lw_ui::clip_owned(
+                    display.map_or_else(|| path.to_string_lossy().into_owned(), |d| d.0.clone()),
+                ),
                 current: source.is_current,
                 count: if songs > 0 {
                     format!("{songs} songs")
@@ -557,9 +571,14 @@ fn refresh_sources(
                 } else {
                     String::new()
                 },
-                scanned: display.map_or_else(|| format::age(now, source.last_synced_at), |d| d.1.clone()),
+                scanned: display
+                    .map_or_else(|| format::age(now, source.last_synced_at), |d| d.1.clone()),
                 error: source.sync_error.map(lw_ui::clip_owned),
-                local: if songs > 0 { local as f32 / songs as f32 } else { 0.0 },
+                local: if songs > 0 {
+                    local as f32 / songs as f32
+                } else {
+                    0.0
+                },
             })
         })
         .collect::<io::Result<Vec<_>>>()?;
@@ -589,7 +608,11 @@ fn locate(library: &mut LibraryWorker, user: i64, song: i64) -> io::Result<Locat
                 .path_id,
         ),
     };
-    Ok(Location { user, source, parent })
+    Ok(Location {
+        user,
+        source,
+        parent,
+    })
 }
 fn browse_directory(
     library: &mut LibraryWorker,
@@ -702,7 +725,10 @@ fn browse_directory(
                     if path.is_directory {
                         "Folder".into()
                     } else if !audio {
-                        size.map_or_else(|| "not audio".into(), |size| format!("not audio · {}", format::megabytes(size)))
+                        size.map_or_else(
+                            || "not audio".into(),
+                            |size| format!("not audio · {}", format::megabytes(size)),
+                        )
                     } else {
                         let extension = song
                             .and_then(|song| song.file_extension.as_deref())
@@ -715,7 +741,9 @@ fn browse_directory(
                     }
                 }),
                 song: song.and_then(|song| song.id),
-                songs: below.remove(path.name.as_str()).map_or_else(|| Arc::from([]), Arc::from),
+                songs: below
+                    .remove(path.name.as_str())
+                    .map_or_else(|| Arc::from([]), Arc::from),
                 glyph: index.map(|index| Glyph {
                     state: inside[index].file_state,
                     availability: Some(states[index].0),
@@ -727,7 +755,15 @@ fn browse_directory(
         ));
     }
     // Swift's order: folders, then audio, then other files.
-    let rank = |entry: &Entry| if entry.directory { 0 } else if entry.audio { 1 } else { 2 };
+    let rank = |entry: &Entry| {
+        if entry.directory {
+            0
+        } else if entry.audio {
+            1
+        } else {
+            2
+        }
+    };
     entries.sort_unstable_by(|(a, ak), (b, bk)| {
         rank(a)
             .cmp(&rank(b))
@@ -748,17 +784,31 @@ fn browse_directory(
             .enumerate()
             .filter(|(_, entry)| {
                 entry.directory
-                    || (entry.audio && entry.glyph.is_some_and(|glyph| glyph.availability == Some(wanted)))
+                    || (entry.audio
+                        && entry
+                            .glyph
+                            .is_some_and(|glyph| glyph.availability == Some(wanted)))
             })
             .map(|(index, _)| index as u32)
             .collect::<Vec<_>>()
     };
-    let filters = [tab(FileAvailability::OnDevice), tab(FileAvailability::InCloud)];
+    let filters = [
+        tab(FileAvailability::OnDevice),
+        tab(FileAvailability::InCloud),
+    ];
     let audio = entries.iter().filter(|entry| entry.audio).count();
     let filter_counts = [
         audio.to_string(),
-        filters[0].iter().filter(|&&i| entries[i as usize].audio).count().to_string(),
-        filters[1].iter().filter(|&&i| entries[i as usize].audio).count().to_string(),
+        filters[0]
+            .iter()
+            .filter(|&&i| entries[i as usize].audio)
+            .count()
+            .to_string(),
+        filters[1]
+            .iter()
+            .filter(|&&i| entries[i as usize].audio)
+            .count()
+            .to_string(),
     ];
     let title = path
         .as_ref()
@@ -793,8 +843,15 @@ fn browse_directory(
         kept: !states.is_empty() && states.iter().all(|(_, pinned)| *pinned),
         songs: inside.iter().filter_map(|song| song.id).collect(),
         show_non_audio: library.load_settings().show_non_audio,
-        non_audio: entries.iter().filter(|entry| !entry.directory && !entry.audio).count(),
-        hidden_label: match entries.iter().filter(|entry| !entry.directory && !entry.audio).count() {
+        non_audio: entries
+            .iter()
+            .filter(|entry| !entry.directory && !entry.audio)
+            .count(),
+        hidden_label: match entries
+            .iter()
+            .filter(|entry| !entry.directory && !entry.audio)
+            .count()
+        {
             0 => String::new(),
             1 => "1 non-audio file hidden ·".into(),
             count => format!("{count} non-audio files hidden ·"),
@@ -904,18 +961,35 @@ fn execute(
         }
         Job::Demo(bundle) => {
             // Swift's `installIfEmpty`: another import may have filled the library first
-            if library.repository.song_count("").map_err(io::Error::other)? > 0 {
+            if library
+                .repository
+                .song_count("")
+                .map_err(io::Error::other)?
+                > 0
+            {
                 return Ok(String::new());
             }
             // Application Support beside the container's Documents (iOS and macOS alike); a test container's own
-            let support = library.paths().documents.parent().ok_or_else(|| io::Error::other("The app container is unavailable."))?.join("Library/Application Support");
+            let support = library
+                .paths()
+                .documents
+                .parent()
+                .ok_or_else(|| io::Error::other("The app container is unavailable."))?
+                .join("Library/Application Support");
             let folder = crate::demo::prepare(&bundle, &support)?;
             let user = library.current_sources()?.user.id;
             // shortcut: Swift also reports a partial index (fewer than 92 songs); add the count check if a recording ever fails to import
-            let source = library.register_selected_folder(user, &FileSelection::from(folder), now(), &shared.cancelled)?;
+            let source = library.register_selected_folder(
+                user,
+                &FileSelection::from(folder),
+                now(),
+                &shared.cancelled,
+            )?;
             let location = Location {
                 user,
-                source: source.id.ok_or_else(|| io::Error::other("Source is not saved"))?,
+                source: source
+                    .id
+                    .ok_or_else(|| io::Error::other("Source is not saved"))?,
                 parent: Some(source.path_id),
             };
             (location, true, None)
@@ -1062,14 +1136,24 @@ mod tests {
             std::fs::write(bundle.join(format!("demo-{i}.flac")), tagged).unwrap();
             tracks.push(format!(r#"{{"resource":"demo-{i}.flac","relativePath":"Artist {}/{i:02} Song.flac","bytes":{}}}"#, i % 4, tagged.len()));
         }
-        std::fs::write(bundle.join("localwave-demo-catalog.json"), format!(r#"{{"version":1,"tracks":[{}]}}"#, tracks.join(","))).unwrap();
-        assert_eq!(crate::demo::bundled(&base.join("Bundle")).as_deref(), Some(bundle.as_path()));
+        std::fs::write(
+            bundle.join("localwave-demo-catalog.json"),
+            format!(r#"{{"version":1,"tracks":[{}]}}"#, tracks.join(",")),
+        )
+        .unwrap();
+        assert_eq!(
+            crate::demo::bundled(&base.join("Bundle")).as_deref(),
+            Some(bundle.as_path())
+        );
         let worker_base = base.clone();
         let mut worker = FilesWorker::open_quiet(
             move || {
                 LibraryWorker::open(
                     &worker_base.join("library.sqlite"),
-                    Preferences::open(Some(&format!("localwave.files-demo.{}", std::process::id())))?,
+                    Preferences::open(Some(&format!(
+                        "localwave.files-demo.{}",
+                        std::process::id()
+                    )))?,
                     AppPaths {
                         documents: worker_base.join("Documents"),
                         caches: worker_base.join("Caches"),
@@ -1084,11 +1168,20 @@ mod tests {
         )
         .unwrap();
         worker.try_demo(bundle.clone()).unwrap();
-        until(&mut worker, |snapshot| snapshot.catalog_revision >= 1 && !snapshot.busy);
+        until(&mut worker, |snapshot| {
+            snapshot.catalog_revision >= 1 && !snapshot.busy
+        });
         let installed = base.join("Library/Application Support/LocalWave/Demo Library");
-        assert!(installed.join("Artist 3/91 Song.flac").is_file(), "{}", worker.snapshot().message);
+        assert!(
+            installed.join("Artist 3/91 Song.flac").is_file(),
+            "{}",
+            worker.snapshot().message
+        );
         assert_eq!(worker.snapshot().sources.len(), 1);
-        assert_eq!(worker.snapshot().message, "92 imported, 0 unchanged, 0 awaiting download.");
+        assert_eq!(
+            worker.snapshot().message,
+            "92 imported, 0 unchanged, 0 awaiting download."
+        );
         // a second try leaves the filled library alone
         worker.try_demo(bundle).unwrap();
         until(&mut worker, |snapshot| !snapshot.busy);
@@ -1349,15 +1442,30 @@ mod tests {
         assert!(directory.entries[0].size.ends_with(" MB"));
         let notes = &directory.entries[1];
         assert_eq!(
-            (notes.name.as_str(), notes.kind.as_str(), notes.glyph, notes.audio),
+            (
+                notes.name.as_str(),
+                notes.kind.as_str(),
+                notes.glyph,
+                notes.audio
+            ),
             ("notes.txt", "Not audio", None, false)
         );
         assert_eq!((directory.non_audio, directory.songs.len()), (1, 1));
-        assert!(!directory.show_non_audio, "the setting only affects compact lists");
-        assert_eq!(directory.entries[0].songs, directory.songs, "a folder row carries its songs for Play folder");
+        assert!(
+            !directory.show_non_audio,
+            "the setting only affects compact lists"
+        );
+        assert_eq!(
+            directory.entries[0].songs, directory.songs,
+            "a folder row carries its songs for Play folder"
+        );
         assert!(directory.entries[1].songs.is_empty());
         assert_eq!(directory.hidden_label, "1 non-audio file hidden ·");
-        assert!(directory.summary.starts_with("1 songs · "), "{}", directory.summary);
+        assert!(
+            directory.summary.starts_with("1 songs · "),
+            "{}",
+            directory.summary
+        );
         assert!(directory.summary.ends_with(" offline"));
         assert_eq!(directory.title, "Original music 名前");
         assert_eq!(directory.breadcrumb, "", "no breadcrumb at the source root");
@@ -1379,26 +1487,46 @@ mod tests {
         assert_eq!(directory.up, root.parent);
         let entry = &directory.entries[0];
         assert_eq!(entry.name, "01.flac");
-        assert_eq!((entry.number.as_str(), entry.kind.as_str()), ("1", "flac audio"));
-        assert!(entry.size.ends_with(" MB") && entry.time.contains(':'), "{} {}", entry.size, entry.time);
+        assert_eq!(
+            (entry.number.as_str(), entry.kind.as_str()),
+            ("1", "flac audio")
+        );
+        assert!(
+            entry.size.ends_with(" MB") && entry.time.contains(':'),
+            "{} {}",
+            entry.size,
+            entry.time
+        );
         assert!(entry.glyph.is_some_and(|glyph| !glyph.pinned));
         // The compact tabs: the saved song, and which tab lists it (a local file is on device).
         assert_eq!(entry.song, directory.songs.first().copied());
         assert_eq!(directory.filter_counts, ["1", "1", "0"]);
-        assert_eq!((&directory.filters[0][..], &directory.filters[1][..]), (&[0][..], &[][..]));
+        assert_eq!(
+            (&directory.filters[0][..], &directory.filters[1][..]),
+            (&[0][..], &[][..])
+        );
         assert_eq!(directory.breadcrumb, "Original music 名前 / Album");
         assert_eq!(directory.title, "Album");
         // "Show in folder": a song resolves to its parent folder from anywhere.
         let song = entry.song.unwrap();
         worker.request(Request::Browse(root)).unwrap();
         until(&mut worker, |snapshot| {
-            snapshot.directory.as_ref().is_some_and(|directory| directory.location == root)
+            snapshot
+                .directory
+                .as_ref()
+                .is_some_and(|directory| directory.location == root)
         });
         worker.request(Request::Locate { user, song }).unwrap();
         until(&mut worker, |snapshot| {
-            snapshot.directory.as_ref().is_some_and(|directory| directory.location == nested)
+            snapshot
+                .directory
+                .as_ref()
+                .is_some_and(|directory| directory.location == nested)
         });
-        assert!(worker.request(Request::Locate { user, song: -1 }).is_ok(), "unknown songs fail on the worker, not the caller");
+        assert!(
+            worker.request(Request::Locate { user, song: -1 }).is_ok(),
+            "unknown songs fail on the worker, not the caller"
+        );
         let directory = worker.snapshot().directory.as_ref().unwrap();
         assert_eq!(directory.songs.len(), 1);
         assert!(matches!(
@@ -1441,12 +1569,25 @@ mod tests {
         );
         let card = &worker.snapshot().sources[0];
         assert_eq!(card.name, "Original music 名前");
-        assert!(card.count.ends_with(" songs") && !card.count.starts_with('0'), "{}", card.count);
+        assert!(
+            card.count.ends_with(" songs") && !card.count.starts_with('0'),
+            "{}",
+            card.count
+        );
         assert!(card.stats.starts_with("0 kept · "), "{}", card.stats);
         assert!(card.scanned.ends_with(" ago"), "{}", card.scanned);
         assert!(card.error.is_none() && card.local >= 0.0 && card.local <= 1.0);
-        assert!(worker.snapshot().offline_usage.ends_with(" GB"), "{}", worker.snapshot().offline_usage);
-        assert!(worker.snapshot().source_count.ends_with(" sources, watched for changes"));
+        assert!(
+            worker.snapshot().offline_usage.ends_with(" GB"),
+            "{}",
+            worker.snapshot().offline_usage
+        );
+        assert!(
+            worker
+                .snapshot()
+                .source_count
+                .ends_with(" sources, watched for changes")
+        );
         worker
             .add_folder(user, base.join("Documents/CoverArt"))
             .unwrap();

@@ -16,7 +16,9 @@ pub fn bundled(resources: &Path) -> Option<PathBuf> {
 }
 
 fn nanos() -> u128 {
-    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |time| time.as_nanos())
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |time| time.as_nanos())
 }
 
 fn error(message: &str) -> io::Error {
@@ -25,7 +27,12 @@ fn error(message: &str) -> io::Error {
 
 /// `relative` under `root`, refusing absolute paths and `.`/`..` or empty components (a catalog entry never leaves the folder).
 fn file_under(root: &Path, relative: &str) -> io::Result<PathBuf> {
-    if relative.is_empty() || relative.starts_with('/') || relative.split('/').any(|part| part.is_empty() || part == "." || part == "..") {
+    if relative.is_empty()
+        || relative.starts_with('/')
+        || relative
+            .split('/')
+            .any(|part| part.is_empty() || part == "." || part == "..")
+    {
         return Err(error("The demo catalog contains an invalid file path."));
     }
     Ok(root.join(relative))
@@ -35,8 +42,12 @@ fn file_under(root: &Path, relative: &str) -> io::Result<PathBuf> {
 /// reused only when it is this app's completed copy (its marker equals the catalog and every file is there); it is never replaced.
 /// A copy is staged beside it and appears by one rename, so a failure leaves no partial folder.
 pub fn prepare(bundle: &Path, support: &Path) -> io::Result<PathBuf> {
-    let catalog_bytes = std::fs::read(bundle.join(CATALOG)).map_err(|_| error("The bundled demo library is unavailable."))?;
-    let catalog = std::str::from_utf8(&catalog_bytes).ok().and_then(|text| parse(text).ok()).ok_or_else(|| error("The bundled demo catalog is incomplete."))?;
+    let catalog_bytes = std::fs::read(bundle.join(CATALOG))
+        .map_err(|_| error("The bundled demo library is unavailable."))?;
+    let catalog = std::str::from_utf8(&catalog_bytes)
+        .ok()
+        .and_then(|text| parse(text).ok())
+        .ok_or_else(|| error("The bundled demo catalog is incomplete."))?;
     let tracks = catalog.items("tracks");
     if catalog.num("version") != 1.0 || tracks.len() != TRACKS {
         return Err(error("The bundled demo catalog is incomplete."));
@@ -46,11 +57,15 @@ pub fn prepare(bundle: &Path, support: &Path) -> io::Result<PathBuf> {
     let destination = root.join("Demo Library");
     if destination.exists() {
         if std::fs::read(destination.join(MARKER)).ok().as_deref() != Some(&catalog_bytes[..]) {
-            return Err(error("The Demo Library folder already exists and cannot be replaced."));
+            return Err(error(
+                "The Demo Library folder already exists and cannot be replaced.",
+            ));
         }
         for track in tracks {
             if !file_under(&destination, track.str("relativePath"))?.is_file() {
-                return Err(error("A demo file was removed. Open Folders to manage the existing Demo Library source."));
+                return Err(error(
+                    "A demo file was removed. Open Folders to manage the existing Demo Library source.",
+                ));
             }
         }
         return Ok(destination);
@@ -77,7 +92,10 @@ fn copy_tracks(bundle: &Path, staging: &Path, tracks: &[Json]) -> io::Result<()>
             return Err(error("A bundled demo recording is missing."));
         }
         let to = file_under(staging, track.str("relativePath"))?;
-        std::fs::create_dir_all(to.parent().ok_or_else(|| error("The demo catalog contains an invalid file path."))?)?;
+        std::fs::create_dir_all(
+            to.parent()
+                .ok_or_else(|| error("The demo catalog contains an invalid file path."))?,
+        )?;
         std::fs::copy(&from, &to)?;
         if std::fs::metadata(&to)?.len() as f64 != track.num("bytes") {
             return Err(error("A bundled demo recording is incomplete."));
@@ -98,7 +116,11 @@ mod tests {
             std::fs::write(bundle.join(format!("t{i}.m4a")), [i as u8; 3]).unwrap();
             tracks.push(format!(r#"{{"resource":"t{i}.m4a","relativePath":"Artist/Album/{i:02} Song.m4a","bytes":3}}"#));
         }
-        std::fs::write(bundle.join(CATALOG), format!(r#"{{"version":1,"tracks":[{}]}}"#, tracks.join(","))).unwrap();
+        std::fs::write(
+            bundle.join(CATALOG),
+            format!(r#"{{"version":1,"tracks":[{}]}}"#, tracks.join(",")),
+        )
+        .unwrap();
         bundle
     }
 
@@ -113,9 +135,19 @@ mod tests {
         assert_eq!(prepare(&source, &support).unwrap(), folder);
         // a removed file, or a folder that is not ours, is reported and never replaced
         std::fs::remove_file(folder.join("Artist/Album/00 Song.m4a")).unwrap();
-        assert!(prepare(&source, &support).unwrap_err().to_string().starts_with("A demo file was removed"));
+        assert!(
+            prepare(&source, &support)
+                .unwrap_err()
+                .to_string()
+                .starts_with("A demo file was removed")
+        );
         std::fs::remove_file(folder.join(MARKER)).unwrap();
-        assert!(prepare(&source, &support).unwrap_err().to_string().contains("cannot be replaced"));
+        assert!(
+            prepare(&source, &support)
+                .unwrap_err()
+                .to_string()
+                .contains("cannot be replaced")
+        );
         // an incomplete catalog and an escaping path are refused before any copy
         let small = bundle(&root.join("small"), 3);
         assert!(prepare(&small, &root.join("Support2")).is_err());

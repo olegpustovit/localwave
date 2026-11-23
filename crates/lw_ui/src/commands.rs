@@ -144,9 +144,20 @@ pub fn static_items() -> &'static [Item] {
     static ITEMS: std::sync::OnceLock<Vec<Item>> = std::sync::OnceLock::new();
     ITEMS.get_or_init(|| {
         use Command::*;
-        [PlayPause, Shuffle, Repeat, AddMusic, Network, Theme, Panel, Shortcuts]
-            .into_iter()
-            .map(|c| Item::new("Commands", c.label(), c.hint(), Icon::Chevron, None, Action::Command(c)))
-            .collect()
+        [
+            PlayPause, Shuffle, Repeat, AddMusic, Network, Theme, Panel, Shortcuts,
+        ]
+        .into_iter()
+        .map(|c| {
+            Item::new(
+                "Commands",
+                c.label(),
+                c.hint(),
+                Icon::Chevron,
+                None,
+                Action::Command(c),
+            )
+        })
+        .collect()
     })
 }

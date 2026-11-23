@@ -507,7 +507,11 @@ mod tests {
         // ties keep Swift's insertion order (`insertionSongs`)
         assert_eq!(
             &most.ids[1..],
-            &ids[..2].iter().chain(&ids[3..24]).copied().collect::<Vec<_>>()
+            &ids[..2]
+                .iter()
+                .chain(&ids[3..24])
+                .copied()
+                .collect::<Vec<_>>()
         );
         for (query, command) in [
             ("settings", Command::Settings),

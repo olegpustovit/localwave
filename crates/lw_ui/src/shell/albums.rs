@@ -10,9 +10,20 @@ use crate::browse::AlbumSort;
 
 /// The album orders, by `Segment::id`.
 const ALBUM_SORTS: [AlbumSort; 3] = [AlbumSort::Artist, AlbumSort::Year, AlbumSort::Added];
-const SORTS: [pxui::Segment; 3] = [pxui::Segment::new("Artist").id(0), pxui::Segment::new("Year").id(1), pxui::Segment::new("Size").id(2)];
+const SORTS: [pxui::Segment; 3] = [
+    pxui::Segment::new("Artist").id(0),
+    pxui::Segment::new("Year").id(1),
+    pxui::Segment::new("Size").id(2),
+];
 /// Shuffle all: a fit key, its shuffle icon and caption secondary.
-const SHUFFLE_ALL: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).size(Size::Fit, Size::Px(30.0)).pad(Edges::new(10.0, 0.0, 10.0, 0.0)).gap(6.0).icon(icon_drawing(Icon::Shuffle)).icon_size(16.0).label(CAPTION);
+const SHUFFLE_ALL: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::KEY)
+    .size(Size::Fit, Size::Px(30.0))
+    .pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+    .gap(6.0)
+    .icon(icon_drawing(Icon::Shuffle))
+    .icon_size(16.0)
+    .label(CAPTION);
 
 pub(super) fn toolbar(
     ui: &mut Ui,
@@ -23,11 +34,20 @@ pub(super) fn toolbar(
     let row = ui.node("album-tools", Node::row().w(Size::Grow).h_px(30.0).gap(8.0));
     ui.within(&row, &mut |ui| {
         let sort = ui.segmented("album-sort", &SORTS, Some(state.album_sort as usize), &SORT);
-        if (sort.response.changed || sort.response.clicked) && let Some(id) = sort.chosen_id {
+        if (sort.response.changed || sort.response.clicked)
+            && let Some(id) = sort.chosen_id
+        {
             *intent = Some(Intent::SortAlbums(ALBUM_SORTS[id as usize]));
         }
         ui.node("flex", Node::DEFAULT.w(Size::Grow));
-        if ui.button("shuffle-all", "Shuffle all", &SHUFFLE_ALL.disabled(catalog.is_empty())).clicked {
+        if ui
+            .button(
+                "shuffle-all",
+                "Shuffle all",
+                &SHUFFLE_ALL.disabled(catalog.is_empty()),
+            )
+            .clicked
+        {
             *intent = Some(Intent::ShuffleAll);
         }
     });
@@ -73,7 +93,11 @@ pub(super) fn gallery(
         .look(PANEL_FILL);
     ui.section_list(
         "groups",
-        &SectionList::new(groups.len().div_ceil(columns)).row_h(card_height + row_gap).lead(if compact { 16.0 } else { 172.6 }).trail(12.0).overlay_scrollbar(),
+        &SectionList::new(groups.len().div_ceil(columns))
+            .row_h(card_height + row_gap)
+            .lead(if compact { 16.0 } else { 172.6 })
+            .trail(12.0)
+            .overlay_scrollbar(),
         // a row is a line of cards
         &|line| line as i64,
         &mut |ui, part, _| match part {
@@ -85,44 +109,76 @@ pub(super) fn gallery(
             }
             SectionPart::Header | SectionPart::Trailing => {}
             SectionPart::Row(line) => {
-                ui.id("gallery-inset", |ui| { ui.row(Node::row().w(Size::Grow).h(Size::Grow).pad_x(inset).gap(gap), |ui| {
-                    for (column, index) in order
-                        .iter()
-                        .copied()
-                        .skip(line * columns)
-                        .take(columns)
-                        .enumerate()
-                    {
-                        let group = &groups[index];
-                        let visual = ui.view_of(Key::Id(index as i64), &row_revision, |ui| {
-                            let node = Node::column().w(Size::Grow).h(Size::Grow).role(Role::Button).padding(Edges::ZERO);
-                            let card = ui.pressable("group", node, &PLAIN.look(&PAPER_LOOKS), |ui, _| {
-                                let art = ui.node("artwork", ARTWORK.h_px(cell));
-                                paint_artwork(
-                                    ui,
-                                    &art,
-                                    group.artwork_row.map(|index| catalog.row(index)),
-                                    cell,
-                                    player.artwork,
-                                );
-                                ui.a11y_name(&art, "Album artwork");
-                                ui.label(&group.title, TEXT_14.line_height(17.5).weight(500).grow().h_px(17.5).color(INK));
-                                // Swift's phone card names the artist alone; the desktop adds the year
-                                let caption = match group.context.as_ref() {
-                                    lw_core::context::PlaybackContext::Album { artist, .. } if compact => crate::clip(artist),
-                                    _ => group.subtitle.as_str(),
-                                };
-                                ui.label(caption, CAPTION.grow());
-                            });
-                            ui.a11y_name(&card.handle, &group.title);
-                            if card.clicked {
-                                *intent = Some(Intent::Navigate(Route::Album(index)));
+                ui.id("gallery-inset", |ui| {
+                    ui.row(
+                        Node::row()
+                            .w(Size::Grow)
+                            .h(Size::Grow)
+                            .pad_x(inset)
+                            .gap(gap),
+                        |ui| {
+                            for (column, index) in order
+                                .iter()
+                                .copied()
+                                .skip(line * columns)
+                                .take(columns)
+                                .enumerate()
+                            {
+                                let group = &groups[index];
+                                let visual =
+                                    ui.view_of(Key::Id(index as i64), &row_revision, |ui| {
+                                        let node = Node::column()
+                                            .w(Size::Grow)
+                                            .h(Size::Grow)
+                                            .role(Role::Button)
+                                            .padding(Edges::ZERO);
+                                        let card = ui.pressable(
+                                            "group",
+                                            node,
+                                            &PLAIN.look(&PAPER_LOOKS),
+                                            |ui, _| {
+                                                let art = ui.node("artwork", ARTWORK.h_px(cell));
+                                                paint_artwork(
+                                                    ui,
+                                                    &art,
+                                                    group
+                                                        .artwork_row
+                                                        .map(|index| catalog.row(index)),
+                                                    cell,
+                                                    player.artwork,
+                                                );
+                                                ui.a11y_name(&art, "Album artwork");
+                                                ui.label(
+                                                    &group.title,
+                                                    TEXT_14
+                                                        .line_height(17.5)
+                                                        .weight(500)
+                                                        .grow()
+                                                        .h_px(17.5)
+                                                        .color(INK),
+                                                );
+                                                // Swift's phone card names the artist alone; the desktop adds the year
+                                                let caption = match group.context.as_ref() {
+                                                    lw_core::context::PlaybackContext::Album {
+                                                        artist,
+                                                        ..
+                                                    } if compact => crate::clip(artist),
+                                                    _ => group.subtitle.as_str(),
+                                                };
+                                                ui.label(caption, CAPTION.grow());
+                                            },
+                                        );
+                                        ui.a11y_name(&card.handle, &group.title);
+                                        if card.clicked {
+                                            *intent = Some(Intent::Navigate(Route::Album(index)));
+                                        }
+                                    });
+                                ui.set_node_layout(&visual, &card_layout);
+                                entry.row(ui, &visual, line * columns + column);
                             }
-                        });
-                        ui.set_node_layout(&visual, &card_layout);
-                        entry.row(ui, &visual, line * columns + column);
-                    }
-                }); });
+                        },
+                    );
+                });
             }
         },
     );
@@ -276,7 +332,10 @@ mod tests {
         let find = |ui: &Ui, name: &str| {
             *ui.a11y_nodes()
                 .iter()
-                .find(|node| (node.is_role(Role::Button) || node.is_role(Role::Radio)) && ui.a11y_name_of(node) == name)
+                .find(|node| {
+                    (node.is_role(Role::Button) || node.is_role(Role::Radio))
+                        && ui.a11y_name_of(node) == name
+                })
                 .unwrap()
         };
         for _ in 0..3 {

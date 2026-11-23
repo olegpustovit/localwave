@@ -282,13 +282,25 @@ fn oversized_title_tag_imports_unchanged() {
     // Display clipping belongs to the UI snapshots (lw_ui::DISPLAY_LIMIT); the database keeps the tag.
     let (mut repo, folder) = fixture();
     let title = "é".repeat(50 * 1024);
-    let mut files = Files { title: Some(title.clone()), ..Files::default() };
-    repo.import_paths(&[folder], &mut files, &AtomicBool::new(false), 100.0, &mut |_, _, _| {})
-        .unwrap();
+    let mut files = Files {
+        title: Some(title.clone()),
+        ..Files::default()
+    };
+    repo.import_paths(
+        &[folder],
+        &mut files,
+        &AtomicBool::new(false),
+        100.0,
+        &mut |_, _, _| {},
+    )
+    .unwrap();
     let song = repo.search_songs("", 10, 0).unwrap().pop().unwrap();
     assert_eq!(song.title.len(), 100 * 1024);
     assert_eq!(song.title, title);
-    assert_eq!(repo.get_song(song.id.unwrap()).unwrap().unwrap().title, title);
+    assert_eq!(
+        repo.get_song(song.id.unwrap()).unwrap().unwrap().title,
+        title
+    );
 }
 
 #[test]

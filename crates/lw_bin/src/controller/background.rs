@@ -8,7 +8,9 @@ impl Worker {
         };
         if let Err(error) = self.library.share_songs(&songs, anchor, now()) {
             eprintln!("LocalWave share: {error}");
-            self.message = Arc::from("This file is unavailable. Reconnect its folder, then try sharing again.");
+            self.message = Arc::from(
+                "This file is unavailable. Reconnect its folder, then try sharing again.",
+            );
         }
     }
     pub(super) fn load_storage(&mut self) {
@@ -111,7 +113,14 @@ fn file_bytes(bytes: u64) -> String {
 mod tests {
     #[test]
     fn cache_sizes_read_like_swifts_file_byte_counts() {
-        for (bytes, text) in [(0, "Zero KB"), (1, "1 byte"), (512, "512 bytes"), (6_600, "7 KB"), (6_600_000, "6.6 MB"), (1_234_000_000, "1.23 GB")] {
+        for (bytes, text) in [
+            (0, "Zero KB"),
+            (1, "1 byte"),
+            (512, "512 bytes"),
+            (6_600, "7 KB"),
+            (6_600_000, "6.6 MB"),
+            (1_234_000_000, "1.23 GB"),
+        ] {
             assert_eq!(super::file_bytes(bytes), text);
         }
     }

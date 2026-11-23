@@ -41,7 +41,13 @@ fn run() -> Result<(), String> {
         Box::new(move |window, signal| {
             if signal == Signal::Initialize {
                 app = Some(app::open(
-                    window, workload, energy, smoke, trace_frames, reference.clone(), reference_capture.take(),
+                    window,
+                    workload,
+                    energy,
+                    smoke,
+                    trace_frames,
+                    reference.clone(),
+                    reference_capture.take(),
                 )?);
                 return Ok(Schedule::NextFrame);
             }
@@ -91,9 +97,26 @@ mod tests {
     fn unknown_double_dash_options_are_rejected_before_any_library_opens() {
         let args = |list: &[&str]| list.iter().map(|arg| arg.to_string()).collect::<Vec<_>>();
         assert!(super::known_options(&args(&["localwave"])).is_ok());
-        assert!(super::known_options(&args(&["localwave", "-psn_0_1234", "-NSDocumentRevisionsDebugMode", "YES"])).is_ok());
-        assert!(super::known_options(&args(&["localwave", "--performance-check", "--trace-frames"])).is_ok());
-        assert!(super::known_options(&args(&["localwave", "--reference-screen", "--songs"])).is_ok());
+        assert!(
+            super::known_options(&args(&[
+                "localwave",
+                "-psn_0_1234",
+                "-NSDocumentRevisionsDebugMode",
+                "YES"
+            ]))
+            .is_ok()
+        );
+        assert!(
+            super::known_options(&args(&[
+                "localwave",
+                "--performance-check",
+                "--trace-frames"
+            ]))
+            .is_ok()
+        );
+        assert!(
+            super::known_options(&args(&["localwave", "--reference-screen", "--songs"])).is_ok()
+        );
         assert!(super::known_options(&args(&["localwave", "--smoke-tset"])).is_err());
         assert!(super::known_options(&args(&["localwave", "--snapshot", "x.png"])).is_err());
     }

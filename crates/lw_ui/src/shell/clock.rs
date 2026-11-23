@@ -34,9 +34,18 @@ pub(super) fn small_clock(
         },
     );
     ui.set_role(&node, Role::Label, pxui::A11yStates::NONE);
-    ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid clock value");
+    ui.a11y_number(&node, seconds as f64, 0.0, f64::MAX, 1.0)
+        .expect("valid clock value");
     let mut buffer = [0u8; 24];
-    let text = stack_fmt(&mut buffer, format_args!("{}{}:{:02}", if remaining { "-" } else { "" }, seconds / 60, seconds % 60));
+    let text = stack_fmt(
+        &mut buffer,
+        format_args!(
+            "{}{}:{:02}",
+            if remaining { "-" } else { "" },
+            seconds / 60,
+            seconds % 60
+        ),
+    );
     let len = text.len();
     const CLOCK: pxui::Label = pxui::Label::BODY.font(1).size(12.0);
     // Swift's clock baseline, 16.06 pt under the node's top (its em box 4 pt down, CoreText's mono ascent 1.005 em)
@@ -48,8 +57,16 @@ pub(super) fn small_clock(
         let zero = paint.text_service().measure("0", CLOCK, None);
         let baseline = zero.as_ref().map_or(BASELINE - 4.0, |m| m.baseline);
         // a remaining clock ends at the box's end (Swift's trailing stack); Geist Mono gives "-", ":" and digits one advance
-        let x = if remaining { rect.x + rect.w - zero.map_or(0.0, |m| m.width) * text.len() as f32 } else { rect.x };
-        paint.text_chars(pxui::Point::new(x, rect.y + BASELINE - baseline), CLOCK.color(color), text);
+        let x = if remaining {
+            rect.x + rect.w - zero.map_or(0.0, |m| m.width) * text.len() as f32
+        } else {
+            rect.x
+        };
+        paint.text_chars(
+            pxui::Point::new(x, rect.y + BASELINE - baseline),
+            CLOCK.color(color),
+            text,
+        );
     });
     node
 }
@@ -66,7 +83,13 @@ const DIGITS: [[u8; 7]; 10] = [
     [14, 17, 17, 15, 1, 2, 12],
 ];
 /// Static matrix numerals (Swift's `MatrixText` without the change animation), `height` tall.
-pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], height: f32, color: ColorToken) {
+pub(super) fn matrix_digits(
+    ui: &mut Ui,
+    key: &'static str,
+    digits: &[u8],
+    height: f32,
+    color: ColorToken,
+) {
     // Counts only: ASCII digits, at most 12 shown.
     let mut buffer = [b'0'; 12];
     let shown = digits.len().clamp(1, 12);
@@ -74,7 +97,12 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
     buffer[..copied].copy_from_slice(&digits[..copied]);
     let unit = height / 7.0;
     let columns = shown * 6 - 1;
-    let node = ui.node(key, Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height));
+    let node = ui.node(
+        key,
+        Node::column()
+            .w_px((columns as f32 - 0.22) * unit)
+            .h_px(height),
+    );
     ui.canvas(&node, move |paint, rect| {
         let color = Rgba::token(color);
         for (index, digit) in buffer[..shown].iter().enumerate() {
@@ -83,7 +111,10 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
                 for column in 0..5 {
                     if bits & (1 << (4 - column)) != 0 {
                         let y = rect.y + row as f32 * unit;
-                        paint.fill(Rect::new(x + column as f32 * unit, y, unit * 0.78, unit * 0.78), Fill::new(color).fractional());
+                        paint.fill(
+                            Rect::new(x + column as f32 * unit, y, unit * 0.78, unit * 0.78),
+                            Fill::new(color).fractional(),
+                        );
                     }
                 }
             }
@@ -91,14 +122,24 @@ pub(super) fn matrix_digits(ui: &mut Ui, key: &'static str, digits: &[u8], heigh
     });
 }
 pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorToken) {
-    use pxui::{ui::Keyframe, Keyframes};
+    use pxui::{Keyframes, ui::Keyframe};
     const FADE: Keyframes = Keyframes::DEFAULT.rate(crate::motion::PLAYBACK_RATE);
     const ROW_KEYS: [&str; 7] = [
-        "changed-0", "changed-1", "changed-2", "changed-3", "changed-4", "changed-5", "changed-6",
+        "changed-0",
+        "changed-1",
+        "changed-2",
+        "changed-3",
+        "changed-4",
+        "changed-5",
+        "changed-6",
     ];
     fn label(seconds: u64) -> ([u8; 24], usize) {
         let mut buffer = [0u8; 24];
-        let len = stack_fmt(&mut buffer, format_args!("{:02}:{:02}", seconds / 60, seconds % 60)).len();
+        let len = stack_fmt(
+            &mut buffer,
+            format_args!("{:02}:{:02}", seconds / 60, seconds % 60),
+        )
+        .len();
         (buffer, len)
     }
     let (shown_buffer, shown_len) = label(seconds);
@@ -111,10 +152,14 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorT
         - 1;
     let clock = ui.node(
         "matrix-clock",
-        Node::column().w_px((columns as f32 - 0.22) * unit).h_px(height).role(Role::Label),
+        Node::column()
+            .w_px((columns as f32 - 0.22) * unit)
+            .h_px(height)
+            .role(Role::Label),
     );
     ui.a11y_name(&clock, "Elapsed time");
-    ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0).expect("valid clock value");
+    ui.a11y_number(&clock, seconds as f64, 0.0, f64::MAX, 1.0)
+        .expect("valid clock value");
     let old = ui.state(&clock, seconds as i64) as u64;
     ui.set_state(&clock, seconds as i64);
     ui.within(&clock, &mut |ui| {
@@ -146,7 +191,10 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorT
                 let mut bits = ((mask >> (index * 5)) & 31) as u8;
                 while bits != 0 {
                     let column = count - 1 - bits.ilog2() as usize;
-                    paint.fill(Rect::new(x + column as f32 * unit, rect.y, unit * 0.78, unit * 0.78), fill);
+                    paint.fill(
+                        Rect::new(x + column as f32 * unit, rect.y, unit * 0.78, unit * 0.78),
+                        fill,
+                    );
                     bits &= !(1 << (count - 1 - column));
                 }
                 x += (count + 1) as f32 * unit;
@@ -161,13 +209,23 @@ pub(super) fn matrix_clock(ui: &mut Ui, seconds: u64, height: f32, color: ColorT
             ui.canvas(&cells, move |paint, rect| {
                 let mut y = 0.0;
                 for mask in stable {
-                    row_paint(paint, Rect { y: rect.y + y, ..rect }, mask);
+                    row_paint(
+                        paint,
+                        Rect {
+                            y: rect.y + y,
+                            ..rect
+                        },
+                        mask,
+                    );
                     y += unit;
                 }
             });
             ui.retain_view_on_resize();
         });
-        ui.set_node_layout(&stable, &Node::column().w(Size::Grow).h_px(height).at(0.0, 0.0));
+        ui.set_node_layout(
+            &stable,
+            &Node::column().w(Size::Grow).h_px(height).at(0.0, 0.0),
+        );
         let animate = old != seconds && !ui.tokens().reduced_motion;
         let mut y = 0.0;
         for (row, key) in ROW_KEYS.into_iter().enumerate() {

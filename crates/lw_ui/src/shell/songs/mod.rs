@@ -148,11 +148,22 @@ pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
         ui.slot(c.built_in);
         return;
     }
-    let Some(&column) = Column::ALL.get(c.index) else { return };
+    let Some(&column) = Column::ALL.get(c.index) else {
+        return;
+    };
     let left = if column == Column::Number { 32.0 } else { 8.0 };
     // 7 at the end: the heading row's 1-point separator follows the heading, a point narrower than its column (`heading_columns`)
-    let layout = ui.node_layout(&c.node).padding(Edges::new(left, 10.0, 7.0, 10.5));
-    ui.set_node_layout(&c.node, &if column == Column::Time { layout.justify(Justify::End) } else { layout });
+    let layout = ui
+        .node_layout(&c.node)
+        .padding(Edges::new(left, 10.0, 7.0, 10.5));
+    ui.set_node_layout(
+        &c.node,
+        &if column == Column::Time {
+            layout.justify(Justify::End)
+        } else {
+            layout
+        },
+    );
     if c.text_of(&c.title).is_empty() {
         return;
     }
@@ -162,7 +173,10 @@ pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
     let _label = if column == Column::Time {
         // Swift's trailing heading: its natural width rounded to pixels, as tall as it wraps in the column (the heading is as wide
         // as its column less the 1-point separator)
-        let natural = ui.text_service().measure(value, style, None).map_or(0.0, |m| m.width);
+        let natural = ui
+            .text_service()
+            .measure(value, style, None)
+            .map_or(0.0, |m| m.width);
         let (fit, h) = heading_size(ui, value, (w + 1.0 - 16.0).max(0.0), natural);
         ui.label(value, style.w_px(fit).h_px(h))
     } else {
@@ -176,15 +190,33 @@ pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
 }
 
 /// The desktop songs list: multi-selection, measured rows, the overlay scrollbar, LocalWave's song rows, no frame.
-const SONGS: pxui::SelectionList = pxui::SelectionList::DEFAULT.mode(pxui::SelectMode::Multi).row_h(38.0).measured().overlay_scrollbar().variant(super::theme::variant::SONG_ROW).bare();
+const SONGS: pxui::SelectionList = pxui::SelectionList::DEFAULT
+    .mode(pxui::SelectMode::Multi)
+    .row_h(38.0)
+    .measured()
+    .overlay_scrollbar()
+    .variant(super::theme::variant::SONG_ROW)
+    .bare();
 
 /// The song columns' headings this frame: every column (hidden ones 0 wide), the sortable ones sort keys other than the original order.
 fn heading_columns(widths: [f32; 8]) -> [pxui::Column<'static>; 8] {
     std::array::from_fn(|i| {
         let column = Column::ALL[i];
         // each heading is followed by the heading row's 1-point separator: a point narrower, it starts where the rows' column does
-        let w = if widths[i] > 0.0 { widths[i] - 1.0 } else { 0.0 };
-        pxui::Column::new(if column == Column::Actions { "" } else { column.title() }).id(i as i64).w_px(w).grip(false).sortable(column.sort().is_some_and(|s| s != Sort::Original))
+        let w = if widths[i] > 0.0 {
+            widths[i] - 1.0
+        } else {
+            0.0
+        };
+        pxui::Column::new(if column == Column::Actions {
+            ""
+        } else {
+            column.title()
+        })
+        .id(i as i64)
+        .w_px(w)
+        .grip(false)
+        .sortable(column.sort().is_some_and(|s| s != Sort::Original))
     })
 }
 
@@ -220,7 +252,9 @@ pub(super) fn table(
                 Route::Artist(index) => catalog.artist_albums.get(index).map_or(0, Vec::len),
                 _ => 0,
             },
-            state.collection(catalog).is_some_and(|group| group.folder.is_some()),
+            state
+                .collection(catalog)
+                .is_some_and(|group| group.folder.is_some()),
         )
     } else {
         super::header::height(catalog, state)
@@ -237,7 +271,10 @@ pub(super) fn table(
     let revision = crate::hash((
         state.entry_revision,
         std::sync::Arc::as_ptr(&catalog.library) as usize,
-        catalog.view.as_ref().map(|view| std::sync::Arc::as_ptr(view) as usize),
+        catalog
+            .view
+            .as_ref()
+            .map(|view| std::sync::Arc::as_ptr(view) as usize),
         widths.map(f32::to_bits),
     ));
     let entry = crate::motion::Page::new(ui, state.entry_revision);
@@ -248,7 +285,10 @@ pub(super) fn table(
     if find {
         header_view(ui, catalog, state, width, intent);
     }
-    let scope = ui.node("song-results-scope", Node::column().w(Size::Grow).h(Size::Grow));
+    let scope = ui.node(
+        "song-results-scope",
+        Node::column().w(Size::Grow).h(Size::Grow),
+    );
     // the rows the list declares this frame (kept ones too: every row in its window is keyed), for the text prepared ahead
     let (first, end) = (std::cell::Cell::new(usize::MAX), std::cell::Cell::new(0));
     ui.within(&scope, &mut |ui| {
@@ -264,15 +304,44 @@ pub(super) fn table(
                 height: if find { 0.0 } else { height },
             };
             // the heading shows the applied sort; a click cycles it (none, ascending, descending) and the app sorts
-            state.song_table.borrow_mut().sort = applied.filter(|(sort, _)| *sort != Sort::Original).and_then(|(sort, up)| {
-                let id = Column::ALL.iter().position(|c| c.sort() == Some(sort))? as i64;
-                Some((id, if up { pxui::Sort::Ascending } else { pxui::Sort::Descending }))
-            });
+            state.song_table.borrow_mut().sort = applied
+                .filter(|(sort, _)| *sort != Sort::Original)
+                .and_then(|(sort, up)| {
+                    let id = Column::ALL.iter().position(|c| c.sort() == Some(sort))? as i64;
+                    Some((
+                        id,
+                        if up {
+                            pxui::Sort::Ascending
+                        } else {
+                            pxui::Sort::Descending
+                        },
+                    ))
+                });
             let columns = heading_columns(widths);
-            let rows = Rows { catalog, collection, table, state, player, widths, density: ui.density(), revision, numbered, entry: &entry, viewport };
+            let rows = Rows {
+                catalog,
+                collection,
+                table,
+                state,
+                player,
+                widths,
+                density: ui.density(),
+                revision,
+                numbered,
+                entry: &entry,
+                viewport,
+            };
             let reorder = rows.reorderable();
-            let count = if placeholder { 0 } else { collection.rows.len() };
-            let list = SONGS.lead(if find { 0.0 } else { leading }).header(heading_height).trail(if placeholder { 83.6 } else { 0.0 }).reorder(reorder);
+            let count = if placeholder {
+                0
+            } else {
+                collection.rows.len()
+            };
+            let list = SONGS
+                .lead(if find { 0.0 } else { leading })
+                .header(heading_height)
+                .trail(if placeholder { 83.6 } else { 0.0 })
+                .reorder(reorder);
             let mut song_rows = state.song_rows.borrow_mut();
             // Ordinary rows use the list box for input and retain their cells separately.
             // Keep the list's row scope stable when sorting a playlist adds or removes the grab handle.
@@ -295,9 +364,20 @@ pub(super) fn table(
                     }
                     SectionPart::Leading => header_view(ui, catalog, state, width, intent),
                     SectionPart::Trailing if placeholder => {
-                        ui.id("empty", |ui| { ui.column(Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
-                            ui.label(if hint { onboarding::FIND_HINT } else if catalog.is_empty() { onboarding::LIBRARY_EMPTY } else { "No songs here yet." }, BODY_DIM.grow());
-                        }); });
+                        ui.id("empty", |ui| {
+                            ui.column(Node::column().w(Size::Grow).h_px(83.6).pad(32.0), |ui| {
+                                ui.label(
+                                    if hint {
+                                        onboarding::FIND_HINT
+                                    } else if catalog.is_empty() {
+                                        onboarding::LIBRARY_EMPTY
+                                    } else {
+                                        "No songs here yet."
+                                    },
+                                    BODY_DIM.grow(),
+                                );
+                            });
+                        });
                     }
                     SectionPart::Trailing => {}
                     SectionPart::Header => {
@@ -310,15 +390,33 @@ pub(super) fn table(
                         }
                         let mut table = state.song_table.borrow_mut();
                         // kept while the columns and the sort hold (the heading pins over the rows: a scroll moves it, nothing more)
-                        let sort = table.sort.map(|(id, dir)| (id, dir == pxui::Sort::Ascending));
-                        ui.view_of("song-heading", &(widths.map(f32::to_bits), sort, heading_height.to_bits()), |ui| {
-                            // paper under a 1-point line rule: the theme's `table_head` look
-                            let h = ui.table_head("song-columns", &columns, &mut table, &pxui::TableHead::DEFAULT.h_px(heading_height).variant(super::theme::variant::SONG_HEADING));
-                            if h.sorted {
-                                let by = table.sort.and_then(|(id, dir)| Some((Column::ALL[id as usize].sort()?, dir == pxui::Sort::Ascending)));
-                                *intent = Some(Intent::SortBy(by));
-                            }
-                        });
+                        let sort = table
+                            .sort
+                            .map(|(id, dir)| (id, dir == pxui::Sort::Ascending));
+                        ui.view_of(
+                            "song-heading",
+                            &(widths.map(f32::to_bits), sort, heading_height.to_bits()),
+                            |ui| {
+                                // paper under a 1-point line rule: the theme's `table_head` look
+                                let h = ui.table_head(
+                                    "song-columns",
+                                    &columns,
+                                    &mut table,
+                                    &pxui::TableHead::DEFAULT
+                                        .h_px(heading_height)
+                                        .variant(super::theme::variant::SONG_HEADING),
+                                );
+                                if h.sorted {
+                                    let by = table.sort.and_then(|(id, dir)| {
+                                        Some((
+                                            Column::ALL[id as usize].sort()?,
+                                            dir == pxui::Sort::Ascending,
+                                        ))
+                                    });
+                                    *intent = Some(Intent::SortBy(by));
+                                }
+                            },
+                        );
                     }
                     SectionPart::Row(index) => {
                         Rows { viewport, ..rows }.row(ui, index, cell, intent);
@@ -331,16 +429,34 @@ pub(super) fn table(
                 && intent.is_none()
             {
                 // a change that leaves no row selected (Escape) is the app's Clear (read on a change frame only)
-                let none = !state.song_rows.borrow().rows.iter().any(|f| f & pxui::ListState::SELECTED != 0);
-                *intent = Some(if none { Intent::Select(crate::Selection::Clear) } else { Intent::Selected(i) });
+                let none = !state
+                    .song_rows
+                    .borrow()
+                    .rows
+                    .iter()
+                    .any(|f| f & pxui::ListState::SELECTED != 0);
+                *intent = Some(if none {
+                    Intent::Select(crate::Selection::Clear)
+                } else {
+                    Intent::Selected(i)
+                });
             }
             // Swift plays the whole selection; one row keeps its playback position
             if let Some(i) = r.activated {
-                *intent = Some(if state.marked_count() > 1 { Intent::PlaySelection } else { Intent::PlayRow(i) });
+                *intent = Some(if state.marked_count() > 1 {
+                    Intent::PlaySelection
+                } else {
+                    Intent::PlayRow(i)
+                });
             }
             if let (Some(i), Some(row)) = (r.secondary, r.row) {
                 let id = catalog.row(collection.rows[i]).id;
-                *intent = Some(Intent::SongMenu(i, id, collection.key, ui.signal(&row).pointer));
+                *intent = Some(Intent::SongMenu(
+                    i,
+                    id,
+                    collection.key,
+                    ui.signal(&row).pointer,
+                ));
             }
             if let Some((from, to)) = r.moved {
                 *intent = Some(Intent::MoveListRow { from, to });
@@ -372,15 +488,24 @@ pub(super) fn table(
 /// rebuild every frame, the rest are kept while the list's revision holds.
 pub(in crate::shell) fn mark_live(state: &ShellState, rows: &mut pxui::ListState) {
     let (live, found) = &mut *state.song_live.borrow_mut();
-    for &i in live.iter() { if let Some(f) = rows.rows.get_mut(i) { *f &= !pxui::ListState::LIVE; } }
+    for &i in live.iter() {
+        if let Some(f) = rows.rows.get_mut(i) {
+            *f &= !pxui::ListState::LIVE;
+        }
+    }
     live.clear();
-    for &i in found.iter() { if let Some(f) = rows.rows.get_mut(i) { *f |= pxui::ListState::LIVE; live.push(i); } }
+    for &i in found.iter() {
+        if let Some(f) = rows.rows.get_mut(i) {
+            *f |= pxui::ListState::LIVE;
+            live.push(i);
+        }
+    }
     found.clear();
 }
 
 pub(in crate::shell) mod row;
-use row::*;
 pub(super) use row::SONG_DRAG;
+use row::*;
 
 /// A song drag hovering or dropped on `target`: (dropped, dragged row's song id).
 pub(super) fn song_drop(ui: &mut Ui, target: &Handle) -> Option<(bool, i64)> {
@@ -393,6 +518,6 @@ pub(super) fn song_drop(ui: &mut Ui, target: &Handle) -> Option<(bool, i64)> {
 }
 mod menu;
 pub(in crate::shell) use menu::NOW_MENU;
-pub(super) use menu::{list_rows, popup, LISTS_MENU, LIST_ROWS, MENU, NEW_LIST};
+pub(super) use menu::{LIST_ROWS, LISTS_MENU, MENU, NEW_LIST, list_rows, popup};
 #[cfg(test)]
 mod tests;

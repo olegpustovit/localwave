@@ -32,7 +32,14 @@ struct Root {
 /// Table styles resolved on a headless `Ui` (no window): for tests and tools that open a `LibraryWorker` without the app's `Ui`.
 /// The app resolves them on its own `Ui` (`TableStyles::resolve`) before opening its workers.
 pub fn headless_table_styles() -> lw_ui::catalog::TableStyles {
-    lw_ui::catalog::TableStyles::resolve(&pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui"))
+    lw_ui::catalog::TableStyles::resolve(
+        &pxui::Ui::new(
+            &pxui::UiDesc::new(pxui::Platform::Apple)
+                .font_size(15.0)
+                .fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)]),
+        )
+        .expect("pxui Ui"),
+    )
 }
 
 /// Construct on the worker: SQLite, defaults and security-scoped grants stay on that thread.
@@ -113,7 +120,12 @@ impl LibraryWorker {
             .import_paths(selected, &mut files, cancelled, now, progress)
     }
 
-    pub fn open(database: &Path, preferences: Preferences, paths: AppPaths, table_styles: lw_ui::catalog::TableStyles) -> io::Result<Self> {
+    pub fn open(
+        database: &Path,
+        preferences: Preferences,
+        paths: AppPaths,
+        table_styles: lw_ui::catalog::TableStyles,
+    ) -> io::Result<Self> {
         lw_apple_sys::require_worker_thread()?;
         if !database.is_absolute() {
             return Err(io::Error::other("Library database path must be absolute"));
@@ -327,8 +339,13 @@ mod tests {
                 Some(&lw_apple_sys::bookmarks::create(&original).unwrap()),
             )
             .unwrap();
-        let mut worker =
-            LibraryWorker::open(&base.join("library.sqlite"), preferences, paths, crate::library::headless_table_styles()).unwrap();
+        let mut worker = LibraryWorker::open(
+            &base.join("library.sqlite"),
+            preferences,
+            paths,
+            crate::library::headless_table_styles(),
+        )
+        .unwrap();
         let user = worker.repository.get_or_create_user(1).unwrap();
         let source = worker
             .repository

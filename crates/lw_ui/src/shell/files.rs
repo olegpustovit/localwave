@@ -1,16 +1,30 @@
-use pxui::bodies::BodyConfig;
 use super::*;
 use crate::FilesFilter;
 use crate::files::{Folder, Location, Request, Target};
+use pxui::bodies::BodyConfig;
 
 /// The Add music sheet (`localwave-sheet` / `CHOICES`).
 const ADD_MUSIC: Dialog = Dialog::DEFAULT.variant(variant::CHOICES);
 /// A sheet's paper card: 20-point padding, 12 between its parts.
-pub(super) const SHEET: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(12.0).pad(20.0).look(PAPER_FILL);
+pub(super) const SHEET: Node = Node::column()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .gap(12.0)
+    .pad(20.0)
+    .look(PAPER_FILL);
 /// A folder page's Back and summary bar, 16 points under the header; it wraps on a phone.
-const BACK_BAR: Node = Node::row().w(Size::Grow).h(Size::Fit).align(Align::Center).padding(Edges::ZERO.t(16.0));
+const BACK_BAR: Node = Node::row()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .align(Align::Center)
+    .padding(Edges::ZERO.t(16.0));
 /// A folder page's tool keys, 15 points above the rows; they wrap on a phone.
-const FOLDER_TOOLS: Node = Node::row().w(Size::Grow).h(Size::Fit).gap(8.0).align(Align::Center).padding(Edges::ZERO.b(15.0));
+const FOLDER_TOOLS: Node = Node::row()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .gap(8.0)
+    .align(Align::Center)
+    .padding(Edges::ZERO.b(15.0));
 
 pub(super) fn popup(
     ui: &mut Ui,
@@ -22,19 +36,39 @@ pub(super) fn popup(
     let busy = player.files.is_none_or(|files| files.busy);
     let present = player.files.is_some_and(|files| {
         files.account == Some(target.user)
-            && files.sources.iter().any(|folder| folder.id == target.source && folder.root == target.root)
+            && files
+                .sources
+                .iter()
+                .any(|folder| folder.id == target.source && folder.root == target.root)
     });
     // over a shown folder of this source the menu leads with Swift's administration action, Import folder
-    let shown = player.files.and_then(|files| files.directory.as_ref()).map(|directory| directory.location).filter(|location| location.source == target.source && location.user == target.user);
+    let shown = player
+        .files
+        .and_then(|files| files.directory.as_ref())
+        .map(|directory| directory.location)
+        .filter(|location| location.source == target.source && location.user == target.user);
     let rows = [
-        MenuItem::new("Import folder").id(IMPORT).disabled(busy || shown.is_none()),
+        MenuItem::new("Import folder")
+            .id(IMPORT)
+            .disabled(busy || shown.is_none()),
         MenuItem::new("Open folder").id(OPEN).disabled(!present),
-        MenuItem::new("Rescan now").id(RESCAN).disabled(!(present && !busy)),
-        MenuItem::new("Reconnect folder…").id(RECONNECT).disabled(!(present && !busy)),
-        MenuItem::new("Remove source").id(REMOVE).disabled(!(present && !busy)).danger(),
+        MenuItem::new("Rescan now")
+            .id(RESCAN)
+            .disabled(!(present && !busy)),
+        MenuItem::new("Reconnect folder…")
+            .id(RECONNECT)
+            .disabled(!(present && !busy)),
+        MenuItem::new("Remove source")
+            .id(REMOVE)
+            .disabled(!(present && !busy))
+            .danger(),
     ];
     let menu = ui.menu("source-menu", pxui::Point::new(at.0, at.1), &rows, &OPTIONS);
-    let location = Location { user: target.user, source: target.source, parent: None };
+    let location = Location {
+        user: target.user,
+        source: target.source,
+        parent: None,
+    };
     match menu.chosen_id {
         Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(location))),
         Some(RESCAN) => *intent = Some(Intent::Files(Request::Rescan(location))),
@@ -49,7 +83,11 @@ pub(super) fn popup(
 }
 
 /// The folder options menu: rows on the paper fill (`MENU_PANEL`), focused by a press.
-const OPTIONS: Menu<'static> = super::songs::MENU.w_px(220.0).name("Folder options").variant(MENU_PANEL).focus_on_click(true);
+const OPTIONS: Menu<'static> = super::songs::MENU
+    .w_px(220.0)
+    .name("Folder options")
+    .variant(MENU_PANEL)
+    .focus_on_click(true);
 // The folder options' and folder actions' row ids.
 const OPEN: i64 = 0;
 const RESCAN: i64 = 1;
@@ -74,13 +112,28 @@ pub(super) fn confirm_remove(
         })
     });
     let enabled = folder.is_some() && player.files.is_some_and(|files| !files.busy);
-    let buttons = [DialogButton::new("Cancel").cancel(), DialogButton::new("Remove").danger().primary().disabled(!enabled)];
-    let sheet = ui.dialog("remove-source", "Remove folder?", &buttons, &SHEET_DIALOG.w_px(width), &mut |ui| {
-        let name = folder.map_or("This folder changed. Reload folders and try again.", |folder| folder.name.as_str());
-        settings::paragraph(ui, "folder-name", name, width - 40.0, DIALOG_NAME);
-        let consequences = "Its songs leave the library. Files are not deleted.";
-        settings::paragraph(ui, "consequences", consequences, width - 40.0, DIALOG_NOTE);
-    });
+    let buttons = [
+        DialogButton::new("Cancel").cancel(),
+        DialogButton::new("Remove")
+            .danger()
+            .primary()
+            .disabled(!enabled),
+    ];
+    let sheet = ui.dialog(
+        "remove-source",
+        "Remove folder?",
+        &buttons,
+        &SHEET_DIALOG.w_px(width),
+        &mut |ui| {
+            let name = folder.map_or(
+                "This folder changed. Reload folders and try again.",
+                |folder| folder.name.as_str(),
+            );
+            settings::paragraph(ui, "folder-name", name, width - 40.0, DIALOG_NAME);
+            let consequences = "Its songs leave the library. Files are not deleted.";
+            settings::paragraph(ui, "consequences", consequences, width - 40.0, DIALOG_NOTE);
+        },
+    );
     // Swift's default action: Return confirms.
     match sheet.chosen {
         Some(1) => *intent = Some(Intent::Files(Request::Remove(target))),
@@ -93,7 +146,10 @@ pub(super) fn confirm_remove(
 pub(super) fn up(directory: &crate::files::Directory) -> Intent {
     let location = directory.location;
     Intent::Files(directory.up.map_or(Request::Roots, |parent| {
-        Request::Browse(Location { parent: Some(parent), ..location })
+        Request::Browse(Location {
+            parent: Some(parent),
+            ..location
+        })
     }))
 }
 
@@ -101,13 +157,21 @@ pub(super) fn up(directory: &crate::files::Directory) -> Intent {
 /// caller sizes it (`plate_h`: 44 points on a phone, 36 on the desktop).
 /// A source card's keys' text (Reconnect folder, Options): 14 points medium.
 const CARD_KEY: Label = TEXT_14.weight(500);
-const PLATE: pxui::Button = pxui::Button::DEFAULT.variant(variant::KEY).centered().label(TEXT_13).look(&PLATE_LOOKS);
+const PLATE: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::KEY)
+    .centered()
+    .label(TEXT_13)
+    .look(&PLATE_LOOKS);
 const PLATE_LOOKS: States = PLAY_KEY_LOOKS.disabled(PANEL_FILL.text(Rgba::token(SECONDARY)));
 /// `PLATE` in paper on ink (Reconnect).
 const PLATE_INK: pxui::Button = PLATE.look(&PLATE_INK_LOOKS);
 const PLATE_INK_LOOKS: States = PLAY_PRIMARY_LOOKS.disabled(INK_FILL.text(Rgba::token(SECONDARY)));
 fn plate_h(ui: &Ui) -> f32 {
-    if ui.view_size().width < compact::BREAKPOINT { 44.0 } else { 36.0 }
+    if ui.view_size().width < compact::BREAKPOINT {
+        44.0
+    } else {
+        36.0
+    }
 }
 /// LocalWave's confirmation sheet (registered as `localwave-sheet`): on paper, 20 in, the 24-point title, the caller's content, then
 /// the kit's buttons (`DialogConfig.built_in`, U2b.4.38), which the button body draws as the sheet's keys (`sheet_key`); `variant::FORM`
@@ -115,14 +179,30 @@ fn plate_h(ui: &Ui) -> f32 {
 /// content, then the buttons as choices.
 pub(crate) fn sheet_body(ui: &mut Ui, c: &pxui::bodies::DialogConfig) {
     let choices = c.variant == variant::CHOICES;
-    ui.column(if choices { CHOICES_SHEET } else if c.variant == variant::FORM { SHEET.gap(4.0) } else { SHEET }, |ui| {
-        ui.label(c.text_of(&c.title), if choices { SHEET_TITLE } else { TEXT_24.grow().h_px(36.0).color(INK) });
-        ui.slot(c.content);
+    ui.column(
         if choices {
-            spacer(ui, "gap", 4.0);
-        }
-        ui.slot(c.built_in);
-    });
+            CHOICES_SHEET
+        } else if c.variant == variant::FORM {
+            SHEET.gap(4.0)
+        } else {
+            SHEET
+        },
+        |ui| {
+            ui.label(
+                c.text_of(&c.title),
+                if choices {
+                    SHEET_TITLE
+                } else {
+                    TEXT_24.grow().h_px(36.0).color(INK)
+                },
+            );
+            ui.slot(c.content);
+            if choices {
+                spacer(ui, "gap", 4.0);
+            }
+            ui.slot(c.built_in);
+        },
+    );
 }
 /// A sheet's button (`localwave-button` with its sheet's variant: `SHEET`, `FORM`, `CHOICES`; the kit builds it, its presses, focus and
 /// state): the buttons' row 40 high (a `CHOICES` sheet's a column 8 apart); a key 100 points wide (`plate_h` high), its 13-point label
@@ -134,23 +214,53 @@ pub(super) fn sheet_key(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     let (label, detail) = (c.text_of(&c.label), c.text_of(&c.detail));
     let choice = c.variant == variant::CHOICES && !detail.is_empty();
     // the kit's row of the buttons is each button's line
-    ui.set_node_layout(&c.line, &if c.variant == variant::CHOICES { Node::column().w(Size::Grow).h(Size::Fit).gap(8.0) } else { Node::row().w(Size::Grow).h_px(40.0) });
-    ui.set_node_layout(&c.row, &if choice { CHOICE } else { Node::row().w_px(100.0).h_px(plate_h(ui)).center() });
+    ui.set_node_layout(
+        &c.line,
+        &if c.variant == variant::CHOICES {
+            Node::column().w(Size::Grow).h(Size::Fit).gap(8.0)
+        } else {
+            Node::row().w(Size::Grow).h_px(40.0)
+        },
+    );
+    ui.set_node_layout(
+        &c.row,
+        &if choice {
+            CHOICE
+        } else {
+            Node::row().w_px(100.0).h_px(plate_h(ui)).center()
+        },
+    );
     ui.style(&c.row, &PANEL_LOOKS, state);
     if choice {
         ui.label(label, OPTION_TITLE.role(Role::Unknown));
         settings::paragraph(ui, "detail", detail, sheet_width(ui) - 56.0, OPTION_DETAIL);
     } else {
-        let ink = if state.disabled { SECONDARY } else if c.danger() { DANGER } else { INK };
+        let ink = if state.disabled {
+            SECONDARY
+        } else if c.danger() {
+            DANGER
+        } else {
+            INK
+        };
         ui.label(label, TEXT_13.color(ink).role(Role::Unknown));
     }
 }
 /// A confirmation sheet (`localwave-sheet` / `SHEET`; its keys `sheet_key`).
 pub(super) const SHEET_DIALOG: Dialog = Dialog::DEFAULT.variant(variant::SHEET);
 /// The Add music sheet's card: paper, 16 in, 8 apart.
-const CHOICES_SHEET: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad(16.0).look(PAPER_FILL);
+const CHOICES_SHEET: Node = Node::column()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .gap(8.0)
+    .pad(16.0)
+    .look(PAPER_FILL);
 /// A sheet choice: the sheet's width, 12 by 10 in, its title 2 over its detail.
-const CHOICE: Node = Node::column().w(Size::Grow).h(Size::Fit).gap(2.0).pad_x(12.0).pad_y(10.0);
+const CHOICE: Node = Node::column()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .gap(2.0)
+    .pad_x(12.0)
+    .pad_y(10.0);
 /// A sheet's width: the view less 16 points a side, 240 to 420.
 fn sheet_width(ui: &Ui) -> f32 {
     (ui.view_size().width - 32.0).clamp(240.0, 420.0)
@@ -158,8 +268,15 @@ fn sheet_width(ui: &Ui) -> f32 {
 
 /// The desktop folder page's Back (`localwave-button` / `ROW`): Swift's 16-point LW-back chevron 4 points before a secondary "Back",
 /// 40 high, its icon frame 6 points left of the page's inset (where Swift's 26-point leading padding puts it).
-const FILES_BACK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(40.0)).align(Justify::Start)
-    .icon(icon_drawing(Icon::Back)).icon_size(16.0).gap(4.0).label(TEXT_14.color(SECONDARY).role(Role::Unknown)).name("Back");
+const FILES_BACK: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::ROW)
+    .size(Size::Fit, Size::Px(40.0))
+    .align(Justify::Start)
+    .icon(icon_drawing(Icon::Back))
+    .icon_size(16.0)
+    .gap(4.0)
+    .label(TEXT_14.color(SECONDARY).role(Role::Unknown))
+    .name("Back");
 /// The Folders page's "+" (Add music): the 24-point plus in ink.
 const ADD_MUSIC_KEY: pxui::IconButton = ICON_44.look(&ICON_LOOKS);
 /// A phone folder's 52-point keys (Shuffle, Keep offline): ink on the panel fill, paper on ink while checked (kept).
@@ -168,19 +285,34 @@ const KEY_52_LOOKS: States = PLAY_KEY_LOOKS.checked(INK_FILL.text(Rgba::token(PA
 /// A folder page's meters (`localwave-progress` / `BAR`).
 const BAR: pxui::Progress = pxui::Progress::DEFAULT.variant(variant::BAR);
 /// A phone folder's All / Offline / In cloud filters (`localwave-tabs` / `MODE`, as the library modes).
-const FILTER: pxui::Tabs = pxui::Tabs::DEFAULT.name("Availability filter").variant(variant::MODE);
+const FILTER: pxui::Tabs = pxui::Tabs::DEFAULT
+    .name("Availability filter")
+    .variant(variant::MODE);
 /// "show" after the hidden files' count (`localwave-button` / `ROW`, Swift's word key): its secondary word, 44 high.
-const SHOW: pxui::Button = super::compact::list::WORD.pad(Edges::ZERO).label(BODY_DIM).name("Show non-audio files");
+const SHOW: pxui::Button = super::compact::list::WORD
+    .pad(Edges::ZERO)
+    .label(BODY_DIM)
+    .name("Show non-audio files");
 
 /// Swift's folder/file marks in the # column, drawn as outlines.
 fn mark(ui: &mut Ui, directory: bool, color: Rgba) {
     let node = ui.node("mark", Node::column().w_px(16.0).h_px(16.0));
     ui.canvas(&node, move |paint, rect| {
-        let (x, y, w, h) = if directory { (rect.x + 1.0, rect.y + 3.0, 14.0, 10.0) } else { (rect.x + 3.0, rect.y + 1.0, 10.0, 14.0) };
+        let (x, y, w, h) = if directory {
+            (rect.x + 1.0, rect.y + 3.0, 14.0, 10.0)
+        } else {
+            (rect.x + 3.0, rect.y + 1.0, 10.0, 14.0)
+        };
         paint.fill(Rect::new(x, y, w, 1.5), Fill::new(color).fractional());
-        paint.fill(Rect::new(x, y + h - 1.5, w, 1.5), Fill::new(color).fractional());
+        paint.fill(
+            Rect::new(x, y + h - 1.5, w, 1.5),
+            Fill::new(color).fractional(),
+        );
         paint.fill(Rect::new(x, y, 1.5, h), Fill::new(color).fractional());
-        paint.fill(Rect::new(x + w - 1.5, y, 1.5, h), Fill::new(color).fractional());
+        paint.fill(
+            Rect::new(x + w - 1.5, y, 1.5, h),
+            Fill::new(color).fractional(),
+        );
     });
 }
 
@@ -203,11 +335,23 @@ fn folder_widths(ui: &mut Ui, entries: &[crate::files::Entry]) -> [f32; 6] {
     const LONGEST: usize = 4;
     let mut widths = [44.0f32, 0.0, 0.0, 0.0, 10.0 + 16.0, 0.0];
     for entry in entries {
-        widths[0] = widths[0].max(if entry.directory { 56.0 } else if !entry.audio { 54.0 } else { 0.0 });
+        widths[0] = widths[0].max(if entry.directory {
+            56.0
+        } else if !entry.audio {
+            54.0
+        } else {
+            0.0
+        });
     }
     let mut text = ui.text_service();
-    let width = |text: &mut pxui::UiText<'_>, value: &str, style: Label| text.measure(value, style, None).map_or(0.0, |m| m.width);
-    for (index, (heading, padding)) in FOLDER_TITLES.iter().zip([40.0, 16.0, 16.0, 16.0, 16.0, 28.0]).enumerate() {
+    let width = |text: &mut pxui::UiText<'_>, value: &str, style: Label| {
+        text.measure(value, style, None).map_or(0.0, |m| m.width)
+    };
+    for (index, (heading, padding)) in FOLDER_TITLES
+        .iter()
+        .zip([40.0, 16.0, 16.0, 16.0, 16.0, 28.0])
+        .enumerate()
+    {
         widths[index] = widths[index].max(width(&mut text, heading, TABLE_HEADING) + padding);
     }
     let columns: [(fn(&crate::files::Entry) -> &str, Label, f32, usize); 5] = [
@@ -225,7 +369,9 @@ fn folder_widths(ui: &mut Ui, entries: &[crate::files::Entry]) -> [f32; 6] {
                 continue;
             }
             let count = candidate.chars().count();
-            if let Some(slot) = (0..LONGEST).find(|&i| longest[i].is_none_or(|kept| kept.chars().count() < count)) {
+            if let Some(slot) =
+                (0..LONGEST).find(|&i| longest[i].is_none_or(|kept| kept.chars().count() < count))
+            {
                 longest.copy_within(slot..LONGEST - 1, slot + 1);
                 longest[slot] = Some(candidate);
             }
@@ -242,7 +388,17 @@ const TIME: usize = 5;
 const TIME_END: f32 = 19.0;
 /// The desktop folder table: no frame, nothing selected, a press or Return opens a row (the arrows only move the keyboard's row);
 /// 38-point rows (`localwave-row` / `FOLDER_ROW`) under the heading's 16.8-point line, 20 points of padding and separator.
-const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT.mode(pxui::SelectMode::None).open_on_click(true).bare().row_h(38.0).head(pxui::TableHead::DEFAULT.h_px(37.8).variant(variant::FOLDER_HEADING)).variant(variant::FOLDER_ROW);
+const FOLDER_TABLE: pxui::Table = pxui::Table::DEFAULT
+    .mode(pxui::SelectMode::None)
+    .open_on_click(true)
+    .bare()
+    .row_h(38.0)
+    .head(
+        pxui::TableHead::DEFAULT
+            .h_px(37.8)
+            .variant(variant::FOLDER_HEADING),
+    )
+    .variant(variant::FOLDER_ROW);
 /// A folder table heading (`localwave-heading` / `FOLDER_HEADING`): Swift's 12-point medium secondary title.
 pub(super) fn heading_body(ui: &mut Ui, c: &pxui::bodies::TableHeadConfig) {
     let mut layout = ui.node_layout(&c.node);
@@ -268,21 +424,51 @@ pub(super) fn view(
     let compact = ui.view_size().width < compact::BREAKPOINT;
     let directory = player.files.and_then(|files| files.directory.as_ref());
     // Swift's source list pads 16 points; its folder page 32.
-    let inset = if compact || directory.is_none() { 16.0 } else { 32.0 };
+    let inset = if compact || directory.is_none() {
+        16.0
+    } else {
+        32.0
+    };
     // the source list scrolls: its top and bottom room is content (Swift's ScrollView padding), so cards run to the edges as it scrolls
     let list = directory.is_none();
-    ui.column(Node::column().w(Size::Grow).h(Size::Grow).flags(if list { Flags::SCROLL | Flags::CLIP } else { Flags::NONE }).padding(Edges::new(inset, 0.0, inset, if list || compact { 0.0 } else { 12.0 })),
+    ui.column(
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .flags(if list {
+                Flags::SCROLL | Flags::CLIP
+            } else {
+                Flags::NONE
+            })
+            .padding(Edges::new(
+                inset,
+                0.0,
+                inset,
+                if list || compact { 0.0 } else { 12.0 },
+            )),
         |ui| {
             if list {
                 spacer(ui, "top-room", if compact { 10.2 } else { 10.0 });
             }
             let Some(files) = player.files else {
-                ui.label("Loading folders…", TEXT_18.grow().h_px(40.0).color(SECONDARY));
+                ui.label(
+                    "Loading folders…",
+                    TEXT_18.grow().h_px(40.0).color(SECONDARY),
+                );
                 return;
             };
             match &files.directory {
                 // the two pages share this column: each keeps its own identity
-                Some(directory) if files.account.is_some() => ui.id("folder-page", |ui| folder_page(ui, files, directory, (state, player.settings.show_non_audio), compact, intent)),
+                Some(directory) if files.account.is_some() => ui.id("folder-page", |ui| {
+                    folder_page(
+                        ui,
+                        files,
+                        directory,
+                        (state, player.settings.show_non_audio),
+                        compact,
+                        intent,
+                    )
+                }),
                 _ => ui.id("source-page", |ui| source_page(ui, files, compact, intent)),
             }
             if list {
@@ -295,10 +481,27 @@ pub(super) fn view(
 /// Worker progress and the last message, shared by both pages.
 fn status(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, intent: &mut Option<Intent>) {
     if files.busy {
-        let progress = container(ui, "files-progress", Axis::Row, Size::Grow, Size::Px(if compact { 44.0 } else { 40.0 }), &PANEL_FILL);
+        let progress = container(
+            ui,
+            "files-progress",
+            Axis::Row,
+            Size::Grow,
+            Size::Px(if compact { 44.0 } else { 40.0 }),
+            &PANEL_FILL,
+        );
         ui.within(&progress, &mut |ui| {
-            ui.label(&files.progress, MONO_13.grow().h_px(32.0).color(INK).role(Role::Progress));
-            if ui.button("cancel", "Cancel", &PLATE.size(Size::Px(80.0), Size::Px(if compact { 44.0 } else { 36.0 }))).clicked {
+            ui.label(
+                &files.progress,
+                MONO_13.grow().h_px(32.0).color(INK).role(Role::Progress),
+            );
+            if ui
+                .button(
+                    "cancel",
+                    "Cancel",
+                    &PLATE.size(Size::Px(80.0), Size::Px(if compact { 44.0 } else { 36.0 })),
+                )
+                .clicked
+            {
                 *intent = Some(Intent::Files(Request::Cancel));
             }
         });
@@ -308,16 +511,33 @@ fn status(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, intent: &m
     }
 }
 
-fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, intent: &mut Option<Intent>) {
+fn source_page(
+    ui: &mut Ui,
+    files: &crate::files::Snapshot,
+    compact: bool,
+    intent: &mut Option<Intent>,
+) {
     let enabled = files.account.is_some() && !files.busy;
-    ui.row(Node::row().w(Size::Grow).h(Size::Fit).margin(Edges::ZERO.b(16.0).r(if compact { -10.0 } else { 0.0 })),
+    ui.row(
+        Node::row()
+            .w(Size::Grow)
+            .h(Size::Fit)
+            .margin(Edges::ZERO.b(16.0).r(if compact { -10.0 } else { 0.0 })),
         |ui| {
             ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(4.0), |ui| {
                 ui.label("Folders", PAGE_TITLE);
                 ui.label(&files.source_count, CAPTION.grow());
             });
             // Swift's "+" opens an Add music sheet; its two choices are the picker intents.
-            if ui.icon_button("add-music", icon_sized(Icon::Plus, 24.0), "Add music", &ADD_MUSIC_KEY.disabled(!enabled)).clicked {
+            if ui
+                .icon_button(
+                    "add-music",
+                    icon_sized(Icon::Plus, 24.0),
+                    "Add music",
+                    &ADD_MUSIC_KEY.disabled(!enabled),
+                )
+                .clicked
+            {
                 *intent = Some(Intent::ShowAddMusic);
             }
         },
@@ -325,20 +545,41 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, inten
     status(ui, files, compact, intent);
     let Some(user) = files.account else {
         if files.message.is_empty() {
-            ui.label("Loading folders…", TEXT_14.grow().h_px(40.0).color(SECONDARY));
+            ui.label(
+                "Loading folders…",
+                TEXT_14.grow().h_px(40.0).color(SECONDARY),
+            );
         }
         return;
     };
     if files.sources.is_empty() {
-        ui.label("Point it at a folder.", TEXT_28.grow().h_px(48.0).color(INK));
-        ui.label("Your files stay where they are. Nothing is uploaded.", PARAGRAPH_14.color(SECONDARY));
+        ui.label(
+            "Point it at a folder.",
+            TEXT_28.grow().h_px(48.0).color(INK),
+        );
+        ui.label(
+            "Your files stay where they are. Nothing is uploaded.",
+            PARAGRAPH_14.color(SECONDARY),
+        );
         for (index, step) in ADD_STEPS.iter().enumerate() {
-            let row = ui.node(Key::Id(index as i64), Node::row().w(Size::Grow).h_px(44.0).gap(16.0).align(Align::Center));
+            let row = ui.node(
+                Key::Id(index as i64),
+                Node::row()
+                    .w(Size::Grow)
+                    .h_px(44.0)
+                    .gap(16.0)
+                    .align(Align::Center),
+            );
             ui.within(&row, &mut |ui| {
                 ui.label(&["1", "2", "3"][index], MONO_13.w_px(12.0).color(SECONDARY));
                 ui.label(step, TEXT_15.grow().h_px(24.0).color(INK));
             });
-            ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
+            ui.canvas_over(&row, move |paint, rect| {
+                paint.fill(
+                    Rect::new(rect.x, rect.y + rect.h - 1.0, rect.w, 1.0),
+                    Fill::new(Rgba::token(LINE)).fractional(),
+                )
+            });
         }
     }
     for folder in files.sources.iter() {
@@ -360,69 +601,151 @@ fn source_page(ui: &mut Ui, files: &crate::files::Snapshot, compact: bool, inten
 }
 
 /// A source folder's card: 17 in, 8 under; the folder card's line border (ink while the folder needs reconnecting).
-const SOURCE_CARD: Node = Node::column().w(Size::Grow).h(Size::Fit).pad(17.0).margin(Edges::ZERO.b(8.0));
+const SOURCE_CARD: Node = Node::column()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .pad(17.0)
+    .margin(Edges::ZERO.b(8.0));
 const FOLDER_CARD_LOOKS: States = States::of(FOLDER_CARD);
 const FOLDER_CARD_ERROR_LOOKS: States = States::of(FOLDER_CARD_ERROR);
 
 fn source_card(ui: &mut Ui, user: i64, folder: &Folder, intent: &mut Option<Intent>) {
-    let target = Target { user, source: folder.id, root: folder.root };
+    let target = Target {
+        user,
+        source: folder.id,
+        root: folder.root,
+    };
     let error = folder.error.is_some();
-    let looks = if error { &FOLDER_CARD_ERROR_LOOKS } else { &FOLDER_CARD_LOOKS };
-    let card = ui.pressable(Key::Id(folder.id), SOURCE_CARD.role(if error { Role::Group } else { Role::Button }), &PLAIN.look(looks), |ui, _| {
-        let top = container(ui, "source-top", Axis::Row, Size::Grow, Size::Px(44.0), &PAPER_FILL);
-        ui.within(&top, &mut |ui| {
-            ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
-                ui.label(&folder.name, TEXT_17.grow().weight(500).color(INK));
-                ui.label(&folder.path, CAPTION.grow());
-            });
-            ui.label(&folder.count, CAPTION);
-        });
-        if let Some(message) = &folder.error {
-            spacer(ui, "error-gap", 12.0);
-            // Swift wraps the message, its glyph on the first line's baseline
-            let row = ui.node("source-error", Node::row().w(Size::Grow).h(Size::Fit).gap(8.0));
-            ui.within(&row, &mut |ui| {
-                ui.column(Node::column().w(Size::Fit).h_px(18.85).justify(Justify::Center), |ui| {
-                    super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
+    let looks = if error {
+        &FOLDER_CARD_ERROR_LOOKS
+    } else {
+        &FOLDER_CARD_LOOKS
+    };
+    let card = ui.pressable(
+        Key::Id(folder.id),
+        SOURCE_CARD.role(if error { Role::Group } else { Role::Button }),
+        &PLAIN.look(looks),
+        |ui, _| {
+            let top = container(
+                ui,
+                "source-top",
+                Axis::Row,
+                Size::Grow,
+                Size::Px(44.0),
+                &PAPER_FILL,
+            );
+            ui.within(&top, &mut |ui| {
+                ui.column(Node::column().w(Size::Grow).h(Size::Grow).gap(2.0), |ui| {
+                    ui.label(&folder.name, TEXT_17.grow().weight(500).color(INK));
+                    ui.label(&folder.path, CAPTION.grow());
                 });
-                ui.label(message, PARAGRAPH_13.line_height(18.85).color(INK));
+                ui.label(&folder.count, CAPTION);
             });
-            spacer(ui, "buttons-gap", 12.0);
-            ui.id("source-buttons", |ui| { ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(2.0), |ui| {
-                if ui.button("reconnect", "Reconnect folder", &PLATE_INK.size(Size::Grow, Size::Px(44.0)).label(CARD_KEY.color(PAPER))).clicked {
-                    *intent = Some(Intent::ReconnectSource(target));
-                }
-                let options = ui.button("source-options", "Options", &PLATE.size(Size::Grow, Size::Px(44.0)).label(CARD_KEY.color(INK)));
-                if options.clicked {
-                    let at = ui.rect(&options.handle);
-                    *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
-                }
-            }); });
-        } else {
-            spacer(ui, "source-bar-gap", 14.0);
-            ui.progress("source-bar", "On this device", Some(folder.local), &BAR);
-            spacer(ui, "source-bar-end", 10.0);
-            let footer = container(ui, "source-footer", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
-            ui.within(&footer, &mut |ui| {
-                ui.label(&folder.stats, CAPTION.grow());
-                ui.label(&folder.scanned, CAPTION);
-            });
-        }
-    });
+            if let Some(message) = &folder.error {
+                spacer(ui, "error-gap", 12.0);
+                // Swift wraps the message, its glyph on the first line's baseline
+                let row = ui.node(
+                    "source-error",
+                    Node::row().w(Size::Grow).h(Size::Fit).gap(8.0),
+                );
+                ui.within(&row, &mut |ui| {
+                    ui.column(
+                        Node::column()
+                            .w(Size::Fit)
+                            .h_px(18.85)
+                            .justify(Justify::Center),
+                        |ui| {
+                            super::songs::row::glyph(
+                                ui,
+                                (
+                                    lw_core::FileState::Failed,
+                                    Some(lw_core::FileAvailability::Unknown),
+                                    false,
+                                ),
+                                true,
+                            );
+                        },
+                    );
+                    ui.label(message, PARAGRAPH_13.line_height(18.85).color(INK));
+                });
+                spacer(ui, "buttons-gap", 12.0);
+                ui.id("source-buttons", |ui| {
+                    ui.row(Node::row().w(Size::Grow).h_px(44.0).gap(2.0), |ui| {
+                        if ui
+                            .button(
+                                "reconnect",
+                                "Reconnect folder",
+                                &PLATE_INK
+                                    .size(Size::Grow, Size::Px(44.0))
+                                    .label(CARD_KEY.color(PAPER)),
+                            )
+                            .clicked
+                        {
+                            *intent = Some(Intent::ReconnectSource(target));
+                        }
+                        let options = ui.button(
+                            "source-options",
+                            "Options",
+                            &PLATE
+                                .size(Size::Grow, Size::Px(44.0))
+                                .label(CARD_KEY.color(INK)),
+                        );
+                        if options.clicked {
+                            let at = ui.rect(&options.handle);
+                            *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
+                        }
+                    });
+                });
+            } else {
+                spacer(ui, "source-bar-gap", 14.0);
+                ui.progress("source-bar", "On this device", Some(folder.local), &BAR);
+                spacer(ui, "source-bar-end", 10.0);
+                let footer = container(
+                    ui,
+                    "source-footer",
+                    Axis::Row,
+                    Size::Grow,
+                    Size::Px(18.2),
+                    &PAPER_FILL,
+                );
+                ui.within(&footer, &mut |ui| {
+                    ui.label(&folder.stats, CAPTION.grow());
+                    ui.label(&folder.scanned, CAPTION);
+                });
+            }
+        },
+    );
     ui.a11y_name(&card.handle, &folder.name);
     if card.secondary {
         *intent = Some(Intent::SourceMenu(target, ui.signal(&card.handle).pointer));
     } else if !error && intent.is_none() && card.clicked {
-        *intent = Some(Intent::Files(Request::Browse(Location { user, source: folder.id, parent: None })));
+        *intent = Some(Intent::Files(Request::Browse(Location {
+            user,
+            source: folder.id,
+            parent: None,
+        })));
     }
 }
 
-fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), compact: bool, intent: &mut Option<Intent>) {
+fn folder_page(
+    ui: &mut Ui,
+    files: &crate::files::Snapshot,
+    directory: &crate::files::Directory,
+    (state, show_non_audio): (&ShellState, bool),
+    compact: bool,
+    intent: &mut Option<Intent>,
+) {
     if compact {
-        return ui.id("compact-folder", |ui| compact_folder(ui, files, directory, (state, show_non_audio), intent));
+        return ui.id("compact-folder", |ui| {
+            compact_folder(ui, files, directory, (state, show_non_audio), intent)
+        });
     }
     let location = directory.location;
-    let target = Target { user: location.user, source: location.source, root: directory.source_root };
+    let target = Target {
+        user: location.user,
+        source: location.source,
+        root: directory.source_root,
+    };
     // Swift's shipping Mac app (its iOS build) pushes the folder page under an empty 88-point navigation bar: the same room here
     spacer(ui, "navigation-room", 88.0);
     // Swift's desktop page has no keys here: Import and the folder's options are its right-click menu (`page` below)
@@ -432,34 +755,105 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         }
     });
     if let Some(message) = &directory.error {
-        let row = ui.node("folder-error", Node::row().w(Size::Grow).h_px(56.0).gap(12.0).pad_x(16.0).align(Align::Center).margin(Edges::ZERO.t(20.0)).look(INK_OUTLINE));
+        let row = ui.node(
+            "folder-error",
+            Node::row()
+                .w(Size::Grow)
+                .h_px(56.0)
+                .gap(12.0)
+                .pad_x(16.0)
+                .align(Align::Center)
+                .margin(Edges::ZERO.t(20.0))
+                .look(INK_OUTLINE),
+        );
         ui.within(&row, &mut |ui| {
-            super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
+            super::songs::row::glyph(
+                ui,
+                (
+                    lw_core::FileState::Failed,
+                    Some(lw_core::FileAvailability::Unknown),
+                    false,
+                ),
+                true,
+            );
             ui.label(message, TEXT_14.grow().h_px(20.0).color(INK));
-            if ui.button("reconnect", "Reconnect folder", &PLATE_INK.size(Size::Px(140.0), Size::Px(36.0)).disabled(files.busy)).clicked {
+            if ui
+                .button(
+                    "reconnect",
+                    "Reconnect folder",
+                    &PLATE_INK
+                        .size(Size::Px(140.0), Size::Px(36.0))
+                        .disabled(files.busy),
+                )
+                .clicked
+            {
                 *intent = Some(Intent::ReconnectSource(target));
             }
         });
     }
-    ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::ZERO.t(28.0).b(18.0)), |ui| {
-        if !directory.breadcrumb.is_empty() {
-            ui.label(&directory.breadcrumb, BODY_DIM.grow());
-            spacer(ui, "breadcrumb-gap", 8.0);
-        }
-        ui.label(&directory.title, DESKTOP_TITLE);
-        spacer(ui, "summary-gap", 6.0);
-        ui.label(&directory.summary, BODY_DIM.grow());
-    });
-    let tools = ui.node("folder-tools", if compact { FOLDER_TOOLS.wrap() } else { FOLDER_TOOLS });
+    ui.column(
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Fit)
+            .padding(Edges::ZERO.t(28.0).b(18.0)),
+        |ui| {
+            if !directory.breadcrumb.is_empty() {
+                ui.label(&directory.breadcrumb, BODY_DIM.grow());
+                spacer(ui, "breadcrumb-gap", 8.0);
+            }
+            ui.label(&directory.title, DESKTOP_TITLE);
+            spacer(ui, "summary-gap", 6.0);
+            ui.label(&directory.summary, BODY_DIM.grow());
+        },
+    );
+    let tools = ui.node(
+        "folder-tools",
+        if compact {
+            FOLDER_TOOLS.wrap()
+        } else {
+            FOLDER_TOOLS
+        },
+    );
     ui.within(&tools, &mut |ui| {
         let ready = !directory.songs.is_empty() && !files.busy;
-        if ui.button("play-folder", "Play folder", &TOOL.icon(icon_drawing(Icon::Play)).icon_size(16.0).disabled(!ready)).clicked {
+        if ui
+            .button(
+                "play-folder",
+                "Play folder",
+                &TOOL
+                    .icon(icon_drawing(Icon::Play))
+                    .icon_size(16.0)
+                    .disabled(!ready),
+            )
+            .clicked
+        {
             *intent = Some(Intent::PlayFolder);
         }
-        if ui.button("shuffle", "Shuffle", &TOOL.icon(icon_drawing(Icon::Shuffle)).icon_size(16.0).disabled(!ready)).clicked {
+        if ui
+            .button(
+                "shuffle",
+                "Shuffle",
+                &TOOL
+                    .icon(icon_drawing(Icon::Shuffle))
+                    .icon_size(16.0)
+                    .disabled(!ready),
+            )
+            .clicked
+        {
             *intent = Some(Intent::ShuffleFolder);
         }
-        if ui.button("keep-offline", if directory.kept { "Kept offline" } else { "Keep offline" }, &super::find::keep_offline(directory.kept).disabled(!ready)).clicked {
+        if ui
+            .button(
+                "keep-offline",
+                if directory.kept {
+                    "Kept offline"
+                } else {
+                    "Keep offline"
+                },
+                &super::find::keep_offline(directory.kept).disabled(!ready),
+            )
+            .clicked
+        {
             *intent = Some(Intent::KeepFolder);
         }
         ui.node("tools-space", Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
@@ -467,16 +861,30 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
             legend(ui);
         }
     });
-    ui.canvas_over(&tools, move |paint, rect| paint.fill(Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
+    ui.canvas_over(&tools, move |paint, rect| {
+        paint.fill(
+            Rect::new(rect.x - 32.0, rect.y + rect.h - 1.0, rect.w + 64.0, 1.0),
+            Fill::new(Rgba::token(LINE)).fractional(),
+        )
+    });
     status(ui, files, compact, intent);
     if directory.entries.is_empty() {
         ui.label("Nothing here.", TEXT_14.grow().h_px(48.0).color(SECONDARY));
         return;
     }
     // The parent participates in the identity, giving each destination its own scroll state.
-    let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
+    let key = int_key(
+        int_key(pxui::ui::key_of(0, "files-directory"), location.source),
+        location.parent.unwrap_or(0),
+    );
     // Swift's desktop folder table spans the page, past its 32-point insets
-    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow).margin(Edges::ZERO.l(-32.0).r(-32.0)));
+    let list = ui.node(
+        Key::Id(key),
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .margin(Edges::ZERO.l(-32.0).r(-32.0)),
+    );
     let entries = &directory.entries;
     let mut table = state.folder_table.borrow_mut();
     // the rows keep their builds while the snapshot holds; its flags (plain files disabled) are written once a snapshot
@@ -484,7 +892,8 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         table.selection.rows.resize(entries.len(), 0);
         for (flags, entry) in table.selection.rows.iter_mut().zip(entries) {
             let plain = !entry.directory && !entry.audio;
-            *flags = *flags & pxui::ListState::SELECTED | if plain { pxui::ListState::DISABLED } else { 0 };
+            *flags = *flags & pxui::ListState::SELECTED
+                | if plain { pxui::ListState::DISABLED } else { 0 };
         }
         table.selection.revision = Some(files.revision);
     }
@@ -501,33 +910,81 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         };
         let columns: [pxui::Column; 6] = std::array::from_fn(|i| {
             let column = pxui::Column::new(FOLDER_TITLES[i]);
-            if i == 0 { column.w_px(widths[0]).grip(false) } else { column.share(widths[i]) }
-        });
-        r = Some(ui.table("directory-entries", &columns, entries.len(), &|i| entries[i].id, &mut table, &FOLDER_TABLE, &mut |ui, index, column, cell| {
-            let entry = &entries[index];
-            let other = !entry.directory && !entry.audio;
-            let tone = if other { TERTIARY } else { SECONDARY };
-            match column {
-                0 => { ui.row(NUMBER_CELL, |ui| if entry.audio { ui.label(&entry.number, TEXT_13.color(tone)); } else { mark(ui, entry.directory, Rgba::token(tone)) }); }
-                1 => {
-                    ui.a11y_name(&cell.handle, &entry.name);
-                    ui.label(&entry.name, TEXT_14.grow().color(if other { TERTIARY } else { INK }));
-                }
-                2 => { ui.label(&entry.kind, TEXT_14.grow().color(tone)); }
-                3 => { ui.label(&entry.size, MONO_12.grow().color(tone)); }
-                4 => match entry.glyph {
-                    Some(glyph) => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
-                    None if entry.audio => {
-                        // Not imported yet: Swift imports on play; here the row offers Import.
-                        if ui.button("import-file", "Import", &PLATE.size(Size::Px(72.0), Size::Px(36.0)).disabled(files.busy)).clicked {
-                            *intent = Some(Intent::Files(Request::ImportPath { user: location.user, source: location.source, path: entry.id }));
-                        }
-                    }
-                    None => {}
-                },
-                _ => { ui.row(TIME_CELL, |ui| { ui.label(&entry.time, MONO_12.color(tone)); }); }
+            if i == 0 {
+                column.w_px(widths[0]).grip(false)
+            } else {
+                column.share(widths[i])
             }
-        }));
+        });
+        r = Some(ui.table(
+            "directory-entries",
+            &columns,
+            entries.len(),
+            &|i| entries[i].id,
+            &mut table,
+            &FOLDER_TABLE,
+            &mut |ui, index, column, cell| {
+                let entry = &entries[index];
+                let other = !entry.directory && !entry.audio;
+                let tone = if other { TERTIARY } else { SECONDARY };
+                match column {
+                    0 => {
+                        ui.row(NUMBER_CELL, |ui| {
+                            if entry.audio {
+                                ui.label(&entry.number, TEXT_13.color(tone));
+                            } else {
+                                mark(ui, entry.directory, Rgba::token(tone))
+                            }
+                        });
+                    }
+                    1 => {
+                        ui.a11y_name(&cell.handle, &entry.name);
+                        ui.label(
+                            &entry.name,
+                            TEXT_14.grow().color(if other { TERTIARY } else { INK }),
+                        );
+                    }
+                    2 => {
+                        ui.label(&entry.kind, TEXT_14.grow().color(tone));
+                    }
+                    3 => {
+                        ui.label(&entry.size, MONO_12.grow().color(tone));
+                    }
+                    4 => match entry.glyph {
+                        Some(glyph) => super::songs::row::glyph(
+                            ui,
+                            (glyph.state, glyph.availability, glyph.pinned),
+                            true,
+                        ),
+                        None if entry.audio => {
+                            // Not imported yet: Swift imports on play; here the row offers Import.
+                            if ui
+                                .button(
+                                    "import-file",
+                                    "Import",
+                                    &PLATE
+                                        .size(Size::Px(72.0), Size::Px(36.0))
+                                        .disabled(files.busy),
+                                )
+                                .clicked
+                            {
+                                *intent = Some(Intent::Files(Request::ImportPath {
+                                    user: location.user,
+                                    source: location.source,
+                                    path: entry.id,
+                                }));
+                            }
+                        }
+                        None => {}
+                    },
+                    _ => {
+                        ui.row(TIME_CELL, |ui| {
+                            ui.label(&entry.time, MONO_12.color(tone));
+                        });
+                    }
+                }
+            },
+        ));
     });
     drop(table);
     // Swift's `lwContextMenu { administrationMenu() }`: a secondary click on the rows opens the folder menu (Import folder first)
@@ -535,27 +992,61 @@ fn folder_page(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::f
         && r.rows.secondary.is_some()
         && intent.is_none()
     {
-        *intent = Some(Intent::SourceMenu(target, ui.signal(&r.rows.handle).pointer));
+        *intent = Some(Intent::SourceMenu(
+            target,
+            ui.signal(&r.rows.handle).pointer,
+        ));
     }
     // a folder opens on a press or Return (`activated`), never on an arrow key
-    let open = r.and_then(|r| r.rows.activated).filter(|&i| entries.get(i).is_some_and(|entry| entry.directory));
-    if let Some(i) = open && intent.is_none() {
-        *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entries[i].id), ..location })));
+    let open = r
+        .and_then(|r| r.rows.activated)
+        .filter(|&i| entries.get(i).is_some_and(|entry| entry.directory));
+    if let Some(i) = open
+        && intent.is_none()
+    {
+        *intent = Some(Intent::Files(Request::Browse(Location {
+            parent: Some(entries[i].id),
+            ..location
+        })));
     }
 }
 /// A folder table's Time cell leaves the same inset as its heading, including the kit's eight-point cell padding.
 /// A folder table's "#" cell: its number or mark at the page's 32-point inset (the cell is 8 in).
-const NUMBER_CELL: Node = Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).padding(Edges::ZERO.l(24.0));
-const TIME_CELL: Node = Node::row().w(Size::Grow).h(Size::Grow).align(Align::Center).justify(Justify::End).padding(Edges::ZERO.r(TIME_END - 8.0));
+const NUMBER_CELL: Node = Node::row()
+    .w(Size::Grow)
+    .h(Size::Grow)
+    .align(Align::Center)
+    .padding(Edges::ZERO.l(24.0));
+const TIME_CELL: Node = Node::row()
+    .w(Size::Grow)
+    .h(Size::Grow)
+    .align(Align::Center)
+    .justify(Justify::End)
+    .padding(Edges::ZERO.r(TIME_END - 8.0));
 
 /// The phone folder list (`localwave-row` / `PHONE_ROW`): 56-point rows, the overlay scrollbar, no frame.
-const PHONE_FOLDER: pxui::SelectionList = pxui::SelectionList::DEFAULT.row_h(56.0).overlay_scrollbar().variant(variant::PHONE_ROW).bare();
+const PHONE_FOLDER: pxui::SelectionList = pxui::SelectionList::DEFAULT
+    .row_h(56.0)
+    .overlay_scrollbar()
+    .variant(variant::PHONE_ROW)
+    .bare();
 /// A phone folder row: 56 points, 12 between its parts, 6 in from the end.
-const ROW_56: Node = Node::row().w(Size::Grow).h_px(56.0).gap(12.0).align(Align::Center).padding(Edges::ZERO.r(6.0));
+const ROW_56: Node = Node::row()
+    .w(Size::Grow)
+    .h_px(56.0)
+    .gap(12.0)
+    .align(Align::Center)
+    .padding(Edges::ZERO.r(6.0));
 
 /// Swift's mobileFolder: back and item count, title with options, breadcrumb, Play folder / Shuffle / Keep offline
 /// keys, All / Offline / In cloud tabs and 56 pt file rows (tap plays, "…" opens the song menu). Gap: no Select mode.
-fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate::files::Directory, (state, show_non_audio): (&ShellState, bool), intent: &mut Option<Intent>) {
+fn compact_folder(
+    ui: &mut Ui,
+    files: &crate::files::Snapshot,
+    directory: &crate::files::Directory,
+    (state, show_non_audio): (&ShellState, bool),
+    intent: &mut Option<Intent>,
+) {
     use super::compact::list::PLAY_PRIMARY;
     let files_filter = state.files_filter;
     let selecting = state.selecting;
@@ -563,7 +1054,13 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     let shown = directory.shown(files_filter, show_non_audio);
     // the rows keep their builds while the snapshot, the filter, the mode and the marks hold; their flags (a plain file, and in Select
     // mode any row without a saved song, disabled) and the header's counts are prepared then in one pass, never on a warm frame
-    let revision = pxui::hash_of(&(files.revision, files_filter as u8, selecting, show_non_audio, state.selection_revision));
+    let revision = pxui::hash_of(&(
+        files.revision,
+        files_filter as u8,
+        selecting,
+        show_non_audio,
+        state.selection_revision,
+    ));
     let mut marks = state.song_rows.borrow_mut();
     if marks.revision != Some(revision) {
         marks.rows.resize(shown, 0);
@@ -571,8 +1068,15 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         for (i, flags) in marks.rows.iter_mut().enumerate() {
             let entry = directory.entry(files_filter, i);
             let song = entry.is_some_and(|entry| entry.song.is_some());
-            let off = entry.is_none_or(|entry| if selecting { !song } else { !entry.directory && !entry.audio });
-            *flags = *flags & pxui::ListState::SELECTED | if off { pxui::ListState::DISABLED } else { 0 };
+            let off = entry.is_none_or(|entry| {
+                if selecting {
+                    !song
+                } else {
+                    !entry.directory && !entry.audio
+                }
+            });
+            *flags = *flags & pxui::ListState::SELECTED
+                | if off { pxui::ListState::DISABLED } else { 0 };
             selectable += usize::from(song);
             selected += usize::from(song && *flags & pxui::ListState::SELECTED != 0);
         }
@@ -585,64 +1089,139 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     let (selectable, selected) = state.folder_counts.get();
     use super::compact::list::{BACK_KEY, MORE, WORD};
     let location = directory.location;
-    let target = Target { user: location.user, source: location.source, root: directory.source_root };
-    let top = ui.node("folder-top", Node::row().w(Size::Grow).h_px(44.0).align(Align::Center));
+    let target = Target {
+        user: location.user,
+        source: location.source,
+        root: directory.source_root,
+    };
+    let top = ui.node(
+        "folder-top",
+        Node::row().w(Size::Grow).h_px(44.0).align(Align::Center),
+    );
     if selecting {
         // Swift's selection header replaces the back row and the title.
         ui.within(&top, &mut |ui| {
             super::compact::list::selection_header(ui, selected, selectable, shown, intent);
         });
     } else {
-    ui.within(&top, &mut |ui| {
-        // Swift's phone folder page names its way back "Folders" at any depth (`backTitle`)
-        if ui.button("back", "Folders", &BACK_KEY.pad(Edges::ZERO.r(12.0))).clicked {
-            *intent = Some(up(directory));
-        }
-        ui.node("top-space", Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
-        ui.label(&directory.detail, MONO_DIM);
-        if directory.songs.is_empty() {
-            return;
-        }
-        if ui.button("select", "Select", &WORD.pad(Edges::ZERO.l(8.0)).label(TEXT_15.color(INK))).clicked {
-            *intent = Some(Intent::SelectMode(true));
-        }
-    });
+        ui.within(&top, &mut |ui| {
+            // Swift's phone folder page names its way back "Folders" at any depth (`backTitle`)
+            if ui
+                .button("back", "Folders", &BACK_KEY.pad(Edges::ZERO.r(12.0)))
+                .clicked
+            {
+                *intent = Some(up(directory));
+            }
+            ui.node("top-space", Node::DEFAULT.w(Size::Grow).h(Size::Px(1.0)));
+            ui.label(&directory.detail, MONO_DIM);
+            if directory.songs.is_empty() {
+                return;
+            }
+            if ui
+                .button(
+                    "select",
+                    "Select",
+                    &WORD.pad(Edges::ZERO.l(8.0)).label(TEXT_15.color(INK)),
+                )
+                .clicked
+            {
+                *intent = Some(Intent::SelectMode(true));
+            }
+        });
     }
     // Swift's `mobileFolder`: under the back row, title, path, keys, filters and rows 16 points apart
     spacer(ui, "title-gap", 16.0);
     if !selecting {
-    ui.id("folder-titles", |ui| { ui.row(Node::row().w(Size::Grow).h_px(44.0).align(Align::Start), |ui| {
-        ui.id("name", |ui| { ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| { ui.label(&directory.title, PAGE_TITLE); }); });
-        // Swift's key sits 10 points into the page's margin
-        ui.row(Node::row().w_px(44.0).h_px(44.0).margin(Edges::ZERO.r(-10.0)), |ui| {
-            let more = ui.icon_button("source-options", icon_sized(Icon::More, 22.0), "Folder options", &ICON_44.look(&ICON_LOOKS));
-            if more.clicked {
-                let at = ui.rect(&more.handle);
-                *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
-            }
+        ui.id("folder-titles", |ui| {
+            ui.row(
+                Node::row().w(Size::Grow).h_px(44.0).align(Align::Start),
+                |ui| {
+                    ui.id("name", |ui| {
+                        ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
+                            ui.label(&directory.title, PAGE_TITLE);
+                        });
+                    });
+                    // Swift's key sits 10 points into the page's margin
+                    ui.row(
+                        Node::row()
+                            .w_px(44.0)
+                            .h_px(44.0)
+                            .margin(Edges::ZERO.r(-10.0)),
+                        |ui| {
+                            let more = ui.icon_button(
+                                "source-options",
+                                icon_sized(Icon::More, 22.0),
+                                "Folder options",
+                                &ICON_44.look(&ICON_LOOKS),
+                            );
+                            if more.clicked {
+                                let at = ui.rect(&more.handle);
+                                *intent = Some(Intent::SourceMenu(target, (at.x, at.y + at.h)));
+                            }
+                        },
+                    );
+                },
+            );
         });
-    }); });
     }
     if !directory.breadcrumb.is_empty() {
         spacer(ui, "path-gap", 16.0);
         // Swift's path: its names and slashes 6 points apart in a 13-point line (the worker joins them with " / ")
-        ui.id("path", |ui| { ui.row(Node::row().w(Size::Grow).h_px(17.0).gap(6.0).padding(Edges::ZERO.t(4.0)).align(Align::Center).flags(Flags::CLIP), |ui| {
-            for (index, name) in directory.breadcrumb.split(" / ").enumerate() {
-                ui.id(Key::Id(index as i64), |ui| {
-                    if index > 0 {
-                        ui.label("/", TEXT_13.color(SECONDARY));
+        ui.id("path", |ui| {
+            ui.row(
+                Node::row()
+                    .w(Size::Grow)
+                    .h_px(17.0)
+                    .gap(6.0)
+                    .padding(Edges::ZERO.t(4.0))
+                    .align(Align::Center)
+                    .flags(Flags::CLIP),
+                |ui| {
+                    for (index, name) in directory.breadcrumb.split(" / ").enumerate() {
+                        ui.id(Key::Id(index as i64), |ui| {
+                            if index > 0 {
+                                ui.label("/", TEXT_13.color(SECONDARY));
+                            }
+                            ui.label(name, TEXT_13.color(SECONDARY));
+                        });
                     }
-                    ui.label(name, TEXT_13.color(SECONDARY));
-                });
-            }
-        }); });
+                },
+            );
+        });
     }
     if let Some(message) = &directory.error {
-        let row = ui.node("folder-error", Node::row().w(Size::Grow).h_px(56.0).gap(8.0).pad_x(12.0).align(Align::Center).margin(Edges::ZERO.t(8.0)).look(INK_OUTLINE));
+        let row = ui.node(
+            "folder-error",
+            Node::row()
+                .w(Size::Grow)
+                .h_px(56.0)
+                .gap(8.0)
+                .pad_x(12.0)
+                .align(Align::Center)
+                .margin(Edges::ZERO.t(8.0))
+                .look(INK_OUTLINE),
+        );
         ui.within(&row, &mut |ui| {
-            super::songs::row::glyph(ui, (lw_core::FileState::Failed, Some(lw_core::FileAvailability::Unknown), false), true);
+            super::songs::row::glyph(
+                ui,
+                (
+                    lw_core::FileState::Failed,
+                    Some(lw_core::FileAvailability::Unknown),
+                    false,
+                ),
+                true,
+            );
             ui.label(message, TEXT_13.grow().h_px(18.9).color(INK));
-            if ui.button("reconnect", "Reconnect", &PLATE_INK.size(Size::Px(88.0), Size::Px(44.0)).disabled(files.busy)).clicked {
+            if ui
+                .button(
+                    "reconnect",
+                    "Reconnect",
+                    &PLATE_INK
+                        .size(Size::Px(88.0), Size::Px(44.0))
+                        .disabled(files.busy),
+                )
+                .clicked
+            {
                 *intent = Some(Intent::ReconnectSource(target));
             }
         });
@@ -650,98 +1229,212 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     let ready = !directory.songs.is_empty() && !files.busy;
     spacer(ui, "keys-gap", 16.0);
     ui.row(Node::row().w(Size::Grow).h_px(52.0).gap(8.0), |ui| {
-        if ui.button("play-folder", "Play folder", &PLAY_PRIMARY.icon(icon_drawing(Icon::Play)).icon_size(18.0).disabled(!ready)).clicked {
+        if ui
+            .button(
+                "play-folder",
+                "Play folder",
+                &PLAY_PRIMARY
+                    .icon(icon_drawing(Icon::Play))
+                    .icon_size(18.0)
+                    .disabled(!ready),
+            )
+            .clicked
+        {
             *intent = Some(Intent::PlayFolder);
         }
-        if ui.icon_button("shuffle", icon_drawing(Icon::Shuffle), "Shuffle folder", &KEY_52.disabled(!ready)).clicked {
+        if ui
+            .icon_button(
+                "shuffle",
+                icon_drawing(Icon::Shuffle),
+                "Shuffle folder",
+                &KEY_52.disabled(!ready),
+            )
+            .clicked
+        {
             *intent = Some(Intent::ShuffleFolder);
         }
-        let (icon, name) = if directory.kept { (Icon::Kept, "Kept offline") } else { (Icon::Offline, "Keep folder offline") };
-        if ui.icon_button("keep-offline", icon_drawing(icon), name, &KEY_52.selected(directory.kept).disabled(!ready)).clicked {
+        let (icon, name) = if directory.kept {
+            (Icon::Kept, "Kept offline")
+        } else {
+            (Icon::Offline, "Keep folder offline")
+        };
+        if ui
+            .icon_button(
+                "keep-offline",
+                icon_drawing(icon),
+                name,
+                &KEY_52.selected(directory.kept).disabled(!ready),
+            )
+            .clicked
+        {
             *intent = Some(Intent::KeepFolder);
         }
     });
     status(ui, files, true, intent);
     if directory.entries.is_empty() {
-        ui.label("No files in this folder.", TEXT_14.grow().h_px(48.0).color(SECONDARY));
+        ui.label(
+            "No files in this folder.",
+            TEXT_14.grow().h_px(48.0).color(SECONDARY),
+        );
         return;
     }
     // Swift's All / Offline / In cloud tabs; the worker listed what each shows.
     const FILTERS: [FilesFilter; 3] = [FilesFilter::All, FilesFilter::Offline, FilesFilter::Cloud];
     let filters = [
-        pxui::Segment::new("All").id(0).detail(&directory.filter_counts[0]),
-        pxui::Segment::new("Offline").id(1).detail(&directory.filter_counts[1]),
-        pxui::Segment::new("In cloud").id(2).detail(&directory.filter_counts[2]),
+        pxui::Segment::new("All")
+            .id(0)
+            .detail(&directory.filter_counts[0]),
+        pxui::Segment::new("Offline")
+            .id(1)
+            .detail(&directory.filter_counts[1]),
+        pxui::Segment::new("In cloud")
+            .id(2)
+            .detail(&directory.filter_counts[2]),
     ];
     let chosen = FILTERS.iter().position(|f| *f == files_filter);
     spacer(ui, "filters-gap", 16.0);
     let tabs = ui.tabs("filter-tabs", &filters, chosen, &FILTER);
-    if tabs.response.clicked && let Some(i) = tabs.chosen {
+    if tabs.response.clicked
+        && let Some(i) = tabs.chosen
+    {
         *intent = Some(Intent::FilesFilter(FILTERS[i]));
     }
     spacer(ui, "rows-gap", 16.0);
-    let key = int_key(int_key(pxui::ui::key_of(0, "files-directory"), location.source), location.parent.unwrap_or(0));
+    let key = int_key(
+        int_key(pxui::ui::key_of(0, "files-directory"), location.source),
+        location.parent.unwrap_or(0),
+    );
     // Swift's rows run past the page's 16-point margin to the screen's edge
-    let list = ui.node(Key::Id(key), Node::column().w(Size::Grow).h(Size::Grow).margin(Edges::ZERO.r(-16.0)));
+    let list = ui.node(
+        Key::Id(key),
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .margin(Edges::ZERO.r(-16.0)),
+    );
     // Swift's "N non-audio files hidden · show" closes the list (its trailer) while the setting is off.
     let footer = !show_non_audio && directory.non_audio > 0;
     // Select mode marks a saved song a tap (the list toggles its row; the marks are the songs list's flags); outside it a tap opens,
     // plays or imports the row (the list selects nothing)
-    let rows = PHONE_FOLDER.trail(if footer { 56.0 } else { 0.0 })
-        .mode(if selecting { pxui::SelectMode::Toggle } else { pxui::SelectMode::None }).open_on_click(!selecting);
+    let rows = PHONE_FOLDER
+        .trail(if footer { 56.0 } else { 0.0 })
+        .mode(if selecting {
+            pxui::SelectMode::Toggle
+        } else {
+            pxui::SelectMode::None
+        })
+        .open_on_click(!selecting);
     let mut marks = state.song_rows.borrow_mut();
     let mut r = None;
     ui.within(&list, &mut |ui| {
-        r = Some(ui.selection_list("directory-entries", shown, &|i| directory.entry(files_filter, i).map_or(i as i64, |entry| entry.id), &mut marks, &rows, &mut |ui, part, cell| {
-            let index = match part {
-                SectionPart::Row(index) => index,
-                SectionPart::Trailing if footer => {
-                    ui.row(Node::row().w(Size::Grow).h_px(56.0).gap(4.0).align(Align::Center), |ui| {
-                        ui.label(&directory.hidden_label, BODY_DIM);
-                        if ui.button("show", "show", &SHOW).clicked {
-                            *intent = Some(Intent::Setting(lw_core::preferences::Change::ToggleShowNonAudio));
-                        }
-                    });
+        r = Some(ui.selection_list(
+            "directory-entries",
+            shown,
+            &|i| {
+                directory
+                    .entry(files_filter, i)
+                    .map_or(i as i64, |entry| entry.id)
+            },
+            &mut marks,
+            &rows,
+            &mut |ui, part, cell| {
+                let index = match part {
+                    SectionPart::Row(index) => index,
+                    SectionPart::Trailing if footer => {
+                        ui.row(
+                            Node::row()
+                                .w(Size::Grow)
+                                .h_px(56.0)
+                                .gap(4.0)
+                                .align(Align::Center),
+                            |ui| {
+                                ui.label(&directory.hidden_label, BODY_DIM);
+                                if ui.button("show", "show", &SHOW).clicked {
+                                    *intent = Some(Intent::Setting(
+                                        lw_core::preferences::Change::ToggleShowNonAudio,
+                                    ));
+                                }
+                            },
+                        );
+                        return;
+                    }
+                    _ => return,
+                };
+                let Some(entry) = directory.entry(files_filter, index) else {
                     return;
-                }
-                _ => return,
-            };
-            let Some(entry) = directory.entry(files_filter, index) else { return };
-            let other = !entry.directory && !entry.audio;
-            ui.a11y_name(&cell.handle, &entry.name);
-            let row = ui.node("content", ROW_56);
-            ui.within(&row, &mut |ui| {
-                ui.column(Node::column().w_px(16.0).h_px(16.0).center(), |ui| match entry.glyph {
-                    Some(glyph) if entry.audio => super::songs::row::glyph(ui, (glyph.state, glyph.availability, glyph.pinned), true),
-                    _ => mark(ui, entry.directory, Rgba::token(SECONDARY)),
+                };
+                let other = !entry.directory && !entry.audio;
+                ui.a11y_name(&cell.handle, &entry.name);
+                let row = ui.node("content", ROW_56);
+                ui.within(&row, &mut |ui| {
+                    ui.column(
+                        Node::column().w_px(16.0).h_px(16.0).center(),
+                        |ui| match entry.glyph {
+                            Some(glyph) if entry.audio => super::songs::row::glyph(
+                                ui,
+                                (glyph.state, glyph.availability, glyph.pinned),
+                                true,
+                            ),
+                            _ => mark(ui, entry.directory, Rgba::token(SECONDARY)),
+                        },
+                    );
+                    ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
+                        ui.label(
+                            &entry.name,
+                            TEXT_15.grow().color(if other { TERTIARY } else { INK }),
+                        );
+                        ui.label(&entry.detail, MONO_DIM.grow());
+                    });
+                    if selecting {
+                        // Swift's trailing 44 pt checkbox, on saved songs only.
+                        if entry.song.is_some() {
+                            ui.id("select-cell", |ui| {
+                                ui.row(Node::row().w_px(44.0).h_px(44.0).center(), |ui| {
+                                    ui.checkbox(
+                                        "mark",
+                                        &entry.name,
+                                        cell.selected,
+                                        &super::compact::list::MARK,
+                                    );
+                                });
+                            });
+                        }
+                    } else if entry.directory {
+                        // Folder rows: Open folder / Play folder / Shuffle folder.
+                        let more = ui.icon_button(
+                            "actions",
+                            icon_sized(Icon::More, 18.0),
+                            "Actions for folder",
+                            &MORE,
+                        );
+                        if more.clicked {
+                            let at = ui.rect(&more.handle);
+                            *intent =
+                                Some(Intent::FolderMenu(entry.id, (at.x + at.w - 44.0, at.y)));
+                        }
+                    // Swift's per-file "…"; only saved songs have actions here.
+                    } else if let Some(song) = entry.song {
+                        let more = ui.icon_button(
+                            "actions",
+                            icon_sized(Icon::More, 18.0),
+                            "Actions for file",
+                            &MORE,
+                        );
+                        if more.clicked {
+                            let at = ui.rect(&more.handle);
+                            *intent =
+                                Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
+                        }
+                    }
                 });
-                ui.column(Node::column().w(Size::Grow).h(Size::Fit), |ui| {
-                    ui.label(&entry.name, TEXT_15.grow().color(if other { TERTIARY } else { INK }));
-                    ui.label(&entry.detail, MONO_DIM.grow());
+                ui.canvas_over(&row, move |paint, rect| {
+                    paint.fill(
+                        Rect::new(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0),
+                        Fill::new(Rgba::token(LINE)).fractional(),
+                    )
                 });
-                if selecting {
-                    // Swift's trailing 44 pt checkbox, on saved songs only.
-                    if entry.song.is_some() {
-                        ui.id("select-cell", |ui| { ui.row(Node::row().w_px(44.0).h_px(44.0).center(), |ui| { ui.checkbox("mark", &entry.name, cell.selected, &super::compact::list::MARK); }); });
-                    }
-                } else if entry.directory {
-                    // Folder rows: Open folder / Play folder / Shuffle folder.
-                    let more = ui.icon_button("actions", icon_sized(Icon::More, 18.0), "Actions for folder", &MORE);
-                    if more.clicked {
-                        let at = ui.rect(&more.handle);
-                        *intent = Some(Intent::FolderMenu(entry.id, (at.x + at.w - 44.0, at.y)));
-                    }
-                // Swift's per-file "…"; only saved songs have actions here.
-                } else if let Some(song) = entry.song {
-                    let more = ui.icon_button("actions", icon_sized(Icon::More, 18.0), "Actions for file", &MORE);
-                    if more.clicked {
-                        let at = ui.rect(&more.handle);
-                        *intent = Some(Intent::SongMenu(index, song, 0, (at.x + at.w - 44.0, at.y)));
-                    }
-                }
-            });
-            ui.canvas_over(&row, move |paint, rect| paint.fill(Rect::new(rect.x + 28.0, rect.y + rect.h - 1.0, rect.w - 28.0, 1.0), Fill::new(Rgba::token(LINE)).fractional()));
-        }));
+            },
+        ));
     });
     drop(marks);
     let Some(r) = r else { return };
@@ -749,19 +1442,35 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
         && intent.is_none()
     {
         // a change that leaves no row marked (Escape) is the app's Clear
-        let none = !state.song_rows.borrow().rows.iter().any(|f| f & pxui::ListState::SELECTED != 0);
-        *intent = Some(if none { Intent::Select(crate::Selection::Clear) } else { Intent::Selected(i) });
+        let none = !state
+            .song_rows
+            .borrow()
+            .rows
+            .iter()
+            .any(|f| f & pxui::ListState::SELECTED != 0);
+        *intent = Some(if none {
+            Intent::Select(crate::Selection::Clear)
+        } else {
+            Intent::Selected(i)
+        });
     }
     if let Some(entry) = r.activated.and_then(|i| directory.entry(files_filter, i))
         && intent.is_none()
     {
         *intent = if entry.directory {
-            Some(Intent::Files(Request::Browse(Location { parent: Some(entry.id), ..location })))
+            Some(Intent::Files(Request::Browse(Location {
+                parent: Some(entry.id),
+                ..location
+            })))
         } else if let Some(song) = entry.song {
             Some(Intent::PlayFile(song))
         } else if entry.audio && !files.busy {
             // Not imported yet: Swift imports on play; here a tap imports the file.
-            Some(Intent::Files(Request::ImportPath { user: location.user, source: location.source, path: entry.id }))
+            Some(Intent::Files(Request::ImportPath {
+                user: location.user,
+                source: location.source,
+                path: entry.id,
+            }))
         } else {
             None
         };
@@ -769,26 +1478,44 @@ fn compact_folder(ui: &mut Ui, files: &crate::files::Snapshot, directory: &crate
     // the window's default key target: Return opens the keyboard's row; Command-A and Escape mark in Select mode only
     ui.focus_default(&r.handle);
     if selecting {
-        ui.id("selection-deck", |ui| { ui.column(Node::column().w(Size::Grow).h_px(64.0).margin(Edges::ZERO.l(-16.0).r(-16.0).b(-12.0)), |ui| {
-            if let Some((key, rect)) = super::compact::list::deck(ui, selected > 0, false) {
-                *intent = Some(match key {
-                    "play-next" => Intent::Page(crate::PageAction::PlayNext),
-                    "add-to-list" => Intent::PageListChoices((rect.x, rect.y - 36.0 * 8.0)),
-                    "offline" => Intent::Page(crate::PageAction::KeepOffline),
-                    _ => Intent::Page(crate::PageAction::AddToQueue),
-                });
-            }
-        }); });
+        ui.id("selection-deck", |ui| {
+            ui.column(
+                Node::column()
+                    .w(Size::Grow)
+                    .h_px(64.0)
+                    .margin(Edges::ZERO.l(-16.0).r(-16.0).b(-12.0)),
+                |ui| {
+                    if let Some((key, rect)) = super::compact::list::deck(ui, selected > 0, false) {
+                        *intent = Some(match key {
+                            "play-next" => Intent::Page(crate::PageAction::PlayNext),
+                            "add-to-list" => Intent::PageListChoices((rect.x, rect.y - 36.0 * 8.0)),
+                            "offline" => Intent::Page(crate::PageAction::KeepOffline),
+                            _ => Intent::Page(crate::PageAction::AddToQueue),
+                        });
+                    }
+                },
+            );
+        });
     }
 }
 
 /// A folder row's menu: Open folder, Play folder, Shuffle folder.
-pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: (f32, f32), intent: &mut Option<Intent>) {
+pub(super) fn folder_menu(
+    ui: &mut Ui,
+    player: &PlayerView<'_>,
+    entry: i64,
+    at: (f32, f32),
+    intent: &mut Option<Intent>,
+) {
     let Some(directory) = player.files.and_then(|files| files.directory.as_ref()) else {
         *intent = Some(Intent::CloseFolderMenu);
         return;
     };
-    let Some(found) = directory.entries.iter().find(|candidate| candidate.id == entry && candidate.directory) else {
+    let Some(found) = directory
+        .entries
+        .iter()
+        .find(|candidate| candidate.id == entry && candidate.directory)
+    else {
         *intent = Some(Intent::CloseFolderMenu);
         return;
     };
@@ -796,13 +1523,25 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
     let rows = [
         MenuItem::new("Open folder").id(OPEN),
         MenuItem::new("Play folder").id(PLAY).disabled(!filled),
-        MenuItem::new("Shuffle folder").id(SHUFFLE).disabled(!filled),
+        MenuItem::new("Shuffle folder")
+            .id(SHUFFLE)
+            .disabled(!filled),
     ];
     // Swift's folder menu ends 160 points short of the view's end, opening leftward from the row's "…" key.
     let x = at.0.min(ui.view_size().width - 200.0) - 160.0;
-    let menu = ui.menu("folder-menu", pxui::Point::new(x, at.1), &rows, &super::songs::MENU.name("Folder actions"));
+    let menu = ui.menu(
+        "folder-menu",
+        pxui::Point::new(x, at.1),
+        &rows,
+        &super::songs::MENU.name("Folder actions"),
+    );
     match menu.chosen_id {
-        Some(OPEN) => *intent = Some(Intent::Files(Request::Browse(Location { parent: Some(entry), ..directory.location }))),
+        Some(OPEN) => {
+            *intent = Some(Intent::Files(Request::Browse(Location {
+                parent: Some(entry),
+                ..directory.location
+            })))
+        }
         Some(PLAY) => *intent = Some(Intent::PlayEntryFolder(entry)),
         Some(_) => *intent = Some(Intent::ShuffleEntryFolder(entry)),
         None => {}
@@ -814,15 +1553,23 @@ pub(super) fn folder_menu(ui: &mut Ui, player: &PlayerView<'_>, entry: i64, at: 
 
 /// Swift's Add music sheet: a folder or some files (`localwave-sheet` / `CHOICES`); Close, Escape or a press outside closes it.
 pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Option<Intent>) {
-    let enabled = player.files.is_some_and(|files| files.account.is_some() && !files.busy);
+    let enabled = player
+        .files
+        .is_some_and(|files| files.account.is_some() && !files.busy);
     let buttons = [
         DialogButton::new("A folder").detail("Watched for changes. iCloud Drive, Google Drive, Dropbox, On My iPhone, USB drives, SMB servers.").disabled(!enabled),
         DialogButton::new("Some files").detail("Play them now; they join the library too.").disabled(!enabled),
         DialogButton::new("Close").cancel(),
     ];
-    let sheet = ui.dialog("add-music", "Add music", &buttons, &ADD_MUSIC.w_px(sheet_width(ui)), &mut |ui| {
-        ui.label("Files stay where they are", CAPTION.grow());
-    });
+    let sheet = ui.dialog(
+        "add-music",
+        "Add music",
+        &buttons,
+        &ADD_MUSIC.w_px(sheet_width(ui)),
+        &mut |ui| {
+            ui.label("Files stay where they are", CAPTION.grow());
+        },
+    );
     match sheet.chosen {
         Some(0) => *intent = Some(Intent::ChooseFolder),
         Some(1) => *intent = Some(Intent::ChooseAudio),
@@ -834,15 +1581,26 @@ pub(super) fn add_music(ui: &mut Ui, player: &PlayerView<'_>, intent: &mut Optio
 
 /// The right-hand key of the folder toolbar.
 fn legend(ui: &mut Ui) {
-    use lw_core::{FileAvailability::{InCloud, OnDevice}, FileState::Copied};
-    ui.row(Node::row().w(Size::Fit).h_px(30.0).gap(6.0).align(Align::Center).padding(Edges::ZERO.l(4.0)), |ui| {
-        super::songs::row::glyph(ui, (Copied, Some(OnDevice), true), true);
-        ui.label("kept offline", FOOTNOTE);
-        super::songs::row::glyph(ui, (Copied, Some(OnDevice), false), true);
-        ui.label("on this Mac", FOOTNOTE);
-        super::songs::row::glyph(ui, (Copied, Some(InCloud), false), true);
-        ui.label("in cloud", FOOTNOTE);
-    });
+    use lw_core::{
+        FileAvailability::{InCloud, OnDevice},
+        FileState::Copied,
+    };
+    ui.row(
+        Node::row()
+            .w(Size::Fit)
+            .h_px(30.0)
+            .gap(6.0)
+            .align(Align::Center)
+            .padding(Edges::ZERO.l(4.0)),
+        |ui| {
+            super::songs::row::glyph(ui, (Copied, Some(OnDevice), true), true);
+            ui.label("kept offline", FOOTNOTE);
+            super::songs::row::glyph(ui, (Copied, Some(OnDevice), false), true);
+            ui.label("on this Mac", FOOTNOTE);
+            super::songs::row::glyph(ui, (Copied, Some(InCloud), false), true);
+            ui.label("in cloud", FOOTNOTE);
+        },
+    );
 }
 
 #[cfg(test)]
@@ -866,7 +1624,16 @@ mod tests {
         events: &[Event],
         intent: &mut Option<Intent>,
     ) {
-        frame_at((1440.0, 872.0), ui, files, catalog, state, time, events, intent)
+        frame_at(
+            (1440.0, 872.0),
+            ui,
+            files,
+            catalog,
+            state,
+            time,
+            events,
+            intent,
+        )
     }
     #[allow(clippy::too_many_arguments)]
     fn frame_at(
@@ -922,7 +1689,15 @@ mod tests {
         time: &mut f64,
         name: &str,
     ) -> Option<Intent> {
-        let frame = |ui: &mut Ui, files: &Snapshot, catalog: &Catalog, state: &ShellState, time: &mut f64, events: &[Event], intent: &mut Option<Intent>| frame_at(size, ui, files, catalog, state, time, events, intent);
+        let frame = |ui: &mut Ui,
+                     files: &Snapshot,
+                     catalog: &Catalog,
+                     state: &ShellState,
+                     time: &mut f64,
+                     events: &[Event],
+                     intent: &mut Option<Intent>| {
+            frame_at(size, ui, files, catalog, state, time, events, intent)
+        };
         let rect = ui
             .a11y_nodes()
             .iter()
@@ -949,14 +1724,22 @@ mod tests {
             catalog,
             state,
             time,
-            &[Event::pointer(input::wire::POINTER_RELEASED, 0, x as f64, y as f64)],
+            &[Event::pointer(
+                input::wire::POINTER_RELEASED,
+                0,
+                x as f64,
+                y as f64,
+            )],
             &mut intent,
         );
         intent
     }
 
     fn names(ui: &Ui) -> Vec<String> {
-        ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_string()).collect()
+        ui.a11y_nodes()
+            .iter()
+            .map(|node| ui.a11y_name_of(node).to_string())
+            .collect()
     }
 
     #[test]
@@ -983,7 +1766,10 @@ mod tests {
             account: Some(42),
             source_count: "2 sources, watched for changes".into(),
             offline_usage: "0.0 of 8 GB".into(),
-            sources: Arc::from([card(1, "iCloud Drive", None), card(2, "Dropbox", Some("Access expired."))]),
+            sources: Arc::from([
+                card(1, "iCloud Drive", None),
+                card(2, "Dropbox", Some("Access expired.")),
+            ]),
             ..Default::default()
         };
         let catalog = Catalog::default();
@@ -995,12 +1781,23 @@ mod tests {
         }
         let seen = names(&ui);
         for expected in [
-            "Folders", "2 sources, watched for changes", "iCloud Drive", "34 songs",
-            "0 kept · 28 on device · 6 in cloud", "2 min. ago", "Access expired.",
-            "Reconnect folder", "Options", "Offline space", "0.0 of 8 GB",
+            "Folders",
+            "2 sources, watched for changes",
+            "iCloud Drive",
+            "34 songs",
+            "0 kept · 28 on device · 6 in cloud",
+            "2 min. ago",
+            "Access expired.",
+            "Reconnect folder",
+            "Options",
+            "Offline space",
+            "0.0 of 8 GB",
             "Cloud songs download when played and the next two download ahead. Pinned folders stay.",
         ] {
-            assert!(seen.iter().any(|name| name == expected), "missing {expected}: {seen:?}");
+            assert!(
+                seen.iter().any(|name| name == expected),
+                "missing {expected}: {seen:?}"
+            );
         }
         for round in 0..5 {
             mem_sys::local_reset();
@@ -1008,16 +1805,34 @@ mod tests {
                 frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
             }
             if round >= 3 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm source cards allocate");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm source cards allocate"
+                );
             }
         }
-        let location = Location { user: 42, source: 1, parent: Some(5) };
-        let glyph = |state, availability, pinned| Some(Glyph { state, availability: Some(availability), pinned });
+        let location = Location {
+            user: 42,
+            source: 1,
+            parent: Some(5),
+        };
+        let glyph = |state, availability, pinned| {
+            Some(Glyph {
+                state,
+                availability: Some(availability),
+                pinned,
+            })
+        };
         let entry = |id: i64, name: &str, audio: bool, glyph| Entry {
             id,
             name: name.into(),
             number: if audio { id.to_string() } else { String::new() },
-            kind: if audio { "flac audio".into() } else { "Not audio".into() },
+            kind: if audio {
+                "flac audio".into()
+            } else {
+                "Not audio".into()
+            },
             size: "20.3 MB".into(),
             time: "2:29".into(),
             glyph,
@@ -1034,7 +1849,12 @@ mod tests {
             detail: "3 items".into(),
             songs: Arc::from([1, 2]),
             entries: vec![
-                entry(1, "01 Blue Hour.flac", true, glyph(FileState::Copied, FileAvailability::OnDevice, true)),
+                entry(
+                    1,
+                    "01 Blue Hour.flac",
+                    true,
+                    glyph(FileState::Copied, FileAvailability::OnDevice, true),
+                ),
                 entry(2, "02 Sodium.flac", true, None),
                 entry(3, "cover.jpg", false, None),
             ],
@@ -1046,26 +1866,62 @@ mod tests {
         }
         let seen = names(&ui);
         for expected in [
-            "Back", "iCloud Drive / Halden Marsh / Field Recordings 04", "Field Recordings 04",
-            "8 songs · 310.9 MB · 7 offline", "Play folder", "Shuffle", "Keep offline",
-            "kept offline", "on this Mac", "in cloud", "#", "Name", "Kind", "Size", "On device",
-            "Time", "01 Blue Hour.flac", "flac audio", "Not audio", "cover.jpg", "20.3 MB", "2:29",
+            "Back",
+            "iCloud Drive / Halden Marsh / Field Recordings 04",
+            "Field Recordings 04",
+            "8 songs · 310.9 MB · 7 offline",
+            "Play folder",
+            "Shuffle",
+            "Keep offline",
+            "kept offline",
+            "on this Mac",
+            "in cloud",
+            "#",
+            "Name",
+            "Kind",
+            "Size",
+            "On device",
+            "Time",
+            "01 Blue Hour.flac",
+            "flac audio",
+            "Not audio",
+            "cover.jpg",
+            "20.3 MB",
+            "2:29",
         ] {
-            assert!(seen.iter().any(|name| name == expected), "missing {expected}: {seen:?}");
+            assert!(
+                seen.iter().any(|name| name == expected),
+                "missing {expected}: {seen:?}"
+            );
         }
         // Swift's desktop folder page has no Import or options keys: they are its right-click menu
-        assert!(!seen.iter().any(|name| name == "Import folder" || name == "Folder options"), "no keys over the page: {seen:?}");
-        assert!(seen.iter().any(|name| name == "Kept offline"), "the pinned on-device row's glyph says so");
+        assert!(
+            !seen
+                .iter()
+                .any(|name| name == "Import folder" || name == "Folder options"),
+            "no keys over the page: {seen:?}"
+        );
+        assert!(
+            seen.iter().any(|name| name == "Kept offline"),
+            "the pinned on-device row's glyph says so"
+        );
         for (label, intent) in [
             ("Play folder", Intent::PlayFolder),
             ("Shuffle", Intent::ShuffleFolder),
             ("Keep offline", Intent::KeepFolder),
         ] {
-            assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, label), Some(intent));
+            assert_eq!(
+                click(&mut ui, &files, &catalog, &state, &mut time, label),
+                Some(intent)
+            );
         }
         assert_eq!(
             click(&mut ui, &files, &catalog, &state, &mut time, "Import"),
-            Some(Intent::Files(Request::ImportPath { user: 42, source: 1, path: 2 })),
+            Some(Intent::Files(Request::ImportPath {
+                user: 42,
+                source: 1,
+                path: 2
+            })),
             "only the unimported audio row offers Import"
         );
         for round in 0..5 {
@@ -1074,15 +1930,33 @@ mod tests {
                 frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
             }
             if round >= 3 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm folder page allocates");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm folder page allocates"
+                );
             }
         }
         // U4b.4 #73 / U2b.4.37: the table's folder row opens on a press, again on the next press (nothing is selected), and on Return,
         // never on an arrow key; a plain file's row is disabled and takes none
-        let mut with_folder = Directory { location, source_root: 5, ..Default::default() };
+        let mut with_folder = Directory {
+            location,
+            source_root: 5,
+            ..Default::default()
+        };
         with_folder.entries = vec![
-            Entry { id: 9, name: "Takes".into(), directory: true, ..Default::default() },
-            Entry { id: 10, name: "Mixes".into(), directory: true, ..Default::default() },
+            Entry {
+                id: 9,
+                name: "Takes".into(),
+                directory: true,
+                ..Default::default()
+            },
+            Entry {
+                id: 10,
+                name: "Mixes".into(),
+                directory: true,
+                ..Default::default()
+            },
             entry(3, "cover.jpg", false, None),
         ];
         files.directory = Some(Arc::new(with_folder));
@@ -1090,29 +1964,79 @@ mod tests {
         for _ in 0..3 {
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
-        let browse = Intent::Files(Request::Browse(Location { parent: Some(9), ..location }));
-        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse));
+        let browse = Intent::Files(Request::Browse(Location {
+            parent: Some(9),
+            ..location
+        }));
+        assert_eq!(
+            click(&mut ui, &files, &catalog, &state, &mut time, "Takes"),
+            Some(browse)
+        );
         state.apply(browse);
-        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Takes"), Some(browse), "a second press opens again");
-        for (key, want) in [(input::Key::ArrowDown, None), (input::Key::ArrowUp, None), (input::Key::Enter, Some(browse))] {
+        assert_eq!(
+            click(&mut ui, &files, &catalog, &state, &mut time, "Takes"),
+            Some(browse),
+            "a second press opens again"
+        );
+        for (key, want) in [
+            (input::Key::ArrowDown, None),
+            (input::Key::ArrowUp, None),
+            (input::Key::Enter, Some(browse)),
+        ] {
             let mut intent = None;
-            let (down, up) = (Event::key(Event::KEY_PRESSED, key.code()), Event::key(Event::KEY_RELEASED, key.code()));
-            frame(&mut ui, &files, &catalog, &state, &mut time, &[down, up], &mut intent);
-            assert_eq!(intent, want, "{key:?}: arrows never open, Return opens the keyboard's row");
+            let (down, up) = (
+                Event::key(Event::KEY_PRESSED, key.code()),
+                Event::key(Event::KEY_RELEASED, key.code()),
+            );
+            frame(
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                &[down, up],
+                &mut intent,
+            );
+            assert_eq!(
+                intent, want,
+                "{key:?}: arrows never open, Return opens the keyboard's row"
+            );
         }
-        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "cover.jpg"), None);
-        let row = |name: &str| ui.a11y_nodes().iter().find(|node| node.role == Role::Row as u32 && ui.a11y_name_of(node) == name).map(|node| node.states & pxui::A11yStates::ENABLED.bits() != 0);
-        assert_eq!((row("Takes"), row("cover.jpg")), (Some(true), Some(false)), "the folder's row is enabled, the plain file's disabled");
+        assert_eq!(
+            click(&mut ui, &files, &catalog, &state, &mut time, "cover.jpg"),
+            None
+        );
+        let row = |name: &str| {
+            ui.a11y_nodes()
+                .iter()
+                .find(|node| node.role == Role::Row as u32 && ui.a11y_name_of(node) == name)
+                .map(|node| node.states & pxui::A11yStates::ENABLED.bits() != 0)
+        };
+        assert_eq!(
+            (row("Takes"), row("cover.jpg")),
+            (Some(true), Some(false)),
+            "the folder's row is enabled, the plain file's disabled"
+        );
         // Nothing saved: Play folder, Shuffle and Keep offline are disabled; kept shows Kept offline.
-        let mut empty = Directory { location, source_root: 5, ..Default::default() };
+        let mut empty = Directory {
+            location,
+            source_root: 5,
+            ..Default::default()
+        };
         empty.entries = vec![entry(3, "cover.jpg", false, None)];
         files.directory = Some(Arc::new(empty));
         files.revision += 1;
         for _ in 0..3 {
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
-        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Play folder"), None);
-        assert_eq!(click(&mut ui, &files, &catalog, &state, &mut time, "Keep offline"), None);
+        assert_eq!(
+            click(&mut ui, &files, &catalog, &state, &mut time, "Play folder"),
+            None
+        );
+        assert_eq!(
+            click(&mut ui, &files, &catalog, &state, &mut time, "Keep offline"),
+            None
+        );
     }
 
     #[test]
@@ -1168,7 +2092,14 @@ mod tests {
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
         assert_eq!(
-            click(&mut ui, &files, &catalog, &state, &mut time, "Reconnect folder"),
+            click(
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "Reconnect folder"
+            ),
             Some(Intent::ReconnectSource(target))
         );
         let menu = click(&mut ui, &files, &catalog, &state, &mut time, "Options").unwrap();
@@ -1329,7 +2260,14 @@ mod tests {
             "all 10000 paths must not become UI nodes"
         );
         // the folder menu (a right-click on the rows) leads with Import folder for the shown folder
-        state.apply(Intent::SourceMenu(Target { user: 42, source: location.source, root: 11 }, (400.0, 300.0)));
+        state.apply(Intent::SourceMenu(
+            Target {
+                user: 42,
+                source: location.source,
+                root: 11,
+            },
+            (400.0, 300.0),
+        ));
         for _ in 0..2 {
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
@@ -1353,7 +2291,12 @@ mod tests {
             for step in 0..20 {
                 let events = [
                     Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
-                    Event::pointer(input::wire::SCROLLED, 0, 0.0, if step < 10 { -1.0 } else { 1.0 }),
+                    Event::pointer(
+                        input::wire::SCROLLED,
+                        0,
+                        0.0,
+                        if step < 10 { -1.0 } else { 1.0 },
+                    ),
                 ];
                 let mut intent = None;
                 frame(
@@ -1381,12 +2324,26 @@ mod tests {
             click(&mut ui, &files, &catalog, &state, &mut time, "Cancel"),
             Some(Intent::Files(Request::Cancel))
         );
-        state.apply(Intent::SourceMenu(Target { user: 42, source: location.source, root: 11 }, (400.0, 300.0)));
+        state.apply(Intent::SourceMenu(
+            Target {
+                user: 42,
+                source: location.source,
+                root: 11,
+            },
+            (400.0, 300.0),
+        ));
         for _ in 0..2 {
             frame(&mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
         }
         assert_eq!(
-            click(&mut ui, &files, &catalog, &state, &mut time, "Import folder"),
+            click(
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "Import folder"
+            ),
             None,
             "a running job disables Import"
         );
@@ -1421,23 +2378,19 @@ mod tests {
         state.apply(Intent::Navigate(Route::Files));
         for step in 0..3 {
             time += if step == 1 { 1.0 } else { 1.0 / 60.0 };
-            crate::testing::frame(
-                &mut ui,
-                &FrameIn::new(640.0, 480.0).time(time),
-                &mut |ui| {
-                    shell(
-                        ui,
-                        &PlayerView {
-                            files: Some(&files),
-                            ..Default::default()
-                        },
-                        0.0,
-                        &catalog,
-                        &state,
-                        &mut None,
-                    );
-                },
-            )
+            crate::testing::frame(&mut ui, &FrameIn::new(640.0, 480.0).time(time), &mut |ui| {
+                shell(
+                    ui,
+                    &PlayerView {
+                        files: Some(&files),
+                        ..Default::default()
+                    },
+                    0.0,
+                    &catalog,
+                    &state,
+                    &mut None,
+                );
+            })
             .unwrap();
         }
         let mut right = 0.0;
@@ -1462,84 +2415,219 @@ mod tests {
         let size = (390.0, 778.0);
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let location = Location { user: 42, source: 1, parent: Some(5) };
+        let location = Location {
+            user: 42,
+            source: 1,
+            parent: Some(5),
+        };
         let entry = |id: i64, name: &str, detail: &str, audio: bool, directory: bool| Entry {
-            id, name: name.into(), detail: detail.into(), audio, directory,
+            id,
+            name: name.into(),
+            detail: detail.into(),
+            audio,
+            directory,
             number: if audio { id.to_string() } else { String::new() },
             ..Default::default()
         };
         let directory = Directory {
-            location, source_root: 5, up: Some(4), title: "Field Recordings".into(), breadcrumb: "iCloud / Field Recordings".into(),
-            detail: "3 items".into(), songs: Arc::from([9_i64]),
-            entries: vec![entry(1, "Takes", "Folder", false, true), entry(2, "01 Blue Hour.flac", "FLAC · 20.3 MB · 2:29", true, false), entry(3, "cover.jpg", "not audio", false, false)],
+            location,
+            source_root: 5,
+            up: Some(4),
+            title: "Field Recordings".into(),
+            breadcrumb: "iCloud / Field Recordings".into(),
+            detail: "3 items".into(),
+            songs: Arc::from([9_i64]),
+            entries: vec![
+                entry(1, "Takes", "Folder", false, true),
+                entry(2, "01 Blue Hour.flac", "FLAC · 20.3 MB · 2:29", true, false),
+                entry(3, "cover.jpg", "not audio", false, false),
+            ],
             non_audio: 1,
             ..Default::default()
         };
-        let files = Snapshot { revision: 1, account: Some(42), directory: Some(Arc::new(directory)), ..Default::default() };
+        let files = Snapshot {
+            revision: 1,
+            account: Some(42),
+            directory: Some(Arc::new(directory)),
+            ..Default::default()
+        };
         let (catalog, mut state, mut time) = (Catalog::default(), ShellState::default(), 0.0);
         state.apply(Intent::Navigate(Route::Files));
         for _ in 0..3 {
-            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
         let seen = names(&ui);
-        for expected in ["Back", "Folder options", "Play folder", "Shuffle folder", "Keep folder offline", "Takes", "01 Blue Hour.flac"] {
-            assert!(seen.iter().any(|name| name == expected), "missing {expected}: {seen:?}");
+        for expected in [
+            "Back",
+            "Folder options",
+            "Play folder",
+            "Shuffle folder",
+            "Keep folder offline",
+            "Takes",
+            "01 Blue Hour.flac",
+        ] {
+            assert!(
+                seen.iter().any(|name| name == expected),
+                "missing {expected}: {seen:?}"
+            );
         }
-        assert!(!seen.iter().any(|name| name == "cover.jpg"), "non-audio files stay hidden without the setting");
+        assert!(
+            !seen.iter().any(|name| name == "cover.jpg"),
+            "non-audio files stay hidden without the setting"
+        );
         for (label, intent) in [
             ("Play folder", Intent::PlayFolder),
             ("Shuffle folder", Intent::ShuffleFolder),
             ("Keep folder offline", Intent::KeepFolder),
-            ("Back", Intent::Files(Request::Browse(Location { parent: Some(4), ..location }))),
-            ("Takes", Intent::Files(Request::Browse(Location { parent: Some(1), ..location }))),
+            (
+                "Back",
+                Intent::Files(Request::Browse(Location {
+                    parent: Some(4),
+                    ..location
+                })),
+            ),
+            (
+                "Takes",
+                Intent::Files(Request::Browse(Location {
+                    parent: Some(1),
+                    ..location
+                })),
+            ),
         ] {
-            assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, label), Some(intent), "{label}");
+            assert_eq!(
+                click_at(size, &mut ui, &files, &catalog, &state, &mut time, label),
+                Some(intent),
+                "{label}"
+            );
         }
         for round in 0..5 {
             mem_sys::local_reset();
             for _ in 0..10 {
-                frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+                frame_at(
+                    size,
+                    &mut ui,
+                    &files,
+                    &catalog,
+                    &state,
+                    &mut time,
+                    &[],
+                    &mut None,
+                );
             }
             if round >= 3 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact folder page allocates");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm compact folder page allocates"
+                );
             }
         }
         // the rows' flags and the header's counts (one pass over every shown row) are prepared per snapshot, filter, mode and marks:
         // a warm frame reads them and walks no row (U4b review ruling 3)
         let passes = FOLDER_PASSES.get();
         for _ in 0..10 {
-            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
         assert_eq!(FOLDER_PASSES.get(), passes, "a warm frame prepares nothing");
         state.apply(Intent::SelectMode(true));
-        frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
-        assert_eq!(FOLDER_PASSES.get(), passes + 1, "a mode change prepares once");
+        frame_at(
+            size,
+            &mut ui,
+            &files,
+            &catalog,
+            &state,
+            &mut time,
+            &[],
+            &mut None,
+        );
+        assert_eq!(
+            FOLDER_PASSES.get(),
+            passes + 1,
+            "a mode change prepares once"
+        );
     }
 
     #[test]
-    fn compact_folder_select_mode_folder_menus_and_hidden_footer_route_intents_without_warm_allocations() {
+    fn compact_folder_select_mode_folder_menus_and_hidden_footer_route_intents_without_warm_allocations()
+     {
         use lw_core::FileAvailability::OnDevice;
         mem_sys::set_peer(pxui::library_counter);
         let size = (390.0, 778.0);
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let location = Location { user: 42, source: 1, parent: Some(5) };
-        let glyph = Some(crate::files::Glyph { state: lw_core::FileState::Copied, availability: Some(OnDevice), pinned: false });
-        let audio = |id: i64, name: &str, song: i64| Entry { id, name: name.into(), detail: "FLAC".into(), audio: true, song: Some(song), glyph, ..Default::default() };
+        let location = Location {
+            user: 42,
+            source: 1,
+            parent: Some(5),
+        };
+        let glyph = Some(crate::files::Glyph {
+            state: lw_core::FileState::Copied,
+            availability: Some(OnDevice),
+            pinned: false,
+        });
+        let audio = |id: i64, name: &str, song: i64| Entry {
+            id,
+            name: name.into(),
+            detail: "FLAC".into(),
+            audio: true,
+            song: Some(song),
+            glyph,
+            ..Default::default()
+        };
         let directory = Directory {
-            location, source_root: 5, up: Some(4), title: "Field".into(), detail: "4 items".into(), songs: Arc::from([9_i64, 10, 11]),
+            location,
+            source_root: 5,
+            up: Some(4),
+            title: "Field".into(),
+            detail: "4 items".into(),
+            songs: Arc::from([9_i64, 10, 11]),
             entries: vec![
-                Entry { id: 1, name: "Takes".into(), detail: "Folder".into(), directory: true, songs: Arc::from([11_i64]), ..Default::default() },
+                Entry {
+                    id: 1,
+                    name: "Takes".into(),
+                    detail: "Folder".into(),
+                    directory: true,
+                    songs: Arc::from([11_i64]),
+                    ..Default::default()
+                },
                 audio(2, "01 Here.flac", 9),
                 audio(3, "02 There.flac", 10),
-                Entry { id: 4, name: "cover.jpg".into(), detail: "not audio".into(), ..Default::default() },
+                Entry {
+                    id: 4,
+                    name: "cover.jpg".into(),
+                    detail: "not audio".into(),
+                    ..Default::default()
+                },
             ],
             non_audio: 1,
             hidden_label: "1 non-audio file hidden ·".into(),
             filter_counts: ["2".into(), "2".into(), "0".into()],
             ..Default::default()
         };
-        let files = Snapshot { revision: 1, account: Some(42), directory: Some(Arc::new(directory)), ..Default::default() };
+        let files = Snapshot {
+            revision: 1,
+            account: Some(42),
+            directory: Some(Arc::new(directory)),
+            ..Default::default()
+        };
         let (catalog, mut state, mut time) = (Catalog::default(), ShellState::default(), 0.0);
         state.apply(Intent::Navigate(Route::Files));
         let settle = |ui: &mut Ui, state: &ShellState, time: &mut f64| {
@@ -1550,59 +2638,154 @@ mod tests {
         settle(&mut ui, &state, &mut time);
         let seen = names(&ui);
         for want in ["Select", "Actions for folder", "show"] {
-            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+            assert!(
+                seen.iter().any(|name| name == want),
+                "missing {want}: {seen:?}"
+            );
         }
         assert_eq!(
             click_at(size, &mut ui, &files, &catalog, &state, &mut time, "show"),
-            Some(Intent::Setting(lw_core::preferences::Change::ToggleShowNonAudio))
+            Some(Intent::Setting(
+                lw_core::preferences::Change::ToggleShowNonAudio
+            ))
         );
         // The folder row's menu opens, then Open / Play / Shuffle folder emit their intents.
-        let menu = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Actions for folder");
+        let menu = click_at(
+            size,
+            &mut ui,
+            &files,
+            &catalog,
+            &state,
+            &mut time,
+            "Actions for folder",
+        );
         assert!(matches!(menu, Some(Intent::FolderMenu(1, _))), "{menu:?}");
         for (label, want) in [
-            ("Open folder", Intent::Files(Request::Browse(Location { parent: Some(1), ..location }))),
+            (
+                "Open folder",
+                Intent::Files(Request::Browse(Location {
+                    parent: Some(1),
+                    ..location
+                })),
+            ),
             ("Play folder", Intent::PlayEntryFolder(1)),
             ("Shuffle folder", Intent::ShuffleEntryFolder(1)),
         ] {
             state.apply(menu.unwrap());
             settle(&mut ui, &state, &mut time);
-            assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, label), Some(want), "{label}");
+            assert_eq!(
+                click_at(size, &mut ui, &files, &catalog, &state, &mut time, label),
+                Some(want),
+                "{label}"
+            );
             state.apply(Intent::CloseFolderMenu);
             settle(&mut ui, &state, &mut time);
         }
         // Select mode: header, checkboxes on saved songs, the deck acts on the marked songs.
-        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Select"), Some(Intent::SelectMode(true)));
+        assert_eq!(
+            click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Select"),
+            Some(Intent::SelectMode(true))
+        );
         state.apply(Intent::SelectMode(true));
         settle(&mut ui, &state, &mut time);
         let seen = names(&ui);
-        for want in ["Select all", "Done", "Play next", "Add to list", "Offline", "Queue", "0 selected"] {
-            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        for want in [
+            "Select all",
+            "Done",
+            "Play next",
+            "Add to list",
+            "Offline",
+            "Queue",
+            "0 selected",
+        ] {
+            assert!(
+                seen.iter().any(|name| name == want),
+                "missing {want}: {seen:?}"
+            );
         }
-        assert!(!seen.iter().any(|name| name == "Actions for folder"), "menus hide while selecting");
+        assert!(
+            !seen.iter().any(|name| name == "Actions for folder"),
+            "menus hide while selecting"
+        );
         // ruling 3 (U4b): the list toggles a saved song's row a tap (`SelectMode::Toggle`); a folder's row takes none while selecting
-        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Takes"), None);
-        let tap = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "02 There.flac");
+        assert_eq!(
+            click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Takes"),
+            None
+        );
+        let tap = click_at(
+            size,
+            &mut ui,
+            &files,
+            &catalog,
+            &state,
+            &mut time,
+            "02 There.flac",
+        );
         assert_eq!(tap, Some(Intent::Selected(2)));
         state.apply(tap.unwrap());
         settle(&mut ui, &state, &mut time);
         assert!(names(&ui).iter().any(|name| name == "1 selected"));
-        assert_eq!(state.selected_folder_songs(files.directory.as_ref().unwrap()), vec![10]);
-        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Play next"), Some(Intent::Page(crate::PageAction::PlayNext)));
-        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Queue"), Some(Intent::Page(crate::PageAction::AddToQueue)));
-        let lists = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Add to list");
-        assert!(matches!(lists, Some(Intent::PageListChoices(_))), "{lists:?}");
+        assert_eq!(
+            state.selected_folder_songs(files.directory.as_ref().unwrap()),
+            vec![10]
+        );
+        assert_eq!(
+            click_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "Play next"
+            ),
+            Some(Intent::Page(crate::PageAction::PlayNext))
+        );
+        assert_eq!(
+            click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Queue"),
+            Some(Intent::Page(crate::PageAction::AddToQueue))
+        );
+        let lists = click_at(
+            size,
+            &mut ui,
+            &files,
+            &catalog,
+            &state,
+            &mut time,
+            "Add to list",
+        );
+        assert!(
+            matches!(lists, Some(Intent::PageListChoices(_))),
+            "{lists:?}"
+        );
         // Another folder leaves Select mode.
-        state.apply(Intent::Files(Request::Browse(Location { parent: Some(1), ..location })));
+        state.apply(Intent::Files(Request::Browse(Location {
+            parent: Some(1),
+            ..location
+        })));
         assert!(!state.selecting() && (state.marked_count() == 0));
         state.apply(Intent::SelectMode(true));
         settle(&mut ui, &state, &mut time);
         for round in 0..5 {
             mem_sys::local_reset();
             for _ in 0..10 {
-                frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+                frame_at(
+                    size,
+                    &mut ui,
+                    &files,
+                    &catalog,
+                    &state,
+                    &mut time,
+                    &[],
+                    &mut None,
+                );
             }
             if round >= 3 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm folder select frame allocates");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm folder select frame allocates"
+                );
             }
         }
         // the folder list's disabled rows stay on the Files page (the songs lists share only the marks): a plain file's row, shown
@@ -1610,7 +2793,15 @@ mod tests {
         state.apply(Intent::SelectMode(false));
         state.song_rows.borrow_mut().rows = vec![0, pxui::ListState::DISABLED];
         state.apply(Intent::Navigate(Route::Songs));
-        assert!(!state.song_rows.borrow().rows.iter().any(|f| f & pxui::ListState::DISABLED != 0), "the songs lists never inherit disabled rows");
+        assert!(
+            !state
+                .song_rows
+                .borrow()
+                .rows
+                .iter()
+                .any(|f| f & pxui::ListState::DISABLED != 0),
+            "the songs lists never inherit disabled rows"
+        );
     }
 
     #[test]
@@ -1620,17 +2811,43 @@ mod tests {
         let size = (390.0, 778.0);
         let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
         ui.set_a11y(true);
-        let location = Location { user: 42, source: 1, parent: Some(5) };
-        let glyph = |availability| Some(crate::files::Glyph { state: lw_core::FileState::Copied, availability: Some(availability), pinned: false });
+        let location = Location {
+            user: 42,
+            source: 1,
+            parent: Some(5),
+        };
+        let glyph = |availability| {
+            Some(crate::files::Glyph {
+                state: lw_core::FileState::Copied,
+                availability: Some(availability),
+                pinned: false,
+            })
+        };
         let audio = |id: i64, name: &str, song: Option<i64>, availability| Entry {
-            id, name: name.into(), detail: "FLAC · 1.0 MB · 2:29".into(), audio: true, song,
+            id,
+            name: name.into(),
+            detail: "FLAC · 1.0 MB · 2:29".into(),
+            audio: true,
+            song,
             glyph: song.and_then(|_| glyph(availability)),
-            number: id.to_string(), ..Default::default()
+            number: id.to_string(),
+            ..Default::default()
         };
         let directory = Directory {
-            location, source_root: 5, up: Some(4), title: "Field".into(), detail: "4 items".into(), songs: Arc::from([9_i64, 10]),
+            location,
+            source_root: 5,
+            up: Some(4),
+            title: "Field".into(),
+            detail: "4 items".into(),
+            songs: Arc::from([9_i64, 10]),
             entries: vec![
-                Entry { id: 1, name: "Takes".into(), detail: "Folder".into(), directory: true, ..Default::default() },
+                Entry {
+                    id: 1,
+                    name: "Takes".into(),
+                    detail: "Folder".into(),
+                    directory: true,
+                    ..Default::default()
+                },
                 audio(2, "01 Here.flac", Some(9), OnDevice),
                 audio(3, "02 Cloud.flac", Some(10), InCloud),
                 audio(4, "03 New.flac", None, OnDevice),
@@ -1639,69 +2856,241 @@ mod tests {
             filter_counts: ["3".into(), "1".into(), "1".into()],
             ..Default::default()
         };
-        let files = Snapshot { revision: 1, account: Some(42), directory: Some(Arc::new(directory)), ..Default::default() };
+        let files = Snapshot {
+            revision: 1,
+            account: Some(42),
+            directory: Some(Arc::new(directory)),
+            ..Default::default()
+        };
         let (catalog, mut state, mut time) = (Catalog::default(), ShellState::default(), 0.0);
         state.apply(Intent::Navigate(Route::Files));
         for _ in 0..3 {
-            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
         let seen = names(&ui);
-        for want in ["All", "Offline", "In cloud", "01 Here.flac", "02 Cloud.flac", "03 New.flac"] {
-            assert!(seen.iter().any(|name| name == want), "missing {want}: {seen:?}");
+        for want in [
+            "All",
+            "Offline",
+            "In cloud",
+            "01 Here.flac",
+            "02 Cloud.flac",
+            "03 New.flac",
+        ] {
+            assert!(
+                seen.iter().any(|name| name == want),
+                "missing {want}: {seen:?}"
+            );
         }
-        assert_eq!(click_at(size, &mut ui, &files, &catalog, &state, &mut time, "01 Here.flac"), Some(Intent::PlayFile(9)));
         assert_eq!(
-            click_at(size, &mut ui, &files, &catalog, &state, &mut time, "03 New.flac"),
-            Some(Intent::Files(Request::ImportPath { user: 42, source: 1, path: 4 })),
+            click_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "01 Here.flac"
+            ),
+            Some(Intent::PlayFile(9))
+        );
+        assert_eq!(
+            click_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                "03 New.flac"
+            ),
+            Some(Intent::Files(Request::ImportPath {
+                user: 42,
+                source: 1,
+                path: 4
+            })),
             "an unsaved file imports on tap"
         );
-        let more = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "Actions for file");
-        assert!(matches!(more, Some(Intent::SongMenu(_, 9, 0, _))), "{more:?}");
-        let tab = click_at(size, &mut ui, &files, &catalog, &state, &mut time, "In cloud");
+        let more = click_at(
+            size,
+            &mut ui,
+            &files,
+            &catalog,
+            &state,
+            &mut time,
+            "Actions for file",
+        );
+        assert!(
+            matches!(more, Some(Intent::SongMenu(_, 9, 0, _))),
+            "{more:?}"
+        );
+        let tab = click_at(
+            size, &mut ui, &files, &catalog, &state, &mut time, "In cloud",
+        );
         assert_eq!(tab, Some(Intent::FilesFilter(crate::FilesFilter::Cloud)));
         state.apply(tab.unwrap());
         for _ in 0..3 {
-            frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &files,
+                &catalog,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
         let seen = names(&ui);
-        assert!(seen.iter().any(|name| name == "02 Cloud.flac") && seen.iter().any(|name| name == "Takes"), "{seen:?}");
-        assert!(!seen.iter().any(|name| name == "01 Here.flac" || name == "03 New.flac"), "{seen:?}");
+        assert!(
+            seen.iter().any(|name| name == "02 Cloud.flac")
+                && seen.iter().any(|name| name == "Takes"),
+            "{seen:?}"
+        );
+        assert!(
+            !seen
+                .iter()
+                .any(|name| name == "01 Here.flac" || name == "03 New.flac"),
+            "{seen:?}"
+        );
         // A folder row's song menu plays inside the folder's context.
-        let library = crate::tests::prepared(vec![lw_core::Song { id: Some(9), title: "Here".into(), ..Default::default() }]);
+        let library = crate::tests::prepared(vec![lw_core::Song {
+            id: Some(9),
+            title: "Here".into(),
+            ..Default::default()
+        }]);
         state.apply(Intent::SongMenu(0, 9, 0, (100.0, 100.0)));
         for _ in 0..3 {
-            frame_at(size, &mut ui, &files, &library, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &files,
+                &library,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
-        let play = ui.a11y_nodes().iter().find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == "Play").unwrap().id;
-        ui.inject_a11y(&[pxui::A11yAction { id: play, action_code: 1, ..Default::default() }]);
+        let play = ui
+            .a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == "Play")
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id: play,
+            action_code: 1,
+            ..Default::default()
+        }]);
         let mut menu = None;
-        frame_at(size, &mut ui, &files, &library, &state, &mut time, &[], &mut menu);
+        frame_at(
+            size,
+            &mut ui,
+            &files,
+            &library,
+            &state,
+            &mut time,
+            &[],
+            &mut menu,
+        );
         assert_eq!(menu, Some(Intent::PlayFile(9)));
         state.apply(Intent::CloseSongMenu);
         state.apply(Intent::Files(Request::Roots));
-        assert_eq!(state.files_filter, crate::FilesFilter::All, "changing folder resets the tab");
+        assert_eq!(
+            state.files_filter,
+            crate::FilesFilter::All,
+            "changing folder resets the tab"
+        );
         for round in 0..5 {
             mem_sys::local_reset();
             for _ in 0..10 {
-                frame_at(size, &mut ui, &files, &catalog, &state, &mut time, &[], &mut None);
+                frame_at(
+                    size,
+                    &mut ui,
+                    &files,
+                    &catalog,
+                    &state,
+                    &mut time,
+                    &[],
+                    &mut None,
+                );
             }
             if round >= 3 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm filtered folder page allocates");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm filtered folder page allocates"
+                );
             }
         }
         // The Folders "+" opens the sheet; its two choices start the pickers.
-        let roots = Snapshot { revision: 2, account: Some(42), ..Default::default() };
+        let roots = Snapshot {
+            revision: 2,
+            account: Some(42),
+            ..Default::default()
+        };
         for _ in 0..3 {
-            frame_at(size, &mut ui, &roots, &catalog, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &roots,
+                &catalog,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
-        let plus = click_at(size, &mut ui, &roots, &catalog, &state, &mut time, "Add music");
+        let plus = click_at(
+            size,
+            &mut ui,
+            &roots,
+            &catalog,
+            &state,
+            &mut time,
+            "Add music",
+        );
         assert_eq!(plus, Some(Intent::ShowAddMusic));
         state.apply(Intent::ShowAddMusic);
         for _ in 0..3 {
-            frame_at(size, &mut ui, &roots, &catalog, &state, &mut time, &[], &mut None);
+            frame_at(
+                size,
+                &mut ui,
+                &roots,
+                &catalog,
+                &state,
+                &mut time,
+                &[],
+                &mut None,
+            );
         }
-        assert_eq!(click_at(size, &mut ui, &roots, &catalog, &state, &mut time, "A folder"), Some(Intent::ChooseFolder));
-        assert_eq!(click_at(size, &mut ui, &roots, &catalog, &state, &mut time, "Some files"), Some(Intent::ChooseAudio));
+        assert_eq!(
+            click_at(
+                size, &mut ui, &roots, &catalog, &state, &mut time, "A folder"
+            ),
+            Some(Intent::ChooseFolder)
+        );
+        assert_eq!(
+            click_at(
+                size,
+                &mut ui,
+                &roots,
+                &catalog,
+                &state,
+                &mut time,
+                "Some files"
+            ),
+            Some(Intent::ChooseAudio)
+        );
         state.apply(Intent::CloseSourceMenu);
         assert!(!state.add_music);
     }

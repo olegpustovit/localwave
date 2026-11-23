@@ -42,7 +42,9 @@ impl App {
             let result = files.request(request);
             if result.is_ok() {
                 // A sidebar source row browses from any page, as Swift's Source route does.
-                if matches!(request, lw_ui::files::Request::Browse(_)) && !shell_state.files_visible() {
+                if matches!(request, lw_ui::files::Request::Browse(_))
+                    && !shell_state.files_visible()
+                {
                     shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
                 }
                 shell_state.apply(lw_ui::Intent::CloseSourceMenu);
@@ -62,7 +64,9 @@ impl App {
             return Ok(Some(Schedule::NextFrame));
         }
         if let lw_ui::Intent::AudioRoute(at) = intent {
-            (*command_error) = lw_apple_sys::window::route_picker(at).err().map(|_| "Could not show audio outputs.");
+            (*command_error) = lw_apple_sys::window::route_picker(at)
+                .err()
+                .map(|_| "Could not show audio outputs.");
             (*error_revision) += 1;
             (*repaint) = Some(now);
             return Ok(Some(Schedule::NextFrame));
@@ -77,7 +81,9 @@ impl App {
             if result.is_ok() {
                 shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Albums));
             }
-            (*command_error) = result.err().map(|_| "Folder work is busy or unavailable. Try again.");
+            (*command_error) = result
+                .err()
+                .map(|_| "Folder work is busy or unavailable. Try again.");
             (*error_revision) += 1;
             (*repaint) = Some(now);
             return Ok(Some(Schedule::NextFrame));
@@ -362,7 +368,9 @@ impl App {
                             return Ok(Some(Schedule::NextFrame));
                         };
                         (
-                            std::sync::Arc::<[i64]>::from(shell_state.selected_folder_songs(directory)),
+                            std::sync::Arc::<[i64]>::from(
+                                shell_state.selected_folder_songs(directory),
+                            ),
                             None,
                         )
                     } else {
@@ -399,11 +407,16 @@ impl App {
                             lw_ui::PageAction::AddToList(list) => Command::AddToList(list, songs),
                             lw_ui::PageAction::ShowInFolder => {
                                 let located = files.snapshot().account.map(|user| {
-                                    files.request(lw_ui::files::Request::Locate { user, song: songs[0] })
+                                    files.request(lw_ui::files::Request::Locate {
+                                        user,
+                                        song: songs[0],
+                                    })
                                 });
                                 (*command_error) = match located {
                                     Some(Ok(())) => {
-                                        shell_state.apply(lw_ui::Intent::Navigate(lw_ui::catalog::Route::Files));
+                                        shell_state.apply(lw_ui::Intent::Navigate(
+                                            lw_ui::catalog::Route::Files,
+                                        ));
                                         None
                                     }
                                     _ => Some("Folder work is busy or unavailable. Try again."),
@@ -431,36 +444,50 @@ impl App {
                     };
                     Command::CreateList(name, songs)
                 }
-                lw_ui::Intent::PlayEntryFolder(entry) | lw_ui::Intent::ShuffleEntryFolder(entry) => {
+                lw_ui::Intent::PlayEntryFolder(entry)
+                | lw_ui::Intent::ShuffleEntryFolder(entry) => {
                     // The FilesWorker prepared each folder row's songs in natural path order.
-                    let Some((directory, folder)) = files.snapshot().directory.as_ref().and_then(|directory| {
-                        let folder = directory.entries.iter().find(|e| e.id == entry && e.directory)?;
-                        Some((directory, folder))
-                    }) else {
+                    let Some((directory, folder)) =
+                        files.snapshot().directory.as_ref().and_then(|directory| {
+                            let folder = directory
+                                .entries
+                                .iter()
+                                .find(|e| e.id == entry && e.directory)?;
+                            Some((directory, folder))
+                        })
+                    else {
                         return Ok(Some(Schedule::NextFrame));
                     };
                     if folder.songs.is_empty() {
                         return Ok(Some(Schedule::NextFrame));
                     }
                     shell_state.apply(lw_ui::Intent::CloseFolderMenu);
-                    let context = Some(std::sync::Arc::new(lw_core::context::PlaybackContext::Folder {
-                        source_id: directory.location.source,
-                        path_id: Some(folder.id),
-                        name: folder.name.clone(),
-                    }));
+                    let context = Some(std::sync::Arc::new(
+                        lw_core::context::PlaybackContext::Folder {
+                            source_id: directory.location.source,
+                            path_id: Some(folder.id),
+                            name: folder.name.clone(),
+                        },
+                    ));
                     if matches!(intent, lw_ui::Intent::PlayEntryFolder(_)) {
-                        Command::Configure { songs: folder.songs.clone(), start: 0, autoplay: true, context }
+                        Command::Configure {
+                            songs: folder.songs.clone(),
+                            start: 0,
+                            autoplay: true,
+                            context,
+                        }
                     } else {
-                        Command::ShuffleAll { songs: folder.songs.clone(), seed: now.to_bits(), context }
+                        Command::ShuffleAll {
+                            songs: folder.songs.clone(),
+                            seed: now.to_bits(),
+                            context,
+                        }
                     }
                 }
                 lw_ui::Intent::PlayFile(song) => {
                     // The FilesWorker prepared the folder's saved songs in natural path order.
-                    let Some((directory, start)) = files
-                        .snapshot()
-                        .directory
-                        .as_ref()
-                        .and_then(|directory| {
+                    let Some((directory, start)) =
+                        files.snapshot().directory.as_ref().and_then(|directory| {
                             let start = directory.songs.iter().position(|&id| id == song)?;
                             Some((directory, start))
                         })
@@ -707,7 +734,16 @@ mod tests {
                 })
                 .collect(),
         );
-        catalog.prepare_tables(&lw_ui::catalog::TableStyles::resolve(&pxui::Ui::new(&pxui::UiDesc::new(pxui::Platform::Apple).font_size(15.0).fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)])).expect("pxui Ui"))).unwrap();
+        catalog
+            .prepare_tables(&lw_ui::catalog::TableStyles::resolve(
+                &pxui::Ui::new(
+                    &pxui::UiDesc::new(pxui::Platform::Apple)
+                        .font_size(15.0)
+                        .fonts(&[pxui::FontData(lw_ui::FONT), pxui::FontData(lw_ui::MONO)]),
+                )
+                .expect("pxui Ui"),
+            ))
+            .unwrap();
         let mut state = ShellState::default();
         state.apply(Intent::Navigate(lw_ui::catalog::Route::Songs));
         assert_eq!(&*super::targets(&state, &catalog, 2), &[2]);
@@ -751,7 +787,14 @@ mod duplicate_name_tests {
 
     fn list(name: &str) -> lw_ui::catalog::Collection {
         let mut catalog = lw_ui::catalog::Catalog::new(Vec::new());
-        catalog.add_collection(name, Vec::new(), PlaybackContext::Playlist { id: 7, name: name.into() });
+        catalog.add_collection(
+            name,
+            Vec::new(),
+            PlaybackContext::Playlist {
+                id: 7,
+                name: name.into(),
+            },
+        );
         catalog.collections.last().unwrap().clone()
     }
 
@@ -760,15 +803,25 @@ mod duplicate_name_tests {
         assert_eq!(duplicate_name(&list("Mix")).unwrap().as_str(), "Mix copy");
         // Longer than the display limit but within the name bound: stored in full.
         let long = "é".repeat(500);
-        assert!(long.len() < lw_ui::DISPLAY_LIMIT + 1 && long.len() + 5 <= lw_ui::browse::MAX_QUERY_BYTES);
+        assert!(
+            long.len() < lw_ui::DISPLAY_LIMIT + 1
+                && long.len() + 5 <= lw_ui::browse::MAX_QUERY_BYTES
+        );
         let big = "x".repeat(1010);
         let copy = duplicate_name(&list(&big)).unwrap();
         assert_eq!(copy.as_str(), format!("{big} copy"));
-        assert_eq!(duplicate_name(&list(&long)).unwrap().as_str(), format!("{long} copy"));
+        assert_eq!(
+            duplicate_name(&list(&long)).unwrap().as_str(),
+            format!("{long} copy")
+        );
         // A 100 KiB name exceeds the 1024-byte list-name bound: refused, not stored clipped.
         assert!(duplicate_name(&list(&"y".repeat(100 * 1024))).is_none());
         let mut catalog = lw_ui::catalog::Catalog::new(Vec::new());
-        catalog.add_collection("Auto", Vec::new(), PlaybackContext::Automatic("Auto".into()));
+        catalog.add_collection(
+            "Auto",
+            Vec::new(),
+            PlaybackContext::Automatic("Auto".into()),
+        );
         assert!(duplicate_name(catalog.collections.last().unwrap()).is_none());
     }
 }

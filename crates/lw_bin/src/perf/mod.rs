@@ -99,7 +99,11 @@ impl Workload {
     /// Warm Rust allocations the worst measured frame may make: zero, except the fling, which may
     /// shape text its rows show before the prepare queue delivers it (`FLING_CEILING`).
     pub fn allocation_ceiling(self) -> u64 {
-        if self == Self::Fling { FLING_CEILING } else { 0 }
+        if self == Self::Fling {
+            FLING_CEILING
+        } else {
+            0
+        }
     }
 
     pub fn uses_queue(self) -> bool {
@@ -258,7 +262,12 @@ pub(crate) struct Perf {
 impl Perf {
     /// First measured frame index: warm-up, plus the silent stretch of the idle-600 workload.
     pub(crate) fn measured_from(&self) -> usize {
-        WARMUP_FRAMES + if self.workload == Workload::Idle600 { measured::IDLE_FRAMES } else { 0 }
+        WARMUP_FRAMES
+            + if self.workload == Workload::Idle600 {
+                measured::IDLE_FRAMES
+            } else {
+                0
+            }
     }
 
     /// System appearance forced on this frame, for the theme-switch workload only.
@@ -349,7 +358,11 @@ mod tests {
             (Workload::Jump, "scroll-jump", false),
             (Workload::NonSongLists, "non-song-lists", false),
             (Workload::SearchTyping, "search-typing", false),
-            (Workload::FirstNavigation, "measured-first-navigation", false),
+            (
+                Workload::FirstNavigation,
+                "measured-first-navigation",
+                false,
+            ),
             (Workload::TextTyping, "text-typing", false),
             (Workload::FirstMenuOpen, "measured-first-menu-open", false),
             (Workload::Resize, "resize", false),

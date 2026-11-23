@@ -5,61 +5,149 @@
 //! Preserve overlapping menu presses and warm storage_busy alternation without extending warm-up.
 //! Expose only connected actions.
 //!
-use pxui::bodies::BodyConfig;
 use super::*;
 use crate::SettingsMenu;
 use lw_core::preferences::{Appearance, Change, Signal};
+use pxui::bodies::BodyConfig;
 
 /// A settings link (‹ Library, Support…; `localwave-button` / `ROW`): secondary 15-point text across the page from its start, 44 points high.
 /// The settings page's Back: Swift's 18-point LW-back 4 points before its secondary 15-point label, 44 high, 10 in.
-const SETTINGS_BACK: pxui::Button = pxui::Button::DEFAULT.variant(variant::ROW).size(Size::Fit, Size::Px(44.0)).align(Justify::Start).pad(Edges::new(10.0, 0.0, 10.0, 0.0))
-    .icon(icon_drawing(Icon::Back)).icon_size(18.0).gap(4.0).label(TEXT_15.color(SECONDARY).role(Role::Unknown)).name("Back");
+const SETTINGS_BACK: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::ROW)
+    .size(Size::Fit, Size::Px(44.0))
+    .align(Justify::Start)
+    .pad(Edges::new(10.0, 0.0, 10.0, 0.0))
+    .icon(icon_drawing(Icon::Back))
+    .icon_size(18.0)
+    .gap(4.0)
+    .label(TEXT_15.color(SECONDARY).role(Role::Unknown))
+    .name("Back");
 /// Swift's "About & Privacy": its underlined 14-point secondary text in a 44-point line.
-const SETTINGS_LINK: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).pad(Edges::ZERO).label(TEXT_14.color(SECONDARY).role(Role::Unknown)).look(&SECONDARY_RULE);
+const SETTINGS_LINK: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::LINK)
+    .size(Size::Fit, Size::Px(44.0))
+    .pad(Edges::ZERO)
+    .label(TEXT_14.color(SECONDARY).role(Role::Unknown))
+    .look(&SECONDARY_RULE);
 /// A secondary press on a settings row or its chips (`secondary`) opens the row's context menu where the pointer is.
-fn context(ui: &Ui, secondary: bool, node: &Handle, menu: SettingsMenu, intent: &mut Option<Intent>) {
+fn context(
+    ui: &Ui,
+    secondary: bool,
+    node: &Handle,
+    menu: SettingsMenu,
+    intent: &mut Option<Intent>,
+) {
     if secondary {
         *intent = Some(Intent::SettingsMenu(menu, ui.signal(node).pointer));
     }
 }
 /// A settings row's name, context menu and hairline.
-fn setting_row(ui: &mut Ui, row: &pxui::Response, title: &str, menu: SettingsMenu, intent: &mut Option<Intent>) {
+fn setting_row(
+    ui: &mut Ui,
+    row: &pxui::Response,
+    title: &str,
+    menu: SettingsMenu,
+    intent: &mut Option<Intent>,
+) {
     ui.a11y_name(&row.handle, title);
     context(ui, row.secondary, &row.handle, menu, intent);
     hairline(ui, &row.handle);
 }
 /// Running text in a node measured at `width`. Kept for the dialogs: a wrapped label re-lays the frame, which places a
 /// modal at its final position one frame earlier than this fixed-height node does (a visible change).
-pub(super) fn paragraph(ui: &mut Ui, key: &'static str, value: &str, width: f32, style: Label) -> Handle {
-    let metrics = ui.text_service().measure(value, style, Some(width.max(1.0))).unwrap();
+pub(super) fn paragraph(
+    ui: &mut Ui,
+    key: &'static str,
+    value: &str,
+    width: f32,
+    style: Label,
+) -> Handle {
+    let metrics = ui
+        .text_service()
+        .measure(value, style, Some(width.max(1.0)))
+        .unwrap();
     let line = style.fields().line_height.unwrap_or(0.0);
-    let node = ui.node(key, Node::column().w(Size::Grow).h_px(metrics.height.max(line)).role(Role::Paragraph).look(text_look(style)));
+    let node = ui.node(
+        key,
+        Node::column()
+            .w(Size::Grow)
+            .h_px(metrics.height.max(line))
+            .role(Role::Paragraph)
+            .look(text_look(style)),
+    );
     ui.text_line_box(&node, value, style, &[]).unwrap();
     node
 }
 /// A playback or settings message: 14 points in the theme's accent, 42 points high.
 const NOTICE: Label = TEXT_14.grow().h_px(42.0).color(ColorToken::ACCENT);
 /// Swift's settings row: controls beside the labels at every width (the labels wrap), at least 60 tall, a hairline under it.
-const ROW: Node =
-    Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).pad_x(16.0).align(Align::Center).axis(Axis::Row).min_h(60.0);
-const DETAIL: Label = Label::BODY.size(13.0).line_height(18.2).wrap().w(Size::Grow).role(Role::Label).color(SECONDARY);
+const ROW: Node = Node::column()
+    .w(Size::Grow)
+    .h(Size::Fit)
+    .gap(8.0)
+    .pad_x(16.0)
+    .align(Align::Center)
+    .axis(Axis::Row)
+    .min_h(60.0);
+const DETAIL: Label = Label::BODY
+    .size(13.0)
+    .line_height(18.2)
+    .wrap()
+    .w(Size::Grow)
+    .role(Role::Label)
+    .color(SECONDARY);
 fn labels(ui: &mut Ui, title: &str, detail: &str, w: Size, top: f32) {
     // a fitted column (Swift's flexible row) takes its lines' own widths; a growing one wraps its detail to the row
     let fit = matches!(w, Size::Fit);
-    ui.column(Node::column().w(w).h(Size::Fit).justify(Justify::Center).padding(Edges::ZERO.t(top)), |ui| {
-        ui.label(title, if fit { TEXT_15.h_px(21.0).color(INK) } else { TEXT_15.grow().h_px(21.0).color(INK) });
-        if !detail.is_empty() {
-            ui.label(detail, if fit { TEXT_13.color(SECONDARY).role(Role::Label) } else { DETAIL });
-        }
-    });
+    ui.column(
+        Node::column()
+            .w(w)
+            .h(Size::Fit)
+            .justify(Justify::Center)
+            .padding(Edges::ZERO.t(top)),
+        |ui| {
+            ui.label(
+                title,
+                if fit {
+                    TEXT_15.h_px(21.0).color(INK)
+                } else {
+                    TEXT_15.grow().h_px(21.0).color(INK)
+                },
+            );
+            if !detail.is_empty() {
+                ui.label(
+                    detail,
+                    if fit {
+                        TEXT_13.color(SECONDARY).role(Role::Label)
+                    } else {
+                        DETAIL
+                    },
+                );
+            }
+        },
+    );
 }
 fn row_gap(ui: &Ui) -> f32 {
-    if ui.view_size().width < compact::BREAKPOINT { 16.0 } else { ROW.gap }
+    if ui.view_size().width < compact::BREAKPOINT {
+        16.0
+    } else {
+        ROW.gap
+    }
 }
 
 /// The row's hairline, from its title's start to its end.
 fn hairline(ui: &mut Ui, node: &Handle) {
-    ui.canvas(node, move |paint, rect| paint.fill(Rect::new(rect.x + 16.0, rect.y + rect.h - 1.0, (rect.w - 16.0).max(0.0), 1.0), Fill::new(Rgba::token(LINE))));
+    ui.canvas(node, move |paint, rect| {
+        paint.fill(
+            Rect::new(
+                rect.x + 16.0,
+                rect.y + rect.h - 1.0,
+                (rect.w - 16.0).max(0.0),
+                1.0,
+            ),
+            Fill::new(Rgba::token(LINE)),
+        )
+    });
 }
 /// LocalWave's settings switch row (registered as `localwave-toggle`): a settings row whose control is the 48 x 28 switch, ink when
 /// on, the line colour when off, with a 22-point paper knob.
@@ -68,13 +156,32 @@ pub(crate) fn toggle_body(ui: &mut Ui, c: &pxui::bodies::ToggleConfig) {
     let (on, title) = (c.stored != 0, c.text_of(&c.label));
     ui.set_node_layout(&c.row, &ROW.min_h(c.row_h).gap(row_gap(ui)));
     ui.a11y_name(&c.row, title);
-    ui.set_role(&c.row, Role::Toggle, pxui::A11yStates::CHECKABLE.with(if on { pxui::A11yStates::CHECKED } else { pxui::A11yStates::NONE }));
+    ui.set_role(
+        &c.row,
+        Role::Toggle,
+        pxui::A11yStates::CHECKABLE.with(if on {
+            pxui::A11yStates::CHECKED
+        } else {
+            pxui::A11yStates::NONE
+        }),
+    );
     // Align the phone labels one point lower while keeping the switch centered.
-    let top = if ui.view_size().width < compact::BREAKPOINT { 2.0 } else { 0.0 };
+    let top = if ui.view_size().width < compact::BREAKPOINT {
+        2.0
+    } else {
+        0.0
+    };
     labels(ui, title, c.text_of(&c.detail), Size::Grow, top);
     let track = if on { TRACK_ON } else { TRACK };
     ui.column(Node::column().w_px(48.0).h_px(28.0).look(track), |ui| {
-        ui.node("knob", Node::column().w_px(22.0).h_px(22.0).at(if on { 23.0 } else { 3.0 }, 3.0).look(KNOB));
+        ui.node(
+            "knob",
+            Node::column()
+                .w_px(22.0)
+                .h_px(22.0)
+                .at(if on { 23.0 } else { 3.0 }, 3.0)
+                .look(KNOB),
+        );
     });
     hairline(ui, &c.row);
 }
@@ -85,39 +192,83 @@ const KNOB: Look = PAPER_FILL;
 /// A settings switch row: the whole row flips it.
 const SWITCH: pxui::Toggle<'static> = pxui::Toggle::DEFAULT.row_h(60.0).press_row(true);
 /// The settings chips (`localwave-segmented` / `CHIPS`): 32 high, 2 points around the chips, a press focuses the chip pressed.
-const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT.h_px(32.0).padding(2.0).variant(variant::CHIPS).focus_on_click(true);
+const CHIPS: pxui::Segmented = pxui::Segmented::DEFAULT
+    .h_px(32.0)
+    .padding(2.0)
+    .variant(variant::CHIPS)
+    .focus_on_click(true);
 // The chips; a cache chip's id is its size in GB, an appearance chip's the `Appearance`.
-const CACHE_SEGMENTS: [Segment; 3] = [Segment::new("4 GB").id(4).name("Use 4 GB"), Segment::new("8 GB").id(8).name("Use 8 GB"), Segment::new("16 GB").id(16).name("Use 16 GB")];
+const CACHE_SEGMENTS: [Segment; 3] = [
+    Segment::new("4 GB").id(4).name("Use 4 GB"),
+    Segment::new("8 GB").id(8).name("Use 8 GB"),
+    Segment::new("16 GB").id(16).name("Use 16 GB"),
+];
 const APPEARANCES: [Appearance; 3] = [Appearance::System, Appearance::Light, Appearance::Dark];
 const APPEARANCE_SEGMENTS: [Segment; 3] = [
-    Segment::new("System").id(Appearance::System as i64).name("Use system appearance"),
-    Segment::new("Light").id(Appearance::Light as i64).name("Use light appearance"),
-    Segment::new("Dark").id(Appearance::Dark as i64).name("Use dark appearance"),
+    Segment::new("System")
+        .id(Appearance::System as i64)
+        .name("Use system appearance"),
+    Segment::new("Light")
+        .id(Appearance::Light as i64)
+        .name("Use light appearance"),
+    Segment::new("Dark")
+        .id(Appearance::Dark as i64)
+        .name("Use dark appearance"),
 ];
 /// The settings chips `items` (`selected` the stored choice): a primary press on a chip is its `change`, a secondary press opens `menu`.
 #[allow(clippy::too_many_arguments)]
-fn chips(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usize>, change: impl Fn(i64) -> Change, menu: SettingsMenu, intent: &mut Option<Intent>) {
+fn chips(
+    ui: &mut Ui,
+    key: &'static str,
+    items: &[Segment],
+    selected: Option<usize>,
+    change: impl Fn(i64) -> Change,
+    menu: SettingsMenu,
+    intent: &mut Option<Intent>,
+) {
     chips_styled(ui, key, items, selected, change, menu, &CHIPS, intent);
 }
 #[allow(clippy::too_many_arguments)]
-fn chips_styled(ui: &mut Ui, key: &'static str, items: &[Segment], selected: Option<usize>, change: impl Fn(i64) -> Change, menu: SettingsMenu, style: &pxui::Segmented, intent: &mut Option<Intent>) {
+fn chips_styled(
+    ui: &mut Ui,
+    key: &'static str,
+    items: &[Segment],
+    selected: Option<usize>,
+    change: impl Fn(i64) -> Change,
+    menu: SettingsMenu,
+    style: &pxui::Segmented,
+    intent: &mut Option<Intent>,
+) {
     let r = ui.segmented(key, items, selected, style);
-    if (r.response.changed || r.response.clicked) && let Some(id) = r.chosen_id {
+    if (r.response.changed || r.response.clicked)
+        && let Some(id) = r.chosen_id
+    {
         *intent = Some(Intent::Setting(change(id)));
     }
     context(ui, r.secondary.is_some(), &r.response.handle, menu, intent);
 }
 /// The rescan row (`localwave-button` / `SETTING`): a press focuses it, as Swift's rows take the focus.
-const RESCAN: pxui::Button = pxui::Button::DEFAULT.variant(variant::SETTING).detail("Usually not needed — folders are watched").focus_on_click(true);
+const RESCAN: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::SETTING)
+    .detail("Usually not needed — folders are watched")
+    .focus_on_click(true);
 /// LocalWave's settings row button (`localwave-button` / `SETTING`): the settings row with the title and detail, the dotted chevron at
 /// its end (Swift's 18-point LW-chev) and the hairline under it.
 pub(super) fn row_body(ui: &mut Ui, c: &pxui::bodies::ButtonConfig) {
     ui.set_node_layout(&c.line, &Node::row().w(Size::Grow).h(Size::Fit));
     ui.set_node_layout(&c.row, &ROW.gap(row_gap(ui)));
-    labels(ui, c.text_of(&c.label), c.text_of(&c.detail), Size::Grow, 0.0);
+    labels(
+        ui,
+        c.text_of(&c.label),
+        c.text_of(&c.detail),
+        Size::Grow,
+        0.0,
+    );
     let glyph = ui.node("chevron", Node::column().w_px(18.0).h_px(18.0));
     let color = Rgba::token(INK);
-    ui.canvas(&glyph, move |paint, rect| crate::icons::chevron(paint, rect, color));
+    ui.canvas(&glyph, move |paint, rect| {
+        crate::icons::chevron(paint, rect, color)
+    });
     hairline(ui, &c.row);
 }
 /// A settings row: a press focuses it, as Swift's rows take the focus.
@@ -131,7 +282,11 @@ pub(super) fn view(
 ) {
     let page = ui.node(
         "settings-page",
-        Node::column().w(Size::Grow).h(Size::Grow).flags(Flags::SCROLL | Flags::CLIP).padding(Edges::ZERO.t(10.0)),
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Grow)
+            .flags(Flags::SCROLL | Flags::CLIP)
+            .padding(Edges::ZERO.t(10.0)),
     );
     ui.set_role(&page, Role::Group, pxui::A11yStates::NONE);
     ui.a11y_name(
@@ -243,7 +398,10 @@ pub(super) fn popup(
 ) {
     let s = player.settings;
     let choice = |item: MenuItem<'static>, current: bool| item.selected(current);
-    let cache = [choice(CACHE_2, s.cache_gb == 2), choice(CACHE_32, s.cache_gb == 32)];
+    let cache = [
+        choice(CACHE_2, s.cache_gb == 2),
+        choice(CACHE_32, s.cache_gb == 32),
+    ];
     let look = [
         choice(BLUE, s.signal == Signal::Blue),
         choice(RED, s.signal == Signal::Red),
@@ -251,8 +409,17 @@ pub(super) fn popup(
         choice(MONO, s.signal == Signal::Mono),
         choice(MOTION, s.reduce_motion),
     ];
-    let rows: &[MenuItem] = if menu == SettingsMenu::Cache { &cache } else { &look };
-    let menu = ui.menu("settings-menu", pxui::Point::new(at.0, at.1), rows, &CHOICES);
+    let rows: &[MenuItem] = if menu == SettingsMenu::Cache {
+        &cache
+    } else {
+        &look
+    };
+    let menu = ui.menu(
+        "settings-menu",
+        pxui::Point::new(at.0, at.1),
+        rows,
+        &CHOICES,
+    );
     if let Some(id) = menu.chosen_id {
         *intent = Some(Intent::Setting(match id {
             2 | 32 => Change::CacheGB(id),
@@ -268,7 +435,11 @@ pub(super) fn popup(
     }
 }
 /// The settings choice menus: the current choice on the selected fill (`MENU_CHOICE`), rows focused by a press.
-const CHOICES: Menu<'static> = super::songs::MENU.w_px(220.0).name("Settings options").variant(MENU_CHOICE).focus_on_click(true);
+const CHOICES: Menu<'static> = super::songs::MENU
+    .w_px(220.0)
+    .name("Settings options")
+    .variant(MENU_CHOICE)
+    .focus_on_click(true);
 // The choices; a cache row's id is its size in GB.
 const CACHE_2: MenuItem = MenuItem::new("Use 2 GB").id(2);
 const CACHE_32: MenuItem = MenuItem::new("Use 32 GB").id(32);
@@ -315,7 +486,9 @@ mod tests {
             .iter()
             .find(|node| {
                 ui.a11y_name_of(node) == name
-                    && (node.is_role(Role::Button) || node.is_role(Role::Toggle) || node.is_role(Role::Radio))
+                    && (node.is_role(Role::Button)
+                        || node.is_role(Role::Toggle)
+                        || node.is_role(Role::Radio))
             })
             .unwrap_or_else(|| panic!("missing {name}"))
             .rect;
@@ -568,18 +741,38 @@ mod tests {
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);
-        let player = PlayerView { initialized: true, cache_usage: "6.6 MB cached.", ..Default::default() };
+        let player = PlayerView {
+            initialized: true,
+            cache_usage: "6.6 MB cached.",
+            ..Default::default()
+        };
         let mut frame = FrameIn::new(390.0, 778.0);
         for _ in 0..3 {
             build(&mut ui, &state, &player, 0.0, &frame);
         }
         let at = point(&ui, "Show non-audio files");
-        assert_eq!(click(&mut ui, &state, &player, &mut frame, at, 0), Some(Intent::Setting(Change::ToggleShowNonAudio)));
+        assert_eq!(
+            click(&mut ui, &state, &player, &mut frame, at, 0),
+            Some(Intent::Setting(Change::ToggleShowNonAudio))
+        );
         let at = point(&ui, "Rescan all sources");
-        assert_eq!(click(&mut ui, &state, &player, &mut frame, at, 0), Some(Intent::Files(crate::files::Request::Roots)));
+        assert_eq!(
+            click(&mut ui, &state, &player, &mut frame, at, 0),
+            Some(Intent::Files(crate::files::Request::Roots))
+        );
         // The 8 GB segment sits beside its label, not under it.
-        let label = ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == "Offline space").unwrap().rect;
-        let segment = ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == "Use 8 GB").unwrap().rect;
+        let label = ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| ui.a11y_name_of(n) == "Offline space")
+            .unwrap()
+            .rect;
+        let segment = ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| ui.a11y_name_of(n) == "Use 8 GB")
+            .unwrap()
+            .rect;
         assert!(segment.x >= label.x + label.w * 0.4 && segment.y < label.y + label.h);
         for round in 0..5 {
             mem_sys::local_reset();
@@ -587,7 +780,11 @@ mod tests {
                 build(&mut ui, &state, &player, 0.0, &frame);
             }
             if round >= 3 {
-                assert_eq!(mem_sys::local_alloc_count(), 0, "warm compact settings allocate");
+                assert_eq!(
+                    mem_sys::local_alloc_count(),
+                    0,
+                    "warm compact settings allocate"
+                );
             }
         }
     }
@@ -599,13 +796,23 @@ mod tests {
         ui.set_a11y(true);
         let mut state = ShellState::default();
         state.apply(Intent::ShowSettings);
-        let player = PlayerView { initialized: true, ..Default::default() };
+        let player = PlayerView {
+            initialized: true,
+            ..Default::default()
+        };
         let mut frame = FrameIn::new(1440.0, 872.0);
         for _ in 0..3 {
             build(&mut ui, &state, &player, 0.0, &frame);
         }
-        assert!(!ui.a11y_nodes().iter().any(|n| ui.a11y_name_of(n) == "Show non-audio files"));
+        assert!(
+            !ui.a11y_nodes()
+                .iter()
+                .any(|n| ui.a11y_name_of(n) == "Show non-audio files")
+        );
         let at = point(&ui, "Rescan all sources");
-        assert_eq!(click(&mut ui, &state, &player, &mut frame, at, 0), Some(Intent::Files(crate::files::Request::Roots)));
+        assert_eq!(
+            click(&mut ui, &state, &player, &mut frame, at, 0),
+            Some(Intent::Files(crate::files::Request::Roots))
+        );
     }
 }

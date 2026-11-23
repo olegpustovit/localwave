@@ -1,9 +1,9 @@
 //! The phone page "…" menu (Swift's albumMenuGroups, automaticMenuGroups and listMenuGroups): whole-page
 //! actions on the displayed collection. Labels are static; the controller applies `Intent::Page`.
+use super::super::songs::{LIST_ROWS, LISTS_MENU, MENU, NEW_LIST, list_rows};
 use super::*;
 use crate::PageAction;
 use lw_core::context::PlaybackContext;
-use super::super::songs::{list_rows, LISTS_MENU, LIST_ROWS, MENU, NEW_LIST};
 
 pub(in crate::shell) fn menu(
     ui: &mut Ui,
@@ -26,11 +26,17 @@ pub(in crate::shell) fn menu(
         _ => (None, false),
     };
     let artist = match context {
-        Some(PlaybackContext::Album { artist, .. }) => catalog.library.artists.iter().position(|a| a.title == crate::clip(artist)),
+        Some(PlaybackContext::Album { artist, .. }) => catalog
+            .library
+            .artists
+            .iter()
+            .position(|a| a.title == crate::clip(artist)),
         _ => None,
     };
     let filled = collection.is_some_and(|collection| !collection.ids.is_empty());
-    let kept = filled && collection.is_some_and(|collection| collection.rows.iter().all(|&row| catalog.row(row).pinned));
+    let kept = filled
+        && collection
+            .is_some_and(|collection| collection.rows.iter().all(|&row| catalog.row(row).pinned));
     if state.page_lists {
         return lists(ui, catalog, at, intent);
     }
@@ -44,7 +50,15 @@ pub(in crate::shell) fn menu(
         list.map(|_| MenuItem::new("Rename…").id(RENAME)),
         list.map(|_| MenuItem::new("Duplicate").id(DUPLICATE)),
         album.then_some(MenuItem::new("Show in folder").id(FOLDER).disabled(!filled)),
-        Some(MenuItem::new(if kept { "Stop keeping offline" } else { "Keep offline" }).id(OFFLINE).disabled(!filled)),
+        Some(
+            MenuItem::new(if kept {
+                "Stop keeping offline"
+            } else {
+                "Keep offline"
+            })
+            .id(OFFLINE)
+            .disabled(!filled),
+        ),
         list.map(|_| MenuItem::new("Delete list").id(DELETE).danger()),
     ];
     let mut rows = [MenuItem::new(""); 11];
@@ -54,7 +68,12 @@ pub(in crate::shell) fn menu(
         count += 1;
     }
     // The menu opens leftward from the "…" key.
-    let menu = ui.menu("page-menu", pxui::Point::new(at.0 - 200.0, at.1), &rows[..count], &MENU.name("Page actions"));
+    let menu = ui.menu(
+        "page-menu",
+        pxui::Point::new(at.0 - 200.0, at.1),
+        &rows[..count],
+        &MENU.name("Page actions"),
+    );
     // "Add to list" closes this menu and opens the list panel.
     if let Some(id) = menu.chosen_id {
         *intent = match id {
@@ -96,7 +115,12 @@ const DELETE: i64 = 10;
 fn lists(ui: &mut Ui, catalog: &Catalog, at: (f32, f32), intent: &mut Option<Intent>) {
     let mut rows = [MenuItem::new(""); LIST_ROWS];
     let count = list_rows(&mut rows, catalog, None);
-    let menu = ui.menu("page-lists", pxui::Point::new(at.0 - 200.0, at.1), &rows[..count], &LISTS_MENU);
+    let menu = ui.menu(
+        "page-lists",
+        pxui::Point::new(at.0 - 200.0, at.1),
+        &rows[..count],
+        &LISTS_MENU,
+    );
     match menu.chosen_id {
         Some(NEW_LIST) => *intent = Some(Intent::NewPageList),
         Some(list) => *intent = Some(Intent::Page(PageAction::AddToList(list))),

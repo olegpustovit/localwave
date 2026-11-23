@@ -48,7 +48,8 @@ pub(super) fn draw(
     const SPACE_LINE: f32 = 21.0;
     const NAME: Label = Label::BODY.line_height(NAME_LINE).wrap_spaces();
     const SPACE: Label = Label::BODY.size(15.0).line_height(SPACE_LINE).wrap_spaces();
-    let labels = std::array::from_fn::<_, 5, _>(|index| if matches!(index, 1 | 3) { SPACE } else { NAME });
+    let labels =
+        std::array::from_fn::<_, 5, _>(|index| if matches!(index, 1 | 3) { SPACE } else { NAME });
     let density = ui.density();
     let sizes = std::array::from_fn(|index| {
         let service = &mut ui.text_service();
@@ -63,7 +64,12 @@ pub(super) fn draw(
         let padding = if matches!(index, 0 | 4) { 2.0 } else { 0.0 };
         (
             ((metrics.width * density).ceil() / density).min(width),
-            if matches!(index, 1 | 3) { SPACE_LINE } else { NAME_LINE } * metrics.lines.max(1) as f32 + padding,
+            if matches!(index, 1 | 3) {
+                SPACE_LINE
+            } else {
+                NAME_LINE
+            } * metrics.lines.max(1) as f32
+                + padding,
         )
     });
     let (rects, height) = positions(width, sizes);
@@ -72,7 +78,13 @@ pub(super) fn draw(
             let rect = rects[index];
             let link = index != 2;
             let key = ["artist", "space-one", "separator", "space-two", "album"][index];
-            let node = Node::column().w_px(rect.w).h_px(rect.h).role(if link { Role::Button } else { Role::Label }).at(rect.x, rect.y).inset(Edges::ZERO.t(if link { 2.0 } else { 0.0 })).look(SECONDARY_TEXT);
+            let node = Node::column()
+                .w_px(rect.w)
+                .h_px(rect.h)
+                .role(if link { Role::Button } else { Role::Label })
+                .at(rect.x, rect.y)
+                .inset(Edges::ZERO.t(if link { 2.0 } else { 0.0 }))
+                .look(SECONDARY_TEXT);
             // Only the artist and album are links; the separator is a plain label. D7: pxui has no inline link in wrapped text
             // (G11, deferred past 2.0), so each link is a pressable at its wrapped position (allowlisted in api_conformance).
             let (handle, clicked) = if link {

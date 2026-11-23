@@ -48,11 +48,15 @@ fn song_availability_moves_on_resize_without_rebuilding_the_mark() {
             ui,
             &FrameIn::new(width, 872.0).reduced_motion(true),
             &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
-        ).unwrap();
+        )
+        .unwrap();
     };
     let mark = |ui: &Ui| {
-        ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "File unavailable — retry")
-            .expect("the failed song's state glyph").rect
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == "File unavailable — retry")
+            .expect("the failed song's state glyph")
+            .rect
     };
     for _ in 0..3 {
         frame(&mut ui, 1440.0);
@@ -68,7 +72,10 @@ fn song_availability_moves_on_resize_without_rebuilding_the_mark() {
     }
     let expected = mark(&fresh);
     assert_ne!(before.x, expected.x, "the status column moves on resize");
-    assert_eq!(after, expected, "the retained mark follows the status column");
+    assert_eq!(
+        after, expected,
+        "the retained mark follows the status column"
+    );
     assert_eq!((after.w, after.h), (10.0, 10.0));
 }
 
@@ -86,7 +93,9 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
             for width in [399.0, 400.0, 519.0, 520.0, 679.0, 680.0, 888.0] {
                 crate::testing::frame(
                     &mut ui,
-                    &FrameIn::new(width + 552.0, 872.0).scale(scale).reduced_motion(true),
+                    &FrameIn::new(width + 552.0, 872.0)
+                        .scale(scale)
+                        .reduced_motion(true),
                     &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
                 )
                 .unwrap();
@@ -98,10 +107,7 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
                     })
                     .unwrap();
                 assert!(
-                    (row.rect.y - 142.9)
-                    .abs()
-                        < 0.001
-                        && (row.rect.w - width).abs() < 0.001,
+                    (row.rect.y - 142.9).abs() < 0.001 && (row.rect.w - width).abs() < 0.001,
                     "full-width song row: {:?}",
                     row.rect
                 );
@@ -169,13 +175,15 @@ fn song_table_matches_native_columns_baselines_and_fitted_durations_at_both_dens
                         .a11y_nodes()
                         .iter()
                         .find(|node| {
-                            node.is_role(Role::ColumnHeader) && ui.a11y_name_of(node) == "Sort by Title"
+                            node.is_role(Role::ColumnHeader)
+                                && ui.a11y_name_of(node) == "Sort by Title"
                         })
                         .unwrap();
                     // the heading is its whole column (U4a.6: a table_head cell), its title 8 in and 10 down
                     assert!(
                         (title.rect.x - 281.6).abs() < 0.01 && (title.rect.y - 105.6).abs() < 0.001,
-                        "{:?}", title.rect
+                        "{:?}",
+                        title.rect
                     );
                     assert!((time.rect.x - 1031.0).abs() < 0.001);
                 }
@@ -215,10 +223,19 @@ fn trailing_time_heading_matches_native_rounding_and_fractional_overflow() {
                 &mut ui,
                 &FrameIn::new(width, 100.0).scale(scale).reduced_motion(true),
                 &mut |ui| {
-                    ui.id("component", |ui| { ui.column(Node::column().w_px(width).h(Size::Grow), |ui| {
-                        let height = heading_height(ui, &catalog, columns, None);
-                        ui.table_head("song-columns", &heading_columns(columns), &mut state, &pxui::TableHead::DEFAULT.h_px(height).variant(crate::shell::theme::variant::SONG_HEADING));
-                    }); });
+                    ui.id("component", |ui| {
+                        ui.column(Node::column().w_px(width).h(Size::Grow), |ui| {
+                            let height = heading_height(ui, &catalog, columns, None);
+                            ui.table_head(
+                                "song-columns",
+                                &heading_columns(columns),
+                                &mut state,
+                                &pxui::TableHead::DEFAULT
+                                    .h_px(height)
+                                    .variant(crate::shell::theme::variant::SONG_HEADING),
+                            );
+                        });
+                    });
                 },
             )
             .unwrap();
@@ -342,22 +359,28 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
         let mut build = |ui: &mut Ui| {
             // keyed nodes: the test looks the bars up by key below
             let indicator = ui.node("indicator", Node::column().w_px(14.0).h_px(11.0));
-            ui.within(&indicator, &mut |ui| { ui.view_of("indicator", &0, |ui| {
-                row::equalizer(ui, true, true, song.id)
-            }); });
+            ui.within(&indicator, &mut |ui| {
+                ui.view_of("indicator", &0, |ui| {
+                    row::equalizer(ui, true, true, song.id)
+                });
+            });
             let file_state = ui.node("file-state", Node::column().w_px(10.0).h_px(10.0));
-            ui.within(&file_state, &mut |ui| { ui.view_of("file-state", &0, |ui| {
-                row::availability(ui, song, true)
-            }); });
+            ui.within(&file_state, &mut |ui| {
+                ui.view_of("file-state", &0, |ui| row::availability(ui, song, true));
+            });
         };
         crate::testing::frame(&mut ui, &frame, &mut build).unwrap();
         crate::testing::frame(&mut ui, &frame, &mut build).unwrap();
-        let indicator = pxui::ui::key_of(pxui::ui::key_of(pxui::ui::ROOT_KEY, "indicator"), "indicator");
+        let indicator = pxui::ui::key_of(
+            pxui::ui::key_of(pxui::ui::ROOT_KEY, "indicator"),
+            "indicator",
+        );
         let equalizer = pxui::ui::key_of(indicator, "equalizer");
         let bars = ["bar-0", "bar-1", "bar-2"].map(|key| {
             let position = pxui::ui::key_of(equalizer, key);
             let visual = pxui::ui::key_of(position, "bar");
-            ui.box_of_key(pxui::Key::Resolved(pxui::ui::key_of(visual, "fill"))).unwrap()
+            ui.box_of_key(pxui::Key::Resolved(pxui::ui::key_of(visual, "fill")))
+                .unwrap()
         });
         let instances: Vec<_> = ui
             .layers()
@@ -424,7 +447,11 @@ fn retained_bars_match_native_phases_and_pending_copy_pulses_without_warm_builds
             frame.wire.reduced_motion = reduced;
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 let file_state = ui.node("file-state", Node::column().w_px(10.0).h_px(10.0));
-                ui.within(&file_state, &mut |ui| { ui.view_of("file-state", &state_revision, |ui| row::availability(ui, song, true)); });
+                ui.within(&file_state, &mut |ui| {
+                    ui.view_of("file-state", &state_revision, |ui| {
+                        row::availability(ui, song, true)
+                    });
+                });
             })
             .unwrap();
             assert_eq!(
@@ -576,11 +603,17 @@ fn playing_song_bars_animate_cached_text_scroll_and_stop_without_warm_allocation
         let column = ui
             .a11y_nodes()
             .iter()
-            .find(|node| node.is_role(Role::ColumnHeader) && ui.a11y_name_of(node) == "Sort by Title")
+            .find(|node| {
+                node.is_role(Role::ColumnHeader) && ui.a11y_name_of(node) == "Sort by Title"
+            })
             .unwrap();
         assert!((heading.rect.y - if delta > 0.0 { -102.0 } else { 28.0 }).abs() < 0.001);
         // the column heading (U4a.6: the whole table_head cell, its title 10 down) pins at the top
-        assert!((column.rect.y - if delta > 0.0 { 0.0 } else { 105.6 }).abs() < 0.001, "{:?}", column.rect);
+        assert!(
+            (column.rect.y - if delta > 0.0 { 0.0 } else { 105.6 }).abs() < 0.001,
+            "{:?}",
+            column.rect
+        );
         assert_eq!(
             ui.output().repaint_at.is_finite(),
             delta < 0.0,
@@ -841,11 +874,16 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
         }
         ui.frame(input, &mut |_| {}).unwrap();
         let before = ui.text_layout_count();
-        ui.text_service().measure(&sentinel, Label::BODY, None).unwrap();
+        ui.text_service()
+            .measure(&sentinel, Label::BODY, None)
+            .unwrap();
         if ui.text_layout_count() == before {
             return;
         }
-        assert!(std::time::Instant::now() < deadline, "the text worker did not deliver within a second");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "the text worker did not deliver within a second"
+        );
     }
 }
 
@@ -873,7 +911,9 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                 let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
                 let mut reference =
                     crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
-                let input = FrameIn::new(1200.0, 300.0).scale(scale).reduced_motion(true);
+                let input = FrameIn::new(1200.0, 300.0)
+                    .scale(scale)
+                    .reduced_motion(true);
                 crate::testing::frame(&mut ui, &input, &mut |_| {}).unwrap();
                 crate::testing::frame(&mut reference, &input, &mut |_| {}).unwrap();
                 let collection = catalog.collection(route).unwrap();
@@ -910,15 +950,21 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                     .flat_map(|(position, &index)| {
                         let current = current == Some(index);
                         let catalog = &catalog;
-                        [Column::Number, Column::Format, Column::Time].into_iter().filter(move |&column| {
-                            let available = (widths[column as usize]
-                                - if column == Column::Number { 40.0 } else { 16.0 })
-                            .max(0.0);
-                            widths[column as usize] > 0.0
-                                && !(column == Column::Number && current)
-                                && catalog.song_body_width(index, column, position + 1, matches!(route, Route::Album(_)))
-                                    > available
-                        })
+                        [Column::Number, Column::Format, Column::Time]
+                            .into_iter()
+                            .filter(move |&column| {
+                                let available = (widths[column as usize]
+                                    - if column == Column::Number { 40.0 } else { 16.0 })
+                                .max(0.0);
+                                widths[column as usize] > 0.0
+                                    && !(column == Column::Number && current)
+                                    && catalog.song_body_width(
+                                        index,
+                                        column,
+                                        position + 1,
+                                        matches!(route, Route::Album(_)),
+                                    ) > available
+                            })
                     })
                     .count();
                 overflowing += overflow;
@@ -929,7 +975,11 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                         let row = catalog.row(index);
                         let current = current == Some(index);
                         let numbered = matches!(route, Route::Album(_));
-                        let number = collection.song_table.as_ref().unwrap().number_label(position);
+                        let number = collection
+                            .song_table
+                            .as_ref()
+                            .unwrap()
+                            .number_label(position);
                         let layout = row_layout(
                             ui,
                             &catalog,
@@ -962,7 +1012,8 @@ fn prewarmed_song_cells_match_normal_wrapping_density_current_weight_and_album_n
                                     },
                                     body_value(&row, column, numbered, number),
                                     body_label(column, current).color(INK),
-                                ).unwrap();
+                                )
+                                .unwrap();
                             }
                         });
                     }
@@ -1537,14 +1588,42 @@ fn list_management_dialogs_menu_confirmation_reorder_and_scrolling_panel() {
     // press keeps macOS button semantics, so Escape still clears the selection while it is held
     let escape = pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code());
     state.apply(Intent::Select(crate::Selection::Toggle(1)));
-    for events in [[pointer(input::wire::POINTER_PRESSED, x, y0, 0)], [pointer(input::wire::POINTER_MOVED, x, y1, 0)], [escape]] {
-        assert_eq!(run(&mut ui, &state, &events), None, "a reorder drag spends Escape");
+    for events in [
+        [pointer(input::wire::POINTER_PRESSED, x, y0, 0)],
+        [pointer(input::wire::POINTER_MOVED, x, y1, 0)],
+        [escape],
+    ] {
+        assert_eq!(
+            run(&mut ui, &state, &events),
+            None,
+            "a reorder drag spends Escape"
+        );
     }
-    assert_eq!(run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, x, y1, 0)]), None, "a cancelled drag moves nothing");
+    assert_eq!(
+        run(
+            &mut ui,
+            &state,
+            &[pointer(input::wire::POINTER_RELEASED, x, y1, 0)]
+        ),
+        None,
+        "a cancelled drag moves nothing"
+    );
     let title = (from.x + 200.0, from.y + from.h / 2.0);
-    run(&mut ui, &state, &[pointer(input::wire::POINTER_PRESSED, title.0, title.1, 0)]);
-    assert_eq!(run(&mut ui, &state, &[escape]), Some(Intent::Select(crate::Selection::Clear)), "a held press leaves Escape to the selection");
-    run(&mut ui, &state, &[pointer(input::wire::POINTER_RELEASED, title.0, title.1, 0)]);
+    run(
+        &mut ui,
+        &state,
+        &[pointer(input::wire::POINTER_PRESSED, title.0, title.1, 0)],
+    );
+    assert_eq!(
+        run(&mut ui, &state, &[escape]),
+        Some(Intent::Select(crate::Selection::Clear)),
+        "a held press leaves Escape to the selection"
+    );
+    run(
+        &mut ui,
+        &state,
+        &[pointer(input::wire::POINTER_RELEASED, title.0, title.1, 0)],
+    );
     state.apply(Intent::Select(crate::Selection::Clear));
     state.apply(Intent::SortBy(Some((crate::browse::Sort::Title, true))));
     for _ in 0..3 {
@@ -1657,7 +1736,14 @@ fn multi_selection_toggles_ranges_in_sort_order_and_rebuilds_only_changed_rows()
                 .find(|n| n.is_role(Role::ListItem) && ui.a11y_name_of(n) == name)
                 .unwrap()
                 .rect;
-            let at = |kind| pxui::Event::pointer(kind, 0, (rect.x + rect.w / 2.0) as f64, (rect.y + rect.h / 2.0) as f64);
+            let at = |kind| {
+                pxui::Event::pointer(
+                    kind,
+                    0,
+                    (rect.x + rect.w / 2.0) as f64,
+                    (rect.y + rect.h / 2.0) as f64,
+                )
+            };
             run(ui, state, &[at(input::wire::POINTER_MOVED)]);
             run(ui, state, &[at(input::wire::POINTER_PRESSED)]);
             run(ui, state, &[at(input::wire::POINTER_RELEASED)])
@@ -1877,7 +1963,9 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
             mem_sys::local_reset();
             crate::testing::frame(
                 ui,
-                &FrameIn::new(1440.0, 872.0).time(time.get()).reduced_motion(true),
+                &FrameIn::new(1440.0, 872.0)
+                    .time(time.get())
+                    .reduced_motion(true),
                 &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent),
             )
             .unwrap();
@@ -1938,18 +2026,40 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
         show(ui, &empty, &ShellState::default(), &player);
         let id = (ui.a11y_nodes().iter())
             // the Drive disclosure's header is the widget's expandable heading
-            .find(|node| (node.is_role(Role::Button) || node.is_role(Role::Heading)) && ui.a11y_name_of(node) == name)
+            .find(|node| {
+                (node.is_role(Role::Button) || node.is_role(Role::Heading))
+                    && ui.a11y_name_of(node) == name
+            })
             .unwrap()
             .id;
-        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..Default::default() }]);
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..Default::default()
+        }]);
         let mut intent = None;
         let frame = FrameIn::new(1440.0, 872.0).time(time).reduced_motion(true);
-        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &empty, &ShellState::default(), &mut intent))
-            .unwrap();
+        crate::testing::frame(ui, &frame, &mut |ui| {
+            shell(
+                ui,
+                &player,
+                0.0,
+                &empty,
+                &ShellState::default(),
+                &mut intent,
+            )
+        })
+        .unwrap();
         intent
     };
-    assert_eq!(press(&mut ui, "Pick some files", 10.0), Some(Intent::ChooseAudio));
-    assert_eq!(press(&mut ui, "Explore the library", 11.0), Some(Intent::Navigate(Route::Albums)));
+    assert_eq!(
+        press(&mut ui, "Pick some files", 10.0),
+        Some(Intent::ChooseAudio)
+    );
+    assert_eq!(
+        press(&mut ui, "Explore the library", 11.0),
+        Some(Intent::Navigate(Route::Albums))
+    );
     let help = "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.";
     assert!(!has(&show(&mut ui, &empty, &state, &player), help));
     assert_eq!(press(&mut ui, "Google Drive not in the list?", 12.0), None);
@@ -1957,14 +2067,26 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
     // The persisted `lwDidStart` flag suppresses onboarding for an empty library; a library that
     // gained a source asks once for the flag to be saved.
     let started = PlayerView {
-        settings: lw_core::preferences::Settings { did_start: true, ..Default::default() },
+        settings: lw_core::preferences::Settings {
+            did_start: true,
+            ..Default::default()
+        },
         ..Default::default()
     };
-    assert!(!has(&show(&mut ui, &empty, &state, &started), "Choose a folder"));
+    assert!(!has(
+        &show(&mut ui, &empty, &state, &started),
+        "Choose a folder"
+    ));
     let mut intent = None;
     let frame = FrameIn::new(1440.0, 872.0).time(13.0).reduced_motion(true);
-    crate::testing::frame(&mut ui, &frame, &mut |ui| shell(ui, &player, 0.0, &sourced, &state, &mut intent)).unwrap();
-    assert_eq!(intent, Some(Intent::Setting(lw_core::preferences::Change::DidStart)));
+    crate::testing::frame(&mut ui, &frame, &mut |ui| {
+        shell(ui, &player, 0.0, &sourced, &state, &mut intent)
+    })
+    .unwrap();
+    assert_eq!(
+        intent,
+        Some(Intent::Setting(lw_core::preferences::Change::DidStart))
+    );
     // Exploring leaves onboarding.
     state.apply(Intent::Navigate(Route::Albums));
     assert!(!has(
@@ -2067,10 +2189,14 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
         let mut intent = None;
         mem_sys::local_reset();
         let out = crate::testing::frame(ui, &frame, &mut |ui| {
-                shell(ui, &player, 0.0, &catalog, &state, &mut intent)
-            })
-            .unwrap();
-        damage.set(if out.has_damage != 0 { out.damage } else { [0.0; 4] });
+            shell(ui, &player, 0.0, &catalog, &state, &mut intent)
+        })
+        .unwrap();
+        damage.set(if out.has_damage != 0 {
+            out.damage
+        } else {
+            [0.0; 4]
+        });
         intent
     };
     let find = |ui: &Ui, role: Role, name: &str| {
@@ -2114,7 +2240,13 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
             let intent = match $end {
                 "drop" => run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)]),
                 _ => {
-                    run(&mut ui, &[pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code())]);
+                    run(
+                        &mut ui,
+                        &[pxui::Event::key(
+                            input::wire::KEY_PRESSED,
+                            input::Key::Escape.code(),
+                        )],
+                    );
                     assert!(ui.carrying().is_none(), "Esc cancels the carry");
                     run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, tx, ty)])
                 }
@@ -2143,7 +2275,16 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     assert_eq!(intent, None);
     // A carried song lights a playlist row it is over, never a smart list (only playlists take a song).
     // the lit fill is the sidebar row under the menu's 2-point spacing its list row carries
-    let lit = |ui: &Ui, rect: Rect| ui.layers().flat_map(|l| l.instances.iter()).any(|i| i.color == [0xD3, 0xD3, 0xD3, 255] && i.rect[0] == rect.x && i.rect[2] == rect.x + rect.w && i.rect[1] >= rect.y - 0.5 && i.rect[3] <= rect.y + rect.h + 2.5 && i.rect[3] - i.rect[1] > 20.0);
+    let lit = |ui: &Ui, rect: Rect| {
+        ui.layers().flat_map(|l| l.instances.iter()).any(|i| {
+            i.color == [0xD3, 0xD3, 0xD3, 255]
+                && i.rect[0] == rect.x
+                && i.rect[2] == rect.x + rect.w
+                && i.rect[1] >= rect.y - 0.5
+                && i.rect[3] <= rect.y + rect.h + 2.5
+                && i.rect[3] - i.rect[1] > 20.0
+        })
+    };
     let favorites = find(&ui, Role::ListItem, "Favorites");
     let (x, y) = centre(find(&ui, Role::ListItem, "T2"));
     run(&mut ui, &[pointer(input::wire::POINTER_MOVED, x, y)]);
@@ -2153,10 +2294,25 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
         let (tx, ty) = centre(target);
         run(&mut ui, &[pointer(input::wire::POINTER_MOVED, tx, ty)]);
         run(&mut ui, &[]);
-        let fills: Vec<_> = ui.layers().flat_map(|l| l.instances.iter()).filter(|i| i.color == [0xD3, 0xD3, 0xD3, 255]).map(|i| i.rect).collect();
-        assert_eq!(lit(&ui, target), lights, "a song over {target:?} lights it: {lights} {fills:?}");
+        let fills: Vec<_> = ui
+            .layers()
+            .flat_map(|l| l.instances.iter())
+            .filter(|i| i.color == [0xD3, 0xD3, 0xD3, 255])
+            .map(|i| i.rect)
+            .collect();
+        assert_eq!(
+            lit(&ui, target),
+            lights,
+            "a song over {target:?} lights it: {lights} {fills:?}"
+        );
     }
-    run(&mut ui, &[pxui::Event::key(input::wire::KEY_PRESSED, input::Key::Escape.code())]);
+    run(
+        &mut ui,
+        &[pxui::Event::key(
+            input::wire::KEY_PRESSED,
+            input::Key::Escape.code(),
+        )],
+    );
     run(&mut ui, &[pointer(input::wire::POINTER_RELEASED, x, y)]);
     run(&mut ui, &[]);
     // Warm frames during a drag allocate nothing.
@@ -2171,7 +2327,11 @@ fn song_drag_carries_row_or_selection_and_drops_on_lists_and_up_next() {
     }
     ui.verify_views(false);
     run(&mut ui, &[]);
-    assert_eq!(ui.rebuilt_named("up-next"), 0, "a stationary song carry keeps the queue rows");
+    assert_eq!(
+        ui.rebuilt_named("up-next"),
+        0,
+        "a stationary song carry keeps the queue rows"
+    );
 }
 
 #[test]
@@ -2357,16 +2517,30 @@ fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocati
     }
     // The cursor walks down one row height per press, then stays at the bottom edge while the list scrolls.
     let last = *tops.last().unwrap();
-    assert!(last + 38.0 <= 872.0 && tops[..10].windows(2).all(|w| w[1] == w[0] + 38.0), "{tops:?}");
+    assert!(
+        last + 38.0 <= 872.0 && tops[..10].windows(2).all(|w| w[1] == w[0] + 38.0),
+        "{tops:?}"
+    );
     assert!(tops[20..].iter().all(|&y| y == last), "{tops:?}");
 
     // Arrowing back up keeps the cursor row visible too, without moving the list while it is inside.
     for _ in 0..39 {
-        run(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::ArrowUp.code())]);
-        run(&mut ui, &mut state, &[key(input::wire::KEY_RELEASED, input::Key::ArrowUp.code())]);
+        run(
+            &mut ui,
+            &mut state,
+            &[key(input::wire::KEY_PRESSED, input::Key::ArrowUp.code())],
+        );
+        run(
+            &mut ui,
+            &mut state,
+            &[key(input::wire::KEY_RELEASED, input::Key::ArrowUp.code())],
+        );
         run(&mut ui, &mut state, &[]);
         run(&mut ui, &mut state, &[]);
     }
     assert_eq!(state.selected, Some(0));
-    assert!(top_of(&ui, 0).is_some_and(|y| y >= 0.0), "row 0 visible after ArrowUp");
+    assert!(
+        top_of(&ui, 0).is_some_and(|y| y >= 0.0),
+        "row 0 visible after ArrowUp"
+    );
 }

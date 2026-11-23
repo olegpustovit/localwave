@@ -1,5 +1,5 @@
-use pxui::bodies::BodyConfig;
 use super::*;
+use pxui::bodies::BodyConfig;
 
 // LocalWave's colour tokens, read with `ui.color` and `paint.color`. The accent is the theme's own.
 pub(super) const PAPER: ColorToken = ColorToken(0);
@@ -32,7 +32,10 @@ pub(super) const COLORS: [(Rgba, Rgba); 10] = [
 /// Gives a root or scoped theme LocalWave's palette for the selected appearance.
 pub fn apply_palette(theme: &mut pxui::ThemeHandle, dark: bool) {
     for (index, (light, night)) in COLORS.into_iter().enumerate() {
-        theme.set_color(pxui::theme::ColorToken(index as u16), if dark { night } else { light });
+        theme.set_color(
+            pxui::theme::ColorToken(index as u16),
+            if dark { night } else { light },
+        );
     }
 }
 pub(super) fn container(
@@ -43,10 +46,7 @@ pub(super) fn container(
     h: Size,
     look: &'static Look,
 ) -> Handle {
-    ui.node(
-        key,
-        Node::column().w(w).h(h).axis(axis).look(*look),
-    )
+    ui.node(key, Node::column().w(w).h(h).axis(axis).look(*look))
 }
 pub(super) fn spacer(ui: &mut Ui, key: &'static str, height: f32) {
     ui.node(key, Node::DEFAULT.h(Size::Px(height)));
@@ -143,10 +143,21 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         Icon::Queue => crate::icons::queue(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Previous | Icon::Next => {
             let next = matches!(icon, Icon::Next);
-            paint.fill(Rect::new(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0), Fill::new(color));
+            paint.fill(
+                Rect::new(x + if next { 15.0 } else { 3.0 }, y + 4.0, 2.0, 12.0),
+                Fill::new(color),
+            );
             for row in 0..12 {
                 let w = (6.0 - (row as f32 - 5.5).abs()) * 1.5;
-                paint.fill(Rect::new(x + if next { 4.0 } else { 15.0 - w }, y + 4.0 + row as f32, w, 1.0), Fill::new(color));
+                paint.fill(
+                    Rect::new(
+                        x + if next { 4.0 } else { 15.0 - w },
+                        y + 4.0 + row as f32,
+                        w,
+                        1.0,
+                    ),
+                    Fill::new(color),
+                );
             }
         }
         Icon::Panel => crate::icons::side(paint, Rect::new(x, y, 20.0, 20.0), color),
@@ -174,8 +185,16 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         ),
         Icon::Refresh => {
             paint.line((x + 4.0, y + 5.0), (x + 16.0, y + 5.0), Stroke::new(color));
-            paint.line((x + 16.0, y + 5.0), (x + 16.0, y + 15.0), Stroke::new(color));
-            paint.line((x + 16.0, y + 15.0), (x + 4.0, y + 15.0), Stroke::new(color));
+            paint.line(
+                (x + 16.0, y + 5.0),
+                (x + 16.0, y + 15.0),
+                Stroke::new(color),
+            );
+            paint.line(
+                (x + 16.0, y + 15.0),
+                (x + 4.0, y + 15.0),
+                Stroke::new(color),
+            );
             paint.line((x + 4.0, y + 15.0), (x + 4.0, y + 10.0), Stroke::new(color));
             paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 2.0), Stroke::new(color));
             paint.line((x + 4.0, y + 5.0), (x + 8.0, y + 8.0), Stroke::new(color));
@@ -196,31 +215,93 @@ pub(super) fn paint_icon(paint: &mut pxui::Paint<'_>, icon: Icon, x: f32, y: f32
         Icon::Plus => crate::icons::plus(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Folder => crate::icons::folder(paint, Rect::new(x, y, 20.0, 20.0), color),
         Icon::Route => crate::icons::route(paint, Rect::new(x, y, 20.0, 20.0), color),
-        Icon::Offline | Icon::Kept => crate::icons::offline(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::Kept), color),
-        Icon::Heart | Icon::HeartFilled => crate::icons::heart(paint, Rect::new(x, y, 20.0, 20.0), matches!(icon, Icon::HeartFilled), color),
+        Icon::Offline | Icon::Kept => crate::icons::offline(
+            paint,
+            Rect::new(x, y, 20.0, 20.0),
+            matches!(icon, Icon::Kept),
+            color,
+        ),
+        Icon::Heart | Icon::HeartFilled => crate::icons::heart(
+            paint,
+            Rect::new(x, y, 20.0, 20.0),
+            matches!(icon, Icon::HeartFilled),
+            color,
+        ),
         Icon::RepeatOne => {
-            crate::icons::repeat(paint, Rect { x, y, w: 20.0, h: 20.0 }, color);
+            crate::icons::repeat(
+                paint,
+                Rect {
+                    x,
+                    y,
+                    w: 20.0,
+                    h: 20.0,
+                },
+                color,
+            );
             // the "1" in the icon's ink, 19 right and 15 down in an 8 by 12 box (where the key's label sat)
-            let one = [pxui::TextSpan { start: 0, end: 1, ..Default::default() }.color(color)];
-            let _ = paint.text_spans(pxui::Point::new(x + 19.0, y + 15.0), REPEAT_ONE, 8.0, "1", &one);
+            let one = [pxui::TextSpan {
+                start: 0,
+                end: 1,
+                ..Default::default()
+            }
+            .color(color)];
+            let _ = paint.text_spans(
+                pxui::Point::new(x + 19.0, y + 15.0),
+                REPEAT_ONE,
+                8.0,
+                "1",
+                &one,
+            );
         }
         Icon::RowMore => {
             let color = Rgba::token(SECONDARY);
             for dx in [5.5, 12.0, 18.5] {
-                paint.circle((x + 2.0 + dx * (2.0 / 3.0), y + 10.0), 1.4 * (2.0 / 3.0), Some(Fill::new(color)), None);
+                paint.circle(
+                    (x + 2.0 + dx * (2.0 / 3.0), y + 10.0),
+                    1.4 * (2.0 / 3.0),
+                    Some(Fill::new(color)),
+                    None,
+                );
             }
         }
         Icon::Down => {
             paint.line((x + 3.0, y + 7.0), (x + 10.0, y + 14.0), Stroke::new(color));
-            paint.line((x + 10.0, y + 14.0), (x + 17.0, y + 7.0), Stroke::new(color));
+            paint.line(
+                (x + 10.0, y + 14.0),
+                (x + 17.0, y + 7.0),
+                Stroke::new(color),
+            );
         }
     }
 }
 /// Every kit icon, indexed by its discriminant (the word an icon button's drawing carries).
 const ICONS: [Icon; 26] = [
-    Icon::Play, Icon::Pause, Icon::Previous, Icon::Next, Icon::Queue, Icon::Panel, Icon::Shuffle, Icon::Repeat,
-    Icon::Refresh, Icon::Clear, Icon::Down, Icon::More, Icon::Settings, Icon::Back, Icon::Check, Icon::Offline, Icon::Kept,
-    Icon::RepeatOne, Icon::Heart, Icon::HeartFilled, Icon::RowMore, Icon::Add, Icon::Search, Icon::Plus, Icon::Folder, Icon::Route,
+    Icon::Play,
+    Icon::Pause,
+    Icon::Previous,
+    Icon::Next,
+    Icon::Queue,
+    Icon::Panel,
+    Icon::Shuffle,
+    Icon::Repeat,
+    Icon::Refresh,
+    Icon::Clear,
+    Icon::Down,
+    Icon::More,
+    Icon::Settings,
+    Icon::Back,
+    Icon::Check,
+    Icon::Offline,
+    Icon::Kept,
+    Icon::RepeatOne,
+    Icon::Heart,
+    Icon::HeartFilled,
+    Icon::RowMore,
+    Icon::Add,
+    Icon::Search,
+    Icon::Plus,
+    Icon::Folder,
+    Icon::Route,
 ];
 /// The repeat-one mark: Geist Mono 9 in a 12-point line.
 const REPEAT_ONE: Label = MONO_9.w_px(8.0).h_px(12.0);
@@ -238,7 +319,12 @@ const _: () = {
 fn draw_icon(paint: &mut pxui::Paint<'_>, at: pxui::geom::Rect, ink: Rgba, word: u32) {
     let points = (word >> 8) as f32 / 4.0;
     let at = if points > 0.0 {
-        pxui::geom::Rect { x: at.x + (at.w - points) / 2.0, y: at.y + (at.h - points) / 2.0, w: points, h: points }
+        pxui::geom::Rect {
+            x: at.x + (at.w - points) / 2.0,
+            y: at.y + (at.h - points) / 2.0,
+            w: points,
+            h: points,
+        }
     } else {
         at
     };
@@ -289,7 +375,11 @@ pub(super) fn heading_size(ui: &mut Ui, value: &str, available: f32, natural: f3
     )
 }
 /// A table column heading: 12 points, medium, wrapping at words.
-pub(super) const TABLE_HEADING: Label = Label::BODY.size(12.0).line_height(TABLE_LINE).weight(500).wrap_spaces();
+pub(super) const TABLE_HEADING: Label = Label::BODY
+    .size(12.0)
+    .line_height(TABLE_LINE)
+    .weight(500)
+    .wrap_spaces();
 /// The line height of 12-point table text (headings and mono cells), in points.
 pub(super) const TABLE_LINE: f32 = 16.8;
 /// -0.03 em, one f32 step past it so 24 and 40 point text resolve to exactly -0.72 and -1.2 points of tracking.
@@ -327,21 +417,46 @@ pub(super) const MENU_CHOICE: u16 = 2;
 pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
     let state = State::from(c.state);
     let (enabled, selected) = (!state.disabled, state.checked);
-    ui.set_node_layout(&c.row, &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0));
+    ui.set_node_layout(
+        &c.row,
+        &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0),
+    );
     let ink = if c.danger != 0 { DANGER } else { INK };
     if c.variant == 0 {
         let look = MENU_ROW.text(Rgba::token(ink));
-        ui.style(&c.row, &pxui::theme::States::of(look), State::default().disabled(!enabled));
+        ui.style(
+            &c.row,
+            &pxui::theme::States::of(look),
+            State::default().disabled(!enabled),
+        );
     } else {
         let fill = Rgba::token(if selected { SELECTED } else { PAPER });
-        let look = MENU_ROW.fill(fill).text(Rgba::token(if enabled { ink } else { SECONDARY }));
+        let look = MENU_ROW
+            .fill(fill)
+            .text(Rgba::token(if enabled { ink } else { SECONDARY }));
         ui.style(&c.row, &pxui::theme::States::of(look), State::default());
     }
     ui.text(&c.row, c.text_of(&c.text));
     use pxui::A11yStates;
     match c.variant {
-        MENU_PANEL => ui.set_role(&c.row, Role::MenuItem, if enabled { A11yStates::ENABLED } else { A11yStates::NONE }),
-        MENU_CHOICE => ui.set_role(&c.row, Role::Toggle, A11yStates::CHECKABLE.with(if selected { A11yStates::CHECKED } else { A11yStates::NONE })),
+        MENU_PANEL => ui.set_role(
+            &c.row,
+            Role::MenuItem,
+            if enabled {
+                A11yStates::ENABLED
+            } else {
+                A11yStates::NONE
+            },
+        ),
+        MENU_CHOICE => ui.set_role(
+            &c.row,
+            Role::Toggle,
+            A11yStates::CHECKABLE.with(if selected {
+                A11yStates::CHECKED
+            } else {
+                A11yStates::NONE
+            }),
+        ),
         _ => {}
     }
 }
@@ -358,7 +473,10 @@ pub(super) mod button_tests {
         ui.verify_views(false);
         for (index, seconds) in [753, 754, 755].into_iter().enumerate() {
             let input = FrameIn::new(400.0 + index as f32, 80.0).time(index as f64);
-            crate::testing::frame(&mut ui, &input, &mut |ui| matrix_clock(ui, seconds, 43.0, INK)).unwrap();
+            crate::testing::frame(&mut ui, &input, &mut |ui| {
+                matrix_clock(ui, seconds, 43.0, INK)
+            })
+            .unwrap();
         }
         assert_eq!(ui.rebuilt_named("stable"), 0);
         assert!(ui.rebuilt_named("changed") > 0);
@@ -405,7 +523,11 @@ pub(super) mod button_tests {
                         assert!((dot.rect[3] - dot.rect[1] - 43.0 / 7.0 * 0.78).abs() < 0.001);
                     }
                     if offset == 0.0 && seconds != 0 {
-                        assert_eq!(ui.repaint_at(), Some(time + 0.05), "a ticking clock uses the shared ambient cadence");
+                        assert_eq!(
+                            ui.repaint_at(),
+                            Some(time + 0.05),
+                            "a ticking clock uses the shared ambient cadence"
+                        );
                     }
                     if offset >= 0.236 {
                         assert!(
@@ -582,16 +704,29 @@ pub(super) mod button_tests {
         ui.set_theme(&light).unwrap();
         let clicked = Cell::new(false);
         let mut build = |ui: &mut Ui| {
-            clicked.set(ui.icon_button("test-button", icon_drawing(Icon::Next), "Next", &icon_key(64.0, 40.0).look(&ICON_PLATE_LOOKS)).clicked);
+            clicked.set(
+                ui.icon_button(
+                    "test-button",
+                    icon_drawing(Icon::Next),
+                    "Next",
+                    &icon_key(64.0, 40.0).look(&ICON_PLATE_LOOKS),
+                )
+                .clicked,
+            );
         };
-        fn input(time: f64, events: &[Event]) -> FrameIn<'_> { FrameIn::new(320.0, 240.0).time(time).events(events) }
+        fn input(time: f64, events: &[Event]) -> FrameIn<'_> {
+            FrameIn::new(320.0, 240.0).time(time).events(events)
+        }
         for time in [0.0, 0.1] {
             crate::testing::frame(&mut ui, &input(time, &[]), &mut build).unwrap();
         }
         let key = pxui::ui::key_of(ROOT_KEY, "test-button");
         let button = ui.box_of_key(pxui::Key::Resolved(key)).unwrap();
         let surface = ui
-            .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(pxui::ui::key_of(key, "visual"), "surface")))
+            .box_of_key(pxui::Key::Resolved(pxui::ui::key_of(
+                pxui::ui::key_of(key, "visual"),
+                "surface",
+            )))
             .unwrap();
         let original = ui.rect(&button);
         let pointer = |kind| Event {

@@ -371,7 +371,10 @@ impl Controller {
             .feedback
             .adopt(&mut self.catalog, poll.catalog, changed);
         // a newer position within the same ticks is kept, not reported: nothing on screen changes
-        let status_changed = poll.status.as_ref().is_some_and(|status| status.shown() != self.status.shown());
+        let status_changed = poll
+            .status
+            .as_ref()
+            .is_some_and(|status| status.shown() != self.status.shown());
         if let Some(status) = poll.status {
             self.status = status;
         }

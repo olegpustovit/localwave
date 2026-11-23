@@ -8,11 +8,15 @@ pub(crate) fn prepared(songs: Vec<lw_core::Song>) -> catalog::Catalog {
 
 #[test]
 fn playlist_name_dialog_keeps_desktop_song_visuals() {
-    let catalog = prepared((0..40).map(|id| lw_core::Song {
-        id: Some(id),
-        title: format!("Track {id}"),
-        ..Default::default()
-    }).collect());
+    let catalog = prepared(
+        (0..40)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("Track {id}"),
+                ..Default::default()
+            })
+            .collect(),
+    );
     let mut state = ShellState::default();
     let player = PlayerView::default();
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
@@ -21,7 +25,8 @@ fn playlist_name_dialog_keeps_desktop_song_visuals() {
     let mut draw = |state: &ShellState| {
         crate::testing::frame(&mut ui, &frame, &mut |ui| {
             shell(ui, &player, 0.0, &catalog, state, &mut None)
-        }).unwrap();
+        })
+        .unwrap();
         ui.rebuilt_named("song-visual")
     };
     assert!(draw(&state) > 0);
@@ -69,7 +74,11 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
         // warm-up shows every second the ticks below show, then plays as they do: some frames keep the transport, some rebuild it
         for tick in 0..40 {
             frame.wire.time = tick as f64 * 0.05;
-            let position = if tick < 20 { tick as f64 } else { 14.0 + (tick - 20) as f64 * 0.05 };
+            let position = if tick < 20 {
+                tick as f64
+            } else {
+                14.0 + (tick - 20) as f64 * 0.05
+            };
             crate::testing::frame(&mut ui, &frame, &mut |ui| {
                 shell(ui, &player, position, &catalog, &state, &mut None)
             })
@@ -115,7 +124,11 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
                     .find(|node| ui.a11y_name_of(node) == "Playback position")
                     .unwrap();
                 // one playhead step: four a second, like Swift's 0.25 s time observer
-                assert!((seek.value.now - position).abs() <= 0.25 + 0.001, "{} at {position}", seek.value.now);
+                assert!(
+                    (seek.value.now - position).abs() <= 0.25 + 0.001,
+                    "{} at {position}",
+                    seek.value.now
+                );
                 let clock = ui
                     .a11y_nodes()
                     .iter()
@@ -134,7 +147,10 @@ fn twenty_position_ticks_rebuild_no_song_rows_and_keep_transport_live() {
         }
         if width == 1440.0 {
             // a second of 0.05 s ticks: about nine 0.117 s playhead steps, one or two clock seconds
-            assert!(transports > 0 && transports < 20, "{transports} transport rebuilds");
+            assert!(
+                transports > 0 && transports < 20,
+                "{transports} transport rebuilds"
+            );
             assert!(clocks > 0 && clocks <= 2, "{clocks} clock rebuilds");
         }
         let updated = PlayerView {
@@ -177,8 +193,7 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
     for round in 0..5 {
         mem_sys::local_reset();
         for scale in [1.0, 2.0] {
-            for (index, (font, size, line, baseline)) in samples.into_iter().enumerate()
-            {
+            for (index, (font, size, line, baseline)) in samples.into_iter().enumerate() {
                 let label = pxui::Label::BODY.font(font).size(size).line_height(line);
                 crate::testing::frame(
                     &mut ui,
@@ -186,7 +201,12 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                     &mut |ui| {
                         let a = ui.node(
                             "line-box",
-                            pxui::ui::Node::column().w_px(200.0).h_px(line).role(pxui::ui::Role::Label).at(20.0, 20.0).look(pxui::ui::Look::NONE.text(pxui::geom::Rgba::rgb(231, 0, 0))),
+                            pxui::ui::Node::column()
+                                .w_px(200.0)
+                                .h_px(line)
+                                .role(pxui::ui::Role::Label)
+                                .at(20.0, 20.0)
+                                .look(pxui::ui::Look::NONE.text(pxui::geom::Rgba::rgb(231, 0, 0))),
                         );
                         ui.text_line_box(&a, "Ag01", label, &[]).unwrap();
                     },
@@ -199,7 +219,11 @@ fn line_boxes_match_coretext_baselines_at_both_pixel_densities_without_warm_allo
                     .flat_map(|l| l.instances.iter())
                     .find(|i| i.kind == pxui::draw::kind::MASK && i.color == [231, 0, 0, 255])
                     .expect("the line box draws its glyphs");
-                assert_eq!(a.rect[3] - 20.0, baseline, "CoreText line box {index}, scale {scale}");
+                assert_eq!(
+                    a.rect[3] - 20.0,
+                    baseline,
+                    "CoreText line box {index}, scale {scale}"
+                );
             }
         }
         if round >= 3 {
@@ -302,23 +326,19 @@ fn external_drop_overlay_retains_accessible_instructions_and_has_no_warm_allocat
         for width in [640.0, 1440.0] {
             for dragging in [false, true, true, false] {
                 time += 1.0 / 60.0;
-                crate::testing::frame(
-                    &mut ui,
-                    &FrameIn::new(width, 872.0).time(time),
-                    &mut |ui| {
-                        shell(
-                            ui,
-                            &PlayerView {
-                                file_dragging: dragging,
-                                ..Default::default()
-                            },
-                            0.0,
-                            &catalog,
-                            &state,
-                            &mut None,
-                        );
-                    },
-                )
+                crate::testing::frame(&mut ui, &FrameIn::new(width, 872.0).time(time), &mut |ui| {
+                    shell(
+                        ui,
+                        &PlayerView {
+                            file_dragging: dragging,
+                            ..Default::default()
+                        },
+                        0.0,
+                        &catalog,
+                        &state,
+                        &mut None,
+                    );
+                })
                 .unwrap();
                 let root = ui
                     .a11y_nodes()
@@ -364,11 +384,9 @@ fn unknown_playback_length_keeps_clock_and_progress_accessibility_valid() {
             duration,
             ..Default::default()
         };
-        crate::testing::frame(
-            &mut ui,
-            &FrameIn::new(1440.0, 872.0),
-            &mut |ui| shell(ui, &player, position, &catalog, &state, &mut None),
-        )
+        crate::testing::frame(&mut ui, &FrameIn::new(1440.0, 872.0), &mut |ui| {
+            shell(ui, &player, position, &catalog, &state, &mut None)
+        })
         .unwrap();
         let progress = ui
             .a11y_nodes()
@@ -430,7 +448,10 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         .iter()
         .find(|node| ui.a11y_name_of(node) == "Playback queue")
         .expect("the playback queue sheet");
-    assert!((sheet.rect.h - frame.wire.height * 0.86).abs() < 1.0, "the sheet cap includes the space outside the scroll region");
+    assert!(
+        (sheet.rect.h - frame.wire.height * 0.86).abs() < 1.0,
+        "the sheet cap includes the space outside the scroll region"
+    );
     let queue_rect = ui
         .a11y_nodes()
         .iter()
@@ -441,19 +462,25 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         .a11y_nodes()
         .iter()
         .filter(|node| {
-            node.is_role(pxui::ui::Role::ListItem)
-                && node.rect.w > 1000.0
-                && node.rect.x == 10.0
+            node.is_role(pxui::ui::Role::ListItem) && node.rect.w > 1000.0 && node.rect.x == 10.0
         })
-        .inspect(|node| assert_eq!(ui.a11y_name_of(node), "Repeated queue song", "a queue row is named by its title (U2b.4.10)"))
+        .inspect(|node| {
+            assert_eq!(
+                ui.a11y_name_of(node),
+                "Repeated queue song",
+                "a queue row is named by its title (U2b.4.10)"
+            )
+        })
         .map(|node| node.rect)
         .collect();
     assert!(rows.len() > 3 && rows.len() < 30);
     for row in &rows {
         assert!(
-            ui.a11y_nodes().iter().any(|node| node.is_role(pxui::ui::Role::Button)
-                && ui.a11y_name_of(node) == "Repeated queue song"
-                && node.rect.y == row.y),
+            ui.a11y_nodes()
+                .iter()
+                .any(|node| node.is_role(pxui::ui::Role::Button)
+                    && ui.a11y_name_of(node) == "Repeated queue song"
+                    && node.rect.y == row.y),
             "each row plays its occurrence: {row:?}"
         );
     }
@@ -484,13 +511,18 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, -30.0),
     ] {
         frame.wire.time += 0.01;
-        crate::testing::frame(&mut ui, &frame.events(std::slice::from_ref(&event)), &mut |ui| {
-            shell(ui, &player, position, &catalog, &state, &mut intent)
-        })
+        crate::testing::frame(
+            &mut ui,
+            &frame.events(std::slice::from_ref(&event)),
+            &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
+        )
         .unwrap();
         assert!(intent.is_none());
     }
-    assert!(ui.captured(), "the grip still holds the row after the scroll");
+    assert!(
+        ui.captured(),
+        "the grip still holds the row after the scroll"
+    );
     assert!(
         ui.a11y_nodes().iter().any(|node| node.id == grips[0].0),
         "the modal's drag keeps its lifted row while its place scrolls out of the virtual window"
@@ -547,7 +579,11 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         })
         .unwrap();
     }
-    assert_eq!(create_enabled(&ui), Some(false), "Create is disabled without a valid name");
+    assert_eq!(
+        create_enabled(&ui),
+        Some(false),
+        "Create is disabled without a valid name"
+    );
     activate(&mut ui, "Cancel playlist creation");
     crate::testing::frame(&mut ui, &frame, &mut |ui| {
         shell(ui, &player, position, &catalog, &state, &mut intent)
@@ -582,13 +618,27 @@ fn queue_sheet_virtualizes_upcoming_rows_and_saves_bounded_names_without_warm_al
         shell(ui, &player, position, &catalog, &state, &mut intent)
     })
     .unwrap();
-    assert_eq!(create_enabled(&ui), Some(false), "Create is disabled without a valid name");
+    assert_eq!(
+        create_enabled(&ui),
+        Some(false),
+        "Create is disabled without a valid name"
+    );
     state.apply(Intent::EditPlaylistName(name));
     for cycle in 0..24 {
         mem_sys::local_reset();
         let events = [
-            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, (queue_rect.x + 100.0) as f64, (queue_rect.y + 100.0) as f64),
-            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if cycle % 2 == 0 { -4.0 } else { 4.0 }),
+            pxui::Event::pointer(
+                input::wire::POINTER_MOVED,
+                0,
+                (queue_rect.x + 100.0) as f64,
+                (queue_rect.y + 100.0) as f64,
+            ),
+            pxui::Event::pointer(
+                input::wire::SCROLLED,
+                0,
+                0.0,
+                if cycle % 2 == 0 { -4.0 } else { 4.0 },
+            ),
         ];
         frame.wire.time += 0.02;
         player.revision += 1;
@@ -647,11 +697,9 @@ fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
     for inset in [28.0, f32::NAN, -1.0, 0.0, 44.0] {
         state.set_window_inset(inset);
         for _ in 0..3 {
-            crate::testing::frame(
-                &mut ui,
-                &FrameIn::new(1440.0, 872.0),
-                &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
-            )
+            crate::testing::frame(&mut ui, &FrameIn::new(1440.0, 872.0), &mut |ui| {
+                shell(ui, &player, 0.0, &catalog, &state, &mut None)
+            })
             .unwrap();
         }
         let expected = if inset.is_nan() || inset < 0.0 {
@@ -668,11 +716,9 @@ fn window_titlebar_inset_keeps_controls_clear_and_rejects_invalid_geometry() {
         );
     }
     for _ in 0..3 {
-        crate::testing::frame(
-            &mut ui,
-            &FrameIn::new(1000.0, 480.0),
-            &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut None),
-        )
+        crate::testing::frame(&mut ui, &FrameIn::new(1000.0, 480.0), &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
+        })
         .unwrap();
     }
     assert!(
@@ -808,8 +854,17 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             if e.is_none() && intent.is_none() && ui.captured() {
                 lifted_checks += 1;
                 // the lifted row stays under the pointer where it was grabbed, over the row the scroll brought there
-                let at_pointer = ui.a11y_nodes().iter().filter(|node| ui.a11y_name_of(node) == "Reorder queued track" && node.rect.y == third.y).count();
-                assert_eq!(at_pointer, 2, "the lifted row stays built while its place scrolls out of the virtual window");
+                let at_pointer = ui
+                    .a11y_nodes()
+                    .iter()
+                    .filter(|node| {
+                        ui.a11y_name_of(node) == "Reorder queued track" && node.rect.y == third.y
+                    })
+                    .count();
+                assert_eq!(
+                    at_pointer, 2,
+                    "the lifted row stays built while its place scrolls out of the virtual window"
+                );
             }
             if e.is_some_and(|e| e.kind == input::wire::POINTER_RELEASED) {
                 assert_eq!(
@@ -831,7 +886,10 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             );
         }
     }
-    assert_eq!(lifted_checks, 16, "every cross-page drag is still held after its scroll");
+    assert_eq!(
+        lifted_checks, 16,
+        "every cross-page drag is still held after its scroll"
+    );
     for cancel in [
         pxui::Event::new(input::wire::POINTER_CANCELLED),
         pxui::Event::new(input::wire::FOCUS_LOST),
@@ -844,9 +902,11 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
             event(input::wire::POINTER_RELEASED, third, 10.0),
         ] {
             frame.wire.time += 0.01;
-            crate::testing::frame(&mut ui, &frame.events(std::slice::from_ref(&e)), &mut |ui| {
-                shell(ui, &player, position, &catalog, &state, &mut intent)
-            })
+            crate::testing::frame(
+                &mut ui,
+                &frame.events(std::slice::from_ref(&e)),
+                &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
+            )
             .unwrap();
             assert!(intent.is_none(), "cancelled drags never reorder");
         }
@@ -928,9 +988,21 @@ fn up_next_virtualizes_duplicate_occurrences_and_routes_warm_queue_actions_and_d
         shell(ui, &player, position, &cleared, &state, &mut intent)
     })
     .unwrap();
-    let names: Vec<_> = ui.a11y_nodes().iter().map(|node| ui.a11y_name_of(node).to_owned()).collect();
-    assert!(names.iter().any(|name| name == "Up next cleared."), "the cleared panel says so: {names:?}");
-    assert!(!names.iter().any(|name| name == "Undo clear up next" || name == "Clear up next"), "the panel has no Clear or Undo key (Swift)");
+    let names: Vec<_> = ui
+        .a11y_nodes()
+        .iter()
+        .map(|node| ui.a11y_name_of(node).to_owned())
+        .collect();
+    assert!(
+        names.iter().any(|name| name == "Up next cleared."),
+        "the cleared panel says so: {names:?}"
+    );
+    assert!(
+        !names
+            .iter()
+            .any(|name| name == "Undo clear up next" || name == "Clear up next"),
+        "the panel has no Clear or Undo key (Swift)"
+    );
     assert!(
         !ui.a11y_nodes()
             .iter()
@@ -1209,7 +1281,12 @@ fn find_keeps_focus_hides_stale_results_and_scrolls_warm_without_allocations() {
     for tick in 0..120 {
         let wheel = [
             pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
-            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if tick % 40 < 20 { -1.0 } else { 1.0 }),
+            pxui::Event::pointer(
+                input::wire::SCROLLED,
+                0,
+                0.0,
+                if tick % 40 < 20 { -1.0 } else { 1.0 },
+            ),
         ];
         if tick >= 80 {
             mem_sys::local_reset();
@@ -1698,12 +1775,31 @@ fn accessible_seek_volume_and_panel_controls_return_intents() {
     // repeat one: the key's own icon carries the "1" (Icon::RepeatOne), no separate label node
     player.repeat = lw_core::queue::RepeatMode::One;
     player.revision += 1;
-    crate::testing::frame(&mut ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, &mut intent)).unwrap();
-    let key = ui.a11y_nodes().iter().find(|node| ui.a11y_name_of(node) == "Repeat one").expect("the repeat one key").rect;
-    assert!(!ui.a11y_nodes().iter().any(|node| ui.a11y_name_of(node) == "1"), "no \"1\" label node");
+    crate::testing::frame(&mut ui, &frame, &mut |ui| {
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
+    })
+    .unwrap();
+    let key = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| ui.a11y_name_of(node) == "Repeat one")
+        .expect("the repeat one key")
+        .rect;
+    assert!(
+        !ui.a11y_nodes()
+            .iter()
+            .any(|node| ui.a11y_name_of(node) == "1"),
+        "no \"1\" label node"
+    );
     let one = (key.x + 31.0, key.y + 25.0);
     assert!(
-        ui.layers().flat_map(|l| l.instances.iter()).any(|i| i.kind == pxui::draw::kind::MASK && i.rect[0] >= one.0 - 1.0 && i.rect[2] <= one.0 + 9.0 && i.rect[1] >= one.1 - 1.0 && i.rect[3] <= one.1 + 13.0),
+        ui.layers()
+            .flat_map(|l| l.instances.iter())
+            .any(|i| i.kind == pxui::draw::kind::MASK
+                && i.rect[0] >= one.0 - 1.0
+                && i.rect[2] <= one.0 + 9.0
+                && i.rect[1] >= one.1 - 1.0
+                && i.rect[3] <= one.1 + 13.0),
         "the \"1\" glyph sits at the key's lower right"
     );
 }
@@ -1749,7 +1845,9 @@ fn shell_themes_and_warm_build_allocate_nothing() {
             crate::testing::frame(
                 &mut ui,
                 // Suppress transitions so the verification rebuild has the same geometry.
-                &FrameIn::new(1440.0, 872.0).time(frame as f64).reduced_motion(true),
+                &FrameIn::new(1440.0, 872.0)
+                    .time(frame as f64)
+                    .reduced_motion(true),
                 &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
             )
             .unwrap();
@@ -1771,7 +1869,9 @@ fn shell_themes_and_warm_build_allocate_nothing() {
             };
             crate::testing::frame(
                 &mut ui,
-                &FrameIn::new(1440.0, 872.0).time(frame as f64).reduced_motion(true),
+                &FrameIn::new(1440.0, 872.0)
+                    .time(frame as f64)
+                    .reduced_motion(true),
                 &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
             )
             .unwrap();
@@ -1822,17 +1922,20 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
     let mut intent = None;
     // Settle initial geometry before sending the repeatable wheel trace.
     for _ in 0..2 {
-        crate::testing::frame(
-            &mut ui,
-            &FrameIn::new(1440.0, 872.0),
-            &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
-        )
+        crate::testing::frame(&mut ui, &FrameIn::new(1440.0, 872.0), &mut |ui| {
+            shell(ui, &player, position, &catalog, &state, &mut intent)
+        })
         .unwrap();
     }
     for frame in 0..160 {
         let events = [
             pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
-            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if frame % 40 < 20 { -1.0 } else { 1.0 }),
+            pxui::Event::pointer(
+                input::wire::SCROLLED,
+                0,
+                0.0,
+                if frame % 40 < 20 { -1.0 } else { 1.0 },
+            ),
         ];
         position = frame as f64;
         player.revision = frame;
@@ -1880,19 +1983,15 @@ fn ten_thousand_song_table_virtualizes_and_reuses_warm_scrolled_rows() {
         action_code: 1,
         ..pxui::A11yAction::default()
     }]);
-    crate::testing::frame(
-        &mut ui,
-        &FrameIn::new(1440.0, 872.0),
-        &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
-    )
+    crate::testing::frame(&mut ui, &FrameIn::new(1440.0, 872.0), &mut |ui| {
+        shell(ui, &player, position, &catalog, &state, &mut intent)
+    })
     .unwrap();
     assert_eq!(intent, Some(Intent::Navigate(catalog::Route::Albums)));
     assert!(state.apply(intent.take().unwrap()));
-    crate::testing::frame(
-        &mut ui,
-        &FrameIn::new(1440.0, 872.0),
-        &mut |ui| shell(ui, &player, position, &catalog, &state, &mut intent),
-    )
+    crate::testing::frame(&mut ui, &FrameIn::new(1440.0, 872.0), &mut |ui| {
+        shell(ui, &player, position, &catalog, &state, &mut intent)
+    })
     .unwrap();
     assert!(
         ui.a11y_nodes()
@@ -1936,7 +2035,12 @@ fn ten_thousand_sidebar_collections_only_build_visible_rows() {
     for tick in 0..160 {
         let events = [
             pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 100.0, 450.0),
-            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, if tick % 40 < 20 { -1.0 } else { 1.0 }),
+            pxui::Event::pointer(
+                input::wire::SCROLLED,
+                0,
+                0.0,
+                if tick % 40 < 20 { -1.0 } else { 1.0 },
+            ),
         ];
         if tick == 80 {
             mem_sys::local_reset();
@@ -2041,7 +2145,10 @@ fn song_rows_follow_scroll_selection_navigation_and_resize() {
     state.apply(Intent::Navigate(catalog::Route::Collection(0)));
     build(&mut ui, &state, &frame, &mut intent);
     // a list page leads with its kind's line (6 + 18.2) and its Play/Shuffle tools (30 + 15) over the songs' heading
-    assert!((find(&ui, "Track 001").rect.y - (before.y - 10.0 * 38.0 + 6.0 + 18.2 + 30.0 + 15.0)).abs() < 0.001);
+    assert!(
+        (find(&ui, "Track 001").rect.y - (before.y - 10.0 * 38.0 + 6.0 + 18.2 + 30.0 + 15.0)).abs()
+            < 0.001
+    );
     assert!(
         !ui.a11y_nodes()
             .iter()
@@ -2109,13 +2216,36 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
         assert_eq!(tap(&mut ui, &state, &mut run, code), Some(expected));
     }
     // A mouse scrub leaves Space as play/pause (the scrubber takes no key focus); the player follows the seek.
-    let rect = ui.a11y_nodes().iter().find(|node| node.is_role(pxui::ui::Role::Slider)).unwrap().rect;
-    let at = |kind| pxui::Event { kind, x: f64::from(rect.x + rect.w * 0.5), y: f64::from(rect.y + rect.h * 0.5), ..Default::default() };
-    run(&mut ui, &state, &[at(input::wire::POINTER_MOVED), at(input::wire::POINTER_PRESSED)]);
-    let Some(Intent::SeekFraction(f)) = run(&mut ui, &state, &[at(input::wire::POINTER_RELEASED)]) else { panic!("scrub seeks") };
+    let rect = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(pxui::ui::Role::Slider))
+        .unwrap()
+        .rect;
+    let at = |kind| pxui::Event {
+        kind,
+        x: f64::from(rect.x + rect.w * 0.5),
+        y: f64::from(rect.y + rect.h * 0.5),
+        ..Default::default()
+    };
+    run(
+        &mut ui,
+        &state,
+        &[
+            at(input::wire::POINTER_MOVED),
+            at(input::wire::POINTER_PRESSED),
+        ],
+    );
+    let Some(Intent::SeekFraction(f)) = run(&mut ui, &state, &[at(input::wire::POINTER_RELEASED)])
+    else {
+        panic!("scrub seeks")
+    };
     position.set(f * 100.0);
     run(&mut ui, &state, &[]);
-    assert_eq!(tap(&mut ui, &state, &mut run, input::Key::Space.code()), Some(Intent::Play));
+    assert_eq!(
+        tap(&mut ui, &state, &mut run, input::Key::Space.code()),
+        Some(Intent::Play)
+    );
     position.set(10.0);
     for c in [
         commands::Command::Shuffle,
@@ -2220,11 +2350,23 @@ fn global_shortcuts_emit_swift_intents_and_stay_quiet_for_fields_and_modals() {
 #[test]
 fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
     use catalog::Route;
-    use input::Key::{Alt, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ctrl, Enter, Escape, Meta, Shift, Space};
+    use input::Key::{
+        Alt, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Ctrl, Enter, Escape, Meta, Shift, Space,
+    };
     use pxui::Event;
 
-    let catalog = prepared(vec![lw_core::Song { id: Some(1), title: "Track".into(), ..Default::default() }]);
-    let mut player = PlayerView { initialized: true, current_id: Some(1), volume: 0.5, duration: 100.0, ..PlayerView::default() };
+    let catalog = prepared(vec![lw_core::Song {
+        id: Some(1),
+        title: "Track".into(),
+        ..Default::default()
+    }]);
+    let mut player = PlayerView {
+        initialized: true,
+        current_id: Some(1),
+        volume: 0.5,
+        duration: 100.0,
+        ..PlayerView::default()
+    };
     let mut state = ShellState::default();
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     let mut tick = 0;
@@ -2235,20 +2377,45 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
         frame = frame.events(&events[..]);
         let mut intent = None;
         ui.frame(&frame, &mut |ui| {
-            if carry { ui.carry(None, "song", "1"); }
+            if carry {
+                ui.carry(None, "song", "1");
+            }
             shell(ui, player, 40.0, &catalog, state, &mut intent);
-        }).unwrap();
+        })
+        .unwrap();
         intent
     };
     run(&state, &player, &[], false);
-    let edge = |kind, code| Event { kind, code, ..Default::default() };
-    let mut press = |state: &ShellState, player: &PlayerView<'_>, mods: &[input::Key], key, release_in_frame, carry| {
-        let releases: Vec<_> = mods.iter().map(|key| edge(Event::KEY_RELEASED, key.code())).collect();
-        let mut events: Vec<_> = mods.iter().map(|key| edge(Event::KEY_PRESSED, key.code())).collect();
-        events.extend([edge(Event::KEY_PRESSED, key), edge(Event::KEY_RELEASED, key)]);
-        if release_in_frame { events.extend_from_slice(&releases); }
+    let edge = |kind, code| Event {
+        kind,
+        code,
+        ..Default::default()
+    };
+    let mut press = |state: &ShellState,
+                     player: &PlayerView<'_>,
+                     mods: &[input::Key],
+                     key,
+                     release_in_frame,
+                     carry| {
+        let releases: Vec<_> = mods
+            .iter()
+            .map(|key| edge(Event::KEY_RELEASED, key.code()))
+            .collect();
+        let mut events: Vec<_> = mods
+            .iter()
+            .map(|key| edge(Event::KEY_PRESSED, key.code()))
+            .collect();
+        events.extend([
+            edge(Event::KEY_PRESSED, key),
+            edge(Event::KEY_RELEASED, key),
+        ]);
+        if release_in_frame {
+            events.extend_from_slice(&releases);
+        }
         let intent = run(state, player, &events, carry);
-        if !release_in_frame && !releases.is_empty() { run(state, player, &releases, false); }
+        if !release_in_frame && !releases.is_empty() {
+            run(state, player, &releases, false);
+        }
         intent
     };
     let ch = |key| key as u32;
@@ -2266,8 +2433,16 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
         (&[Shift][..], ArrowRight.code(), Intent::Next),
         (&[Meta][..], ArrowLeft.code(), Intent::Previous),
         (&[Meta][..], ArrowRight.code(), Intent::Next),
-        (&[Meta][..], ArrowUp.code(), Intent::Volume(0.5 + 1.0 / 12.0)),
-        (&[Meta][..], ArrowDown.code(), Intent::Volume(0.5 - 1.0 / 12.0)),
+        (
+            &[Meta][..],
+            ArrowUp.code(),
+            Intent::Volume(0.5 + 1.0 / 12.0),
+        ),
+        (
+            &[Meta][..],
+            ArrowDown.code(),
+            Intent::Volume(0.5 - 1.0 / 12.0),
+        ),
         (&[Meta][..], ch('O'), Intent::ChooseFolder),
         (&[Meta, Shift][..], ch('O'), Intent::ChooseAudio),
         (&[Meta][..], ch('F'), Intent::Navigate(Route::Find)),
@@ -2282,31 +2457,65 @@ fn shortcuts_keep_press_modifiers_raw_case_and_intents() {
         // the songs list is the window's default key target (`focus_default`): it takes ⌘A and reports the change
         (&[Meta][..], ch('A'), Intent::Selected(0)),
     ] {
-        assert_eq!(press(&state, &player, mods, key, false, false), Some(expected), "key {key} with {mods:?}");
+        assert_eq!(
+            press(&state, &player, mods, key, false, false),
+            Some(expected),
+            "key {key} with {mods:?}"
+        );
     }
-    assert_eq!(press(&state, &player, &[Meta], ch('O'), true, false), Some(Intent::ChooseFolder));
-    assert_eq!(press(&state, &player, &[Meta, Shift], ch('n'), false, false), None);
+    assert_eq!(
+        press(&state, &player, &[Meta], ch('O'), true, false),
+        Some(Intent::ChooseFolder)
+    );
+    assert_eq!(
+        press(&state, &player, &[Meta, Shift], ch('n'), false, false),
+        None
+    );
     assert_eq!(press(&state, &player, &[], ch('L'), false, false), None);
 
     player.playing = true;
     player.revision += 1;
-    assert_eq!(press(&state, &player, &[], Space.code(), false, false), Some(Intent::Pause));
+    assert_eq!(
+        press(&state, &player, &[], Space.code(), false, false),
+        Some(Intent::Pause)
+    );
     // arrows reach the list, which selects the keyboard's row; Shift ranges are the widget's, covered pxui-side by
     // pxui author::collection::tests::selection_list_selects_with_the_mouse_and_the_keyboard (Shift-click, Shift-Up from the
     // anchor; both link modes) and pxui_core widgets_list_keys_multi (Shift-click)
     for (mods, key) in [(&[][..], ArrowUp), (&[Shift][..], ArrowDown)] {
-        assert_eq!(press(&state, &player, mods, key.code(), false, false), Some(Intent::Selected(0)), "{key:?}");
+        assert_eq!(
+            press(&state, &player, mods, key.code(), false, false),
+            Some(Intent::Selected(0)),
+            "{key:?}"
+        );
     }
     state.apply(Intent::Selected(0));
     assert_eq!(state.selected_song_ids(&catalog).count(), 1);
-    assert_eq!(press(&state, &player, &[Alt], Enter.code(), false, false), Some(Intent::PlayRow(0)));
-    assert_eq!(press(&state, &player, &[], Escape.code(), false, true), None, "Escape during a carry is the carry's");
-    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::Select(crate::Selection::Clear)), "the list clears on Escape");
+    assert_eq!(
+        press(&state, &player, &[Alt], Enter.code(), false, false),
+        Some(Intent::PlayRow(0))
+    );
+    assert_eq!(
+        press(&state, &player, &[], Escape.code(), false, true),
+        None,
+        "Escape during a carry is the carry's"
+    );
+    assert_eq!(
+        press(&state, &player, &[], Escape.code(), false, false),
+        Some(Intent::Select(crate::Selection::Clear)),
+        "the list clears on Escape"
+    );
     state.apply(Intent::Select(crate::Selection::Clear));
     assert_eq!(state.selected_song_ids(&catalog).count(), 0);
     state.apply(Intent::ShowSettings);
-    assert_eq!(press(&state, &player, &[Meta], ch('['), false, false), Some(Intent::CloseSettings));
-    assert_eq!(press(&state, &player, &[], Escape.code(), false, false), Some(Intent::CloseSettings));
+    assert_eq!(
+        press(&state, &player, &[Meta], ch('['), false, false),
+        Some(Intent::CloseSettings)
+    );
+    assert_eq!(
+        press(&state, &player, &[], Escape.code(), false, false),
+        Some(Intent::CloseSettings)
+    );
 }
 
 #[test]
@@ -2790,21 +2999,55 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
         song(4, None, 0),
     ]);
     // Played once: song 1; kept: songs 2 and 3.
-    catalog.prepare_smart_lists(&mut |id| i64::from(id == 1), &mut |id| id == 2 || id == 3, 8);
-    let counts = catalog.collections.iter().map(|c| (c.title.as_str(), c.count.as_str())).collect::<Vec<_>>();
+    catalog.prepare_smart_lists(
+        &mut |id| i64::from(id == 1),
+        &mut |id| id == 2 || id == 3,
+        8,
+    );
+    let counts = catalog
+        .collections
+        .iter()
+        .map(|c| (c.title.as_str(), c.count.as_str()))
+        .collect::<Vec<_>>();
     assert_eq!(
         counts[3..],
-        [("Kept offline", "2"), ("On this device now", "2"), ("Never played", "3")]
+        [
+            ("Kept offline", "2"),
+            ("On this device now", "2"),
+            ("Never played", "3")
+        ]
     );
     assert_eq!(catalog.offline_usage, "2.5 / 8 GB");
     assert!((catalog.offline_fraction - 0.3125).abs() < 1e-6);
     let before = std::sync::Arc::as_ptr(&catalog.library);
-    catalog.prepare_smart_lists(&mut |id| i64::from(id == 1), &mut |id| id == 2 || id == 3, 8);
-    assert_eq!(before, std::sync::Arc::as_ptr(&catalog.library), "unchanged lists keep the page");
-    let location = |source| files::Location { user: 1, source, parent: None };
+    catalog.prepare_smart_lists(
+        &mut |id| i64::from(id == 1),
+        &mut |id| id == 2 || id == 3,
+        8,
+    );
+    assert_eq!(
+        before,
+        std::sync::Arc::as_ptr(&catalog.library),
+        "unchanged lists keep the page"
+    );
+    let location = |source| files::Location {
+        user: 1,
+        source,
+        parent: None,
+    };
     std::sync::Arc::make_mut(&mut catalog.library).source_rows = vec![
-        catalog::SourceRow { location: location(5), name: "iCloud Drive".into(), count: "34".into(), reconnect: false },
-        catalog::SourceRow { location: location(6), name: "Dropbox".into(), count: "6".into(), reconnect: true },
+        catalog::SourceRow {
+            location: location(5),
+            name: "iCloud Drive".into(),
+            count: "34".into(),
+            reconnect: false,
+        },
+        catalog::SourceRow {
+            location: location(6),
+            name: "Dropbox".into(),
+            count: "6".into(),
+            reconnect: true,
+        },
     ];
 
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
@@ -2814,7 +3057,10 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
     let mut intent = None;
     let frame = FrameIn::new(1440.0, 872.0);
     let run = |ui: &mut Ui, intent: &mut Option<Intent>| {
-        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, &state, intent)).unwrap();
+        crate::testing::frame(ui, &frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, intent)
+        })
+        .unwrap();
     };
     for _ in 0..2 {
         run(&mut ui, &mut intent);
@@ -2823,35 +3069,76 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
         .a11y_nodes()
         .iter()
         // the controls in sidebar order: buttons, and the Library and Lists rows (named list items)
-        .filter(|node| (node.is_role(pxui::ui::Role::Button) || (node.is_role(pxui::ui::Role::ListItem) && !ui.a11y_name_of(node).is_empty()))
-            && node.rect.x < 231.0 && (1.0..800.0).contains(&node.rect.y))
+        .filter(|node| {
+            (node.is_role(pxui::ui::Role::Button)
+                || (node.is_role(pxui::ui::Role::ListItem) && !ui.a11y_name_of(node).is_empty()))
+                && node.rect.x < 231.0
+                && (1.0..800.0).contains(&node.rect.y)
+        })
         .map(|node| (node.rect.y, ui.a11y_name_of(node).to_owned()))
         .collect::<Vec<_>>();
     buttons.sort_by(|a, b| a.0.total_cmp(&b.0));
-    let names = buttons.iter().map(|(_, name)| name.as_str()).collect::<Vec<_>>();
+    let names = buttons
+        .iter()
+        .map(|(_, name)| name.as_str())
+        .collect::<Vec<_>>();
     assert_eq!(
         names,
         [
-            "Search", "Albums", "Artists", "Songs", "iCloud Drive", "Dropbox", "Add folder or files",
-            "Favorites", "Recently added", "Most played", "Kept offline", "On this device now",
-            "Never played", "New list", "Keyboard shortcuts",
+            "Search",
+            "Albums",
+            "Artists",
+            "Songs",
+            "iCloud Drive",
+            "Dropbox",
+            "Add folder or files",
+            "Favorites",
+            "Recently added",
+            "Most played",
+            "Kept offline",
+            "On this device now",
+            "Never played",
+            "New list",
+            "Keyboard shortcuts",
         ]
     );
     let favorites = |role| {
-        ui.a11y_nodes().iter().find(|n| n.is_role(role) && ui.a11y_name_of(n) == "Favorites").unwrap().rect
+        ui.a11y_nodes()
+            .iter()
+            .find(|n| n.is_role(role) && ui.a11y_name_of(n) == "Favorites")
+            .unwrap()
+            .rect
     };
     let row = favorites(pxui::Role::ListItem);
     let label = favorites(pxui::Role::Label);
-    assert!((label.y - row.y - (row.h - label.h + 2.0) / 2.0).abs() < 0.001, "the leading gap belongs above the playlist label");
+    assert!(
+        (label.y - row.y - (row.h - label.h + 2.0) / 2.0).abs() < 0.001,
+        "the leading gap belongs above the playlist label"
+    );
     for (name, expected) in [
         ("Search", Intent::ShowCommands),
-        ("Dropbox", Intent::Files(files::Request::Browse(location(6)))),
+        (
+            "Dropbox",
+            Intent::Files(files::Request::Browse(location(6))),
+        ),
         ("Add folder or files", Intent::ChooseAudio),
         ("Keyboard shortcuts", Intent::ShowShortcuts),
-        ("Never played", Intent::Navigate(catalog::Route::Collection(5))),
+        (
+            "Never played",
+            Intent::Navigate(catalog::Route::Collection(5)),
+        ),
     ] {
-        let id = ui.a11y_nodes().iter().find(|n| ui.a11y_name_of(n) == name).unwrap().id;
-        ui.inject_a11y(&[pxui::A11yAction { id, action_code: 1, ..pxui::A11yAction::default() }]);
+        let id = ui
+            .a11y_nodes()
+            .iter()
+            .find(|n| ui.a11y_name_of(n) == name)
+            .unwrap()
+            .id;
+        ui.inject_a11y(&[pxui::A11yAction {
+            id,
+            action_code: 1,
+            ..pxui::A11yAction::default()
+        }]);
         run(&mut ui, &mut intent);
         assert_eq!(intent.take(), Some(expected), "{name}");
     }
@@ -2859,7 +3146,11 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
     for _ in 0..20 {
         run(&mut ui, &mut intent);
     }
-    assert_eq!(mem_sys::local_alloc_count(), 0, "warm sidebar frames allocate");
+    assert_eq!(
+        mem_sys::local_alloc_count(),
+        0,
+        "warm sidebar frames allocate"
+    );
 }
 
 /// The sidebar's Library list holds the focus and its rows are reached by arrow keys (NSTableView-style): a click selects and
@@ -2875,21 +3166,56 @@ fn sidebar_rows_take_arrow_keys_and_enter_from_the_focused_list() {
     let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         let mut frame = FrameIn::new(1440.0, 872.0);
         frame = frame.events(&events[..]);
-        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
+        crate::testing::frame(ui, &frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
         let taken = intent.take();
-        if let Some(i) = taken.clone() { state.apply(i); }
+        if let Some(i) = taken.clone() {
+            state.apply(i);
+        }
         taken
     };
-    for _ in 0..2 { step(&mut ui, &mut state, &[]); }
+    for _ in 0..2 {
+        step(&mut ui, &mut state, &[]);
+    }
     let albums = pxui::testing::find(&ui, pxui::ui::Role::ListItem, "Albums").unwrap();
     let (x, y) = (f64::from(albums.x + 20.0), f64::from(albums.y + 10.0));
-    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y), pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y)]);
-    assert_eq!(step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]), Some(Intent::Navigate(catalog::Route::Albums)), "a click selects Albums");
+    step(
+        &mut ui,
+        &mut state,
+        &[
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y),
+            pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y),
+        ],
+    );
+    assert_eq!(
+        step(
+            &mut ui,
+            &mut state,
+            &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]
+        ),
+        Some(Intent::Navigate(catalog::Route::Albums)),
+        "a click selects Albums"
+    );
     let key = |key: input::Key| pxui::Event::key(input::wire::KEY_PRESSED, key.code());
-    assert_eq!(step(&mut ui, &mut state, &[key(input::Key::ArrowDown)]), Some(Intent::Navigate(catalog::Route::Artists)), "ArrowDown moves to Artists");
+    assert_eq!(
+        step(&mut ui, &mut state, &[key(input::Key::ArrowDown)]),
+        Some(Intent::Navigate(catalog::Route::Artists)),
+        "ArrowDown moves to Artists"
+    );
     step(&mut ui, &mut state, &[]);
-    assert_eq!(step(&mut ui, &mut state, &[key(input::Key::Enter)]), Some(Intent::Navigate(catalog::Route::Artists)), "Enter activates the row");
-    assert!(ui.a11y_nodes().iter().any(|n| n.is_role(pxui::ui::Role::List) && ui.a11y_name_of(n) == "Library"), "the group is named Library");
+    assert_eq!(
+        step(&mut ui, &mut state, &[key(input::Key::Enter)]),
+        Some(Intent::Navigate(catalog::Route::Artists)),
+        "Enter activates the row"
+    );
+    assert!(
+        ui.a11y_nodes()
+            .iter()
+            .any(|n| n.is_role(pxui::ui::Role::List) && ui.a11y_name_of(n) == "Library"),
+        "the group is named Library"
+    );
 }
 
 /// A click on a sidebar row focuses its list, and the list takes only the keys it handles: Space, ⌘F and ⌘1/2/3 stay the app's.
@@ -2904,31 +3230,84 @@ fn a_focused_sidebar_list_leaves_the_global_shortcuts_on() {
     let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         let mut frame = FrameIn::new(1440.0, 872.0);
         frame = frame.events(&events[..]);
-        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
+        crate::testing::frame(ui, &frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
         let taken = intent.take();
-        if let Some(i) = taken.clone() { state.apply(i); }
+        if let Some(i) = taken.clone() {
+            state.apply(i);
+        }
         taken
     };
-    for _ in 0..2 { step(&mut ui, &mut state, &[]); }
+    for _ in 0..2 {
+        step(&mut ui, &mut state, &[]);
+    }
     let albums = pxui::testing::find(&ui, pxui::ui::Role::ListItem, "Albums").unwrap();
     let (x, y) = (f64::from(albums.x + 20.0), f64::from(albums.y + 10.0));
-    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y), pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y)]);
-    assert_eq!(step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]), Some(Intent::Navigate(catalog::Route::Albums)));
+    step(
+        &mut ui,
+        &mut state,
+        &[
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y),
+            pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y),
+        ],
+    );
+    assert_eq!(
+        step(
+            &mut ui,
+            &mut state,
+            &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]
+        ),
+        Some(Intent::Navigate(catalog::Route::Albums))
+    );
     let key = |kind, key: input::Key| pxui::Event::key(kind, key.code());
-    let chord = |c: char| [key(input::wire::KEY_PRESSED, input::Key::Meta), pxui::Event::key(input::wire::KEY_PRESSED, c as u32),
-        pxui::Event::key(input::wire::KEY_RELEASED, c as u32), key(input::wire::KEY_RELEASED, input::Key::Meta)];
-    assert_eq!(step(&mut ui, &mut state, &chord('3')), Some(Intent::Navigate(catalog::Route::Songs)), "⌘3");
-    assert_eq!(step(&mut ui, &mut state, &chord('f')), Some(Intent::Navigate(catalog::Route::Find)), "⌘F");
+    let chord = |c: char| {
+        [
+            key(input::wire::KEY_PRESSED, input::Key::Meta),
+            pxui::Event::key(input::wire::KEY_PRESSED, c as u32),
+            pxui::Event::key(input::wire::KEY_RELEASED, c as u32),
+            key(input::wire::KEY_RELEASED, input::Key::Meta),
+        ]
+    };
+    assert_eq!(
+        step(&mut ui, &mut state, &chord('3')),
+        Some(Intent::Navigate(catalog::Route::Songs)),
+        "⌘3"
+    );
+    assert_eq!(
+        step(&mut ui, &mut state, &chord('f')),
+        Some(Intent::Navigate(catalog::Route::Find)),
+        "⌘F"
+    );
     step(&mut ui, &mut state, &[]);
-    assert_eq!(step(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::Space)]), Some(Intent::Play), "Space");
-    assert!(!ui.text_input_focused(), "a focused list is not a text editor");
+    assert_eq!(
+        step(
+            &mut ui,
+            &mut state,
+            &[key(input::wire::KEY_PRESSED, input::Key::Space)]
+        ),
+        Some(Intent::Play),
+        "Space"
+    );
+    assert!(
+        !ui.text_input_focused(),
+        "a focused list is not a text editor"
+    );
 }
 
 /// Keys the focused sidebar list does not handle fall through to the songs list (the window's default key target): ⌘A selects every
 /// song and Esc clears them; Return stays with the sidebar, which opens its keyboard row (macOS).
 #[test]
 fn a_focused_sidebar_leaves_select_all_and_escape_to_the_songs() {
-    let songs = (0..3).map(|id| lw_core::Song { id: Some(id), title: format!("T{id}"), artist: "A".into(), album: "B".into(), duration: Some(60.0), ..Default::default() });
+    let songs = (0..3).map(|id| lw_core::Song {
+        id: Some(id),
+        title: format!("T{id}"),
+        artist: "A".into(),
+        album: "B".into(),
+        duration: Some(60.0),
+        ..Default::default()
+    });
     let catalog = prepared(songs.collect());
     let mut ui = crate::test_ui(Platform::Apple, Some(15), &[FONT, MONO]);
     ui.set_a11y(true);
@@ -2939,27 +3318,65 @@ fn a_focused_sidebar_leaves_select_all_and_escape_to_the_songs() {
     let mut step = |ui: &mut Ui, state: &mut ShellState, events: &[pxui::Event]| {
         let mut frame = FrameIn::new(1440.0, 872.0);
         frame = frame.events(&events[..]);
-        crate::testing::frame(ui, &frame, &mut |ui| shell(ui, &player, 0.0, &catalog, state, &mut intent)).unwrap();
+        crate::testing::frame(ui, &frame, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, state, &mut intent)
+        })
+        .unwrap();
         let taken = intent.take();
-        if let Some(i) = taken.clone() { state.apply(i); }
+        if let Some(i) = taken.clone() {
+            state.apply(i);
+        }
         taken
     };
-    for _ in 0..2 { step(&mut ui, &mut state, &[]); }
+    for _ in 0..2 {
+        step(&mut ui, &mut state, &[]);
+    }
     let row = pxui::testing::find(&ui, pxui::ui::Role::ListItem, "Songs").unwrap();
     let (x, y) = (f64::from(row.x + 20.0), f64::from(row.y + 10.0));
-    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y), pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y)]);
-    step(&mut ui, &mut state, &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)]);
+    step(
+        &mut ui,
+        &mut state,
+        &[
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y),
+            pxui::Event::pointer(input::wire::POINTER_PRESSED, 0, x, y),
+        ],
+    );
+    step(
+        &mut ui,
+        &mut state,
+        &[pxui::Event::pointer(input::wire::POINTER_RELEASED, 0, x, y)],
+    );
     step(&mut ui, &mut state, &[]);
     let key = |kind, key: input::Key| pxui::Event::key(kind, key.code());
-    let select_all = [key(input::wire::KEY_PRESSED, input::Key::Meta), pxui::Event::key(input::wire::KEY_PRESSED, 'a' as u32),
-        pxui::Event::key(input::wire::KEY_RELEASED, 'a' as u32), key(input::wire::KEY_RELEASED, input::Key::Meta)];
-    step(&mut ui, &mut state, &select_all);
-    assert_eq!(state.selected_song_ids(&catalog).count(), 3, "⌘A with the sidebar focused selects every song");
-    step(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::Escape)]);
-    assert_eq!(state.selected_song_ids(&catalog).count(), 0, "Esc with the sidebar focused clears the songs' selection");
+    let select_all = [
+        key(input::wire::KEY_PRESSED, input::Key::Meta),
+        pxui::Event::key(input::wire::KEY_PRESSED, 'a' as u32),
+        pxui::Event::key(input::wire::KEY_RELEASED, 'a' as u32),
+        key(input::wire::KEY_RELEASED, input::Key::Meta),
+    ];
     step(&mut ui, &mut state, &select_all);
     assert_eq!(
-        step(&mut ui, &mut state, &[key(input::wire::KEY_PRESSED, input::Key::Enter)]),
+        state.selected_song_ids(&catalog).count(),
+        3,
+        "⌘A with the sidebar focused selects every song"
+    );
+    step(
+        &mut ui,
+        &mut state,
+        &[key(input::wire::KEY_PRESSED, input::Key::Escape)],
+    );
+    assert_eq!(
+        state.selected_song_ids(&catalog).count(),
+        0,
+        "Esc with the sidebar focused clears the songs' selection"
+    );
+    step(&mut ui, &mut state, &select_all);
+    assert_eq!(
+        step(
+            &mut ui,
+            &mut state,
+            &[key(input::wire::KEY_PRESSED, input::Key::Enter)]
+        ),
         Some(Intent::Navigate(catalog::Route::Songs)),
         "Return stays with the focused sidebar"
     );
@@ -3152,26 +3569,54 @@ fn clip_keeps_char_boundaries_and_oversized_metadata_shows_clipped_everywhere() 
     catalog.add_collection(
         &huge("L"),
         vec![0],
-        PlaybackContext::Playlist { id: 3, name: huge("L") },
+        PlaybackContext::Playlist {
+            id: 3,
+            name: huge("L"),
+        },
     );
     catalog.queue = Some(Arc::new(queue::Snapshot::new(
         1,
         Arc::from([Entry { id: 1, song_id: 7 }, Entry { id: 2, song_id: 7 }]),
         Some(0),
-        Arc::new(PlaybackContext::Playlist { id: 3, name: huge("L") }),
+        Arc::new(PlaybackContext::Playlist {
+            id: 3,
+            name: huge("L"),
+        }),
         false,
     )));
     let row = catalog.row(0);
-    for text in [row.title, row.artist, row.album, row.album_artist, row.actions_label, row.subtitle] {
+    for text in [
+        row.title,
+        row.artist,
+        row.album,
+        row.album_artist,
+        row.actions_label,
+        row.subtitle,
+    ] {
         assert!(!text.is_empty() && text.len() <= limit, "{}", text.len());
     }
-    for group in catalog.albums.iter().chain(&catalog.artists).chain(&catalog.collections) {
-        assert!(group.title.len() <= limit && group.subtitle.len() <= limit && group.summary.len() <= limit);
+    for group in catalog
+        .albums
+        .iter()
+        .chain(&catalog.artists)
+        .chain(&catalog.collections)
+    {
+        assert!(
+            group.title.len() <= limit
+                && group.subtitle.len() <= limit
+                && group.summary.len() <= limit
+        );
     }
     assert!(catalog.queue.as_ref().unwrap().heading.len() <= limit + 16);
-    assert!([&info.format, &info.file, &info.folder].iter().all(|text| text.len() <= limit));
+    assert!(
+        [&info.format, &info.file, &info.folder]
+            .iter()
+            .all(|text| text.len() <= limit)
+    );
     // The playback context keeps the full name: only display strings are clipped.
-    assert!(matches!(&*catalog.collections.last().unwrap().context, PlaybackContext::Playlist { name, .. } if name.len() == 100 * 1024));
+    assert!(
+        matches!(&*catalog.collections.last().unwrap().context, PlaybackContext::Playlist { name, .. } if name.len() == 100 * 1024)
+    );
 
     let player = PlayerView {
         initialized: true,
@@ -3203,15 +3648,25 @@ fn clip_keeps_char_boundaries_and_oversized_metadata_shows_clipped_everywhere() 
             let frame = FrameIn::new(width, height);
             for round in 0..8 {
                 mem_sys::local_reset();
-                crate::testing::frame(&mut ui, &frame, &mut |ui| shell(ui, &player, 101.0, &catalog, &state, &mut None))
-                    .unwrap();
+                crate::testing::frame(&mut ui, &frame, &mut |ui| {
+                    shell(ui, &player, 101.0, &catalog, &state, &mut None)
+                })
+                .unwrap();
                 if round > 5 {
-                    assert_eq!(mem_sys::local_alloc_count(), 0, "warm frame {route:?} {width}");
+                    assert_eq!(
+                        mem_sys::local_alloc_count(),
+                        0,
+                        "warm frame {route:?} {width}"
+                    );
                 }
             }
             for node in ui.a11y_nodes() {
                 let name = ui.a11y_name_of(node);
-                assert!(name.len() <= limit + 64, "{route:?} {width}: {} bytes", name.len());
+                assert!(
+                    name.len() <= limit + 64,
+                    "{route:?} {width}: {} bytes",
+                    name.len()
+                );
             }
         }
     }

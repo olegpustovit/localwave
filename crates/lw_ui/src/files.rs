@@ -20,10 +20,17 @@ pub enum Request {
     Roots,
     Browse(Location),
     /// Browse the folder that holds a saved song ("Show in folder").
-    Locate { user: i64, song: i64 },
+    Locate {
+        user: i64,
+        song: i64,
+    },
     Rescan(Location),
     Import(Location),
-    ImportPath { user: i64, source: i64, path: i64 },
+    ImportPath {
+        user: i64,
+        source: i64,
+        path: i64,
+    },
     Remove(Target),
     Cancel,
 }
@@ -124,7 +131,9 @@ impl Directory {
     /// Rows the compact tab shows; non-audio files trail the full list and hide unless the setting shows them.
     pub fn shown(&self, filter: crate::FilesFilter, show_non_audio: bool) -> usize {
         match filter {
-            crate::FilesFilter::All => self.entries.len() - if show_non_audio { 0 } else { self.non_audio },
+            crate::FilesFilter::All => {
+                self.entries.len() - if show_non_audio { 0 } else { self.non_audio }
+            }
             crate::FilesFilter::Offline => self.filters[0].len(),
             crate::FilesFilter::Cloud => self.filters[1].len(),
         }

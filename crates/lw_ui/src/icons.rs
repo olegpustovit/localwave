@@ -6,20 +6,33 @@ use pxui::{
 pub(crate) fn play(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
-    paint.triangle(at((7.0, 4.6)), at((7.0, 19.4)), at((19.4, 12.0)), Fill::new(color));
+    paint.triangle(
+        at((7.0, 4.6)),
+        at((7.0, 19.4)),
+        at((19.4, 12.0)),
+        Fill::new(color),
+    );
 }
 /// LW-prev and LW-next, mirrored across the key's centre.
 pub(crate) fn skip(paint: &mut Paint<'_>, rect: Rect, next: bool, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| {
-        (rect.x + if next { x } else { 24.0 - x } * scale, rect.y + y * scale)
+        (
+            rect.x + if next { x } else { 24.0 - x } * scale,
+            rect.y + y * scale,
+        )
     };
     let stroke = Stroke::new(color).width(1.6 * scale);
     paint.curve(at((18.0, 5.0)), at((18.0, 12.0)), at((18.0, 19.0)), stroke);
     let [a, b, c] = [(5.0, 5.5), (15.0, 12.0), (5.0, 18.5)];
     paint.triangle(at(a), at(b), at(c), Fill::new(color));
     for (a, b) in [(a, b), (b, c), (c, a)] {
-        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)),
+            at(b),
+            stroke,
+        );
     }
 }
 
@@ -30,7 +43,12 @@ pub(crate) fn heart(paint: &mut Paint<'_>, rect: Rect, filled: bool, color: Rgba
         for x in [8.2, 15.8] {
             paint.circle(at((x, 8.8)), 4.2 * scale, Some(Fill::new(color)), None);
         }
-        paint.triangle(at((4.2, 10.4)), at((19.8, 10.4)), at((12.0, 20.0)), Fill::new(color));
+        paint.triangle(
+            at((4.2, 10.4)),
+            at((19.8, 10.4)),
+            at((12.0, 20.0)),
+            Fill::new(color),
+        );
         return;
     }
     for side in [-1.0_f32, 1.0] {
@@ -64,7 +82,12 @@ pub(crate) fn plus(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
 pub(crate) fn more(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     for x in [5.5, 12.0, 18.5] {
-        paint.circle((rect.x + x * scale, rect.y + 12.0 * scale), 1.4 * scale, Some(Fill::new(color)), None);
+        paint.circle(
+            (rect.x + x * scale, rect.y + 12.0 * scale),
+            1.4 * scale,
+            Some(Fill::new(color)),
+            None,
+        );
     }
 }
 /// LW-queue.imageset: three lines and an outlined play mark.
@@ -80,7 +103,12 @@ pub(crate) fn queue(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
         ((16.0, 21.0), (21.0, 18.0)),
         ((21.0, 18.0), (16.0, 15.0)),
     ] {
-        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)),
+            at(b),
+            stroke,
+        );
     }
 }
 /// LW-side.imageset: `M4 5h16v14H4zM15 5v14`, 1.6-unit round strokes (the now panel's toggle).
@@ -88,8 +116,19 @@ pub(crate) fn side(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     let stroke = Stroke::new(color).width(1.6 * scale);
-    for (a, b) in [((4.0, 5.0), (20.0, 5.0)), ((20.0, 5.0), (20.0, 19.0)), ((20.0, 19.0), (4.0, 19.0)), ((4.0, 19.0), (4.0, 5.0)), ((15.0, 5.0), (15.0, 19.0))] {
-        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    for (a, b) in [
+        ((4.0, 5.0), (20.0, 5.0)),
+        ((20.0, 5.0), (20.0, 19.0)),
+        ((20.0, 19.0), (4.0, 19.0)),
+        ((4.0, 19.0), (4.0, 5.0)),
+        ((15.0, 5.0), (15.0, 19.0)),
+    ] {
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)),
+            at(b),
+            stroke,
+        );
     }
 }
 /// LW-set.imageset: `M4 7h10M18 7h2M4 17h4M12 17h8` and radius-2 knobs at (16, 7) and (10, 17), 1.6-unit round strokes.
@@ -97,8 +136,18 @@ pub(crate) fn settings(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     let stroke = Stroke::new(color).width(1.6 * scale);
-    for (a, b) in [((4.0, 7.0), (14.0, 7.0)), ((18.0, 7.0), (20.0, 7.0)), ((4.0, 17.0), (8.0, 17.0)), ((12.0, 17.0), (20.0, 17.0))] {
-        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+    for (a, b) in [
+        ((4.0, 7.0), (14.0, 7.0)),
+        ((18.0, 7.0), (20.0, 7.0)),
+        ((4.0, 17.0), (8.0, 17.0)),
+        ((12.0, 17.0), (20.0, 17.0)),
+    ] {
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)),
+            at(b),
+            stroke,
+        );
     }
     for centre in [(16.0, 7.0), (10.0, 17.0)] {
         paint.circle(at(centre), 2.0 * scale, None, Some(stroke));
@@ -110,22 +159,52 @@ pub(crate) fn route(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     let stroke = Stroke::new(color).width(1.6 * scale);
-    let path = [(5.0, 17.0), (3.0, 17.0), (3.0, 4.0), (21.0, 4.0), (21.0, 17.0), (19.0, 17.0)];
+    let path = [
+        (5.0, 17.0),
+        (3.0, 17.0),
+        (3.0, 4.0),
+        (21.0, 4.0),
+        (21.0, 17.0),
+        (19.0, 17.0),
+    ];
     for pair in path.windows(2) {
         let (a, b) = (pair[0], pair[1]);
-        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)),
+            at(b),
+            stroke,
+        );
     }
-    paint.triangle(at((12.0, 14.0)), at((17.0, 20.0)), at((7.0, 20.0)), Fill::new(color));
+    paint.triangle(
+        at((12.0, 14.0)),
+        at((17.0, 20.0)),
+        at((7.0, 20.0)),
+        Fill::new(color),
+    );
 }
 /// LW-folder.imageset: `M3.5 6.5h6l2 2h9v10h-17z`, 1.6-unit round strokes (the onboarding's Choose a folder).
 pub(crate) fn folder(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     let stroke = Stroke::new(color).width(1.6 * scale);
-    let path = [(3.5, 6.5), (9.5, 6.5), (11.5, 8.5), (20.5, 8.5), (20.5, 18.5), (3.5, 18.5), (3.5, 6.5)];
+    let path = [
+        (3.5, 6.5),
+        (9.5, 6.5),
+        (11.5, 8.5),
+        (20.5, 8.5),
+        (20.5, 18.5),
+        (3.5, 18.5),
+        (3.5, 6.5),
+    ];
     for pair in path.windows(2) {
         let (a, b) = (pair[0], pair[1]);
-        paint.curve(at(a), at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)), at(b), stroke);
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0)),
+            at(b),
+            stroke,
+        );
     }
 }
 /// LW-close.imageset: `M6 6l12 12M18 6 6 18`, 1.6-unit round strokes.
@@ -141,7 +220,12 @@ pub(crate) fn drag(paint: &mut Paint<'_>, rect: Rect, color: Rgba) {
     let scale = rect.w.min(rect.h) / 24.0;
     for x in [9.0, 15.0] {
         for y in [7.0, 12.0, 17.0] {
-            paint.circle((rect.x + x * scale, rect.y + y * scale), 1.4 * scale, Some(Fill::new(color)), None);
+            paint.circle(
+                (rect.x + x * scale, rect.y + y * scale),
+                1.4 * scale,
+                Some(Fill::new(color)),
+                None,
+            );
         }
     }
 }
@@ -165,7 +249,12 @@ pub(crate) fn offline(paint: &mut Paint<'_>, rect: Rect, kept: bool, color: Rgba
     let scale = rect.w.min(rect.h) / 24.0;
     let at = |(x, y): (f32, f32)| (rect.x + x * scale, rect.y + y * scale);
     let mut line = |a: (f32, f32), b: (f32, f32)| {
-        paint.curve(at(a), at(((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5)), at(b), Stroke::new(color).width(1.6 * scale))
+        paint.curve(
+            at(a),
+            at(((a.0 + b.0) * 0.5, (a.1 + b.1) * 0.5)),
+            at(b),
+            Stroke::new(color).width(1.6 * scale),
+        )
     };
     if kept {
         line((5.0, 12.5), (9.5, 17.0));
@@ -253,11 +342,7 @@ mod tests {
                     &mut |ui| {
                         let node = ui.node("icon", pxui::ui::Node::column().w_px(size).h_px(size));
                         ui.canvas(&node, |paint, rect| {
-                            shuffle(
-                                paint,
-                                rect,
-                                Rgba::rgb(1, 2, 3),
-                            )
+                            shuffle(paint, rect, Rgba::rgb(1, 2, 3))
                         });
                     },
                 )

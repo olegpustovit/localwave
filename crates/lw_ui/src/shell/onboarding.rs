@@ -22,7 +22,14 @@ pub(super) const FIND_HINT: &str = "Search spans every source, including folders
 pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<Intent>) -> Handle {
     let pxui::ViewSize { width, .. } = ui.view_size();
     let column = (width - 32.0).max(1.0);
-    let root = container(ui, "onboarding", Axis::Column, Size::Grow, Size::Grow, &PAPER_FILL);
+    let root = container(
+        ui,
+        "onboarding",
+        Axis::Column,
+        Size::Grow,
+        Size::Grow,
+        &PAPER_FILL,
+    );
     ui.set_role(&root, Role::Window, pxui::A11yStates::NONE);
     ui.a11y_name(&root, "LocalWave");
     // The disclosure state lives on the root so the retained page rebuilds when it flips.
@@ -32,7 +39,11 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<
             "onboarding-page",
             &(column.to_bits(), top_inset.to_bits(), drive, demo),
             |ui| {
-                ui.column(Node::column().w(Size::Grow).h(Size::Grow).padding(Edges::new(16.0, 16.0 + top_inset, 16.0, 34.0)),
+                ui.column(
+                    Node::column()
+                        .w(Size::Grow)
+                        .h(Size::Grow)
+                        .padding(Edges::new(16.0, 16.0 + top_inset, 16.0, 34.0)),
                     |ui| {
                         if page(ui, width < compact::BREAKPOINT, drive, demo, intent) {
                             ui.set_state(&root, i64::from(!drive));
@@ -47,38 +58,80 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<
 
 /// An underlined text link (`localwave-button` / `LINK`): as wide as its text, 44 points high, no look of its own.
 /// Swift's `underlined`: the 15-point ink text over a hairline-coloured rule.
-const UNDERLINED: pxui::Button = pxui::Button::DEFAULT.variant(variant::LINK).size(Size::Fit, Size::Px(44.0)).centered().pad(Edges::ZERO).label(LEAD_INK).look(&LINE_RULE);
+const UNDERLINED: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::LINK)
+    .size(Size::Fit, Size::Px(44.0))
+    .centered()
+    .pad(Edges::ZERO)
+    .label(LEAD_INK)
+    .look(&LINE_RULE);
 /// The primary key (`localwave-button` / `PRIMARY`): paper 15-point text centred on ink across the page, 52 points high.
 /// Swift's headline: 32 points medium, tracked -1.12 (-0.035 em), in 36.8-point lines.
-const HEADLINE: Label = TEXT_32.weight(500).tracking(-0.035).grow().h_px(36.8).color(INK);
+const HEADLINE: Label = TEXT_32
+    .weight(500)
+    .tracking(-0.035)
+    .grow()
+    .h_px(36.8)
+    .color(INK);
 /// Swift's Choose a folder: the 20-point folder and the 15-point medium label 8 apart, centred on ink.
-const CHOOSE: pxui::Button = pxui::Button::DEFAULT.variant(variant::PRIMARY).size(Size::Grow, Size::Px(52.0)).icon(icon_sized(Icon::Folder, 20.0)).icon_size(20.0).gap(8.0).label(TEXT_15.color(PAPER).weight(500)).look(&INK_LOOKS);
+const CHOOSE: pxui::Button = pxui::Button::DEFAULT
+    .variant(variant::PRIMARY)
+    .size(Size::Grow, Size::Px(52.0))
+    .icon(icon_sized(Icon::Folder, 20.0))
+    .icon_size(20.0)
+    .gap(8.0)
+    .label(TEXT_15.color(PAPER).weight(500))
+    .look(&INK_LOOKS);
 /// The Google Drive disclosure (`localwave-disclosure`): the 1-pixel sliced triangle and the 13-point title.
 const DRIVE: pxui::Disclosure = pxui::Disclosure::DEFAULT;
-const DRIVE_HELP: &str = "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.";
+const DRIVE_HELP: &str =
+    "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.";
 
 /// Returns true when the Google Drive disclosure was toggled.
 fn page(ui: &mut Ui, compact: bool, drive: bool, demo: bool, intent: &mut Option<Intent>) -> bool {
     let mut toggled = false;
     ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
-        let top = container(ui, "brand", Axis::Row, Size::Grow, Size::Px(18.2), &PAPER_FILL);
+        let top = container(
+            ui,
+            "brand",
+            Axis::Row,
+            Size::Grow,
+            Size::Px(18.2),
+            &PAPER_FILL,
+        );
         ui.within(&top, &mut |ui| {
             ui.label("LocalWave", CAPTION.grow());
             ui.label("v2", MONO_DIM.w_px(16.0));
         });
         spacer(ui, "count-gap", 28.0);
-        let count = container(ui, "count-row", Axis::Row, Size::Grow, Size::Px(79.0), &PAPER_FILL);
+        let count = container(
+            ui,
+            "count-row",
+            Axis::Row,
+            Size::Grow,
+            Size::Px(79.0),
+            &PAPER_FILL,
+        );
         ui.set_role(&count, Role::Label, pxui::A11yStates::NONE);
         ui.a11y_name(&count, "0 songs so far");
-        ui.within(&count, &mut |ui| clock::matrix_digits(ui, "count", b"00", 79.0, INK));
+        ui.within(&count, &mut |ui| {
+            clock::matrix_digits(ui, "count", b"00", 79.0, INK)
+        });
         spacer(ui, "count-label-gap", 8.0);
         ui.label("songs so far", LEAD_DIM.grow());
         spacer(ui, "heading-gap", 28.0);
-        let headline = if compact { HEADLINE.line_height(36.8) } else { HEADLINE };
+        let headline = if compact {
+            HEADLINE.line_height(36.8)
+        } else {
+            HEADLINE
+        };
         ui.label("Point it at a folder.", headline);
         ui.label("It stays in sync.", headline);
         spacer(ui, "promise-gap", 8.0);
-        ui.label("Your files stay where they are. Nothing is uploaded.", PARAGRAPH_15.color(SECONDARY));
+        ui.label(
+            "Your files stay where they are. Nothing is uploaded.",
+            PARAGRAPH_15.color(SECONDARY),
+        );
         spacer(ui, "steps-gap", 28.0);
         rule(ui, "steps-rule", false);
         for (key, number, line) in [
@@ -88,10 +141,18 @@ fn page(ui: &mut Ui, compact: bool, drive: bool, demo: bool, intent: &mut Option
         ] {
             if compact {
                 ui.id(key, |ui| {
-                    ui.row(Node::row().w(Size::Grow).h(Size::Fit).min_h(45.0).pad_y(12.0).gap(14.0), |ui| {
-                        ui.label(number, TEXT_13.w_px(12.0).color(SECONDARY));
-                        ui.label(line, PARAGRAPH_15.color(INK));
-                    });
+                    ui.row(
+                        Node::row()
+                            .w(Size::Grow)
+                            .h(Size::Fit)
+                            .min_h(45.0)
+                            .pad_y(12.0)
+                            .gap(14.0),
+                        |ui| {
+                            ui.label(number, TEXT_13.w_px(12.0).color(SECONDARY));
+                            ui.label(line, PARAGRAPH_15.color(INK));
+                        },
+                    );
                 });
             } else {
                 let row = container(ui, key, Axis::Row, Size::Grow, Size::Px(46.0), &PAPER_FILL);
@@ -103,34 +164,80 @@ fn page(ui: &mut Ui, compact: bool, drive: bool, demo: bool, intent: &mut Option
             rule(ui, "step-rule", false);
         }
         ui.node("onboarding-flex", Node::DEFAULT.h(Size::Grow));
-        ui.label("iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.", PARAGRAPH_13.color(SECONDARY));
+        ui.label(
+            "iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.",
+            PARAGRAPH_13.color(SECONDARY),
+        );
         spacer(ui, "choose-gap", 12.0);
-        if ui.button("choose-folder", "Choose a folder", &CHOOSE).clicked {
+        if ui
+            .button("choose-folder", "Choose a folder", &CHOOSE)
+            .clicked
+        {
             *intent = Some(Intent::ChooseFolder);
         }
         spacer(ui, "links-gap", 4.0);
-        let links = container(ui, "links", Axis::Row, Size::Grow, Size::Px(44.0), &PAPER_FILL);
+        let links = container(
+            ui,
+            "links",
+            Axis::Row,
+            Size::Grow,
+            Size::Px(44.0),
+            &PAPER_FILL,
+        );
         ui.within(&links, &mut |ui| {
-            if ui.button("pick-files", "Pick some files", &UNDERLINED).clicked {
+            if ui
+                .button("pick-files", "Pick some files", &UNDERLINED)
+                .clicked
+            {
                 *intent = Some(Intent::ChooseAudio);
             }
             ui.node("links-flex", Node::DEFAULT.w(Size::Grow));
             // Swift offers its bundled demo while the library is empty (onboarding shows only then)
-            let label = if demo { "Try the demo library" } else { "Explore the library" };
+            let label = if demo {
+                "Try the demo library"
+            } else {
+                "Explore the library"
+            };
             if ui.button("explore", label, &UNDERLINED).clicked {
-                *intent = Some(if demo { Intent::TryDemo } else { Intent::Navigate(Route::Albums) });
+                *intent = Some(if demo {
+                    Intent::TryDemo
+                } else {
+                    Intent::Navigate(Route::Albums)
+                });
             }
         });
         spacer(ui, "drive-gap", 4.0);
         // Swift's "Google Drive not in the list?" disclosure in its bordered 1px frame
-        let frame = ui.node("drive-frame", Node::column().w(Size::Grow).h(Size::Fit).pad(1.0).look(LINE_FILL));
+        let frame = ui.node(
+            "drive-frame",
+            Node::column()
+                .w(Size::Grow)
+                .h(Size::Fit)
+                .pad(1.0)
+                .look(LINE_FILL),
+        );
         ui.within(&frame, &mut |ui| {
-            ui.column(Node::column().w(Size::Grow).h(Size::Fit).pad(14.0).look(PAPER_FILL), |ui| {
-                toggled = ui.disclosure("drive-toggle", "Google Drive not in the list?", drive, &DRIVE, &mut |ui| {
-                    spacer(ui, "drive-help-gap", 8.0);
-                    ui.label(DRIVE_HELP, PARAGRAPH_13.color(SECONDARY));
-                }).changed;
-            });
+            ui.column(
+                Node::column()
+                    .w(Size::Grow)
+                    .h(Size::Fit)
+                    .pad(14.0)
+                    .look(PAPER_FILL),
+                |ui| {
+                    toggled = ui
+                        .disclosure(
+                            "drive-toggle",
+                            "Google Drive not in the list?",
+                            drive,
+                            &DRIVE,
+                            &mut |ui| {
+                                spacer(ui, "drive-help-gap", 8.0);
+                                ui.label(DRIVE_HELP, PARAGRAPH_13.color(SECONDARY));
+                            },
+                        )
+                        .changed;
+                },
+            );
         });
     });
     toggled
@@ -146,16 +253,34 @@ pub(crate) fn disclosure_body(ui: &mut Ui, c: &pxui::bodies::InspectorSectionCon
         let marker = ui.node("marker", Node::column().w_px(40.0 / 3.0).h_px(19.5));
         let ink = Rgba::token(INK);
         ui.canvas(&marker, move |paint, rect| {
-            let (w, h) = if expanded { (25.0 / 3.0, 7.0) } else { (7.0, 25.0 / 3.0) };
+            let (w, h) = if expanded {
+                (25.0 / 3.0, 7.0)
+            } else {
+                (7.0, 25.0 / 3.0)
+            };
             let top = rect.y + 14.0 - h;
             for i in 0..h as i32 {
                 let t = (i as f32 + 0.5) / h;
-                let span = if expanded { w * (1.0 - t) } else { w * (1.0 - (2.0 * t - 1.0).abs()) };
-                let x = if expanded { rect.x + (w - span) / 2.0 } else { rect.x };
-                paint.fill(Rect::new(x, top + i as f32, span, 1.0), Fill::new(ink).fractional());
+                let span = if expanded {
+                    w * (1.0 - t)
+                } else {
+                    w * (1.0 - (2.0 * t - 1.0).abs())
+                };
+                let x = if expanded {
+                    rect.x + (w - span) / 2.0
+                } else {
+                    rect.x
+                };
+                paint.fill(
+                    Rect::new(x, top + i as f32, span, 1.0),
+                    Fill::new(ink).fractional(),
+                );
             }
         });
-        ui.label(c.text_of(&c.label), TEXT_13.grow().h_px(19.5).color(INK).role(Role::Unknown));
+        ui.label(
+            c.text_of(&c.label),
+            TEXT_13.grow().h_px(19.5).color(INK).role(Role::Unknown),
+        );
     });
     if expanded {
         ui.slot(c.content);
@@ -175,7 +300,11 @@ pub(super) fn empty_library(
         header_view(ui, catalog, state, width, intent);
     }
     let inset = if compact { 16.0 } else { 32.0 };
-    ui.column(Node::column().w(Size::Grow).h(Size::Fit).padding(Edges::ZERO.l(inset).r(inset).t(24.0)),
+    ui.column(
+        Node::column()
+            .w(Size::Grow)
+            .h(Size::Fit)
+            .padding(Edges::ZERO.l(inset).r(inset).t(24.0)),
         |ui| {
             ui.label(LIBRARY_EMPTY, PARAGRAPH_14.color(SECONDARY));
         },
