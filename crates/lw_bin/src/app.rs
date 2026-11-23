@@ -1,5 +1,6 @@
 //! Build/draw only on Signal::Frame. Resumed/LowMemory request a later frame; Paused/Control
-//! service controller/files status without SDL input consumption or image uploads. Background
+//! service controller/files status without image uploads. The macOS control callback also drains SDL
+//! events so a hidden window still reacts to close and dialog outcomes. Background
 //! worker wakes use the framework run-loop source, never app polling or a second display link. A
 //! source consumed by a nested native run loop must be re-posted after the control callback. Drop
 //! application resources before Fixture and close GPU resources on Finish before UI/window teardown.
@@ -518,8 +519,10 @@ impl App {
         frame.finish_output(output_cpu)?;
         frame.output_allocations = frame.allocations() - before_output;
         (*frames) += 1;
-        (*repaint) = ui.repaint_at();
-        if perf.is_some() || ui.draw_revision() != (*revision) {
+        let output = ui.output();
+        *repaint = output.repaint_at.is_finite().then_some(output.repaint_at);
+        window.set_repaint_rate(output.repaint_hz);
+        if perf.is_some() || output.draw_revision != *revision || graphics.surface_changed(window) {
             let draw_cpu = frame.cpu_time()?;
             let drawn = if perf.is_some() {
                 graphics.draw_forced(window, ui, frame.gpu_trace())
@@ -555,8 +558,10 @@ impl App {
     /// Draws a frame `Ui::step` advanced: no build, so no intent, images, platform output or accessibility change.
     fn step_draw(&mut self, window: &mut Window, now: f64) -> Result<(), String> {
         self.frames += 1;
-        self.repaint = self.ui.repaint_at();
-        if self.ui.draw_revision() == self.revision {
+        let output = self.ui.output();
+        self.repaint = output.repaint_at.is_finite().then_some(output.repaint_at);
+        window.set_repaint_rate(output.repaint_hz);
+        if output.draw_revision == self.revision {
             return Ok(());
         }
         let graphics = self
@@ -597,14 +602,18 @@ impl App {
         } else {
             perf::Frame::new(self.frames, self.trace_frames)
         };
-        if signal == Signal::Frame
-            && self
-                .graphics_slot
-                .as_ref()
-                .ok_or("App graphics have already closed")?
-                .can_draw()
+        let mac_control = cfg!(target_os = "macos") && signal == Signal::Control;
+        if mac_control
+            || signal == Signal::Frame
+                && self
+                    .graphics_slot
+                    .as_ref()
+                    .ok_or("App graphics have already closed")?
+                    .can_draw()
         {
-            frame.begin_frame()?;
+            if !mac_control {
+                frame.begin_frame()?;
+            }
             self.events.clear();
             if !self
                 .platform
@@ -619,9 +628,11 @@ impl App {
             if let Some(error) = window.take_failure() {
                 return Err(error);
             }
-            frame.external_input(&mut self.events);
-            if let Some(energy) = &mut self.energy {
-                energy.input(window.time(), &mut self.events);
+            if !mac_control {
+                frame.external_input(&mut self.events);
+                if let Some(energy) = &mut self.energy {
+                    energy.input(window.time(), &mut self.events);
+                }
             }
             self.input(window)?;
         }
@@ -706,6 +717,10 @@ impl App {
                 .can_draw()
         {
             self.first = true;
+            window.set_repaint_rate(0);
+            if mac_control && let Some(energy) = &mut self.energy {
+                return energy.advance(window, self.player.status(), self.draws, &self.ui);
+            }
             return Ok(Schedule::WaitUntil(None));
         }
         let artwork_changed = self.artwork.poll();
@@ -719,7 +734,7 @@ impl App {
         frame.artwork_updated = artwork_updated;
         frame.input(&self.ui, &mut self.events)?;
         frame.state_input(&mut self.shell_state);
-        let now = window.time();
+        let now = window.frame_time();
         let next_shown = self.player.status().shown();
         if player_changed
             && !catalog_changed
@@ -754,6 +769,10 @@ impl App {
         }
         self.shell_state.set_window_inset(self.top_inset as f32);
         frame.require_extent(self.extent)?;
+        self.first |= self
+            .graphics_slot
+            .as_ref()
+            .is_some_and(|graphics| graphics.surface_changed(window));
         let changed = self.first
             || self.perf.is_some()
             || resized
