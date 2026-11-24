@@ -344,6 +344,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | R9e.3 | Recent list jump layouts | passed | pxui `23b5539c`. Returning to the same scroll region triggered 644 shaping allocations after its layouts aged out. One recently departed window now stays warm across short jumps within the existing cache caps. |
 | R9e.4 | Numeric glyph preparation | passed | pxui `f6ebe056`. The clock's first `8` shaped during churn. Warm numeric paint now has the decimal glyphs ready. The 2× regression changes from `00` to unseen digits and a negative value with zero allocations. |
 | R9e.5 | Scripted soak warm-up | passed | Run a full input cycle before counting scroll and churn. Anchor scroll jumps to repeatable regions. Signed smoke completed 31 byte-exact oracle checks with zero mismatches and zero warm allocations in all phases. |
+| R9e.6 | Cached Now panel play counts | ten-minute soak passed | Render changing play counts from cached digits. The signed soak completed 200 seconds per phase with zero warm allocations, zero mismatches across 314 canvas comparisons, and maximum RSS and footprint spans of 6.05 and 17.33 MiB against 64 MiB. Frame CPU p99 was 1.4/2.0/2.6 ms and work wall p99 was 2.1/2.4/3.8 ms for playback/scroll/churn. |
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
 

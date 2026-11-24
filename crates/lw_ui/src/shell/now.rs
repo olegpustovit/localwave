@@ -326,6 +326,8 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                                     );
                                 },
                             );
+                        } else if key == "plays" && value.len() <= 20 && value.parse::<i64>().is_ok() {
+                            play_count(ui, value, ink);
                         } else {
                             ui.label(value, MONO_12.grow().ellipsis_middle().color(ink));
                         }
@@ -334,5 +336,25 @@ fn metadata(ui: &mut Ui, info: Option<&crate::now_info::NowInfo>) {
                 }
             });
         });
+    });
+}
+
+fn play_count(ui: &mut Ui, value: &str, ink: ColorToken) {
+    let mut digits = [0; 20];
+    let len = value.len();
+    digits[..len].copy_from_slice(value.as_bytes());
+    let node = ui.node(
+        "play-count",
+        Node::column()
+            .w(Size::Grow)
+            .h_px(16.8)
+            .role(Role::Label),
+    );
+    ui.a11y_name(&node, value);
+    ui.canvas(&node, move |paint, rect| {
+        let style = MONO_12.color(ink);
+        let value = std::str::from_utf8(&digits[..len]).expect("ASCII play count");
+        // The fixed Now panel fits all 20 characters of a signed count.
+        paint.text_chars(pxui::Point::new(rect.x, rect.y), style, value);
     });
 }

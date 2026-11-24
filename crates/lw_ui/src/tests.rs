@@ -3486,9 +3486,11 @@ fn now_panel_draws_title_and_worker_formatted_metadata_without_warm_allocations(
         ..Default::default()
     };
     let info = now_info::NowInfo::new(&song, Some("Google Drive"), 16);
+    let updates = [i64::MIN, 8, 29, i64::MAX]
+        .map(|count| now_info::NowInfo::new(&song, Some("Google Drive"), count));
     let catalog = prepared(vec![song]);
     let state = ShellState::default();
-    let player = PlayerView {
+    let mut player = PlayerView {
         initialized: true,
         revision: 1,
         current_id: Some(7),
@@ -3535,6 +3537,23 @@ fn now_panel_draws_title_and_worker_formatted_metadata_without_warm_allocations(
         below("16"),
     ];
     assert!(order.windows(2).all(|pair| pair[0] < pair[1]), "{order:?}");
+    for (index, update) in updates.iter().enumerate() {
+        player.info = Some(update);
+        player.revision += 1;
+        mem_sys::local_reset();
+        crate::testing::frame(&mut ui, &frame, &mut |ui| {
+            shell(ui, &player, 101.0, &catalog, &state, &mut None)
+        })
+        .unwrap();
+        let allocations = mem_sys::local_alloc_count();
+        if index > 0 {
+            assert_eq!(allocations, 0, "warm play count update {}", update.plays);
+        }
+        assert!(ui
+            .a11y_nodes()
+            .iter()
+            .any(|node| ui.a11y_name_of(node) == update.plays));
+    }
 }
 
 #[test]
