@@ -125,6 +125,7 @@ struct Stats {
     wall: Timing,
     frames: usize,
     draws: usize,
+    composited_draws: usize,
     max_allocations: u64,
     allocating_frames: usize,
     oracle_checks: usize,
@@ -139,6 +140,7 @@ impl Stats {
         wall: Timing::EMPTY,
         frames: 0,
         draws: 0,
+        composited_draws: 0,
         max_allocations: 0,
         allocating_frames: 0,
         oracle_checks: 0,
@@ -158,13 +160,14 @@ impl Stats {
         let footprint_span = self.footprint[1] - self.footprint[0];
         println!(
             concat!(
-                r#"{{"kind":"{}","phase":"{}","seconds":{:.3},"frames":{},"draws":{},"allocating_frames":{},"max_warm_rust_allocations":{},"oracle_checks":{},"oracle_mismatches":{},"rss_bytes":{},"footprint_bytes":{},"rss_span_bytes":{},"footprint_span_bytes":{},"memory_tolerance_bytes":{},"frame_cpu_p99_us":{},"work_wall_p99_us":{}}}"#
+                r#"{{"kind":"{}","phase":"{}","seconds":{:.3},"frames":{},"draws":{},"composited_draws":{},"allocating_frames":{},"max_warm_rust_allocations":{},"oracle_checks":{},"oracle_mismatches":{},"rss_bytes":{},"footprint_bytes":{},"rss_span_bytes":{},"footprint_span_bytes":{},"memory_tolerance_bytes":{},"frame_cpu_p99_us":{},"work_wall_p99_us":{}}}"#
             ),
             kind,
             phase,
             elapsed,
             self.frames,
             self.draws,
+            self.composited_draws,
             self.allocating_frames,
             self.max_allocations,
             self.oracle_checks,
@@ -318,6 +321,7 @@ impl Run {
         frame: Frame,
         built: bool,
         drew: bool,
+        composited: bool,
         acquire: Duration,
     ) -> Result<bool, String> {
         let measured = self.measuring();
@@ -339,6 +343,7 @@ impl Run {
                 .record(frame.started.elapsed().saturating_sub(acquire).as_micros() as u64);
         }
         self.stats.draws += usize::from(drew);
+        self.stats.composited_draws += usize::from(composited);
         Ok(drew && (self.stats.draws - 1) % self.config.verify_every == 0)
     }
 
@@ -422,6 +427,9 @@ impl Run {
         }
         if done {
             self.failed |= self.stats.draws == 0 || self.stats.oracle_checks == 0;
+            if self.phase == 0 && self.stats.composited_draws == 0 {
+                return Err("Soak playback never presented promoted layers".into());
+            }
             if self.phase + 1 == PHASES.len() {
                 println!(r#"{{"kind":"complete","passed":{}}}"#, !self.failed);
                 return if self.failed {

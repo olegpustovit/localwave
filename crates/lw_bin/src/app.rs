@@ -197,10 +197,7 @@ pub(super) fn open(
     if trace_frames {
         ui.set_timing(true);
     }
-    let mut graphics = gpu::Graphics::open(window, &mut ui).map_err(|error| graphics_error(&ui, error))?;
-    if soak.is_some() {
-        graphics.set_no_layers(&mut ui, true);
-    }
+    let graphics = gpu::Graphics::open(window, &mut ui).map_err(|error| graphics_error(&ui, error))?;
     let playback_fixture = energy.is_some() || soak.is_some();
     let temporary = if smoke || fixture_workload.is_some() || reference.is_some() || playback_fixture {
         Some(
@@ -891,7 +888,8 @@ impl App {
             let drew = self.draws != previous_draws;
             let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
             let acquire = if drew { graphics.acquire_wall() } else { std::time::Duration::ZERO };
-            if soak.record(clock, built, drew, acquire)? {
+            let composited = drew && !self.ui.promoted().is_empty();
+            if soak.record(clock, built, drew, composited, acquire)? {
                 let matches = graphics.verify_canvas(&self.ui, window.scale() as f32)
                     .map_err(|error| graphics_error(&self.ui, error))?;
                 soak.oracle(matches)?;

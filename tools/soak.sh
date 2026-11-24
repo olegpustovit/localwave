@@ -20,5 +20,5 @@ codesign --force --sign - --entitlements localwave/mac.entitlements "$app"
 codesign --verify --deep --strict "$app"
 
 printf 'LocalWave soak samples: %s/samples.jsonl\n' "$run"
-PXUI_FULL_DAMAGE=0 "$app/Contents/MacOS/localwave" --soak -ApplePersistenceIgnoreState YES \
+PXUI_FULL_DAMAGE=0 PXUI_NO_LAYERS=0 "$app/Contents/MacOS/localwave" --soak -ApplePersistenceIgnoreState YES \
     2> >(tee "$run/stderr.log" >&2) | tee "$run/samples.jsonl"
