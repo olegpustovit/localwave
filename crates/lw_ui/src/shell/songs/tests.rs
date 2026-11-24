@@ -492,7 +492,10 @@ fn playing_song_bars_promote_at_both_densities_and_return_when_paused() {
             shell(ui, &player, 0.1, &catalog, &state, &mut None)
         })
         .unwrap();
-        assert!(ui.promoted().is_empty(), "the paused bars belong to the canvas");
+        assert!(
+            ui.promoted().is_empty(),
+            "the paused bars belong to the canvas"
+        );
     }
 }
 
@@ -913,6 +916,37 @@ fn settle(ui: &mut Ui, input: &FrameIn) {
             std::time::Instant::now() < deadline,
             "the text worker did not deliver within a second"
         );
+    }
+}
+
+#[test]
+fn number_cells_never_wrap_their_digits() {
+    // 100 rows: positions reach three digits in a column sized like Swift's (Geist Mono); "10" once wrapped to two lines.
+    let catalog = crate::tests::prepared((0..100).map(song).collect());
+    let collection = catalog.collection(Route::Songs).unwrap();
+    let table = collection.song_table.as_ref().unwrap();
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    for width in [400.0, 888.0] {
+        let widths = table.columns(&catalog, width, None, Sort::Original, Route::Songs);
+        for (position, &index) in collection.rows.iter().enumerate() {
+            let row = catalog.row(index);
+            let layout = row_layout(
+                &mut ui,
+                &catalog,
+                (index, &row),
+                (position + 1, table.number_label(position)),
+                false,
+                (widths, 2.0),
+                false,
+            );
+            assert_eq!(
+                layout.sizes[Column::Number as usize].1,
+                body_line_height(Column::Number),
+                "row {} wrapped at {width}",
+                position + 1
+            );
+            assert_eq!(layout.height, 38.0, "row {} grew at {width}", position + 1);
+        }
     }
 }
 

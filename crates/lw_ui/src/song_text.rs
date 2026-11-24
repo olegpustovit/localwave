@@ -122,7 +122,8 @@ impl Window {
             let mut width = available;
             if matches!(column, Column::Number | Column::Format | Column::Time) {
                 let natural = catalog.song_body_width(index, column, position + 1, numbered);
-                if natural > available {
+                // numbers draw unwrapped at their natural width (row_layout)
+                if natural > available && column != Column::Number {
                     // An overflowing cell draws at its measured width: request the measurement; the
                     // drawing layout shapes when the row is shown.
                     let _ = ui.prewarm_text(value, &label, available.max(0.01));

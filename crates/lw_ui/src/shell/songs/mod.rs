@@ -65,12 +65,19 @@ fn row_layout(
         } else {
             if matches!(column, Column::Number | Column::Format | Column::Time) {
                 // the cell's own label: measuring keys match drawing and prewarm
+                let natural = catalog.song_body_width(index, column, number, numbered);
+                // Swift's number column is sized in Geist Mono and its label overflows into the padding: never wrap digits
+                let available = if column == Column::Number {
+                    available.max(natural)
+                } else {
+                    available
+                };
                 table_text_size(
                     ui,
                     density,
                     body_value(row, column, numbered, number_label),
                     available,
-                    catalog.song_body_width(index, column, number, numbered),
+                    natural,
                     &body_label(column, current),
                     body_line_height(column),
                 )
