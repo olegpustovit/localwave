@@ -26,6 +26,8 @@ fn run() -> Result<(), String> {
         .as_ref()
         .and_then(|_| std::env::var_os("LOCALWAVE_REFERENCE_CAPTURE"))
         .map(std::path::PathBuf::from);
+    let qualification_1x = (workload.is_some() || energy.is_some())
+        && std::env::var_os("LOCALWAVE_QUALIFICATION_1X").is_some_and(|value| value == "1");
     let trace_frames = args.iter().any(|arg| arg == "--trace-frames");
     let mut app: Option<Box<App>> = None;
     let (width, height) = if cfg!(target_os = "ios") {
@@ -37,9 +39,12 @@ fn run() -> Result<(), String> {
         "LocalWave",
         width,
         height,
-        reference_capture.is_none(),
+        reference_capture.is_none() && !qualification_1x,
         Box::new(move |window, signal| {
             if signal == Signal::Initialize {
+                if qualification_1x && window.extent().drawable != (width, height) {
+                    return Err("Performance qualification requires a 1× drawable".into());
+                }
                 app = Some(app::open(
                     window,
                     workload,

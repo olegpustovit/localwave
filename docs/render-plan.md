@@ -205,6 +205,7 @@ Work:
      - `powermetrics` GPU power, when run with sudo; optional
    - Writes `target/energy/<scenario>.json` and compares it against `docs/energy-baseline.json` with explicit tolerances (presents exact, GPU ±10 % or ±0.2 ms/s).
    - Playback in the fixture uses a bundled short silent track looped, so no user media session is touched.
+   - Set `LOCALWAVE_QUALIFICATION_1X=1` for the reference 1440×872 drawable in the energy scenarios and signed performance workloads.
 2. **Frame-reason telemetry** behind `PXUI_FRAME_REASONS=1`:
    - Fixed counters in pxui_core for why `next_repaint` returned `now` and why `step` refused, plus app-side reasons in LocalWave.
    - Printed once a second; zero cost when off (one relaxed load).
