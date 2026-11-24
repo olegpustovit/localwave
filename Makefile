@@ -6,7 +6,7 @@ CARGOFLAGS = $(if $(filter release,$(PROFILE)),--release)
 COUNTING ?=
 PRODUCTS = target/$(if $(filter release,$(PROFILE)),release,debug)
 
-.PHONY: lib build bundle sign notarize install check performance compositor-smoke ios-build ios-run
+.PHONY: lib build bundle sign notarize install check performance compositor-smoke soak soak-smoke ios-build ios-run
 
 target/sdl/lib/libSDL3.a:
 	packaging/build-sdl-macos.sh
@@ -85,6 +85,12 @@ compositor-smoke: PROFILE = release
 compositor-smoke: COUNTING = 1
 compositor-smoke: bundle
 	PXUI_TIMER_PACING=0 PXUI_NO_LAYERS=0 tools/run-compositor-smoke.sh
+
+soak soak-smoke: PROFILE = release
+soak soak-smoke: COUNTING = 1
+soak-smoke: SOAK_MODE = smoke
+soak soak-smoke: bundle
+	bash tools/soak.sh $(SOAK_MODE)
 
 # iOS builds use the shared target/ and keep the shipping Swift app installed (release, like the Mac app).
 

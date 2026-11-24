@@ -111,8 +111,9 @@ end, sign-off 2). PERF steps also run
 `make performance` and replace the status performance table. Record evidence in commit messages;
 status holds one row per step, never checkpoint journals. ABI history lives in `pxui/docs/abi.md`.
 
-Tier C runs `make performance`, release `abi_bench` in both link modes, `make ios-build` and the
-energy scenarios. Apple compositor changes also run the signed `make compositor-smoke`.
+Tier C runs `make performance`, release `abi_bench` in both link modes, `make ios-build`,
+the energy scenarios, and the isolated `make soak-smoke`. Apple compositor changes also
+run the signed `make compositor-smoke`.
 
 Refactors move code verbatim and adjust paths/visibility only. Record discovered bugs for separate
 fixes. Feature behavior precedes pixel polish. Read implementations/callers before changing behavior,

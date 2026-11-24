@@ -15,6 +15,7 @@
 
 mod drive;
 pub(crate) mod energy;
+pub(crate) mod soak;
 mod measured;
 mod report;
 pub(crate) mod setup;

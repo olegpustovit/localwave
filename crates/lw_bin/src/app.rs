@@ -76,6 +76,7 @@ pub(crate) struct App {
     top_inset: f64,
     perf: Option<perf::Perf>,
     energy: Option<perf::energy::Run>,
+    soak: Option<perf::soak::Run>,
     pub(super) smoke: bool,
     trace_frames: bool,
     frame_reasons: Option<frame_reasons::Report>,
@@ -119,7 +120,7 @@ pub(crate) struct App {
 pub(super) fn open(
     window: &mut Window,
     workload: Option<perf::Workload>,
-    energy: Option<perf::energy::Scenario>,
+    (energy, soak): (Option<perf::energy::Scenario>, Option<perf::soak::Config>),
     smoke: bool,
     trace_frames: bool,
     reference: Option<String>,
@@ -135,6 +136,9 @@ pub(super) fn open(
         return Err(
             "Energy measurement needs the non-counting release bundle (make bundle)".into(),
         );
+    }
+    if soak.is_some() && (cfg!(debug_assertions) || !mem_sys::COUNTING) {
+        return Err("Soak needs the counting release bundle (make soak)".into());
     }
     mem_sys::set_peer(pxui::library_counter);
     #[cfg(target_os = "macos")]
@@ -178,7 +182,8 @@ pub(super) fn open(
         .font_size(if cfg!(target_os = "ios") { 18.0 } else { 15.0 })
         .fonts(&[FontData(lw_ui::FONT), FontData(lw_ui::MONO)]);
     let mut ui = Ui::new(&desc).map_err(|error| format!("UI creation failed ({error})"))?;
-    perf::setup::configure_ui(&mut ui, workload);
+    let fixture_workload = soak.map(|_| perf::Workload::ListDialogs).or(workload);
+    perf::setup::configure_ui(&mut ui, fixture_workload);
     ui.text_service()
         .enable_system_fonts()
         .map_err(|code| format!("System fonts failed ({code}): {}", ui.last_error()))?;
@@ -192,8 +197,12 @@ pub(super) fn open(
     if trace_frames {
         ui.set_timing(true);
     }
-    let graphics = gpu::Graphics::open(window, &mut ui).map_err(|error| graphics_error(&ui, error))?;
-    let temporary = if smoke || workload.is_some() || reference.is_some() || energy.is_some() {
+    let mut graphics = gpu::Graphics::open(window, &mut ui).map_err(|error| graphics_error(&ui, error))?;
+    if soak.is_some() {
+        graphics.set_no_layers(&mut ui, true);
+    }
+    let playback_fixture = energy.is_some() || soak.is_some();
+    let temporary = if smoke || fixture_workload.is_some() || reference.is_some() || playback_fixture {
         Some(
             lw_apple_sys::preferences::AppPaths::load()
                 .map_err(|error| error.to_string())?
@@ -222,7 +231,7 @@ pub(super) fn open(
                 if seeded {
                     reference::library(&base, &screen, table_styles)
                 } else {
-                    perf::setup::library(&base, workload, energy.is_some(), table_styles)
+                    perf::setup::library(&base, fixture_workload, playback_fixture, table_styles)
                 }
             },
             wake,
@@ -276,11 +285,14 @@ pub(super) fn open(
     let indicator_song = perf::setup::wait_ready(
         window,
         &mut player,
-        smoke || seeded || energy.is_some(),
+        smoke || seeded || playback_fixture,
         workload,
     )?;
     let energy = energy
         .map(|scenario| scenario.start(window.time(), &mut player))
+        .transpose()?;
+    let soak = soak
+        .map(|config| perf::soak::Run::new(config, window.time(), &mut player))
         .transpose()?;
     let extent = window.extent();
     let events: Vec<HostEvent> = Vec::with_capacity(256);
@@ -321,6 +333,7 @@ pub(super) fn open(
         top_inset,
         perf,
         energy,
+        soak,
         smoke,
         trace_frames,
         frame_reasons: frame_reasons::Report::from_env(window.time()),
@@ -370,7 +383,7 @@ pub(super) fn open(
     });
     if let Some(workload) = workload {
         perf::setup::prepare(&mut app, workload, window)?;
-    } else if app.energy.is_none() {
+    } else if app.energy.is_none() && app.soak.is_none() {
         if let Some(screen) = &reference {
             reference::route(&mut app, screen, false)?;
         }
@@ -413,6 +426,7 @@ impl App {
             shell_state,
             perf,
             energy,
+            soak,
             events,
             demo,
             ..
@@ -436,11 +450,15 @@ impl App {
         let mut intent = None;
         let status = player.status();
         frame.require_waveform(status.waveform.is_some())?;
-        themes.apply(ui, &status.settings, *preferences);
+        let mut settings = status.settings;
+        if let Some((_, accent)) = soak.as_ref().and_then(perf::soak::Run::theme) {
+            settings.signal = accent;
+        }
+        themes.apply(ui, &settings, *preferences);
         let mut view = lw_ui::PlayerView {
             files: Some(files.snapshot()),
             file_dragging: file_drop.hovered(),
-            settings: status.settings,
+            settings,
             cache_usage: &status.cache_usage,
             settings_message: lw_ui::clip(&status.settings_message),
             storage_busy: status.storage_busy,
@@ -495,7 +513,7 @@ impl App {
         let seek_duration = view.duration;
         // VoiceOver follows the real client; workloads keep their own a11y setting.
         #[cfg(target_os = "macos")]
-        if perf.is_none() {
+        if perf.is_none() && soak.is_none() {
             accessibility.frame(ui, input.wire.surface);
         }
         ui.frame(&input, &mut |ui| {
@@ -610,6 +628,11 @@ impl App {
             perf::Frame::new(self.frames, self.trace_frames)
         };
         let mac_control = cfg!(target_os = "macos") && signal == Signal::Control;
+        let soak_frame = (self.soak.is_some() && signal == Signal::Frame)
+            .then(perf::soak::Frame::start)
+            .transpose()?;
+        let (previous_frames, previous_draws) = (self.frames, self.draws);
+        let mut soak_input = false;
         if mac_control
             || signal == Signal::Frame
                 && self
@@ -627,7 +650,7 @@ impl App {
                 .pump(window, &mut self.events)
                 .map_err(|error| error.to_string())?
             {
-                if self.perf.is_some() || (self.smoke && !self.smoke_finished) {
+                if self.perf.is_some() || self.soak.is_some() || (self.smoke && !self.smoke_finished) {
                     return Err("Window closed before qualification finished".into());
                 }
                 return Ok(Schedule::Exit);
@@ -641,16 +664,22 @@ impl App {
                     energy.input(window.time(), &mut self.events);
                 }
             }
+            if let Some(soak) = &mut self.soak {
+                soak_input = soak.input(window, &self.ui, &mut self.events, !mac_control)?;
+            }
             self.input(window)?;
         }
         let mut next_preferences = self.environment.snapshot();
         // goldens (Swift's iOS canvas) and workloads keep one scroller style whatever this Mac's pointing device sets
-        if self.reference.is_some() || self.perf.is_some() {
+        if self.reference.is_some() || self.perf.is_some() || self.soak.is_some() {
             next_preferences.overlay_scrollers = 1;
         }
         // goldens render Swift's canvas appearance (light, or dark with LOCALWAVE_REFERENCE_DARK) whatever this Mac's
         if self.reference.is_some() {
             next_preferences.appearance = self.reference_appearance;
+        }
+        if let Some((appearance, _)) = self.soak.as_ref().and_then(perf::soak::Run::theme) {
+            next_preferences.appearance = appearance;
         }
         let preferences_changed = next_preferences != self.preferences;
         self.preferences = next_preferences;
@@ -728,7 +757,7 @@ impl App {
             if mac_control && let Some(energy) = &mut self.energy {
                 return energy.advance(window, self.player.status(), self.draws, &self.ui);
             }
-            return Ok(Schedule::WaitUntil(None));
+            return Ok(Schedule::WaitUntil(self.soak.as_ref().map(perf::soak::Run::deadline)));
         }
         let artwork_changed = self.artwork.poll();
         let artwork_updated = gpu::sync_artwork(
@@ -783,6 +812,7 @@ impl App {
         let replay = self.energy.as_ref().and_then(|e| e.replay_due(now));
         let changed = self.first
             || self.perf.is_some()
+            || soak_input
             || resized
             || !self.events.is_empty()
             || player_changed
@@ -849,6 +879,24 @@ impl App {
         }
         let energy_deadline = if let Some(energy) = &mut self.energy {
             match energy.advance(window, self.player.status(), self.draws, &self.ui)? {
+                Schedule::Exit => return Ok(Schedule::Exit),
+                Schedule::WaitUntil(at) => at,
+                Schedule::NextFrame => Some(now),
+            }
+        } else {
+            None
+        };
+        let soak_deadline = if let (Some(soak), Some(clock)) = (&mut self.soak, soak_frame) {
+            let built = self.frames != previous_frames;
+            let drew = self.draws != previous_draws;
+            let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
+            let acquire = if drew { graphics.acquire_wall() } else { std::time::Duration::ZERO };
+            if soak.record(now, clock, built, drew, acquire)? {
+                let matches = graphics.verify_canvas(&self.ui, window.scale() as f32)
+                    .map_err(|error| graphics_error(&self.ui, error))?;
+                soak.oracle(now, matches)?;
+            }
+            match soak.advance(window.time(), self.player.status(), self.draws)? {
                 Schedule::Exit => return Ok(Schedule::Exit),
                 Schedule::WaitUntil(at) => at,
                 Schedule::NextFrame => Some(now),
@@ -979,7 +1027,7 @@ impl App {
             .poll_interval()
             .map(|wait| window.time() + wait.as_secs_f64());
         Ok(Schedule::WaitUntil(
-            [deadline, progress, energy_deadline]
+            [deadline, progress, energy_deadline, soak_deadline]
                 .into_iter()
                 .flatten()
                 .min_by(f64::total_cmp),

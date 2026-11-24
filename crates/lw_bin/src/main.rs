@@ -18,9 +18,13 @@ fn run() -> Result<(), String> {
     let workload = perf::Workload::from_args(&args)?;
     let reference = reference::from_args(&args)?;
     let energy = perf::energy::Scenario::from_args(&args)?;
+    let soak = perf::soak::Config::from_args(&args)?;
     let smoke = args.iter().any(|arg| arg == "--smoke-test");
     if energy.is_some() && (workload.is_some() || reference.is_some() || smoke) {
         return Err("Energy runs require their own fixture".into());
+    }
+    if soak.is_some() && (workload.is_some() || energy.is_some() || reference.is_some() || smoke) {
+        return Err("Soak runs require their own fixture".into());
     }
     let mut reference_capture = reference
         .as_ref()
@@ -48,7 +52,7 @@ fn run() -> Result<(), String> {
                 app = Some(app::open(
                     window,
                     workload,
-                    energy,
+                    (energy, soak),
                     smoke,
                     trace_frames,
                     reference.clone(),
@@ -78,7 +82,7 @@ fn known_options(args: &[String]) -> Result<(), String> {
             continue;
         }
         match arg.as_str() {
-            "--performance-check" | "--smoke-test" | "--trace-frames" => {}
+            "--performance-check" | "--smoke-test" | "--trace-frames" | "--soak" => {}
             "--reference-screen" => value = true,
             // Validated by Workload::from_args.
             option if option.starts_with("--performance-") || option.starts_with("--energy-") => {}
