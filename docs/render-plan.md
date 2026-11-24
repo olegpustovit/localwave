@@ -122,7 +122,7 @@ Existing `make performance` limits stay as they are: build p99 < 1.5 ms, frame C
    - `PXUI_NO_CULL=1`
    - `PXUI_NO_LAYERS=1`
 
-   An invalid canvas or a surface resize or reveal forces a full canvas redraw. Metal copies the entire canvas on every present. Vulkan uses a full redraw when a swapchain image has unknown contents.
+   An invalid canvas or a surface resize or reveal forces a full canvas redraw. Hosts copy the whole canvas into drawables with unknown contents. On Metal, partial copies are used for known drawables while pxui composites promoted layers.
 5. **Behaviour changes are measured both ways.** Each package records before/after `make performance`, abi_bench and the energy scenarios (R0) in its commit message and replaces the status row. No CPU time silently replaces wall time.
 6. **One step per commit**, publish pxui before the LocalWave pointer, and follow the ABI rule: one minor bump per additive change, with header, snapshots, fuzz/safety lists, surface row and ledger.
 
@@ -165,21 +165,22 @@ flowchart LR
     L --> C[Cull: views → instances vs damage rects]
     D --> C
     C --> E[Encode: per rect scissor, surviving ranges in z-order]
+    PR --> LT[Pooled GPU layer textures]
+    LT --> CP[pxui compositor pass]
   end
   subgraph host[pxui_host / platform]
     E --> CV[Canvas texture]
-    CV --> PD[Present: full copy on Metal<br/>buffer damage on Vulkan]
-    PR --> CA[Platform layers: CALayer + CAAnimation<br/>/ wl_subsurface / KMS plane]
+    CV --> CP
+    CP --> PD[Present: restore drawable damage or copy full canvas]
     PD --> W[Window server]
-    CA --> W
   end
 ```
 
 Damage flow per frame:
 1. Core produces **frame damage**: a list of rects in points, fixed capacity 8.
 2. The host converts it to pixels and redraws the canvas within that damage.
-3. Metal copies the full canvas into each acquired drawable. Drawables are framebuffer-only except during capture.
-4. Vulkan uses per-image history to accumulate **buffer damage**, the union of frame damage since the image was last presented.
+3. pxui composites promoted layers over the retained canvas. Their swept bounds contribute to present damage.
+4. Vulkan and the Metal promoted-layer path keep per-image **buffer damage**, the union of damage since the image was last presented. Metal drawables are framebuffer-only except during capture.
 5. Linux passes frame damage as a hint where supported by `VkPresentRegionsKHR`, `wl_surface.damage_buffer` or `FB_DAMAGE_CLIPS`.
 
 ---
@@ -489,7 +490,7 @@ R1 and R2 can run in parallel (different files). R3 and R4 can run in parallel a
 - Idle, hidden, pointer-motion scenarios: 0 presents.
 - `make performance` all green with limits unchanged or tighter; abi_bench green in both link modes; iOS build and smoke green.
 - `partial_equals_full` 5,000 seeds green on Metal and lavapipe, and a 6-hour soak with zero warm allocations.
-- Linux Wayland host presents damage-only, frame-callback-paced, with promoted views as subsurfaces.
+- Linux Wayland host presents damage-only and frame-callback-paced, with promoted views composited by pxui.
 
 ## 11. Open questions for the owner
 
