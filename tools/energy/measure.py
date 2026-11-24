@@ -62,14 +62,15 @@ def trace_metrics(trace, pid, seconds):
 
     presents = sum(belongs(row) for row in table(trace, "ca-client-present-request"))
     gpu_ms = {}
-    composite_ns = []
+    composite_ns = {}
     for row in table(trace, "metal-gpu-intervals"):
         if not belongs(row) or row["duration"].text is None:
             continue
         label = row["event-label"].get("fmt", "")
         match = re.search(r"(Render Command \d+|Compute Command \d+|Blit Command \d+)", label)
         if "pxui composite only" in label:
-            composite_ns.append(int(row["duration"].text))
+            encoder = (row["cmdbuffer-id"].text, row["encoder-id"].text)
+            composite_ns[encoder] = composite_ns.get(encoder, 0) + int(row["duration"].text)
         if match:
             channel = row["channel-name"].get("fmt", "unknown")
             key = f"{match[1]} / {channel}"
@@ -167,7 +168,7 @@ def main(app, scenario, seconds):
         "app_counters": {key: done[key] - ready[key] for key in ready},
     }
     if composite_ns:
-        result["composite_only_gpu_us"] = round(sum(composite_ns) / len(composite_ns) / 1000, 2)
+        result["composite_only_gpu_us"] = round(sum(composite_ns.values()) / len(composite_ns) / 1000, 2)
         result["composite_only_gpu_samples"] = len(composite_ns)
     composite = next((counters(line) for line in lines if line.startswith("LOCALWAVE_ENERGY_COMPOSITE ")), None)
     if composite:

@@ -798,12 +798,14 @@ impl App {
             .map_err(|error| error.to_string())?;
         // Step view poses in place while the application state is unchanged.
         if step_due && self.ui.step(now) {
+            let step_cpu = step_cpu.filter(|_| {
+                let damage = self.ui.damage_list();
+                damage.count == 0 && damage.full == 0 && !self.ui.promoted().is_empty()
+            });
             let draws = self.draws;
             self.step_draw(window, now)?;
             if let (Some(start), Some(energy)) = (step_cpu, &mut self.energy)
                 && draws != self.draws
-                && !self.ui.promoted().is_empty()
-                && self.ui.damage_list().count == 0
             {
                 let end = mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())?;
                 energy.record_composite_cpu(end.saturating_sub(start));
