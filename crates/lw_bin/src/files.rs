@@ -1523,10 +1523,14 @@ mod tests {
                 .as_ref()
                 .is_some_and(|directory| directory.location == nested)
         });
+        let before = worker.snapshot().revision;
         assert!(
             worker.request(Request::Locate { user, song: -1 }).is_ok(),
             "unknown songs fail on the worker, not the caller"
         );
+        // Observe this error before rescan can publish a newer snapshot for the catalog.
+        until(&mut worker, |snapshot| snapshot.revision > before);
+        assert_eq!(worker.snapshot().message, "This song was removed.");
         let directory = worker.snapshot().directory.as_ref().unwrap();
         assert_eq!(directory.songs.len(), 1);
         assert!(matches!(
