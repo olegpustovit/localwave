@@ -503,7 +503,7 @@ The orchestrator (the owner's main Claude session) assigns packages to worker se
 **Waves**
 - **Wave 1:** R0, R1, R2 (parallel)
 - **Wave 2:** R3, R4, R6 (after R2 lands)
-- **Wave 3:** R5, R7
+- **Wave 3:** R6.5–R6.7, R4b, R3.fix and R3.9–R3.11. R7 follows in a separate landing.
 - **Wave 4:** R8 (Linux machine), R9
 
 **ABI minors are reserved to avoid collisions.** Do not take another package's number; the orchestrator renumbers at landing if the order changes.
@@ -516,7 +516,8 @@ The orchestrator (the owner's main Claude session) assigns packages to worker se
 | R3 | 2.8 | run tables |
 | R6 | 2.9 | repaint rate |
 | R5 | 2.10 | backdrop reuse flag |
-| R7 | 2.11 | promotion |
+| R3.9–R3.10 | 2.11 | one selection across damage rectangles with exact scissors |
+| R7 | 2.12 | promotion |
 
 **Workspace per package.** Never touch the shared main checkout's working tree.
 
