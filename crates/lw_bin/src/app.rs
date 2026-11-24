@@ -791,9 +791,23 @@ impl App {
             || artwork_updated
             || preferences_changed;
         let repaint_due = self.repaint.is_some_and(|time| now >= time);
-        // Only a running animation is due: pxui steps it in place (no shell build) and the host redraws its damage.
-        if replay.is_none() && !changed && repaint_due && self.ui.step(now) {
+        let step_due = replay.is_none() && !changed && repaint_due;
+        let step_cpu = (step_due && self.energy.as_ref().is_some_and(perf::energy::Run::measuring))
+            .then(mem_sys::profile::thread_cpu_time_ns)
+            .transpose()
+            .map_err(|error| error.to_string())?;
+        // Step view poses in place while the application state is unchanged.
+        if step_due && self.ui.step(now) {
+            let draws = self.draws;
             self.step_draw(window, now)?;
+            if let (Some(start), Some(energy)) = (step_cpu, &mut self.energy)
+                && draws != self.draws
+                && !self.ui.promoted().is_empty()
+                && self.ui.damage_list().count == 0
+            {
+                let end = mem_sys::profile::thread_cpu_time_ns().map_err(|error| error.to_string())?;
+                energy.record_composite_cpu(end.saturating_sub(start));
+            }
         } else if replay.unwrap_or(changed || repaint_due) {
             if let Some(report) = &mut self.frame_reasons {
                 report.build(

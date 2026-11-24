@@ -63,6 +63,8 @@ impl Scenario {
             fixed,
             replay_start: 0.0,
             replay_frame: 0,
+            composite_samples: 0,
+            composite_cpu_ns: 0,
         })
     }
 }
@@ -78,9 +80,20 @@ pub(crate) struct Run {
     fixed: bool,
     replay_start: f64,
     replay_frame: u64,
+    composite_samples: u64,
+    composite_cpu_ns: u64,
 }
 
 impl Run {
+    pub(crate) fn measuring(&self) -> bool {
+        self.stop.is_some()
+    }
+
+    pub(crate) fn record_composite_cpu(&mut self, cpu_ns: u64) {
+        self.composite_samples += 1;
+        self.composite_cpu_ns += cpu_ns;
+    }
+
     pub(crate) fn input(&mut self, now: f64, events: &mut Vec<input::Event>) {
         events.retain(|event| {
             matches!(
@@ -169,6 +182,10 @@ impl Run {
                     "LOCALWAVE_ENERGY_DONE draws={draws} transition={} finite_keys={} stepped={}",
                     reasons.transition, reasons.finite_keys, reasons.stepped
                 );
+                if self.composite_samples > 0 {
+                    println!("LOCALWAVE_ENERGY_COMPOSITE samples={} cpu_ns={}",
+                        self.composite_samples, self.composite_cpu_ns);
+                }
                 return Ok(Schedule::Exit);
             }
             return Ok(self.wait_until(stop));
@@ -245,6 +262,8 @@ mod tests {
             fixed: true,
             replay_start: 3.0,
             replay_frame: 0,
+            composite_samples: 0,
+            composite_cpu_ns: 0,
         };
         assert_eq!(run.replay_due(2.999), Some(false));
         for frame in 0..160 {

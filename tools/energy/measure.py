@@ -62,16 +62,19 @@ def trace_metrics(trace, pid, seconds):
 
     presents = sum(belongs(row) for row in table(trace, "ca-client-present-request"))
     gpu_ms = {}
+    composite_ns = []
     for row in table(trace, "metal-gpu-intervals"):
         if not belongs(row) or row["duration"].text is None:
             continue
         label = row["event-label"].get("fmt", "")
         match = re.search(r"(Render Command \d+|Compute Command \d+|Blit Command \d+)", label)
+        if "pxui composite only" in label:
+            composite_ns.append(int(row["duration"].text))
         if match:
             channel = row["channel-name"].get("fmt", "unknown")
             key = f"{match[1]} / {channel}"
             gpu_ms[key] = gpu_ms.get(key, 0) + int(row["duration"].text) / (1_000_000 * seconds)
-    return presents, gpu_ms
+    return presents, gpu_ms, composite_ns
 
 
 def counters(line):
@@ -138,7 +141,7 @@ def main(app, scenario, seconds):
             if process.poll() is None:
                 process.terminate()
 
-    presents, gpu_ms = trace_metrics(trace, process.pid, seconds)
+    presents, gpu_ms, composite_ns = trace_metrics(trace, process.pid, seconds)
     lines = log.read_text().splitlines()
     ready, done = (
         counters(next(line for line in lines if line.startswith(f"LOCALWAVE_ENERGY_{mark} ")))
@@ -163,6 +166,13 @@ def main(app, scenario, seconds):
         "idle_wakeups_per_s": round((after.idle_wakeups - before.idle_wakeups) / elapsed, 4),
         "app_counters": {key: done[key] - ready[key] for key in ready},
     }
+    if composite_ns:
+        result["composite_only_gpu_us"] = round(sum(composite_ns) / len(composite_ns) / 1000, 2)
+        result["composite_only_gpu_samples"] = len(composite_ns)
+    composite = next((counters(line) for line in lines if line.startswith("LOCALWAVE_ENERGY_COMPOSITE ")), None)
+    if composite:
+        result["composite_only_cpu_us"] = round(composite["cpu_ns"] / composite["samples"] / 1000, 2)
+        result["composite_only_cpu_samples"] = composite["samples"]
     if power and power.returncode == 0:
         points = [float(p) for p in re.findall(r"GPU Power: ([\d.]+) mW", power_output)]
         if points:
