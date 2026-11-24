@@ -152,6 +152,62 @@ class IOSCommandTests(unittest.TestCase):
                 discover.assert_not_called()
                 build.assert_not_called()
 
+    def test_release_mode_alone_takes_the_shipping_bundle_id_and_needs_versions(self):
+        cases = (
+            (["build", "--bundle-id", ios.SHIPPING_BUNDLE_ID], False),
+            (["archive", "--bundle-id", ios.SHIPPING_BUNDLE_ID, "--marketing-version", "1.2.3", "--build-number", "7"], False),
+            (["build", "--distribution", "app-store"], False),
+            (["archive", "--distribution", "app-store", "--bundle-id", ios.SHIPPING_BUNDLE_ID], False),
+            (["archive", "--distribution", "app-store", "--bundle-id", ios.SHIPPING_BUNDLE_ID, "--marketing-version", "1.2.3", "--build-number", "7"], True),
+        )
+        for argv, accepted in cases:
+            with patch.object(ios.sys, "argv", ["ios.py"] + argv), patch.object(ios, "archive") as archive, patch.object(ios, "build") as build, contextlib.redirect_stderr(io.StringIO()):
+                if accepted:
+                    ios.main()
+                    archive.assert_called_once_with(ios.SHIPPING_BUNDLE_ID, "1.2.3", "7", False)
+                else:
+                    with self.assertRaises(SystemExit):
+                        ios.main()
+                    archive.assert_not_called()
+                build.assert_not_called()
+
+    def test_archive_signs_with_the_api_key_and_exports_for_app_store_connect(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            key = root / "AuthKey_TESTKEY123.p8"
+            key.touch()
+            (root / "packaging/ios").mkdir(parents=True)
+            (root / "packaging/ios/LocalWave.xcconfig").write_text("DEVELOPMENT_TEAM = ABCDEFGHIJ\n")
+            options = []
+            def call(command, **_):
+                if "-exportArchive" in command:
+                    options.append(plistlib.loads(Path(command[command.index("-exportOptionsPlist") + 1]).read_bytes()))
+                if "archive" == command[-1]:
+                    app = Path(command[command.index("-archivePath") + 1]) / "Products/Applications/LocalWave.app"
+                    app.mkdir(parents=True)
+                    (app / "Info.plist").write_bytes(plistlib.dumps(dict(CFBundleShortVersionString="1.2.3", CFBundleVersion="7")))
+            env = {"ASC_KEY_ID": "TESTKEY123", "ASC_ISSUER_ID": "issuer-uuid", "ASC_KEY_PATH": str(key)}
+            with patch.dict(ios.os.environ, env), patch.object(ios, "ROOT", root), patch.object(ios, "PROJECT", root / "packaging/ios/LocalWave.xcodeproj"), \
+                    patch.object(ios, "rust_executable", return_value=root / "localwave"), patch.object(ios, "verify_bundle") as verify, \
+                    patch.object(ios.subprocess, "check_call", side_effect=call) as calls, contextlib.redirect_stdout(io.StringIO()):
+                ios.archive(ios.SHIPPING_BUNDLE_ID, "1.2.3", "7", upload=True)
+            archive, export = [entry.args[0] for entry in calls.call_args_list]
+            for command in (archive, export):
+                self.assertEqual(command[command.index("-authenticationKeyID") + 1], "TESTKEY123")
+                self.assertEqual(command[command.index("-authenticationKeyIssuerID") + 1], "issuer-uuid")
+                self.assertIn("-allowProvisioningUpdates", command)
+            self.assertIn(f"PRODUCT_BUNDLE_IDENTIFIER={ios.SHIPPING_BUNDLE_ID}", archive)
+            self.assertIn("MARKETING_VERSION=1.2.3", archive)
+            self.assertIn("CURRENT_PROJECT_VERSION=7", archive)
+            self.assertIn("DEVELOPMENT_TEAM=ABCDEFGHIJ", archive)
+            self.assertTrue(verify.call_args.kwargs["signed"])
+            self.assertEqual((options[0]["method"], options[0]["destination"], options[0]["teamID"]), ("app-store-connect", "upload", "ABCDEFGHIJ"))
+            self.assertTrue(calls.call_args_list[1].kwargs["env"]["PATH"].startswith("/usr/bin:/bin:"))
+            with patch.dict(ios.os.environ, {"ASC_KEY_ID": "", "ASC_ISSUER_ID": ""}), self.assertRaisesRegex(ValueError, "ASC_KEY_ID"):
+                ios.archive(ios.SHIPPING_BUNDLE_ID, "1.2.3", "7", upload=False)
+            with self.assertRaisesRegex(ValueError, "marketing-version"):
+                ios.archive(ios.SHIPPING_BUNDLE_ID, "1.2", "seven", upload=False)
+
     def test_invalid_sdk_default_fails_before_build(self):
         with patch.dict(ios.os.environ, {"IOS_SDK": "not-an-ios-sdk"}), patch.object(ios.sys, "argv", ["ios.py", "build"]), patch.object(ios, "build") as build, contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):

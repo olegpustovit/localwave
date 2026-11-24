@@ -60,7 +60,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | F8 | Metadata editor and metadata-only deletion | done | HEAD |
 | F9 | Source observation and debounced rescan | done | 12c2408 + d7c9b87 |
 | F10 | Onboarding, route empty states and Share | done | 92993cf |
-| S | Sign, migrate, TestFlight and release macOS | doing | `make sign` (keychain access pending), `tools/notarize-macos.sh` unrun, `tools/migration-check.sh` passes on a container copy |
+| S | Sign, migrate, TestFlight and release macOS | TestFlight 1.0.1 | App Store Connect app 6830623498 (com.olegpustovit.localwave): iOS 1.0.1 (6) and macOS 1.0.1 (5) VALID in TestFlight, internal group "LocalWave Internal", What to Test from docs/testflight-notes.md. Not submitted for review. `tools/migration-check.sh` passes on a container copy (92 songs, queue, bookmarks; database and preferences unchanged). iOS: `packaging/ios.py archive --distribution app-store`; macOS: `packaging/mas-macos.sh`; App Store Connect API: `tools/asc.py`. |
 | I1 | Framework gestures and device comparison | doing | pxui e19dedb..62f1f94 (ABI 1.38-1.42: gestures, two-sided swipe, dismiss, touch drag; trace tests); device side-by-side pending |
 | I2 | iOS flows, physical install and shipping gates | doing | Compact flows on simulator/macOS (swipe, long press, refresh, Now player, sheets, Select, menus, Files); 390×778 goldens; `make ios-build` passes; physical install, 120 Hz and device qualification pending |
 | D | Resolve deferred accessibility/opacity decisions | doing | HEAD + pxui a0a0cb8 |

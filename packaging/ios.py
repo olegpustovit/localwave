@@ -7,7 +7,8 @@ Simulator signing is ad hoc; physical signing uses automatic provisioning and ce
 never a CN suffix. Support both devicectl schemas; choose only paired wired iPhone/iPad devices.
 Explicit IOS_DEVICE=simulator selects a booted iOS simulator; ambiguity requires an explicit ID.
 Keep unsigned and signed device products separate. Reuse icons/privacy resources, retain the
-shipping Swift app and refuse its bundle ID until migration gates allow replacement.
+shipping Swift app and refuse its bundle ID except in the explicit App Store release mode
+(`archive --distribution app-store`), which signs with the App Store Connect API key.
 """
 import argparse
 import hashlib
@@ -23,6 +24,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 PROJECT = ROOT / "packaging/ios/LocalWave.xcodeproj"
 BUNDLE_ID = "com.olegpustovit.localwave.rust"
+SHIPPING_BUNDLE_ID = "com.olegpustovit.localwave"
 TARGETS = {"iphoneos": "aarch64-apple-ios", "iphonesimulator": "aarch64-apple-ios-sim"}
 
 
@@ -122,7 +124,7 @@ def resolve_device(requested):
         return "iphoneos", choose_phone(json.loads(output.read_text()), requested)
 
 
-def build(sdk, profile, bundle_id, device=None, team=None):
+def rust_executable(sdk, profile):
     if not (ROOT / "pxui/Cargo.toml").is_file():
         subprocess.check_call(["git", "submodule", "update", "--init", "pxui"])
     target = TARGETS[sdk]
@@ -138,7 +140,11 @@ def build(sdk, profile, bundle_id, device=None, team=None):
     subprocess.check_call(["cargo", "build", "--locked", "-p", "lw_bin", "--bin", "localwave", "--features", "pxui/static",
                            "--target", target] + (["--release"] if profile == "release" else []),
                           env=dict(os.environ, SDL3_DIR=str(sdl), IPHONEOS_DEPLOYMENT_TARGET="18.0", CARGO_TARGET_DIR=str(ROOT / "target")))
-    binary = ROOT / "target" / target / profile / "localwave"
+    return ROOT / "target" / target / profile / "localwave"
+
+
+def build(sdk, profile, bundle_id, device=None, team=None):
+    binary = rust_executable(sdk, profile)
     configuration = "Release" if profile == "release" else "Debug"
     command = ["xcodebuild", "-project", str(PROJECT), "-scheme", "LocalWave", "-configuration", configuration,
                "-sdk", sdk, "-destination", f"id={device}" if device else f"generic/platform={'iOS' if sdk == 'iphoneos' else 'iOS Simulator'}",
@@ -159,6 +165,52 @@ def build(sdk, profile, bundle_id, device=None, team=None):
     verify_bundle(bundle, binary, sdk, bundle_id, signed=sdk == "iphonesimulator" or team is not None)
     print(f"{'Signed' if sdk == 'iphonesimulator' or team else 'Unsigned'} full Rust app: {bundle}", flush=True)
     return bundle
+
+
+def api_key_flags():
+    """xcodebuild's App Store Connect API key flags, from ASC_KEY_ID / ASC_ISSUER_ID (and ASC_KEY_PATH)."""
+    key_id, issuer = os.environ.get("ASC_KEY_ID"), os.environ.get("ASC_ISSUER_ID")
+    if not key_id or not issuer:
+        raise ValueError("Set ASC_KEY_ID and ASC_ISSUER_ID for App Store signing and upload.")
+    path = Path(os.environ.get("ASC_KEY_PATH", Path.home() / ".appstoreconnect/private_keys" / f"AuthKey_{key_id}.p8"))
+    if not path.is_file():
+        raise ValueError(f"App Store Connect key not found: {path}")
+    return ["-authenticationKeyPath", str(path), "-authenticationKeyID", key_id, "-authenticationKeyIssuerID", issuer]
+
+
+def archive(bundle_id, version, build_number, upload):
+    """App Store archive of the release executable, exported for App Store Connect (uploaded when asked)."""
+    if not re.fullmatch(r"\d+(\.\d+){1,2}", version) or not re.fullmatch(r"\d+(\.\d+){0,2}", build_number):
+        raise ValueError("--marketing-version must be like 1.2.3 and --build-number like 42.")
+    configured = re.search(r"^DEVELOPMENT_TEAM\s*=\s*([A-Z0-9]{10})\s*$", (PROJECT.parent / "LocalWave.xcconfig").read_text(), re.M)
+    if not configured:
+        raise ValueError("packaging/ios/LocalWave.xcconfig has no DEVELOPMENT_TEAM.")
+    team, auth = configured[1], api_key_flags()
+    binary = rust_executable("iphoneos", "release")
+    path = ROOT / "target/ios" / f"LocalWave-{version}-{build_number}.xcarchive"
+    subprocess.check_call(["xcodebuild", "-project", str(PROJECT), "-scheme", "LocalWave", "-configuration", "Release",
+                           "-sdk", "iphoneos", "-destination", "generic/platform=iOS", "-derivedDataPath", str(ROOT / "target/ios"),
+                           "-archivePath", str(path), f"LOCALWAVE_RUST_EXECUTABLE={binary}", f"PRODUCT_BUNDLE_IDENTIFIER={bundle_id}",
+                           f"DEVELOPMENT_TEAM={team}", "CODE_SIGN_STYLE=Automatic", f"MARKETING_VERSION={version}",
+                           f"CURRENT_PROJECT_VERSION={build_number}", "-allowProvisioningUpdates"] + auth + ["archive"])
+    app = path / "Products/Applications/LocalWave.app"
+    verify_bundle(app, binary, "iphoneos", bundle_id, signed=True)
+    with (app / "Info.plist").open("rb") as stream:
+        info = plistlib.load(stream)
+    if (info["CFBundleShortVersionString"], info["CFBundleVersion"]) != (version, build_number):
+        raise ValueError("The archived app does not carry the requested version and build number.")
+    with tempfile.TemporaryDirectory(prefix="localwave-export-") as directory:
+        options = Path(directory) / "ExportOptions.plist"
+        options.write_bytes(plistlib.dumps({"method": "app-store-connect", "teamID": team, "signingStyle": "automatic",
+                                            "destination": "upload" if upload else "export", "uploadSymbols": True,
+                                            "manageAppVersionAndBuildNumber": False}))
+        export = ROOT / "target/ios" / f"LocalWave-{version}-{build_number}-export"
+        # Xcode packages the IPA with rsync from PATH; Homebrew's rsync 3.x rejects its options ("Copy failed").
+        system_first = "/usr/bin:/bin:/usr/sbin:/sbin:" + os.environ.get("PATH", "")
+        subprocess.check_call(["xcodebuild", "-exportArchive", "-archivePath", str(path), "-exportPath", str(export),
+                               "-exportOptionsPlist", str(options), "-allowProvisioningUpdates"] + auth,
+                              env=dict(os.environ, PATH=system_first))
+    print(f"{'Uploaded' if upload else 'Exported'} {bundle_id} {version} ({build_number}): {export}", flush=True)
 
 
 def verify_bundle(bundle, binary, sdk, bundle_id, signed):
@@ -193,22 +245,34 @@ def main():
         split = before.index("--")
         before, application_args, separator = before[:split], before[split + 1:], True
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=("build", "run"))
+    parser.add_argument("action", choices=("build", "run", "archive"))
     parser.add_argument("--profile", choices=("debug", "release"), default="release")
     parser.add_argument("--sdk", choices=TARGETS, help="SDK for build; run chooses the destination SDK", default=os.environ.get("IOS_SDK", "iphoneos"))
     parser.add_argument("--device", default=os.environ.get("IOS_DEVICE"))
     parser.add_argument("--team", help="Development team for a physical device run", default=os.environ.get("IOS_TEAM_ID"))
     parser.add_argument("--bundle-id", default=os.environ.get("IOS_BUNDLE_ID", BUNDLE_ID))
+    parser.add_argument("--distribution", choices=("app-store",), help="Release mode for archive: App Store Connect signing")
+    parser.add_argument("--marketing-version", help="CFBundleShortVersionString for archive")
+    parser.add_argument("--build-number", help="CFBundleVersion for archive; above every uploaded build")
+    parser.add_argument("--upload", action="store_true", help="Upload the exported archive to App Store Connect")
     args = parser.parse_args(before)
+    release = args.action == "archive"
+    if release != (args.distribution == "app-store"):
+        parser.error("archive requires --distribution app-store, and --distribution applies only to archive.")
+    if release and not (args.marketing_version and args.build_number):
+        parser.error("archive requires --marketing-version and --build-number.")
     if args.sdk not in TARGETS:
         parser.error("IOS_SDK must be iphoneos or iphonesimulator.")
-    if not re.fullmatch(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", args.bundle_id) or args.bundle_id == "com.olegpustovit.localwave":
-        parser.error("Use a separate development bundle ID; the shipping Swift app must remain installed.")
+    if not re.fullmatch(r"[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+", args.bundle_id) or (args.bundle_id == SHIPPING_BUNDLE_ID and not release):
+        parser.error("Use a separate development bundle ID; the shipping bundle ID is only for archive --distribution app-store.")
     if separator and args.action != "run":
         parser.error("Application arguments after -- require run.")
     if sys.platform != "darwin":
         parser.error("iOS builds require a Mac with full Xcode selected by xcode-select.")
     os.chdir(ROOT)
+    if release:
+        archive(args.bundle_id, args.marketing_version, args.build_number, args.upload)
+        return
     device = team = None
     sdk = args.sdk
     if args.action == "run":
