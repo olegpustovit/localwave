@@ -126,6 +126,8 @@ Existing `make performance` limits stay as they are: build p99 < 1.5 ms, frame C
 5. **Behaviour changes are measured both ways.** Each package records before/after `make performance`, abi_bench and the energy scenarios (R0) in its commit message and replaces the status row. No CPU time silently replaces wall time.
 6. **One step per commit**, publish pxui before the LocalWave pointer, and follow the ABI rule: one minor bump per additive change, with header, snapshots, fuzz/safety lists, surface row and ledger.
 
+7. **No platform compositor: pxui is the compositor.** Platform code may only create the window surface (CAMetalLayer / wl_surface + VkSurface), acquire and present drawables, and receive vsync (CAMetalDisplayLink / frame callbacks / vblank). No CALayer/CAAnimation/CATransaction/CARenderer trees or compositor-side animation protocols.
+
 ---
 
 ## 5. What the industry does (research, with sources)
@@ -377,7 +379,9 @@ Full redraws still happen (navigation, theme, resize, scroll) and set the felt p
 
 ---
 
-### R7. Compositor layers: ambient loops run outside the app
+### R7. Compositor layers (superseded by R7b)
+
+R7b replaces the platform composition design below with a compositor owned by pxui.
 
 This is the change that reaches Music-level energy. Scope is deliberately narrow: **promote only views whose motion is fully described by keyframes over view-level properties** (offset, opacity, scale with anchor, 2×2 transform), and which are not overlapped by later content. Everything else stays in the canvas.
 
