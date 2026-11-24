@@ -665,7 +665,7 @@ impl App {
                 }
             }
             if let Some(soak) = &mut self.soak {
-                soak_input = soak.input(window, &self.ui, &mut self.events, !mac_control)?;
+                soak_input = soak.input(window, &mut self.ui, &mut self.events, !mac_control)?;
             }
             self.input(window)?;
         }
@@ -891,10 +891,10 @@ impl App {
             let drew = self.draws != previous_draws;
             let graphics = self.graphics_slot.as_mut().ok_or("App graphics have already closed")?;
             let acquire = if drew { graphics.acquire_wall() } else { std::time::Duration::ZERO };
-            if soak.record(now, clock, built, drew, acquire)? {
+            if soak.record(clock, built, drew, acquire)? {
                 let matches = graphics.verify_canvas(&self.ui, window.scale() as f32)
                     .map_err(|error| graphics_error(&self.ui, error))?;
-                soak.oracle(now, matches)?;
+                soak.oracle(matches)?;
             }
             match soak.advance(window.time(), self.player.status(), self.draws)? {
                 Schedule::Exit => return Ok(Schedule::Exit),

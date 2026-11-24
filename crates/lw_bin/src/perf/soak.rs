@@ -7,7 +7,10 @@ use pxui_sdl::{Window, app::Schedule};
 use std::time::{Duration, Instant};
 
 const PHASES: [&str; 3] = ["playback", "scroll", "churn"];
-const WARMUP_SECONDS: f64 = 4.0;
+const PLAYBACK_WARMUP_SECONDS: f64 = 4.0;
+// Scroll repeats both fling directions. Churn repeats both sizes, all appearance/accent
+// combinations and both overlays. A display callback can arrive later than a scripted tick.
+const SCRIPT_CYCLE: usize = 240;
 const TICK_SECONDS: f64 = 1.0 / 60.0;
 const MEMORY_TOLERANCE_BYTES: i64 = 64 * 1024 * 1024;
 const BUCKET_US: u64 = 100;
@@ -193,7 +196,7 @@ pub(crate) struct Run {
     config: Config,
     startup: f64,
     last_playing: f64,
-    measuring: Option<f64>,
+    stage: Stage,
     next_sample: f64,
     phase: usize,
     next_tick: f64,
@@ -204,7 +207,17 @@ pub(crate) struct Run {
     stats: Stats,
 }
 
+#[derive(Clone, Copy)]
+enum Stage {
+    Starting,
+    Warmup { until: f64 },
+    Measuring { started: f64 },
+}
+
 impl Run {
+    fn measuring(&self) -> bool {
+        matches!(self.stage, Stage::Measuring { .. })
+    }
     pub(crate) fn new(config: Config, now: f64, player: &mut Controller) -> Result<Self, String> {
         if player.catalog().len() != 10_000 {
             return Err("Soak requires the 10,000-song fixture".into());
@@ -219,7 +232,7 @@ impl Run {
             config,
             startup: now,
             last_playing: now,
-            measuring: None,
+            stage: Stage::Starting,
             next_sample: now,
             phase: 0,
             next_tick: now,
@@ -234,7 +247,7 @@ impl Run {
     pub(crate) fn input(
         &mut self,
         window: &mut Window,
-        ui: &pxui::Ui,
+        ui: &mut pxui::Ui,
         events: &mut Vec<Event>,
         drive: bool,
     ) -> Result<bool, String> {
@@ -265,7 +278,22 @@ impl Run {
         if self.phase == 1 {
             let workload =
                 [Workload::Fling, Workload::ReverseScroll, Workload::Jump][(tick / 40) % 3];
-            measured::events(workload, tick, 0, ui, events)?;
+            if let Some(offset) = scroll_jump(tick, workload) {
+                let list = ui
+                    .a11y_nodes()
+                    .iter()
+                    .find(|node| {
+                        node.is_role(pxui::ui::Role::List) && node.rect.contains((650.0, 400.0))
+                    })
+                    .and_then(|node| ui.box_of_a11y(node.id))
+                    .ok_or("Soak Songs list is missing")?;
+                ui.set_scroll_offset(&list, offset);
+            }
+            if workload == Workload::Jump {
+                events.push(Event::PointerMoved((650.0, 400.0)));
+            } else {
+                measured::events(workload, tick, 0, ui, events)?;
+            }
         } else {
             if tick % 120 == 0 {
                 window.resize(1440, 872)?;
@@ -287,13 +315,12 @@ impl Run {
     /// Snapshot input/build/draw costs before invoking the oracle or printing a sample.
     pub(crate) fn record(
         &mut self,
-        now: f64,
         frame: Frame,
         built: bool,
         drew: bool,
         acquire: Duration,
     ) -> Result<bool, String> {
-        let measured = self.measuring.is_some_and(|start| now >= start);
+        let measured = self.measuring();
         if !measured {
             let verify = drew && !self.verified_warmup;
             self.verified_warmup |= verify;
@@ -315,8 +342,8 @@ impl Run {
         Ok(drew && (self.stats.draws - 1) % self.config.verify_every == 0)
     }
 
-    pub(crate) fn oracle(&mut self, now: f64, matches: bool) -> Result<(), String> {
-        if self.measuring.is_some_and(|start| now >= start) {
+    pub(crate) fn oracle(&mut self, matches: bool) -> Result<(), String> {
+        if self.measuring() {
             self.stats.oracle_checks += 1;
             self.stats.mismatches += usize::from(!matches);
         } else if !matches {
@@ -329,15 +356,19 @@ impl Run {
     }
 
     pub(crate) fn deadline(&self) -> f64 {
-        let Some(start) = self.measuring else {
-            return self.startup + 5.0;
-        };
-        let stop = start + f64::from(self.config.seconds[self.phase]);
-        let deadline = self.next_sample.min(stop);
-        if self.phase == 0 {
-            deadline
-        } else {
-            deadline.min(self.next_tick)
+        match self.stage {
+            Stage::Starting => self.startup + 5.0,
+            Stage::Warmup { until } if self.phase == 0 => until,
+            Stage::Warmup { .. } => self.next_tick,
+            Stage::Measuring { started } => {
+                let stop = started + f64::from(self.config.seconds[self.phase]);
+                let deadline = self.next_sample.min(stop);
+                if self.phase == 0 {
+                    deadline
+                } else {
+                    deadline.min(self.next_tick)
+                }
+            }
         }
     }
 
@@ -352,7 +383,7 @@ impl Run {
         }
         if status.phase == Phase::Playing {
             self.last_playing = now;
-        } else if self.measuring.is_some()
+        } else if !matches!(self.stage, Stage::Starting)
             && (!status.wants_playback || now - self.last_playing >= 5.0)
         {
             return Err(format!(
@@ -360,14 +391,25 @@ impl Run {
                 PHASES[self.phase]
             ));
         }
-        let Some(start) = self.measuring else {
-            if status.phase == Phase::Playing && draws > 0 {
-                self.measuring = Some(now + WARMUP_SECONDS);
-                self.next_sample = now + WARMUP_SECONDS;
-            } else if now >= self.startup + 5.0 {
-                return Err("Soak playback or rendering did not start".into());
+        let start = match self.stage {
+            Stage::Starting => {
+                if status.phase == Phase::Playing && draws > 0 {
+                    self.stage = Stage::Warmup {
+                        until: now + PLAYBACK_WARMUP_SECONDS,
+                    };
+                } else if now >= self.startup + 5.0 {
+                    return Err("Soak playback or rendering did not start".into());
+                }
+                return Ok(Schedule::WaitUntil(Some(self.deadline())));
             }
-            return Ok(Schedule::WaitUntil(Some(self.deadline())));
+            Stage::Warmup { until } => {
+                if now >= until && (self.phase == 0 || self.tick >= SCRIPT_CYCLE) {
+                    self.stage = Stage::Measuring { started: now };
+                    self.next_sample = now;
+                }
+                return Ok(Schedule::WaitUntil(Some(self.deadline())));
+            }
+            Stage::Measuring { started } => started,
         };
         let elapsed = now - start;
         let done = elapsed >= f64::from(self.config.seconds[self.phase]);
@@ -390,8 +432,7 @@ impl Run {
             }
             self.phase += 1;
             self.stats = Stats::EMPTY;
-            self.measuring = Some(now + WARMUP_SECONDS);
-            self.next_sample = now + WARMUP_SECONDS;
+            self.stage = Stage::Warmup { until: now };
             self.next_tick = now;
             self.tick = 0;
             self.verified_warmup = false;
@@ -400,9 +441,33 @@ impl Run {
     }
 }
 
+// Each jump segment returns the viewport to the same starting region before the next fling.
+fn scroll_jump(tick: usize, workload: Workload) -> Option<f32> {
+    if tick == 0 {
+        Some(600.0)
+    } else if workload == Workload::Jump && tick % 10 == 0 {
+        Some(if tick % 20 == 0 { 19_600.0 } else { 600.0 })
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{Config, Timing};
+    use super::{Config, SCRIPT_CYCLE, Timing, Workload, scroll_jump};
+
+    #[test]
+    fn every_scroll_cycle_jumps_to_the_same_regions_and_returns_to_its_origin() {
+        assert_eq!(scroll_jump(0, Workload::Fling), Some(600.0));
+        for cycle in 0..2 {
+            for start in [80, 200] {
+                let first = cycle * SCRIPT_CYCLE + start;
+                assert_eq!(scroll_jump(first, Workload::Jump), Some(19_600.0));
+                assert_eq!(scroll_jump(first + 1, Workload::Jump), None);
+                assert_eq!(scroll_jump(first + 30, Workload::Jump), Some(600.0));
+            }
+        }
+    }
 
     #[test]
     fn soak_percentile_uses_all_frames_and_retains_overflow() {
