@@ -348,6 +348,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | R9e.7 | Base canvas oracle with promotion enabled | passed | pxui `c29ba7a5`. The oracle redraws with the same promoted-layer exclusion as the last presentation. The macOS promoted drawable regression checks final pixels and the base oracle. |
 | R9e.8 | Idle compositor surface reuse | passed | pxui `e5c1d26a`. The first R7b smoke found 78 and 52 allocations on two scroll frames when a remounted row had fresh promoted view IDs. The renderer now reuses fitting idle surfaces and repaints new owners. |
 | R9e.9 | Soak on the native compositor | signed smoke passed | Playback and scroll recorded 61 and 14 composited draws. All three phases passed with zero warm Rust allocations and zero mismatches across 32 canvas comparisons. |
+| R9e.10 | Keep the playing row visible during churn | signed smoke passed | Return to the first Songs row before churn warm-up and require promoted churn draws. The smoke recorded 60, 15, and 177 composited draws with zero warm allocations in all phases and zero mismatches across 40 base-canvas comparisons. |
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
 

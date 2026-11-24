@@ -282,15 +282,7 @@ impl Run {
             let workload =
                 [Workload::Fling, Workload::ReverseScroll, Workload::Jump][(tick / 40) % 3];
             if let Some(offset) = scroll_jump(tick, workload) {
-                let list = ui
-                    .a11y_nodes()
-                    .iter()
-                    .find(|node| {
-                        node.is_role(pxui::ui::Role::List) && node.rect.contains((650.0, 400.0))
-                    })
-                    .and_then(|node| ui.box_of_a11y(node.id))
-                    .ok_or("Soak Songs list is missing")?;
-                ui.set_scroll_offset(&list, offset);
+                set_songs_offset(ui, offset)?;
             }
             if workload == Workload::Jump {
                 events.push(Event::PointerMoved((650.0, 400.0)));
@@ -299,6 +291,9 @@ impl Run {
             }
         } else {
             if tick % 120 == 0 {
+                if tick == 0 {
+                    set_songs_offset(ui, 0.0)?;
+                }
                 window.resize(1440, 872)?;
             } else if tick % 120 == 60 {
                 window.resize(1240, 772)?;
@@ -427,8 +422,8 @@ impl Run {
         }
         if done {
             self.failed |= self.stats.draws == 0 || self.stats.oracle_checks == 0;
-            if self.phase == 0 && self.stats.composited_draws == 0 {
-                return Err("Soak playback never presented promoted layers".into());
+            if self.phase != 1 && self.stats.composited_draws == 0 {
+                return Err(format!("Soak {} never presented promoted layers", PHASES[self.phase]));
             }
             if self.phase + 1 == PHASES.len() {
                 println!(r#"{{"kind":"complete","passed":{}}}"#, !self.failed);
@@ -447,6 +442,17 @@ impl Run {
         }
         Ok(Schedule::WaitUntil(Some(self.deadline())))
     }
+}
+
+fn set_songs_offset(ui: &mut pxui::Ui, offset: f32) -> Result<(), String> {
+    let list = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(pxui::ui::Role::List) && node.rect.contains((650.0, 400.0)))
+        .and_then(|node| ui.box_of_a11y(node.id))
+        .ok_or("Soak Songs list is missing")?;
+    ui.set_scroll_offset(&list, offset);
+    Ok(())
 }
 
 // Each jump segment returns the viewport to the same starting region before the next fling.
