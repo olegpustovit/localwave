@@ -349,6 +349,7 @@ checkpoint; the next step replaces it with its fixed commit hash. Evidence lives
 | R9e.8 | Idle compositor surface reuse | passed | pxui `e5c1d26a`. The first R7b smoke found 78 and 52 allocations on two scroll frames when a remounted row had fresh promoted view IDs. The renderer now reuses fitting idle surfaces and repaints new owners. |
 | R9e.9 | Soak on the native compositor | signed smoke passed | Playback and scroll recorded 61 and 14 composited draws. All three phases passed with zero warm Rust allocations and zero mismatches across 32 canvas comparisons. |
 | R9e.10 | Keep the playing row visible during churn | signed smoke passed | Return to the first Songs row before churn warm-up and require promoted churn draws. The smoke recorded 60, 15, and 177 composited draws with zero warm allocations in all phases and zero mismatches across 40 base-canvas comparisons. |
+| R9f.1 | Stable ABI freeze at 2.13 | macOS arm64 passed | Froze 231 function rows and 176 layout rows. Both ABI freeze gates return to Tier B. The macOS 2.0 and 2.13 old consumers passed against the current library. The Linux 2.13 fixture awaits host access. |
 
 U5b landed at LocalWave `4eeed4e` and pxui `d4ba6ebc`. The framework suites, ABI gates, 310 LocalWave checks, two-way ledger and 9,590 baseline fingerprints pass. The final release measurements and the remaining benchmark work are recorded in [the deferred list](u-plan/deferred.md).
 

@@ -99,10 +99,9 @@ Owner sign-offs (2026-11-17): (1) no Swift work and no Swift/Xcode checks while 
 and the Rust iOS build is still compiled and smoke-tested at checkpoints. (2) Per-commit checks are targeted (the plan's
 Tier A); the full suite and `make check` run at each package end (Tier B); benchmarks run only at CP0–CP2 and the
 plan's named targeted runs. (3) Within a package, LocalWave commits on `u<N>` may point at pxui commits not yet
-published; the orchestrator publishes pxui before landing. (D28, 2026-11-18) Until the 2.0 cut the 1.x C ABI is not
-frozen: exports and records change in place, superseded exports are deleted in the superseding step, `abi-snapshot` is a
-change detector only (next minor, regenerated manifests); the 1.x frozen fixtures and 1.57 old-consumer check are retired,
-and `abi-frozen`/`abi-compat` leave Tier B until they return at 2.0. Stop at a blocked step rather than jumping phases.
+published; the orchestrator publishes pxui before landing. R9 freezes stable pxui ABI major 2 at minor 13.
+Tier B includes pxui's `abi-frozen` and `abi-compat` gates. Follow [pxui/docs/abi.md](pxui/docs/abi.md) for additive
+minor releases and fixture retention. D28 retired the 1.x fixtures and 1.57 old-consumer check. Stop at a blocked step.
 
 One step per commit; subjects include its ID. For framework steps publish pxui on `dev`
 before staging its pointer in LocalWave, also on `dev` (U packages: at landing, sign-off 3); check remote
