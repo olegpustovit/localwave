@@ -163,6 +163,8 @@ impl Worker {
                     ..Status::default()
                 };
                 inbox.closed = true;
+                #[cfg(test)]
+                shared.changed.notify_all();
                 drop(inbox);
                 (shared.wake)();
                 return;

@@ -277,6 +277,8 @@ impl Worker {
             let mut inbox = self.shared.inbox.lock().unwrap();
             inbox.catalog_pending = self.catalog_dirty || self.browse_dirty;
             inbox.status = self.status.clone();
+            #[cfg(test)]
+            self.shared.changed.notify_all();
             drop(inbox);
             // A position that shows nothing new waits for the host's next progress poll: waking it would poll the
             // native player, whose newer position comes back here, a loop at the host's frame rate.

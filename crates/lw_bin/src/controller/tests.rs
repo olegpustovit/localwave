@@ -1111,6 +1111,9 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
         Worker::run(
             move || {
                 let mut library = open(&worker_base, &worker_suite)?;
+                let retry_file = worker_base.join("retry.flac");
+                std::fs::write(&retry_file, [4; 8])?;
+                let bookmark = lw_apple_sys::bookmarks::create(&retry_file)?;
                 for id in 1..=5 {
                     library
                         .repository
@@ -1118,6 +1121,7 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
                             &Song {
                                 song_key: id,
                                 title: format!("Track {id}"),
+                                bookmark: (id == 4).then(|| bookmark.clone()),
                                 file_state: if id == 4 {
                                     FileState::Failed
                                 } else {
@@ -1150,11 +1154,17 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
     }
     let mut close = Close(shared.clone(), Some(thread));
     let deadline = std::time::Instant::now() + Duration::from_secs(1);
-    let wait = |done: &dyn Fn(&Shared) -> bool| {
-        while !done(&shared) {
-            assert!(std::time::Instant::now() < deadline, "menu command stalled");
-            std::thread::yield_now();
-        }
+    let wait = |done: &dyn Fn(&Inbox) -> bool| {
+        let inbox = shared.inbox.lock().unwrap();
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        let (inbox, _) = shared
+            .changed
+            .wait_timeout_while(inbox, remaining, |inbox| !inbox.closed && !done(inbox))
+            .unwrap();
+        let completed = done(&inbox);
+        let message = inbox.status.message.clone();
+        drop(inbox);
+        assert!(completed, "menu command stalled: {message:?}");
     };
     let send = |revision: u64, command: Command| {
         shared.inbox.lock().unwrap().commands.push_back(Envelope {
@@ -1164,18 +1174,15 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
             command,
         });
         shared.changed.notify_one();
-        wait(&|shared| shared.inbox.lock().unwrap().status.processed_command >= revision);
+        wait(&|inbox| inbox.status.processed_command >= revision);
     };
-    let song_state = |shared: &Shared, id: i64| {
-        shared
-            .inbox
-            .lock()
-            .unwrap()
+    let song_state = |inbox: &Inbox, id: i64| {
+        inbox
             .catalog
             .as_ref()
             .and_then(|catalog| catalog.row_index(id).map(|index| catalog.row(index).state))
     };
-    wait(&|shared| song_state(shared, 4) == Some(FileState::Failed));
+    wait(&|inbox| song_state(inbox, 4) == Some(FileState::Failed));
     let list = 1; // the only playlist, created first
     // Queue 1, 2, 3 with 2 current; Play next of 4 and 5 lands right after 2.
     send(
@@ -1193,13 +1200,19 @@ fn track_menu_commands_insert_next_edit_lists_retry_and_validate_reveal() {
     send(4, Command::AddToList(list, ids(&[1, 2, 2, 5])));
     send(5, Command::RemoveFromList(list, ids(&[2])));
     send(6, Command::RetryDownload(4));
-    wait(&|shared| {
-        song_state(shared, 4) == Some(FileState::CopyPending)
-            || song_state(shared, 4) == Some(FileState::Copied)
+    wait(&|inbox| {
+        matches!(
+            song_state(inbox, 4),
+            Some(FileState::CopyPending | FileState::Copied)
+        )
     });
     // A song without a source reports a notice rather than reaching Finder.
     send(7, Command::Reveal(1));
-    wait(&|shared| !shared.inbox.lock().unwrap().status.message.is_empty());
+    let notice = shared.inbox.lock().unwrap().status.message.clone();
+    assert_eq!(
+        notice.as_ref(),
+        "Could not show this file. Reconnect its source folder and try again."
+    );
     close.0.inbox.lock().unwrap().closed = true;
     close.0.changed.notify_one();
     close.1.take().unwrap().join().unwrap();

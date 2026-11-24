@@ -210,6 +210,8 @@ impl Shared {
                 continue;
             }
             let previous = inbox.catalog.replace(next);
+            #[cfg(test)]
+            self.changed.notify_all();
             drop(inbox);
             drop(previous);
             (self.wake)();
