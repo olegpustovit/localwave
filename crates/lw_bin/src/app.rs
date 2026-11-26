@@ -147,9 +147,11 @@ pub(super) fn open(
         return Err("Soak needs the counting release bundle (make soak)".into());
     }
     mem_sys::set_peer(pxui::library_counter);
+    // On iOS too: SDL locks a non-resizable window to its launch shape, so the phone never rotated
+    // (and a landscape launch drew a portrait window into half the screen).
+    window.set_resizable(true)?;
     #[cfg(target_os = "macos")]
     let chrome = {
-        window.set_resizable(true)?;
         let chrome = pxui_host::Chrome::open(window.token()?, (320.0, 480.0))
             .map_err(|error| error.to_string())?;
         // Goldens compare the 1440x872 content area; tools/reference-goldens.sh crops the titlebar inset.
