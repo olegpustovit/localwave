@@ -643,3 +643,56 @@ fn native_recursive_flac_and_m4a_import_follow_renamed_bookmark_and_reject_mid_r
             .is_none()
     );
 }
+
+#[test]
+fn a_rescan_that_finds_a_failed_file_again_clears_the_failure() {
+    let (mut repo, folder) = fixture();
+    let mut files = Files::default();
+    let cancelled = AtomicBool::new(false);
+    let rescan = |repo: &mut LibraryRepository, files: &mut Files, now: f64| {
+        repo.import_paths(
+            std::slice::from_ref(&folder),
+            files,
+            &cancelled,
+            now,
+            &mut |_, _, _| {},
+        )
+        .unwrap();
+    };
+    rescan(&mut repo, &mut files, 100.0);
+    let id = repo.search_songs("Imported", 10, 0).unwrap()[0].id.unwrap();
+    let state = |repo: &LibraryRepository| repo.get_song(id).unwrap().unwrap().file_state;
+    let fail = |repo: &LibraryRepository, from: FileState, path: Option<&str>| {
+        assert!(repo
+            .update_cached_file(id, path, FileState::Failed, from, path)
+            .unwrap());
+    };
+
+    // The file is unchanged, so the scan skips reading it, but the old failure no longer shows.
+    fail(&repo, FileState::BookmarkOnly, None);
+    rescan(&mut repo, &mut files, 101.0);
+    assert_eq!(files.reads, 1);
+    assert_eq!(state(&repo), FileState::BookmarkOnly);
+
+    // A song kept offline goes back into the copy queue.
+    fail(&repo, FileState::BookmarkOnly, None);
+    files.pinned = true;
+    rescan(&mut repo, &mut files, 102.0);
+    assert_eq!(state(&repo), FileState::CopyPending);
+
+    // A verified cached copy is on the device again.
+    files.pinned = false;
+    assert!(repo
+        .update_cached_file(
+            id,
+            Some("Music/cached.flac"),
+            FileState::Copied,
+            FileState::CopyPending,
+            None,
+        )
+        .unwrap());
+    fail(&repo, FileState::Copied, Some("Music/cached.flac"));
+    files.cached = Some(("Music/cached.flac".into(), Some(true)));
+    rescan(&mut repo, &mut files, 103.0);
+    assert_eq!(state(&repo), FileState::Copied);
+}

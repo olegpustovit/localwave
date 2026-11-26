@@ -155,6 +155,30 @@ impl LibraryRepository {
                 )
                 .map_err(db_error)?;
             }
+            // The scan found the file again, so an old failure says nothing about it now: try it fresh.
+            if let Some(song) = &mut existing
+                && song.file_state == FileState::Failed
+            {
+                let id = song
+                    .id
+                    .ok_or_else(|| io::Error::other("Unsaved imported song"))?;
+                let local = song.local_file_path.as_deref();
+                let state = if info.cached.is_some() {
+                    FileState::Copied
+                } else {
+                    FileState::BookmarkOnly
+                };
+                if self
+                    .update_cached_file(id, local, state, FileState::Failed, local)
+                    .map_err(db_error)?
+                {
+                    song.file_state = state;
+                    if files.pinned(id) {
+                        self.mark_song_for_copy(id).map_err(db_error)?;
+                        song.file_state = FileState::CopyPending;
+                    }
+                }
+            }
             let deferred = info.availability == FileAvailability::InCloud
                 || (info.availability == FileAvailability::Unknown && info.provider);
             let mut cached = None;
