@@ -181,6 +181,18 @@ impl Command {
                 )
         )
     }
+    /// Commands that start or end a queue item: a seek still pending for the old one is dropped.
+    pub(super) fn changes_item(&self) -> bool {
+        matches!(
+            self,
+            Self::Configure { .. }
+                | Self::ShuffleAll { .. }
+                | Self::Select { .. }
+                | Self::Stop
+                | Self::Next
+                | Self::Previous
+        )
+    }
     pub(super) fn interrupts(&self) -> bool {
         matches!(
             self,

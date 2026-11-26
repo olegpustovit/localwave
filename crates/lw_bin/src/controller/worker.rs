@@ -39,7 +39,8 @@ pub(super) struct Worker {
     pub(super) leases: [Option<Ticket>; 6],
     pub(super) intent: bool,
     pub(super) reset: bool,
-    pub(super) seek: Option<f64>,
+    /// A seek not sent yet: the queue entry it was made for and its target.
+    pub(super) seek: Option<(u64, f64)>,
     pub(super) yield_controls: bool,
     pub(super) volume_last: bool,
     pub(super) advance: Option<(u64, u64)>,
@@ -386,12 +387,19 @@ impl Worker {
         }
         Ok(())
     }
+    /// The queued seek, dropped once the queue has moved to another entry.
+    pub(super) fn queued_seek(&mut self) -> Option<f64> {
+        let current = self.session.queue().current().map(|entry| entry.id);
+        self.seek = self.seek.filter(|(entry, _)| Some(*entry) == current);
+        self.seek.map(|(_, seconds)| seconds)
+    }
     pub(super) fn controls(&mut self) -> bool {
         let volume = self.saved.volume.unwrap_or(1.0);
         if self.native.token != 0
             && (self.volume_last || self.native.volume == volume)
-            && let Some(seconds) = self.seek.take()
+            && let Some(seconds) = self.queued_seek()
         {
+            self.seek = None;
             self.send(Operation::Seek(seconds), Pending::Seek(seconds));
             return true;
         }
