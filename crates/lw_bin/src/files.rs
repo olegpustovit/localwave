@@ -422,43 +422,51 @@ fn run(factory: impl FnOnce() -> io::Result<LibraryWorker>, shared: Arc<Shared>)
             publish(&shared, &mut snapshot);
         }
         if let Some(request) = browse {
-            snapshot.message.clear();
-            let result = match refresh_sources(
-                &mut library,
-                &mut snapshot,
-                matches!(request, Request::Roots),
-            ) {
-                Err(error) => {
-                    clear_account(&mut snapshot, error);
-                    None
-                }
-                Ok(()) => Some(match request {
-                    Request::Roots => {
-                        snapshot.directory = None;
-                        Ok(())
-                    }
-                    Request::Browse(location) => {
-                        browse_directory(&mut library, &mut snapshot, location)
-                    }
-                    Request::Locate { user, song } => {
-                        locate(&mut library, user, song).and_then(|location| {
-                            browse_directory(&mut library, &mut snapshot, location)
-                        })
-                    }
-                    _ => unreachable!(),
-                }),
-            };
-            if let Some(Err(error)) = result {
-                if error.kind() == io::ErrorKind::PermissionDenied || snapshot.account.is_none() {
-                    clear_account(&mut snapshot, error);
-                } else {
-                    snapshot.message = error.to_string();
-                }
-            }
+            // Probing every song's availability takes ~2 ms each on iCloud Drive, so answer from the
+            // stored states first (as Swift did) and publish the probed states after.
+            let probed = library.trust_stored_availability;
+            library.trust_stored_availability = true;
+            let answered = answer(&mut library, &mut snapshot, request);
+            library.trust_stored_availability = probed;
             sync_observers(&mut observers, &snapshot, &shared, &mut debounce);
             publish(&shared, &mut snapshot);
+            let newer = {
+                let inbox = shared.inbox.lock().unwrap();
+                inbox.browse.is_some() || inbox.job.is_some() || inbox.closed
+            };
+            if answered && !probed && !newer {
+                answer(&mut library, &mut snapshot, request);
+                publish(&shared, &mut snapshot);
+            }
         }
     }
+}
+/// Refresh the sources and the requested page; false when it failed.
+fn answer(library: &mut LibraryWorker, snapshot: &mut Snapshot, request: Request) -> bool {
+    snapshot.message.clear();
+    let result = match refresh_sources(library, snapshot, matches!(request, Request::Roots)) {
+        Err(error) => {
+            clear_account(snapshot, error);
+            return false;
+        }
+        Ok(()) => match request {
+            Request::Roots => {
+                snapshot.directory = None;
+                Ok(())
+            }
+            Request::Browse(location) => browse_directory(library, snapshot, location),
+            Request::Locate { user, song } => locate(library, user, song)
+                .and_then(|location| browse_directory(library, snapshot, location)),
+            _ => unreachable!(),
+        },
+    };
+    let Err(error) = result else { return true };
+    if error.kind() == io::ErrorKind::PermissionDenied || snapshot.account.is_none() {
+        clear_account(snapshot, error);
+    } else {
+        snapshot.message = error.to_string();
+    }
+    false
 }
 /// Best effort: a source whose folder cannot be presented is simply not observed.
 fn sync_observers(
@@ -1635,7 +1643,10 @@ mod tests {
             "unknown songs fail on the worker, not the caller"
         );
         // Observe this error before rescan can publish a newer snapshot for the catalog.
-        until(&mut worker, |snapshot| snapshot.revision > before);
+        // The earlier page's probed republish can land first.
+        until(&mut worker, |snapshot| {
+            snapshot.revision > before && !snapshot.message.is_empty()
+        });
         assert_eq!(worker.snapshot().message, "This song was removed.");
         let directory = worker.snapshot().directory.as_ref().unwrap();
         assert_eq!(directory.songs.len(), 1);
