@@ -346,8 +346,8 @@ impl Worker {
         }
     }
     pub(super) fn send(&mut self, operation: Operation, pending: Pending) {
-        self.yield_controls = matches!(pending, Pending::Volume | Pending::Seek);
-        if matches!(pending, Pending::Volume | Pending::Seek) {
+        self.yield_controls = matches!(pending, Pending::Volume | Pending::Seek(_));
+        if self.yield_controls {
             self.volume_last = matches!(pending, Pending::Volume);
         }
         self.pending = Some(pending);
@@ -394,7 +394,7 @@ impl Worker {
             && (self.volume_last || self.native.volume == volume)
             && let Some(seconds) = self.seek.take()
         {
-            self.send(Operation::Seek(seconds), Pending::Seek);
+            self.send(Operation::Seek(seconds), Pending::Seek(seconds));
             return true;
         }
         if self.native.volume != volume {

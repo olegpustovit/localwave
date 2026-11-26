@@ -24,7 +24,7 @@ impl Worker {
                         self.reset = false;
                     }
                 }
-                Pending::Volume | Pending::Trim | Pending::Advance(_) | Pending::Seek => {}
+                Pending::Volume | Pending::Trim | Pending::Advance(_) | Pending::Seek(_) => {}
             },
             Ok(false) => {
                 if let Pending::Install { ticket, .. } = pending {
@@ -241,7 +241,7 @@ impl Worker {
                 if shuffled { " · shuffled" } else { "" }
             ))
         };
-        let status = Status {
+        let mut status = Status {
             settings: self.settings,
             cache_usage: self.cache_usage.clone(),
             settings_message: self.settings_message.clone(),
@@ -272,6 +272,13 @@ impl Worker {
             info: self.info.clone(),
             message: self.message.clone(),
         };
+        // Readings taken before the player applied a seek must not replace its target.
+        if let Some(seconds) = self.seek.or(match self.pending {
+            Some(Pending::Seek(seconds)) => Some(seconds),
+            _ => None,
+        }) {
+            status.show_seek(seconds);
+        }
         let shown = self.status.shown();
         if self.status.update(status) {
             let mut inbox = self.shared.inbox.lock().unwrap();

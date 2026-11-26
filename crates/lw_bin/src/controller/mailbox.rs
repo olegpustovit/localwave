@@ -35,7 +35,7 @@ pub(super) enum Pending {
     Advance(Ticket),
     Intent(bool),
     Volume,
-    Seek,
+    Seek(f64),
     Stop,
     Reset,
 }

@@ -10,6 +10,10 @@
 //! occupies either that slot or the inbox slot; shutdown flushes it before the worker exits.
 //! Explicit media/audio-session command delivery keeps its own enqueue synchronization.
 //!
+//! A seek's target is the published position from the command until the player reports it: held here
+//! until the worker has processed the command, by the worker while the operation is queued or
+//! unacknowledged, and by the native snapshot until AVFoundation's completion.
+//!
 //! Preserve logical queue selection while native advance awaits acknowledgement. Coalesce
 //! volume/seek without cancelling preparation; queue changes fence operations/preparation. Browse
 //! has its own coalesced fixed-capacity slot, independent of playback capacity, and never fences
@@ -68,6 +72,8 @@ pub struct Controller {
     revision: u64,
     preparation: u64,
     status: Status,
+    /// The latest seek (command revision, target) the worker's status does not include yet.
+    seek: Option<(u64, f64)>,
     faulted: bool,
     feedback: Feedback,
     media: Option<crate::media::Media>,
@@ -121,6 +127,7 @@ impl Controller {
             revision: 0,
             preparation: 0,
             status,
+            seek: None,
             faulted: false,
             feedback: Feedback::default(),
             media: None,
@@ -173,6 +180,10 @@ impl Controller {
             .checked_add(1)
             .ok_or_else(|| io::Error::other("Playback command identity exhausted"))?;
         let interrupts = command.interrupts();
+        let seek = match command {
+            Command::Seek(seconds) => Some((revision, seconds)),
+            _ => None,
+        };
         let fences_preparation = command.fences_preparation();
         let preparation = if fences_preparation {
             revision
@@ -225,6 +236,11 @@ impl Controller {
         }
         if interrupts {
             self.native.pause();
+        }
+        if seek.is_some() {
+            // The host redraws right after a command: show the target before the worker answers.
+            self.seek = seek;
+            self.status.hold_seek(&mut self.seek);
         }
         self.shared.changed.notify_one();
         Ok(revision)
@@ -371,11 +387,10 @@ impl Controller {
             .feedback
             .adopt(&mut self.catalog, poll.catalog, changed);
         // a newer position within the same ticks is kept, not reported: nothing on screen changes
-        let status_changed = poll
-            .status
-            .as_ref()
-            .is_some_and(|status| status.shown() != self.status.shown());
-        if let Some(status) = poll.status {
+        let mut status_changed = false;
+        if let Some(mut status) = poll.status {
+            status.hold_seek(&mut self.seek);
+            status_changed = status.shown() != self.status.shown();
             self.status = status;
         }
         if self.feedback.pending() {

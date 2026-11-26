@@ -53,10 +53,12 @@ void lw_player_prepared_release(void *raw) { @autoreleasepool { id object = CFBr
     LWPlayerEvent events[64];
     size_t head, count;
     BOOL overflow, mutating, active;
-    uint64_t generation, queued[3];
+    uint64_t generation, queued[3], seeks;
+    double seekTarget;
     void (*wake)(void);
 }
 @property(nonatomic, strong) AVQueuePlayer *engine;
+@property(nonatomic, weak) AVPlayerItem *seeking;
 @property(nonatomic, strong) NSMutableArray<LWPreparedPlayerItem *> *items;
 - (void)push:(int)kind item:(LWPreparedPlayerItem *)item error:(NSError *)error;
 - (void)refresh;
@@ -315,9 +317,18 @@ void lw_player_stop(void *raw) {
 void lw_player_seek(void *raw, double value) {
     LWNativePlayer *player = (__bridge LWNativePlayer *)raw;
     double duration = player.engine.currentItem ? seconds(player.engine.currentItem.duration) : 0;
+    double target = fmin(fmax(0, value), duration);
+    // currentTime still reads the old position after seekToTime returns: snapshots report the target until completion.
+    player.seeking = player.engine.currentItem;
+    player->seekTarget = target;
+    uint64_t seek = ++player->seeks;
     __weak LWNativePlayer *owner = player;
-    [player.engine seekToTime:CMTimeMakeWithSeconds(fmin(fmax(0, value), duration), 600) toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
-        dispatch_async(dispatch_get_main_queue(), ^{ if (finished) [owner push:5 item:nil error:nil]; });
+    [player.engine seekToTime:CMTimeMakeWithSeconds(target, 600) toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero completionHandler:^(BOOL finished) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            LWNativePlayer *current = owner;
+            if (current && current->seeks == seek) current.seeking = nil;
+            if (finished) [current push:5 item:nil error:nil];
+        });
     }];
 }
 void lw_player_volume(void *raw, float volume) { ((__bridge LWNativePlayer *)raw).engine.volume = volume; }
@@ -330,7 +341,7 @@ void lw_player_snapshot(void *raw, LWPlayerSnapshot *snapshot) {
     memcpy(snapshot->queued, player->queued, sizeof(snapshot->queued));
     AVPlayerItem *current = player.engine.currentItem;
     for (LWPreparedPlayerItem *item in player.items) if (item.item == current) { snapshot->token = item.token; snapshot->occurrence = item.occurrence; break; }
-    snapshot->position = seconds(player.engine.currentTime);
+    snapshot->position = current && current == player.seeking ? player->seekTarget : seconds(player.engine.currentTime);
     snapshot->duration = current ? seconds(current.duration) : 0;
     snapshot->rate = player.engine.rate;
     snapshot->volume = player.engine.volume;
