@@ -38,44 +38,49 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<
     ui.a11y_name(&root, "LocalWave");
     // The disclosure state lives on the root so the retained page rebuilds when it flips.
     let drive = ui.state(&root, 0) != 0;
-    ui.within(&root, &mut |ui| {
-        ui.view_of(
-            "onboarding-page",
-            &(
-                column.to_bits(),
-                height.to_bits(),
-                top_inset.to_bits(),
-                safe_left.to_bits(),
-                safe_right.to_bits(),
-                safe_bottom.to_bits(),
-                drive,
-                demo,
-            ),
-            |ui| {
-                let padding = Edges::new(
-                    16.0 + safe_left,
-                    16.0 + top_inset,
-                    16.0 + safe_right,
-                    34.0f32.max(safe_bottom),
-                );
-                let mut body = |ui: &mut Ui, node: Node| {
-                    ui.column(node.padding(padding), |ui| {
-                        if page(ui, width < compact::BREAKPOINT, drive, demo, intent) {
-                            ui.set_state(&root, i64::from(!drive));
-                        }
-                    });
-                };
-                // A phone in landscape is shorter than the page: it scrolls there, at least window-tall so the flex
-                // spacer still drops the keys to the bottom. Taller windows keep the plain page.
-                if height < SHORT {
-                    ui.scroll_view("scroll", Node::DEFAULT.w(Size::Grow).h(Size::Grow), |ui| {
-                        body(ui, Node::column().w(Size::Grow).h(Size::Fit).min_h(height));
-                    });
-                } else {
-                    body(ui, Node::column().w(Size::Grow).h(Size::Grow));
+    let padding = Edges::new(
+        16.0 + safe_left,
+        16.0 + top_inset,
+        16.0 + safe_right,
+        34.0f32.max(safe_bottom),
+    );
+    let key = (
+        column.to_bits(),
+        height.to_bits(),
+        top_inset.to_bits(),
+        safe_left.to_bits(),
+        safe_right.to_bits(),
+        safe_bottom.to_bits(),
+        drive,
+        demo,
+    );
+    let scrolls = height < SHORT;
+    let mut body = |ui: &mut Ui, node: Node| {
+        let mut content = |ui: &mut Ui| {
+            ui.column(node.padding(padding), |ui| {
+                if page(ui, width < compact::BREAKPOINT, scrolls, drive, demo, intent) {
+                    ui.set_state(&root, i64::from(!drive));
                 }
-            },
-        );
+            });
+        };
+        // shortcut: a retained view inside the scroll view stops finger scrolling (the wheel still works), so the
+        // landscape page rebuilds each frame; retain it again once pxui scrolls retained content by touch.
+        if scrolls {
+            content(ui);
+        } else {
+            ui.view_of("onboarding-page", &key, |ui| content(ui));
+        }
+    };
+    ui.within(&root, &mut |ui| {
+        // A phone in landscape is shorter than the page, so it scrolls there; taller windows keep the plain page, its flex
+        // spacer dropping the keys to the bottom.
+        if scrolls {
+            ui.scroll_view("scroll", Node::DEFAULT.w(Size::Grow).h(Size::Grow), |ui| {
+                body(ui, Node::column().w(Size::Grow).h(Size::Fit).min_h(height));
+            });
+        } else {
+            body(ui, Node::column().w(Size::Grow).h(Size::Grow));
+        }
     });
     root
 }
@@ -112,9 +117,18 @@ const DRIVE_HELP: &str =
     "Install the Google Drive app, then in Files tap Browse → ⋯ → Edit and turn on Google Drive.";
 
 /// Returns true when the Google Drive disclosure was toggled.
-fn page(ui: &mut Ui, compact: bool, drive: bool, demo: bool, intent: &mut Option<Intent>) -> bool {
+/// `scrolls`: the page sits in a scroll view, so it takes its content's height (a growing page would be exactly as tall as
+/// the window, leaving nothing to scroll).
+fn page(
+    ui: &mut Ui,
+    compact: bool,
+    scrolls: bool,
+    drive: bool,
+    demo: bool,
+    intent: &mut Option<Intent>,
+) -> bool {
     let mut toggled = false;
-    ui.column(Node::column().w(Size::Grow).h(Size::Grow), |ui| {
+    ui.column(Node::column().w(Size::Grow).h(if scrolls { Size::Fit } else { Size::Grow }), |ui| {
         let top = container(
             ui,
             "brand",
@@ -187,7 +201,8 @@ fn page(ui: &mut Ui, compact: bool, drive: bool, demo: bool, intent: &mut Option
             }
             rule(ui, "step-rule", false);
         }
-        ui.node("onboarding-flex", Node::DEFAULT.h(Size::Grow));
+        // a growing node inside a fitted page would pin it to the window height: a fixed gap while scrolling
+        ui.node("onboarding-flex", Node::DEFAULT.h(if scrolls { Size::Px(24.0) } else { Size::Grow }));
         ui.label(
             "iCloud Drive, Google Drive, On My iPhone, USB, SMB — anything in Files.",
             PARAGRAPH_13.color(SECONDARY),

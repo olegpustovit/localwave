@@ -2831,12 +2831,14 @@ fn onboarding_keeps_its_keys_at_the_bottom_in_portrait_and_scrolls_clear_of_land
     ui.set_a11y(true);
     let state = ShellState::default();
     let player = PlayerView::default();
+    let clock = std::cell::Cell::new(0.0);
     let frame = |ui: &mut Ui, (w, h): (f32, f32), safe: [f32; 4], events: &[pxui::Event]| {
         for cycle in 0..3 {
+            clock.set(clock.get() + 0.016);
             crate::testing::frame(
                 ui,
                 &FrameIn::new(w, h)
-                    .time(f64::from(cycle) * 0.02)
+                    .time(clock.get())
                     .environment(pxui::Environment::new(safe))
                     .reduced_motion(true)
                     .events(if cycle == 0 { events } else { &[] }),
@@ -2867,6 +2869,24 @@ fn onboarding_keeps_its_keys_at_the_bottom_in_portrait_and_scrolls_clear_of_land
     let choose = rect(&ui, "Choose a folder");
     assert!(choose.x >= 62.0 + 16.0 && choose.x + choose.w <= 874.0 - 62.0 - 16.0 + 0.5, "{choose:?}");
     assert!(choose.y > 402.0, "below the landscape window until scrolled: {choose:?}");
+    // A finger drags the page up (a phone has no wheel).
+    for (phase, y) in [(0u32, 240.0f64), (1, 220.0), (1, 180.0), (1, 120.0), (1, 40.0), (2, 40.0)] {
+        let touch = pxui::Touch::new(u64::MAX, 3, [437.0, y], clock.get() + 0.016, 1.0, phase);
+        let event = pxui::Event {
+            kind: pxui::Event::TOUCH,
+            text: pxui::Str {
+                ptr: (&touch as *const pxui::Touch).cast(),
+                len: core::mem::size_of::<pxui::Touch>(),
+            },
+            ..Default::default()
+        };
+        frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &[event]);
+    }
+    for _ in 0..30 {
+        frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &[]);
+    }
+    let dragged = rect(&ui, "Choose a folder");
+    assert!(dragged.y < choose.y - 100.0, "a finger scrolls the page: {choose:?} -> {dragged:?}");
     for _ in 0..60 {
         let wheel = [
             pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 437.0, 200.0),
@@ -2874,9 +2894,15 @@ fn onboarding_keeps_its_keys_at_the_bottom_in_portrait_and_scrolls_clear_of_land
         ];
         frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &wheel);
     }
-    let choose = rect(&ui, "Choose a folder");
+    let last = rect(&ui, "Google Drive not in the list?");
     assert!(
-        choose.y >= 0.0 && choose.y + choose.h <= 402.0 - 21.0,
-        "scrolling brings the keys above the home indicator: {choose:?}"
+        last.y >= 0.0 && last.y + last.h <= 402.0 - 21.0,
+        "scrolling reaches the end of the page above the home indicator: {last:?}"
     );
+    // the landscape page rebuilds each frame (see `onboarding::view`): warm frames still allocate nothing
+    mem_sys::set_peer(pxui::library_counter);
+    frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &[]);
+    mem_sys::local_reset();
+    frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &[]);
+    assert_eq!(mem_sys::local_alloc_count(), 0, "warm landscape onboarding");
 }
