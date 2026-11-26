@@ -209,6 +209,78 @@ fn complete_scan_publication_preserves_metadata_and_rejects_stale_or_failed_snap
 }
 
 #[test]
+fn songs_whose_files_a_scan_no_longer_finds_are_removed_keeping_favorites_and_lists() {
+    let mut repo = LibraryRepository::open(":memory:").unwrap();
+    let original = source(&repo, 1, "/gone");
+    let id = original.id.unwrap();
+    let present = song(&mut repo, 1, Some(id)).id.unwrap();
+    let renamed = song(&mut repo, 2, Some(id)).id.unwrap();
+    let plain = song(&mut repo, 3, Some(id)).id.unwrap();
+    let favorite = song(&mut repo, 4, Some(id)).id.unwrap();
+    let cached = song(&mut repo, 5, Some(id)).id.unwrap();
+    // The old name of 1.flac: same song key, a path the scan no longer finds.
+    repo.db
+        .execute(
+            "UPDATE songs SET songKey=1, relativePath='1 B285D2F5.flac' WHERE id=?",
+            &[Integer(renamed)],
+        )
+        .unwrap();
+    repo.db
+        .execute(
+            "UPDATE songs SET localFilePath='Music/5.flac', fileState=2 WHERE id=?",
+            &[Integer(cached)],
+        )
+        .unwrap();
+    repo.set_favorite(renamed, true).unwrap();
+    repo.set_favorite(favorite, true).unwrap();
+    let list = repo
+        .create_playlist_with_songs("Kept", &[renamed], 1.0)
+        .unwrap();
+    let indexed = SourcePath {
+        source_id: id,
+        path_id: 2,
+        parent_path_id: Some(original.path_id),
+        name: "1.flac".into(),
+        relative_path: "1.flac".into(),
+        ..SourcePath::default()
+    };
+    repo.replace_source_scan(&original, vec![indexed], 200.0)
+        .unwrap();
+
+    let missing: Vec<_> = repo
+        .songs_missing_from_scan(id)
+        .unwrap()
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    assert_eq!(
+        missing,
+        [renamed, plain, favorite],
+        "a local copy still plays"
+    );
+    assert_eq!(
+        repo.remove_missing_songs(&[present, renamed, plain, favorite])
+            .unwrap(),
+        2
+    );
+    assert!(repo.get_song(renamed).unwrap().is_none());
+    assert!(repo.get_song(plain).unwrap().is_none());
+    assert!(
+        repo.get_song(favorite).unwrap().is_some(),
+        "a favorite with no twin stays"
+    );
+    assert!(repo.get_song(cached).unwrap().is_some());
+    assert_eq!(repo.get_song(present).unwrap().unwrap().is_favorite, 1);
+    let listed: Vec<_> = repo
+        .playlist_songs(list.id)
+        .unwrap()
+        .iter()
+        .map(|song| song.id.unwrap())
+        .collect();
+    assert_eq!(listed, [present]);
+}
+
+#[test]
 fn recursive_import_gathers_deep_overlapping_selections_without_cycles_or_cross_source_rows() {
     let mut repo = LibraryRepository::open(":memory:").unwrap();
     let first = source(&repo, 1, "/first").id.unwrap();

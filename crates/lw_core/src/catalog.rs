@@ -7,6 +7,8 @@ use std::collections::{HashMap, HashSet};
 // SQLite.swift Date columns are UTC text with millisecond precision; song dates are numeric.
 const SOURCE_COLUMNS: &str = "id,dirPath,pathId,userId,type,bookmark,totalPaths,syncError,isCurrent,CAST(strftime('%s',createdAt) AS REAL)+CAST(substr(createdAt,20) AS REAL),CAST(strftime('%s',lastSyncedAt) AS REAL)+CAST(substr(lastSyncedAt,20) AS REAL),CAST(strftime('%s',updatedAt) AS REAL)+CAST(substr(updatedAt,20) AS REAL)";
 const PATH_COLUMNS: &str = "id,sourceId,pathId,parentPathId,name,relativePath,isDirectory,fileSize,fileHashSHA256,runId,CAST(strftime('%s',createdAt) AS REAL)+CAST(substr(createdAt,20) AS REAL),CAST(strftime('%s',updatedAt) AS REAL)+CAST(substr(updatedAt,20) AS REAL)";
+/// A source song the latest complete scan did not find and that has no local copy to play.
+const MISSING: &str = "s.relativePath IS NOT NULL AND s.localFilePath IS NULL AND NOT EXISTS(SELECT 1 FROM source_paths p WHERE p.sourceId=s.sourceId AND p.relativePath=s.relativePath)";
 const LIST_COLUMNS: &str = "id,name,CAST(strftime('%s',createdAt) AS REAL)+CAST(substr(createdAt,20) AS REAL),CAST(strftime('%s',updatedAt) AS REAL)+CAST(substr(updatedAt,20) AS REAL)";
 
 pub(crate) fn migrate(db: &Connection) -> Result<()> {
@@ -618,6 +620,55 @@ impl LibraryRepository {
             let count = paths.iter().filter(|path| path.is_audio()).count();
             db.execute("UPDATE sources SET totalPaths=?,syncError=NULL,lastSyncedAt=strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch'),updatedAt=strftime('%Y-%m-%dT%H:%M:%f',?,'unixepoch') WHERE id=?", &[Integer(count as i64), Real(stamp), Real(stamp), Integer(id)])?;
             required(source(db, id)?)
+        })
+    }
+
+    /// Songs whose file the latest complete scan of `source_id` did not find and that have no local copy.
+    pub fn songs_missing_from_scan(&self, source_id: i64) -> Result<Vec<(i64, String)>> {
+        let mut missing = Vec::new();
+        self.db.query(
+            &format!("SELECT s.id,s.relativePath FROM songs s WHERE s.sourceId=? AND {MISSING}"),
+            &[Integer(source_id)],
+            &mut |row| {
+                missing.push((
+                    required(row.integer(0)?)?,
+                    required(row.text(1)?)?.to_owned(),
+                ));
+                Ok(())
+            },
+        )?;
+        Ok(missing)
+    }
+
+    /// Drop rows whose files are gone. Favorites and list membership first move to the present
+    /// row with the same song key (a renamed file); a row that has them and no such twin stays.
+    pub fn remove_missing_songs(&mut self, ids: &[i64]) -> Result<usize> {
+        self.song_fts.invalidate();
+        self.db.transaction(|db| {
+            let mut removed = 0;
+            for &id in ids {
+                // Recheck inside the transaction; then (favorite, listed, present twin).
+                let mut found = None;
+                db.query(&format!("SELECT s.isFavorite, EXISTS(SELECT 1 FROM playlist_songs WHERE songId=s.id), (SELECT g.id FROM songs g WHERE g.sourceId=s.sourceId AND g.songKey=s.songKey AND g.id<>s.id AND EXISTS(SELECT 1 FROM source_paths p WHERE p.sourceId=g.sourceId AND p.relativePath=g.relativePath) LIMIT 1) FROM songs s WHERE s.id=? AND {MISSING}"), &[Integer(id)], &mut |row| {
+                    found = Some((row.integer(0)? == Some(1), row.integer(1)? == Some(1), row.integer(2)?));
+                    Ok(())
+                })?;
+                let Some((favorite, listed, twin)) = found else { continue };
+                match twin {
+                    Some(twin) => {
+                        if favorite {
+                            db.execute("UPDATE songs SET isFavorite=1 WHERE id=?", &[Integer(twin)])?;
+                        }
+                        db.execute("UPDATE OR IGNORE playlist_songs SET songId=? WHERE songId=?", &[Integer(twin), Integer(id)])?;
+                    }
+                    None if favorite || listed => continue,
+                    None => {}
+                }
+                db.execute("DELETE FROM playlist_songs WHERE songId=?", &[Integer(id)])?;
+                db.execute("DELETE FROM songs_fts WHERE songId=?", &[Integer(id)])?;
+                removed += db.execute("DELETE FROM songs WHERE id=?", &[Integer(id)])?;
+            }
+            Ok(removed)
         })
     }
 

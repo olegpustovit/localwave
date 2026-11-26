@@ -1,14 +1,11 @@
-This build adds two fixes on top of the last one. Your songs, queue, playlists and settings stay where you left them.
+This build fixes songs that stayed crossed out after a rescan. Your songs, queue, playlists and settings stay where you left them.
 
 What changed:
-- Rescan now clears the blue "failed" squares: right-click a source and choose "Rescan now", or use Settings → "Rescan all sources". Songs you keep offline are copied again.
-- Context menus have proper spacing, show unavailable items in grey and highlight the item under the pointer.
+- When files in a source folder were renamed or deleted, their old entries stayed in the library, crossed out and unplayable, next to the renamed copies. "Rescan now" (right-click a source) or Settings → "Rescan all sources" now removes entries whose file is gone. Favorites and playlist entries move to the renamed song. An entry that is a favorite or in a playlist, with no renamed copy to move to, is kept.
 
-Also in the last build:
-- Seeking on the playback bar, list scrolling, Search, "Add folder or files" / "Choose a folder", folders from the previous version, and the iPhone status bar area were fixed.
+Also in recent builds:
+- Context menu spacing, seeking on the playback bar, list scrolling, Search, "Add folder or files" / "Choose a folder", folders from the previous version and the iPhone status bar area.
 
 Please check:
-- Rescan a source that shows blue squares. They should clear; if one returns after you play that song, tell us which song.
-- Right-click songs and sidebar sources: menu spacing, greyed items and highlight.
-- Your earlier folders appear under Sources.
-- On iPhone: "Choose a folder" opens the picker, and the top of the screen is clear in portrait and landscape.
+- Rescan your music source once. The crossed-out songs should disappear, and each song should appear once and play.
+- Your favorites and playlists still have their songs.

@@ -251,9 +251,29 @@ impl LibraryWorker {
             paths.push(path);
         }
         check(cancelled)?;
-        self.repository
+        let source = self
+            .repository
             .replace_source_scan(&source, paths, now)
-            .map_err(db)
+            .map_err(db)?;
+        // A renamed or deleted file leaves a row that can never play; the disk check guards
+        // against stored paths that differ from the scan only in Unicode normalization.
+        let root = self.roots[&source_id].access.path();
+        let gone: Vec<i64> = self
+            .repository
+            .songs_missing_from_scan(source_id)
+            .map_err(db)?
+            .into_iter()
+            .filter(|(_, relative)| {
+                lw_core::file_access::source_file(root, relative)
+                    .and_then(std::fs::symlink_metadata)
+                    .is_err_and(|error| error.kind() == io::ErrorKind::NotFound)
+            })
+            .map(|(id, _)| id)
+            .collect();
+        if !gone.is_empty() {
+            self.repository.remove_missing_songs(&gone).map_err(db)?;
+        }
+        Ok(source)
     }
 }
 
