@@ -80,6 +80,7 @@ pub(super) fn view(
 ) -> Handle {
     let pxui::ViewSize { width, height } = ui.view_size();
     let content = ui.content_rect();
+    let top_inset = state.top_inset.max(ui.environment().safe_area[0]);
     let (top, right, bottom, left) = (
         content.y,
         width - content.x - content.w,
@@ -93,7 +94,7 @@ pub(super) fn view(
             .w(Size::Grow)
             .h(Size::Grow)
             .role(Role::Window)
-            .padding(Edges::new(left, top.max(state.top_inset), right, bottom))
+            .padding(Edges::new(left, top.max(top_inset), right, bottom))
             .look(PAPER_FILL),
     );
     ui.a11y_name(&root, "LocalWave");
@@ -104,7 +105,7 @@ pub(super) fn view(
                 player,
                 position,
                 catalog,
-                (width, height - top.max(state.top_inset) - bottom),
+                (width, height - top.max(top_inset) - bottom),
                 (state.entry_revision, state.queue_visible),
                 intent,
             );
@@ -2438,6 +2439,18 @@ mod tests {
                     );
                 }
                 assert_eq!(intent, None);
+                if route == Route::Albums && tick > 80 {
+                    let header = ui
+                        .a11y_nodes()
+                        .iter()
+                        .find(|node| ui.a11y_name_of(node) == "Library")
+                        .unwrap();
+                    assert!(
+                        header.rect.y >= 59.0,
+                        "compact header clears the safe area: {}",
+                        header.rect.y
+                    );
+                }
                 // The first frame of a page is mid-entrance, offset by the slide-in.
                 if route == Route::Files && tick > 0 {
                     for label in ["Back", "Play folder", "Folder options"] {

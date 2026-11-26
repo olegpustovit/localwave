@@ -2028,6 +2028,7 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
                 ui,
                 &FrameIn::new(1440.0, 872.0)
                     .time(time.get())
+                    .environment(pxui::Environment::new([59.0, 0.0, 34.0, 0.0]))
                     .reduced_motion(true),
                 &mut |ui| shell(ui, player, 0.0, catalog, state, &mut intent),
             )
@@ -2046,6 +2047,16 @@ fn onboarding_and_route_empty_states_show_their_text_without_warm_allocations() 
 
     // No sources and no songs: onboarding with its three steps; unloaded sources never show it.
     let names = show(&mut ui, &empty, &state, &player);
+    let counter = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| ui.a11y_name_of(node) == "0 songs so far")
+        .unwrap();
+    assert!(
+        counter.rect.y >= 59.0,
+        "onboarding counter clears the safe area: {}",
+        counter.rect.y
+    );
     for text in [
         "Choose a folder",
         "Pick some files",
