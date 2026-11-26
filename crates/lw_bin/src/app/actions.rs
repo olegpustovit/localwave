@@ -1,5 +1,29 @@
 use super::*;
 
+pub(super) fn ready_source_picker(
+    pending: &mut Option<(bool, u64)>,
+    account: Option<i64>,
+    revision: u64,
+) -> Result<Option<lw_ui::Intent>, ()> {
+    let Some((audio, requested_revision)) = *pending else {
+        return Ok(None);
+    };
+    if account.is_some() {
+        pending.take();
+        return Ok(Some(if audio {
+            lw_ui::Intent::ChooseAudio
+        } else {
+            lw_ui::Intent::ChooseFolder
+        }));
+    }
+    if revision != requested_revision {
+        // The worker has produced a post-request snapshot but could not load an account.
+        pending.take();
+        return Err(());
+    }
+    Ok(None)
+}
+
 impl App {
     pub(super) fn intent(
         &mut self,
@@ -19,6 +43,7 @@ impl App {
             repaint,
             folder_picker,
             audio_picker,
+            pending_source_picker,
             graphics_slot,
             ..
         } = self;
@@ -102,6 +127,28 @@ impl App {
                 _ => files.snapshot().account.map(events::FolderPurpose::Add),
             };
             shell_state.apply(lw_ui::Intent::CloseSourceMenu);
+            if purpose.is_none() && !matches!(intent, lw_ui::Intent::ReconnectSource(_)) {
+                if files.request(lw_ui::files::Request::Roots).is_err() {
+                    (*command_error) = Some("Could not load the library account. Try again.");
+                } else {
+                    if (*pending_source_picker).is_none() {
+                        (*pending_source_picker) = Some((audio, files.snapshot().revision));
+                        (*command_error) = None;
+                    } else {
+                        (*command_error) =
+                            Some("The library account is still loading. Try again shortly.");
+                    }
+                }
+                (*error_revision) += 1;
+                (*repaint) = Some(now);
+                return Ok(Some(Schedule::NextFrame));
+            }
+            if (*folder_picker).is_some() || (*audio_picker).is_some() {
+                (*command_error) = Some("A music picker is already open. Close it and try again.");
+                (*error_revision) += 1;
+                (*repaint) = Some(now);
+                return Ok(Some(Schedule::NextFrame));
+            }
             if (*folder_picker).is_none()
                 && (*audio_picker).is_none()
                 && let Some(purpose) = purpose
@@ -722,6 +769,25 @@ fn targets(
 #[cfg(test)]
 mod tests {
     use lw_ui::{Intent, Selection, ShellState, catalog::Catalog};
+
+    #[test]
+    fn source_picker_click_waits_for_worker_account_then_dispatches_once() {
+        let mut pending = Some((false, 0));
+        assert_eq!(super::ready_source_picker(&mut pending, None, 0), Ok(None));
+        assert_eq!(pending, Some((false, 0)));
+        assert_eq!(
+            super::ready_source_picker(&mut pending, Some(17), 1),
+            Ok(Some(Intent::ChooseFolder))
+        );
+        assert_eq!(pending, None);
+        assert_eq!(
+            super::ready_source_picker(&mut pending, Some(17), 1),
+            Ok(None)
+        );
+        let mut failed = Some((true, 3));
+        assert_eq!(super::ready_source_picker(&mut failed, None, 4), Err(()));
+        assert_eq!(failed, None);
+    }
 
     #[test]
     fn menu_targets_follow_a_multi_row_selection_that_contains_the_song() {

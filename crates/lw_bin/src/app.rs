@@ -110,6 +110,7 @@ pub(crate) struct App {
     error_revision: u64,
     folder_picker: Option<(i64, events::FolderPurpose)>,
     audio_picker: Option<(i64, i64)>,
+    pending_source_picker: Option<(bool, u64)>,
     file_drop: events::FileDrop,
     files_catalog_revision: u64,
     files_selection_revision: u64,
@@ -308,6 +309,7 @@ pub(super) fn open(
     let error_revision = 0;
     let folder_picker = None;
     let audio_picker = None;
+    let pending_source_picker = None;
     let file_drop = events::FileDrop::default();
     let files_catalog_revision = 0;
     let files_selection_revision = 0;
@@ -373,6 +375,7 @@ pub(super) fn open(
         error_revision,
         folder_picker,
         audio_picker,
+        pending_source_picker,
         file_drop,
         files_catalog_revision,
         files_selection_revision,
@@ -716,6 +719,24 @@ impl App {
             let _ = self.files.request(request);
         }
         let files_changed = self.files.poll() && self.shell_state.files_visible();
+        let now = window.time();
+        match actions::ready_source_picker(
+            &mut self.pending_source_picker,
+            self.files.snapshot().account,
+            self.files.snapshot().revision,
+        ) {
+            Ok(Some(intent)) => {
+                if let Some(schedule) = self.intent(intent, window, now, 0.0)? {
+                    return Ok(schedule);
+                }
+            }
+            Ok(None) => {}
+            Err(()) => {
+                self.command_error = Some("Could not load the library account. Try again.");
+                self.error_revision += 1;
+                self.repaint = Some(now);
+            }
+        }
         if self.files.snapshot().catalog_revision != self.files_catalog_revision
             && self.player.command(Command::RefreshCatalog).is_ok()
         {
@@ -767,7 +788,6 @@ impl App {
         frame.artwork_updated = artwork_updated;
         frame.input(&self.ui, &mut self.events)?;
         frame.state_input(&mut self.shell_state);
-        let now = window.time();
         let next_shown = self.player.status().shown();
         if player_changed
             && !catalog_changed
