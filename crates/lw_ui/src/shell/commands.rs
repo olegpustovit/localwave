@@ -344,8 +344,19 @@ pub(super) fn palette_view(
 ) {
     let content = ui.content_rect();
     let (width, height) = (content.w, content.h);
-    let results = state.command_results(catalog);
-    let items = state.command_items(catalog);
+    let fresh = state.command_items(catalog);
+    // Until the worker answers a new query the previous rows stay up (no collapse per keystroke); they never activate.
+    let items = match catalog.commands.as_deref() {
+        Some(previous)
+            if fresh.is_empty()
+                && state.commands_visible
+                && !state.command_query.as_str().trim().is_empty() =>
+        {
+            &previous.items[..]
+        }
+        _ => fresh,
+    };
+    let stale = !std::ptr::eq(items, fresh);
     let top = top(content, state.top_inset);
     let palette = OVERLAY_TOP
         .at(pxui::Point::new(0.0, top))
@@ -394,6 +405,7 @@ pub(super) fn palette_view(
             *intent =
                 Some(Query::new(r.query).map_or(Intent::CommandTooLong, Intent::CommandQuery));
         } else if let Pick::Pick(index) = r.pick
+            && !stale
             && let Some(item) = usize::try_from(index)
                 .ok()
                 .and_then(|index| items.get(index))
@@ -416,7 +428,7 @@ pub(super) fn palette_view(
                 ui.label(
                     if state.command_too_long {
                         "Search text is too long. Shorten it."
-                    } else if results.is_some() {
+                    } else if state.command_results(catalog).is_some() {
                         "No matches."
                     } else {
                         "Searching…"
@@ -1007,6 +1019,12 @@ mod tests {
             ),
             None,
             "query changes must hide stale actions"
+        );
+        assert!(
+            ui.a11y_nodes()
+                .iter()
+                .any(|n| n.role == Role::ListItem as u32 && ui.a11y_name_of(n) == "Result 00"),
+            "the previous rows stay up until the worker answers, so typing does not blink"
         );
         catalog.commands = Some(results(state.command_query, &actions));
         frame(&mut ui, &catalog, &mut state, &mut time, &[]);
