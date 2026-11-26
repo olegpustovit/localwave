@@ -789,7 +789,8 @@ impl App {
             self.graphics_slot
                 .as_mut()
                 .ok_or("App graphics have already closed")?,
-            std::sync::Arc::as_ptr(&self.player.catalog().library) as usize,
+            // Cover ids come from content-addressed paths (catalog `cover_ids`), so a library reload keeps the textures.
+            1,
             self.artwork.ready_images(),
         )?;
         frame.artwork_updated = artwork_updated;

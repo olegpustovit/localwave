@@ -202,6 +202,8 @@ pub struct ArtistTable {
 pub struct Library {
     labels: String,
     covers: Vec<Range<usize>>,
+    /// Each cover's image id, from its path: the same across library reloads, so cached artwork survives them.
+    cover_ids: Vec<usize>,
     rows: Vec<StoredRow>,
     by_id: HashMap<i64, usize>,
     byline_routes: Vec<[Route; 2]>,
@@ -350,6 +352,8 @@ impl Library {
                         let start = out.labels.len();
                         out.labels.push_str(path);
                         out.covers.push(start..out.labels.len());
+                        // 0 means no artwork
+                        out.cover_ids.push((pxui::hash_of(path) as usize).max(1));
                         out.covers.len()
                     })
                 });
@@ -601,7 +605,10 @@ impl Library {
             seconds: row.seconds,
             release_year: row.release_year,
             has_format: row.has_format,
-            cover_art_id: row.cover_art,
+            cover_art_id: row
+                .cover_art
+                .checked_sub(1)
+                .map_or(0, |index| self.cover_ids[index]),
             cover_art_path: row
                 .cover_art
                 .checked_sub(1)
@@ -1413,6 +1420,28 @@ mod tests {
         let second = catalog.row(2).cover_art_path.unwrap();
         assert_eq!(first, "CoverArt/shared.png");
         assert_eq!(first.as_ptr(), second.as_ptr());
+        let id = catalog.row(1).cover_art_id;
+        assert!(id != 0 && catalog.row(2).cover_art_id == id);
+        assert_eq!(catalog.row(0).cover_art_id, 0, "no artwork");
+        let reloaded = super::Catalog::new(vec![
+            lw_core::Song {
+                id: Some(9),
+                title: "Z".into(),
+                cover_art_path: Some("CoverArt/other.png".into()),
+                ..Default::default()
+            },
+            lw_core::Song {
+                id: Some(2),
+                title: "B".into(),
+                cover_art_path: Some("CoverArt/shared.png".into()),
+                ..Default::default()
+            },
+        ]);
+        assert_eq!(
+            reloaded.row(1).cover_art_id,
+            id,
+            "a reload that shifts cover positions keeps each cover's image id"
+        );
         mem_sys::local_reset();
         for _ in 0..1000 {
             assert_eq!(

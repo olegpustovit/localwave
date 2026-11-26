@@ -554,6 +554,7 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
         cover_art_path: Some("cover.png".into()),
         ..Default::default()
     }]);
+    let cover = catalog.row(0).cover_art_id;
     media.sync(&status).unwrap();
     media.artwork(&catalog, 0, std::iter::empty()).unwrap();
     let mut request = Request::default();
@@ -564,13 +565,13 @@ fn native_media_callbacks_metadata_artwork_and_warm_delivery_are_isolated_and_bo
     assert_eq!(request.wants().len(), 8);
     assert_eq!(
         request.wants()[0].id(),
-        1,
+        cover,
         "Now Playing must not starve behind a full visible packet"
     );
     let ready = lw_bin::library::ArtworkReady {
         epoch: 0,
         revision: 10,
-        artwork_id: Want::new(1, 256).unwrap(),
+        artwork_id: Want::new(cover, 256).unwrap(),
         thumbnail: Some(lw_apple_sys::artwork::Thumbnail {
             width: 2,
             height: 1,
@@ -692,7 +693,12 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     )
     .unwrap();
     gpu::configure_artwork(&mut graphics, 1440.0, 872.0, 1.0).unwrap();
-    for id in 1..=lw_ui::artwork::REQUEST_CAPACITY {
+    // the catalog's cover, then filler ids up to a full packet
+    let ids: Vec<usize> = std::iter::once(catalog.row(0).cover_art_id)
+        .chain(1..)
+        .take(lw_ui::artwork::REQUEST_CAPACITY)
+        .collect();
+    for &id in &ids {
         graphics.images().get(id, path, 360.0, None);
     }
     let mut request = lw_ui::artwork::Request::default();
@@ -774,7 +780,7 @@ fn worker_artwork_uploads_render_warm_and_refresh_without_replaying_covers() {
     }
     graphics.sync_images(42).unwrap();
     assert!(!gpu::sync_artwork(&mut graphics, 42, worker.ready_images()).unwrap());
-    for id in 1..=lw_ui::artwork::REQUEST_CAPACITY {
+    for &id in &ids {
         assert!(
             graphics.images().quality(id).is_none(),
             "a replayed batch must not resurrect evicted covers"
