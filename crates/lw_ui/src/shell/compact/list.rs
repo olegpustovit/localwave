@@ -189,7 +189,7 @@ pub(super) fn songs(
         if cx.selecting {
             ui.id("selection-bar", |ui| selection_bar(ui, &cx, intent));
         }
-        if state.route == Route::Songs && state.sort == Sort::Title && state.ascending {
+        if rail_shown(state) {
             let top = ui.content_rect().y.max(state.top_inset);
             let above = (ui.rect(&list).y - top).max(0.0);
             ui.id("rail", |ui| {
@@ -242,7 +242,7 @@ fn row(
         .h(Size::Grow)
         .gap(12.0)
         .align(Align::Center)
-        .padding(Edges::ZERO.l(16.0).r(6.0));
+        .padding(Edges::ZERO.l(16.0).r(if rail_shown(state) { RAIL_GUTTER } else { 6.0 }));
     if g.swipe != 0.0 {
         // `swipe` is the row's own x offset; LocalWave never mirrors, so positive reveals the leading side.
         content = content
@@ -599,6 +599,12 @@ pub(super) fn rail(
     );
 }
 const RAIL: pxui::SectionIndex = pxui::SectionIndex::DEFAULT.name("Section index");
+/// The A-Z index (28 points) and its 8-point inset from the right edge: rows end before it.
+pub(super) const RAIL_GUTTER: f32 = 36.0;
+/// The songs list shows its A-Z index only in title order, A first.
+fn rail_shown(state: &ShellState) -> bool {
+    state.route == Route::Songs && state.sort == Sort::Title && state.ascending
+}
 
 const BACK_ROW: f32 = 54.0;
 const TITLE_BLOCK: f32 = 33.6 + 4.0 + 18.2;

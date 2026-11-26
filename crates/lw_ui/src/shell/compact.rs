@@ -518,6 +518,7 @@ pub(super) fn collections(
                                     ui,
                                     64.0,
                                     14.0,
+                                    16.0,
                                     &group.title,
                                     &mut |ui| {
                                         artwork(ui, catalog, player, group.artwork_row, 44.0);
@@ -605,10 +606,12 @@ const NEW_LIST: pxui::Button = pxui::Button::DEFAULT
 
 /// One tappable row of a group page, `h` high, its parts `gap` apart 16 points in, under a hairline 16 points in when `divider`;
 /// named `name`. Reports a click.
+/// `right`: the row's right inset (16, or past the A-Z index on a page that shows it).
 fn group_row(
     ui: &mut Ui,
     h: f32,
     gap: f32,
+    right: f32,
     name: &str,
     content: &mut dyn FnMut(&mut Ui),
     divider: bool,
@@ -617,7 +620,7 @@ fn group_row(
         .w(Size::Grow)
         .h_px(h)
         .gap(gap)
-        .pad_x(16.0)
+        .padding(Edges::ZERO.l(16.0).r(right))
         .align(Align::Center)
         .role(Role::Button);
     let card = ui.pressable("group", node, &PLAIN, |ui, _| content(ui));
@@ -658,6 +661,7 @@ fn groups(
                     ui,
                     ROW,
                     14.0,
+                    list::RAIL_GUTTER,
                     &group.title,
                     &mut |ui| {
                         artwork(ui, catalog, player, group.artwork_row, 44.0);
@@ -3024,6 +3028,8 @@ mod tests {
         // The index is the kit's section index (a slider over the letters, 17 points each); choosing a letter jumps to its first
         // song (an assistive SetValue here), and dragging over the index follows the pointer or the finger.
         let index = rect_of(&ui, Role::Slider, "Section index");
+        let actions = rect_of(&ui, Role::Button, "Actions for A00");
+        assert!(actions.x + actions.w <= index.x, "rows leave the index its own gutter: {actions:?} {index:?}");
         let letter = |k: usize| (index.x + index.w * 0.5, index.y + 17.0 * k as f32 + 8.5);
         assert!(!has(&ui, Role::ListItem, "Z50"));
         let id = ui
