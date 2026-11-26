@@ -28,6 +28,32 @@ fn position_ticks_publish_without_advancing_stable_revision_or_allocating() {
 }
 
 #[test]
+fn a_sent_seek_shows_its_target_until_the_worker_has_processed_it() {
+    let older = Status {
+        position: 10.0,
+        duration: 100.0,
+        processed_command: 4,
+        ..Status::default()
+    };
+    let mut seek = Some((5, 60.0));
+    mem_sys::local_reset();
+    let mut status = older.clone();
+    status.hold_seek(&mut seek);
+    assert_eq!((status.position, seek), (60.0, Some((5, 60.0))));
+    let mut status = older.clone();
+    status.processed_command = 5;
+    status.hold_seek(&mut seek);
+    assert_eq!((status.position, seek), (10.0, None));
+    let mut status = older.clone();
+    status.show_seek(500.0);
+    assert_eq!(status.position, 100.0);
+    status.duration = 0.0;
+    status.show_seek(60.0);
+    assert_eq!(status.position, 100.0, "nothing loaded to seek in");
+    assert_eq!(mem_sys::local_alloc_count(), 0);
+}
+
+#[test]
 fn a_position_shows_only_when_a_clock_second_or_playhead_step_changes() {
     let mut status = Status {
         duration: 180.5,
@@ -200,19 +226,18 @@ fn catalog_readiness_covers_queued_active_and_undelivered_work_without_blocking_
     inbox.catalog = None;
     assert!(!inbox.has_pending_catalog());
 }
-#[test]
-fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_preparation() {
-    let base = std::env::temp_dir().join(format!("lw-control-fairness-{}", std::process::id()));
-    struct Cleanup(std::path::PathBuf);
-    impl Drop for Cleanup {
-        fn drop(&mut self) {
-            let _ = std::fs::remove_dir_all(&self.0);
-        }
+/// A running worker over three local songs; dropping it joins the thread and removes its files.
+struct Running(Arc<Shared>, Option<JoinHandle<()>>, std::path::PathBuf);
+impl Drop for Running {
+    fn drop(&mut self) {
+        self.0.inbox.lock().unwrap().closed = true;
+        self.0.changed.notify_one();
+        self.1.take().unwrap().join().unwrap();
+        let _ = std::fs::remove_dir_all(&self.2);
     }
-    let _cleanup = Cleanup(base.clone());
-    let shared = shared();
-    shared.preparation.store(1, Ordering::SeqCst);
-    shared.inbox.lock().unwrap().native.volume = 1.0;
+}
+fn running(shared: &Arc<Shared>, name: &'static str) -> Running {
+    let base = std::env::temp_dir().join(format!("lw-{name}-{}", std::process::id()));
     let owner = shared.clone();
     let worker_base = base.clone();
     let thread = std::thread::spawn(move || {
@@ -227,7 +252,7 @@ fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_prep
                 let mut library = LibraryWorker::open(
                     &worker_base.join("library.sqlite"),
                     lw_apple_sys::preferences::Preferences::open(Some(&format!(
-                        "localwave.control-fairness.{}",
+                        "localwave.{name}.{}",
                         std::process::id()
                     )))?,
                     lw_apple_sys::preferences::AppPaths {
@@ -258,15 +283,102 @@ fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_prep
             owner,
         )
     });
-    struct Close(Arc<Shared>, Option<JoinHandle<()>>);
-    impl Drop for Close {
-        fn drop(&mut self) {
-            self.0.inbox.lock().unwrap().closed = true;
-            self.0.changed.notify_one();
-            self.1.take().unwrap().join().unwrap();
+    Running(shared.clone(), Some(thread), base)
+}
+fn next_output(shared: &Shared, deadline: std::time::Instant) -> Output {
+    loop {
+        if let Some(output) = shared.inbox.lock().unwrap().output.take() {
+            return output;
         }
+        assert!(
+            std::time::Instant::now() < deadline,
+            "worker did not produce its next operation"
+        );
+        std::thread::yield_now();
     }
-    let _close = Close(shared.clone(), Some(thread));
+}
+#[test]
+fn a_pending_seek_publishes_its_target_through_stale_native_readings() {
+    let shared = shared();
+    shared.preparation.store(1, Ordering::SeqCst);
+    shared.inbox.lock().unwrap().native.volume = 1.0;
+    let _running = running(&shared, "seek-hold");
+    let deadline = std::time::Instant::now() + Duration::from_secs(1);
+    let send = |revision, command| {
+        shared.inbox.lock().unwrap().commands.push_back(Envelope {
+            audio_notice: None,
+            revision,
+            preparation: 1,
+            command,
+        });
+        shared.changed.notify_one();
+    };
+    // The position published once the worker has processed command `revision`.
+    let position = |revision| loop {
+        let status = shared.inbox.lock().unwrap().status.clone();
+        if status.processed_command >= revision {
+            break status.position;
+        }
+        assert!(std::time::Instant::now() < deadline, "command {revision}");
+        std::thread::yield_now();
+    };
+    // One native reading, delivered together with a command so its publication can be awaited.
+    let read = |revision, seconds, acknowledge: bool| {
+        let mut inbox = shared.inbox.lock().unwrap();
+        inbox.native.position = seconds;
+        inbox.dirty = true;
+        if acknowledge {
+            inbox.ack = Some(Ack {
+                result: Ok(true),
+                snapshot: inbox.native,
+            });
+        }
+        drop(inbox);
+        send(revision, Command::DismissNotice);
+        position(revision)
+    };
+    send(
+        1,
+        Command::Configure {
+            songs: Arc::from([1]),
+            start: 0,
+            autoplay: false,
+            context: None,
+        },
+    );
+    let Operation::Install { ticket, item, .. } = next_output(&shared, deadline).operation else {
+        panic!("the current item installs first");
+    };
+    drop(item);
+    {
+        let mut inbox = shared.inbox.lock().unwrap();
+        inbox.native = Snapshot {
+            generation: ticket.generation,
+            token: ticket.token,
+            occurrence: ticket.entry.id,
+            queued: [ticket.token, 0, 0],
+            duration: 100.0,
+            status: 1,
+            ..inbox.native
+        };
+    }
+    assert_eq!(read(2, 10.0, true), 10.0);
+    send(3, Command::Seek(60.0));
+    assert!(matches!(
+        next_output(&shared, deadline).operation,
+        Operation::Seek(60.0)
+    ));
+    assert_eq!(position(3), 60.0, "queued or sent: the target shows");
+    assert_eq!(read(4, 10.5, false), 60.0, "a reading from before the seek");
+    assert_eq!(read(5, 60.0, true), 60.0);
+    assert_eq!(read(6, 61.0, false), 61.0, "the player reports again");
+}
+#[test]
+fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_preparation() {
+    let shared = shared();
+    shared.preparation.store(1, Ordering::SeqCst);
+    shared.inbox.lock().unwrap().native.volume = 1.0;
+    let _running = running(&shared, "control-fairness");
     shared.inbox.lock().unwrap().commands.push_back(Envelope {
         audio_notice: None,
         revision: 1,
@@ -281,16 +393,7 @@ fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_prep
     let deadline = std::time::Instant::now() + Duration::from_secs(1);
     let (mut installs, mut seeks, mut volumes) = (0, 0, 0);
     for step in 0..16 {
-        let output = loop {
-            if let Some(output) = shared.inbox.lock().unwrap().output.take() {
-                break output;
-            }
-            assert!(
-                std::time::Instant::now() < deadline,
-                "worker did not produce its next operation"
-            );
-            std::thread::yield_now();
-        };
+        let output = next_output(&shared, deadline);
         let mut native = shared.inbox.lock().unwrap().native;
         match output.operation {
             Operation::Volume(value) => {

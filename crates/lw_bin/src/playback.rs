@@ -8,7 +8,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender, TryRecvError};
 use std::thread::JoinHandle;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[path = "playback/controller_smoke.rs"]
 mod controller_smoke;
@@ -220,6 +220,24 @@ fn run() -> io::Result<()> {
         }
         if player.seek(f64::NAN).is_ok() {
             return Err(io::Error::other("Native seek accepted a non-finite value"));
+        }
+        let ready = Instant::now() + Duration::from_secs(2);
+        while player.snapshot().status != 1 || player.snapshot().duration <= 0.0 {
+            if Instant::now() >= ready {
+                return Err(io::Error::other("The paused item never became ready"));
+            }
+            player.run_loop(Duration::from_millis(1));
+        }
+        // No run-loop turn between them: AVFoundation's clock has not moved to the target yet.
+        for share in [0.75, 0.25, 0.5] {
+            let target = player.snapshot().duration * share;
+            player.seek(target)?;
+            let shown = player.snapshot().position;
+            if shown != target {
+                return Err(io::Error::other(format!(
+                    "A pending seek to {target} reported {shown}"
+                )));
+            }
         }
         player.stop();
         if player.upcoming(generation, 0, [None, None])? {

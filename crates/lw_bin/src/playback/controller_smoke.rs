@@ -676,9 +676,21 @@ pub fn run(fixture: &Path) -> io::Result<()> {
     })?;
     player.command(Command::Repeat(RepeatMode::None))?;
     player.command(Command::Seek(0.125))?;
+    // The target shows from the command on: no older or zero position while the player gets there.
+    let mut stray = (player.status().position != 0.125).then(|| player.status().position);
+    let settled = Instant::now() + Duration::from_millis(100);
     until(&mut player, deadline, &mut |player| {
-        (player.status().position - 0.125).abs() < 0.01
+        let position = player.status().position;
+        if (position - 0.125).abs() >= 0.01 {
+            stray = Some(position);
+        }
+        Instant::now() >= settled && player.native_snapshot().position == 0.125
     })?;
+    if let Some(position) = stray {
+        return Err(error(&format!(
+            "A seek showed {position} before its target"
+        )));
+    }
     mem_sys::local_reset();
     for _ in 0..1000 {
         player.poll()?;

@@ -248,6 +248,21 @@ impl Status {
             lw_ui::progress_ticks(self.duration, self.position),
         )
     }
+    /// Shows a seek's target as the position; without a loaded duration there is nothing to seek in.
+    pub(super) fn show_seek(&mut self, seconds: f64) {
+        if self.duration > 0.0 {
+            self.position = seconds.clamp(0.0, self.duration);
+        }
+    }
+    /// A sent seek (command revision, target) shows until the worker's status includes that command.
+    pub(super) fn hold_seek(&mut self, seek: &mut Option<(u64, f64)>) {
+        match *seek {
+            Some((revision, seconds)) if self.processed_command < revision => {
+                self.show_seek(seconds)
+            }
+            _ => *seek = None,
+        }
+    }
     /// Position ticks publish to the controller without invalidating stable UI data.
     pub(super) fn update(&mut self, mut next: Self) -> bool {
         next.revision = self.revision;
