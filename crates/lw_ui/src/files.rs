@@ -25,6 +25,7 @@ pub enum Request {
         song: i64,
     },
     Rescan(Location),
+    RescanAll,
     Import(Location),
     ImportPath {
         user: i64,

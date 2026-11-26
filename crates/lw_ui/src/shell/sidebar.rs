@@ -249,7 +249,16 @@ pub(super) fn sidebar(
                                             ui.label(&source.count, SIDE_COUNT);
                                         },
                                     );
-                                    if button.clicked {
+                                    if button.secondary {
+                                        *intent = Some(Intent::SourceMenu(
+                                            crate::files::Target {
+                                                user: source.location.user,
+                                                source: source.location.source,
+                                                root: source.root,
+                                            },
+                                            ui.signal(&button.handle).pointer,
+                                        ));
+                                    } else if button.clicked {
                                         *intent = Some(Intent::Files(
                                             crate::files::Request::Browse(source.location),
                                         ));

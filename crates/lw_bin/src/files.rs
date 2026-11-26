@@ -4,9 +4,9 @@
 //! worker. Retry controller delivery until accepted and clear selection on account change. Hidden
 //! progress must not force library frames; completed imports refresh the controller catalog.
 //!
-//! Rescan from a nested directory indexes/imports the whole source. Cancelled scans keep the
-//! previous complete index; completed per-file imports remain. Completion/cancellation invalidates
-//! the catalog. Capture account/source/root for options, confirmation and picker purposes.
+//! Rescan from a nested directory indexes/imports the whole source; Rescan all does that for every
+//! source. Cancelled scans keep the previous complete index; completed per-file imports remain.
+//! Completion/cancellation invalidates the catalog. Capture account/source/root for options, confirmation and picker purposes.
 //! Reconnect/removal requires an idle mutation slot; removal needs explicit confirmation. Reject
 //! stale roots both in UI and worker.
 //!
@@ -98,6 +98,7 @@ enum Job {
     },
     Remove(Target),
     Rescan(Location),
+    RescanAll,
     Import(Location),
     ImportPath {
         user: i64,
@@ -183,6 +184,7 @@ impl FilesWorker {
                 Ok(())
             }
             Request::Rescan(location) => self.job(Job::Rescan(location)),
+            Request::RescanAll => self.job(Job::RescanAll),
             Request::Import(location) => self.job(Job::Import(location)),
             Request::ImportPath { user, source, path } => {
                 self.job(Job::ImportPath { user, source, path })
@@ -864,6 +866,44 @@ fn browse_directory(
     snapshot.directory = Some(Arc::new(directory));
     Ok(())
 }
+/// Swift's `refreshSources(force: true)`: every source in turn, one failure not stopping the rest. The shown
+/// folder and current source stay as they were.
+fn rescan_all(
+    library: &mut LibraryWorker,
+    shared: &Shared,
+    snapshot: &mut Snapshot,
+) -> io::Result<String> {
+    let account = library.current_sources()?;
+    let shown = snapshot.directory.clone();
+    let mut failed = None;
+    for source in &account.sources {
+        let Some(id) = source.id else { continue };
+        let location = Location {
+            user: account.user.id,
+            source: id,
+            parent: Some(source.path_id),
+        };
+        let result = execute(library, Job::Rescan(location), shared, snapshot);
+        // each rescan browses its source; keep what the user was looking at
+        snapshot.directory.clone_from(&shown);
+        if let Err(error) = result {
+            let cancelled = error.kind() == io::ErrorKind::Interrupted;
+            failed = Some(error);
+            if cancelled {
+                break;
+            }
+        }
+    }
+    if let Some(current) = account.sources.iter().find(|source| source.is_current)
+        && let Some(id) = current.id
+    {
+        library.select_source(account.user.id, id)?;
+    }
+    match failed {
+        Some(error) => Err(error),
+        None => Ok("All sources rescanned.".into()),
+    }
+}
 fn execute(
     library: &mut LibraryWorker,
     job: Job,
@@ -1006,6 +1046,7 @@ fn execute(
             (location, true, None)
         }
         Job::Rescan(location) => (location, true, None),
+        Job::RescanAll => return rescan_all(library, shared, snapshot),
         Job::Import(location) => (location, false, None),
         Job::ImportPath { user, source, path } => (
             Location {
@@ -1249,6 +1290,71 @@ mod tests {
         until(&mut worker, |snapshot| {
             snapshot.sources.is_empty() && !snapshot.busy
         });
+    }
+
+    #[test]
+    fn rescan_all_indexes_every_source_and_stays_off_the_folder_pages() {
+        let base = std::env::temp_dir().join(format!("lw-files-rescan-all-{}", std::process::id()));
+        let _cleanup = Cleanup(base.clone());
+        let folders = [base.join("One"), base.join("Two")];
+        for folder in &folders {
+            std::fs::create_dir_all(folder).unwrap();
+        }
+        let worker_base = base.clone();
+        let mut worker = FilesWorker::open_quiet(
+            move || {
+                LibraryWorker::open(
+                    &worker_base.join("library.sqlite"),
+                    Preferences::open(Some(&format!(
+                        "localwave.files-rescan-all.{}",
+                        std::process::id()
+                    )))?,
+                    AppPaths {
+                        documents: worker_base.join("Documents"),
+                        caches: worker_base.join("Caches"),
+                        temporary: worker_base.join("tmp"),
+                        test_database: None,
+                    },
+                    crate::library::headless_table_styles(),
+                )
+            },
+            wake,
+            None,
+        )
+        .unwrap();
+        worker.request(Request::Roots).unwrap();
+        until(&mut worker, |snapshot| snapshot.account.is_some());
+        let user = worker.snapshot().account.unwrap();
+        for (index, folder) in folders.iter().enumerate() {
+            let (selection, _) = sdl3_sys::test_util::file_selection(folder).unwrap();
+            worker.add_folder_selected(user, selection).unwrap();
+            until(&mut worker, |snapshot| {
+                snapshot.catalog_revision == index as u64 + 1 && !snapshot.busy
+            });
+        }
+        let tagged = include_bytes!("../../../Tests/LocalWaveDataTests/Fixtures/tagged.flac");
+        for folder in &folders {
+            std::fs::write(folder.join("new.flac"), tagged).unwrap();
+        }
+        worker.request(Request::Roots).unwrap();
+        until(&mut worker, |snapshot| snapshot.directory.is_none());
+        worker.request(Request::RescanAll).unwrap();
+        until(&mut worker, |snapshot| {
+            snapshot.message == "All sources rescanned." && !snapshot.busy
+        });
+        assert!(worker.snapshot().directory.is_none());
+        let repository =
+            lw_core::LibraryRepository::open(base.join("library.sqlite").to_str().unwrap())
+                .unwrap();
+        let sources = repository.sources(user).unwrap();
+        assert_eq!(sources.len(), 2);
+        for source in &sources {
+            let id = source.id.unwrap();
+            assert!(repository.source_path(id, "new.flac").unwrap().is_some());
+        }
+        // identical files share one song row, so both imports ran into it
+        assert_eq!(repository.song_count("").unwrap(), 1);
+        assert!(sources[1].is_current);
     }
 
     #[test]

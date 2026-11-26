@@ -119,6 +119,8 @@ struct StoredRow {
 /// One source of the current account as the sidebar shows it; the count is Swift's `totalPaths`.
 #[derive(Clone)]
 pub struct SourceRow {
+    /// The source's root path id (its menu target).
+    pub root: i64,
     pub location: crate::files::Location,
     pub name: String,
     pub count: String,

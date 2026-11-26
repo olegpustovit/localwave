@@ -3037,12 +3037,14 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
     };
     std::sync::Arc::make_mut(&mut catalog.library).source_rows = vec![
         catalog::SourceRow {
+            root: 50,
             location: location(5),
             name: "iCloud Drive".into(),
             count: "34".into(),
             reconnect: false,
         },
         catalog::SourceRow {
+            root: 60,
             location: location(6),
             name: "Dropbox".into(),
             count: "6".into(),
@@ -3142,6 +3144,32 @@ fn sidebar_follows_swift_order_and_smart_lists_count_from_worker_snapshots() {
         run(&mut ui, &mut intent);
         assert_eq!(intent.take(), Some(expected), "{name}");
     }
+    // Swift's `LWSourceActions` on a sidebar source: a secondary click opens its menu (Rescan now).
+    let rect = ui
+        .a11y_nodes()
+        .iter()
+        .find(|n| ui.a11y_name_of(n) == "Dropbox")
+        .unwrap()
+        .rect;
+    let (x, y) = (f64::from(rect.x + 4.0), f64::from(rect.y + 4.0));
+    let press = [
+        pxui::Event::pointer(input::wire::POINTER_MOVED, 0, x, y),
+        pxui::Event::pointer(input::wire::POINTER_PRESSED, 1, x, y),
+        pxui::Event::pointer(input::wire::POINTER_RELEASED, 1, x, y),
+    ];
+    crate::testing::frame(&mut ui, &frame.events(&press), &mut |ui| {
+        shell(ui, &player, 0.0, &catalog, &state, &mut intent)
+    })
+    .unwrap();
+    let target = files::Target {
+        user: 1,
+        source: 6,
+        root: 60,
+    };
+    assert!(
+        matches!(intent.take(), Some(Intent::SourceMenu(value, _)) if value == target),
+        "source context menu"
+    );
     mem_sys::local_reset();
     for _ in 0..20 {
         run(&mut ui, &mut intent);
