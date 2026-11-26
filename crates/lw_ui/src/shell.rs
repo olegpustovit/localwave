@@ -896,7 +896,11 @@ pub fn shell(
     if state.commands_visible {
         commands::palette_view(ui, player, catalog, state, intent);
     } else if state.shortcuts_visible {
-        commands::shortcuts(ui, state.top_inset, intent);
+        commands::shortcuts(
+            ui,
+            state.top_inset.max(ui.environment().safe_area[0]),
+            intent,
+        );
     }
     // a later modal is the one on top: over the phone's full-screen player (a modal of the page) its queue sheet and track menu
     // come after the page
@@ -952,7 +956,12 @@ pub fn shell(
         *intent = Some(Intent::Setting(lw_core::preferences::Change::DidStart));
     }
     let root = if onboarding::wanted(catalog, state, player.settings.did_start) {
-        onboarding::view(ui, state.top_inset, player.demo, intent)
+        onboarding::view(
+            ui,
+            state.top_inset.max(ui.environment().safe_area[0]),
+            player.demo,
+            intent,
+        )
     } else if ui.view_size().width < compact::BREAKPOINT {
         state.song_window.set(None);
         compact::view(ui, player, position, catalog, state, intent)
