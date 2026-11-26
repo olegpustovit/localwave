@@ -47,6 +47,10 @@ fn progress_deadline(now: f64, repaint: Option<f64>, pending: Option<f64>) -> f6
         .min(repaint.unwrap_or(f64::INFINITY))
 }
 
+fn step_due(replay: bool, changed: bool, repaint_due: bool) -> bool {
+    !replay && !changed && repaint_due
+}
+
 struct Fixture(Option<std::path::PathBuf>);
 impl Drop for Fixture {
     fn drop(&mut self) {
@@ -85,6 +89,7 @@ pub(crate) struct App {
     encoded: pxui_host::Events,
     platform: pxui_host::Platform,
     first: bool,
+    intent_pending_build: bool,
     repaint: Option<f64>,
     progress_draw_at: Option<f64>,
     revision: u64,
@@ -341,6 +346,7 @@ pub(super) fn open(
         encoded,
         platform,
         first,
+        intent_pending_build: false,
         repaint,
         progress_draw_at: None,
         revision,
@@ -829,6 +835,7 @@ impl App {
             .is_some_and(|graphics| graphics.surface_changed(window));
         let replay = self.energy.as_ref().and_then(|e| e.replay_due(now));
         let changed = self.first
+            || self.intent_pending_build
             || self.perf.is_some()
             || soak_input
             || resized
@@ -839,7 +846,7 @@ impl App {
             || artwork_updated
             || preferences_changed;
         let repaint_due = self.repaint.is_some_and(|time| now >= time);
-        let step_due = replay.is_none() && !changed && repaint_due;
+        let step_due = step_due(replay.is_some(), changed, repaint_due);
         let step_cpu = (step_due && self.energy.as_ref().is_some_and(perf::energy::Run::measuring))
             .then(mem_sys::profile::thread_cpu_time_ns)
             .transpose()
@@ -869,12 +876,15 @@ impl App {
                 );
             }
             self.first = false;
+            self.intent_pending_build = false;
             self.progress_draw_at = None;
             let (intent, duration) = self.draw(window, now, &mut frame)?;
-            if let Some(intent) = intent
-                && let Some(schedule) = self.intent(intent, window, now, duration)?
-            {
-                return Ok(schedule);
+            if let Some(intent) = intent {
+                let schedule = self.intent(intent, window, now, duration)?;
+                self.intent_pending_build = true;
+                if let Some(schedule) = schedule {
+                    return Ok(schedule);
+                }
             }
             if let Some(p) = &mut self.perf
                 && let Some(schedule) = p.record(
@@ -1056,7 +1066,7 @@ impl App {
 
 #[cfg(test)]
 mod tests {
-    use super::progress_deadline;
+    use super::{progress_deadline, step_due};
 
     #[test]
     fn playback_updates_share_a_nearby_repaint_and_keep_the_earliest_cutoff() {
@@ -1064,5 +1074,15 @@ mod tests {
         assert_eq!(progress_deadline(1.02, Some(1.04), Some(1.03)), 1.03);
         assert_eq!(progress_deadline(1.0, Some(1.2), None), 1.05);
         assert_eq!(progress_deadline(1.0, Some(1.0), None), 1.0);
+    }
+
+    #[test]
+    fn an_applied_intent_requires_a_build_instead_of_a_pose_step() {
+        assert!(step_due(false, false, true), "unchanged animated views may step");
+        assert!(
+            !step_due(false, true, true),
+            "a state change after draw must be built before stepping"
+        );
+        assert!(!step_due(true, false, true), "replay frames always build");
     }
 }
