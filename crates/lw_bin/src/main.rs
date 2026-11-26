@@ -94,6 +94,13 @@ fn known_options(args: &[String]) -> Result<(), String> {
 }
 
 fn main() {
+    // SDL keeps an iOS window (never resizable there) in its launch orientation unless this hint lists
+    // more; SDL reads hints from the environment. Landscape launches otherwise drew into half the screen.
+    #[cfg(target_os = "ios")]
+    // SAFETY: first statement of main, before SDL starts UIKit or this process starts any thread.
+    unsafe {
+        std::env::set_var("SDL_IOS_ORIENTATIONS", "Portrait LandscapeLeft LandscapeRight");
+    }
     if let Err(error) = run() {
         eprintln!("LocalWave: {error}");
         std::process::exit(1);
