@@ -16,13 +16,10 @@ cp packaging/Info.plist "$app/Contents/Info.plist"
 # Store builds set MARKETING_VERSION / BUILD_NUMBER; development bundles keep the plist's values.
 if [ -n "${MARKETING_VERSION:-}" ]; then /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString $MARKETING_VERSION" "$app/Contents/Info.plist"; fi
 if [ -n "${BUILD_NUMBER:-}" ]; then /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" "$app/Contents/Info.plist"; fi
-# The macOS icon comes from the same 1024-point artwork as iOS.
+# The Swift Mac app's icon set: macOS-shaped artwork, already named the way iconutil expects.
 iconset=$(mktemp -d)/AppIcon.iconset
-mkdir -p "$iconset"
-for size in 16 32 128 256 512; do
-    sips -z $size $size localwave/Assets.xcassets/AppIcon.appiconset/AppIcon.png --out "$iconset/icon_${size}x${size}.png" >/dev/null
-    sips -z $((size * 2)) $((size * 2)) localwave/Assets.xcassets/AppIcon.appiconset/AppIcon.png --out "$iconset/icon_${size}x${size}@2x.png" >/dev/null
-done
+cp -R localwave/Assets.xcassets/MacAppIcon.appiconset "$iconset"
+rm "$iconset/Contents.json"
 iconutil -c icns "$iconset" -o "$app/Contents/Resources/AppIcon.icns"
 # Swift's bundled demo library (onboarding's "Try the demo library")
 cp -R localwave/DemoLibrary "$app/Contents/Resources/DemoLibrary"
