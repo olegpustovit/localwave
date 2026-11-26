@@ -1,16 +1,14 @@
-This build fixes the problems reported on the first Rust TestFlight build. Your songs, queue, playlists and settings stay where you left them.
+This build adds two fixes on top of the last one. Your songs, queue, playlists and settings stay where you left them.
 
 What changed:
-- Clicking a spot on the playback bar jumps straight there, with no brief jump back first.
-- Song lists no longer leave rows behind or half-drawn while you scroll.
-- Search (⌘K or the sidebar Search button) opens on the first click, and the result under the pointer is highlighted.
-- "Add folder or files" in the sidebar and "Choose a folder" / "Pick some files" at first launch open the picker again, on Mac and iPhone.
-- Folders added in the previous LocalWave version show up under Sources again.
-- Rescan is back: right-click a source in the sidebar and choose "Rescan now", or use Settings → "Rescan all sources" (it now really rescans every folder).
-- On iPhone, the first screen and the app no longer draw under the status bar and the Dynamic Island.
+- Rescan now clears the blue "failed" squares: right-click a source and choose "Rescan now", or use Settings → "Rescan all sources". Songs you keep offline are copied again.
+- Context menus have proper spacing, show unavailable items in grey and highlight the item under the pointer.
+
+Also in the last build:
+- Seeking on the playback bar, list scrolling, Search, "Add folder or files" / "Choose a folder", folders from the previous version, and the iPhone status bar area were fixed.
 
 Please check:
-- Your earlier folders appear under Sources, and rescanning one picks up new songs.
-- Seeking by clicking or dragging the playback bar, including right after Next or Previous.
-- Scrolling long lists quickly, up and down.
-- On iPhone: the top of every screen, in portrait and landscape.
+- Rescan a source that shows blue squares. They should clear; if one returns after you play that song, tell us which song.
+- Right-click songs and sidebar sources: menu spacing, greyed items and highlight.
+- Your earlier folders appear under Sources.
+- On iPhone: "Choose a folder" opens the picker, and the top of the screen is clear in portrait and landscape.
