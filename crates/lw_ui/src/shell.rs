@@ -276,6 +276,10 @@ impl ShellState {
         self.count_marks();
         self.selection_revision = self.selection_revision.wrapping_add(1);
     }
+    pub fn source_menu_open(&self) -> bool {
+        self.source_menu.is_some()
+    }
+
     pub fn files_visible(&self) -> bool {
         self.route == Route::Files && !self.settings_visible
     }

@@ -715,7 +715,8 @@ impl App {
                 });
             let _ = self.files.request(request);
         }
-        let files_changed = self.files.poll() && self.shell_state.files_visible();
+        let files_changed = self.files.poll()
+            && (self.shell_state.files_visible() || self.shell_state.source_menu_open());
         if self.files.snapshot().catalog_revision != self.files_catalog_revision
             && self.player.command(Command::RefreshCatalog).is_ok()
         {

@@ -238,6 +238,36 @@ impl LibraryRepository {
         Ok(sources)
     }
 
+    /// A signed-in account without folders takes over those of the only other account that owns any; only their
+    /// owner changes. Nothing moves to or from the signed-out account (`icloudId` -1) or with two or more owners.
+    pub fn adopt_orphaned_sources(&mut self, user: &User) -> Result<()> {
+        if user.icloud_id == -1 {
+            return Ok(());
+        }
+        // One transaction: a single owner other than `user` also means `user` has no folders.
+        self.db.transaction(|db| {
+            let mut owners = Vec::new();
+            db.query(
+                "SELECT DISTINCT s.userId,COALESCE(u.icloudId,-1) FROM sources s LEFT JOIN users u ON u.id=s.userId LIMIT 2",
+                &[],
+                &mut |row| {
+                    owners.push((required(row.integer(0)?)?, required(row.integer(1)?)?));
+                    Ok(())
+                },
+            )?;
+            if let [(prior, identity)] = owners[..]
+                && prior != user.id
+                && identity != -1
+            {
+                db.execute(
+                    "UPDATE sources SET userId=? WHERE userId=?",
+                    &[Integer(user.id), Integer(prior)],
+                )?;
+            }
+            Ok(())
+        })
+    }
+
     pub fn source(&self, id: i64) -> Result<Option<Source>> {
         source(&self.db, id)
     }

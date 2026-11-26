@@ -146,6 +146,14 @@ impl App {
                 .map(|_| "Folders are unavailable. Try again.");
             (*error_revision) += 1;
         }
+        // A sidebar menu can open before Files ever did; its rows need the worker's source list.
+        if matches!(intent, lw_ui::Intent::SourceMenu(..)) && files.snapshot().account.is_none() {
+            (*command_error) = files
+                .request(lw_ui::files::Request::Roots)
+                .err()
+                .map(|_| "Folders are unavailable. Try again.");
+            (*error_revision) += 1;
+        }
         if matches!(
             intent,
             lw_ui::Intent::Navigate(_)

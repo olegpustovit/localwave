@@ -10,7 +10,8 @@
 //! Never delete originals/cache files on source removal. Root replacement reparents indexed top-
 //! level rows atomically so the prior complete index stays browsable until rescan commits.
 //!
-//! Source ownership follows the same secure iCloud identity as the shipping Swift app.
+//! Source ownership follows the same secure iCloud identity as the shipping Swift app. At launch, a
+//! signed-in account that owns no folder adopts those of a single earlier signed-in identity.
 use super::{LibraryWorker, Root, check, db, hash, text};
 use lw_apple_sys::{
     bookmarks::{self, Access, FileSelection},
@@ -37,6 +38,13 @@ impl LibraryWorker {
         let encoded = lw_apple_sys::cloud::current_identity()?;
         let user = self.user_for_identity(encoded.as_deref())?;
         self.sources_for_user(user)
+    }
+
+    /// The account id hashes an opaque iCloud token; if its bytes change, the library keeps its songs but would
+    /// lose every folder. Launch only: removing the last folder must not pull in another account's.
+    pub fn adopt_upgraded_sources(&mut self) -> io::Result<()> {
+        let user = self.current_sources()?.user;
+        self.repository.adopt_orphaned_sources(&user).map_err(db)
     }
 
     fn sources_for_user(&mut self, user: User) -> io::Result<SourceAccount> {
@@ -465,6 +473,103 @@ mod tests {
         );
         assert_eq!(worker.repository.sources(user.id).unwrap(), [saved]);
         assert!(worker.repository.sources(other.id).unwrap().is_empty());
+    }
+
+    #[test]
+    fn an_upgraded_swift_library_lists_folders_saved_under_an_earlier_account_id() {
+        let base = std::env::temp_dir().join(format!("lw-source-upgrade-{}", std::process::id()));
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        std::fs::create_dir_all(&base).unwrap();
+        let _cleanup = Cleanup(base.clone());
+        // The tables SQLite.swift created, with two folders owned by an account id no current token hashes to.
+        let database = base.join("library.sqlite");
+        lw_sqlite::Connection::open(database.to_str().unwrap())
+            .unwrap()
+            .execute_batch(
+                r#"CREATE TABLE "users" ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "icloudId" INTEGER NOT NULL UNIQUE);
+                CREATE TABLE "sources" ("id" INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, "dirPath" TEXT NOT NULL, "pathId" INTEGER NOT NULL, "userId" INTEGER NOT NULL, "type" TEXT, "bookmark" BLOB, "totalPaths" INTEGER, "syncError" TEXT, "isCurrent" INTEGER NOT NULL, "createdAt" TEXT NOT NULL, "lastSyncedAt" TEXT, "updatedAt" TEXT);
+                INSERT INTO users VALUES (1,1234);
+                INSERT INTO sources VALUES (1,'file:///Music/One/',11,1,'iCloud',x'626f6f6b01',3,NULL,0,'2025-05-20T10:00:00.000',NULL,NULL);
+                INSERT INTO sources VALUES (2,'file:///Music/Two/',22,1,'iCloud',x'626f6f6b02',4,NULL,1,'2025-05-21T10:00:00.000',NULL,NULL);"#,
+            )
+            .unwrap();
+        let mut worker = LibraryWorker::open(
+            &database,
+            Preferences::open(Some(&format!(
+                "localwave.source-upgrade.{}",
+                std::process::id()
+            )))
+            .unwrap(),
+            AppPaths {
+                documents: base.join("Documents"),
+                caches: base.join("Caches"),
+                temporary: base.join("tmp"),
+                test_database: None,
+            },
+            crate::library::headless_table_styles(),
+        )
+        .unwrap();
+        let saved = worker.repository.sources(1).unwrap();
+        // Signed out takes nothing.
+        let local = worker.user_for_identity(None).unwrap();
+        worker.repository.adopt_orphaned_sources(&local).unwrap();
+        assert_eq!(worker.repository.sources(1).unwrap(), saved);
+        let user = worker.user_for_identity(Some("upgraded-token")).unwrap();
+        assert_ne!(user.id, 1);
+        worker.repository.adopt_orphaned_sources(&user).unwrap();
+        let account = worker.sources_for_user(user).unwrap();
+        let expected: Vec<Source> = saved
+            .into_iter()
+            .map(|source| Source {
+                user_id: account.user.id,
+                ..source
+            })
+            .collect();
+        assert_eq!(account.sources, expected, "only the owner changes");
+
+        // With two owners it is unknown whose folders these are, so a third account takes none.
+        let second = worker.user_for_identity(Some("second-token")).unwrap();
+        lw_sqlite::Connection::open(database.to_str().unwrap())
+            .unwrap()
+            .execute(
+                "UPDATE sources SET userId=? WHERE id=1",
+                &[lw_sqlite::Value::Integer(second.id)],
+            )
+            .unwrap();
+        let third = worker.user_for_identity(Some("third-token")).unwrap();
+        worker.repository.adopt_orphaned_sources(&third).unwrap();
+        assert!(
+            worker
+                .sources_for_user(third.clone())
+                .unwrap()
+                .sources
+                .is_empty()
+        );
+        let moved = Source {
+            user_id: second.id,
+            ..expected[0].clone()
+        };
+        assert_eq!(worker.repository.sources(second.id).unwrap(), [moved]);
+        assert_eq!(
+            worker.repository.sources(account.user.id).unwrap(),
+            expected[1..]
+        );
+
+        // A single owner that is the signed-out account keeps its folders.
+        lw_sqlite::Connection::open(database.to_str().unwrap())
+            .unwrap()
+            .execute(
+                "UPDATE sources SET userId=(SELECT id FROM users WHERE icloudId=-1)",
+                &[],
+            )
+            .unwrap();
+        worker.repository.adopt_orphaned_sources(&third).unwrap();
+        assert!(worker.sources_for_user(third).unwrap().sources.is_empty());
     }
 
     #[test]

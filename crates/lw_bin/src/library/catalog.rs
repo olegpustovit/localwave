@@ -67,6 +67,7 @@ fn load(repository: &LibraryRepository, count: usize, identity: i64) -> lw_sqlit
                 .unwrap_or_else(|| "Music folder".into());
             source_roots.insert(id, (source.path_id, name.clone()));
             library.source_rows.push(SourceRow {
+                root: source.path_id,
                 location: Location {
                     user: user.id,
                     source: id,

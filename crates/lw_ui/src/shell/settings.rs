@@ -377,7 +377,7 @@ pub(super) fn view(
         });
         setting_row(ui, &appearance, "Appearance", SettingsMenu::Appearance, intent);
         if ui.button("rescan", "Rescan all sources", &RESCAN).clicked {
-            *intent = Some(Intent::Files(crate::files::Request::Roots));
+            *intent = Some(Intent::Files(crate::files::Request::RescanAll));
         }
         ui.column(Node::column().w(Size::Grow).h(Size::Fit).gap(8.0).padding(Edges::new(16.0, 24.0, 16.0, 16.0)), |ui| {
             ui.label("LocalWave keeps folder bookmarks and caches songs as needed. Individually added files are copied; library data stays on this device.", PARAGRAPH_14.color(SECONDARY));
@@ -758,7 +758,7 @@ mod tests {
         let at = point(&ui, "Rescan all sources");
         assert_eq!(
             click(&mut ui, &state, &player, &mut frame, at, 0),
-            Some(Intent::Files(crate::files::Request::Roots))
+            Some(Intent::Files(crate::files::Request::RescanAll))
         );
         // The 8 GB segment sits beside its label, not under it.
         let label = ui
@@ -812,7 +812,7 @@ mod tests {
         let at = point(&ui, "Rescan all sources");
         assert_eq!(
             click(&mut ui, &state, &player, &mut frame, at, 0),
-            Some(Intent::Files(crate::files::Request::Roots))
+            Some(Intent::Files(crate::files::Request::RescanAll))
         );
     }
 }

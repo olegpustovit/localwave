@@ -73,6 +73,8 @@ impl Worker {
         let setup = || -> io::Result<Self> {
             let mut library = factory()?;
             let settings = library.load_settings();
+            // Before the first catalog, so an upgraded library's folders are listed without opening Files.
+            library.adopt_upgraded_sources()?;
             let catalog = library.catalog()?;
             // with its remap from the presented (empty) catalog, like every later delivery
             shared.publish_catalog(&catalog);
