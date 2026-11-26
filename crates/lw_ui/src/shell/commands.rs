@@ -194,7 +194,7 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
     ui.style(
         &c.row,
         &PALETTE_ROW,
-        State::default().checked(c.current != 0),
+        State::from(c.state),
     );
     let art = c.art();
     if let Some(pxui::PickArt::Image(_)) = art {
@@ -283,7 +283,9 @@ pub(crate) fn row_body(ui: &mut Ui, c: &pxui::bodies::PickerConfig) {
 }
 
 /// A palette row: the selected fill on the keyboard's row.
-const PALETTE_ROW: pxui::theme::States = pxui::theme::States::of(Look::NONE).checked(SELECTED_FILL);
+const PALETTE_ROW: pxui::theme::States = pxui::theme::States::of(Look::NONE)
+    .hover(SELECTED_FILL)
+    .checked(SELECTED_FILL);
 /// A palette group heading: secondary 12 points (`FOOTNOTE`).
 const PALETTE_HEADING: pxui::theme::States =
     pxui::theme::States::of(text_look(FOOTNOTE).font(Font::BODY.size(12.0)));
@@ -877,9 +879,20 @@ mod tests {
             frame(&mut ui, &catalog, &mut state, &mut time, &open),
             Some(Intent::ShowCommands)
         );
-        for _ in 0..4 {
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
+        assert!(ui.a11y_nodes().iter().any(|n| {
+            n.role == Role::Dialog as u32 && ui.a11y_name_of(n) == "Search and commands"
+        }), "the palette is drawn on the first frame after opening, without more input");
+        for _ in 0..3 {
             assert_eq!(frame(&mut ui, &catalog, &mut state, &mut time, &[]), None);
         }
+        assert!(
+            PALETTE_ROW
+                .pick(State::default().hovered(true))
+                .fill
+                == SELECTED_FILL.fill,
+            "pointer hover selects the palette row fill"
+        );
         assert!(ui.text_input_focused());
         assert_eq!(ui.text_traits(), pxui::TextTraits::SEARCH);
         let field = ui
@@ -1016,6 +1029,7 @@ mod tests {
         state.apply(Intent::CloseCommands);
         frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         state.apply(Intent::ShowCommands);
+        frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         for _ in 0..3 {
             frame(&mut ui, &catalog, &mut state, &mut time, &[]);
         }
