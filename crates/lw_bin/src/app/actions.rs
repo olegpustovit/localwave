@@ -32,6 +32,8 @@ impl App {
         now: f64,
         seek_duration: f64,
     ) -> Result<Option<Schedule>, String> {
+        // Every caller: an intent changes state, so the next frame builds instead of stepping poses.
+        self.intent_pending_build = true;
         let Self {
             player,
             files,

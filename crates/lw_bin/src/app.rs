@@ -879,12 +879,10 @@ impl App {
             self.intent_pending_build = false;
             self.progress_draw_at = None;
             let (intent, duration) = self.draw(window, now, &mut frame)?;
-            if let Some(intent) = intent {
-                let schedule = self.intent(intent, window, now, duration)?;
-                self.intent_pending_build = true;
-                if let Some(schedule) = schedule {
-                    return Ok(schedule);
-                }
+            if let Some(intent) = intent
+                && let Some(schedule) = self.intent(intent, window, now, duration)?
+            {
+                return Ok(schedule);
             }
             if let Some(p) = &mut self.perf
                 && let Some(schedule) = p.record(
