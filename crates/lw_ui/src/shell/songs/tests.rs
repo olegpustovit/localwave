@@ -1228,6 +1228,77 @@ fn track_menu_follows_swift_order_enablement_submenu_and_right_click_without_all
         on[6] = false;
         on
     });
+    // The labels sit 12 points inside the panel and the first row clears its top edge.
+    let play = ui
+        .a11y_nodes()
+        .iter()
+        .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == "Play")
+        .unwrap()
+        .rect;
+    let label = ui
+        .layers()
+        .flat_map(|layer| layer.instances.iter())
+        .map(|instance| instance.rect)
+        .filter(|r| {
+            r[2] - r[0] < 20.0
+                && r[0] >= play.x
+                && r[0] < play.x + 60.0
+                && r[1] >= play.y
+                && r[3] <= play.y + play.h
+        })
+        .map(|r| r[0])
+        .fold(f32::MAX, f32::min);
+    assert!(
+        (11.0..15.0).contains(&(label - play.x)),
+        "menu label inset {}",
+        label - play.x
+    );
+    // A disabled row reads grey, and the row under the pointer takes the selected fill.
+    let row = |ui: &Ui, name: &str| {
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| node.is_role(Role::MenuItem) && ui.a11y_name_of(node) == name)
+            .unwrap()
+            .rect
+    };
+    let ink = |ui: &Ui, name: &str| {
+        let row = row(ui, name);
+        ui.layers()
+            .flat_map(|layer| layer.instances.iter())
+            .find(|i| {
+                i.rect[2] - i.rect[0] < 20.0
+                    && i.rect[0] >= row.x
+                    && i.rect[0] < row.x + 60.0
+                    && i.rect[1] >= row.y
+                    && i.rect[3] <= row.y + row.h
+            })
+            .map(|i| i.color)
+            .unwrap()
+    };
+    assert_ne!(ink(&ui, "Show in Finder"), ink(&ui, "Play"), "disabled ink");
+    let next = row(&ui, "Play next");
+    let filled = |ui: &Ui| {
+        ui.layers()
+            .flat_map(|layer| layer.instances.iter())
+            .any(|i| i.color == [0xD3, 0xD3, 0xD3, 255] && i.rect[1] == next.y)
+    };
+    assert!(!filled(&ui));
+    let (events, wire) = (
+        [pxui::Event::pointer(
+            input::wire::POINTER_MOVED,
+            0,
+            f64::from(next.x + 20.0),
+            f64::from(next.y + 18.0),
+        )],
+        frame.wire,
+    );
+    let mut hover = FrameIn::new(1440.0, 872.0)
+        .reduced_motion(true)
+        .events(&events);
+    hover.wire.time = wire.time;
+    run(&mut ui, &state, &mut hover, &mut intent);
+    run(&mut ui, &state, &mut frame, &mut intent);
+    assert!(filled(&ui), "hover fill");
     let routes = catalog.byline_routes(1).unwrap();
     for (label, want) in [
         ("Play", Intent::PlayRow(0)),

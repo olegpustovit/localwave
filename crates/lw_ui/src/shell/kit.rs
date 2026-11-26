@@ -417,26 +417,39 @@ pub(super) const MENU_CHOICE: u16 = 2;
 pub(crate) fn menu_row_body(ui: &mut Ui, c: &pxui::bodies::MenuRowConfig) {
     let state = State::from(c.state);
     let (enabled, selected) = (!state.disabled, state.checked);
+    // A row's own text ignores layout padding, so the label is a child inside the padded row.
     ui.set_node_layout(
         &c.row,
         &Node::column().w(Size::Grow).h_px(c.row_h).pad_x(12.0),
     );
-    let ink = if c.danger != 0 { DANGER } else { INK };
-    if c.variant == 0 {
-        let look = MENU_ROW.text(Rgba::token(ink));
-        ui.style(
-            &c.row,
-            &pxui::theme::States::of(look),
-            State::default().disabled(!enabled),
-        );
+    // Disabled rows read grey; the checked row and the one under the pointer take the selected fill.
+    let base = match (c.variant, selected) {
+        (0, _) => Look::NONE,
+        (_, true) => super::theme::SELECTED_FILL,
+        _ => super::theme::PAPER_FILL,
+    };
+    // The disabled state also reaches accessibility on the plain (variant 0) rows.
+    ui.style(
+        &c.row,
+        &pxui::theme::States::of(base).hover(super::theme::SELECTED_FILL),
+        State::default()
+            .disabled(c.variant == 0 && !enabled)
+            .hovered(enabled && state.hovered),
+    );
+    let ink = Rgba::token(if !enabled {
+        SECONDARY
+    } else if c.danger != 0 {
+        DANGER
     } else {
-        let fill = Rgba::token(if selected { SELECTED } else { PAPER });
-        let look = MENU_ROW
-            .fill(fill)
-            .text(Rgba::token(if enabled { ink } else { SECONDARY }));
-        ui.style(&c.row, &pxui::theme::States::of(look), State::default());
-    }
-    ui.text(&c.row, c.text_of(&c.text));
+        INK
+    });
+    let label = ui.node("label", Node::column().w(Size::Grow).h(Size::Grow));
+    ui.style(
+        &label,
+        &pxui::theme::States::of(MENU_ROW.text(ink)),
+        State::default(),
+    );
+    ui.text(&label, c.text_of(&c.text));
     use pxui::A11yStates;
     match c.variant {
         MENU_PANEL => ui.set_role(
