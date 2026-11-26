@@ -53,6 +53,9 @@ impl Worker {
         if envelope.command.interrupts() {
             self.intent = false;
         }
+        if envelope.command.changes_item() {
+            self.seek = None;
+        }
         let mut structural = false;
         let action = match envelope.command {
             command @ (Command::Select { .. }
@@ -161,13 +164,16 @@ impl Worker {
             Command::Stop => {
                 self.session.stop();
                 self.advance = None;
-                self.seek = None;
                 Action::Stop
             }
             Command::Next => self.session.next_song(),
             Command::Previous => self.session.previous(),
             Command::Seek(seconds) => {
-                self.seek = Some(seconds.max(0.0));
+                self.seek = self
+                    .session
+                    .queue()
+                    .current()
+                    .map(|entry| (entry.id, seconds.max(0.0)));
                 Action::None
             }
             Command::Repeat(mode) => {
@@ -194,7 +200,6 @@ impl Worker {
                 self.saved.context_data = context_data;
                 self.undo = None;
                 self.advance = None;
-                self.seek = None;
                 self.message = self.empty.clone();
                 *structural = true;
                 self.session

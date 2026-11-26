@@ -374,6 +374,167 @@ fn a_pending_seek_publishes_its_target_through_stale_native_readings() {
     assert_eq!(read(6, 61.0, false), 61.0, "the player reports again");
 }
 #[test]
+fn a_pending_seek_does_not_carry_over_to_the_next_item() {
+    // How the item changes under a queued seek: a Next command, a gapless repeat of the same
+    // entry, and an engine that empties while the next entry is still on its way.
+    for change in ["seek-next", "seek-repeat", "seek-emptied"] {
+        let emptied = change == "seek-emptied";
+        let shared = shared();
+        shared.preparation.store(1, Ordering::SeqCst);
+        shared.inbox.lock().unwrap().native.volume = 1.0;
+        let _running = running(&shared, change);
+        let deadline = std::time::Instant::now() + Duration::from_secs(1);
+        let send = |revision, command| {
+            shared.inbox.lock().unwrap().commands.push_back(Envelope {
+                audio_notice: None,
+                revision,
+                preparation: 1,
+                command,
+            });
+            shared.changed.notify_one();
+        };
+        let position = |revision| loop {
+            let status = shared.inbox.lock().unwrap().status.clone();
+            if status.processed_command >= revision {
+                break status.position;
+            }
+            assert!(std::time::Instant::now() < deadline, "{change} {revision}");
+            std::thread::yield_now();
+        };
+        let deliver = |native: Snapshot, result: Option<bool>| {
+            let mut inbox = shared.inbox.lock().unwrap();
+            inbox.native = native;
+            inbox.dirty = true;
+            inbox.ack = result.map(|done| Ack {
+                result: Ok(done),
+                snapshot: native,
+            });
+            drop(inbox);
+            shared.changed.notify_one();
+        };
+        if change == "seek-repeat" {
+            send(1, Command::Repeat(lw_core::queue::RepeatMode::One));
+        }
+        let songs: &[i64] = if change == "seek-repeat" {
+            &[1]
+        } else {
+            &[1, 2]
+        };
+        send(
+            2,
+            Command::Configure {
+                songs: Arc::from(songs),
+                start: 0,
+                autoplay: false,
+                context: None,
+            },
+        );
+        let mut native = shared.inbox.lock().unwrap().native;
+        let mut tickets = Vec::new();
+        // Repeat One queues two more copies of the entry.
+        for slot in 0..if change == "seek-repeat" { 3 } else { 2 } {
+            let Operation::Install { ticket, item, .. } = next_output(&shared, deadline).operation
+            else {
+                panic!("current and upcoming install first");
+            };
+            drop(item);
+            tickets.push(ticket);
+            if slot == 0 {
+                native.generation = ticket.generation;
+                native.token = ticket.token;
+                native.occurrence = ticket.entry.id;
+                native.duration = 100.0;
+                native.position = 10.0;
+                native.status = 1;
+            } else if emptied {
+                break; // left unacknowledged: it keeps the seek queued
+            }
+            native.queued[slot] = ticket.token;
+            deliver(native, Some(true));
+        }
+        if !emptied {
+            send(3, Command::Volume(0.5));
+            assert!(matches!(
+                next_output(&shared, deadline).operation,
+                Operation::Volume(_)
+            ));
+        }
+        send(4, Command::Seek(60.0));
+        assert_eq!(position(4), 60.0);
+        let next = Snapshot {
+            token: tickets[1].token,
+            occurrence: tickets[1].entry.id,
+            queued: [tickets[1].token, tickets.get(2).map_or(0, |t| t.token), 0],
+            position: 3.0,
+            ..native
+        };
+        match change {
+            "seek-next" => {
+                send(5, Command::Next);
+                assert_eq!(position(5), 10.0, "the target is dropped at once");
+                native.volume = 0.5;
+                deliver(native, Some(true));
+                assert!(matches!(
+                    next_output(&shared, deadline).operation,
+                    Operation::Advance { .. }
+                ));
+                native = Snapshot {
+                    volume: 0.5,
+                    ..next
+                };
+                deliver(native, Some(true));
+            }
+            "seek-repeat" => {
+                deliver(next, None);
+                native = Snapshot {
+                    volume: 0.5,
+                    ..next
+                };
+                deliver(native, Some(true));
+            }
+            _ => {
+                native.token = 0;
+                native.queued = [0; 3];
+                deliver(native, None);
+                send(5, Command::DismissNotice);
+                assert_ne!(position(5), 60.0);
+                deliver(native, Some(false)); // the empty engine refuses the append
+                let Operation::Install { item, .. } = next_output(&shared, deadline).operation
+                else {
+                    panic!("{change}: the next entry installs before any control");
+                };
+                drop(item);
+                native = next;
+                deliver(native, Some(true));
+            }
+        }
+        send(6, Command::DismissNotice);
+        assert_eq!(position(6), 3.0, "{change}");
+        // A seek still queued would be sent ahead of the second volume change.
+        for (revision, volume) in [(7, 0.25), (8, 0.75)] {
+            send(revision, Command::Volume(volume));
+            loop {
+                match next_output(&shared, deadline).operation {
+                    Operation::Volume(value) => native.volume = value,
+                    Operation::Seek(seconds) => panic!("{change}: sought {seconds} on a new item"),
+                    Operation::Install { ticket, item, .. } => {
+                        drop(item);
+                        *native.queued.iter_mut().find(|token| **token == 0).unwrap() =
+                            ticket.token;
+                    }
+                    Operation::Trim { keep, .. } => native.queued[keep + 1..].fill(0),
+                    _ => {}
+                }
+                deliver(native, Some(true));
+                if native.volume == volume {
+                    break;
+                }
+            }
+        }
+        assert_eq!(position(8), 3.0, "{change}");
+    }
+}
+#[test]
 fn continuous_volume_and_seek_delivery_alternates_with_current_and_upcoming_preparation() {
     let shared = shared();
     shared.preparation.store(1, Ordering::SeqCst);

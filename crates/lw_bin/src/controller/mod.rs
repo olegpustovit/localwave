@@ -12,7 +12,8 @@
 //!
 //! A seek's target is the published position from the command until the player reports it: held here
 //! until the worker has processed the command, by the worker while the operation is queued or
-//! unacknowledged, and by the native snapshot until AVFoundation's completion.
+//! unacknowledged, and by the native snapshot until AVFoundation's completion. A seek belongs to the
+//! item it was made on: item-changing commands and any queue or gapless advance drop it.
 //!
 //! Preserve logical queue selection while native advance awaits acknowledgement. Coalesce
 //! volume/seek without cancelling preparation; queue changes fence operations/preparation. Browse
@@ -180,6 +181,7 @@ impl Controller {
             .checked_add(1)
             .ok_or_else(|| io::Error::other("Playback command identity exhausted"))?;
         let interrupts = command.interrupts();
+        let changes_item = command.changes_item();
         let seek = match command {
             Command::Seek(seconds) => Some((revision, seconds)),
             _ => None,
@@ -236,6 +238,9 @@ impl Controller {
         }
         if interrupts {
             self.native.pause();
+        }
+        if changes_item {
+            self.seek = None;
         }
         if seek.is_some() {
             // The host redraws right after a command: show the target before the worker answers.

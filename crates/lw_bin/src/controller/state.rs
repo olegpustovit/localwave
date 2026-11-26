@@ -46,6 +46,10 @@ impl Worker {
     pub(super) fn observe(&mut self, snapshot: Snapshot) {
         let previous = self.native;
         self.native = snapshot;
+        // A gapless advance, a repeat of the same entry included, leaves the seek's item behind.
+        if previous.token != 0 && snapshot.token != 0 && previous.token != snapshot.token {
+            self.seek = None;
+        }
         if snapshot.token != 0 {
             if let Some(ticket) = self
                 .leases
@@ -273,7 +277,7 @@ impl Worker {
             message: self.message.clone(),
         };
         // Readings taken before the player applied a seek must not replace its target.
-        if let Some(seconds) = self.seek.or(match self.pending {
+        if let Some(seconds) = self.queued_seek().or(match self.pending {
             Some(Pending::Seek(seconds)) => Some(seconds),
             _ => None,
         }) {
