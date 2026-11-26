@@ -19,9 +19,13 @@ pub(super) const LIBRARY_EMPTY: &str =
     "Your music starts with a folder. Add music in Folders to build your library.";
 pub(super) const FIND_HINT: &str = "Search spans every source, including folders that are not in an album. Add a word like flac or cloud to filter.";
 
+/// Shorter windows (a phone in landscape) scroll the page.
+const SHORT: f32 = 640.0;
+
 pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<Intent>) -> Handle {
-    let pxui::ViewSize { width, .. } = ui.view_size();
-    let column = (width - 32.0).max(1.0);
+    let pxui::ViewSize { width, height } = ui.view_size();
+    let [_, safe_right, safe_bottom, safe_left] = ui.environment().safe_area;
+    let column = (width - 32.0 - safe_left - safe_right).max(1.0);
     let root = container(
         ui,
         "onboarding",
@@ -37,19 +41,39 @@ pub(super) fn view(ui: &mut Ui, top_inset: f32, demo: bool, intent: &mut Option<
     ui.within(&root, &mut |ui| {
         ui.view_of(
             "onboarding-page",
-            &(column.to_bits(), top_inset.to_bits(), drive, demo),
+            &(
+                column.to_bits(),
+                height.to_bits(),
+                top_inset.to_bits(),
+                safe_left.to_bits(),
+                safe_right.to_bits(),
+                safe_bottom.to_bits(),
+                drive,
+                demo,
+            ),
             |ui| {
-                ui.column(
-                    Node::column()
-                        .w(Size::Grow)
-                        .h(Size::Grow)
-                        .padding(Edges::new(16.0, 16.0 + top_inset, 16.0, 34.0)),
-                    |ui| {
+                let padding = Edges::new(
+                    16.0 + safe_left,
+                    16.0 + top_inset,
+                    16.0 + safe_right,
+                    34.0f32.max(safe_bottom),
+                );
+                let mut body = |ui: &mut Ui, node: Node| {
+                    ui.column(node.padding(padding), |ui| {
                         if page(ui, width < compact::BREAKPOINT, drive, demo, intent) {
                             ui.set_state(&root, i64::from(!drive));
                         }
-                    },
-                );
+                    });
+                };
+                // A phone in landscape is shorter than the page: it scrolls there, at least window-tall so the flex
+                // spacer still drops the keys to the bottom. Taller windows keep the plain page.
+                if height < SHORT {
+                    ui.scroll_view("scroll", Node::DEFAULT.w(Size::Grow).h(Size::Grow), |ui| {
+                        body(ui, Node::column().w(Size::Grow).h(Size::Fit).min_h(height));
+                    });
+                } else {
+                    body(ui, Node::column().w(Size::Grow).h(Size::Grow));
+                }
             },
         );
     });

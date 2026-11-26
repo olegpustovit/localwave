@@ -99,7 +99,7 @@ fn main() {
     #[cfg(target_os = "ios")]
     // SAFETY: first statement of main, before SDL starts UIKit or this process starts any thread.
     unsafe {
-        std::env::set_var("SDL_IOS_ORIENTATIONS", "Portrait LandscapeLeft LandscapeRight");
+        std::env::set_var("SDL_ORIENTATIONS", "Portrait LandscapeLeft LandscapeRight");
     }
     if let Err(error) = run() {
         eprintln!("LocalWave: {error}");

@@ -2822,3 +2822,61 @@ fn scrolled_song_rows_keep_their_cells_and_are_all_repainted() {
     }
     assert!(checked > 500, "the scroll moved rows: {checked}");
 }
+
+#[test]
+fn onboarding_keeps_its_keys_at_the_bottom_in_portrait_and_scrolls_clear_of_landscape_safe_areas() {
+    let mut empty = titled(0);
+    std::sync::Arc::make_mut(&mut empty.library).set_source_count(0);
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    let state = ShellState::default();
+    let player = PlayerView::default();
+    let frame = |ui: &mut Ui, (w, h): (f32, f32), safe: [f32; 4], events: &[pxui::Event]| {
+        for cycle in 0..3 {
+            crate::testing::frame(
+                ui,
+                &FrameIn::new(w, h)
+                    .time(f64::from(cycle) * 0.02)
+                    .environment(pxui::Environment::new(safe))
+                    .reduced_motion(true)
+                    .events(if cycle == 0 { events } else { &[] }),
+                &mut |ui| shell(ui, &player, 0.0, &empty, &state, &mut None),
+            )
+            .unwrap();
+        }
+    };
+    let rect = |ui: &Ui, name: &str| {
+        ui.a11y_nodes()
+            .iter()
+            .find(|node| ui.a11y_name_of(node) == name)
+            .unwrap_or_else(|| panic!("{name}"))
+            .rect
+    };
+    // iPhone 16 Pro portrait: the page fits, so its flex keeps the keys where they were.
+    frame(&mut ui, (402.0, 874.0), [59.0, 0.0, 34.0, 0.0], &[]);
+    let choose = rect(&ui, "Choose a folder");
+    assert_eq!(
+        (choose.x, choose.y, choose.w, choose.h),
+        (16.0, 686.50006, 370.0, 52.0),
+        "the portrait page is unchanged"
+    );
+    // Landscape with the sensor housing on the left: clear of it and of the home indicator, and scrollable.
+    frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &[]);
+    let counter = rect(&ui, "0 songs so far");
+    assert!(counter.x >= 62.0 + 16.0, "clear of the sensor housing: {counter:?}");
+    let choose = rect(&ui, "Choose a folder");
+    assert!(choose.x >= 62.0 + 16.0 && choose.x + choose.w <= 874.0 - 62.0 - 16.0 + 0.5, "{choose:?}");
+    assert!(choose.y > 402.0, "below the landscape window until scrolled: {choose:?}");
+    for _ in 0..60 {
+        let wheel = [
+            pxui::Event::pointer(pxui::Event::POINTER_MOVED, 0, 437.0, 200.0),
+            pxui::Event::pointer(pxui::Event::SCROLLED, 0, 0.0, -10.0),
+        ];
+        frame(&mut ui, (874.0, 402.0), [0.0, 62.0, 21.0, 62.0], &wheel);
+    }
+    let choose = rect(&ui, "Choose a folder");
+    assert!(
+        choose.y >= 0.0 && choose.y + choose.h <= 402.0 - 21.0,
+        "scrolling brings the keys above the home indicator: {choose:?}"
+    );
+}
