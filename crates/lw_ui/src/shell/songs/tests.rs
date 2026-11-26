@@ -2618,3 +2618,136 @@ fn arrow_selection_past_the_bottom_edge_scrolls_by_one_row_without_warm_allocati
         "row 0 visible after ArrowUp"
     );
 }
+
+/// The host repaints only the frame's damage, so it must cover every row a scroll moved: a row left out keeps its old text on
+/// screen while its separately damaged On-device mark follows the scroll.
+#[test]
+fn scrolled_song_rows_keep_their_cells_and_are_all_repainted() {
+    let mut catalog = crate::tests::prepared(
+        (0..120)
+            .map(|id| lw_core::Song {
+                id: Some(id),
+                title: format!("Track {id:03}"),
+                source_availability: Some(if id % 9 == 3 {
+                    lw_core::FileAvailability::InCloud
+                } else {
+                    lw_core::FileAvailability::OnDevice
+                }),
+                ..Default::default()
+            })
+            .collect(),
+    );
+    // a sidebar list, as in the report: the songs list keeps its rows between frames
+    catalog.add_collection(
+        "On this device now",
+        (0..120).collect(),
+        lw_core::context::PlaybackContext::Automatic("Offline".into()),
+    );
+    catalog.prepare_tables(&crate::test_table_styles()).unwrap();
+    let mut state = ShellState::default();
+    state.apply(Intent::Navigate(Route::Collection(
+        catalog.collections.len() - 1,
+    )));
+    let player = PlayerView {
+        initialized: true,
+        playing: true,
+        current_id: Some(12),
+        duration: 200.0,
+        ..PlayerView::default()
+    };
+    let mut ui = crate::test_ui(Platform::Apple, Some(15), &[crate::FONT, crate::MONO]);
+    ui.set_a11y(true);
+    // as in the app: unchanged views are kept, not rebuilt to check them
+    ui.verify_views(false);
+    let mut time = 0.0;
+    let mut frame = |ui: &mut Ui, scroll: f64| {
+        time += 1.0 / 60.0;
+        let events = [
+            pxui::Event::pointer(input::wire::POINTER_MOVED, 0, 650.0, 400.0),
+            pxui::Event::pointer(input::wire::SCROLLED, 0, 0.0, scroll),
+        ];
+        let input = FrameIn::new(1440.0, 872.0)
+            .scale(2.0)
+            .time(time)
+            .reduced_motion(true)
+            .events(&events[..]);
+        crate::testing::frame(ui, &input, &mut |ui| {
+            shell(ui, &player, 0.0, &catalog, &state, &mut None)
+        })
+        .unwrap();
+        let damage = ui.damage_list();
+        for layer in 0..ui.layer_count() {
+            ui.drawn(layer);
+        }
+        damage
+    };
+    for _ in 0..3 {
+        frame(&mut ui, 0.0);
+    }
+    let mut last = [f32::NAN; 120];
+    let mut checked = 0;
+    // fractional and multi-row deltas, both ways
+    for (step, scroll) in [
+        -0.3, -0.7, -2.5, -9.0, -23.0, -0.45, -4.0, 6.5, -17.0, 31.0, -0.1,
+    ]
+    .into_iter()
+    .cycle()
+    .take(66)
+    .enumerate()
+    {
+        let damage = frame(&mut ui, scroll);
+        let covered = |x: f32, y: f32| {
+            damage.full != 0
+                || damage.rects[..usize::from(damage.count)]
+                    .iter()
+                    .any(|&[l, t, w, h]| x >= l && x <= l + w && y >= t && y <= t + h)
+        };
+        let nodes = ui.a11y_nodes();
+        for row in nodes.iter().filter(|node| node.is_role(Role::ListItem)) {
+            let name = ui.a11y_name_of(row);
+            let Some(id) = name
+                .strip_prefix("Track ")
+                .and_then(|n| n.parse::<usize>().ok())
+            else {
+                continue;
+            };
+            // rows wholly between the pinned heading and the transport bar
+            if row.rect.y < 200.0 || row.rect.y + row.rect.h > 760.0 {
+                continue;
+            }
+            let number = (id + 1).to_string();
+            // the playing row shows the equalizer where its number was
+            let cells = [(name, 9.2), (number.as_str(), 10.2)];
+            for &(cell, y) in &cells[..if id == 12 { 1 } else { 2 }] {
+                let label = nodes
+                    .iter()
+                    .find(|node| {
+                        node.is_role(Role::Label)
+                            && node.rect.x >= row.rect.x
+                            && ui.a11y_name_of(node) == cell
+                    })
+                    .unwrap_or_else(|| panic!("step {step}: row {name} lost its cell {cell}"));
+                assert!(
+                    (label.rect.y - row.rect.y - y).abs() < 0.01,
+                    "step {step}: {cell} strays from row {name}: {:?} in {:?}",
+                    label.rect,
+                    row.rect
+                );
+                if last[id] != row.rect.y {
+                    assert!(
+                        covered(label.rect.x + 1.0, label.rect.y + label.rect.h * 0.5),
+                        "step {step} (scroll {scroll}): row {name} moved {} -> {} but its cell {cell} is not repainted: {:?} full={} {:?}",
+                        last[id],
+                        row.rect.y,
+                        label.rect,
+                        damage.full,
+                        &damage.rects[..usize::from(damage.count)]
+                    );
+                    checked += 1;
+                }
+            }
+            last[id] = row.rect.y;
+        }
+    }
+    assert!(checked > 500, "the scroll moved rows: {checked}");
+}
